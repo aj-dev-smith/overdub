@@ -1,0 +1,16 @@
+# Overdub
+
+> Overdub (Overdub Studio) is a web DAW where a musician and their AI agents play over each other: the human lays down a take (hums, taps, plays or says it) and agents play over it as notes, parameters and device code (never opaque audio). Every take is signed by who made it, measured, and undoable. Zero dependencies. The studio is live at https://overdub.ajsmithhq.com/app/ (the in-app agent with your own key, or a keyless demo agent). Outside agents over MCP drive a copy served locally at http://localhost:3279/app/; the code is at https://github.com/aj-dev-smith/overdub (MIT), and the hosted claude.ai connector isn't switched on yet.
+
+Agents drive the studio through a small set of task-shaped tools (read the song and the selection, apply ops, render and measure, perceptual adjustments, A/B variations, questions, writing DSP devices as kernels, share links), the same set over MCP and for the in-app agent.
+
+## Docs
+
+- [Overdub for agents](/docs/AGENTS.md): connecting (Claude Code over MCP: `claude mcp add overdub -- node <repo>/server/mcp.js`; it starts the server and opens the studio tab if needed), the rules of the room, every tool, the ops, the notes and drum-grid formats
+- [Writing devices](/docs/DEVICES.md): kernels, the dsp stdlib, the device check
+- [Architecture](/docs/ARCHITECTURE.md): the song document, ops, the store, the engine, the contracts
+- [UX research](/docs/UX-RESEARCH.md): why the studio and its agents behave the way they do
+
+## Optional
+
+- [Brand](/docs/BRAND.md): the voice (the engineer behind the glass: what was recorded, what changed, the number), colour (warm = a person, cool = an agent), the Weave, motion

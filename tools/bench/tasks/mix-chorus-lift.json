@@ -1,0 +1,18 @@
+{
+  "id": "mix-chorus-lift",
+  "family": "mix",
+  "title": "Make the chorus lift",
+  "instruction": "Right now the chorus (bars 5-8) is the verse again. Make it lift: 1.5 to 3 LU louder than the verse and audibly wider. Don't touch the verse, and keep true peaks under -0.5 dBTP.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "lift", "label": "Chorus loudness minus verse loudness", "kind": "measure", "metric": "lufs", "unit": "LU",
+      "scope": { "section": "Chorus" }, "minus": { "scope": { "section": "Verse" } }, "target": [1.5, 3], "soft": 1.5, "weight": 3 },
+    { "id": "wider", "label": "Chorus side/mid minus verse side/mid", "kind": "measure", "metric": "sideDb", "unit": "dB",
+      "scope": { "section": "Chorus" }, "minus": { "scope": { "section": "Verse" } }, "target": [1, null], "soft": 1, "weight": 2 },
+    { "id": "verse", "label": "Verse loudness vs before", "kind": "measure", "metric": "lufs", "unit": "LU", "relative": true,
+      "scope": { "section": "Verse" }, "target": [-0.5, 0.5], "soft": 1.5, "gate": true },
+    { "id": "peaks", "label": "True peak of the mix", "kind": "measure", "metric": "truePeak", "unit": "dBTP",
+      "scope": {}, "target": [null, -0.5], "soft": 1.5, "gate": true }
+  ]
+}

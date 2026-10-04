@@ -1,0 +1,16 @@
+{
+  "id": "mix-master-loudness",
+  "family": "mix",
+  "title": "Master it loud",
+  "instruction": "The mix is too quiet. Master it loud: -11 LUFS integrated (within 1 LU) with true peaks no higher than -1 dBTP, and don't squash it: the crest factor may drop by 6 dB at most.",
+  "song": "songs/night-shift.json",
+  "setup": [{ "type": "master.set", "patch": { "gain": -8 } }],
+  "checks": [
+    { "id": "lufs", "label": "Integrated loudness of the song", "kind": "measure", "metric": "lufs", "unit": "LUFS",
+      "scope": {}, "target": [-12, -10], "soft": 3, "weight": 1 },
+    { "id": "peak", "label": "True peak of the song", "kind": "measure", "metric": "truePeak", "unit": "dBTP",
+      "scope": {}, "target": [null, -1], "soft": 1.5, "gate": true },
+    { "id": "crest", "label": "Crest factor vs before", "kind": "measure", "metric": "crest", "unit": "dB", "relative": true,
+      "scope": {}, "target": [-6, null], "soft": 3, "gate": true }
+  ]
+}

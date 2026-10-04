@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Overdub Studio: play over each other</title>
+<meta name="description" content="Overdub is a music studio in your browser for you and your AI agents. Hum it, tap it, play it or say it. Your agent plays over it, builds the instruments and effects the song needs, and signs every take.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overdub Studio">
+<meta property="og:title" content="Overdub: play over each other">
+<meta property="og:description" content="A music studio for you and your agents. You lay down a take; your agent plays over it; every take is signed, warm for you, cool for it.">
+<meta property="og:image" content="/site/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Overdub Weave: a warm orange strand (you) and a cool blue strand (your agent) crossing over each other, beside the words Play over each other.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Overdub: play over each other">
+<meta name="twitter:description" content="A music studio for you and your agents. You lay down a take; your agent plays over it.">
+<meta name="twitter:image" content="/site/assets/og.png">
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<style>
+/* Under a finger: the pedals' footswitches and the footer links reach 40 px to the touch; what's drawn stays its size. */
+@media (pointer: coarse), (max-width: 640px) {
+  .face-foot { position: relative; }
+  .face-foot::before { content: ''; position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; transform: translate(-50%, -50%); border-radius: 50%; }  /* 52: the small faces are drawn at zoom .8 */
+  .foot p a { display: inline-block; padding: 10px 0; margin: -10px 0; }
+}
+</style>
+<link rel="modulepreload" href="/site/assets/weave.js">
+<script type="module" src="/site/assets/main.js"></script>
+<script type="module" src="/site/assets/analytics.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the story</a>
+
+<header class="top">
+  <a class="brand" href="/" aria-label="Overdub home"><img class="brand-mark" src="/site/assets/logo.svg" alt="" width="40" height="40"><img class="brand-word" src="/site/assets/wordmark.svg" alt="overdub" width="150" height="24"></a>
+  <nav class="top-nav" aria-label="Site">
+    <a class="top-more" href="/site/docs/guide.html">Guide</a>
+    <a class="top-more" href="/site/docs/agents.html">For agents</a>
+    <a class="top-more" href="/site/press/">Press</a>
+    <a class="top-cta" href="/app/">Open the studio</a>
+  </nav>
+</header>
+
+<main id="main">
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-head">
+    <h1 id="hero-title" class="hero-title over"><span class="over-a">Play over each&nbsp;other.</span><span class="over-b" aria-hidden="true">Play over each&nbsp;other.</span></h1>
+  </div>
+  <figure class="hero-art">
+    <canvas id="weave" aria-hidden="true"></canvas>
+    <figcaption class="legend">
+      <span class="key key--human">You: played, a little loose</span>
+      <span class="key key--agent">Your agent, over you: exact</span>
+      <span class="readout" id="readout" aria-live="polite"></span>
+    </figcaption>
+    <p class="sr-only">An animation of the Overdub mark, playing: a strip of tape runs past a green record head. A wobbly orange strand (you) and a steady blue strand (your agent) are written side by side and cross over each other, taking turns on top.</p>
+  </figure>
+  <div class="hero-copy">
+    <p class="lede">Overdub is a music studio for you and your agents. You lay down a take: hum it, tap it, play it or say it. Your agent plays over it, you play over that, and every take is signed: warm for you, cool for your agent.</p>
+    <div class="credits">
+      <p class="credits-head">Night Shift, 92 bpm</p>
+      <ul class="credits-list" aria-label="Who played what on Night Shift, the song the studio opens with">
+        <li><span>Drums, bass, keys, hook</span></li>
+        <li><span>Fireflies</span><i aria-hidden="true"></i><span class="by by-agent">Claude</span></li>
+        <li><span>Night Bus and Tidal Cathedral</span><i aria-hidden="true"></i><span class="by by-agent">Claude</span></li>
+        <li><span>Guitar, take one</span><i aria-hidden="true"></i><span class="by by-human">you</span></li>
+      </ul>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn--primary" href="/app/">Open the studio</a>
+      <button class="btn btn--quiet" type="button" id="hum" aria-pressed="false">
+        <svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+        <span data-label>Hum into it</span>
+      </button>
+    </div>
+    <p class="fine" id="hum-note">The mic turns on only when you press the button, and nothing leaves your device.</p>
+  </div>
+</section>
+
+<div class="tape" aria-hidden="true"><span class="splice">Take 2</span></div>
+
+<section class="studio" aria-labelledby="studio-title">
+  <div class="wrap">
+    <h2 id="studio-title" class="sec-title">This is the studio, running.</h2>
+    <p class="section-lede">Every picture here is a screenshot of Overdub as it runs today, open on Night Shift, the first of the twelve songs it ships with. It runs in your browser, on a computer or a phone, with nothing to install.</p>
+    <figure class="shot shot--main">
+      <div class="shot-frame shot-frame--film" data-video-slot>
+        <video class="demo-film" width="1280" height="720" autoplay muted loop playsinline preload="metadata" poster="/site/assets/overdub-demo-poster.webp" aria-label="A 30-second film of the studio: Night Shift plays; then, in a new song, a beat is tapped in on the pads over the click, two passes layered into the Drums lane; a band of piano and bass is built around the beat and plays it back as a song; the demo agent offers three takes on the band's bass and one is kept; and History shows your edits in warm orange and the agent's in cool blue.">
+          <source src="/site/assets/overdub-demo.mp4" type="video/mp4">
+        </video>
+        <picture class="demo-still">
+          <source type="image/webp" srcset="/site/assets/studio-960.webp 960w, /site/assets/studio.webp 1440w" sizes="(max-width: 1180px) 100vw, 1100px">
+          <img src="/site/assets/studio.webp" width="1440" height="900" alt="The Overdub studio: an arranger with six tracks of Night Shift, the Guitar's effect chain in the Devices tab ending on Tidal Cathedral with a Claude badge, and the agent panel asking which kind of warmer you mean" loading="lazy" decoding="async">
+        </picture>
+        <button class="sound-toggle film-pause" type="button" aria-pressed="false" aria-label="Pause the film" hidden>
+          <svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><path class="pp-pause" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/><path class="pp-play" d="M7 4.5l12 7.5-12 7.5z"/></svg>
+          <span data-label>Pause</span>
+        </button>
+        <button class="sound-toggle" type="button" aria-pressed="false" hidden>
+          <svg class="snd" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="snd-on" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/><path class="snd-off" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+          <span>Sound</span>
+        </button>
+      </div>
+      <script>
+        // The film plays muted and loops, with Pause and Sound over it; reduced motion gets the still instead (CSS), and no autoplay or download.
+        (function () {
+          var slot = document.currentScript.previousElementSibling, v = slot.querySelector('video'), btn = slot.querySelector('.sound-toggle:not(.film-pause)'), pz = slot.querySelector('.film-pause');
+          var mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+          if (mq.matches) { v.removeAttribute('autoplay'); v.preload = 'none'; v.pause(); return; }
+          var heard = false, held = false;   // held: the visitor paused it, so scrolling back doesn't restart it
+          function hold(h) {
+            held = h;
+            if (h) v.pause(); else if (v.paused) v.play().catch(function () {});
+            pz.setAttribute('aria-pressed', String(h));
+            pz.setAttribute('aria-label', h ? 'Play the film' : 'Pause the film');
+            pz.querySelector('[data-label]').textContent = h ? 'Play' : 'Pause';
+          }
+          btn.hidden = false; pz.hidden = false;
+          pz.addEventListener('click', function () { hold(!held); });
+          btn.addEventListener('click', function () {
+            var on = v.muted;
+            v.muted = !on;
+            if (on && !heard) { heard = true; v.currentTime = 0; }   // the first time, from the top, so the song starts with the play button
+            if (on && held) hold(false);
+            else if (on && v.paused) v.play().catch(function () {});
+            btn.setAttribute('aria-pressed', String(on));
+          });
+          // only play while it's on screen
+          if ('IntersectionObserver' in window) new IntersectionObserver(function (es) {
+            if (es[0].isIntersecting) { if (v.paused && !held) v.play().catch(function () {}); } else if (!v.paused) v.pause();
+          }, { threshold: 0.25 }).observe(v);
+        })();
+      </script>
+      <figcaption>Thirty seconds of Overdub as it runs today: Night Shift plays, then a beat is tapped into a new song over the click, two passes layered in the Drums lane, the Band button builds chords and bass around it and plays it back as a song, the demo agent plays three takes over the bass and you keep one, and History signs every edit.</figcaption>
+    </figure>
+    <div class="shot-row">
+      <figure class="shot">
+        <div class="shot-frame"><picture><source type="image/webp" srcset="/site/assets/rack-960.webp 960w, /site/assets/rack.webp 1440w" sizes="(max-width: 900px) 100vw, 680px"><img src="/site/assets/rack.webp" width="1440" height="262" alt="The rack close up: a chorus pedal, an amp, and Tidal Cathedral, an agent-built effect with real knobs and a by Claude badge" loading="lazy" decoding="async"></picture></div>
+        <figcaption>Tidal Cathedral is an effect an agent wrote as code. The studio checked it, then gave it a face with real knobs.</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="shot-frame"><picture><source type="image/webp" srcset="/site/assets/sketch-960.webp 960w, /site/assets/sketch.webp 1052w" sizes="(max-width: 900px) 100vw, 680px"><img src="/site/assets/sketch.webp" width="1052" height="470" alt="The Sketch tab: the pitch spiral following a hum, and the notes A3, C4 and E4 written onto a small piano roll" loading="lazy" decoding="async"></picture></div>
+        <figcaption>The Sketch tab following a hummed A3, C4, E4 (a test recording) and writing the notes down.</figcaption>
+      </figure>
+      <figure class="shot shot--tall">
+        <div class="shot-frame"><picture><img src="/site/assets/history.webp" width="400" height="640" alt="The History tab: edits by You in warm orange and by Claude in cool blue, each with what changed and why, and a button to revert all of Claude's changes while keeping yours" loading="lazy" decoding="async"></picture></div>
+        <figcaption>History after a few edits: yours in warm, Claude’s in cool, each with the reason it gave.</figcaption>
+      </figure>
+    </div>
+    <div class="studio-cta">
+      <a class="btn btn--primary btn--big" href="/app/">Open the studio</a>
+      <p class="fine">Free, in your browser. The demo agent runs without a key; bring your own Claude key for the real thing. New here? <a href="/site/docs/guide.html">The guide</a> takes five minutes.</p>
+    </div>
+  </div>
+</section>
+
+<section class="gap" aria-labelledby="gap-title">
+  <div class="wrap">
+    <h2 id="gap-title" class="sec-title">What a musician says, and what the DAW needs.</h2>
+    <div class="phrasebook" role="table" aria-label="What musicians say, and what a DAW needs to hear">
+      <div class="pb-head" role="row"><span role="columnheader">What the musician says</span><span role="columnheader">What the DAW needs</span></div>
+      <div class="pb-row" role="row"><q role="cell">Make it warmer.</q><code role="cell">lowpass 2.4 kHz, drive +3 dB</code></div>
+      <div class="pb-row" role="row"><q role="cell">The bit that goes da-da-DUM.</q><code role="cell">E4 ⅛, E4 ⅛, G4 ¼ accent</code></div>
+      <div class="pb-row" role="row"><q role="cell">Like a heartbeat, but sad.</q><code role="cell">kick x..x...., 68 bpm, D minor</code></div>
+      <div class="pb-row" role="row"><q role="cell">Can the guitar be wetter?</q><code role="cell">reverb mix 35%, predelay 20 ms</code></div>
+    </div>
+    <p class="pb-note">“Warmer” means something a little different to everyone who says it. Your agent asks which one you mean, and always shows the exact change it made.</p>
+    <div class="gap-story">
+      <p>Somebody has to translate. For years that has been Overdub’s maker, AJ Smith, a musician and computer scientist: the friend who hears an idea and turns it into notes, plugins and knob positions. It is slow, and good ideas fade on the way.</p>
+      <p>Overdub puts an agent in that chair. You keep your hands on the song, and the agent plays on it, in your words and the DAW’s numbers.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ways" aria-labelledby="ways-title">
+  <div class="wrap">
+    <h2 id="ways-title" class="sec-title">Four ways to lay down take one.</h2>
+    <p class="section-lede">Overdub records first and tidies later. Everything you hum, tap or play is kept in the Takes list, so the idea you hum at 2 a.m. is still there in the morning.</p>
+    <div class="arr">
+    <div class="arr-ruler" aria-hidden="true"><span class="arr-corner">4 tracks</span><span class="arr-bars"><span class="num">1</span><span class="num">2</span><span class="num">3</span><span class="num">4</span></span></div>
+    <ol class="lanes" aria-label="Four tracks, one per way in">
+      <li class="lane" style="--lane: var(--c-1)">
+        <div class="lane-head"><span class="lane-n num" aria-hidden="true">01</span><h3>Hum it</h3><p>Sing the riff. Pitch tracking writes the notes, and the agent fits them to the key if you ask.</p></div>
+        <div class="lane-clip" aria-hidden="true">
+          <span class="clip-label"><b>Hummed riff</b><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><path class="c-human" d="M6 58 C20 60 24 46 34 47 S52 49 60 40 S78 33 86 36 S100 39 108 30 S120 18 132 22 S150 27 160 24 S174 34 186 36 S204 38 214 30 S232 24 246 26 S262 30 274 28 S296 27 314 27"/><g class="c-note"><rect x="8" y="44" width="40" height="7"/><rect x="56" y="34" width="44" height="7"/><rect x="106" y="21" width="52" height="7"/><rect x="164" y="31" width="44" height="7"/><rect x="214" y="24" width="98" height="7"/></g></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--c-3)">
+        <div class="lane-head"><span class="lane-n num" aria-hidden="true">02</span><h3>Tap it</h3><p>Drum on the desk, the pads or the F J K L keys. Your groove lands on the grid, swing and all.</p></div>
+        <div class="lane-clip" aria-hidden="true">
+          <span class="clip-label"><b>Beat</b><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><g class="c-tick">
+            <rect x="15" y="10" width="2" height="22"/><rect x="58" y="10" width="2" height="22"/><rect x="95" y="10" width="2" height="22"/><rect x="134" y="10" width="2" height="22"/><rect x="179" y="10" width="2" height="22"/><rect x="216" y="10" width="2" height="22"/><rect x="259" y="10" width="2" height="22"/><rect x="294" y="10" width="2" height="22"/></g>
+            <g class="c-note"><rect x="10" y="40" width="14" height="14"/><rect x="50" y="58" width="14" height="14" opacity=".55"/><rect x="90" y="40" width="14" height="14"/><rect x="130" y="58" width="14" height="14"/><rect x="170" y="40" width="14" height="14"/><rect x="210" y="58" width="14" height="14" opacity=".55"/><rect x="250" y="40" width="14" height="14"/><rect x="290" y="58" width="14" height="14"/></g></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--c-5)">
+        <div class="lane-head"><span class="lane-n num" aria-hidden="true">03</span><h3>Play it</h3><p>Plug in a guitar or a MIDI keyboard, or play the computer keys. The Guitar Studio’s pedals and amps come with it.</p></div>
+        <div class="lane-clip" aria-hidden="true">
+          <span class="clip-label"><b>Guitar, take 1</b><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><path class="c-wave" d="M4 40 L10 22 L14 58 L19 16 L24 64 L29 26 L34 52 L40 32 L46 47 L52 37 L58 43 L64 40 L80 40 L84 14 L88 66 L92 20 L97 60 L102 28 L108 52 L114 34 L120 46 L128 38 L136 42 L150 40 L156 18 L160 62 L165 24 L170 56 L176 30 L182 50 L190 36 L198 44 L206 40 L220 40 L224 10 L228 70 L233 18 L238 62 L244 26 L250 54 L257 33 L264 47 L272 37 L282 43 L296 40 L316 40"/></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--c-6)">
+        <div class="lane-head"><span class="lane-n num" aria-hidden="true">04</span><h3>Say it</h3><p>“Darker.” “Half-time in the bridge.” “Make the chorus lift.” Words are best at steering something that’s already there. The agent makes the change and shows you exactly what it did.</p></div>
+        <div class="lane-clip lane-clip--text" aria-hidden="true">
+          <span class="clip-label"><b>Chorus</b><span class="by by-agent">Claude</span></span>
+          <span class="say-human">make the chorus lift</span>
+          <code class="say-agent">section.set Chorus +2 bars<br>notes.add pad, an octave up<br>insert.set drums open hat</code>
+        </div>
+      </li>
+    </ol>
+    </div>
+  </div>
+</section>
+
+<section class="rec" aria-labelledby="rec-title">
+  <div class="wrap">
+    <h2 id="rec-title" class="sec-title">Press R and the take goes into the song.</h2>
+    <p class="section-lede">Select a track and press <kbd>R</kbd>. The bar before the start marker plays with the click while a numeral over the track counts 4 3 2 1, then whatever you play, tap or hum lands on that track at the bars where you played it. <kbd>Space</kbd> stops and keeps the take; <kbd>⌘Z</kbd> takes it back out.</p>
+    <div class="arr arr--rec">
+    <div class="arr-ruler" aria-hidden="true"><span class="arr-corner">Marker on bar 5, loop on 5 and 6</span><span class="arr-bars"><span class="num">4</span><span class="num"><b class="marker">5</b></span><span class="num">6</span><span class="num">7</span><i class="arr-loop"></i></span></div>
+    <ol class="lanes" aria-label="A take recorded into the song: the count-in, then two tracks">
+      <li class="lane" style="--lane: var(--text-3)">
+        <div class="lane-head lane-head--plain"><h3>Count in, then watch the ball</h3><p>One bar of count-in, two, or none (<kbd>⇧K</kbd>). Beside the position a square lands on each beat as you hear it, so you can see the next one coming with the sound off. It goes red while you record.</p></div>
+        <div class="beats" aria-hidden="true"><span class="bt is-count"><b>4</b></span><span class="bt is-count"><b>3</b></span><span class="bt is-count"><b>2</b></span><span class="bt is-count"><b>1</b></span><span class="bt is-bar"></span><span class="bt"></span><span class="bt is-ball"></span><span class="bt"></span><span class="bt is-bar"></span><span class="bt"></span><span class="bt"></span><span class="bt"></span><span class="bt is-bar"></span><span class="bt"></span><span class="bt"></span><span class="bt"></span></div>
+      </li>
+      <li class="lane" style="--lane: var(--c-3)">
+        <div class="lane-head lane-head--plain"><h3>Drums, round the loop</h3><p>The loop is the punch range. On a drum track each pass layers into one clip: kick and snare the first time round, hats the second, every hit where you played it.</p></div>
+        <div class="lane-clip lane-clip--span" style="--from: 1; --to: 3" aria-hidden="true">
+          <span class="clip-label"><b>Drums</b><span class="clip-meta">2 passes</span><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><g class="c-grid"><rect x="40" y="4" width="1" height="72"/><rect x="80" y="4" width="1" height="72"/><rect x="120" y="4" width="1" height="72"/><rect x="159.5" y="4" width="1.5" height="72"/><rect x="200" y="4" width="1" height="72"/><rect x="240" y="4" width="1" height="72"/><rect x="280" y="4" width="1" height="72"/></g>
+            <g class="c-note c-pass"><rect x="1" y="8" width="6" height="10"/><rect x="21" y="8" width="6" height="10"/><rect x="42" y="8" width="6" height="10"/><rect x="60" y="8" width="6" height="10"/><rect x="82" y="8" width="6" height="10"/><rect x="101" y="8" width="6" height="10"/><rect x="122" y="8" width="6" height="10"/><rect x="139" y="8" width="6" height="10"/><rect x="162" y="8" width="6" height="10"/><rect x="181" y="8" width="6" height="10"/><rect x="201" y="8" width="6" height="10"/><rect x="223" y="8" width="6" height="10"/><rect x="241" y="8" width="6" height="10"/><rect x="262" y="8" width="6" height="10"/><rect x="280" y="8" width="6" height="10"/><rect x="301" y="8" width="6" height="10"/></g>
+            <g class="c-note"><rect x="42" y="32" width="9" height="13"/><rect x="122" y="32" width="9" height="13"/><rect x="203" y="32" width="9" height="13"/><rect x="281" y="32" width="9" height="13"/><rect x="2" y="56" width="11" height="15"/><rect x="99" y="56" width="11" height="15"/><rect x="162" y="56" width="11" height="15"/><rect x="258" y="56" width="11" height="15"/></g></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--c-5)">
+        <div class="lane-head lane-head--plain"><h3>Keys, take after take</h3><p>On keys, a hum or a guitar, each pass is a new take in one folder, and <kbd>⌘↑</kbd> <kbd>⌘↓</kbd> pick the one that plays. What was there before is muted under the take, on those bars and nowhere else.</p></div>
+        <div class="lane-clip lane-clip--span" style="--from: 1; --to: 3" aria-hidden="true">
+          <span class="clip-label"><b>Keys</b><span class="clip-meta">3 takes</span><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><g class="c-note c-out"><rect x="4" y="16" width="72" height="8"/><rect x="4" y="30" width="72" height="8"/><rect x="5" y="46" width="71" height="8"/><rect x="82" y="22" width="34" height="8"/><rect x="83" y="36" width="33" height="8"/><rect x="82" y="52" width="74" height="8"/><rect x="121" y="12" width="35" height="8"/><rect x="163" y="18" width="150" height="8"/><rect x="162" y="32" width="151" height="8"/><rect x="164" y="48" width="149" height="8"/></g></svg>
+        </div>
+      </li>
+    </ol>
+    </div>
+    <ul class="sheet" aria-label="More about recording">
+      <li><span class="sheet-k"><kbd>R</kbd></span><p>With the song already playing, <kbd>R</kbd> waits for the next bar line and counts the beats left in this one. Tempo, meter and the loop wait until the take stops.</p></li>
+      <li><span class="sheet-k">Takes</span><p>Played something without recording? It’s in Sketch’s Takes list, and <b>Put it in the song</b> (<kbd>⇧R</kbd> for the newest) places it at the beats where you played it if the song was running, or at the marker.</p></li>
+      <li><span class="sheet-k">Sketch</span><p>Its record strip shows a beat ruler with each tap where it lands, and switches each pass between <b>Layer</b> and <b>New take</b>, per track.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="build" aria-labelledby="build-title">
+  <div class="wrap build-grid">
+    <div class="build-copy">
+      <h2 id="build-title" class="sec-title">Describe a sound and your agent writes the device.</h2>
+      <p>Ask for an instrument or an effect that doesn’t exist yet. The agent writes it as a small piece of audio code. The studio checks it before you hear it: it has to compile, never output NaN, stay under control at the ends of its knobs and never leave a note stuck, and its loudness is measured against what went in. Then it gets a face with real knobs, and it’s yours.</p>
+      <div class="chat" aria-label="An example conversation">
+        <p class="msg msg--human"><span class="msg-who by by-human">You</span><span class="msg-text">Build me a pedal that makes my guitar sound like it’s underwater in a cathedral.</span></p>
+        <p class="msg msg--agent"><span class="msg-who by by-agent">Agent</span><span class="msg-text">Cathedral Below is on the board. A slow pitch wobble for the water, a lowpass that sinks as you turn MURK, two stone rooms you blend with NAVE.</span></p>
+        <p class="msg msg--step" aria-label="What the agent did"><span class="msg-who"></span><span class="msg-text"><code><span>wrote</span>Cathedral Below, 4 knobs</code><code><span>checked</span>compiles, no runaway levels</code><code><span>measured</span>within 1 LU of the dry guitar</code><code><span>rendered</span>twice, the same both times</code></span></p>
+      </div>
+    </div>
+    <div class="build-device">
+      <div class="pedal-stage" id="pedal"></div>
+    </div>
+  </div>
+</section>
+
+<section class="ears" aria-labelledby="ears-title">
+  <div class="wrap ears-grid">
+    <div class="ears-copy">
+      <h2 id="ears-title" class="sec-title">An agent can’t hear your mix, so the studio measures it.</h2>
+      <p>Overdub renders the mix offline, through the same signal path you hear, and measures it: loudness, peaks, spectrum, key. The agent checks its own work before it asks for your ears, then tells you what it found the way an engineer would: louder than your reference, a bit thick in the low mids.</p>
+      <p>This is how the Guitar Studio’s presets were leveled: every one within a decibel of −14 LUFS (leads sit a touch hotter), true peak at or below −1 dBFS.</p>
+    </div>
+    <div class="meter" id="meter" aria-live="off">
+      <p class="meter-hint" data-hint>Play Cathedral Below above, and this is what an agent sees.</p>
+      <dl class="meter-nums">
+        <div><dt>Loudness, momentary</dt><dd><span data-lufs>&ndash;</span> <small>LUFS</small></dd></div>
+        <div><dt>Peak</dt><dd><span data-peak>&ndash;</span> <small>dBFS</small></dd></div>
+        <div><dt>Brightness</dt><dd><span data-centroid>&ndash;</span> <small>Hz</small></dd></div>
+        <div><dt>Pedal</dt><dd><span data-state>not playing</span></dd></div>
+      </dl>
+      <div class="bands" data-bands aria-label="Energy per band, relative to the total">
+        <span style="--h:.1"><i></i><b>sub</b></span><span style="--h:.1"><i></i><b>low</b></span><span style="--h:.1"><i></i><b>lo-mid</b></span><span style="--h:.1"><i></i><b>mid</b></span><span style="--h:.1"><i></i><b>hi-mid</b></span><span style="--h:.1"><i></i><b>presence</b></span><span style="--h:.1"><i></i><b>air</b></span>
+      </div>
+      <pre class="meter-json" aria-label="The same numbers as a tool result"><code data-json>render_and_measure: waiting for sound</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="signed" aria-labelledby="signed-title">
+  <div class="wrap">
+    <h2 id="signed-title" class="sec-title">Every take is signed.</h2>
+    <p class="section-lede">Warm is you and cool is your agent. Every note, clip and knob turn records who made it and why, so you can see what changed and take back the agent’s last idea without losing yours. Ask for options and you get two to four takes to audition side by side.</p>
+    <div class="signed-grid" id="signed">
+      <div class="roll" data-roll></div>
+      <div class="history">
+        <ol class="h-list" data-history aria-live="polite"></ol>
+        <button class="btn btn--agent" type="button" data-undo>Undo Claude’s last change</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="auto" aria-labelledby="auto-title">
+  <div class="wrap">
+    <h2 id="auto-title" class="sec-title">Draw the fade, or record the knob as you turn it.</h2>
+    <p class="section-lede">Any knob, fader or pan can move over the song. Its moves live in a lane under its track, and the lanes play the same in the studio, in an export and in the render an agent measures.</p>
+    <div class="arr arr--auto">
+    <div class="arr-ruler" aria-hidden="true"><span class="arr-corner">Pad and its lanes</span><span class="arr-bars"><span class="num">1</span><span class="num">2</span><span class="num">3</span><span class="num">4</span></span></div>
+    <ol class="lanes" aria-label="A track and two automation lanes under it">
+      <li class="lane" style="--lane: var(--c-6)">
+        <div class="lane-head lane-head--plain"><h3>Draw it</h3><p><kbd>E</kbd> opens a track’s lanes: Level, Pan or any knob. Click to add a point and drag it, or select some bars and pick a shape: Ramp up, Ramp down, Swell, Dip, Hold here or Pulse.</p></div>
+        <div class="lane-clip" aria-hidden="true">
+          <span class="clip-label"><b>Pad</b><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><g class="c-note c-out"><rect x="3" y="20" width="75" height="8"/><rect x="3" y="34" width="75" height="8"/><rect x="3" y="50" width="75" height="8"/><rect x="83" y="16" width="75" height="8"/><rect x="83" y="30" width="75" height="8"/><rect x="83" y="50" width="75" height="8"/><rect x="163" y="24" width="75" height="8"/><rect x="163" y="38" width="75" height="8"/><rect x="163" y="54" width="75" height="8"/><rect x="243" y="20" width="74" height="8"/><rect x="243" y="34" width="74" height="8"/><rect x="243" y="50" width="74" height="8"/></g></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--text-3)">
+        <div class="lane-head lane-head--plain"><h3>Ask for it</h3><p>“Fade the pad in over bars 1–4” is one call. The agent writes the lane, then renders and measures the bars at each end, and corrects it once if the level moved the wrong way.</p></div>
+        <div class="lane-clip lane-clip--auto" aria-hidden="true">
+          <span class="clip-label"><b>Level, fade in</b><span class="by by-agent">Claude</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><path class="c-agent" d="M4 70 L316 14"/><g class="c-pt"><rect x="1" y="67" width="6" height="6"/><rect x="313" y="11" width="6" height="6"/></g></svg>
+        </div>
+      </li>
+      <li class="lane" style="--lane: var(--text-3)">
+        <div class="lane-head lane-head--plain"><h3>Record it</h3><p>Press <kbd>R</kbd> and turn a knob: what your hand does goes into its lane from where you touched it to where you let go, then the lane takes over again with a 200 ms glide.</p></div>
+        <div class="lane-clip lane-clip--auto" aria-hidden="true">
+          <span class="clip-label"><b>Keyhole cutoff</b><span class="by by-human">you</span></span>
+          <svg viewBox="0 0 320 80" preserveAspectRatio="none"><path class="c-lane" d="M2 60 L84 60 M236 60 L318 60"/><path class="c-human" d="M84 60 C98 58 104 44 116 40 S136 26 150 30 S170 20 184 22 S208 32 222 26 L236 60"/></svg>
+        </div>
+      </li>
+    </ol>
+    </div>
+    <ul class="sheet" aria-label="More about automation">
+      <li><span class="sheet-k">auto</span><p>A knob with a lane turns by itself and says so. Turn it yourself and it says <i>held</i> until you give it <b>Back to the lane</b>.</p></li>
+      <li><span class="sheet-k">Just playing</span><p>Turn a knob while the song just plays and it stays where you left it. The toast says what moved, over which bars, and offers <b>Write it into the lane</b>, as if you had recorded it.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="stops" aria-labelledby="stops-title">
+  <div class="wrap">
+    <h2 id="stops-title" class="sec-title">Stop one part, or every sound at once.</h2>
+    <p class="section-lede">The start marker keeps you on the bars you’re working on, and anything that sounds can be stopped from the keyboard.</p>
+    <ul class="sheet sheet--keys" aria-label="The keys that start and stop">
+      <li><span class="sheet-k"><kbd>Space</kbd></span><p>Plays from the start marker and stops back on it, so you can pick bar 4 and work a part bar by bar. <kbd>⇧Space</kbd> plays on from where it stopped; <kbd>Home</kbd> puts the marker back on bar 1.</p><span class="sheet-n"></span></li>
+      <li><span class="sheet-k"><kbd>0</kbd></span><p>Mutes the selected clips, even while the song plays. A muted clip is printed in outline with its name struck through, and it plays nowhere: not in the song, an export or a render. <b>Trim to the loop</b> cuts a long take down to the loop’s bars.</p><span class="sheet-n"></span></li>
+      <li><span class="sheet-k"><kbd>⇧Esc</kbd></span><p><b>All off</b>, from anywhere, even a text field: every note, reverb and delay tail, preview and click, whoever started it.</p><span class="sheet-n">−90&nbsp;dBFS within 50&nbsp;ms</span></li>
+      <li><span class="sheet-k">Stop</span><p>Lets every note go, the ones already on their way to an instrument too. Reverbs and delays ring on for 2 seconds, as on a desk, then fade. With the loop off, the song stops by itself a bar after its last note.</p><span class="sheet-n">every demo song: −60&nbsp;dBFS 3.5&nbsp;s after Stop</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="open" aria-labelledby="open-title">
+  <div class="wrap">
+    <h2 id="open-title" class="sec-title">Open all the way down.</h2>
+    <div class="open-grid">
+      <article class="open-item">
+        <h3>The song is a document.</h3>
+        <p>One JSON file holds the whole song. The buttons, the agent in the studio and agents outside it all change it the same way: small typed edits you can read, undo and replay.</p>
+<pre><code>{ "kind": "notes", "by": "you",
+  "notes": "A3@0:1 C4@1:1 E4@2:2" }</code></pre>
+      </article>
+      <article class="open-item">
+        <h3>Bring your own agent.</h3>
+        <p>Overdub speaks MCP. Claude Code, Claude Desktop or anything else that speaks it gets the same tools as the agent in the studio: open your song, edit it, render it and measure it, while you watch it happen. For now that needs a copy of the studio running on your own computer, and the code isn’t public yet.</p>
+<ul class="tools" aria-label="Some of the agent's tools"><li><code>get_project</code></li><li><code>apply_ops</code></li><li><code>render_and_measure</code></li><li><code>define_device</code></li><li><code>propose_variations</code></li><li><code>get_capture</code></li><li><code>highlight</code></li><li><code>play</code></li><li><code>undo</code></li></ul>
+      </article>
+      <article class="open-item">
+        <h3>Devices are code.</h3>
+        <p>Instruments and effects are small DSP kernels that run in the audio thread with no clock and seeded randomness. Same input, same output, every time. That rule is for determinism; it is not a security sandbox. Faces are drawn from their knobs, so nobody writes UI to make a pedal.</p>
+<pre><code>process(L, R, n, p) {
+  for (let i = 0; i &lt; n; i++)
+    L[i] = lp.lp(L[i]);
+}</code></pre>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="reel" aria-labelledby="reel-title">
+  <div class="wrap">
+    <h2 id="reel-title" class="sec-title">Since the last session.</h2>
+    <p class="section-lede">What went on the reel lately. All of it is in the studio now, and all of it is signed.</p>
+    <ul class="rn-list">
+      <li class="rn rn--wide">
+        <p class="rn-tag">Songs</p>
+        <h3>Twelve more songs to open.</h3>
+        <p>Night Shift has company, each in another genre; Wake-Up Call, Lobby Bar and Room Service are played on the new instruments. They’re staged: every part was written ahead of time, and one in each is signed by Claude, in cool, so you can hear what a take over the house sounds like.</p>
+        <ul class="rn-songs ledger" aria-label="The demo songs">
+          <li><a class="rn-song" href="/app/?demo=dust-jacket" data-demo="dust-jacket"><b>Dust Jacket</b><span>Boom bap</span><span>90 bpm, D minor</span><span class="rn-by">vibes by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=halation" data-demo="halation"><b>Halation</b><span>Shoegaze</span><span>78 bpm, E major</span><span class="rn-by">a choir by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=lido" data-demo="lido"><b>Lido</b><span>House</span><span>122 bpm, G major</span><span class="rn-by">an arpeggio by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=sodium" data-demo="sodium"><b>Sodium</b><span>Synthwave</span><span>104 bpm, F# minor</span><span class="rn-by">a lead by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=red-eye" data-demo="red-eye"><b>Red Eye</b><span>Trap</span><span>140 bpm, C minor</span><span class="rn-by">hat rolls by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=late-checkout" data-demo="late-checkout"><b>Late Checkout</b><span>Neo-soul</span><span>84 bpm, Eb major</span><span class="rn-by">a talk-box lead by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=wake-up-call" data-demo="wake-up-call"><b>Wake-Up Call</b><span>Gospel</span><span>66 bpm, Ab major</span><span class="rn-by">the organ by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=lobby-bar" data-demo="lobby-bar"><b>Lobby Bar</b><span>Bossa nova</span><span>136 bpm, D minor</span><span class="rn-by">the vibes by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=room-service" data-demo="room-service"><b>Room Service</b><span>Boogie</span><span>112 bpm, E minor</span><span class="rn-by">an octave lead by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=turndown" data-demo="turndown"><b>Turndown</b><span>French house</span><span>124 bpm, B minor</span><span class="rn-by">a riff by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=ice-machine" data-demo="ice-machine"><b>Ice Machine</b><span>Dub</span><span>75 bpm, G minor</span><span class="rn-by">the desk by <span class="by by-agent">Claude</span></span></a></li>
+          <li><a class="rn-song" href="/app/?demo=vacancy" data-demo="vacancy"><b>Vacancy</b><span>Indie pop</span><span>116 bpm, D major</span><span class="rn-by">the topline by <span class="by by-agent">Claude</span></span></a></li>
+        </ul>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Instruments</p>
+        <h3>Ten new instruments and 52 presets.</h3>
+        <p>Baby Grand, Rotor Cabinet, Music Stands, Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail and Risers: a grand piano, a tonewheel organ, a string section, an electric bass, electric pianos, mallets, a guitar you play from the keys, a polysynth with a ladder filter, a horn section and a choir. Gobo Kit gained 808, 909 and ACOUSTIC+ kits. An instrument with named sounds has a <b>Preset</b> line in the Devices tab: pick one and every knob goes there in one undo step. The agent names the same sounds.</p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Share</p>
+        <h3>A link carries the song and every name on it.</h3>
+        <p>The whole song rides in the link, so Overdub’s servers never see it (whatever you paste it into does; recordings stay home). Whoever opens it listens first; <b>Make it yours</b> keeps a copy that says where it came from, every part still signed by whoever played it. A link can carry devices someone wrote, which are code: they stay off until you press <b>Play them</b>, so play them for people you trust.</p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Transforms</p>
+        <h3><span data-count="transforms">16</span> transforms, for both of you.</h3>
+        <p>Humanize, strum, arpeggiate, invert, chords from a melody, fill the gap: in the piano roll’s Transform menu, signed by you. The agent has them too, and when one would rewrite your notes it offers takes instead.</p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Library</p>
+        <h3><span data-count="devices">44</span> devices on one shelf.</h3>
+        <p>The 31 built-in instruments and effects, and <span class="rn-cool"><span data-count="agent-devices">13</span> an agent wrote</span>, each with the request that asked for it. Every card shows the check its device passed; play any of them on the page. The Guitar Studio’s pedals and amps live in the studio’s browser.</p>
+        <p class="rn-link"><a href="/app/library.html">Open the device library</a></p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Provenance</p>
+        <h3>Who played what, on paper.</h3>
+        <p>The provenance report: each author’s share of the notes, the devices an agent built and what was asked for, and the story of the edits. Open it from the Song menu; print it to keep a PDF.</p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Export</p>
+        <h3>Take it to another DAW.</h3>
+        <p>DAWproject carries the tracks, notes, audio and mix to Bitwig Studio, Studio One, Cubase and others. Overdub’s own devices go as named placeholders with their settings. WAV, stems and MIDI are there too.</p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Bench</p>
+        <h3>OverdubBench.</h3>
+        <p><span data-count="bench-tasks">15</span> jobs a musician would hand an agent (mix, write, edit, build a device), each scored 0 to 1 by measurement, never by a judge. Same song in, same score out.</p>
+        <p class="rn-link"><a href="/site/docs/bench.html">How the bench scores</a></p>
+      </li>
+      <li class="rn">
+        <p class="rn-tag">Browsers</p>
+        <h3>Chrome, Safari, Firefox, phones.</h3>
+        <p>The studio and this page run in all three. On a phone it plays by touch: tap to play, draw and drag notes with a finger, every tab a tap away.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="heritage" aria-labelledby="heritage-title">
+  <div class="wrap">
+    <h2 id="heritage-title" class="sec-title">It started on a pedalboard.</h2>
+    <p class="section-lede">Overdub grows out of the Guitar Studio in Claw’d-o-Matic, AJ’s browser punk-song maker: 101 pedals, 27 amps, 16 cabinets and 5 mics, all synthesized in the browser, and 156 rigs, each leveled by measurement. They all come with Overdub. A few of the pedals:</p>
+    <div class="board" id="board"></div>
+  </div>
+</section>
+
+<div class="tape tape--end" aria-hidden="true"><span class="splice">Tails out</span></div>
+
+<section class="last" aria-labelledby="last-title">
+  <div class="wrap last-inner">
+    <div class="box-top"><span>Overdub Studio</span><span>Reel 1</span></div>
+    <div class="lockup"><img class="lockup-mark" src="/site/assets/logo.svg" alt="" width="132" height="132"><img class="lockup-word" src="/site/assets/wordmark-ink.svg" alt="overdub" width="420" height="67"></div>
+    <h2 id="last-title" class="over over--ink"><span class="over-a">Take one is always yours.</span><span class="over-b" aria-hidden="true">Take one is always yours.</span></h2>
+    <a class="btn btn--primary btn--big btn--ink" href="/app/">Open the studio</a>
+    <div class="tracklist" aria-label="The 28 built-in devices">
+      <div class="tl-side"><h3>Side A <span>instruments</span></h3><ol><li><span class="tl-n">A1</span><span class="tl-name">Patch Bay</span><span class="tl-kind">poly synth</span></li><li><span class="tl-n">A2</span><span class="tl-name">Capstan</span><span class="tl-kind">bass</span></li><li><span class="tl-n">A3</span><span class="tl-name">Lamp Tines</span><span class="tl-kind">electric piano</span></li><li><span class="tl-n">A4</span><span class="tl-name">Pinch Roller</span><span class="tl-kind">plucked strings</span></li><li><span class="tl-n">A5</span><span class="tl-name">Gobo Kit</span><span class="tl-kind">drums</span></li><li><span class="tl-n">A6</span><span class="tl-name">Room Tone</span><span class="tl-kind">pad</span></li><li><span class="tl-n">A7</span><span class="tl-name">Baby Grand</span><span class="tl-kind">piano</span></li><li><span class="tl-n">A8</span><span class="tl-name">Rotor Cabinet</span><span class="tl-kind">organ</span></li><li><span class="tl-n">A9</span><span class="tl-name">Music Stands</span><span class="tl-kind">strings</span></li><li><span class="tl-n">A10</span><span class="tl-name">Flatwound</span><span class="tl-kind">bass guitar</span></li><li><span class="tl-n">A11</span><span class="tl-name">Suitcase</span><span class="tl-kind">electric pianos</span></li><li><span class="tl-n">A12</span><span class="tl-name">Mallet Bag</span><span class="tl-kind">mallets</span></li><li><span class="tl-n">A13</span><span class="tl-name">DI Box</span><span class="tl-kind">guitar</span></li><li><span class="tl-n">A14</span><span class="tl-name">Step Ladder</span><span class="tl-kind">polysynth</span></li><li><span class="tl-n">A15</span><span class="tl-name">Brass Rail</span><span class="tl-kind">brass</span></li><li><span class="tl-n">A16</span><span class="tl-name">Risers</span><span class="tl-kind">choir</span></li><li><span class="tl-n">A17</span><span class="tl-name">Studio A</span><span class="tl-kind">drums</span></li><li><span class="tl-n">A18</span><span class="tl-name">Light Table</span><span class="tl-kind">wavetable synth</span></li></ol></div>
+      <div class="tl-side"><h3>Side B <span>effects</span></h3><ol><li><span class="tl-n">B1</span><span class="tl-name">Top Shelf</span><span class="tl-kind">EQ</span></li><li><span class="tl-n">B2</span><span class="tl-name">Squeeze Box</span><span class="tl-kind">compressor</span></li><li><span class="tl-n">B3</span><span class="tl-name">Stairwell</span><span class="tl-kind">reverb</span></li><li><span class="tl-n">B4</span><span class="tl-name">Echo Reel</span><span class="tl-kind">delay</span></li><li><span class="tl-n">B5</span><span class="tl-name">Double Track</span><span class="tl-kind">chorus</span></li><li><span class="tl-n">B6</span><span class="tl-name">Keyhole</span><span class="tl-kind">filter</span></li><li><span class="tl-n">B7</span><span class="tl-name">Hot Print</span><span class="tl-kind">drive</span></li><li><span class="tl-n">B8</span><span class="tl-name">Chewed Tape</span><span class="tl-kind">bitcrusher</span></li><li><span class="tl-n">B9</span><span class="tl-name">Gatefold</span><span class="tl-kind">width</span></li><li><span class="tl-n">B10</span><span class="tl-name">Red Line</span><span class="tl-kind">limiter</span></li></ol></div>
+    </div>
+    <dl class="box-spec" aria-label="What's on the reel">
+      <div><dt>Songs</dt><dd>10</dd></div>
+      <div><dt>Built-in devices</dt><dd>31</dd></div>
+      <div><dt>Pedals</dt><dd>101</dd></div>
+      <div><dt>Amps</dt><dd>27</dd></div>
+      <div><dt>Rigs</dt><dd>156</dd></div>
+      <div><dt>Agent tools</dt><dd data-tool-count>38</dd></div>
+    </dl>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <img src="/site/assets/wordmark.svg" alt="overdub" width="120" height="19">
+    <p>An early prototype by AJ Smith. Built on Claw’d-o-Matic’s Guitar Studio. Tested in Chrome, Safari and Firefox.</p>
+    <p class="foot-links"><a href="/site/docs/guide.html">Guide</a> <a href="/site/docs/">Docs</a> <a href="/app/library.html">Device library</a> <a href="/site/press/">Press</a></p>
+    <p class="foot-count" style="flex-basis: 100%; font-size: 13px">Counted, not tracked: page views and the site that linked you; in the studio, opens, plays, agent messages, devices, exports, shares, hums and keeps. No cookies, no ids, never your song. Do Not Track or GPC turns it off.</p>
+  </div>
+</footer>
+</body>
+</html>

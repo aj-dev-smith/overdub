@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The guide · Overdub docs</title>
+<meta name="description" content="Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overdub Studio">
+<meta property="og:title" content="The guide · Overdub docs">
+<meta property="og:description" content="Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.">
+<meta property="og:image" content="/site/assets/og.png">
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<link rel="stylesheet" href="/site/docs/docs.css">
+</head>
+<body class="docs-page">
+<a class="skip" href="#doc">Skip to the text</a>
+<header class="top">
+  <a class="brand" href="/" aria-label="Overdub home"><img class="brand-mark" src="/site/assets/logo.svg" alt="" width="40" height="40"><img class="brand-word" src="/site/assets/wordmark.svg" alt="overdub" width="150" height="24"></a>
+  <nav class="top-nav" aria-label="Site">
+    <a class="top-more" href="/site/docs/guide.html" aria-current="page">Guide</a>
+    <a href="/site/docs/">Docs</a>
+    <a href="/site/press/">Press</a>
+    <a class="top-cta" href="/app/">Open the studio</a>
+  </nav>
+</header>
+<div class="docs-layout">
+  <aside class="docs-side">
+    <nav class="docs-nav" aria-label="Docs">
+      <p class="side-head"><a href="/site/docs/">Docs</a></p>
+      <ol>
+        <li><a href="guide.html" aria-current="page">Guide</a></li>
+        <li><a href="agents.html">For agents</a></li>
+        <li><a href="integrations.html">Connect an agent</a></li>
+        <li><a href="devices.html">Writing devices</a></li>
+        <li><a href="bench.html">OverdubBench</a></li>
+        <li><a href="remote-mcp.html">Remote MCP</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+      </ol>
+    </nav>
+    <details class="toc">
+      <summary>On this page</summary>
+      <nav aria-label="On this page"><ol>
+<li><a href="#your-first-overdub-in-five-minutes">Your first overdub in five minutes</a></li>
+<li><a href="#record-into-the-song">Record into the song</a></li>
+<li><a href="#shape-the-song">Shape the song</a></li>
+<li><a href="#grooves">Grooves</a></li>
+<li><a href="#automation">Automation</a></li>
+<li><a href="#jam">Jam</a><ol><li><a href="#tab">Tab</a></li></ol></li>
+<li><a href="#on-a-phone">On a phone</a></li>
+<li><a href="#bring-your-own-claude">Bring your own Claude</a></li>
+<li><a href="#bring-claude-code">Bring Claude Code</a></li>
+<li><a href="#build-a-device">Build a device</a></li>
+<li><a href="#share-and-fork">Share and fork</a></li>
+<li><a href="#bring-material-in">Bring material in</a></li>
+<li><a href="#take-it-elsewhere">Take it elsewhere</a></li>
+<li><a href="#keys">Keys</a></li>
+      </ol></nav>
+    </details>
+  </aside>
+  <main id="doc" class="doc">
+    <h1 id="top" class="doc-title"><a class="h-link" href="#top">The guide</a></h1>
+    <p class="doc-meta">From <code>docs/GUIDE.md</code> (<a href="/docs/GUIDE.md">the Markdown</a>), about 39 min to read</p>
+    <article class="prose">
+<p>Overdub is a studio for you and your agents. You lay down a take, your agent plays over it, you play over that, and
+every take is signed: warm for you, cool for it. This page gets you from the door to a kept take in five minutes,
+then shows where everything else lives. In the studio, <code>?</code> shows every key.</p>
+<h2 id="your-first-overdub-in-five-minutes"><a class="h-link" href="#your-first-overdub-in-five-minutes">Your first overdub in five minutes</a></h2>
+<ol>
+<li><strong>Open the studio.</strong> <a href="/app/">overdub.ajsmithhq.com/app/</a> in Chrome, Safari or Firefox, on a computer or a phone.
+Nothing to install, no account. It opens on Night Shift; the Song menu's <strong>Demos</strong> has three more, in other
+genres. The first time, a small card called <strong>Take one</strong> walks you through the steps below. It waits for each one
+to really happen, and you can close it. It stays out of songs someone sends you, and closing it puts back the loop
+it set, unless you've changed that loop since.</li>
+<li><strong>Hear it.</strong> Press <code>Space</code> (on a phone, ▶ at the top). Warm parts were played by a person, cool ones by an agent.</li>
+<li><p><strong>Lay down take one.</strong> Open the <strong>Sketch</strong> tab and pick a way in:</p>
+<ul>
+<li><strong>Hum it.</strong> <code>H</code> turns the mic on (the browser asks first) and <code>H</code> again stops. The notes are written as you go,
+as you sang them. Once the song has a key (one you set, or a part in one; a beat alone doesn't give it one), notes
+between keys move into it, and it says how many (&quot;Moved 2 notes into A minor&quot;), with <strong>Undo</strong>.</li>
+<li><strong>Tap it.</strong> <code>T</code>, then <code>F</code> <code>J</code> <code>K</code> <code>L</code> for kick, snare, hat and open hat. The pads work too.</li>
+<li><strong>Play it.</strong> <code>`</code> turns on musical typing (<code>A</code> <code>S</code> <code>D</code>… are the white keys), or plug in a MIDI keyboard.
+Musical typing and a phone's keys have two helpers, on until you turn them off: what you play lands on the
+grid, and the keys play only the song's key. The line over the keys says so: <em>Snapping to 1/16, in C minor</em>.
+Click either part to turn it off, and it says what you get instead (<em>Your timing</em>, <em>every note</em>); click it again
+to turn it back on. This browser remembers. With no key set, it says what the keys play instead (<em>in C major</em>).
+A MIDI keyboard's notes stay as you play them.</li>
+</ul>
+<p>Capture is always on. Everything you hum, tap or play lands in the <strong>Takes</strong> list, so nothing is lost.</p></li>
+<li><strong>Keep it.</strong> <strong>Keep as a clip</strong> in Sketch, or <strong>Keep</strong> on the take in the Takes list. It lands on a track, signed
+by you. <strong>Band</strong> on a kept take (or <code>⇧B</code> on a selected clip) builds chords, bass and drums around it in a style
+you pick, on new tracks; your notes stay as they are, and one undo takes the band back.</li>
+<li><strong>Ask the agent for a take.</strong> Open the <strong>Agent</strong> tab (<code>A</code>; <code>⌘/</code> or <code>Ctrl+/</code> to type) and ask for something over
+it: <em>&quot;Give me a bassline under this.&quot;</em> No key? Press <strong>Try the demo agent (no key)</strong>, or just type: what you
+type stays in the box, and <strong>Ask the demo agent</strong> sends it. The demo agent is a scripted session, not a live
+model, but it uses the real tools, so everything it does is signed and undoable. It answers what it can, and when
+something is past its script it says so first, then offers the nearest thing it can on the part and bars you named.</li>
+<li><strong>Keep one.</strong> Its takes arrive as cards. <strong>Hold to hear</strong> plays one over yours; let go to go back. Keep the one
+you like.</li>
+</ol>
+<p>That's an overdub. Take one is yours, take two is the agent's, and the <strong>History</strong> tab shows both, with the reason the
+agent gave. <code>⌘Z</code> undoes the latest edit. <strong>Revert all Claude's changes (keep mine)</strong> takes back everything the agent
+did and leaves your edits alone, and <code>⇧⌘Z</code> puts it back, as it does after <strong>Undo</strong> on one of the agent's lines there.</p>
+<h2 id="record-into-the-song"><a class="h-link" href="#record-into-the-song">Record into the song</a></h2>
+<p>Select a track and press <code>R</code> (on a phone, the ● at the top). Beside the record key the top bar says where it goes
+(<em>Onto</em> Bass; a click there picks another track), and the track stays the target until you select or arm another: a
+click on empty space to move the marker doesn't change it. In Hum it, <em>Onto</em> names the track your hum goes onto: a
+hum never goes onto a drum track unless you armed it, so with Drums selected it says Bass (or <em>new track</em>). It
+records from the start marker, after one bar of count-in: the bar before the marker plays with the click (below bar
+1, the click alone), the position counts −1.4 to −1.1 in red, and a big numeral over the track counts 4 3 2 1. <code>R</code>
+or <code>Space</code> during the count calls it off. With the song already playing, <code>R</code> waits for the next bar line and counts
+the beats left in this one. Then whatever you play, tap or hum lands on that track at the bars where you played it;
+musical typing and a phone's keys are snapped as they record, as the line over the keys says. <code>Space</code> stops and
+keeps the take; <code>R</code> again punches out and the song plays on; <code>⌘Z</code> takes it back out.</p>
+<ul>
+<li><strong>Watch the ball.</strong> Beside the position, a cell for each beat of the bar and a square that travels between them,
+landing on each beat as you hear it, so you can see the next one coming with the sound off. It goes red while a
+take counts in and records.</li>
+<li><strong>The click.</strong> A take clicks even with the click off: that's <em>While recording</em> in the options under the caret
+beside <strong>Click</strong>, on until you turn it off. <code>K</code> turns the click on and off for everything, <code>⇧K</code> steps the count-in
+through 1 bar, 2 bars and off, and the options have the level too. They stay set in this browser. The click is
+never in the mix or an export.</li>
+<li><strong>Each pass round the loop.</strong> The loop is the punch range. On a drum track each pass <strong>Layer</strong>s into one clip, so
+you add a little every time round; on any other track each pass is a <strong>New take</strong>. Sketch's record strip switches
+it (<strong>Each pass</strong>), per track. A note you start a hair before the loop comes round (less than a 32nd early) is the
+next pass's downbeat, on the grid or in your own timing.</li>
+<li><strong>Takes.</strong> A take covers the bars you played, from the bar you started in to where you stopped, and what played
+there before is muted under it, there and nowhere else. The passes and what was there before are one take folder:
+the clip says how many (&quot;3 takes&quot;), and that label lists them and plays the one you pick, with <strong>Previous take</strong>
+and <strong>Next take</strong> (<code>⌘↑</code> <code>⌘↓</code> on the selected clip), <strong>Flatten to</strong> the one playing (the others go) and
+<strong>Delete</strong>. The takes are numbered in the order you played them. The last complete pass plays; one you stopped
+halfway through waits underneath with the others. A tune that runs on over the loop's end stays one take: its last
+notes go to the loop's start, where they came round. A last pass that's only a fragment of the others waits under
+the fuller one.</li>
+<li><strong>Hum it in.</strong> With Sketch on <strong>Hum it</strong>, <code>R</code> records the mic as a hum, count-in and all. A hum already going when
+you press <code>R</code> becomes the take's. When the take is in, notes it moved into the song's key are counted, as when you
+hum on your own (&quot;Moved 2 notes into A minor, the song's key.&quot;), and <strong>Undo</strong> there puts them back as you sang them,
+leaving the take in.</li>
+<li><strong>Put it in the song.</strong> Played something without recording? It's in Sketch's <strong>Takes</strong> list, and <strong>Put it in the
+song</strong> (<code>⇧R</code> for the newest) places it at the beats where you played it if the song was running, else at the
+marker's bar.</li>
+<li><strong>Tempo, meter and the loop wait</strong> until the take stops (they dim while it runs).</li>
+<li><strong>The letter keys.</strong> While musical typing or Tap has them, the line under the song's title says so (&quot;Keys play
+Bass&quot;, with the key that stops it), and the keys they play on are notes: <code>K</code> and <code>L</code> aren't the click and the loop
+then, nor <code>S</code> solo in musical typing. Click that line to hand the keys back.</li>
+<li><strong>First time?</strong> <strong>Tap a beat</strong> on the Take one card, or on a new song's first screen, adds a Drums track if
+there is none, loops two bars with the click and starts them: press <code>R</code> and tap <code>F</code> <code>J</code> <code>K</code> <code>L</code>. While the song is
+shorter than 8 bars, <strong>Make it 8 bars</strong> (beside a kept take, and on the tour's last card) repeats it to 8: parts
+that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase.</li>
+</ul>
+<h2 id="shape-the-song"><a class="h-link" href="#shape-the-song">Shape the song</a></h2>
+<ul>
+<li><strong>Where play starts.</strong> Click a bar on the ruler or in a lane, or select some bars, and the start marker goes there
+(its bar number printed in reverse on the ruler). <code>Space</code> plays from it and <code>Space</code> again stops and goes back to it,
+so you can work a part bar by bar. <code>⇧Space</code> plays on from where it stopped, and <code>Home</code> puts the marker back at bar
+1 (so does a click on the position). With the loop on, <code>Space</code> still plays from the marker and cycles once the
+playhead reaches the loop: a marker before the loop plays into it and round, one past its end plays on. <code>R</code> records
+from the marker too. Each song keeps its marker in this browser.</li>
+<li><strong>Sections.</strong> Right-click a section's name in the ruler (long-press on a phone): <strong>Duplicate</strong> (<code>⌘D</code>) copies it and
+its clips right after it and moves what follows; <strong>Insert bars after</strong> adds 1, 2, 4 or 8 empty bars across the song;
+<strong>Delete these bars</strong> takes them out, with what's in them, and closes the gap.</li>
+<li><strong>Clips.</strong> Right-click a clip (on a phone, hold it and let go): <strong>Repeat ×2</strong> or <strong>×4</strong>, or <strong>Split at playhead</strong>
+(<code>⌘E</code>). Notes cut by a split keep the part that sounds on each side, and every note keeps its author.</li>
+<li><strong>Drop a clip on another</strong> (drag it, or ⌥-drag a copy) and it takes those beats, as in Live: what was under it on
+that track is cut away there and kept on either side, or goes if the dropped clip covers it whole. <code>⌘Z</code> undoes the
+move and puts it all back in one go. A take folder under it is cut across all its takes, and the part after it is a
+folder of its own.</li>
+<li><strong>A take folder moves whole.</strong> Drag any of its takes and all of them go along. On a comped folder (takes picked
+for different bars), a drag across the clip selects those bars; drag it by its label line (the name along the top)
+to move it.</li>
+<li><strong>Mute or solo a track.</strong> <code>M</code> mutes the selected track and <code>S</code> solos it, from anywhere in the studio (with a clip
+selected, its track); the same key again unmutes or unsolos it. <strong>M</strong> and <strong>S</strong> on its header and its mixer strip do
+the same. On a phone, a tap anywhere on a track's header selects the track; <strong>M</strong> and <strong>S</strong> only take a tap on them.</li>
+<li><strong>Stop one part.</strong> <strong>Mute</strong> (<code>0</code>, or the clip's menu) keeps a clip and silences it, even while the song plays:
+it is printed in outline, its name struck through and &quot;muted&quot; where its byline was, and it plays nowhere, not in
+the song, an export or a render. <code>0</code> again, or <strong>Unmute</strong>, brings it back.</li>
+<li><strong>A take that runs on.</strong> Cut it down by dragging either edge, or with <strong>Trim to the loop</strong>: it keeps just the loop's
+bars, and what played under the part you cut off plays again. Mute and Trim work on every selected clip at once.</li>
+<li><strong>Too much sound.</strong> <strong>All off</strong>, the red key at the right of the top bar (<code>⇧Esc</code>, from anywhere, even a text
+field), stops everything at once: every note, reverb and delay tail, preview and click, whoever started it.</li>
+<li><strong>A mix that clips.</strong> The top bar's meter reads the mix before the master's safety clip. When the mix goes over
+0 dBFS, the bars turn red and the number becomes <strong>Clipping 2.4 dB</strong>, the amount the clip is shaving off. Press it
+to pull the master down by that much, with half a decibel to spare: one undo step. The mixer's master strip says
+the same.</li>
+<li><strong>Notes.</strong> The piano roll's <strong>Transform</strong> menu works on the selected notes, or the whole clip: humanize, quantize,
+strum, arpeggiate, transpose in the key, double an octave up, chords from a melody, continue a phrase, fill a gap
+and more, sixteen in all. Each is one undo step, and the agent has the same set.</li>
+<li><strong>Notes as tab.</strong> <strong>Tab</strong> in the Notes toolbar shows a pitched clip as guitar tab. It holds the same notes, so an edit
+in either view is an edit in both, and a part written as tab (a kept riff, tab an agent wrote) opens that way. Click
+a fret number to pick its note (<code>⇧</code> adds). Type a fret and the note moves there on its string, its pitch changing to
+match; <code>↑</code> and <code>↓</code> move it to the next string and keep the pitch. <strong>Higher string</strong>, <strong>Lower string</strong>, <strong>Fret −1</strong>
+and <strong>Fret +1</strong> do the same with a click. With Scale lock on, a fret outside the key is refused and the view says
+why. <strong>Tuning</strong> and <strong>Capo</strong> belong to the clip: changing them moves the fret numbers and leaves the pitches alone.</li>
+<li><strong>Presets.</strong> An instrument with named sounds has a <strong>Preset</strong> line under its name in the Devices tab (&quot;Preset
+Felt&quot;). Pick one and every knob goes there, in one undo step; move a knob after and it says &quot;Felt, edited&quot;. A device
+nobody has touched says <strong>Default</strong>, and a sound that is plainly one of the presets moved a little (a song built
+from it) names it the same way, &quot;Sprocket, edited&quot;. The agent names the same sounds.</li>
+<li><strong>Open a device big.</strong> <strong>Open</strong> on a device in the Devices tab (or a double-click on its name) opens it in its own
+window over the studio: every knob big, with its value, the presets (‹ › to step through them), <strong>A</strong> and <strong>B</strong> to
+compare two settings (each flip is one undo step), <strong>On</strong> for an effect, what it sends out as a scope, and for an
+instrument a keyboard along the bottom: click or drag along it to play, lower on a key for louder. The song, the
+transport and musical typing keep working while it's open, so you shape the sound as you play it. Drag the window
+by its top and size it from its corner; <code>Esc</code> or × closes it. When an agent turns a knob there, the knob flashes in
+its colour and the window says what moved. History names each knob in words, with where you left it (&quot;Light Table:
+A pos 0.53&quot;), and the studio's notes stand beside the window while it's open, or in its bar when there's no room,
+never over its knobs. On a phone it opens over the whole screen; on its side, its top is one row.</li>
+<li><strong>Drums.</strong> Two kits are under Drums in <strong>Add a track</strong>, which lists every instrument by kind. <strong>Gobo Kit</strong> has a
+field kit, drum machines and a dusty sampler. <strong>Studio A</strong> is an acoustic kit in a big tracking room, miked like a
+record:
+<ul>
+<li><strong>The mics.</strong> A close mic on every drum, a pair of overheads, a room pair and a crushed room, each a fader in the
+Devices tab: CLOSE, OH, ROOM, CRUSH, BLEED and SIZE.</li>
+<li><strong>The drums.</strong> KIT picks them: warm 70s maple, punchy birch, a small jazz kit, a big arena kit or a dead 70s kit.
+Every drum and cymbal has its own tune, decay and level.</li>
+<li><strong>How it plays.</strong> Harder strokes are brighter as well as louder, and no two strokes are alike.</li>
+<li><strong>What it plays.</strong> Besides the usual rows it plays rimshots, the ride's edge, the hats' edges and half-open
+hats, flams, drags, a roll for as long as you hold the note, and cymbal chokes. The Beat tab and the piano roll
+name every row by what the track's kit plays there, and <strong>More rows</strong> in the Beat tab adds any of them.</li>
+<li><strong>Its window.</strong> <strong>Open</strong> Studio A to see the kit drawn from above, each piece where it stands for the mics. Click
+a piece where you'd hit it: the middle, near the edge or the rim (a rimshot); the hats' tip or edge; the ride's
+bell, bow or edge. Lower on a piece is louder. Alt-click chokes a cymbal (on a touch screen, press and hold it),
+and drag up on the hats to open them (let go and the foot closes them). The pieces light as the song plays them.
+Click one to tune it, or to play every stroke it has from the keys beside the kit (hold <strong>Roll</strong> to roll). The
+mics are faders along the bottom, and <strong>VIEW</strong> turns the picture round with the stereo image. On a phone, tap the
+kit and scroll for the rest.</li>
+</ul></li>
+<li><strong>A synth to dig into.</strong> Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
+waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its <strong>POS</strong> knob. A filter, three
+envelopes, four LFOs and eight mod slots move almost any knob for you. Start from a preset: its description begins
+with what it's for (Bass, Lead, Pad, Pluck, Keys, Arp or FX). The four <strong>MACRO</strong> knobs do nothing until a mod slot
+uses one.</li>
+<li><strong>Shape the tone.</strong> Slide Rule is an EQ: put it on a track like any effect and open it, and you get its curve over
+the live spectrum of what comes in and what goes out. Double-click the line to place a band there, then drag the
+band's square for its frequency and gain (<code>⇧</code> for fine steps, <code>⌥</code> or the scroll wheel for how wide it is; on a
+phone, double-tap to place one and spread two fingers to widen it). Double-click a band to put it back to 0 dB.
+Right-click it (or hold it on a phone) for its shape (bell, shelves, cuts at 12, 24 or 48 dB per octave, notch,
+band pass), to switch it off, or for <strong>Solo</strong>: you hear only the part of the sound that band works on, so you can
+hear what you're cutting. <code>Tab</code> moves between bands and the arrow keys move them. <strong>Auto gain</strong> holds the level
+where it was, so you judge the tone and not the volume. Its presets are starting points (&quot;Clean up the low end&quot;,
+&quot;Vocal presence&quot;, &quot;Air&quot;, &quot;Telephone&quot;, &quot;Kick: thump and click&quot;), and each band's square is outlined in the colour of
+whoever set it last.</li>
+<li><strong>Pump, gate and pan in time.</strong> Put <strong>Scribble Strip</strong> on a track (Add an effect, in the Devices tab) and <strong>Open</strong>
+it. Draw a shape and it moves the volume, a filter or the pan in time with the song: <strong>Volume</strong>, <strong>Filter</strong> and
+<strong>Pan</strong> are tabs, each its own shape, depth and rate (1/32 to 2 bars). Click to add a point, drag one to move it
+(<code>⇧</code> for off the grid), drag the small square on a line to bend it, right-click a point to make it a step or delete
+it; <strong>Pencil</strong> paints steps on the grid, and <strong>Snap</strong> sets the grid. The presets under it are drawn: Pump (quarter
+notes), Gate (sixteenths), Stutter, Swell over a bar, Auto-pan, Filter wobble and more. <strong>Smooth</strong> softens the edges
+so a hard step doesn't click (all the way down, it does). While the song plays, a green dot rides the line and says
+what it's doing there (−6.0 dB). With a point picked, the arrow keys move it, <code>Enter</code> makes it a step and <code>Delete</code>
+takes it out.</li>
+<li><strong>Light Table's window.</strong> Open it big and each oscillator's table is drawn as a stack of its waves, the one it plays
+lit: drag up or down on the drawing (or turn <strong>POS</strong>) to move through them, and <strong>3D</strong>, <strong>Wave</strong> and <strong>Harmonics</strong>
+change how it's drawn. Click the table's name to pick another; each is drawn small with a few words on how it
+sounds.</li>
+<li><strong>Drag to modulate.</strong> Every source has a jack, the small socket beside an envelope's or an LFO's name, under each
+macro, and beside Velocity, Note, Wheel and Random. Drag one onto a knob and the first free mod slot takes it: the
+knob gets a ring, and the ring's arc is how far the source moves it. Drag the ring up or down to change that, and
+right-click it to take it off. Each of these is one undo step. A click on a jack and then on a knob does the same
+(on a phone too, across tabs), and the <strong>Mod matrix</strong> tab lists all eight slots as sentences (&quot;LFO 1 → A POS,
++35%&quot;). When all eight are in use, it says so. While the song plays, the table, the filter's curve and the rings
+show where things have moved to.</li>
+<li><strong>Make it loud and finished.</strong> Put <strong>Gaffer Tape</strong> on a synth, a drum bus or a vocal and <strong>Open</strong> it. It hears the
+sound in three bands, low, mid and high, and in each it lifts the quiet detail up and holds the loud parts down.
+<strong>Depth</strong> is the big knob: how much of it you hear. It starts at 40%, about as loud as it came in; turn it up and it
+gets denser and louder. <strong>Full depth</strong>, <strong>Drum smash</strong> and <strong>Vocal presence</strong> make a part louder, by 1 to 3 LU on
+drums; <strong>Subtle 30%</strong>, <strong>Glue (bus)</strong> and <strong>Bass tighten</strong> keep it about level. Under Depth, while the song plays,
+the window says what it is doing to the level: the loudness coming out against what went in, in LU (&quot;+2.1 LU,
+louder than it came in&quot;; a part it takes a decibel or more off reads in yellow, and the window's top line says so
+too), with an In and an Out meter. Nothing it puts out goes over −1 dBTP. Each band draws its curve, level in to
+level out: drag the hollow square sideways to set where it starts holding down and the filled one for where it
+starts lifting (<code>⇧</code> for fine steps, a double-click puts one back). Drag the two lines on the strip above to move
+where the bands split. While the song plays, each band says how far it is holding down or lifting the sound, with a
+bar, and a green dot rides its curve where the band is now. <strong>Time</strong> makes every band react faster or slower; a
+fast <strong>Attack</strong> (under 5 ms) catches each hit's front, a slow one lets it through. Thresholds and splits take the
+arrow keys too.</li>
+</ul>
+<h2 id="grooves"><a class="h-link" href="#grooves">Grooves</a></h2>
+<p>The <strong>Grooves</strong> tab, beside Beat, is a drummer's book. The styles run down the side, from rock and funk to bossa, trap
+and gospel. Each has grooves for the parts of a song: intro, verse, chorus, bridge, a half-time feel where it fits,
+fills of a beat, two beats and a bar, and an ending. Each groove is drawn as a picture of its hits: the bigger the
+mark, the harder the hit, and a hollow mark is a ghost note. They play with a feel, not on a grid: swing that tightens
+as the tempo rises, a neo-soul snare a little behind the beat, punk hats a hair ahead, and a drummer's small drift.</p>
+<ul>
+<li><strong>Hear</strong> plays the groove you picked at the song's tempo, from the bar in the <strong>Put it at bar</strong> box: alone, or
+<strong>with the song</strong> in place of its drums. Stop, Space or <code>Esc</code> ends it. Nothing goes into the song.</li>
+<li><strong>Put it at bar</strong> puts it on the selected drum track (or a new Drums track) for the bars you give. Whatever was
+under it on that track is cut away, as a clip dropped in the arranger cuts, and one undo brings it back. You can
+also drag a groove onto the arranger: it lands at the bar you drop it on.</li>
+<li><strong>Tap to find.</strong> Tap two bars or so on the Kick, Snare and Hat pads; after the first tap, <code>F</code> <code>J</code> <code>K</code> play them.
+When you stop, the five closest grooves come back with the tempo you tapped. They play at the song's tempo.</li>
+<li><strong>Build drums for the song</strong> writes a whole drum track in the style of the groove you picked, one you found by
+tapping too. Each section gets its part's groove (by its name, Verse, Chorus, Bridge, or by how busy the song is
+there), a fill where sections change, a crash on each new one, and the style's ending. When the loop runs to the
+song's end, the ending is left out so the loop goes round. First it says what it will do (&quot;Pop, verse groove in bars
+1–4 and chorus groove in 5–8; fills at 4 …&quot;). Tap a section's part to change it, pick <strong>End with</strong> the style's
+ending or <strong>Loop it, no ending</strong>, then <strong>Build it</strong>. It goes on a new track, as one undo step. Drums already in the
+song keep playing beside it: <strong>M</strong> on a track's header mutes one.</li>
+</ul>
+<p>On a phone the tab is one column that scrolls, upright or on its side. Agents get the same with <code>find_grooves</code>,
+<code>use_groove</code> and <code>drum_track</code>. Ask the demo agent for &quot;a funk beat&quot; and it offers three from the library as takes.</p>
+<h2 id="automation"><a class="h-link" href="#automation">Automation</a></h2>
+<p>Any knob, fader or pan can move over the song. Its moves live in a lane under its track, and lanes play whether
+they're shown or not.</p>
+<ul>
+<li><strong>See the lanes.</strong> <code>E</code> shows or hides the selected track's lanes (a track with none opens on Level). <strong>Automation…</strong>
+in the track's menu lists them and has <strong>Add a lane…</strong> for Level, Pan or any knob; right-click a knob (hold it on a
+phone) and <strong>Automate</strong> opens its lane.</li>
+<li><strong>Draw.</strong> Click a lane to add a point; drag a point to move it (<code>⇧</code> for fine, off the grid), drag the line between
+two points to move both, <code>⌥</code>-drag the line to bend it, double-click a point to delete it. <strong>Draw</strong> on the lane's
+header (or hold <code>⌘</code> while you drag) paints freehand. Drag across an empty stretch to select its points; the arrow
+keys step from point to point and raise or lower them, and <code>Delete</code> takes them out. Every gesture is one undo step.</li>
+<li><strong>Shapes.</strong> Select some bars and right-click the lane: <strong>Ramp up</strong>, <strong>Ramp down</strong>, <strong>Swell</strong>, <strong>Dip</strong>, <strong>Hold here</strong>
+or <strong>Pulse</strong> over them, or <strong>Simplify</strong>, <strong>Clear</strong> and <strong>Hide this lane</strong>. Right-click a point for <strong>Straight</strong>,
+<strong>Ease in</strong>, <strong>Ease out</strong> or <strong>Step</strong>. A ramp goes where the lane is going and holds there: to the value after the
+bars, or the one it jumps to at the next section; on a level stretch, half the knob's travel, held until the lane
+next moves. The toast says the numbers, and when the lane already does it, it says that instead.</li>
+<li><strong>Record a move.</strong> Press <code>R</code> and turn a knob or pull a fader while it records: what your hand does is written into
+that control's lane, from where you touched it to where you let go, and then the lane takes over again with a
+200 ms glide. Only the stretch you touched changes. The moves go in with the take, as one undo step (<code>⌘Z</code> takes
+both back out); round a loop, the last pass you moved it in is the one that plays.</li>
+<li><strong>A move while the song plays.</strong> Turn a knob while the song just plays and the toast says what moved, and that it
+stays where you left it (&quot;Cutoff moved from 400 Hz to 6.2 kHz over bars 9–11. It stays where you left it.&quot;).
+<strong>Write it into the lane</strong> writes the move into the lane as if you had recorded it. Leave it and the knob simply
+stays where you put it.</li>
+<li><strong>A knob with a lane</strong> turns by itself and says <em>auto</em>. Turn it yourself and the lane steps aside: the knob says
+<em>held</em>, and <strong>Back to the lane</strong> (in the toast, the knob's menu or the lane's header) gives the lane back. With any
+held, <strong>Back to the lanes</strong> in the top bar gives them all back at once.</li>
+</ul>
+<h2 id="jam"><a class="h-link" href="#jam">Jam</a></h2>
+<p><strong>Jam</strong>, the tab beside <strong>Arrange</strong>, is a room for playing guitar over a song: to find ideas, try tones and learn the
+changes. The song keeps playing when you switch, and what you record there is in the arranger when you come back.
+The room takes the screen: the detail pane steps aside while it's open (<code>D</code> brings it back, and then it stays) and
+returns when you leave. From the top: the chord, then two tabs, <strong>Neck</strong> (the tab and the neck) and <strong>Rig</strong> (your amp
+and pedalboard), then your guitar and practice, then ideas. The song plays on whichever tab is open.</p>
+<ul>
+<li><strong>Play over something.</strong> The song on screen is the band. Its name at the top opens the others: <strong>Jam tracks</strong> (a
+blues shuffle in A, a funk vamp in E minor, indie in G, a ballad, neo-soul, a metal chug, reggae, bossa nova, lo-fi
+and classic rock), the demos and your recent songs. <strong>Make your own</strong> takes a style, a key, a tempo and your own
+chords (&quot;Am F C G&quot;, or numerals like &quot;I IV V&quot;). A jam track opens like a song: the one you had goes to Recent songs,
+and Undo brings it back. Another song starts at full speed, with nothing left on the neck from the last one, and
+with your guitar still plugged in it gets an audio guitar track at once, so you keep hearing yourself.</li>
+<li><strong>Follow the changes.</strong> The chord now is big, with its notes; the next one counts down in beats; the section and
+the bar sit beside them. A long name (&quot;Dbmaj7/Ab&quot;) gets smaller rather than cut off. The chords are read from the
+song's notes, so take them as a good reading, not gospel; a song made only of audio clips has none.</li>
+<li><strong>The neck.</strong> The pentatonic box, the key's scale, the chord's tones (by interval, or by name with <strong>Note names</strong>)
+and the next chord, fading in as the change comes; each one toggles. Pick a tuning (standard, drop D, half-step
+down, DADGAD, open G), or <strong>Left-handed</strong>. What you play lights up wherever it falls: filled when it fits, a ring
+when it's outside, and the line under the neck says what it is (&quot;G: the blue third over E7; bend it a little toward
+G#&quot;).</li>
+<li><strong>Your guitar.</strong> With an interface, choose it and its input under <strong>Your guitar</strong> and open it. An interface or a
+line input you pick is monitored at once, through the Guitar track's effects, and the line under it says through
+which tone; a microphone stays unmonitored, since through speakers it howls, and the line says that too. <strong>Monitor</strong>
+turns it on or off by hand. Your guitar's track starts loud, where a guitar at an interface's usual level sits over
+the band. <strong>Match the band</strong> listens while you play along for five seconds and puts your guitar 3 dB over the band,
+one undo step; it never goes past the fader's top or pushes the master into clipping, and it says where it landed.
+The tuner names a note and how far off it is once the note settles, and only a guitar's notes.</li>
+<li><strong>No guitar?</strong> Musical typing, a MIDI keyboard or a tap on the neck plays a guitar sound: turning musical typing on
+in the room gives the keys a guitar track when the song has none. A line by the neck says when the keys play
+something else.</li>
+<li><strong>Rig.</strong> Your tone, laid out the way it sits on a stage: the amp big, the pedalboard under it. The chord stays at
+the end of the tabs' row while the rig has the room.
+<ul>
+<li><strong>The rig's name</strong> sits at the top, with what it's for and where it is in its bank. The arrows beside it (or <code>[</code>
+and <code>]</code>) flip through the Guitar Studio's rigs: you hear each one at once, and the one you rest on is one undo
+step. The words under it pick a bank. A rig whose pedals you've changed says <em>edited</em>.</li>
+<li><strong>The amp</strong> is drawn at full size: turn its knobs by dragging up and down, the scroll wheel or the arrow keys; its
+power switch takes it out of the chain. <strong>Cab &amp; mics</strong> under it names the cabinet and the mic, and <strong>Adjust</strong>
+opens their controls.</li>
+<li><strong>The pedalboard</strong> runs in signal order, left to right: your guitar's jack, the pedals, the amp's place in the
+chain, then any pedals after the amp, out to the mixer. Stomp a pedal's footswitch to bypass it. Drag a pedal by
+the tape under it to move it (or focus the tape and use the arrow keys); its <strong>×</strong> takes it off. <strong>Add a pedal</strong>,
+before the amp, opens the effect list. Each of these is one undo step. The board scrolls sideways when it's wider
+than the room.</li>
+<li>A tone, a knob or a change on the board goes on both guitar tracks, the keys' and your interface's, so what you
+play on either, and what Show me plays, sound alike.</li>
+</ul></li>
+<li><strong>Practice.</strong> <strong>Loop</strong> loops the section you're in (<code>⇧L</code>; again to stop). The speed slider plays it at 50–100% (<code>-</code>
+and <code>=</code>) without changing the song; audio clips sit out below 100%. Recording your guitar through the interface
+plays at full speed, and your speed comes back when the take stops; leaving the room or opening another song puts
+it back to 100%. <strong>Band</strong> turns everything except your guitar down, to 24 dB, so you can hear yourself over a loud
+song. It's for practice only: the song's faders, its renders and its exports stay as they are. While it's down, the
+top of the room says <strong>Band −6 dB</strong> (or however far); press that, or double-click the slider, to put it back.
+Leaving the room or opening another song puts it back to 0 dB. <strong>Match the band</strong> turns the band down for you when
+the top of your guitar's fader isn't enough to sit 3 dB over it, and says by how much. <strong>Click</strong> and <strong>Count-in</strong>
+are the transport's.</li>
+<li><strong>Ideas.</strong> Tips from this song's chords: the scale and where it sits on the neck, the note to land on at the next
+change, the notes outside the key, a section that moves key, and a two-bar lick. <strong>Show</strong> puts one on the neck and
+brings the neck into view. <strong>Show me</strong> plays the lick: while the song plays it waits for its own bars and plays in
+time with the band (when the loop never reaches them, it starts at the next bar line and the neck says why).
+Hearing a lick or a chord changes nothing in the song: it plays on the room's own guitar, not a track. The tips
+hold still while your pointer is over them. The chips under them ask the agent.</li>
+<li><strong>Keep it.</strong> <code>R</code> records what you play onto the Guitar track from the playhead (again: punch out). In the room it
+never starts a hum.</li>
+<li><strong>On a phone.</strong> The sheet tucks away when the room opens, and comes back when you leave. The chord sits on one line
+with the neck straight under it and a <strong>Record</strong> button by the neck. A swipe that starts on the neck scrolls the
+room; a tap plays the note. Show and Show me bring the neck back into view. On <strong>Rig</strong> the amp sits above the
+pedalboard, and the board scrolls sideways under your thumb; to turn a knob, hold it still for a moment, then drag.</li>
+</ul>
+<h3 id="tab"><a class="h-link" href="#tab">Tab</a></h3>
+<p>Under the chords, the room shows the Guitar track's part as tab: six strings, the fret each note starts on, its
+length drawn along the string, the bars numbered and the chords above them. While the song plays, the note sounding
+now is printed in reverse and lit on the neck. The notes ahead are in plain ink and the ones behind in pencil.
+<strong>Copy tab</strong> copies it as text. With no riff and no part to show, the tab is one line with <strong>Suggest a riff</strong> in it.</p>
+<ul>
+<li><strong>Suggest a riff.</strong> It writes three riffs for the section the playhead is in, in the song's key and style (or the
+style you pick) at the difficulty you pick. Each is a one- to four-bar idea that repeats and changes a little, with
+chord tones on the strong beats, played in one hand position. They come from the house riff writer, a seeded
+program in the studio, and the lane says so. With an agent connected, the button asks the agent instead; <strong>or the
+house writer's</strong> still gets the studio's. <strong>Hold to hear</strong> plays a take through your tone while you hold it.
+<strong>Keep</strong> puts it on the Guitar track as one undo step, and <strong>Another</strong> writes three more.</li>
+<li><strong>Learn a riff.</strong> <strong>Loop bars 5–8</strong> loops the riff's bars. <strong>Play from bar 5</strong> plays them after a bar of count-in,
+and <strong>Speed</strong> slows them down (− and +). Turn off <strong>Hear the riff</strong> and it goes silent, so you play it. <strong>Learn it</strong>
+waits on each note until you play it, then moves on, and the line says what to play (&quot;Waiting on the A: open, A
+string&quot;).</li>
+<li><strong>How it went.</strong> Play along on your guitar through the interface, with musical typing, a MIDI keyboard or taps on
+the neck. A note you hit turns warm. A note you play early or late gets a ring, with a tick on the side you were. A
+note you miss stays plain. After each pass a line says how it went (&quot;11 of 14, the bend in bar 2 is late&quot;). Chords
+are judged on when you strike them and on their lowest note only, because the pitch tracker hears one note at a
+time; the lane says so under a part with chords.</li>
+</ul>
+<p>An agent can read the room, make a jam track, set a tone, point at the neck, and read and write tab
+(<a href="agents.html#the-tools">the tools</a>).</p>
+<h2 id="on-a-phone"><a class="h-link" href="#on-a-phone">On a phone</a></h2>
+<p>The detail pane is a sheet under the song: drag its handle to size it, or tap the handle to tuck the sheet down to its
+tabs. Turn the phone on its side and the top bar takes one row, and the top of the song stays in view however far the
+sheet comes up. A swipe scrolls. Sketch's <strong>Play it</strong> is an octave of keys in the song's key, with the line over them
+that musical typing has (<em>Snapping to 1/16, in C minor</em>): tap either part to turn it off. To move a knob, a slider or
+a fader (a pedal's, a device window's, the mixer's), hold it still for a moment, then drag: a swipe that starts on one
+scrolls past it and moves nothing (one that scrolls nothing says how); in the Beat grid a tap adds a hit, and a hold,
+then a drag, paints along the row. In the browser a tap on an instrument asks where it goes, a new track or in place
+of what the selected track plays, so a look never swaps a sound out. Two notes show at a time, and the same one again
+is counted (×2), not stacked. In <strong>Jam</strong> the chord sits on one line above the neck, the neck scrolls sideways, and a
+tap on it plays that note; the tab scrolls sideways with the playhead.</p>
+<h2 id="bring-your-own-claude"><a class="h-link" href="#bring-your-own-claude">Bring your own Claude</a></h2>
+<p>The demo agent is a script. For the real thing, open the <strong>Agent</strong> tab, paste an Anthropic API key and pick a model:
+Opus 5.5 (the default), Sonnet 5.5 or Haiku 4.5.</p>
+<p>The key stays in that browser and goes only to <code>api.anthropic.com</code>. The page calls the API directly, with no Overdub
+server in the middle, and you pay Anthropic for what you use.</p>
+<p>Ask it the way you'd ask a session player: <em>&quot;darker&quot;</em>, <em>&quot;half-time in the bridge&quot;</em>, <em>&quot;two takes on the hats&quot;</em>. It
+acts on what you've selected, says what it changed and the number, and asks which one you mean when a word like
+&quot;warm&quot; could go two ways. Anything that rewrites your notes comes as takes for you to pick from.</p>
+<p>When it asks, you hear both readings and pick one. Your picks are kept under <strong>Your words</strong> in the Agent tab's
+settings (the gear), in that browser, so next time &quot;warm&quot; means what you picked and the agent says it used it.</p>
+<h2 id="bring-claude-code"><a class="h-link" href="#bring-claude-code">Bring Claude Code</a></h2>
+<p>Claude Code (or any agent that speaks MCP) can drive the studio too, with the same tools as the agent in the page.
+It needs a copy of the studio running on your own computer: the public site can't be driven from outside. Clone
+<a href="https://github.com/aj-dev-smith/overdub">https://github.com/aj-dev-smith/overdub</a>, or install the plugin, which fetches it for you.</p>
+<p>The plugin brings the server and a skill that teaches Claude the room's rules. Inside Claude Code:</p>
+<div class="code" data-lang="text"><pre><code>/plugin marketplace add aj-dev-smith/overdub
+/plugin install overdub@overdub</code></pre></div>
+<p>Or, from a clone, add the server alone:</p>
+<div class="code" data-lang="sh"><pre><code>claude mcp add overdub -- node &lt;repo&gt;/server/mcp.js</code></pre></div>
+<p>Then ask: <em>&quot;Look at my Overdub song and give me two takes on the bassline.&quot;</em> The first tool call starts the local
+server if it isn't running and opens the studio at <code>http://localhost:3279/app/</code>. Keep that tab open. Claude Code
+shows up in the Agent tab as a presence, and its edits are signed <code>mcp:claude-code</code>.</p>
+<p>Or skip the terminal: with the studio running from your clone (<code>node server/serve.js</code>) and Claude Code installed and
+signed in, the Agent tab offers <strong>Use Claude Code here</strong>. Then the Agent tab's own box talks to Claude Code on your
+computer, on your Claude plan rather than an API key, with the model you pick in the Agent tab's settings. It sees
+only the studio's tools, and its edits are signed <code>claude</code>, like the agent in the page. Each song keeps its own
+conversation; <strong>New</strong> starts it over.</p>
+<p>Songs are kept per site, so a song on the public studio and one on <code>localhost</code> are separate. Move one across with
+the Song menu: <strong>Save the project file</strong> (<code>⌘S</code>) on one, open it (<code>⌘O</code>) on the other. More, for Claude Desktop,
+Cursor, VS Code and Codex too: <a href="integrations.html">Connect an agent</a>.</p>
+<h2 id="build-a-device"><a class="h-link" href="#build-a-device">Build a device</a></h2>
+<p>Ask for an instrument or an effect that doesn't exist yet: <em>&quot;Build me a pedal that makes my guitar sound like it's
+underwater in a cathedral.&quot;</em> The agent writes it as a small piece of audio code.</p>
+<ul>
+<li><strong>The check.</strong> Before you hear it, the studio checks it: it has to compile, never output NaN, stay under control
+at the ends of its knobs and never leave a note stuck. Its loudness is measured against what went in. A device
+that fails doesn't play, and the agent gets the report so it can fix it.</li>
+<li><strong>The face.</strong> A device that passes gets a face drawn from its knobs, with a badge saying who built it. Every knob
+drags, takes the arrow keys and resets on a double-click.</li>
+<li><strong>Export and import.</strong> In the <strong>Devices</strong> tab, a device's <strong>i</strong> card has <strong>Export device</strong>: a
+<code>.overdub-device.json</code> file. In another song, <strong>Import a device…</strong> in the Song menu (<code>⌘⇧I</code>) brings it in. It is
+checked again on the way in, and refused, with the report, if it fails.</li>
+</ul>
+<p>The <a href="/app/library.html">device library</a> has 44 devices: the 31 built-in instruments and effects, and 13 Claude
+wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
+pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
+<a href="devices.html">Writing devices</a>.</p>
+<h2 id="share-and-fork"><a class="h-link" href="#share-and-fork">Share and fork</a></h2>
+<p><strong>Share a link</strong> in the Song menu copies a link with the whole song in it: notes, devices (including ones written in
+the song) and the mix. Audio recordings stay behind, and the studio says so. The song is packed into the link
+itself, so Overdub's servers never see it, though whatever you paste the link into (a chat, an email) does. The first
+time, it asks whose name the link should carry (your parts are signed with it) before it copies anything; this
+browser keeps the name, so after that it copies straight away. Change the name in the sheet and <strong>Copy link</strong> copies
+the link signed with the new one.</p>
+<p>A link can carry devices someone wrote, and a device is code that runs in your browser when the song plays. So the
+studio asks first. Under the banner it says what the song brings, who wrote it, what you're hearing without it and
+what playing it means: <em>&quot;This song brings 2 devices Sam wrote: Tin Whistle and Half Measure. They're off now: Tin
+Whistle is silent and Half Measure lets the sound through untouched. Each is a small program that runs on this
+computer. Play them if you trust Sam: that code then runs from now on, in this browser, in any song.&quot;</em> Until you
+answer they're kept off, so if you press play first you hear the rest of the song, and the silent track's clips say
+<em>kept off</em> on the lanes.</p>
+<ul>
+<li><strong>Play them</strong>, if you trust whoever sent it, lets them play now, no reload, and this browser trusts that code from
+then on, in any song: the same link won't ask again.</li>
+<li><strong>Keep them off</strong> leaves them off. The song plays without them, the track says <em>kept off</em>, and the next time the song
+opens it asks again. <strong>Play it</strong> on a kept-off device in the <strong>Devices</strong> tab lets that one play later: the tab opens
+on the first track with one, and its track list says <em>kept off</em> beside each of them.</li>
+</ul>
+<p>On a phone the question comes first, on its own; once you've answered, the banner is one line (▶, the title, <strong>Make
+it yours</strong>, <strong>Back</strong>), so the song stays in view. The banner's ▶ plays the song and stops it, from the start marker.</p>
+<p>A song file you open (<code>⌘O</code>, or dropped on the studio) asks the same way. Nothing asks about the demo songs, the devices
+your agents write here, or a device file you import: those are yours to run. <strong>Make it yours</strong> keeps whatever you
+decided.</p>
+<p>Whoever opens the link hears your song but doesn't keep it yet: nothing is saved in their browser until they press
+<strong>Make it yours</strong>. Their copy remembers where it came from, and every part stays signed by whoever played it: Claude's
+takes stay Claude's, and yours come over signed by a guest, so nobody mistakes them for the new owner's. A device
+stays credited to whoever made it, and one that reached the sender in someone else's link says so (&quot;Sam, via Jo's
+link&quot;), so a song that comes back to you still credits what you made. The welcome card a first-time listener sees
+names who sent the song. History and the provenance report both name the song it was forked from.</p>
+<p>When you open someone else's link, your agents can play over their song, but until you press Make it yours they don't
+take anything out of it on their own. An agent that wants to delete something, rewrite notes or automation that's
+there, or add a device it wrote asks first, with a card in the Agent tab: <em>&quot;Claude wants to delete Bass (Sam's
+part).&quot;</em> <strong>Keep</strong> does it, signed by the agent; <strong>Keep as it was</strong> leaves the song alone; <strong>Hold to hear</strong> plays it as
+it would be. A new device is code, so it runs only once you keep it, after the device check. Adding a part, a clip or
+an effect, or a mix move, goes straight through as usual, and after Make it yours your agents work directly again.</p>
+<h2 id="bring-material-in"><a class="h-link" href="#bring-material-in">Bring material in</a></h2>
+<ul>
+<li><strong>MIDI.</strong> Drop a <code>.mid</code> file anywhere in the studio, or use <strong>Import MIDI…</strong> in the Song menu. Each part becomes a
+track with one clip (drums on the drum kit, other parts on the nearest built-in instrument), all in one undo step.
+Into an empty song it also brings the file's tempo, meter, key and markers; into a song with clips, the song keeps
+its tempo and says so.</li>
+<li><strong>Audio.</strong> Drop a WAV, MP3, M4A or OGG file on the arranger: it lands where you dropped it, on that audio track or
+a new one. <strong>Import audio…</strong> in the Song menu puts it at the playhead's bar.</li>
+<li><strong>A reference.</strong> Open the <strong>Reference</strong> tab (bottom panel, after the Mixer) and drop a finished song you want yours
+to sit near. It is measured once and kept beside your song, never in the mix or a render. <strong>Measure the mix</strong> shows
+your mix's numbers beside it, and <strong>A</strong> and <strong>B</strong> switch between your mix and the reference, played at your mix's
+loudness. Ask the agent how yours compares and it measures both (<code>compare_to_reference</code>).</li>
+</ul>
+<h2 id="take-it-elsewhere"><a class="h-link" href="#take-it-elsewhere">Take it elsewhere</a></h2>
+<p>The Song menu's <strong>Export</strong> section:</p>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>what you get</th></tr></thead>
+<tbody>
+<tr><td><strong>Mix</strong> (<code>⌘⇧E</code>)</td><td>the song as a WAV, 24-bit, 48 kHz</td></tr>
+<tr><td><strong>Stems</strong></td><td>one WAV per track, in a zip</td></tr>
+<tr><td><strong>MIDI</strong></td><td>a Standard MIDI File, one track per part</td></tr>
+<tr><td><strong>DAWproject</strong></td><td>a <code>.dawproject</code> for Bitwig Studio, Studio One, Cubase and others: tempo, tracks with their mixer settings, notes, audio clips and sections. Overdub's own devices can't travel, so each becomes a named placeholder with its settings. Put your own instrument on each track; the notes are all there.</td></tr>
+<tr><td><strong>Provenance report</strong></td><td>who played what: each author's share of the notes, the devices an agent built and the requests behind them, and the story of the edits. It opens in a new tab; print it to keep a PDF.</td></tr>
+<tr><td><strong>Attribution log</strong></td><td>the same story as JSON: who made each note, clip, effect and device, and every edit this session with its author and time</td></tr>
+</tbody></table></div>
+<p><strong>Save the project file</strong> (<code>⌘S</code>) keeps the song itself as <code>.overdub.json</code>, every note and device. Open it again with
+<code>⌘O</code>.</p>
+<h2 id="keys"><a class="h-link" href="#keys">Keys</a></h2>
+<p><code>?</code> shows every key in the studio, grouped, and has a switch for single-key shortcuts: off, keys like <code>R</code> and <code>H</code> do
+nothing, so dictation or a stray key can't start a take or open the mic. The ones to learn first:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>key</th><th>does</th></tr></thead>
+<tbody>
+<tr><td><code>Space</code></td><td>play from the marker, and stop (back to the marker)</td></tr>
+<tr><td><code>⇧Space</code> · <code>Home</code></td><td>play on from where it stopped · the marker back to bar 1</td></tr>
+<tr><td><code>⇧Esc</code></td><td>All off: stop, and cut every note and tail, from anywhere</td></tr>
+<tr><td><code>R</code></td><td>record into the song from the marker (again: punch out)</td></tr>
+<tr><td><code>⇧R</code></td><td>put what you just played in the song</td></tr>
+<tr><td><code>⌘↑</code> · <code>⌘↓</code></td><td>the selected clip's previous · next take</td></tr>
+<tr><td><code>L</code> · <code>K</code> · <code>⇧K</code></td><td>loop on and off · the click · the count-in (1 bar, 2 bars, off)</td></tr>
+<tr><td><code>M</code> · <code>S</code></td><td>mute · solo the selected track (again: unmute · unsolo)</td></tr>
+<tr><td><code>⌘E</code></td><td>split the selected clips at the playhead, on the snap grid</td></tr>
+<tr><td><code>H</code></td><td>hum (again to stop)</td></tr>
+<tr><td><code>T</code></td><td>tap (then <code>F</code> <code>J</code> <code>K</code> <code>L</code>)</td></tr>
+<tr><td><code>⇧B</code></td><td>build a band around the selected clip</td></tr>
+<tr><td><code>0</code></td><td>mute or unmute the selected clips</td></tr>
+<tr><td><code>E</code></td><td>show or hide the selected track's automation lanes</td></tr>
+<tr><td><code>`</code></td><td>musical typing on and off</td></tr>
+<tr><td><code>/</code></td><td>search sounds and effects</td></tr>
+<tr><td><code>⌘/</code></td><td>ask the agent</td></tr>
+<tr><td><code>A</code> · <code>B</code> · <code>D</code></td><td>show or hide the agent · the browser · the detail pane</td></tr>
+<tr><td><code>⌘Z</code> · <code>⇧⌘Z</code></td><td>undo · redo</td></tr>
+<tr><td><code>Esc</code></td><td>stop the agent, or close the device window you're in</td></tr>
+</tbody></table></div>
+<p>On Windows and Linux, <code>Ctrl</code> stands in for <code>⌘</code>. The keys are the ones Logic and GarageBand use: <code>M</code> mutes, <code>S</code> solos,
+<code>K</code> is the click. Splitting is <code>⌘E</code>, Ableton Live's key, since a browser keeps Logic's <code>⌘T</code> for a new tab. (Until
+October 2026 <code>M</code> was the click and <code>S</code> split a clip; the first press of each moved key says so, once.) A key from
+another DAW that does something else here (<code>⌘L</code>, <code>⌘C</code> or <code>⌘V</code> on a clip) says what does it: <code>L</code> loops the selected
+bars, <code>⌥</code>-drag or <code>⌘D</code> copies a clip.</p>
+    </article>
+    <nav class="pager" aria-label="Next and previous">
+      <span></span>
+      <a class="pager-next" href="agents.html"><small>Next</small>For agents</a>
+    </nav>
+  </main>
+</div>
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <img src="/site/assets/wordmark.svg" alt="overdub" width="120" height="19">
+    <p>An early prototype by AJ Smith.</p>
+    <p class="foot-links"><a href="/">Home</a> <a href="/site/docs/">Docs</a> <a href="/site/press/">Press</a> <a href="/llms.txt">llms.txt</a></p>
+  </div>
+</footer>
+<script>
+(function () {
+  var toc = document.querySelector('.toc');
+  if (toc && window.matchMedia('(min-width: 961px)').matches) toc.open = true;
+  // mark the section you're reading in "On this page"
+  var links = {}, hs = [];
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (a) { links[a.hash.slice(1)] = a; });
+  document.querySelectorAll('.prose h2[id], .prose h3[id]').forEach(function (h) { if (links[h.id]) hs.push(h); });
+  var here = null;
+  function spy() {
+    var cur = null;
+    for (var i = 0; i < hs.length && hs[i].getBoundingClientRect().top < 120; i++) cur = hs[i];
+    var a = cur && links[cur.id];
+    if (a !== here) { if (here) here.classList.remove('is-here'); if (a) a.classList.add('is-here'); here = a; }
+  }
+  if (hs.length) { addEventListener('scroll', function () { requestAnimationFrame(spy); }, { passive: true }); spy(); }
+  document.querySelectorAll('.code pre, .table-wrap').forEach(function (el) {
+    if (el.scrollWidth > el.clientWidth + 1) { el.tabIndex = 0; el.setAttribute('role', 'region'); el.setAttribute('aria-label', el.tagName === 'PRE' ? 'Code (scrolls sideways)' : 'Table (scrolls sideways)'); }
+  });
+  if (!navigator.clipboard) return;
+  document.querySelectorAll('.code').forEach(function (box) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'code-copy'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(box.querySelector('code').innerText).then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select and copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1800);
+    });
+    box.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

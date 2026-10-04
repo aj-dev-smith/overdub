@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Devices: writing instruments and effects · Overdub docs</title>
+<meta name="description" content="Instruments and effects as code: the kernel format, the dsp library, the device check a new device passes before it plays, the house library, and two complete examples.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overdub Studio">
+<meta property="og:title" content="Devices: writing instruments and effects · Overdub docs">
+<meta property="og:description" content="Instruments and effects as code: the kernel format, the dsp library, the device check a new device passes before it plays, the house library, and two complete examples.">
+<meta property="og:image" content="/site/assets/og.png">
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<link rel="stylesheet" href="/site/docs/docs.css">
+</head>
+<body class="docs-page">
+<a class="skip" href="#doc">Skip to the text</a>
+<header class="top">
+  <a class="brand" href="/" aria-label="Overdub home"><img class="brand-mark" src="/site/assets/logo.svg" alt="" width="40" height="40"><img class="brand-word" src="/site/assets/wordmark.svg" alt="overdub" width="150" height="24"></a>
+  <nav class="top-nav" aria-label="Site">
+    <a class="top-more" href="/site/docs/guide.html">Guide</a>
+    <a href="/site/docs/" aria-current="page">Docs</a>
+    <a href="/site/press/">Press</a>
+    <a class="top-cta" href="/app/">Open the studio</a>
+  </nav>
+</header>
+<div class="docs-layout">
+  <aside class="docs-side">
+    <nav class="docs-nav" aria-label="Docs">
+      <p class="side-head"><a href="/site/docs/">Docs</a></p>
+      <ol>
+        <li><a href="guide.html">Guide</a></li>
+        <li><a href="agents.html">For agents</a></li>
+        <li><a href="integrations.html">Connect an agent</a></li>
+        <li><a href="devices.html" aria-current="page">Writing devices</a></li>
+        <li><a href="bench.html">OverdubBench</a></li>
+        <li><a href="remote-mcp.html">Remote MCP</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+      </ol>
+    </nav>
+    <details class="toc">
+      <summary>On this page</summary>
+      <nav aria-label="On this page"><ol>
+<li><a href="#the-loop-write-check-play-refine">The loop: write, check, play, refine</a></li>
+<li><a href="#the-device-check">The device check</a></li>
+<li><a href="#how-a-device-gets-its-face">How a device gets its face</a></li>
+<li><a href="#scribble-strip-coreshaper-a-shaper-you-draw">Scribble Strip (core.shaper): a shaper you draw</a></li>
+<li><a href="#gaffer-tape-coremultiband-three-bands-up-and-down">Gaffer Tape (core.multiband): three bands, up and down</a></li>
+<li><a href="#under-the-hood">Under the hood</a></li>
+<li><a href="#expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal">Expression: pitch bend, the mod wheel and the sustain pedal</a></li>
+<li><a href="#presets">Presets</a></li>
+<li><a href="#the-library-and-device-files-v0">The library and device files (v0)</a></li>
+<li><a href="#drum-kits-and-the-note-map">Drum kits and the note map</a></li>
+<li><a href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (core.wavetable)</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#the-definition">The definition</a></li>
+<li><a href="#the-kernel">The kernel</a></li>
+<li><a href="#rules-the-device-check-enforces-most-of-them">Rules (the device check enforces most of them)</a></li>
+<li><a href="#dsp-all-factories-allocate-call-them-in-create-or-voice">dsp (all factories allocate: call them in create() or voice())</a></li>
+<li><a href="#what-the-check-reports-define_device-returns-it">What the check reports (define_device returns it)</a></li>
+<li><a href="#example-an-effect">Example: an effect</a></li>
+<li><a href="#example-an-instrument">Example: an instrument</a></li>
+      </ol></nav>
+    </details>
+  </aside>
+  <main id="doc" class="doc">
+    <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 33 min to read</p>
+    <article class="prose">
+<p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
+graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
+that run inside an AudioWorklet. Kernels are what you and your agent write. They get no DOM, no clock and seeded
+randomness only, so they are deterministic and hot-reloadable; that rule is for determinism, not security (see
+<a href="#under-the-hood">Under the hood</a>). A kernel written with <code>define_device</code> or imported from a device file is measured by
+the <strong>device check</strong> before it reaches a track. Kernels that arrive inside a song (a share link, a project file) run
+only once this browser trusts their code: until the person presses <strong>Play them</strong> they are held (an instrument silent,
+an effect bypassed, nothing compiled), and once allowed they are compiled as they are, without the check
+(<a href="architecture.html">ARCHITECTURE.md</a>, &quot;Who runs a song's code&quot;). They add devices to the studio and never replace
+one it ships: a song whose device has a built-in's id (<code>core.*</code>, <code>pedal.*</code>, <code>amp.*</code>, <code>cab.*</code>, <code>overdub.*</code>) or a house
+shelf device's id brings it in as <code>guest.&lt;slug&gt;</code> (a share link) or <code>you.&lt;slug&gt;</code> (a song file), and a kernel's source
+can be up to 256 KB.</p>
+<p>Where things live:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>file</th><th>what</th></tr></thead>
+<tbody>
+<tr><td><code>app/src/kernel/dsp.js</code></td><td>the stdlib a kernel gets as <code>dsp</code> (<code>makeDsp(sr)</code>, <code>overdubDsp</code>, <code>DSP_API</code>)</td></tr>
+<tr><td><code>app/src/kernel/worklet.js</code></td><td>the one AudioWorkletProcessor (<code>'overdub-kernel'</code>) that hosts any kernel; <code>kernelCompiler</code></td></tr>
+<tr><td><code>app/src/kernel/processor.js</code></td><td>the worklet's module: registers that processor in each audio context</td></tr>
+<tr><td><code>app/src/kernel/host.js</code></td><td><code>kernelInstance(c, def, opts)</code>, <code>ensureKernelWorklet(c)</code>, <code>compileKernel(source)</code></td></tr>
+<tr><td><code>app/src/kernel/check.js</code></td><td><code>checkDevice(def, { quick })</code>, <code>summarize(report)</code></td></tr>
+<tr><td><code>app/src/kernel/expr.js</code></td><td>expression: <code>noteExpr(note, spb)</code>, <code>normCurve</code>, <code>chanExpr</code> (pitch bend, mod wheel, sustain)</td></tr>
+<tr><td><code>app/src/kernel/guide.js</code></td><td><code>KERNEL_GUIDE</code> (the agent's version of this page), <code>GUIDE_EFFECT</code>, <code>GUIDE_INSTRUMENT</code></td></tr>
+<tr><td><code>app/src/kernel/examples.js</code></td><td><code>core.testsynth</code> and <code>core.testfilter</code>, the reference kernels (registered on import)</td></tr>
+<tr><td><code>tools/kernel-test.js</code></td><td>the platform's checks (<code>node tools/kernel-test.js</code>)</td></tr>
+</tbody></table></div>
+<h2 id="the-loop-write-check-play-refine"><a class="h-link" href="#the-loop-write-check-play-refine">The loop: write, check, play, refine</a></h2>
+<ol>
+<li>Write a def (below). Start from one of the examples.</li>
+<li><code>const report = await checkDevice(def)</code> (or the agent's <code>define_device</code> tool, which runs it and registers the device
+when it passes). Fix every error; read the warnings.</li>
+<li>Put it on a track. Change the kernel and the instance hot-reloads it: <code>instance.reload(source)</code> compiles the new
+code in the worklet and crossfades old to new over 20 ms (params kept, held notes released). A reload that fails to
+compile keeps the old code playing and reports the error with its line.</li>
+<li>Measure, don't guess: render the song (<code>engine.render</code>) and <code>measure()</code> it.</li>
+</ol>
+<h2 id="the-device-check"><a class="h-link" href="#the-device-check">The device check</a></h2>
+<p><code>checkDevice(def, { quick = false })</code> parses the kernel on the main thread without running it (a syntax error comes back
+with its line: <code>compile: line 12: SyntaxError: Unexpected token ')'</code>), then renders it in OfflineAudioContexts through
+the same worklet the studio uses (where a missing <code>create()</code> or a bad <code>poly</code> is refused, also as <code>compile: ...</code>), and
+reports:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>field</th><th>effects</th><th>instruments</th></tr></thead>
+<tbody>
+<tr><td><code>level</code></td><td><code>lufs</code> out, <code>deltaLU</code> against the input (DI strum), <code>drumsDeltaLU</code> (drum loop)</td><td><code>lufs</code> of the test phrase, <code>deltaLU</code> from -14</td></tr>
+<tr><td><code>truePeak</code>, <code>peak</code></td><td>dBTP / dBFS at defaults</td><td>the phrase, and poly + 4 notes at once</td></tr>
+<tr><td><code>nan</code></td><td>NaN / Infinity anywhere, or the worklet faulted</td><td>same</td></tr>
+<tr><td><code>tail</code></td><td>seconds until under -60 dBFS after the input stops (<code>decays: false</code> if it never does)</td><td>after the last note-off</td></tr>
+<tr><td><code>cpu</code></td><td>wall time of a 4 s render as % of real time</td><td>4 s of the phrase</td></tr>
+<tr><td><code>latency</code></td><td>where an impulse comes out (samples), and what the kernel declares</td><td>note-on to onset</td></tr>
+<tr><td><code>deterministic</code></td><td>two renders are bit-identical</td><td>same</td></tr>
+<tr><td><code>extremes</code></td><td>every param at min and at max, all min, all max: NaN, errors, raw peak (<code>hot</code>: cases over +6 dBFS)</td><td>same, with a short phrase</td></tr>
+<tr><td><code>voices</code></td><td></td><td><code>{ poly, maxVoices, steals }</code> after poly + 4 held notes</td></tr>
+<tr><td><code>stuck</code></td><td></td><td>a note still sounding after note-off, after <code>allOff()</code>, or after stealing</td></tr>
+<tr><td><code>timedOut</code></td><td><code>'process'</code>: a render didn't finish by the deadline (60 s); <code>'create'</code>: <code>create()</code> didn't return; <code>'busy'</code>: the audio thread is still held by an earlier render that didn't; else <code>false</code></td><td>same</td></tr>
+</tbody></table></div>
+<p><code>ok</code> is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
+(a raw peak over +24 dBFS), or a stuck note. Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
+a boost the player chose, not a bug). Level, tail, cpu, latency and determinism problems are warnings too.
+Drum kits (<code>cat: 'drums'</code>) are played the General MIDI drum phrase instead of the melodic one. Every message says what to change. <code>quick: true</code> skips
+the per-param extremes and shortens the renders (a few hundred ms instead of about a second).</p>
+<h2 id="how-a-device-gets-its-face"><a class="h-link" href="#how-a-device-gets-its-face">How a device gets its face</a></h2>
+<p>Nobody writes UI for a device: <code>app/src/ui/faces.js</code> draws it from the def. Effects become a stompbox (more than six
+params make it a rack) in <code>look</code>'s colour, finish, knobs and lettering, with an LED and a footswitch; instruments get a
+synth panel. Knobs follow each param's <code>curve</code> (log travel for Hz and times), show its <code>unit</code>, and use <code>opts</code> for
+switches. Missing look fields are picked from a hash of the id, so two devices never look alike. A device written by an
+agent wears its author's badge in the agent colour. A param with <code>face: false</code> stays off the face and lives in the
+device's window (Slide Rule's forty band controls do), and a device the studio ships may draw a small screen on its
+face: <code>screen(ctx2d, { w, h, ink, dim }, values)</code>, a function on the def, so a song's device (JSON) never has one.</p>
+<p><strong>Its window.</strong> Open on a face (or a double-click on its name) opens the device big (ARCHITECTURE.md, &quot;Device
+windows&quot;): its nameplate in its <code>look</code> colours, every param as a big control, its presets, A/B and, for an instrument,
+a keyboard. The window lays the params out in sections: by a param's <code>group</code> (<code>group: 'Filter'</code>), else by key
+prefixes (<code>flt_cut</code> and <code>flt_res</code> make a Filter section; <code>env1_a</code> … <code>env1_r</code> an Envelope 1), else by role. A device
+the studio ships may name an editor of its own (<code>editor: 'wavetable'</code> loads <code>ui/editors/wavetable.js</code>); a device written
+in a song never runs page code of its own: whatever it says, it gets the generic window.</p>
+<p><strong>Slide Rule (<code>core.eq8</code>), the worked example.</strong> An eight-band EQ whose window (<code>ui/editors/eq8.js</code>) draws its bands as
+nodes over the live spectrum of what comes in and goes out (<code>ctx.meter.tap</code>). Its filter math is one module,
+<code>devices/builtin/eq8-curve.js</code>: the kernel embeds those functions as source (<code>EQ_SOURCE</code>, from
+<code>Function.prototype.toString</code>) and the window imports them, so the curve on screen is computed from the same
+coefficients the kernel runs. <code>tools/eq-test.js</code> holds the two together: an impulse through the kernel, its DFT at
+test frequencies, against the curve, for every band type (within 0.5 dB; they agree to a thousandth). The rest of it:</p>
+<ul>
+<li><strong>Bands.</strong> <code>b1_*</code> … <code>b8_*</code>, each <code>on</code>, <code>type</code> (<code>BELL</code>, <code>LOW SHELF</code>, <code>HIGH SHELF</code>, <code>LOW CUT 12/24/48</code>, <code>HIGH CUT 12/24/48</code>, <code>NOTCH</code>, <code>BAND PASS</code>), <code>freq</code> (20 Hz to 20 kHz), <code>gain</code> (±24 dB, for bells and shelves) and <code>q</code> (a
+bell's, notch's or band pass's width; on a shelf or a cut the bump at its corner: 1 none, 2 a 6 dB bump, up to 4).
+Off by default, parked as 0 dB bells at 60, 150, 300, 700 Hz, 1.5, 3, 6 and 12 kHz; then <code>out_gain</code> and <code>out_auto</code>.</li>
+<li><strong>Filters.</strong> The Audio EQ Cookbook's biquads in Direct Form I, double precision; cuts are Butterworth cascades of
+one, two or four sections. The host glides frequency, gain and Q each block and the kernel interpolates the
+coefficients sample by sample across it; a band switched on or off, or to another shape, crossfades over 12 ms
+(an S-curve). At its defaults it is the input, sample for sample (its golden scene's hash is the dry strum's).</li>
+<li><strong>Auto gain.</strong> A first guess from the curve (a mix's long-term spectrum under K-weighting, instant), then a slow
+correction by what it hears: the input and the output K-weighted over about 3 s, the trim following their ratio
+over about 2 s, held in silence and while a band is soloed. After a few seconds of program the level is within
+about 0.1 LU of the dry signal on the house's test signals.</li>
+<li><strong>Solo.</strong> A hidden param (<code>solo</code>, <code>auto: false</code>) the window holds on the live instance only, with an automation
+segment (<code>inst.auto</code>), never in the song: it plays one band's region of the input (a bell's band pass, what a cut
+takes away), and the window lets go of it on close.</li>
+<li><strong>Cost.</strong> All eight bands with two 48 dB cuts and auto gain run at about 0.3% of real time.</li>
+</ul>
+<p><strong>Params that aren't knobs.</strong> A device whose state is more than a few knobs (a drawn shape, a step pattern) can still
+keep all of it in params, so it undoes, flips with A/B, sits in presets and travels in a song. Three fields help:
+<code>hidden: true</code> keeps a param off the face and out of the generic window (its editor draws it instead); <code>auto: false</code>
+keeps it out of the lanes (a param a pedal applies too early to follow one, or one of a shape's 195 points that would
+bury the Add-a-lane menu); <code>quantum</code> is the smallest step a window control makes (default: 1/200 of a short range, so a
+point on a 1/16 grid needs <code>quantum: 1e-4</code>). A device the studio ships may also give its def a <code>describe(params)</code> that
+returns one line of text: <code>get_project</code> prints that in place of the params' JSON (Scribble Strip prints its shapes).</p>
+<h2 id="scribble-strip-coreshaper-a-shaper-you-draw"><a class="h-link" href="#scribble-strip-coreshaper-a-shaper-you-draw">Scribble Strip (core.shaper): a shaper you draw</a></h2>
+<p>Draw a shape over a beat or a bar and it moves the volume, a filter or the pan in time with the song: the pumping
+sidechain feel, trance gates, stutters, swells and auto-pan. <code>app/src/devices/builtin/shaper.js</code>; its window
+(<code>editor: 'shaper'</code>) is <code>app/src/ui/editors/shaper.js</code>; the design note and what was measured is
+research/SHAPER.md.</p>
+<ul>
+<li><strong>Three lanes</strong>: <code>vol</code> (a gain: the top of the shape is full level, the bottom the level pulled down by
+<code>vol_depth</code>), <code>flt</code> (a resonant low-pass: the top is <code>flt_cut</code>, the bottom closed by <code>flt_depth</code>, up to 8 octaves;
+<code>flt_res</code>) and <code>pan</code> (equal-power: at 100% <code>pan_depth</code> the top is hard right, 0.5 the middle). Each has
+<code>&lt;lane&gt;_on</code>, <code>&lt;lane&gt;_depth</code> (%) and <code>&lt;lane&gt;_rate</code> (<code>1/32</code> … <code>2 BARS</code>, triplets and dotted). Then <code>smooth</code> (ms: the
+edges' rise; 0.1 is a hard edge) and <code>mix</code> (%).</li>
+<li><strong>The shapes are params</strong>: <code>&lt;lane&gt;_n</code> points (1..16), each <code>&lt;lane&gt;&lt;i&gt;_x</code> (where in one pass, 0..1), <code>_y</code> (0..1),
+<code>_c</code> (the bend of the line that leaves it, -1..1: &gt; 0 starts slow, as lanes bend) and <code>_s</code> (1: hold, then jump at
+the next point). Any order: the shape is them sorted by x, and it loops. They're <code>hidden</code> and <code>auto: false</code>.</li>
+<li><strong>Timing</strong>: a pass is locked to the transport's beat (beat 0 starts one); stopped, it runs on at the tempo. A bar
+is four beats (a kernel isn't told the meter). The shape is read half the smoothing time ahead, so a smoothed edge
+is centred where it's drawn.</li>
+<li><strong>At the defaults it is bypass</strong>, bit for bit (the volume lane flat at the top, the others off). Presets: Pump
+(quarter notes), Pump (eighths), Gate (sixteenths), Stutter, Swell over a bar, Auto-pan, Filter wobble (eighths),
+Half-time duck. <code>tools/shaper-test.js</code> holds it to all of this.</li>
+</ul>
+<h2 id="gaffer-tape-coremultiband-three-bands-up-and-down"><a class="h-link" href="#gaffer-tape-coremultiband-three-bands-up-and-down">Gaffer Tape (core.multiband): three bands, up and down</a></h2>
+<p>The three-band compressor producers put on everything: in each band it lifts the quiet detail up (upward compression,
+below one threshold) and holds the loud parts down (downward compression, above another), and one DEPTH knob mixes it
+in. On a synth, a drum bus or a vocal it makes the sound loud, dense and finished. <code>app/src/devices/builtin/multiband.js</code>;
+its window (<code>editor: 'multiband'</code>) is <code>app/src/ui/editors/multiband.js</code>; the design note, with sources and what was
+measured, is research/MULTIBAND.md.</p>
+<ul>
+<li><strong>Bands</strong>: <code>low</code>, <code>mid</code> and <code>high</code>, split at <code>xover_lo</code> (120 Hz) and <code>xover_hi</code> (2.5 kHz); the upper split stays
+at least 1.5 times the lower. Each band has <code>&lt;band&gt;_down_thresh</code> and <code>&lt;band&gt;_down_ratio</code> (above the threshold it is
+pulled down), <code>&lt;band&gt;_up_thresh</code> and <code>&lt;band&gt;_up_ratio</code> (below it, lifted, by at most 30 dB, and nothing under about
+−70 dB, so silence stays silent; it never sits above the downward threshold), <code>&lt;band&gt;_attack</code>, <code>&lt;band&gt;_release</code> and
+<code>&lt;band&gt;_gain</code>. Then <code>depth</code> (%: how much of it you hear), <code>in_gain</code> and <code>out_gain</code> (±12 dB) and <code>time</code> (10% to
+1000%: every attack and release, scaled together).</li>
+<li><strong>Heard in bands, applied with shelves.</strong> A Linkwitz-Riley crossover (24 dB per octave) feeds each band's level
+detector; the sound itself is never split. The three gains go onto the whole sound: the mid band's on all of it, a
+low shelf at <code>xover_lo</code> for the low band's and a high shelf at <code>xover_hi</code> for the high band's (each two trapezoidal
+SVF shelves, 24 dB per octave at their steepest, halfway in dB at the split). When the gains agree the shelves are
+flat, so at depth 0 the output is the input, sample for sample, and the phase only turns where the bands differ.</li>
+<li><strong>One source of truth.</strong> The crossover, each band's dynamics (<code>mbStep</code>: the detector, the static curve with 6 dB
+soft knees, the smoothing), the depth mix and the shelves are pure functions in <code>devices/builtin/multiband-curve.js</code>:
+the kernel embeds their source, as Slide Rule's does, and the window imports them to draw each band's curve and to
+run the same detectors on its live input for its readouts.</li>
+<li><strong>Depth</strong> mixes each band's gain toward 0 dB before the shelves: at 0% every band is at 0 dB and the shelves are
+flat; at 100% it is all of it.</li>
+<li><strong>Attack and the look-ahead.</strong> The sound reaches its gains 5 ms after the detectors heard it. Each band's downward
+side follows its mean square at the attack and release, and the same curve on the band's peak at the attack, let go
+within 10 ms: so a fast attack (under 5 ms) catches a hit's front, gain and makeup in place before it arrives, and a
+slow one lets the front through. The lift lets go within a millisecond as the band gets louder, so a hit after a
+quiet spot doesn't jump out, and comes back at the release.</li>
+<li><strong>Levels.</strong> The defaults are the classic (each band lifted toward −26, −24 and −32 dB at 6:1 and back within 60,
+50 and 40 ms; held at 3:1 above −4, −8 and −14 dB; made up by 2, 1.5 and 2 dB) at 40% depth: within a decibel of
+bypass on the house's test signals and drum kits. A safety ceiling, a look-ahead true-peak limiter (Red Line's
+method) on everything it puts out, holds it at −1 dBTP at any setting; it lets go of a short over within 10 ms and a
+long one over 150 ms. The look-ahead and the ceiling cost 328 samples (6.8 ms) of latency, declared. About 2% of
+real time.</li>
+<li><strong>Presets</strong>: Full depth (the classic, all of it, a decibel up), Glue (bus), Drum smash, Vocal presence, Bass
+tighten, Subtle 30%. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
+down; Glue, Subtle and Bass tighten stay within a decibel or so of the input. <code>tools/multiband-test.js</code> holds it to
+all of this.</li>
+<li><strong>The window says what it does</strong>: while the song plays, the loudness out against in (in LU, large, in the warning
+ink when it takes a decibel or more off), In and Out meters, and each band held or lifted, all worked out on the
+page from the window's own taps (<code>ctx.meter.tap</code>) and the shared functions.</li>
+</ul>
+<h2 id="under-the-hood"><a class="h-link" href="#under-the-hood">Under the hood</a></h2>
+<ul>
+<li><strong>One processor for every kernel.</strong> <code>ensureKernelWorklet(c)</code> loads <code>app/src/kernel/processor.js</code> (the processor and
+the dsp stdlib) once per context, a file on the studio's own origin like every worklet module it loads: the page's
+policy refuses scripts from <code>data:</code> and <code>blob:</code> URLs. Each instance is an <code>AudioWorkletNode</code> given the kernel's
+source in <code>processorOptions</code>; the worklet compiles it with <code>new Function</code> in a scope where <code>dsp</code>, a frozen
+<code>Math</code> (whose <code>random</code> throws) and a small <code>console</code> are the only useful names. That guards against accidents; it
+is not a security boundary (a determined kernel can reach the worklet's globals), so treat kernels from strangers like
+code from strangers. What keeps the page safe is that kernels are evaluated only there: the worklet scope has no
+DOM, no localStorage and no network. The main thread only ever parses kernel source (<code>compileKernel</code>), never runs it.</li>
+<li><strong>Faults are contained.</strong> A kernel that throws, or outputs NaN/Infinity, or runs past +60 dBFS is silenced and reports
+one <code>{ stage: 'process', message, line }</code> error (<code>instance.errors</code>, <code>instance.on('error', fn)</code>) until it is reloaded.</li>
+<li><strong>Notes are sample accurate.</strong> <code>noteOn/noteOff/allOff(time)</code> carry AudioContext times; the worklet converts them to
+frames and splits the block at each one. Offline, every context that hosts kernels gets one <code>suspend(0)</code> where the host
+waits for each kernel to acknowledge what was posted to it (<code>instance.sync()</code>), so notes scheduled before
+<code>startRendering()</code> land on their frames. (Don't schedule your own <code>suspend</code> at exactly 0 on such a context.)</li>
+<li><strong>Params</strong> are posted whole (<code>set(params)</code>, defaults merged), clamped to their range, and smoothed per block with a
+~10 ms one-pole (geometric for <code>curve: 'log'</code>); switches and stepped params snap; <code>set(params, { first: true })</code> jumps.</li>
+<li><strong>Bypass</strong> (<code>setOn(false)</code>) crossfades wet to dry over ~10 ms in Web Audio gains; a <code>trails</code> device keeps its wet path
+open so the tail rings out. A bypassed non-trails kernel is put to sleep (skipped) once its tail has had time to die.</li>
+<li><strong>Transport</strong>: the host posts <code>{ bpm, playing, beat }</code> from the engine's clock every 50 ms and the worklet extrapolates
+per block, so <code>t.beat</code> is right at every block start. Offline it is the project tempo from beat 0, playing.</li>
+<li><strong>Instance extras</strong> beyond the contract: <code>errors</code>, <code>faulted</code>, <code>version</code>, <code>on('error' | 'log' | 'ready', fn)</code>,
+<code>stats()</code> (<code>{ voices, maxVoices, steals, notes }</code>), <code>sync()</code>, <code>reload(source)</code>, <code>node</code>.</li>
+</ul>
+<h2 id="expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal"><a class="h-link" href="#expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal">Expression: pitch bend, the mod wheel and the sustain pedal</a></h2>
+<p>A kernel reads the player's expression from <code>t</code>, beside the transport: <code>t.bend</code> (semitones), <code>t.mod</code> (0..1) and
+<code>t.sustain</code> (the pedal is down). A kernel that never reads them plays exactly as it did before they existed. Two
+things set them:</p>
+<ul>
+<li><strong>The channel</strong>, as a MIDI keyboard sends it: <code>instance.expr({ bend?, mod?, sustain? }, time)</code>, sample accurate
+like a note (the block is split there). <code>input/midi.js</code> sends the pitch bend wheel (its 14 bits times the bend
+range: 2 semitones, or what <code>midi.setBendRange(st)</code> or the controller's RPN 0 sets, 1..24), the mod wheel (CC 1,
+with CC 33's fine bits) and the pedal (CC 64) to the instrument you are playing; CC 121 resets them. The host keeps
+the sustain pedal for every instrument: a note-off that arrives while it is down is held (the voice is not released,
+and it can still be stolen first) until it lifts. (<code>midi.js</code> also holds the keys it captures while the pedal is down,
+so a kept take carries the pedal as note lengths.)</li>
+<li><strong>The note</strong>, from the song, so a render repeats it: a note may carry <code>bend</code> (semitones) and <code>mod</code> (0..1), each a
+number for the whole note or <code>[[beat, value], ...]</code> from the note's start (linear between the points, the first
+value before the first point, the last after the last; up to 64 points, bend within ±48). The engine, the browser
+render and the canonical Node render send them with the note-on (<code>noteExpr</code> turns beats into seconds; a note
+chased from mid-song starts its curve that far in). Agents write them with <code>notes.add</code> and <code>notes.replace</code>.</li>
+</ul>
+<p>Inside a voice's <code>render</code>, <code>t.bend</code> is the channel's bend plus the note's own and <code>t.mod</code> their sum (clamped to 0..1);
+in <code>process</code> they are the channel's. Evaluate them per block: they move at block rate (the host splits blocks at
+channel changes and evaluates a note's curve at the start of each piece). <code>core.guitar</code> (DI Box) bends its string
+with <code>t.bend</code> and adds finger vibrato from <code>t.mod</code>.</p>
+<h2 id="presets"><a class="h-link" href="#presets">Presets</a></h2>
+<p><code>presets: [{ name, params, blurb? }]</code> names sounds a newcomer picks by name. The registry checks and fills them in
+(<code>normPresets</code>): every param left out takes its default, values are clamped to their ranges and snapped to their
+steps, a switch may be given by its label (<code>'NYLON'</code>) or its index, names are unique (any case), up to 24. So a
+preset's <code>params</code> is the whole sound: <code>instrument.set { params }</code> (or <code>insert.set { patch: { params } }</code>) applies it
+as it is, and <code>presetParams(def, name)</code> looks one up. <code>list_devices</code> lists their names and <code>get_device</code> their params
+for agents. A device file and a <code>define_device</code> call carry the field too (a bad preset is refused with the reason).</p>
+<h2 id="the-library-and-device-files-v0"><a class="h-link" href="#the-library-and-device-files-v0">The library and device files (v0)</a></h2>
+<p>The house shelf is <code>app/src/devices/library/</code>: ten kernels Claude wrote the way any agent writes them, one plain
+request each (the def's <code>request</code> field), signed <code>by: 'claude'</code>, registered at boot with <code>source: 'library'</code> (ids
+<code>claude.&lt;slug&gt;</code>; their faces wear Claude's badge). Instruments: Choir Loft (<code>claude.choir-loft</code>), Biscuit Tin
+(<code>claude.biscuit-tin</code>), Dust Sheet (<code>claude.dust-sheet</code>), Sub Basement (<code>claude.sub-basement</code>). Effects: Charity Shop
+(<code>claude.charity-shop</code>), Skylight (<code>claude.skylight</code>), Chopping Block (<code>claude.chopping-block</code>), Power Cut
+(<code>claude.power-cut</code>), Say Ahh (<code>claude.say-ahh</code>), Leading Edge (<code>claude.leading-edge</code>). A def may carry
+<code>demo: { params }</code>, the settings the library page plays it at. <code>tools/library-test.js</code> holds them to house levels
+(instruments -14 to -18 LUFS on the test phrase, effects within 1.5 LU of bypass, true peaks at or under -1 dBTP, no
+check warnings).</p>
+<p><code>/app/library.html</code> shows every built-in, showcase and library device as its face, with its request, its check
+summary (<code>library/reports.js</code>, written by <code>WRITE=1 node tools/library-test.js</code>; a summary only counts while its hash
+matches the kernel) and a ▶ that renders a demo in the page. &quot;Use in a new song&quot; opens <code>/app/?new&amp;device=&lt;id&gt;</code>, which
+<code>app/src/ui/devices-io.js</code> turns into a track with that device and a few bars to hear it with.</p>
+<p><strong>Device files.</strong> <code>.overdub-device.json</code> = <code>{ format: 'overdub-device/0', exported, device: { id, name, kind, cat, blurb, nod?, request?, by, params, look, tail?, trails?, kernel } }</code>. Export from a device's info card in the rack
+(⌥⌘E exports the selected one); import from the Song menu, ⇧⌘I, ⌘O, or a drop anywhere. An import runs
+<code>checkDevice</code> first and is refused with the report if it fails; one that passes is one <code>device.define</code> signed by you
+(the device keeps its author). A file can't take over a built-in id (<code>core.verb</code> comes in as <code>you.verb</code>), and the
+same file twice changes nothing. Until kernels run as WASM, a device file is code from whoever made it: import files
+from people you trust. Importing one trusts its code in this browser (you chose the file), as <code>define_device</code> trusts
+what your agent writes. A share link (<code>#s=</code>) or a song file carries the song's devices, kernels included; the ones
+this browser hasn't trusted are held, and the studio asks before they run.</p>
+<h2 id="drum-kits-and-the-note-map"><a class="h-link" href="#drum-kits-and-the-note-map">Drum kits and the note map</a></h2>
+<p>Two built-in kits sit on the drums shelf (<code>cat: 'drums'</code>). Every kit plays the drum phrase in the device check, and a
+track with one gets the drum grid.</p>
+<ul>
+<li><strong>Gobo Kit</strong> (<code>core.drums</code>): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
+ACOUSTIC+.</li>
+<li><strong>Studio A</strong> (<code>core.drumroom</code>): an acoustic kit in a big tracking room, miked like a recording. It has
+articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
+Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
+</ul>
+<p><strong>The note map.</strong> Both kits play General MIDI. Studio A plays these articulations GM has no note for:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>notes</th><th>piece</th><th>what they play</th></tr></thead>
+<tbody>
+<tr><td>21-24, 26</td><td>hi-hat</td><td>foot splash, closed edge (shank), ¼ open, ½ open, open edge</td></tr>
+<tr><td>31-34</td><td>snare</td><td>flam, drag, a held roll, edge</td></tr>
+<tr><td>25, 27-30</td><td>cymbals</td><td>chokes: ride, crash, crash 2, china, splash</td></tr>
+</tbody></table></div>
+<p><code>core/music.js</code> names them in <code>DRUM_MAP</code>, for grid rows: <code>footsplash hatedge quarter half openedge flam drag roll snareedge ridechoke crashchoke crash2choke chinachoke splashchoke</code>. It also names the GM notes that had no name:
+<code>rimshot</code> 40, <code>lowfloor</code> 41, <code>himid</code> 48, <code>china</code> 52, <code>splash</code> 55, <code>crash2</code> 57, <code>rideedge</code> 59, and <code>tom4</code> 43, the
+same note as <code>floor</code>. Studio A's own note map (below) labels every row.</p>
+<p><strong>A kit names its own notes.</strong> A drum kit's def can carry <code>notes</code>: what each MIDI note plays on it, in a row's
+words, and <code>other</code>, what any note it doesn't name plays.</p>
+<div class="code" data-lang="js"><pre><code>notes: { 36: 'Kick', 38: 'Snare', 40: 'Rimshot', 31: 'Flam', 24: 'Hat 1/2 open', /* ... */ other: 'Side stick' }</code></pre></div>
+<ul>
+<li>The Beat tab, the piano roll and the inspector name a track's drum rows from its kit's map
+(<code>core/music.js</code> <code>kitNotes(def)</code> and <code>drumName(p, notes)</code>). On Studio A, note 40 is &quot;Rimshot&quot;; on Gobo Kit it is
+&quot;Snare (40)&quot;, since Gobo plays its snare there.</li>
+<li>A kit with no map gets General MIDI's names (<code>GM_DRUMS</code>). A note the kit doesn't name reads as its <code>other</code> and
+the number (&quot;Side stick (60)&quot;).</li>
+<li><code>get_device</code> gives agents the map, so an agent writing for a kit uses its articulations.</li>
+<li>Names are read as text: keys are MIDI notes 0-127 or <code>other</code>, values are strings of at most 40 characters.</li>
+<li>Gobo Kit's map sits in <code>core/music.js</code> (<code>KIT_NOTES</code>, by its id) until its def carries it.</li>
+</ul>
+<p>What Studio A does with the GM notes:</p>
+<ul>
+<li>40 is the rimshot, 59 the ride's edge, 53 its bell.</li>
+<li>50 and 48 play rack tom 1, 47 rack tom 2, 45 floor tom 1, and 43 and 41 floor tom 2.</li>
+<li>A closed (42, 22) or pedal (44) note chokes an open hat.</li>
+<li>A hat note's <code>mod</code> (0..1) sets how open the hats are for that stroke.</li>
+<li>The roll (33) rolls for as long as the note is held, and its <code>mod</code> swells it.</li>
+<li>A choke is the hit, then a hand grabbing it.</li>
+<li>Notes the map doesn't name play the side stick, quietly.</li>
+</ul>
+<p>The full table, with every piece, is in the design note.</p>
+<p><strong>Studio A's window</strong> (<code>editor: 'drumroom'</code>, <code>ui/editors/drumroom.js</code>) draws the kit from above, from <code>LAYOUT</code>. That
+is the same layout <code>drumroom.js</code> builds the mics from, so the picture and the stereo image agree.</p>
+<ul>
+<li><strong>Playing it.</strong> You play it by clicking where you'd hit (<code>engine.liveNoteOn</code>), and lower on a piece is louder.</li>
+<li><strong>The strokes.</strong> Alt plays the other stroke (a choke, the side stick, the hat pedal), and a drag up on the hats
+opens them. A touch has no Alt, so a finger held on a cymbal chokes it.</li>
+<li><strong>Where to hit.</strong> The toms cover most of the kick's shell, so the kick is also the floor before it, from the pedal
+across to floor tom 1, where its name sits. Every piece's name plays that piece.</li>
+<li><strong>Lights.</strong> The pieces light as the song plays them, and fade with each piece's ring.</li>
+<li><strong>Controls.</strong> Beside the kit sit the selected piece's tune, decay and level, with a key for each of its notes. Along
+the bottom, the mic mix is laid out as channel strips.</li>
+</ul>
+<p><strong>Studio A's params.</strong></p>
+<ul>
+<li>The kit: <code>kit</code> (MAPLE BIRCH JAZZ ARENA DEAD), <code>tune</code>, <code>decay</code>, <code>humanize</code>, and <code>velocity</code> (the velocity curve).</li>
+<li>The mic mix: <code>mix_close</code>, <code>mix_oh</code>, <code>mix_room</code>, <code>mix_crush</code> (dB faders, -40 off), <code>bleed</code>, <code>room_size</code>, and <code>view</code>
+(DRUMMER or AUDIENCE).</li>
+<li>Each piece's <code>&lt;piece&gt;_tune</code>, <code>&lt;piece&gt;_decay</code> and <code>&lt;piece&gt;_level</code> for kick, snare, hat, tom1-tom4, ride, crash1,
+crash2, china and splash.</li>
+<li><code>snare_wires</code> (0 is snares off) and <code>perc_level</code>.</li>
+<li>Every param carries a <code>group</code> (its piece, <code>mics</code>, <code>kit</code> or <code>perc</code>), so an editor can lay them out by piece.</li>
+</ul>
+<p><strong>A kernel technique it uses: probes.</strong> A voice renders into one stereo pair and doesn't know where in the block it
+starts. A kit whose mics need each piece on its own bus can't build its mix in its voices. Studio A's voices are
+probes:</p>
+<ul>
+<li><code>start</code> queues the note.</li>
+<li><code>render</code> counts the frames the host asks for and reads the note's <code>t.mod</code>, then returns true for that block only
+(or while a held roll lasts).</li>
+<li>In <code>process</code>, the frames counted give each note's offset in the block (<code>n - frames</code>).</li>
+</ul>
+<p>The whole kit, its persistent piece models and its shared mic buses run there, sample accurate. Any kernel that
+needs per-voice buses (a mixer of sources, a sympathetic resonance between notes) can do the same.</p>
+<h2 id="a-big-instrument-light-table-corewavetable"><a class="h-link" href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (<code>core.wavetable</code>)</a></h2>
+<p>Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
+a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a
+worked example of three things a big kernel needs. The design note, with every param, table and number, is
+<code>docs/research/LIGHT-TABLE.md</code>.</p>
+<ul>
+<li><strong>Data the page and the kernel share.</strong> A kernel sees only <code>dsp</code>. So when a face needs the same data as the sound,
+put the data in one self-contained function (no imports, nothing from the module's scope) and paste the function's
+source into the kernel: <code>const LT = (${lightTables})();</code>. The page imports the same function
+(<code>app/src/devices/builtin/wavetables.js</code>) to draw what plays. <code>tools/wavetable-test.js</code> checks that the kernel
+carries it verbatim.</li>
+<li><strong>Big data, built lazily.</strong> The tables are built in the worklet. The frames nearest the playing position are built
+first, at once, and the rest four a block, so changing a table never holds the audio thread. Each instance holds
+14.1 MB.</li>
+<li><strong>Many params.</strong>
+<ul>
+<li><strong>Keys</strong> are grouped by prefix: <code>a_*</code>, <code>b_*</code>, <code>sub_*</code>, <code>noise_*</code>, <code>flt_*</code>, <code>env1_*</code>, <code>lfo1_*</code>, <code>m1_*</code>, <code>macro1</code>,
+<code>fx_*</code> and <code>voice_*</code>. Each has a role and a desc.</li>
+<li><strong>Reads</strong> stay fast: once a block, the kernel copies the host's params into an object of fixed shape, so hundreds
+of reads a block cost little.</li>
+<li><strong>Nothing allocates</strong> once it runs.</li>
+</ul></li>
+</ul>
+<p>To drive it, as an agent or by hand:</p>
+<ul>
+<li><strong>Start from a preset.</strong> Each preset's blurb opens with its family, as in &quot;Bass: a Reese, …&quot;.</li>
+<li><strong>Pick a table.</strong> <code>a_table</code> is a switch over 14 tables. <code>list_devices</code> with <code>detail: &quot;params&quot;</code> lists them, and the
+design note says what each sounds like. <code>a_pos</code> moves through the table.</li>
+<li><strong>Wire a mod slot.</strong> Slot n is <code>mn_src</code> (an index into <code>SOURCES</code>), <code>mn_dst</code> (an index into <code>DESTS</code>) and <code>mn_amt</code>,
+from −1 to 1.
+<ul>
+<li>The amount is in the destination knob's travel. At CUTOFF, 1 is 10 octaves, so 0.1 is an octave. PITCH is 24
+semitones and FINE 1 semitone.</li>
+<li>For example, <code>{ m1_src: 4, m1_dst: 1, m1_amt: 0.3 }</code> sweeps osc A through 0.3 of its table with LFO1.</li>
+<li><code>MACRO 1</code>–<code>4</code> are sources that do nothing until a slot uses them.</li>
+<li>A slot aimed at <code>M1 AMT</code> scales slot 1, so MOD WHEEL → M1 AMT puts a vibrato's depth on the wheel.</li>
+</ul></li>
+</ul>
+<h2 id="for-agents"><a class="h-link" href="#for-agents">For agents</a></h2>
+<p>Everything below is <code>KERNEL_GUIDE</code> from <code>app/src/kernel/guide.js</code>, word for word: the agent layer puts it in the
+agent's context. Both examples in it pass <code>checkDevice</code> with no warnings (<code>tools/kernel-test.js</code> checks that, and that
+the guide names every <code>dsp</code> function and no others).</p>
+<p>A device is a definition plus a kernel: the source of ONE JavaScript expression that evaluates to an object. It runs
+in an AudioWorklet and gets <code>dsp</code> (below) and nothing else: no DOM, fetch, Date or timers; Math.random throws. The
+host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot reload, bypass, and silencing faults.</p>
+<h2 id="the-definition"><a class="h-link" href="#the-definition">The definition</a></h2>
+<div class="code" data-lang="js"><pre><code>{ id: '&lt;author&gt;.&lt;slug&gt;' (lowercase a-z 0-9 . _ -, forever: songs refer to it; e.g. 'claude.tape-echo'),
+  name: 'Tape Echo' (shown everywhere; may change later, unlike the id), kind: 'effect' | 'instrument',
+  cat: synth keys drums bass pluck sampler | dynamics eq filter pitch drive fuzz amp mod time ambient glitch utility other,
+  blurb: '&lt;= 60 chars: what it does for the player',
+  params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
+  drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
+  presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  kernel: '&lt;source&gt;' }</code></pre></div>
+<p>ParamSpec, continuous: { key, label, min, max, def, curve?: 'lin' | 'log' (log needs min &gt; 0; use it for Hz and
+times), unit?: 'Hz' | 'dB' | 'ms' | 's' | '%' | 'st' | 'note' | 'x', role?, desc?, step?, group? }
+ParamSpec, switch: { key, label, opts: ['LP', 'BP', 'HP'], def: 0 } (the kernel sees the index 0, 1, 2).
+role (so agents and macros find the right knob): tone level drive mix time feedback rate depth size decay attack
+release pitch shape width gate sens. Keys are forever; never 'id', 'on' or 'uid'. 3-5 good params beat 10.
+group (optional): the section a param sits in, in the device's window ('Filter', 'Envelope'); key prefixes
+(flt_cut, flt_res) do the same.</p>
+<p>look (the face is drawn from it; missing fields are picked from the id): color, ink, led (hex), shape box | wide |
+mini | round | wah | rack, finish flat | sparkle | brushed | hammer | stripe | check, knob black | chicken | cream |
+chrome | small, label script | block | plate | stencil. Instruments get a synth panel in color/ink/knob.</p>
+<h2 id="the-kernel"><a class="h-link" href="#the-kernel">The kernel</a></h2>
+<p>Effect:</p>
+<div class="code" data-lang="js"><pre><code>({ create({ sr, seed, dsp, params }) {
+     <span class="c">// allocate here: filters, delay lines, buffers, lookup tables</span>
+     return { latency?: samples, process(L, R, n, p, t) { /* in place: L/R hold the input, write the output */ } };
+} })</code></pre></div>
+<p>Instrument (the host owns voices: poly of them, default 8, max 64; it steals the oldest released voice, then the
+oldest, with a 5 ms fade):</p>
+<div class="code" data-lang="js"><pre><code>({ poly: 8,
+   create({ sr, seed, dsp, params }) {
+     return {
+       voice(i) { return {                     <span class="c">// called poly + 2 times up front; i = 0, 1, 2... (seed + i for variety)</span>
+         start(pitch, vel, p) {},               <span class="c">// MIDI pitch (60 = C4), vel 0..1; reset ALL per-note state here</span>
+         release(p) {},                         <span class="c">// note-off: begin the release</span>
+         render(L, R, n, p, t) { return alive }, <span class="c">// ADD into L[0..n-1] and R[0..n-1]; return false once silent</span>
+         stop?() {},                            <span class="c">// optional: the host cut this voice</span>
+       }; },
+       process?(L, R, n, p, t) {},              <span class="c">// optional, after the voices are summed: shared filter, chorus, reverb</span>
+     };
+} })</code></pre></div>
+<ul>
+<li>n is the number of frames to do now. It varies (the host splits blocks at note events): loop to n, never L.length.</li>
+<li>p is the params object by key, smoothed by the host (continuous params glide ~10 ms, switches and stepped params
+snap, values are clamped to their range). Read it; never store or mutate it.</li>
+<li>t = { bpm, playing, beat, bend, mod, sustain }: the transport at the start of the block (beat advances while
+playing) and the player's expression. Sync time to t.bpm (seconds per beat = 60 / t.bpm) and LFOs with
+lfo.sync(beats, t). t.bend is the pitch bend in semitones (multiply your frequencies by 2^(t.bend / 12)), t.mod
+the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
+already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
+and mod); in process, the channel's. A kernel that ignores them still plays.</li>
+<li>Mono sources arrive on both L and R. Output is always stereo.</li>
+<li>render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.</li>
+</ul>
+<h2 id="rules-the-device-check-enforces-most-of-them"><a class="h-link" href="#rules-the-device-check-enforces-most-of-them">Rules (the device check enforces most of them)</a></h2>
+<ol>
+<li>No allocation in process/render/start/release: no new arrays, objects, closures or string building per block.
+Create everything in create() or voice(). (Float32Array via dsp.buffer(n) in create.)</li>
+<li>No Math.random (it throws): use dsp.rng(seed) / dsp.noise(seed). Same seed, same sound, every render.</li>
+<li>Effects keep their level: at default settings the output should measure within 3 LU of the input (the check
+says &quot;level: +x LU&quot;). Instruments: about -14 LUFS for the test phrase (-18 is fine for plucks and drums, whose
+peaks are high), true peaks under -1 dBTP. Over +6 dBTP at default settings fails the check; so does a runaway
+(over +24 dBFS) at any setting, while over +6 dBFS at an extreme setting is a warning.</li>
+<li>Heavy nonlinearities (drive, fuzz, folding, clipping with gain) alias: run them through dsp.oversample2x() or
+oversample4x() and declare latency (the oversampler's .latency) if you time-align a dry path.</li>
+<li>Every change must be smooth: p is smoothed, but glide anything you derive from it that jumps (a delay time:
+dsp.smooth) so knob moves never click.</li>
+<li>Guard the ends of every range: each param is tested at min and max, all at min, all at max. Clamp before
+log/sqrt/division; keep feedback below 1.</li>
+<li>Put pow/exp/tan in coefficient formulas per block, not per sample, where you can.</li>
+</ol>
+<h2 id="dsp-all-factories-allocate-call-them-in-create-or-voice"><a class="h-link" href="#dsp-all-factories-allocate-call-them-in-create-or-voice">dsp (all factories allocate: call them in create() or voice())</a></h2>
+<p>Generators have next(); one-in/one-out processors have tick(x); stereo processors have tick(l, r) and leave the WET
+signal in .l and .r. Times in seconds unless named ms; frequencies in Hz; gains linear unless named dB.</p>
+<p>Math: sr, TAU, PI, clamp(x, lo, hi), lerp(a, b, t), mtof(midi), ftom(hz), dB(db) -&gt; gain, toDb(gain) -&gt; dB,
+sstep(t) smoothstep, tanh(x) (fast rational; exactly +-1 beyond +-3), softclip(x) (cubic; +-1 beyond +-1.5),
+hardclip(x, lim = 1), fold(x) (triangle wavefolder: identity in -1..1, folds beyond), crush(x, bits).</p>
+<p>Random: rng(seed) -&gt; r; r() in [0, 1), r.bi() in [-1, 1), r.gauss(). noise(seed, 'white' | 'pink' | 'brown').next()
+(white: uniform +-1; pink and brown: RMS about 0.3).</p>
+<p>Oscillators: osc(shape = 'saw'), shapes 'sine' 'saw' 'square' 'pulse' 'tri' (band-limited) -&gt; .freq(hz) (chainable)
+.next() (-1..1) .reset(phase = 0) .wave(shape) .phase .pw (pulse width 0.02..0.98). blep(t, dt) / blamp(t, dt): the
+polyBLEP / polyBLAMP residuals (phase t, increment dt) for band-limiting your own shapes.
+lfo(shape = 'sine', hz = 1, seed?), shapes 'sine' 'tri' 'saw' 'square' 'sh' (sample and hold) 'drift' (smooth random)
+-&gt; .next() (-1..1) .uni() (0..1) .rate(hz) .sync(beats, t) (call once per block: one cycle per beats, locked to
+t.beat while playing) .phase .offset (0..1, phase offset used by sync).</p>
+<p>Filters: svf() (zero-delay state variable; stable at any setting; retune every sample if you like) -&gt; .set(fc, q = 0.707,
+gainDb = 0), then ONE of .lp(x) .bp(x) .hp(x) .notch(x) .peak(x) (resonant peak) .allpass(x) .bell(x) (EQ bell by
+gainDb) .lowshelf(x) .highshelf(x) per sample (each call advances the filter); or .tick(x) then read .low .band .high.
+q: 0.5 soft, 0.707 flat, 2-10 resonant, 20+ ringing. One filter per channel.
+onepole(fc?) -&gt; .set(fc) .lp(x) .hp(x). dcblock() -&gt; .tick(x).
+biquad() -&gt; .set(type, fc, q = 0.707, gainDb = 0) with type 'lp' 'hp' 'bp' 'notch' 'allpass' 'peak' 'lowshelf'
+'highshelf', then .tick(x). (set costs trig: per block.)</p>
+<p>Delays: delay(maxSamples) -&gt; .read(d) (linear, d &gt;= 1 samples) .cubic(d) (Hermite, d &gt;= 2, for modulated delays)
+.write(x) .ms(ms) -&gt; samples .clear(). Read BEFORE you write each sample: read(d) is the input from d samples ago.
+allpass(len, g = 0.5) -&gt; .tick(x). comb(len, fb = 0.8, damp = 0.2) -&gt; .tick(x) .set(fb, damp).</p>
+<p>Envelopes: adsr(a = 0.005, d = 0.1, s = 0.7, r = 0.2) -&gt; .gate(on) .hit() (attack, then release on its own) .next()
+(0..1) .active() .set(a, d, s, r) (cheap when unchanged: fine per block) .reset(). Exponential segments; a retrigger
+attacks from the current level (no click). ar(a = 0.002, r = 0.3): the same, holding at 1 while gated.
+follower(attackMs = 5, releaseMs = 100) -&gt; .tick(x) (the level of x). smooth(ms = 10, init = 0) -&gt; .tick(target)
+.reset(v) .value. slew(riseMs = 10, fallMs = riseMs, init = 0) -&gt; .tick(target).</p>
+<p>Oversampling: oversample2x() / oversample4x() -&gt; .process(x, fn) runs fn (a one-sample function you make ONCE in
+create, reading variables you update per block) at 2x / 4x and returns one band-limited sample. .latency = 23 / 27.5
+samples. Use one per channel.</p>
+<p>Physical models: karplus(hz = 220, decay = 3, bright = 0.5, seed?) (plucked string) -&gt; .pluck(vel = 1, hz?) .next()
+.freq(hz) .set(decay, bright) (from the next pluck) .mute(t60 = 0.08) (damp it: a release) .active().
+modal(freqs, decays, gains?) (resonator bank: drums, bells, bars; arrays; decays are T60 s; gains default 1/n) -&gt;
+.strike(vel = 1) .tick(x) (excite with a signal) .next() .tune(ratio) .damp(k) (k &lt; 1 chokes) .active().</p>
+<p>Space: fdn(size = 0.6, decay = 2, damp = 0.4, seed?) (8-line modulated reverb; size 0..1 room to hall, decay = T60 s,
+damp 0 bright .. 1 dark) -&gt; .tick(l, r) then .l .r (wet) .set(size, decay, damp). chorus(depth = 0.5, rate = 0.8)
+(two voices in quadrature) -&gt; .tick(l, r) then .l .r (wet) .set(depth, rate). buffer(n) -&gt; Float32Array(n).</p>
+<h2 id="what-the-check-reports-define_device-returns-it"><a class="h-link" href="#what-the-check-reports-define_device-returns-it">What the check reports (define_device returns it)</a></h2>
+<p>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
+latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
+ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
+extreme setting, or a stuck note. Effects are
+rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes
+and soft to hard velocities. Fix every error; act on warnings unless you mean them.</p>
+<h2 id="example-an-effect"><a class="h-link" href="#example-an-effect">Example: an effect</a></h2>
+<div class="code" data-lang="js"><pre><code>{id: &quot;claude.tape-echo&quot;, name: &quot;Tape Echo&quot;, kind: &quot;effect&quot;, cat: &quot;time&quot;, by: &quot;claude&quot;, blurb: &quot;Tempo-synced echoes that darken as they repeat&quot;, params: [{key: &quot;division&quot;, label: &quot;TIME&quot;, opts: [&quot;1/16&quot;, &quot;1/8&quot;, &quot;1/8.&quot;, &quot;1/4&quot;, &quot;1/2&quot;], def: 2}, {key: &quot;feedback&quot;, label: &quot;REPEATS&quot;, min: 0, max: 95, def: 40, unit: &quot;%&quot;, role: &quot;feedback&quot;}, {key: &quot;tone&quot;, label: &quot;TONE&quot;, min: 500, max: 12000, def: 3500, curve: &quot;log&quot;, unit: &quot;Hz&quot;, role: &quot;tone&quot;}, {key: &quot;mix&quot;, label: &quot;MIX&quot;, min: 0, max: 100, def: 30, unit: &quot;%&quot;, role: &quot;mix&quot;}], look: {color: &quot;#8a5a2b&quot;, ink: &quot;#fff3e0&quot;, shape: &quot;box&quot;, finish: &quot;hammer&quot;, knob: &quot;cream&quot;, label: &quot;script&quot;, led: &quot;#ffb347&quot;}, tail: 6, trails: true, kernel: `
+({
+  create({ sr, seed, dsp }) {
+    const BEATS = [0.25, 0.5, 0.75, 1, 2];
+    const max = sr * 4;
+    const dl = dsp.delay(max), dr = dsp.delay(max);
+    const tl = dsp.onepole(), tr = dsp.onepole();
+    const time = dsp.smooth(80, sr / 4);          <span class="c">// the delay time glides like tape (in samples)</span>
+    const wow = dsp.lfo('sine', 0.6);
+    return {
+      process(L, R, n, p, t) {
+        const target = Math.min(max - 8, BEATS[p.division] * 60 / t.bpm * sr);
+        tl.set(p.tone); tr.set(p.tone);
+        const fb = p.feedback / 100, mix = p.mix / 100;
+        for (let i = 0; i &lt; n; i++) {
+          const d = time.tick(target) + 6 * wow.next();
+          const yl = dl.cubic(d), yr = dr.cubic(d);
+          dl.write(L[i] + dsp.tanh(tl.lp(yl) * fb));
+          dr.write(R[i] + dsp.tanh(tr.lp(yr) * fb));
+          L[i] += yl * mix;
+          R[i] += yr * mix;
+        }
+      },
+    };
+  },
+})` }</code></pre></div>
+<h2 id="example-an-instrument"><a class="h-link" href="#example-an-instrument">Example: an instrument</a></h2>
+<div class="code" data-lang="js"><pre><code>{id: &quot;claude.glass-harp&quot;, name: &quot;Glass Harp&quot;, kind: &quot;instrument&quot;, cat: &quot;pluck&quot;, by: &quot;claude&quot;, blurb: &quot;Plucked strings with a soft glassy shimmer&quot;, params: [{key: &quot;decay&quot;, label: &quot;DECAY&quot;, min: 0.3, max: 8, def: 3, curve: &quot;log&quot;, unit: &quot;s&quot;, role: &quot;decay&quot;}, {key: &quot;bright&quot;, label: &quot;BRIGHT&quot;, min: 0, max: 1, def: 0.6, role: &quot;tone&quot;}, {key: &quot;shimmer&quot;, label: &quot;SHIMMER&quot;, min: 0, max: 100, def: 30, unit: &quot;%&quot;, role: &quot;mix&quot;}], look: {color: &quot;#3b4f7a&quot;, ink: &quot;#eef3ff&quot;, knob: &quot;chrome&quot;, led: &quot;#9fd8ff&quot;}, tail: 8, kernel: `
+({
+  poly: 8,
+  create({ sr, seed, dsp }) {
+    const ch = dsp.chorus(0.6, 0.35);
+    return {
+      voice(i) {
+        const s = dsp.karplus(220, 3, 0.6, seed + i);
+        const glass = dsp.osc('sine'), env = dsp.adsr(0.002, 1.2, 0, 0.4);
+        let gl = 0, gr = 0, v = 0;
+        return {
+          start(pitch, vel, p) {
+            s.set(p.decay, p.bright).pluck(vel, dsp.mtof(pitch));
+            glass.freq(dsp.mtof(pitch + 12)).reset(0);
+            env.gate(true);
+            const pan = dsp.clamp((pitch - 60) / 48, -0.5, 0.5);   <span class="c">// low notes left, high notes right</span>
+            gl = Math.cos((pan + 0.5) * Math.PI / 2); gr = Math.sin((pan + 0.5) * Math.PI / 2);
+            v = vel;
+          },
+          release(p) { s.mute(0.15); env.gate(false); },
+          render(L, R, n, p) {
+            const sh = 0.25 * p.shimmer / 100 * v;
+            for (let i = 0; i &lt; n; i++) {
+              const y = 0.62 * s.next() + sh * glass.next() * env.next();
+              L[i] += y * gl; R[i] += y * gr;
+            }
+            return s.active() || env.active();
+          },
+        };
+      },
+      process(L, R, n, p) {
+        for (let i = 0; i &lt; n; i++) {
+          ch.tick(L[i], R[i]);
+          L[i] = dsp.softclip(L[i] + 0.3 * ch.l);     <span class="c">// gentle ceiling for big chords</span>
+          R[i] = dsp.softclip(R[i] + 0.3 * ch.r);
+        }
+      },
+    };
+  },
+})` }</code></pre></div>
+    </article>
+    <nav class="pager" aria-label="Next and previous">
+      <a class="pager-prev" href="integrations.html"><small>Previous</small>Connect an agent</a>
+      <a class="pager-next" href="bench.html"><small>Next</small>OverdubBench</a>
+    </nav>
+  </main>
+</div>
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <img src="/site/assets/wordmark.svg" alt="overdub" width="120" height="19">
+    <p>An early prototype by AJ Smith.</p>
+    <p class="foot-links"><a href="/">Home</a> <a href="/site/docs/">Docs</a> <a href="/site/press/">Press</a> <a href="/llms.txt">llms.txt</a></p>
+  </div>
+</footer>
+<script>
+(function () {
+  var toc = document.querySelector('.toc');
+  if (toc && window.matchMedia('(min-width: 961px)').matches) toc.open = true;
+  // mark the section you're reading in "On this page"
+  var links = {}, hs = [];
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (a) { links[a.hash.slice(1)] = a; });
+  document.querySelectorAll('.prose h2[id], .prose h3[id]').forEach(function (h) { if (links[h.id]) hs.push(h); });
+  var here = null;
+  function spy() {
+    var cur = null;
+    for (var i = 0; i < hs.length && hs[i].getBoundingClientRect().top < 120; i++) cur = hs[i];
+    var a = cur && links[cur.id];
+    if (a !== here) { if (here) here.classList.remove('is-here'); if (a) a.classList.add('is-here'); here = a; }
+  }
+  if (hs.length) { addEventListener('scroll', function () { requestAnimationFrame(spy); }, { passive: true }); spy(); }
+  document.querySelectorAll('.code pre, .table-wrap').forEach(function (el) {
+    if (el.scrollWidth > el.clientWidth + 1) { el.tabIndex = 0; el.setAttribute('role', 'region'); el.setAttribute('aria-label', el.tagName === 'PRE' ? 'Code (scrolls sideways)' : 'Table (scrolls sideways)'); }
+  });
+  if (!navigator.clipboard) return;
+  document.querySelectorAll('.code').forEach(function (box) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'code-copy'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(box.querySelector('code').innerText).then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select and copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1800);
+    });
+    box.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

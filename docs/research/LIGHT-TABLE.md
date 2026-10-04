@@ -1,0 +1,863 @@
+# Light Table: the wavetable synth
+
+Design note for `core.wavetable`, written 2026-10-03. AJ asked for "cool VST type plugins. think serum". This is the
+first one: the sound engine, its params, its presets and its window (a 3D table, drag-to-modulate, drawn envelopes and
+LFOs: section 7). It says how the engine works, what every param means, what each table sounds like, what it costs,
+what the param system can't express yet, and what the best wavetable synths do that people love, with sources.
+
+| file | what |
+|---|---|
+| `app/src/devices/builtin/wavetables.js` | `lightTables()`: the 14 tables, built in code. The kernel and the page share it |
+| `app/src/devices/builtin/wavetable.js` | the device: params, the kernel, 24 presets; exports `SOURCES`, `DESTS`, `DEST_SCALE`, `PARAMS`, `PRESETS`, and the page's maths (section 7) |
+| `app/src/ui/editors/wavetable.js` | its window's editor (`editor: 'wavetable'`): section 7 |
+| `tools/wavetable-test.js` | its checks: `node tools/wavetable-test.js` (`NODE_ONLY=1` skips Chromium, `CPU=0` and `GC=0` skip the slow parts) |
+| `tools/wavetable-ui-test.js` | the window's checks, and the page's maths held to the kernel's renders (`NODE_ONLY=1` for those alone) |
+
+A light table is where you lay strips of film out to look at the frames. A wavetable is a strip of single-cycle
+frames. The presets are named from the same darkroom and cutting room.
+
+## 1. The engine
+
+```
+per voice (poly 8, or one shared voice in MONO and LEGATO)
+  OSC A  table + POS, WARP, UNISON 1-8 ─┐
+  OSC B  the same; FM can read A's sum  ─┤  each source ON: through the filter
+  SUB    sine / tri / square, -1 or -2  ─┼─────────────► FILTER ─┐
+  NOISE  seeded stereo, coloured        ─┘  OFF: around it ──────┴─► AMP (ENV1, velocity, AMP and PAN mod) ─┐
+                                                                                                           │
+after the voices:  sum ─► DRIVE (2x oversampled) ─► CHORUS ─► DELAY (ping-pong, synced) ─► ROOM ─► VOLUME ─► DC block ─► knee
+modulation, every 16 samples, ramped per sample:  ENV1-3, LFO1-4, VELOCITY, NOTE, MOD WHEEL, MACRO 1-4, RANDOM
+  ─► M1-M8 (source, destination, amount)
+```
+
+### Tables and band limits
+
+A table is 49 frames. POS 0 is the first frame and POS 1 the last. POS 1/4, 1/3, 1/2, 2/3 and 3/4 land exactly on
+frames (48 divides by 2, 3, 4, 6, 8, 12 and 16), so a table can put its landmarks there. BASIC has sine, triangle,
+saw and square at 0, 1/3, 2/3 and 1.
+
+Each frame is defined by its spectrum (harmonics 1 to 1023) and stored at 11 band limits: 1023, 512, 256 and so on
+down to 1 harmonic. Each band limit is a table of 1024 to 2048 samples plus a guard sample, made by an inverse FFT,
+two band limits per complex transform. An oscillator reads the band limit whose top harmonic stays under
+`flim × sr` at its pitch. `flim` is the larger of 0.45 and `(sr − 20 kHz) / sr`, capped at 0.6. A harmonic above
+Nyquist folds back to `sr − f`, which stays above 20 kHz, so nothing folds into the audible band. That is about 0.58
+at 48 kHz. The read is linear along the cycle, between neighbouring frames, and between two tables while one fades
+in.
+
+**Where the look of the wave isn't the point, every frame of a table shares one phase law.** A crossfade between
+neighbouring frames is then a crossfade of harmonic amplitudes: nothing cancels and the level doesn't dip mid-morph.
+The laws are:
+
+- sine phase for BASIC, HARMONICS and REED;
+- a chirp, `πk²/16`, for VOWEL, BELL, GLASS and GROWL, and `πk²/64` for ORGAN;
+- a Schroeder phase, `−πk(k−1)/50`, for HOLLOW.
+
+The chirp and Schroeder phases also hold the crest factor steady across a sweep, which keeps the loudness steady.
+GROWL stays within 2 dB across its sweep this way, where sine phase lost 11 dB.
+
+Where the shape is the point (PULSE, SYNC, GRIT, CHIP and FM), each frame carries the wave's own phases. The frames
+are close enough together that a crossfade reads as the wave changing shape.
+
+**Some tables hold more than one note cycle.** ORGAN holds 2 and BELL 4, so their partials can sit between the
+harmonics. Each unison voice counts its cycles mod 4, so it reads the right part, and a crossfade between a 1-cycle
+and a 4-cycle table stays in step.
+
+**Builds are lazy and never stall the audio.**
+
+- The kernel holds four table stores (2.81 MB each), shared by both oscillators.
+- When a table changes, `need()` builds the two frames around the oscillator's position at once. That is 12 complex
+  IFFTs, about 0.4 ms. The old table and the new one then crossfade over 30 ms.
+- The other frames build four a block. Until a frame is built, `near[]` points it at the nearest one that is.
+- A whole table takes 10.2 ms in Node, spread over 12 blocks.
+- Before anything has sounded, a change is immediate.
+
+### Oscillators
+
+**Warps** are maps of the phase. Every warp at amount 0 is the plain wave, and a change of warp mode takes the old
+warp's amount to 0 before the new one rises, so a switch never clicks.
+
+| warp | what it does | the maths | band limit read |
+|---|---|---|---|
+| SYNC | hard sync, ratio 1 to 8 (`2^(3a)`) | reads the cycle `ratio` times per period; the reset's step and change of slope are read a sample ahead and smoothed with a polyBLEP and a polyBLAMP | `ratio` times thinner |
+| BEND | pushes the cycle toward its middle | `q = p − 0.95a·sin(2πp)/2π` | `1 + 0.95a` |
+| PW | squeezes the cycle into a shorter pulse, then holds | `x = p/w` (`w = 1 − 0.95a`), `q = x − sin(2πx)/2π`; the first eighth of travel fades in from the plain wave | `3.2/w` |
+| MIRROR | plays the cycle forward then back | `q = 0.5 − 0.5·cos(2πp)`, mixed with the plain wave by the amount | the mirrored read at 4.5× |
+| FM | phase modulation from the other oscillator | `q = p + 1.2a²·(other oscillator's sum before its level)`; the source renders even at level 0 | `1 + 4·depth` |
+
+A warp may not push even a sine past the band limit. At the top of the keyboard, SYNC's ratio is capped at
+`0.9·flim / increment` and PW's width at `4.5·increment / flim`. The warp gives way rather than alias.
+
+**Unison** is 1 to 8 voices per oscillator.
+
+- **Places.** The voices sit at −1 to 1, each pair a mirror image. A little seeded jitter is mirrored too, so no two
+  pairs beat alike.
+- **Detune.** Each voice is detuned by its place times DETUNE² semitones. DETUNE 0.3 puts the edge voices about
+  9 cents out; DETUNE 1 puts them a semitone out.
+- **Starting phases.** These are random each note, mirrored in pairs around a centre phase. With the mirrored detune,
+  each pair sums to a tone at the note's pitch whose level beats, at every harmonic, so the stack never leans sharp or
+  flat. A stack a few cents wide has no single spectral peak to tune by, so timbre-test tunes the oscillator with
+  DETUNE at 0: −0.0 and +0.0 cents. Patch Bay's profile does the same.
+- **BLEND.** The centre voice (or two) has weight 1, the others BLEND, normalised to equal power.
+- **SPREAD.** Places the voices across the stereo field around the oscillator's PAN.
+- **Ramps.** Gains glide over 5 ms, so changing UNISON mid-note doesn't click.
+
+**Pitch** is the note plus glide, bend, OCT, SEMI and FINE, the PITCH and FINE destinations, and A or B PITCH. With
+no slot using the MOD WHEEL, the wheel adds vibrato: up to 35 cents at 5.5 Hz.
+
+### Sub and noise
+
+- **SUB:** a sine, a polyBLAMP triangle or a polyBLEP square, one or two octaves under the note.
+- **NOISE:** two seeded generators, one per side, through a one-pole whose colour runs from 150 Hz to 20 kHz. The
+  level is held up as the colour darkens.
+
+### Filter
+
+| type | what it is |
+|---|---|
+| LP12, HP, BP, NOTCH | a zero-delay state-variable filter. RESO runs Q from 0.55 to 22 |
+| LP24 | a zero-delay four-pole ladder; a rational tanh saturates where the feedback meets the input, and it rings hard at full resonance |
+| COMB | a feedback comb tuned to the cutoff (its period is `sr / cutoff`), damped in the loop; RESO is the feedback |
+| FORMANT | three band-passes on a bass voice's formants (the Csound table); the cutoff's place between 150 Hz and 6 kHz picks the vowel, U O A E I, gliding between them |
+
+**The cutoff** is the knob, plus:
+- KEY TRACK × (note − C4);
+- FLT ENV × envelope 2, up to ±6 octaves, a little further on harder notes;
+- FLT VEL × 2 × (velocity − 0.8) octaves, so a soft note is darker and a hard one brighter;
+- the CUTOFF destination, 10 octaves of travel.
+
+**FLT DRIVE** saturates the input (the ladder through its own stage). **A > FLT, B > FLT, SUB > FLT and NOISE >
+FLT** send each source through the filter or around it. A change of route glides over 10 ms. A change of type
+crossfades the old filter into the new one over 10 ms.
+
+### Envelopes
+
+ENV1 is the amp. ENV2 also drives FLT ENV, and ENV3 is free. Each segment lasts exactly its time, by
+`s' = I − (I − s)·E`, where `E = e^(−k/n)` and `I = 1/(1 − e^(−k))`. The curvature `k` comes from CURVE:
+
+| segment | CURVE ≥ 0 | CURVE < 0 |
+|---|---|---|
+| attack | `1.5 + 4.5c` | `1.5 + 5.5c` |
+| decay and release | `5 + 5c` | `5 + 4.99c` |
+
+So CURVE −1 is near-linear (a slow-starting swell), 0 is analogue and 1 is snappy. A retrigger starts the attack from
+where the envelope stands. AMP VEL sets how much softer a soft note plays.
+
+### LFOs
+
+- **Shapes:** SINE, TRI, SAW UP, SAW DN, SQUARE, S&H and DRIFT. All run −1 to 1. S&H and DRIFT take a value from a
+  hash of the cycle number, the same in every render; DRIFT eases between successive values.
+- **Rate:** 0.02 to 40 Hz, or SYNC to a note value from 1/32 to 4 bars at `t.bpm`.
+- **Modes:**
+  - FREE: one phase for every voice. When synced and the song is playing it is locked to the song's beat, so a
+    1/4 LFO starts each cycle on the beat wherever playback starts.
+  - RETRIG: each note starts it from 0.
+  - ENV: one cycle from each note, then it holds.
+- **Smoothing:** SQUARE and S&H edges are slewed over 2 ms, and any change of shape, sync or mode glides out over
+  4 ms.
+- **Cost:** an LFO that no slot uses costs nothing.
+
+### The mod matrix
+
+Eight slots. Each is a SOURCE, a DEST and an AMOUNT from −1 to 1.
+
+**The amount is in the destination knob's travel.** An amount of 1 at A POS sweeps the whole table; at CUTOFF it is
+10 octaves, so 0.1 is an octave. `DEST_SCALE` in the device module lists each one; section 2 repeats it.
+
+**Source ranges:**
+- 0 to 1: the envelopes, VELOCITY, MOD WHEEL and the MACROs.
+- −1 to 1: the LFOs, and RANDOM (a new value each note).
+- NOTE: C4 is 0 and four octaves is 1.
+
+**Evaluation**, every 16 samples:
+1. Slots aimed at other slots' amounts (M1 AMT to M8 AMT) are evaluated first, so MOD WHEEL → M1 AMT can put a
+   vibrato's depth on the wheel.
+2. Then the rest are summed per destination and clamped to the knob's range.
+3. A change of a slot's source or destination crossfades over 10 ms.
+
+**The FX destinations** (DRIVE, CHORUS MIX, DELAY MIX, VERB MIX) are global. They are evaluated once a block from the
+newest note's sources.
+
+### FX
+
+- **Drive:** a rational tanh, 2× oversampled through lib.js's half-band filters, with a mix. The dry path is delayed
+  to match, so turning the drive on never jumps.
+- **Chorus:** two taps in quadrature, read with cubic interpolation.
+- **Delay:** a ping-pong delay whose time is a note value at the song's tempo. Each repeat is darker (5.2 kHz) and
+  thinner (140 Hz).
+- **Room:** lib.js's 8-line feedback delay network, its input thinned a little below 160 Hz.
+- **Output:** VOLUME, a DC blocker and lib.js's knee.
+
+Each effect sleeps while its mix is at 0.
+
+### Voices
+
+- **POLY:** the host's 8 voices.
+- **MONO and LEGATO:** one shared engine with a note stack. Letting go of a note returns to the one still held.
+  - MONO retriggers the envelopes on every note.
+  - LEGATO slides between overlapping notes without retriggering.
+- **Glide** follows a smoothstep. With GLIDE up, MONO glides into every note, LEGATO only between overlapping notes,
+  and POLY from the last note played.
+
+### The rules it keeps
+
+- **Deterministic.** Every random thing is seeded or hashed, and two renders are bit-identical.
+- **No allocation once it runs.** A 53 s render triggers the same 5 garbage collections as a kernel that does nothing.
+  The hot paths pass numbers through fields and typed arrays, because V8 boxes a double passed to a call it didn't
+  inline. They write the table read, the sine, the saturator and the envelope out in place. Once a block they copy
+  the host's params into an object of fixed shape (`Q_LIT` and `Q_LOAD`, generated from `PARAMS`).
+- **Every change ramps.** Knobs move over 3 ms on top of the host's smoothing. Tables crossfade over 30 ms, and routes
+  and filter types over 10 ms.
+
+## 2. The param map: the editor's contract
+
+There are 114 params, grouped by prefix. Keys are forever. Switch options are stored as indexes, so new options go
+at the end and none are ever reordered. Through `instrument.set` an agent gives a switch's index; a preset may give
+its label, `{ a_table: 'VOWEL' }`. `list_devices` with `detail: "params"` prints every switch as
+`key [0=OFF 1=SYNC ...]`.
+
+**Oscillator A** (13 keys)
+
+| key | label | range | default | role | meaning |
+|---|---|---|---|---|---|
+| `a_table` | A TABLE | BASIC / PULSE / HARMONICS / VOWEL / SYNC / BELL / ORGAN / FM / HOLLOW / GRIT / GLASS / GROWL / REED / CHIP | BASIC | shape | osc A's wavetable |
+| `a_pos` | A POS | 0..1 | 0.62 | shape | where in the table: 0 is the first frame, 1 the last; it morphs smoothly between |
+| `a_warp` | A WARP | OFF / SYNC / BEND / PW / MIRROR / FM | OFF | shape | bends the wave (FM: phase-modulated by osc B, even at its level 0) |
+| `a_warp_amt` | A WARP AMT | 0..1 | 0 | depth | how far the warp bends it (0 is the plain wave) |
+| `a_unison` | A UNISON | 1..8 step 1 | 3 | width | voices per note |
+| `a_detune` | A DETUNE | 0..1 | 0.22 | width | the unison spread in pitch: 0.3 is about 9 cents at the edges, 1 a semitone |
+| `a_blend` | A BLEND | 0..1 | 0.75 | mix | the detuned voices against the centre one: 0 the centre alone, 1 all equal |
+| `a_spread` | A SPREAD | 0..1 | 0.6 | width | the unison voices across the stereo field: 0 mono, 1 wide |
+| `a_oct` | A OCT | −3..3 step 1 | 0 | pitch | octaves |
+| `a_semi` | A SEMI | −12..12 st step 1 | 0 | pitch | semitones |
+| `a_fine` | A FINE | −100..100 ct | 0 | pitch | cents |
+| `a_level` | A LEVEL | 0..1 | 0.8 | level | osc A's level (0 is off; it still drives an FM warp) |
+| `a_pan` | A PAN | −1..1 | 0 | width | left to right |
+
+**Oscillator B** (`b_*`) has the same 13 keys. Its defaults differ: `b_pos` 1/3, `b_unison` 1, `b_detune` 0.2,
+`b_oct` −1, `b_level` 0. B is silent until it's turned up.
+
+**Sub and noise** (5 keys)
+
+| key | label | range | default | role | meaning |
+|---|---|---|---|---|---|
+| `sub_shape` | SUB WAVE | SINE / TRI / SQUARE | SINE | shape | the sub's wave |
+| `sub_oct` | SUB OCT | -1 / -2 | -1 | pitch | one or two octaves under the note |
+| `sub_level` | SUB LEVEL | 0..1 | 0 | level | 0 is off |
+| `noise_level` | NOISE | 0..1 | 0 | level | 0 is off |
+| `noise_color` | NOISE COLOR | 0..1 | 0.6 | tone | dark rumble at 0, white hiss at 1 |
+
+**Filter** (11 keys)
+
+| key | label | range | default | role | meaning |
+|---|---|---|---|---|---|
+| `flt_type` | FILTER | LP12 / LP24 / HP / BP / NOTCH / COMB / FORMANT | LP24 | shape | the filter's type |
+| `flt_cutoff` | CUTOFF | 20..20000 Hz (log) | 2200 | tone | where it works |
+| `flt_res` | RESO | 0..1 | 0.15 | tone | resonance |
+| `flt_drive` | FLT DRIVE | 0..1 | 0 | drive | saturation into the filter |
+| `flt_key` | KEY TRACK | 0..1 | 0.4 | tone | 1 is an octave per octave |
+| `flt_env` | FLT ENV | −1..1 | 0.3 | depth | envelope 2 on the cutoff: ±6 octaves |
+| `flt_vel` | FLT VEL | 0..1 | 0.8 | sens | velocity on the cutoff: at 1 a soft note is an octave darker than a medium one |
+| `flt_a`, `flt_b`, `flt_sub`, `flt_noise` | A > FLT … | OFF / ON | ON | shape | each source through the filter or around it |
+
+**Envelopes** (16 keys)
+
+| key | label | range | default | role |
+|---|---|---|---|---|
+| `env1_attack` | AMP ATTACK | 0.001..8 s (log) | 0.004 | attack |
+| `env1_decay` | AMP DECAY | 0.005..10 s (log) | 0.6 | decay |
+| `env1_sustain` | AMP SUSTAIN | 0..1 | 0.8 | level |
+| `env1_release` | AMP RELEASE | 0.005..12 s (log) | 0.35 | release |
+| `env1_curve` | AMP CURVE | −1..1 | 0 | shape |
+| `env1_vel` | AMP VEL | 0..1 | 0.5 | sens |
+
+`env2_*` (ENV2) and `env3_*` (ENV3) have the same five keys, without `_vel`. The defaults are
+`[attack, decay, sustain, release, curve]`:
+
+| envelope | defaults |
+|---|---|
+| ENV2 | `[0.003, 0.45, 0.25, 0.4, 0.3]` |
+| ENV3 | `[0.002, 0.3, 0, 0.3, 0]` |
+
+**LFOs** (16 keys)
+
+| key | label | range | default | role |
+|---|---|---|---|---|
+| `lfo1_shape` | LFO1 SHAPE | SINE / TRI / SAW UP / SAW DN / SQUARE / S&H / DRIFT | SINE | shape |
+| `lfo1_rate` | LFO1 RATE | 0.02..40 Hz (log) | 2 | rate |
+| `lfo1_sync` | LFO1 SYNC | OFF / 1/32 / 1/16T / 1/16 / 1/16D / 1/8T / 1/8 / 1/8D / 1/4T / 1/4 / 1/4D / 1/2 / 1/2D / 1 BAR / 2 BARS / 4 BARS | OFF | time |
+| `lfo1_mode` | LFO1 MODE | FREE / RETRIG / ENV | RETRIG | shape |
+
+`lfo2_*` to `lfo4_*` are the same. Their defaults are LFO2 TRI at 0.5 Hz, LFO3 SAW DN at 4 Hz and LFO4 S&H at 3 Hz,
+every one RETRIG with sync OFF.
+
+**Mod matrix** (24 keys): `m1_src`, `m1_dst` and `m1_amt` through `m8_*`. `mN_src` is a switch over the sources,
+`mN_dst` a switch over the destinations, and `mN_amt` runs −1 to 1 (role depth). All default to OFF, OFF, 0.
+
+**Macros** (4 keys): `macro1` to `macro4`, 0 to 1, default 0. A macro does nothing until a slot uses it as a source.
+
+**FX** (9 keys)
+
+| key | label | range | default | role |
+|---|---|---|---|---|
+| `fx_drive` | DRIVE | 0..1 | 0 | drive |
+| `fx_drive_mix` | DRIVE MIX | 0..1 | 1 | mix |
+| `fx_chorus_depth` | CHORUS | 0..1 | 0.5 | depth |
+| `fx_chorus_mix` | CHORUS MIX | 0..1 | 0 | mix |
+| `fx_delay_time` | DELAY TIME | 1/16 / 1/8T / 1/8 / 1/8D / 1/4T / 1/4 / 1/4D / 1/2 | 1/8D | time |
+| `fx_delay_fb` | DELAY FB | 0..0.9 | 0.35 | feedback |
+| `fx_delay_mix` | DELAY MIX | 0..1 | 0 | mix |
+| `fx_verb_size` | VERB SIZE | 0..1 | 0.45 | size |
+| `fx_verb_mix` | VERB MIX | 0..1 | 0.12 | mix |
+
+**Voicing and output** (3 keys)
+
+| key | label | range | default | role |
+|---|---|---|---|---|
+| `voice_mode` | VOICES | POLY / MONO / LEGATO | POLY | shape |
+| `voice_glide` | GLIDE | 0..1000 ms | 0 | time |
+| `voice_level` | VOLUME | −24..6 dB | 0 | level |
+
+Every param's full `desc`, the sentence an agent acts on, is in `PARAMS` in the device module, and `list_devices`
+prints it.
+
+### Sources (`SOURCES`, the index `mN_src` stores)
+
+0 OFF · 1 ENV1 · 2 ENV2 · 3 ENV3 · 4 LFO1 · 5 LFO2 · 6 LFO3 · 7 LFO4 · 8 VELOCITY · 9 NOTE · 10 MOD WHEEL ·
+11 MACRO 1 · 12 MACRO 2 · 13 MACRO 3 · 14 MACRO 4 · 15 RANDOM
+
+### Destinations (`DESTS`, the index `mN_dst` stores) and what an amount of 1 does
+
+| index | destination | an amount of 1 |
+|---|---|---|
+| 1, 7 | A POS, B POS | the whole table (POS 0 to 1) |
+| 2, 8 | A WARP, B WARP | the warp amount's travel |
+| 3, 9 | A PITCH, B PITCH | 24 semitones |
+| 4, 10 | A LEVEL, B LEVEL | the level's travel |
+| 5, 11 | A PAN, B PAN | the pan's travel (0.5 is centre to one side) |
+| 6, 12 | A DETUNE, B DETUNE | the detune's travel |
+| 13, 14 | SUB LEVEL, NOISE LEVEL | the level's travel |
+| 15 | CUTOFF | 10 octaves (0.1 is an octave) |
+| 16, 17 | RESO, FLT DRIVE | the knob's travel |
+| 18 | PITCH | 24 semitones on every oscillator |
+| 19 | FINE | 1 semitone on every oscillator (0.2 × an LFO is a 20-cent vibrato) |
+| 20 | AMP | the voice's level × (1 + amount × source), 0 to 2 |
+| 21 | PAN | the voice's pan travel |
+| 22–25 | LFO1–4 RATE | the rate's travel, 11 octaves (RETRIG and ENV modes) |
+| 26–33 | M1–M8 AMT | added to that slot's amount |
+| 34 | DRIVE | the drive's travel (global) |
+| 35–37 | CHORUS MIX, DELAY MIX, VERB MIX | the mix's travel (global) |
+
+## 3. The tables
+
+For people choosing a sound and agents choosing a table. The `desc` of each is in `TABLE_INFO`.
+
+| # | table | what it is | reach for it for |
+|---|---|---|---|
+| 0 | BASIC | sine, triangle, saw and square at POS 0, 1/3, 2/3 and 1, morphing between them | the analogue basics; POS between them is a tone control |
+| 1 | PULSE | a square narrowing to a thin pulse (50% to 4%) | pulse-width modulation: sweep POS with an LFO |
+| 2 | HARMONICS | harmonics added one at a time, a sine at 0 to 49 harmonics at 1 | opening a sound like a filter, but in the oscillator |
+| 3 | VOWEL | sung vowels A, E, I, O, U at POS 0, 1/4, 1/2, 3/4, 1 (formants placed for about G3) | talking leads, choirs |
+| 4 | SYNC | a hard-synced saw whose slave runs at 1 to 6 times the pitch | the classic sync sweep, without the warp |
+| 5 | BELL | bell and bar partials (2.75, 5.5, 8.25 … × the pitch), soft at 0, clanging at 1 (4 note cycles) | bells, mallets, struck plucks |
+| 6 | ORGAN | drawbar registrations from a soft flute (008400000) through 888000000 to full organ (888888888) (2 note cycles) | organs, and keys with a sub-octave |
+| 7 | FM | two-operator FM at 1:1, index 0 to 6.5 | a sine growing a bright, buzzy digital edge; FM basses |
+| 8 | HOLLOW | notches combed through a saw, thinning to a plain saw at 1 | hollow, square-like leads that open up |
+| 9 | GRIT | a stepped, bit-reduced wave: 64 steps and 6 bits at 0 to 3 steps and 1 bit at 1 | lo-fi, crushed textures |
+| 10 | GLASS | a pure tone with sparkling octaves and fifths; POS lifts the sparkle | glassy pads, shimmer |
+| 11 | GROWL | a resonant double peak sweeping up through a saw | the talking, yawning bass growl |
+| 12 | REED | a hollow, clarinet-like reed (odd harmonics) to a nasal, oboe-like one | woodwind leads, clavs |
+| 13 | CHIP | 12.5%, 25% and 50% pulses at POS 0, 1/3, 2/3, then a 4-bit stepped triangle at 1 | eight-bit console leads and arps |
+
+How they are made:
+- **Closed-form spectra of the waves:** PULSE; SYNC (sums of jumps); GRIT and CHIP (zero-order-hold staircases,
+  `c_k = (1/S)·sinc(πk/S)·e^{−iπk/S}·V[k mod S]`). They are exactly band-limited however bright they are.
+- **Additive:** BASIC, HARMONICS, VOWEL, BELL, ORGAN, HOLLOW, GLASS, GROWL and REED.
+- **FM:** a forward FFT of the time-domain wave.
+
+Every frame is normalised to a peak of 1 at full band. `LT.spectrum` returns its spectrum before that, and `LT.gain`
+is the normaliser.
+
+**The page API** (`import { lightTables } from '/app/src/devices/builtin/wavetables.js'`; call it once, it is pure):
+
+- `LT.frame(t, x, n = 256)`: one cycle of table `t` at position `x`, normalised exactly as the kernel plays it.
+- `LT.frames(t, n)`: all 49 frames, for the 3D view.
+- `LT.spectrum(t, x)`: `{ a, b }`, harmonic k's sine and cosine amplitudes.
+- `LT.gain(t, x)`: the normaliser.
+- `TABLE_NAMES`, `TABLE_INFO` (name, cycles, desc) and `FRAMES` (49).
+
+The kernel embeds the same function's source (`const LT = (${lightTables})();`). wavetable-test checks that the source
+is carried verbatim, and that a rendered A4 matches `LT.spectrum` (correlation 0.99983), so what the page draws is
+what plays.
+
+## 4. The presets
+
+Twenty-four presets, each a whole sound with a family in its blurb. Levels are integrated loudness and true peak on
+the test phrase (bass presets on the bass phrase), in the Node renderer. The house target is about −16 LUFS, with
+plucks and keys allowed to −18, and true peak at or under −1 dBTP.
+
+| family | preset | what it is | LUFS / dBTP |
+|---|---|---|---|
+| Poly | First Light | a warm three-voice saw through the ladder, a touch of room (the defaults) | −16.0 / −4.2 |
+| Bass | Low Key | deep and round, FM grit over a clean sine sub, legato slides | −16.0 / −8.2 |
+| Bass | Gate Weave | a Reese, two detuned saw pairs drifting against each other | −16.0 / −3.7 |
+| Bass | Solarized | a talking growl that wobbles in eighths over a clean sine, retriggered | −16.0 / −4.7 |
+| Bass | Safelight | an acid line, squelchy resonance and slides, with an echo | −16.0 / −5.5 |
+| Bass | Sprocket | a clicky FM pluck over a sine an octave down | −16.0 / −6.2 |
+| Lead | Rack Focus | a hard-sync sweep on every note, legato glide; the wheel pulls it further | −16.1 / −6.4 |
+| Lead | Lens Flare | a wide seven-saw stack with an octave on top, chorus and echoes | −16.0 / −3.6 |
+| Lead | Magic Lantern | a singing vowel line, its vowel drifting, the vibrato arriving late | −15.9 / −7.7 |
+| Lead | Flip Book | an eight-bit pulse narrowing on each note, a stepped triangle under it | −16.0 / −7.7 |
+| Pad | Long Exposure | a slow, wide bloom of harmonics that keeps opening and closing | −16.0 / −3.5 |
+| Pad | Bokeh | soft glass, octaves and fifths shimmering in a big space | −16.0 / −3.7 |
+| Pad | Afterimage | a breathy choir of vowels slowly changing shape | −16.0 / −3.2 |
+| Pad | Zoetrope | string-machine pulses, their widths turning against each other | −15.9 / −2.7 |
+| Pluck | Shutter | a bright snap of harmonics closing fast, echoed | −17.9 / −2.1 |
+| Pluck | Prism | a struck bell, bright at the strike and mellowing as it rings | −16.0 / −2.7 |
+| Pluck | Splice | a noise burst ringing a comb tuned to each note, string-like | −18.0 / −2.4 |
+| Keys | Intermission | a theatre organ, drawbars 888, a slow shimmer and warm valves | −16.1 / −4.3 |
+| Keys | House Lights | a soft electric piano, a tine at the strike, a suitcase pan | −17.6 / −1.6 |
+| Keys | Clapperboard | a nasal, clacky reed clav that bites harder the harder you play | −15.8 / −1.8 |
+| Arp | Flicker | sync bursts gated in sixteenths, sweeping each beat, echoed | −16.0 / −2.4 |
+| Arp | Stop Motion | gritty stepped plucks, each note a slightly different frame | −18.1 / −1.8 |
+| FX | Reel Change | a four-second riser, sync and noise sweeping up an octave | −16.0 / −2.6 |
+| FX | Light Leak | a glitching texture, stepped random frames through a ringing comb | −16.0 / −1.6 |
+
+Levels are set with each preset's VOLUME. Four presets sit low because their transients would push the true peak
+past −1 dBTP before their loudness reached −16: Shutter, Splice, Stop Motion and House Lights. That is the house's
+allowance for plucks and keys. No preset wires the macros yet: they are free for the player, and for the editor wave
+to give each preset named macros (section 7).
+
+### The basses' low end (2026-10-03)
+
+A producer's fresh-eyes pass (`docs/FRESH-EYES-6.md`, broken 3) found the basses' weight below 35 Hz. Played where
+bass lines sit (the bass phrase's roots are A1, F1, C2 and G1), the sub an octave down lands at 22–33 Hz. That is felt
+on a big system and gone on a laptop. LUFS barely reads it, so a preset levelled to −16 LUFS with a loud sub played
+quiet everywhere else. On the producer's own line, Low Key's 500 Hz–2 kHz band sat 32 dB under its sub.
+
+The fix is in the presets' params alone. The kernel is untouched, so `inst:core.wavetable` (the defaults) and Vacancy
+(which keeps its own params) render their pinned hashes. Each bass now keeps:
+
+- under a tenth of its energy below 35 Hz;
+- 30% or more of it in 100 Hz–2 kHz;
+- its 500 Hz–2 kHz band within 20 dB of its 0–60 Hz band;
+- −16 LUFS and true peaks at or under −1 dBTP.
+
+wavetable-test holds them to all four.
+
+| preset | what changed | below 35 Hz | in 100 Hz–2 kHz | 500 Hz–2 kHz against 0–60 Hz | LUFS / dBTP |
+|---|---|---|---|---|---|
+| Low Key | sub 0.6 → 0.15; FM POS 0.22 → 0.4; B's saw 0.25 → 0.4; cutoff 380 → 650 Hz | 38.5% → 5.6% | 8.7% → 57.7% | −32.5 → −14.5 dB | −16.0 / −8.2 |
+| Gate Weave | sub 0.45 → 0.1 | 46.9% → 5.6% | 17.2% → 41.0% | −17.8 → −11.6 dB | −16.0 / −3.7 |
+| Solarized | the sub (0.5) off; B a clean sine at the note, 0.25, around the filter | 59.7% → 0.1% | 16.5% → 39.9% | −10.9 → −4.4 dB | −16.0 / −4.7 |
+| Safelight | nothing: it had no sub | 0.2% | 40.9% | −4.4 dB | −16.0 / −5.5 |
+| Sprocket | the octave-down sine 0.4 → 0.2; FM POS 0.1 → 0.35 | 15.3% → 6.8% | 12.1% → 53.9% | −23.6 → −13.4 dB | −16.0 / −6.2 |
+
+The figures are on the house bass phrase, in the Node renderer with a 2 s tail. The bands come from the whole render's
+averaged spectrum, the way the producer measured. Their script, with a 1 s tail, read Gate Weave at 43% and Solarized
+at 58%. The difference is the tail: Gate Weave's LFOs run free.
+
+The producer's own line (C2, A♭1, E♭2 and B♭1, in eighths) agrees:
+
+| preset | below 35 Hz | 500 Hz–2 kHz against 0–60 Hz |
+|---|---|---|
+| Low Key | 36.2% → 5.4% | −32.4 → −14.6 dB |
+| Gate Weave | 40.5% → 4.4% | −18.0 → −12.2 dB |
+| Solarized | 54.9% → 0.1% | −11.0 → −2.9 dB |
+| Sprocket | 14.5% → 6.5% | −26.1 → −17.4 dB |
+
+Low Key now balances like the studio's bass guitar (`core.bassguitar`, its defaults) on the same phrase. Its 60–250 Hz
+band leads, its 0–60 Hz band sits 6.1 dB under that (the bass guitar's: 5.2 dB) and its 500 Hz–2 kHz band 20.5 dB
+under (the bass guitar's: 20.8 dB). The bass guitar's presets keep 0.3% or less below 35 Hz and 40–77% in
+100 Hz–2 kHz.
+
+The basses still play deep: the bass phrase's roots have their fundamentals at 44–65 Hz. A sub an octave down is still
+there for a line played higher, where it lands above 35 Hz.
+
+The other nineteen presets had no such weight: none puts more than 0.3% of its energy below 35 Hz on the test phrase.
+
+## 5. Cost and the checks
+
+CPU is a percentage of one core, scaled to an idle machine against a reference (Lamp Tines GRAND, 16 voices). These
+are wall-clock timings, so expect up to 50% movement between runs on a busy machine.
+
+| what | cost |
+|---|---|
+| 16 held notes at the defaults (8 sounding: poly 8) | 3.3–4.1% (perf-check 3.30%, timbre-test 3.41%, wavetable-test 4.09%) |
+| one note | 1.40% |
+| each extra voice | 0.127% (perf-check); 0.156% (timbre-test) |
+| no notes (the FX, the room, the table builder) | 0.92% |
+| Lens Flare, 16 held (7 + 3 unison voices, chorus, delay, room) | 5.86% |
+| 8 notes, both oscillators at unison 8 (128 oscillator voices) | 6.17%: the exception; over the synth family's 6% for 16 held voices |
+| the device check at the defaults (Chromium, % of real time for one instance; the check warns at 25%) | 2.5–4.4% over six runs |
+| the device check (quick) on each of the 24 presets | 1.2–6.9% over three runs |
+
+Neighbours in the same perf-check run (16 voices): Music Stands 5.39%, Risers 4.37%, Step Ladder 4.22%,
+Baby Grand 3.28%, Patch Bay 3.05%, Room Tone 1.84%.
+
+**Memory:** 14.1 MB of buffers per instance. That is four table stores of 2.81 MB, the delay and room lines, and
+the voices. The budget is 32 MB.
+
+**`tools/wavetable-test.js`** has 49 checks. They cover:
+- **Params:** every one has a role, a meaning and a group prefix.
+- **The tables:**
+  - they are finite and peak at 1;
+  - each band limit holds nothing above its harmonics: −150.7 dB at worst;
+  - the closed forms match the waves;
+  - what plays is what the page draws.
+- **Aliasing** at C7 and C8: −68.9 dB at worst for the tables, and −51.3 dB for SYNC 0.7 at C6. A deliberately naive
+  reader aliases at −24.1 dB, so the check would catch it.
+- **Unison spread:** stereo correlation falls from 1.000 to 0.615.
+- **Each filter type, by its spectrum:**
+  - LP12 takes −25.8 dB off 3.5–7 kHz, and LP24 −47.9 dB;
+  - HP takes −36.8 dB off 50–250 Hz;
+  - BP keeps 0.8–1.25 kHz over the lows and highs;
+  - NOTCH is −23.1 dB at 990 Hz;
+  - COMB's peaks stand 19.5 dB over its dips;
+  - FORMANT's loudest harmonic follows each vowel's first formant.
+- **LFO sync** lands within 3.4 ms of the half-beat at 120 and 97 bpm, and in RETRIG mode.
+- **The matrix:** each of the 8 slots moves its destination, and so does each of the 37 destinations.
+- **Clicks:** none through a position sweep, a table switch, a warp switch, a filter switch, or unison 1 to 8. The
+  largest step stays under 1.15× the waves either side.
+- **Voicing:** MONO's note stack, LEGATO without a retrigger, and GLIDE's timing.
+- **Determinism.**
+- **Levels:** every preset near −16 LUFS, at or under −1 dBTP.
+- **The low end** (section 4):
+  - under a tenth of every preset's energy below 35 Hz;
+  - each bass with 30% or more in 100 Hz–2 kHz, and its 500 Hz–2 kHz band within 20 dB of its 0–60 Hz band.
+- **The extremes:** no NaN.
+- **Garbage collection:** a long render triggers none beyond what the host itself does.
+- **CPU and memory.**
+- **In Chromium:**
+  - the full device check passes at the defaults with no warnings, through all 230 extreme cases;
+  - the quick check passes on every preset;
+  - the face has a control for each param and fits a 390 px phone.
+
+**Elsewhere.** `tools/timbre-test.js` holds Light Table to the synth family on six counts. It measured:
+- register balance 2.5 dB;
+- 4.8 dB louder from velocity 0.3 to 1.0, and 1.31× brighter;
+- tuning 0.0 cents (the stack measured undetuned);
+- aliasing −73.0 dB at full brightness;
+- 3.41% CPU.
+
+`sounds-test` holds its level, peak, determinism and extremes. golden-test has its scene,
+`inst:core.wavetable`, with browser and Node within −120 dBFS.
+
+## 6. What the param system can't express (and what v1 does instead)
+
+| wanted | why not | v1's workaround |
+|---|---|---|
+| Drawn LFO shapes and drawn envelope segments | a param is one number; there is no array or curve param | seven fixed LFO shapes, and a CURVE per envelope (linear to analogue to snappy) |
+| Aftertouch as a source | kernels get `t.bend`, `t.mod` and `t.sustain`; channel and polyphonic pressure never reach them | MOD WHEEL and the four MACROs as performance sources |
+| Imported or drawn wavetables | a table would have to travel with the song: there is no asset param, and a kernel can't read the song | 14 tables built in code, each spanning a family of sounds |
+| A per-slot response curve, or unipolar/bipolar per slot | three params per slot already (24 of the 114) | the amount's sign, and slots aimed at other slots' amounts |
+| A free number of mod slots | params are fixed by the def | 8 slots; the editor can hide empty ones |
+| The editor showing modulated values live | a kernel can't send anything to the page | the editor recomputes the newest note's modulation from the params, the notes and the transport (section 7); exact live values would need a meter channel from the kernel (platform) |
+| Macro names | params have fixed labels | the preset's blurb says what MACRO 1 does; the editor can keep names in the song beside the device (the platform would need a field for it) |
+
+## 7. The editor
+
+Built 2026-10-03: `app/src/ui/editors/wavetable.js`, named by the def (`editor: 'wavetable'`), inside the window every
+device gets (`ui/plugin.js`: the nameplate, the presets, A/B, the scope, the keyboard). `tools/wavetable-ui-test.js`
+holds it to what follows.
+
+### What it draws, and from what
+
+The page's maths live beside the kernel in `wavetable.js`, as exports the kernel never reads: `warpValue`,
+`warpCycle`, `cutoffAt`, `filterResponse`, `driveCurve`, `envSegment`, `envAt`, `lfoShape`, `lfoFree`, `lfoHz`,
+`unisonVoices`, `modMatrix`, `SYNC_BEATS`, `DELAY_BEATS` and `DEST_TARGETS` (which knob each destination moves, and how
+far an amount of 1 takes it). They mirror the kernel's inline code, so a change to one is a change to both. The
+kernel's source is unchanged and `inst:core.wavetable` still renders its pinned hash.
+
+| piece | what it shows | how close to what plays |
+|---|---|---|
+| the table (3D) | the 49 frames in perspective, cut at POS: the frames behind the cut solid (each hides what's behind it), the cut in full ink, the frames in front as hairlines; the table's landmarks on the far rail (sine, triangle, saw, square on BASIC; the vowels on VOWEL; the drawbars on ORGAN) | the lit frame is read as the kernel reads it, between its two nearest frames (to 3e-8). The kernel plays a band-limited copy of the same frame high up the keys |
+| Wave, Harmonics | the frame flat over the plain one when there's a warp; an FFT of the drawn frame, note harmonics on a log axis | the same frame |
+| the warp | every frame through the warp: `warpCycle` is SYNC's, BEND's, PW's (its first eighth fading in), MIRROR's and FM's (the other oscillator at the pitch ratio) phase maps | exact maps without the band limiting (SYNC's polyBLEP, the caps at the top of the keys). Rendered cycles against the drawn ones: 0.9989 to 1.0000 |
+| unison | each voice across the stereo field (across) and in pitch (up), its weight as its length | exact, without the seeded jitter |
+| the filter | its curve from type, cutoff and resonance; FLT DRIVE as its own transfer curve in the corner (a saturator has no frequency response) | `filterResponse` is the exact small-signal response from the kernel's coefficients: each filter is zero-delay, so it is its prototype at the prewarped frequency. LP24's saturator is taken as straight. Noise through each type against the curve: 0.81 dB worst in any third-octave band |
+| envelopes | the shape, each segment as wide as its knob's travel, all at a knob's scale (180 px for a knob's whole travel) or as much as fits, the sustain a fixed hold; a dragged point holds the scale (section 8) | each segment by the kernel's law (`envSegment`); a render's attack and decay within 1.3% of `envAt` |
+| LFOs | the shape over two cycles (S&H and DRIFT six, their own hashed values; ENV one, then the hold); the rate or the note value at the tempo, in seconds | exact shapes; the 2 ms slew and the 4 ms glide aren't drawn |
+
+### Drag to modulate
+
+- **Jacks.** Every source has one: ENV 1-3 and LFO 1-4 beside their words, each macro under its knob, and Velocity,
+  Note, Wheel and Random over the macros. PITCH, FINE, AMP and PAN move the whole voice and have no knob: they are
+  jacks in the Voice tab.
+- **A cable.** Dragging a jack draws a cable; the knobs it can reach are dashed, the one under it solid, the others
+  dimmed. A tab under the cable opens after 450 ms, so FX and Voice can be reached from the oscillators. Dropping fills
+  the first free slot (source, destination and amount in one `ctx.set`, `fresh`: one undo step, signed you, "Light
+  Table: LFO 2 → Resonance, +25%"). The amount starts at a semitone on a pitch, 25 cents on FINE and a quarter of the
+  travel elsewhere. A source already on that knob says so and adds nothing. With all eight slots in use the drag says
+  so in the window's line and its own ("All 8 mod slots are in use. Empty one first…") and lights nothing.
+- **Without dragging.** A click (or Enter) on a jack, then a click (or Enter) on a knob, does the same; Esc stops it. On
+  a phone the patch survives a change of tab.
+- **Rings.** Each slot aimed at a knob is a ring outside its dial: the arc is the amount in the knob's travel
+  (`DEST_TARGETS`: exact, so 0.1 at CUTOFF is an octave of arc), from the knob's value, both ways for the sources that
+  swing both ways (the LFOs, NOTE, RANDOM). Its square drags it (up for more, 120 px for an amount of 1, Shift fine),
+  the wheel nudges it, a double-click zeroes it, and a right-click (or Delete) empties the slot. Each is one undo
+  step. While a jack's cable is out, that source's rings stand out.
+  - **Room for them.** A knob wearing rings keeps room round its dial (`--lt-room`: out to the outermost ring's
+    square, plus 3 px). Its name and value, and its neighbour on the left, step aside, so no ring or square covers them.
+    The producer's "UTOFF / 81 Hz" (LFO 1 on CUTOFF at +40% from 381 Hz) reads "CUTOFF / 381 Hz". The jacks keep a
+    ring's room always, so they stay in line.
+  - **A bigger target.** The square is 8 px and answers a press in an 18 px circle round it (44 px on a phone). That
+    circle may reach the first few pixels of the knob's name, which is inert text: the knob's menu is on its dial. The
+    dials sit above the rings, their round faces (not their drawings' squares) taking the press, so a press on a
+    dial always turns it.
+- **The matrix.** The eight slots as sentences ("LFO 1 → A POS, +35%", "ENV 2 → CUTOFF, +3.0 oct", "MACRO 2 → M1
+  amount, −50%"), each part a bound control, × to empty one; its tab counts the slots in use. The macros say what they
+  move.
+- **Agents.** A slot an agent writes shows its ring at once, flashing in the agent's ink; the knob flashes and the
+  window's line says who moved what. Every control is a `ctx.control` (the matrix's lists, the amounts, every knob and
+  switch) or bound by hand to the same path (the table's name, the routes, the drawings), so lanes, holds and menus
+  work there as on any knob.
+
+### What History calls it, and the words on a touch screen
+
+- **History.** A change made here is one entry, named in words with its value and never by a param's key. It used to
+  say "Light Table a pos" or "Light Table m2 amount". Now it says:
+  - "Light Table: osc A position 0.525";
+  - "Light Table: LFO 1 → Cutoff, +4.0 oct";
+  - "Light Table: LFO 1 sync 1/8";
+  - "Light Table: amp decay 0.33 s, sustain 0.800".
+
+  The window's own gestures pass these words to `ctx.set` as its `label`. A drag is one undo step, and the window's
+  frame (`ui/plugin.js`) renames that step's entry with each move, so it ends on the value let go at. The frame names
+  the knobs, switches and lists made with `ctx.control` from their printed labels ("Light Table: M1 amount 0.40",
+  `rack.js` `gestureLabel`). When the newest entry is one of those, changed here, the editor gives it its own words for
+  the same values, so a slot's amount reads as its sentence on the matrix's knob too.
+- **Touch words.** On a touch screen (`pointer: coarse`) the window says tap, slide and the matrix's ×:
+  - "LFO 1: tap a knob to modulate it. Tap the jack again to stop."
+  - "Slot 1: LFO 1 → A POS, +25%. Slide the ring up or down for more or less."
+  - "All 8 mod slots are in use. Empty one first: tap × beside a slot in the matrix."
+
+  The names and tips it writes follow: the jacks', the rings', the envelope's points' and the table's. It never said
+  Alt. The kit's own knob tips (`ui/plugin-kit.js`) still say "Drag up or down", but a touch screen never shows a tip.
+
+### Movement you can see
+
+While notes play (the song's on this track at the audible beat, the window's keyboard, MIDI and musical typing), the
+editor works out the newest note's modulation every frame on the main thread: the envelopes with `envAt`, the LFOs
+with `lfoShape` (FREE and synced from the song's beat, RETRIG and ENV from the note's start, with LFOn RATE a frame
+behind as the kernel's is a step behind), velocity, note, the wheel (MIDI's), the macros, then `modMatrix` (the slots
+aimed at other slots' amounts first, as the kernel does). That moves a grease-pencil frame through the table to where
+POS has gone, the filter's curve to where the cutoff is (`cutoffAt`: key, envelope 2, velocity and the matrix), a tick
+round each ring, a dot along the envelope and the LFO. It is exact where the song decides it, and close where the
+kernel keeps state the page can't see: a free-running LFO's phase, each note's random values (taken from the note
+itself, so they hold still for its length), the kernel's smoothing. Only the newest note is drawn. There is no channel
+from the kernel to the page (section 6).
+
+### Layout and cost
+
+- **Desktop.** Three bands under hairlines, 1092 px wide: the oscillators (each a display in the device's own colours
+  with its knobs under it, and beside it the unison, the route and the pitch); sub and noise, the filter (with what goes
+  through it), the envelopes and the LFOs; the matrix, FX and voicing in tabs beside the macros and the performance
+  jacks. It fits a 1440 x 900 screen with the window's bar and keyboard, nothing scrolling.
+- **A short screen.** At 1280 x 800 the window's frame leaves 499 px between its bar and its keyboard. The editor was
+  583 px there, so the mod matrix and the macros sat 84 px below the fold. On a screen under 890 px tall the same
+  three bands draw tighter:
+  - the 3D displays are 96 px tall, the filter's 66, the envelope's 58 and the LFO's 40;
+  - the gaps are tighter;
+  - the oscillator's own route lamp gives way to the filter's "in" row, which is the same switch.
+
+  The editor is then 492 px, with nothing to scroll, and it still fits with all eight slots in use.
+- **Phone.** Seven tabs (Osc A, Osc B, Filter, Env, LFO, Mod, FX), one section at a time, 44 px targets, 12 px text.
+- **Cost.** The frames are built once a table (`LT.frames`), warped once a warp, and the stack is rendered to a layer
+  once a cut and size; the filter's grid and curve are a layer too. A frame while the song plays draws two layers and a
+  few lines: 0.18 ms on average and 0.3 ms at the 95th percentile, at 1x and at 2x, in headless Chromium on the machine
+  that built it. A POS drag re-cuts the stack in under a millisecond.
+
+### Still to do
+
+- **Named macros** on each preset (the old plan's item 6): a param's label is fixed, so names need a field beside the
+  device in the song (platform); the presets still leave the macros free.
+- **Drawn LFO shapes and envelope segments** need array params (section 8, AJ's question 1).
+- **Every voice's position**, not only the newest note's.
+- **Exact live values** need a meter channel from the kernel (section 6).
+
+## 8. Design questions
+
+**Answered here (the reasoning is above):**
+
+- **49 frames, not 256.** Memory: 256 frames at 11 band limits would be 14.7 MB per table. Landmarks land exactly on
+  1/2, 1/3, 1/4 and their multiples. For generated tables, a 49-frame morph is continuous because the frames share a
+  phase law.
+- **14 tables, generated in code** and shared with the page, not files.
+- **Unison stops at 8.** One vendor's own guidance is that more than 3 to 7 per oscillator is often unnecessary.
+- **8 mod slots.** Serum's 16 filled quickly, its reviewer said, but drag-to-modulate and rings make slots cheap to
+  read. More slots means 3 more params each on the generic face.
+- **The FX destinations are global**, driven by the newest note.
+- **A synced FREE LFO locks to the song's beat.**
+- **FLT VEL defaults to 0.8.** A hard note brightens the sound by 1.31× and a soft one darkens it. That meets the
+  synth family's velocity colour without making the defaults sound like a pluck.
+- **The unison's starting phases are mirrored in pairs**, so a detuned stack is on pitch.
+- **The default is a playable sound (First Light), not an init patch.** Serum opens on Init, while Overdub's devices
+  open on their first preset. B is there at level 0, one knob away.
+- **The editor (section 7):**
+  - **One ink for every ring**, grease pencil, where one well-known synth colours each source family. In Overdub
+    colour is spent on authorship (warm, cool), so a ring names its source on hover, in the matrix's sentence and by
+    standing out while its source's cable is out.
+  - **The table's cut.** Behind POS the frames are solid and in front of it hairlines, so the lit frame is never
+    hidden and the stack still reads as an object, not a wireframe.
+  - **The drawn envelope's time axis is each knob's travel, not seconds**, as the generic window's is, so a 2 ms
+    attack and an 8 s release can both be grabbed. The shape inside each segment is the kernel's.
+  - **A point drags at a knob's rate, under the pointer** (2026-10-03). The producer found the points three times as
+    twitchy as the knobs: each segment had at most a quarter of the room, so a time's whole travel fit in about 67 px.
+    A knob turns its whole travel in 180 px, and 20 px on the decay point took it from 0.60 s to 0.065 s. What changed:
+    - **The axis uses all the room.** The three segments share one scale, a knob's 180 px for a whole travel when they
+      fit beside the sustain's hold, or as much as fits when they don't. A short envelope (the defaults, a bass's, a
+      pluck's) draws at a knob's scale or within a tenth of it; a long pad's draws at about half.
+    - **A drag holds the scale.** If the drawing's scale is under four fifths of a knob's, the gesture takes a
+      knob's: the drawing stretches round the grabbed point (whatever falls off the display's edges waits out of
+      sight). The point stays under the pointer and its value moves at a knob's rate. Let go and it eases back to fit
+      over 160 ms, drawn from the window's frame.
+    - **The rejected options.** A drag slower than the drawing would leave the point behind the pointer. A fixed axis
+      at a knob's scale needs about 540 px for the longest envelopes; the display has about 260.
+
+    20 px on the decay point is now 11–12% of its travel, against the knob's 11.1%. That holds for the defaults, for a
+    long pad's decay and for its release (wavetable-ui-test).
+  - **The page works out what moves** (section 7), rather than a new channel from the kernel.
+
+**AJ's:**
+
+1. **Array params, for drawn LFOs and envelopes.** Should params get an array or curve type? It touches the project
+   format and the "params are numbers" contract (ops, lanes, the lexicon, faces).
+2. **User wavetables.** Should a song carry audio-derived tables? This means an asset param, and the format's size
+   limits.
+3. **Aftertouch into kernels.** `input/midi.js` would pass channel pressure through `instance.expr` to `t.pressure`.
+   That file is off-limits tonight.
+4. **`get_device` size.** For a device with 24 presets of 114 params, it returns about 2,700 values. Should it send
+   preset names only, or each preset's difference from the defaults? That lives in `agent/tools.js`, which this wave
+   didn't touch.
+5. **Presets are at the registry's limit of 24.** A bigger bank means raising `PRESETS_MAX` and a browser for presets.
+6. **Names.** "Light Table" and the darkroom and cutting-room preset names are mine. Display names can change; the
+   id `core.wavetable` can't.
+7. **Where a new patch starts.** Dropping a source on a knob sets the amount to a quarter of the knob's travel (a
+   semitone on a pitch, 25 cents on FINE), the way a mod ring appears already open in the synths that do this. Zero
+   would make the drop invisible until the ring is dragged; a different default per destination is a small change.
+8. **Macro names** need a field beside the device in the song (section 6): should the platform carry one?
+
+## 9. Research: what makes the best wavetable synths loved
+
+Fetched on 2 October 2026. Product names appear here only.
+
+**Sound.**
+- **Clean tables.** Sound On Sound's Serum review praised its "clean, low-aliasing wavetables" [1]. Serum 2 added a
+  "smooth interpolation option for wavetable position offering perfect table transitions (without morph tables)" [3],
+  marketed as "near-infinite frame positions" [2].
+- **Frame sizes.** Phase Plant documents 256 frames of 2048 samples [9], and Vital's frame is 2048 samples [7].
+- **Vital** claims an "extremely low noise floor" and a "sharp cutoff at Nyquist" [6]. Its code keeps every frame in
+  both the time and frequency domains and computes a pitch-dependent last harmonic [7].
+- **Aliasing is noticed.** SOS heard "more aliasing coming from X than the not-X" when it played high sine notes on
+  Massive X [14].
+- **The heritage has grit.** The PPG Wave 2 and 2.2 were 8-bit, with analogue filters, and Waldorf's recreation
+  "more accurately replicates the familiar aliasing" [15]. So Light Table keeps grit as a table (GRIT, CHIP), never as
+  a side effect of the oscillator.
+- **Warps are where wavetable synths differ.**
+  - Serum: PWM, sync, AM, FM, RM and remaps; Serum 2 adds a second warp per oscillator [1][3].
+  - Vital: Sync, Formant, Quantize, Bend, Squeeze, Pulse Width, and FM or RM from the other oscillator or a sample [7].
+  - Massive X: 10 wavetable modes, including Bend, Mirror and Hardsync [13].
+  - Light Table's five (SYNC, BEND, PW, MIRROR, FM) are the ones all three share.
+- **Filters.**
+  - Vital's models are Analog, Dirty, Ladder, Digital, Diode, Formant, Comb and Phaser [7].
+  - Pigments 7 lists 19 filter types [10].
+  - The ladder, the comb and the formant filter recur. Light Table has all three.
+
+**Workflow.**
+- **Drag-to-modulate is the feature reviewers praise.**
+  - Serum: drag an LFO onto a knob and "the modulation range is shown by a blue arc", "around a second from thought
+    to execution" [1].
+  - Pigments: "a coloured ring will appear around that control"; SOS called it "the clearest approach to modulation
+    I've seen in a soft synth" [11].
+  - Massive X: two modulation slots per parameter, shown as colour-coded rings [13].
+  - Light Table's amounts are in the destination's travel so that a ring's arc is exact.
+- **Matrix size.** Serum 1's 16-slot matrix filled "way too quickly" [1]. Serum 2 shows modulations live in the
+  matrix, with editable source curves and per-row bypass, and has 8 macros, 4 envelopes and up to 10 LFOs [3].
+- **Previews and curves.** Vital previews a modulation before you commit it, and gives each connection its own
+  "remap" curve [6].
+- **Drawn shapes.** Serum lets you "tweak the curves of each envelope stage" and draw LFOs on a grid [1]. Serum 2 adds
+  drawing tools and chaos modes [3]. Massive X's Performers draw up to eight bars of modulation [12].
+- **Unison.** Serum 2 has unison, detune, blend and pan per oscillator, and a voicing panel with mono, legato, poly and
+  portamento with a curve [3]. Xfer says "more than 3–7 unisons per oscillator is often unnecessary" and suggests a
+  chorus instead [4]. Vital allows 16 [7].
+- **Your own tables.**
+  - Serum 2 builds tables from audio by "frequency estimation" [4] and can import images [5].
+  - Vital has pitch-splice and vocode converters, and makes tables from text [6].
+  - This is the biggest thing v1 can't do: section 6.
+
+**Interface.**
+- **The display matters.** Vital "is a visual synthesizer", animated at 60 frames a second [6]. Pigments' "real-time
+  animated feedback clarifies, shapes, and guides your sound design" [10]. Serum shows the table as a 3D stack that
+  "with a single click … becomes an invaluable real-time waveform display" [1].
+- **Its absence is noticed.** At launch, Massive X had "no graphical feedback of the modulation shapes you create"
+  [14].
+- **Complaints.** Serum 2 is "more CPU-hungry than ever", with "many features … hidden within right-click menus" [5].
+  Serum 1 "can be processor-needy" [1]. So Light Table keeps CPU near its neighbours and the editor wave keeps
+  features on the surface.
+
+**Presets.**
+- Serum 2 opens on "- Init -", and its browser sorts by category tags (Bass, Lead, Pad, Pluck, Keyboard, Arpeggio …),
+  with preview clips that give "a sense of the intended use or character" [3][4].
+- Vital's styles are Bass, Lead, Keys, Pad, Percussion, Sequence, Experiment, SFX and Template [7].
+- Pigments ships 1,700+ presets in similar families [10].
+- Light Table's families (bass, lead, pad, pluck, keys, arp, FX) follow that common set. Each blurb opens with its
+  family, so the browser and the agent can filter by it.
+
+**Technique.**
+- **Band-limited tables.** One table read with linear interpolation aliases at high pitches. The fix is band-limited
+  tables per octave, "dropping the upper half of our harmonics for each higher octave". Switching between them can
+  tick from "the abrupt change in energy" [19]. Light Table avoids the tick by choosing the band limit per control
+  step from a limit that lets harmonics fold only above 20 kHz. The next band limit down drops only harmonics that
+  were already past 20 kHz.
+- **Sync.** Band-limited steps for hard sync: Stilson and Smith [20], Brandt [21].
+- **PolyBLEP.** Välimäki and Huovilainen review antialiasing oscillators [22], and Finke explains polynomial
+  corrections at each discontinuity [23]. Light Table's sync uses one polyBLEP for the step and one polyBLAMP for the
+  change of slope.
+
+**Not verified:**
+- Serum's frame size, and how it band-limits internally;
+- the line of Vital's code that drops harmonics above the last one;
+- who first described polyBLEP;
+- whether Massive X's 2019 criticisms still hold.
+
+### Sources
+
+1. Sound On Sound, Xfer Serum review (Paul Nagle, 2015). https://www.soundonsound.com/reviews/xfer-records-serum
+2. Xfer Records, Serum 2. https://xferrecords.com/products/serum-2
+3. Xfer Records, What's New in Serum 2 (2025). https://static.xferrecords.com/Serum%202%20What's%20New.pdf
+4. Xfer Records support:
+   - https://support.xferrecords.com/article/51-serum2-sound-design-guidelines-for-optimizing-cpu-usage
+   - https://support.xferrecords.com/article/52-serum-2-preset-previews
+   - https://support.xferrecords.com/article/59-converting-samples-to-wavetables
+5. MusicTech, Serum 2 review (2025). https://musictech.com/reviews/plug-ins/xfer-records-serum-2-review/
+6. Vital. https://vital.audio/
+7. Vital's source code (GPLv3), https://github.com/mtytel/vital:
+   - `src/synthesis/lookups/wave_frame.h`
+   - `src/synthesis/lookups/wavetable.h`
+   - `src/synthesis/producers/synth_oscillator.h` and `.cpp`
+   - `src/interface/look_and_feel/synth_strings.h`
+8. KVR, Vital. https://www.kvraudio.com/product/vital-by-matt-tytel
+9. Kilohearts, Phase Plant manual. https://kilohearts.com/docs/phase_plant
+10. Arturia, Pigments overview. https://www.arturia.com/products/software-instruments/pigments/overview
+11. Sound On Sound, Arturia Pigments review (Rory Dow, 2019). https://www.soundonsound.com/reviews/arturia-pigments
+12. Native Instruments, Massive X. https://www.native-instruments.com/en/products/komplete/synths/massive-x/
+13. Native Instruments, Massive X manual:
+    - https://docs.native-instruments.com/ni-tech-manuals/massive-x-manual/en/wavetable-oscillators
+    - https://docs.native-instruments.com/ni-tech-manuals/massive-x-manual/en/modulation
+14. Sound On Sound, Native Instruments Massive X review (Simon Sherbourne, 2019).
+    https://www.soundonsound.com/reviews/native-instruments-massive-x
+15. Wikipedia, PPG Wave. https://en.wikipedia.org/wiki/PPG_Wave
+16. Wikipedia, Waldorf Music. https://en.wikipedia.org/wiki/Waldorf_Music
+17. Waldorf, Blofeld. https://waldorfmusic.com/blofeld-en/
+18. Wikipedia, Wavetable synthesis. https://en.wikipedia.org/wiki/Wavetable_synthesis
+19. Nigel Redmon, "A wavetable oscillator", parts 1–3 (EarLevel Engineering, 2012):
+    - https://www.earlevel.com/main/2012/05/04/a-wavetable-oscillator-part-1/
+    - https://www.earlevel.com/main/2012/05/08/a-wavetable-oscillator-part-2/
+    - https://www.earlevel.com/main/2012/05/09/a-wavetable-oscillator-part-3/
+20. Tim Stilson and Julius Smith, "Alias-Free Digital Synthesis of Classic Analog Waveforms" (ICMC 1996).
+    https://ccrma.stanford.edu/~stilti/papers/blit.pdf
+21. Eli Brandt, "Hard Sync Without Aliasing" (ICMC 2001). https://www.cs.cmu.edu/~eli/papers/icmc01-hardsync.pdf
+22. Vesa Välimäki and Antti Huovilainen, "Antialiasing Oscillators in Subtractive Synthesis", IEEE Signal Processing
+    Magazine 24(2), 2007. https://research.aalto.fi/en/publications/antialiasing-oscillators-in-subtractive-synthesis
+23. Martin Finke, "Making Audio Plugins Part 18: PolyBLEP Oscillator".
+    https://www.martin-finke.de/articles/audio-plugins-018-polyblep-oscillator/

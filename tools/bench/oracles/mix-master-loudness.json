@@ -1,0 +1,3 @@
+{ "task": "mix-master-loudness", "why": "Master fader back to 0 and a limiter pushing 2.5 dB into a -1.5 dB ceiling.",
+  "ops": [{ "type": "master.set", "patch": { "gain": 0 } },
+          { "type": "insert.add", "track": "master", "insert": { "device": "core.limiter", "params": { "gain": 2.5, "ceiling": -1.5 } } }] }

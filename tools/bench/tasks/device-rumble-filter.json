@@ -1,0 +1,15 @@
+{
+  "id": "device-rumble-filter",
+  "family": "device",
+  "title": "Clear the rumble",
+  "instruction": "Build an effect (write the kernel) for the Room track that clears the rumble: a 100 Hz tone should come out at least 18 dB quieter and a 50 Hz tone at least 24 dB quieter, while 1 kHz and 3 kHz pass within 1 dB.",
+  "song": "songs/lab.json",
+  "setup": [],
+  "checks": [
+    { "id": "built", "label": "An effect written in this song is on Room", "kind": "defined", "track": "Room", "deviceKind": "effect", "target": [1, 1], "gate": true },
+    { "id": "hz100", "label": "Gain at 98 Hz (G2)", "kind": "toneGain", "unit": "dB", "track": "Room", "tones": [{ "midi": 43 }, { "midi": 31 }, { "midi": 83 }, { "midi": 102 }], "tone": 0, "target": [null, -18], "soft": 12, "weight": 3 },
+    { "id": "hz50", "label": "Gain at 49 Hz (G1)", "kind": "toneGain", "unit": "dB", "track": "Room", "tones": [{ "midi": 43 }, { "midi": 31 }, { "midi": 83 }, { "midi": 102 }], "tone": 1, "target": [null, -24], "soft": 12, "weight": 1 },
+    { "id": "hz1k", "label": "Gain at 988 Hz (B5)", "kind": "toneGain", "unit": "dB", "track": "Room", "tones": [{ "midi": 43 }, { "midi": 31 }, { "midi": 83 }, { "midi": 102 }], "tone": 2, "target": [-1, 1], "soft": 3, "weight": 2 },
+    { "id": "hz3k", "label": "Gain at 2960 Hz (F#7)", "kind": "toneGain", "unit": "dB", "track": "Room", "tones": [{ "midi": 43 }, { "midi": 31 }, { "midi": 83 }, { "midi": 102 }], "tone": 3, "target": [-1, 1], "soft": 3, "weight": 1 }
+  ]
+}

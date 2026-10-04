@@ -1,0 +1,3 @@
+{ "task": "write-counter-melody", "why": "A slower line under the hook, mostly half notes in contrary motion, thirds and sixths against it on the strong beats, A3 to G4.",
+  "ops": [{ "type": "track.add", "ref": "cm", "track": { "name": "Counter", "instrument": { "device": "core.keys", "params": { "bright": 0.4 } }, "gain": -4, "pan": -0.3 } },
+          { "type": "clip.add", "track": "$cm", "clip": { "start": 16, "length": 16, "name": "Counter", "notes": "C4@0:1.5 B3@1.5:0.5 E4@2:2 A3@4:2 F4@6:1.5 E4@7.5:0.5 G4@8:2 E4@10:2 D4@12:1.5 C4@13.5:0.5 B3@14:2" } }] }

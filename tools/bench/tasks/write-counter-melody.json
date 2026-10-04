@@ -1,0 +1,24 @@
+{
+  "id": "write-counter-melody",
+  "family": "writing",
+  "title": "Counter-melody",
+  "instruction": "Write a counter-melody to the hook through the chorus (bars 5-8) on a new track: at least 8 notes, in key (A minor), no semitone clashes with the hook on the strong beats (beats 1 and 3), within an octave and a half, and its own line rather than a copy of the hook. Leave the hook alone.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "count", "label": "Notes on new tracks in the chorus", "kind": "count", "unit": "notes",
+      "sel": { "tracks": "new", "from": 16, "to": 32 }, "target": [8, null], "soft": 6, "weight": 1 },
+    { "id": "key", "label": "Share of those notes in A minor", "kind": "inKey",
+      "sel": { "tracks": "new", "from": 16, "to": 32 }, "target": [0.95, 1], "soft": 0.4, "weight": 1 },
+    { "id": "clashes", "label": "Strong beats with a semitone clash against the hook", "kind": "clashes", "unit": "beats",
+      "sel": { "tracks": "new", "from": 16, "to": 32 }, "against": { "tracks": ["Hook"], "from": 16, "to": 32 }, "target": [0, 0], "soft": 3, "weight": 2 },
+    { "id": "span", "label": "Range (highest minus lowest)", "kind": "span", "unit": "semitones",
+      "sel": { "tracks": "new", "from": 16, "to": 32 }, "target": [0, 18], "soft": 6, "weight": 1 },
+    { "id": "own", "label": "Share of notes doubling the hook (same start, same pitch class)", "kind": "doubling",
+      "sel": { "tracks": "new", "from": 16, "to": 32 }, "against": { "tracks": ["Hook"], "from": 16, "to": 32 }, "target": [0, 0.25], "soft": 0.5, "weight": 1 },
+    { "id": "heard", "label": "New tracks' loudness in the chorus", "kind": "measure", "metric": "lufs", "unit": "LUFS",
+      "scope": { "tracks": "new", "section": "Chorus" }, "target": [-32, null], "soft": 10, "weight": 1 },
+    { "id": "hook", "label": "Hook notes as they were", "kind": "unchanged",
+      "sel": { "tracks": ["Hook"] }, "target": [1, 1], "soft": 0.5, "gate": true }
+  ]
+}

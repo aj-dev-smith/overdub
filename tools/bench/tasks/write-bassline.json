@@ -1,0 +1,22 @@
+{
+  "id": "write-bassline",
+  "family": "writing",
+  "title": "Bassline on the roots",
+  "instruction": "The verse (bars 1-4) has no bass. Write a bassline on the Bass track: the root of each bar's chord (Am, F, C, G) on beat 1 of every bar, at least 12 notes, in key, nothing above C3 or below E1.",
+  "song": "songs/night-shift.json",
+  "setup": [{ "type": "clip.remove", "track": "Bass", "clip": "c_bass01" }, { "type": "clip.remove", "track": "Bass", "clip": "c_bass02" }],
+  "checks": [
+    { "id": "roots", "label": "Bars with the chord's root on the downbeat", "kind": "roots",
+      "sel": { "tracks": ["Bass"], "from": 0, "to": 16 }, "chords": ["Am", "F", "C", "G"], "bars": [0, 4], "target": [1, 1], "soft": 0.75, "weight": 3 },
+    { "id": "count", "label": "Bass notes in the verse", "kind": "count", "unit": "notes",
+      "sel": { "tracks": ["Bass"], "from": 0, "to": 16 }, "target": [12, null], "soft": 8, "weight": 1 },
+    { "id": "key", "label": "Share of bass notes in A minor", "kind": "inKey",
+      "sel": { "tracks": ["Bass"], "from": 0, "to": 16 }, "target": [0.9, 1], "soft": 0.4, "weight": 1 },
+    { "id": "range", "label": "Share of bass notes between E1 and C3", "kind": "within",
+      "sel": { "tracks": ["Bass"], "from": 0, "to": 16 }, "lo": 28, "hi": 48, "target": [1, 1], "soft": 0.5, "weight": 1 },
+    { "id": "heard", "label": "Bass loudness in the verse", "kind": "measure", "metric": "lufs", "unit": "LUFS",
+      "scope": { "tracks": ["Bass"], "section": "Verse" }, "target": [-30, null], "soft": 10, "weight": 1 },
+    { "id": "others", "label": "Everyone else's notes as they were", "kind": "unchanged",
+      "sel": { "tracks": ["Kick", "Kit", "Keys", "Hook"] }, "target": [1, 1], "soft": 0.5, "gate": true }
+  ]
+}

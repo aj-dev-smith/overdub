@@ -1,0 +1,33 @@
+{
+  "task": "device-dotted-echo",
+  "why": "A stereo delay whose time is 0.75 beats at the transport tempo (t.bpm), 25% feedback through a gentle low-pass, repeats at -9 dB; the dry signal passes untouched.",
+  "ops": [
+    {
+      "type": "device.define",
+      "device": {
+        "id": "bench.dotted-echo",
+        "name": "Dotted Echo",
+        "kind": "effect",
+        "cat": "time",
+        "blurb": "Dotted-eighth repeats locked to the tempo",
+        "trails": true,
+        "tail": 4,
+        "params": [
+          { "key": "level", "label": "LEVEL", "min": -30, "max": -6, "def": -9, "unit": "dB", "role": "mix" },
+          { "key": "feedback", "label": "REPEATS", "min": 0, "max": 80, "def": 25, "unit": "%", "role": "feedback" },
+          { "key": "tone", "label": "TONE", "min": 800, "max": 12000, "def": 5000, "curve": "log", "unit": "Hz", "role": "tone" }
+        ],
+        "look": { "color": "#2c4a6b", "ink": "#e8f2ff", "shape": "box", "finish": "flat", "knob": "black", "label": "block", "led": "#9fd8ff" },
+        "kernel": "({\n  create({ sr, dsp }) {\n    const max = sr * 3;\n    const dl = dsp.delay(max), dr = dsp.delay(max);\n    const tl = dsp.onepole(), tr = dsp.onepole();\n    const time = dsp.smooth(60, 0);\n    let first = true;\n    return {\n      process(L, R, n, p, t) {\n        const target = Math.min(max - 4, 0.75 * 60 / t.bpm * sr);   // a dotted eighth, from the song's tempo\n        if (first) { time.reset(target); first = false; }\n        tl.set(p.tone); tr.set(p.tone);\n        const fb = p.feedback / 100, wet = dsp.dB(p.level);\n        for (let i = 0; i < n; i++) {\n          const d = time.tick(target);\n          const yl = dl.read(d), yr = dr.read(d);\n          dl.write(L[i] + tl.lp(yl) * fb);\n          dr.write(R[i] + tr.lp(yr) * fb);\n          L[i] += yl * wet;\n          R[i] += yr * wet;\n        }\n      },\n    };\n  },\n})"
+      }
+    },
+    {
+      "type": "insert.add",
+      "track": "Snaps",
+      "insert": {
+        "device": "bench.dotted-echo",
+        "params": {}
+      }
+    }
+  ]
+}

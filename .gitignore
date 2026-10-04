@@ -1,0 +1,13 @@
+node_modules/
+tools/.out/
+.DS_Store
+*.log
+.claude/worktrees/
+
+# Raw footage for the launch film (lives in ~/Movies/Overdub)
+*.mov
+*.MOV
+
+# Deploy ids for this account (deploy/env.example lists them; setup.sh writes .distribution-id)
+deploy/.env
+deploy/.distribution-id

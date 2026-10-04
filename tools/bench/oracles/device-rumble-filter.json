@@ -1,0 +1,30 @@
+{
+  "task": "device-rumble-filter",
+  "why": "Two cascaded 12 dB/octave state-variable high-passes at 250 Hz per side: 24 dB/octave below the cutoff, flat above it.",
+  "ops": [
+    {
+      "type": "device.define",
+      "device": {
+        "id": "bench.rumble-cut",
+        "name": "Rumble Cut",
+        "kind": "effect",
+        "cat": "eq",
+        "blurb": "A steep high-pass that clears the floor",
+        "tail": 0.05,
+        "params": [
+          { "key": "cutoff", "label": "CUTOFF", "min": 40, "max": 400, "def": 250, "curve": "log", "unit": "Hz", "role": "tone" }
+        ],
+        "look": { "color": "#3a3a3a", "ink": "#f0f0f0", "shape": "box", "finish": "flat", "knob": "black", "label": "block", "led": "#9fd8ff" },
+        "kernel": "({\n  create({ sr, dsp }) {\n    const f = [dsp.svf(), dsp.svf(), dsp.svf(), dsp.svf()];   // two 12 dB/oct high-passes per side: 24 dB/oct\n    return {\n      process(L, R, n, p) {\n        for (const x of f) x.set(p.cutoff, 0.707);\n        for (let i = 0; i < n; i++) { L[i] = f[1].hp(f[0].hp(L[i])); R[i] = f[3].hp(f[2].hp(R[i])); }\n      },\n    };\n  },\n})"
+      }
+    },
+    {
+      "type": "insert.add",
+      "track": "Room",
+      "insert": {
+        "device": "bench.rumble-cut",
+        "params": {}
+      }
+    }
+  ]
+}

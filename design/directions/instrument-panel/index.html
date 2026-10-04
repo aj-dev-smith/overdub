@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instrument Panel</title>
+<!-- Overdub style direction: "Instrument panel". A static mockup; changes no product code.
+     Fonts are the repo's own files (deck/assets/fonts), the marks are app/assets/*.svg, the song is Night Shift. -->
+<style>
+@font-face { font-family: 'Archivo'; font-style: italic; font-weight: 400 900; font-stretch: 62% 125%; src: url(../../../deck/assets/fonts/archivo-v25-k3kSo8UDI-1M0wlSfdzYLGHEA6CF8Q.woff2) format('woff2'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400 900; font-stretch: 62% 125%; src: url(../../../deck/assets/fonts/archivo-v25-k3kQo8UDI-1M0wlSfdnoLmvDIaI.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 400 700; src: url(../../../deck/assets/fonts/atkinsonhyperlegiblenext-v7-NaPNcYPdHfdVxJw0IfIP0lvYFqijb-UxCtm5_wdGseiJn3q0pkZ_.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 400 600; src: url(../../../deck/assets/fonts/atkinsonhyperlegiblemono-v8-tss4AoFBci4C4gvhPXrt3wjT1MqSzhA4t7IIcncBiwKthFyDHi0j.woff2) format('woff2'); }
+
+:root {
+  color-scheme: dark;
+  /* the brand's values, unchanged (app/style/tokens.css) */
+  --bg: #141210; --bg-2: #1a1815; --bg-3: #24211c; --panel: #1d1b17;
+  --line: #2f2b25; --line-2: #46413a;
+  --text: #f4ead6; --text-2: #cbc0aa; --text-3: #9a8f7c;
+  --accent: #d9f36a; --accent-2: #f1dc8a;
+  --human: #ffa043; --agent: #4cc3ff;
+  --ok: #8fdca0; --warn: #ffd166; --bad: #ff6b6b; --rec: #ff4d4d;
+  --c-1: #e98a6c; --c-2: #dcb45e; --c-3: #a8c470; --c-4: #95c6a8; --c-5: #8fa8d4; --c-6: #b69cd8; --c-7: #e68ba8; --c-8: #d9c8a4;
+  --paper: #f4ead6; --ink: #16130f; --ink-2: #4c4336; --riso-warm: #f07612; --riso-cool: #1b95dc;
+  --font-ui: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-display: 'Archivo', 'Arial Black', sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, Menlo, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+
+  /* new in this direction */
+  --well: #0f0d0b;          /* a recessed window: the display, the input, a mini lane */
+  --plate: #1f1c18;         /* a key at rest */
+  --r-key: 3px;             /* keys are the only rounded rectangles; planes are square */
+  --hair: 1px solid var(--line);
+  --hair-2: 1px solid var(--line-2);
+  --lift: 0 1px 0 rgba(0,0,0,.6), 0 18px 32px -18px rgba(0,0,0,.9);   /* only for things that float: toast, sticker */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); }
+body { color: var(--text); font: 13px/1.4 var(--font-ui); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- atoms ---------- */
+/* silkscreen: printed on the panel next to a control. lower case, mono, untracked, quiet. never a heading. */
+.ss { font: 400 10px/1 var(--font-mono); color: var(--text-3); letter-spacing: 0; text-transform: lowercase; }
+
+/* lamps: the one authorship atom. lit warm = a person, lit cool = an agent, unlit = the house.
+   cream = on, green = playing (the playhead's lamp), red = recording, grease = the loop */
+.lamp { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-2); vertical-align: middle; }
+.lamp.w { background: var(--human); box-shadow: 0 0 0 1px rgba(255,160,67,.25), 0 0 6px rgba(255,160,67,.55); }
+.lamp.c { background: var(--agent); box-shadow: 0 0 0 1px rgba(76,195,255,.25), 0 0 6px rgba(76,195,255,.55); }
+.lamp.on { background: var(--text); box-shadow: 0 0 5px rgba(244,234,214,.35); }
+.lamp.g { background: var(--accent); box-shadow: 0 0 6px rgba(217,243,106,.55); }
+.lamp.r { background: var(--rec); box-shadow: 0 0 6px rgba(255,77,77,.6); }
+.lamp.r0 { box-shadow: inset 0 0 0 1px #5a2a26; background: #2a1715; }
+.lamp.y { background: var(--accent-2); box-shadow: 0 0 5px rgba(241,220,138,.45); }
+.lamp.ok { background: var(--ok); box-shadow: 0 0 5px rgba(143,220,160,.45); }
+.lamp.lg { width: 10px; height: 10px; }
+
+/* ink: who wrote it, in the text itself */
+.iw { color: var(--human); } .ic { color: var(--agent); } .ih { color: var(--text-2); }
+
+/* keys: square-shouldered, flat, one hairline. pressed = inverted. primary = leader green (one per region). */
+.key { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: var(--r-key);
+  background: var(--plate); border: var(--hair-2); color: var(--text); font: 600 12px/1 var(--font-ui); white-space: nowrap; }
+.key.sq { width: 26px; padding: 0; }
+.key.in { background: var(--text); color: var(--bg); border-color: var(--text); }
+.key.go { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.key.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+.key.tall { height: 32px; }
+.key .lamp { margin-left: -2px; }
+.key kbd, .kbd { font: 400 10px/1 var(--font-mono); color: var(--text-3); padding: 2px 3px; border: var(--hair-2); border-radius: 2px; }
+.key.in kbd { color: var(--bg-3); border-color: var(--bg-3); }
+.key.go kbd { color: #3c4416; border-color: #8a9c3e; }
+.link { color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+
+/* page scaffolding for the mockup itself */
+.desk { width: 1440px; margin: 0 auto; }
+.cap { display: flex; align-items: baseline; gap: 14px; padding: 34px 32px 12px; border-top: var(--hair); }
+.cap:first-child { border-top: 0; padding-top: 16px; }
+.cap b { font: 800 italic 15px/1 var(--font-display); font-stretch: 112%; }
+.cap span { font: 13px/1.4 var(--font-ui); color: var(--text-3); }
+
+/* ---------- the studio frame ---------- */
+.studio { position: relative; width: 1440px; height: 900px; display: grid; grid-template-columns: 1fr 360px; grid-template-rows: 52px 1fr 352px; background: var(--bg); border-top: var(--hair); border-bottom: var(--hair); overflow: hidden; }
+
+/* top bar: one plane, fields split by hairlines, labels silkscreened above values */
+.top { grid-column: 1 / -1; display: flex; align-items: stretch; background: var(--bg-2); border-bottom: var(--hair); }
+.f { display: flex; align-items: center; gap: 8px; padding: 0 11px; border-right: var(--hair); white-space: nowrap; }
+.f.stack { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; }
+.f .val { font: 400 15px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.lockup { display: flex; align-items: center; gap: 7px; padding: 0 14px; border-right: var(--hair); white-space: nowrap; }
+.lockup img.mark { width: 24px; height: 24px; }
+.lockup img.word { height: 15px; }
+.title { font: 700 17px/1 var(--font-display); font-stretch: 112%; letter-spacing: -.005em; }
+.display { display: flex; align-items: center; gap: 14px; margin: 7px 0; padding: 0 12px; background: var(--well); border: var(--hair); border-radius: 2px; box-shadow: inset 0 1px 0 rgba(0,0,0,.5); }
+.display .pos { font: 400 24px/1 var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.display .pos i { font-style: normal; color: var(--text-3); }
+.display .sub { display: flex; flex-direction: column; gap: 3px; }
+.display .sub span { font: 400 11px/1 var(--font-mono); color: var(--text-2); }
+.beats { display: flex; gap: 5px; align-items: center; }
+.beats .lamp { width: 9px; height: 9px; }
+.meter { display: flex; gap: 2px; align-items: center; }
+.meter i { width: 4px; height: 12px; background: #24301f; }
+.meter i.l { background: var(--ok); } .meter i.l.hot { background: var(--warn); } .meter i.pk { background: #3a2a1a; }
+.spacer { flex: 1; }
+
+/* arranger */
+.arr { position: relative; display: grid; grid-template-rows: 32px 1fr; border-right: var(--hair); min-height: 0; }
+.tools { display: flex; align-items: center; gap: 4px; padding: 0 10px; border-bottom: var(--hair); background: var(--bg); }
+.tools .sep { width: 1px; height: 16px; background: var(--line); margin: 0 6px; }
+.tools .hint { margin-left: auto; color: var(--text-3); font-size: 12px; }
+.lanes { position: relative; overflow: hidden; }
+.row { position: absolute; left: 0; right: 0; display: grid; border-bottom: var(--hair); }
+.th { display: flex; align-items: center; gap: 9px; padding: 0 8px 0 12px; border-right: var(--hair); background: var(--bg); }
+.th .sw { width: 8px; height: 8px; border-radius: 1px; flex: none; }
+.th .tn { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; line-height: 1.2; }
+.th .tn small { display: block; font: 400 11px/1.3 var(--font-ui); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.th .ks { display: flex; gap: 3px; }
+.th .key { height: 20px; width: 20px; padding: 0; font: 600 10px/1 var(--font-mono); }
+.th .key.arm { color: var(--text-3); }
+.lane { position: relative; }
+.grid-bg { position: absolute; inset: 0; pointer-events: none; }
+.ruler .th { align-items: stretch; flex-direction: column; justify-content: space-around; padding: 6px 12px; gap: 0; }
+.clip { position: absolute; top: 5px; bottom: 5px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--tc) 15%, var(--bg)); border: 1px solid color-mix(in srgb, var(--tc) 42%, transparent); }
+.clip .ch { position: absolute; left: 0; right: 0; top: 0; height: 16px; display: flex; align-items: center; gap: 5px; padding: 0 6px; font: 600 11px/1 var(--font-ui); color: color-mix(in srgb, var(--tc) 55%, var(--text)); white-space: nowrap; }
+.clip .ch .lamp { width: 6px; height: 6px; }
+.clip .ch.by-w { color: var(--human); } .clip .ch.by-c { color: var(--agent); }
+.clip svg { position: absolute; left: 0; top: 17px; }
+.clip.muted { background: repeating-linear-gradient(135deg, var(--bg-2) 0 6px, #1e1b17 6px 7px); border-color: var(--line-2); }
+.clip.muted .ch { color: var(--text-3); }
+.clip.muted .ch .off { margin-left: 4px; font: 400 10px/1 var(--font-mono); color: var(--text-3); padding: 2px 4px; border: var(--hair-2); border-radius: 2px; }
+.sel { position: absolute; pointer-events: none; --m: var(--text);
+  background:
+    linear-gradient(var(--m), var(--m)) 0 0 / 9px 1.5px, linear-gradient(var(--m), var(--m)) 0 0 / 1.5px 9px,
+    linear-gradient(var(--m), var(--m)) 100% 0 / 9px 1.5px, linear-gradient(var(--m), var(--m)) 100% 0 / 1.5px 9px,
+    linear-gradient(var(--m), var(--m)) 0 100% / 9px 1.5px, linear-gradient(var(--m), var(--m)) 0 100% / 1.5px 9px,
+    linear-gradient(var(--m), var(--m)) 100% 100% / 9px 1.5px, linear-gradient(var(--m), var(--m)) 100% 100% / 1.5px 9px;
+  background-repeat: no-repeat; }
+.clip.selected { border-color: var(--text); }
+.pencil { position: absolute; border: 1.5px dashed var(--accent-2); border-radius: 3px; pointer-events: none; }
+.pencil-tag { position: absolute; font: 400 10px/1 var(--font-mono); color: var(--accent-2); background: var(--bg); padding: 2px 5px; white-space: nowrap; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; z-index: 4; }
+.playhead::before { content: ''; position: absolute; top: 0; left: -5px; border: 5px solid transparent; border-top: 7px solid var(--accent); }
+
+/* the sticker: the quick-start card from the box, printed on paper */
+.sticker { position: absolute; z-index: 6; width: 396px; background: var(--paper); color: var(--ink); padding: 14px 16px 12px; box-shadow: var(--lift); border-radius: 1px; }
+.sticker::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background-image: radial-gradient(rgba(22,19,15,.06) 1px, transparent 1.2px); background-size: 3px 3px; }
+.sticker h3 { font: 800 italic 22px/1 var(--font-display); font-stretch: 125%; letter-spacing: -.01em; margin-bottom: 8px; }
+.sticker p { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); margin-bottom: 9px; }
+.sticker p b { color: var(--ink); }
+.sticker kbd { font: 400 11px/1 var(--font-mono); padding: 2px 5px; border: 1px solid #b3a68e; border-radius: 2px; color: var(--ink); }
+.sticker .legend { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: center; padding: 8px 0; margin: 2px 0 10px; border-top: 1px solid #d8ccb4; border-bottom: 1px solid #d8ccb4; font-size: 13px; color: var(--ink); }
+.sticker .legend .lamp { width: 9px; height: 9px; }
+.sticker .legend .lamp.w { background: var(--riso-warm); box-shadow: none; }
+.sticker .legend .lamp.c { background: var(--riso-cool); box-shadow: none; }
+.sticker .legend .lamp.h { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.sticker .acts { display: flex; align-items: center; gap: 14px; }
+.sticker .pkey { height: 28px; padding: 0 12px; border: 1.5px solid var(--ink); border-radius: var(--r-key); font: 600 12.5px/1 var(--font-ui); color: var(--ink); display: inline-flex; align-items: center; }
+.sticker .x { position: absolute; top: 12px; right: 12px; font: 400 11px/1 var(--font-mono); color: var(--ink-2); }
+.sticker .acts a { color: var(--ink-2); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #b3a68e; }
+
+/* the toast: a readout that floats for a moment */
+.toast { position: absolute; z-index: 7; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 6px 0 14px; background: #2a2620; border: var(--hair-2); border-radius: 2px; box-shadow: var(--lift); font-size: 13px; white-space: nowrap; }
+.toast .ss { color: var(--text-3); }
+
+/* the bottom: Sketch */
+.bottom { display: grid; grid-template-rows: 34px 1fr; border-top: var(--hair); border-right: var(--hair); background: var(--bg-2); min-height: 0; }
+.tabs { display: flex; align-items: stretch; border-bottom: var(--hair); background: var(--bg); }
+.tab { display: flex; align-items: center; gap: 7px; padding: 0 14px; color: var(--text-3); font-weight: 600; border-right: var(--hair); }
+.tab.on { color: var(--text); background: var(--bg-2); margin-bottom: -1px; }
+.tabs .where { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--text-2); font-size: 12px; }
+.sk { display: grid; grid-template-columns: 112px 1fr 372px; min-height: 0; }
+.modes { display: flex; flex-direction: column; border-right: var(--hair); }
+.mode { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border-bottom: var(--hair); font-weight: 600; color: var(--text-2); }
+.mode.on { color: var(--text); background: var(--bg-3); }
+.tap { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tap-head { display: flex; align-items: center; gap: 16px; }
+.tap-head .say { font-size: 13.5px; color: var(--text-2); }
+.tap-head .say b { color: var(--text); font-weight: 600; }
+.count { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.count .n { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.count .n .lamp { width: 12px; height: 12px; }
+.steps { display: grid; grid-template-columns: 52px repeat(32, 1fr); gap: 2px; align-items: center; background: var(--well); border: var(--hair); padding: 8px 8px 6px; border-radius: 2px; position: relative; }
+.steps .rn { font: 400 10px/1 var(--font-mono); color: var(--text-3); }
+.steps i { height: 14px; background: #1e1b17; border-radius: 1px; }
+.steps i.q { background: #26221d; }
+.steps i.bar { box-shadow: -2px 0 0 var(--line-2); }
+.steps i.hit { background: var(--human); }
+.steps i.ph { outline: 1px solid var(--accent); outline-offset: 0; }
+.steps .phcol { position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--accent); opacity: .9; }
+.pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pad { height: 62px; border-radius: var(--r-key); background: var(--plate); border: var(--hair-2); padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; }
+.pad .pt { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13.5px; }
+.pad.hitnow { background: #2e271e; border-color: var(--human); }
+.sk-foot { display: flex; align-items: center; gap: 6px; }
+.takes { border-left: var(--hair); display: flex; flex-direction: column; min-height: 0; }
+.takes-h { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-bottom: var(--hair); }
+.takes-h b { font-weight: 600; font-size: 13px; }
+.take { padding: 10px 14px; border-bottom: var(--hair); display: grid; grid-template-columns: 12px 1fr auto; gap: 4px 8px; align-items: center; }
+.take.fresh { background: var(--bg-3); padding: 12px 14px 14px; }
+.take .tt { font-weight: 600; }
+.take .tm { font: 400 11px/1 var(--font-mono); color: var(--text-3); }
+.take .mini { grid-column: 2 / -1; margin: 6px 0 2px; height: 38px; background: var(--well); border: var(--hair); border-radius: 2px; display: grid; grid-template-columns: repeat(16, 1fr); grid-template-rows: repeat(4, 1fr); gap: 2px; padding: 4px; }
+.take .mini i { border-radius: 1px; background: #1c1916; }
+.take .mini i.hit { background: var(--human); }
+.take .facts { grid-column: 2 / -1; font: 400 11.5px/1.3 var(--font-mono); color: var(--text-2); }
+.take .acts { grid-column: 2 / -1; display: flex; gap: 6px; margin-top: 8px; }
+.take .acts .key { height: 30px; }
+
+/* the agent panel: a session log */
+.agent { grid-column: 2; grid-row: 2 / 4; display: grid; grid-template-rows: 34px 30px 1fr auto; background: var(--panel); min-height: 0; }
+.ptabs { display: flex; align-items: stretch; border-bottom: var(--hair); background: var(--bg); }
+.ptabs .tab:last-child { border-right: 0; }
+.status { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: var(--hair); font-size: 12px; color: var(--text-3); }
+.status b { font-weight: 600; }
+.log { overflow: hidden; padding: 6px 0 0; }
+.msg { display: grid; grid-template-columns: 58px 1fr; gap: 0 10px; padding: 7px 14px; }
+.who { display: flex; align-items: center; gap: 6px; font: 600 12px/18px var(--font-ui); }
+.msg .tx { font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.msg .tx.dim { color: var(--text-2); }
+.steps-log { font: 400 11.5px/1.65 var(--font-mono); color: var(--text-3); margin-bottom: 6px; }
+.steps-log span { color: var(--text-2); }
+.tk-wrap { margin: 4px 14px 0; border-top: var(--hair); }
+.tk { display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px; padding: 10px 0 11px; border-bottom: var(--hair); }
+.tk .L { grid-row: 1 / 4; font: 800 italic 26px/1 var(--font-display); font-stretch: 112%; color: var(--text-2); padding-top: 1px; }
+.tk.hearing .L { color: var(--text); }
+.tk .tt { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+.tk .ml { height: 32px; background: var(--well); border: var(--hair); border-radius: 2px; position: relative; overflow: hidden; margin: 6px 0 2px; }
+.tk .ml svg { position: absolute; inset: 0; }
+.tk .fm { font: 400 11px/1.4 var(--font-mono); color: var(--text-3); }
+.tk .acts { grid-column: 2; display: flex; gap: 6px; margin-top: 8px; }
+.tk .acts .key { flex: 1; height: 30px; }
+.tk.hearing .ml { border-color: var(--line-2); }
+.tk-foot { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; font-size: 12px; color: var(--text-3); }
+.compose { border-top: var(--hair); padding: 10px 14px 12px; background: var(--bg-2); }
+.compose .in { display: flex; align-items: flex-end; gap: 8px; background: var(--well); border: var(--hair-2); border-radius: 2px; padding: 9px 8px 8px 12px; min-height: 60px; }
+.compose .in span { flex: 1; color: var(--text-3); font-size: 13.5px; align-self: flex-start; }
+.compose .hints { display: flex; gap: 12px; margin-top: 8px; }
+
+/* ---------- row 2: history, specimen, phone ---------- */
+.row2 { display: grid; grid-template-columns: 360px 1fr 430px; border-top: var(--hair); border-bottom: var(--hair); }
+.hist { background: var(--panel); border-right: var(--hair); display: grid; grid-template-rows: 34px auto auto 1fr; }
+.share { padding: 14px 14px 12px; border-bottom: var(--hair); }
+.share-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.share-h b { font-weight: 600; }
+.tape { display: flex; height: 9px; background: #3a352d; }
+.tape i { display: block; height: 100%; }
+.share-k { display: flex; gap: 14px; margin-top: 9px; font: 400 11.5px/1 var(--font-mono); color: var(--text-2); }
+.share-k span { display: inline-flex; align-items: center; gap: 6px; }
+.filters { display: flex; align-items: center; gap: 4px; padding: 10px 14px; border-bottom: var(--hair); }
+.filters .key { height: 24px; font-size: 11.5px; }
+.filters .revert { margin-left: auto; font-size: 12px; color: var(--agent); text-decoration: underline; text-decoration-color: rgba(76,195,255,.35); text-underline-offset: 3px; }
+.ledger { font-size: 13px; }
+.lg { display: grid; grid-template-columns: 46px 64px 1fr; gap: 0 10px; padding: 10px 14px; border-bottom: var(--hair); align-items: baseline; }
+.lg .t { font: 400 11px/18px var(--font-mono); color: var(--text-3); }
+.lg .w { font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 6px; line-height: 18px; }
+.lg .d { line-height: 18px; }
+.lg .why { display: block; color: var(--text-2); font-size: 12.5px; margin-top: 2px; }
+.lg .wh { display: block; font: 400 11px/1.5 var(--font-mono); color: var(--text-3); margin-top: 2px; }
+.lg.hover { background: var(--bg-3); position: relative; padding-right: 64px; }
+.lg.hover .undo { position: absolute; right: 12px; top: 9px; }
+.lg.house .d { color: var(--text-2); }
+
+.spec { padding: 26px 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 26px 40px; align-content: start; }
+.spec h4 { font: 600 13px/1 var(--font-ui); margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
+.spec h4 .ss { font-size: 11px; }
+.spec .blk { border-top: var(--hair); padding-top: 14px; }
+.lamps { display: grid; grid-template-columns: 14px 1fr; gap: 9px 10px; align-items: center; font-size: 13px; color: var(--text-2); }
+.lamps .lamp { width: 9px; height: 9px; }
+.keyrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.scale { display: grid; gap: 10px; }
+.scale div { display: grid; grid-template-columns: 96px 1fr; align-items: baseline; }
+.scale .ss { font-size: 10.5px; }
+.planes { display: flex; gap: 0; height: 66px; border: var(--hair); }
+.planes div { flex: 1; padding: 8px; display: flex; flex-direction: column; justify-content: flex-end; border-right: var(--hair); }
+.planes div:last-child { border-right: 0; }
+.donts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.donts div { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+.donts div b { display: block; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+
+.phone-slot { padding: 20px; display: flex; justify-content: center; background: #0d0c0a; }
+
+/* ---------- the phone: arranger + the agent's takes ---------- */
+.phone { width: 390px; height: 844px; display: grid; grid-template-rows: 48px 265px 1fr 54px; background: var(--bg); border: var(--hair-2); overflow: hidden; position: relative; }
+.p-top { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; background: var(--bg-2); border-bottom: var(--hair); }
+.p-top img { width: 22px; height: 22px; }
+.p-top .title { font-size: 15px; flex: 1; }
+.p-top .display { margin: 8px 0; padding: 0 8px; height: 32px; }
+.p-top .display .pos { font-size: 17px; }
+.p-top .key { height: 34px; }
+.p-top .key.sq { width: 34px; }
+.p-arr { position: relative; overflow: hidden; border-bottom: var(--hair); }
+.p-sheet { display: flex; flex-direction: column; background: var(--panel); min-height: 0; overflow: hidden; border-top: var(--hair-2); }
+.p-sheet .grab { width: 36px; height: 3px; background: var(--line-2); margin: 7px auto 0; border-radius: 2px; }
+.p-sheet .msg { padding: 8px 14px 4px; grid-template-columns: 52px 1fr; }
+.p-sheet .tk-wrap { margin-top: 2px; }
+.p-sheet .tk { padding: 10px 0 11px; }
+.p-sheet .tk .acts .key { height: 40px; font-size: 13px; }
+.p-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: var(--hair); background: var(--bg-2); }
+.p-tabs div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-weight: 600; font-size: 12px; color: var(--text-3); border-right: var(--hair); }
+.p-tabs div:last-child { border-right: 0; }
+.p-tabs div.on { color: var(--text); }
+
+/* ---------- the landing hero ---------- */
+.hero { position: relative; background: var(--bg); overflow: hidden; border-top: var(--hair); }
+.h-nav { display: flex; align-items: center; gap: 28px; padding: 22px 40px; border-bottom: var(--hair); }
+.h-nav .lockup { border: 0; padding: 0; gap: 9px; }
+.h-nav .lockup img.mark { width: 30px; height: 30px; }
+.h-nav .lockup img.word { height: 19px; }
+.h-nav .cat { color: var(--text-3); font-size: 14px; }
+.h-nav nav { margin-left: auto; display: flex; gap: 26px; font-size: 14.5px; color: var(--text-2); align-items: center; }
+.h-body { padding: 54px 40px 0; }
+.over { position: relative; font: 800 italic 148px/.95 var(--font-display); font-stretch: 125%; letter-spacing: -.025em; }
+.over .a { color: var(--agent); display: block; }
+.over .b { position: absolute; left: 0; top: 0; color: var(--human); mix-blend-mode: screen; transform: translate(-0.028em, -0.024em); }
+.weave { position: relative; height: 210px; margin: 34px -40px 0; border-top: var(--hair); border-bottom: var(--hair); background:
+  repeating-linear-gradient(90deg, transparent 0 119px, var(--line) 119px 120px); }
+.weave svg { position: absolute; inset: 0; }
+.weave .head { position: absolute; top: 0; bottom: 0; left: 72%; width: 2px; background: var(--accent); }
+.weave .lbl { position: absolute; font: 400 12px/1 var(--font-mono); }
+.h-low { display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px; padding: 36px 40px 44px; align-items: start; }
+.lede { font-size: 20px; line-height: 1.55; color: var(--text-2); max-width: 36em; }
+.lede em { font-style: normal; color: var(--text); }
+.ctas { display: flex; gap: 12px; align-items: center; margin-top: 26px; }
+.ctas .key { height: 46px; padding: 0 20px; font-size: 15px; }
+.ctas .note { font-size: 13px; color: var(--text-3); max-width: 15em; line-height: 1.4; }
+.jacks { display: flex; flex-direction: column; gap: 14px; border-left: var(--hair); padding-left: 36px; }
+.jacks .rowj { display: flex; gap: 34px; }
+.jack { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.jack i { width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle, #050403 0 7px, #2b2722 7.5px 13px, #3d3831 13.5px 15px, #1e1b17 15.5px); box-shadow: inset 0 0 0 1px var(--line-2); }
+.jack.lit i { box-shadow: inset 0 0 0 1px var(--line-2); }
+.jack span { font: 400 12px/1 var(--font-mono); color: var(--text-2); }
+.jacks p { font-size: 14.5px; color: var(--text-2); line-height: 1.5; max-width: 30em; }
+
+/* ---------- phone viewport ---------- */
+.only-phone { display: none; }
+@media (max-width: 600px) {
+  .desk { width: 100%; }
+  .studio, .row2 .hist, .row2 .spec, .cap.d { display: none; }
+  .row2 { display: block; border: 0; }
+  .phone-slot { padding: 0; background: none; display: block; }
+  .phone { width: 100%; border: 0; }
+  .cap { padding: 22px 16px 10px; flex-direction: column; gap: 6px; }
+  .h-nav { padding: 16px; gap: 12px; }
+  .h-nav .cat, .h-nav nav a:not(.key) { display: none; }
+  .h-nav nav .key { height: 34px; }
+  .h-body { padding: 30px 16px 0; }
+  .over { font-size: 58px; line-height: .98; }
+  .weave { height: 120px; margin: 24px -16px 0; }
+  .h-low { grid-template-columns: 1fr; gap: 30px; padding: 26px 16px 36px; }
+  .lede { font-size: 17px; }
+  .ctas { flex-wrap: wrap; }
+  .ctas .key { height: 48px; }
+  .jacks { border-left: 0; padding-left: 0; border-top: var(--hair); padding-top: 24px; }
+  .jacks .rowj { gap: 0; justify-content: space-between; }
+}
+</style>
+</head>
+<body>
+<div class="desk">
+
+<div class="cap d"><b>Instrument panel</b><span>The studio at 1440 × 900, Night Shift open: you tapped a beat over bars 5–6 and Claude is offering three takes on the bass.</span></div>
+
+<!-- ======================= THE STUDIO ======================= -->
+<div class="studio">
+
+  <!-- top bar and transport -->
+  <header class="top">
+    <div class="lockup"><img class="mark" src="../../../app/assets/logo.svg" alt=""><img class="word" src="../../../app/assets/wordmark.svg" alt="overdub"></div>
+    <div class="f"><span class="title">Night Shift</span></div>
+    <div class="f" style="gap:4px">
+      <button class="key sq tall" title="Stop"><svg width="10" height="10"><rect width="10" height="10" fill="currentColor"/></svg></button>
+      <button class="key tall in" title="Play" style="width:42px"><span class="lamp g"></span><svg width="10" height="11"><path d="M0 0L10 5.5L0 11Z" fill="currentColor"/></svg></button>
+      <button class="key sq tall" title="Record"><svg width="11" height="11"><circle cx="5.5" cy="5.5" r="5" fill="var(--rec)"/></svg></button>
+    </div>
+    <div class="display">
+      <span class="pos">005<i>.</i>3<i>.</i>1</span>
+      <span class="sub"><span>0:13.04</span><span style="color:var(--text-3)">bar.beat</span></span>
+    </div>
+    <div class="f stack" style="border-left:var(--hair);margin-left:10px"><span class="ss">bpm</span><span class="val">92</span></div>
+    <div class="f stack"><span class="ss">time</span><span class="val">4/4</span></div>
+    <div class="f stack"><span class="ss">key</span><span class="val">Am</span></div>
+    <div class="f" style="gap:10px">
+      <button class="key tall"><span class="lamp on"></span>Click</button>
+      <div class="beats" title="the click, on beat 3"><span class="lamp"></span><span class="lamp"></span><span class="lamp on"></span><span class="lamp"></span></div>
+    </div>
+    <div class="f" style="gap:4px"><button class="key tall"><span class="lamp"></span>Count-in</button><button class="key tall"><span class="lamp y"></span>Loop</button></div>
+    <div class="spacer"></div>
+    <div class="f" style="border-left:var(--hair);gap:2px"><button class="key ghost tall">Undo</button></div>
+    <div class="f stack"><span class="ss">out</span><div class="meter"><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l hot"></i><i></i><i></i><i></i></div></div>
+    <div class="f"><button class="key tall" title="Silence everything now (Esc twice)">All off</button></div>
+    <div class="f" style="border-right:0"><button class="key tall">Song</button></div>
+  </header>
+
+  <!-- arranger -->
+  <section class="arr">
+    <div class="tools">
+      <button class="key ghost">+ Track</button><span class="sep"></span>
+      <span class="ss" style="margin-right:4px">snap</span><button class="key">1/16</button><span class="sep"></span>
+      <button class="key ghost">Fit</button><button class="key in" style="height:22px">Follow</button>
+      <span class="hint">Click a clip and press <span class="kbd">0</span> to stop it playing. Drag across bars to point the agent at them.</span>
+    </div>
+    <div class="lanes" id="lanes"></div>
+    <div class="toast" style="right:12px;bottom:12px"><span class="lamp w"></span><span>Walk 2 is off: the bass sits out bars 5–8.</span><button class="key">Undo</button></div>
+  </section>
+
+  <!-- the agent -->
+  <aside class="agent">
+    <div class="ptabs"><div class="tab on"><span class="lamp on"></span>Agent</div><div class="tab">History</div><div style="margin-left:auto;display:flex;align-items:center;padding-right:8px"><button class="key ghost">Settings</button></div></div>
+    <div class="status"><span class="lamp c"></span><b class="ic">Claude</b><span>demo agent, no key needed</span><span style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="lamp ok"></span>MCP ready</span></div>
+    <div class="log">
+      <div class="msg"><div class="who iw">You</div><div class="tx">Make the bass bounce more in the verse.</div></div>
+      <div class="msg"><div class="who ic">Claude</div><div class="tx">
+        <div class="steps-log">read <span>Bass, Walk, bars 1–4</span>: 20 notes<br>played 2 takes over it, in A minor</div>
+        Two takes over your bass in bars 1–4. Hold one to hear it with the song; they're in no particular order.</div></div>
+      <div class="tk-wrap" id="takesDesk"></div>
+    </div>
+    <div class="compose">
+      <div class="in"><span>Ask, or describe how it should feel</span><button class="key">Send</button></div>
+      <div class="hints"><span class="ss"><span class="kbd">⌘/</span> to ask</span><span class="ss"><span class="kbd">enter</span> send</span><span class="ss"><span class="kbd">⇧enter</span> new line</span></div>
+    </div>
+  </aside>
+
+  <!-- the bottom: Sketch -->
+  <section class="bottom">
+    <div class="tabs">
+      <div class="tab on"><span class="lamp on"></span>Sketch</div><div class="tab">Notes</div><div class="tab">Beat</div><div class="tab">Devices</div><div class="tab">Mixer</div>
+      <div class="where"><span class="lamp r"></span>Tapping into the song: bars 5–6, looping, with the click</div>
+    </div>
+    <div class="sk">
+      <div class="modes">
+        <div class="mode"><span class="lamp"></span>Hum<span class="kbd">H</span></div>
+        <div class="mode on"><span class="lamp on"></span>Tap<span class="kbd">T</span></div>
+        <div class="mode"><span class="lamp"></span>Play<span class="kbd">P</span></div>
+        <div class="mode"><span class="lamp"></span>Record<span class="kbd">R</span></div>
+      </div>
+      <div class="tap">
+        <div class="tap-head">
+          <div class="say"><b>Pass 2 of your beat.</b> Tap along; each loop adds to the last until you stop.</div>
+          <div class="count">
+            <div class="n"><span class="lamp"></span><span class="ss">1</span></div>
+            <div class="n"><span class="lamp"></span><span class="ss">2</span></div>
+            <div class="n"><span class="lamp on"></span><span class="ss">3</span></div>
+            <div class="n"><span class="lamp"></span><span class="ss">4</span></div>
+          </div>
+        </div>
+        <div class="steps" id="steps"></div>
+        <div class="pads">
+          <div class="pad"><div class="pt">Kick<span class="kbd">F</span></div><span class="ss">say "b" or "boom"</span></div>
+          <div class="pad"><div class="pt">Snare<span class="kbd">J</span></div><span class="ss">say "k" or "psh"</span></div>
+          <div class="pad hitnow"><div class="pt">Hat<span class="kbd">K</span></div><span class="ss">say "ts" or "t"</span></div>
+          <div class="pad"><div class="pt">Open<span class="kbd">L</span></div><span class="ss">say "tss"</span></div>
+        </div>
+        <div class="sk-foot">
+          <button class="key"><span class="lamp r"></span>Stop <kbd>space</kbd></button>
+          <span class="sep" style="width:1px;height:16px;background:var(--line);margin:0 6px"></span>
+          <span class="ss">snap</span><button class="key in">1/16</button><button class="key">1/8</button><button class="key">Off</button>
+          <span class="sep" style="width:1px;height:16px;background:var(--line);margin:0 6px"></span>
+          <button class="key"><span class="lamp on"></span>With the song</button>
+          <button class="key"><span class="lamp"></span>Beatbox</button>
+        </div>
+      </div>
+      <div class="takes">
+        <div class="takes-h"><b>Takes</b><span class="ss">3 in this session, never wiped</span></div>
+        <div class="take fresh">
+          <span class="lamp w"></span><span class="tt">Take 3, tapped</span><span class="tm">just now</span>
+          <div class="mini" id="mini"></div>
+          <div class="facts">8 hits over 1 bar at bar 5. Your timing kept.</div>
+          <div class="acts"><button class="key go">Keep on Drums <kbd>enter</kbd></button><button class="key">Band</button><button class="key"><span class="lamp c"></span>Agent</button></div>
+        </div>
+        <div class="take"><span class="lamp w"></span><span class="tt">Take 2, hummed <span style="font-weight:400;color:var(--text-3)">7 notes, A minor</span></span><span class="tm">07:46</span></div>
+        <div class="take"><span class="lamp w"></span><span class="tt">Take 1, played <span style="font-weight:400;color:var(--text-3)">guitar, bars 5–6</span></span><span class="tm">07:41</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ======================= ROW 2 ======================= -->
+<div class="cap d"><b>History, the parts list, and the phone</b><span>History is a track sheet: one line per change, signed in the author's ink. The phone shows the same arranger with Claude's takes in a sheet.</span></div>
+<div class="row2">
+  <aside class="hist">
+    <div class="ptabs"><div class="tab">Agent</div><div class="tab on"><span class="lamp on"></span>History</div></div>
+    <div class="share">
+      <div class="share-h"><b>Who wrote the notes</b><span class="ss">309 notes</span></div>
+      <div class="tape"><i style="width:4%;background:var(--human)"></i><i style="width:6%;background:var(--agent)"></i></div>
+      <div class="share-k"><span><span class="lamp w"></span>you 4%</span><span><span class="lamp c"></span>Claude 6%</span><span><span class="lamp"></span>the house 90%</span></div>
+    </div>
+    <div class="filters"><button class="key in">All</button><button class="key">You</button><button class="key">Claude</button><a class="revert">Undo all of Claude's, keep mine</a></div>
+    <div class="ledger">
+      <div class="lg"><span class="t">07:58</span><span class="w iw"><span class="lamp w"></span>You</span><span class="d">Muted Walk 2<span class="wh">clip off, Bass, bars 5–8</span></span></div>
+      <div class="lg hover"><span class="t">07:57</span><span class="w ic"><span class="lamp c"></span>Claude</span><span class="d">Keys down 1.5 dB under the hook<span class="why">The hook was 2 LU under the keys in the chorus.</span><span class="wh">gain, Keys</span></span><button class="key undo" style="height:22px;font-size:11px">Undo</button></div>
+      <div class="lg"><span class="t">07:55</span><span class="w iw"><span class="lamp w"></span>You</span><span class="d">Bass down 2 dB<span class="wh">gain, Bass</span></span></div>
+      <div class="lg"><span class="t">07:52</span><span class="w iw"><span class="lamp w"></span>You</span><span class="d">Kept take 1 on Guitar<span class="wh">audio, bars 5–6</span></span></div>
+      <div class="lg"><span class="t">07:44</span><span class="w ic"><span class="lamp c"></span>Claude</span><span class="d">Built Tidal Cathedral for the guitar<span class="why">You asked for "a cathedral under the sea".</span><span class="wh">device, within 1 LU of dry</span></span></div>
+      <div class="lg house"><span class="t">07:40</span><span class="w ih"><span class="lamp"></span>House</span><span class="d">Opened Night Shift<span class="wh">8 bars, A minor, 92 bpm</span></span></div>
+    </div>
+  </aside>
+
+  <section class="spec">
+    <div>
+      <h4>Lamps <span class="ss">the only authorship mark</span></h4>
+      <div class="lamps">
+        <span class="lamp w"></span><span><b class="iw">Warm, lit:</b> a person played or changed it</span>
+        <span class="lamp c"></span><span><b class="ic">Cool, lit:</b> an agent did</span>
+        <span class="lamp"></span><span><b style="color:var(--text)">Unlit:</b> the house (demos, Band)</span>
+        <span class="lamp on"></span><span>Cream: this is on, or selected</span>
+        <span class="lamp g"></span><span>Leader green: playing</span>
+        <span class="lamp r"></span><span>Red: recording</span>
+        <span class="lamp y"></span><span>Grease pencil: the loop, or what the agent is pointing at</span>
+      </div>
+    </div>
+    <div>
+      <h4>Keys <span class="ss">pressed in = inverted</span></h4>
+      <div class="keyrow" style="margin-bottom:12px"><button class="key">At rest</button><button class="key in">Pressed in</button><button class="key go">Primary</button><button class="key ghost">Quiet</button></div>
+      <div class="keyrow" style="margin-bottom:16px"><button class="key"><span class="lamp on"></span>Click</button><button class="key"><span class="lamp r"></span>Stop</button><button class="key"><span class="lamp c"></span>Agent</button><button class="key">All off <kbd>esc esc</kbd></button></div>
+      <h4>Surfaces <span class="ss">planes and hairlines, no cards</span></h4>
+      <div class="planes">
+        <div style="background:var(--well)"><span class="ss">well</span></div>
+        <div style="background:var(--bg)"><span class="ss">room</span></div>
+        <div style="background:var(--bg-2)"><span class="ss">panel</span></div>
+        <div style="background:var(--panel)"><span class="ss">pane</span></div>
+        <div style="background:var(--bg-3)"><span class="ss">raised</span></div>
+        <div style="background:var(--paper)"><span class="ss" style="color:var(--ink-2)">paper</span></div>
+      </div>
+    </div>
+    <div class="blk" style="grid-column:1/-1">
+      <h4>Type <span class="ss">three faces, six sizes in the studio</span></h4>
+      <div class="scale">
+        <div><span class="ss">display 26</span><span style="font:800 italic 26px/1 var(--font-display);font-stretch:112%">A&nbsp; B&nbsp; This is Night Shift.</span></div>
+        <div><span class="ss">readout 24</span><span class="mono" style="font-size:24px;line-height:1">005.3.1&nbsp; 92&nbsp; −16.3 LUFS</span></div>
+        <div><span class="ss">title 17</span><span style="font:700 17px/1 var(--font-display);font-stretch:112%">Night Shift</span></div>
+        <div><span class="ss">body 13.5</span><span style="font-size:13.5px">Two takes over your bass in bars 1–4. Hold one to hear it with the song.</span></div>
+        <div><span class="ss">ui 13 / 12</span><span style="font-weight:600">Drums &nbsp;Keep on Drums &nbsp;<span style="font-weight:400;font-size:12px;color:var(--text-2)">Gobo Kit</span></span></div>
+        <div><span class="ss">data 11</span><span class="mono" style="font-size:11px;color:var(--text-2)">read Bass, Walk, bars 1–4: 14 notes</span></div>
+        <div><span class="ss">silkscreen 10</span><span class="ss" style="font-size:10px">bpm &nbsp;time &nbsp;key &nbsp;snap &nbsp;out</span></div>
+      </div>
+    </div>
+    <div class="blk donts">
+      <div><b>No stripes</b>Nothing with text in it gets a coloured edge. Who did it is a lamp and the ink of their name.</div>
+      <div><b>No cards</b>Regions are planes split by hairlines. Only the toast and the sticker float.</div>
+      <div><b>No pills</b>Toggles are square keys that press in. Statuses are a lamp and a word.</div>
+      <div><b>No sparkle</b>The agent is "Claude" in cool ink. Icons only for the three transport glyphs.</div>
+    </div>
+  </section>
+
+  <div class="phone-slot">
+    <div class="phone">
+      <div class="p-top">
+        <img src="../../../app/assets/logo.svg" alt="">
+        <span class="title">Night Shift</span>
+        <div class="display"><span class="pos">3<i>.</i>3<i>.</i>1</span></div>
+        <button class="key in" style="width:44px;height:34px"><span class="lamp g"></span><svg width="10" height="11"><path d="M0 0L10 5.5L0 11Z" fill="currentColor"/></svg></button>
+        <button class="key" style="height:34px">All off</button>
+      </div>
+      <div class="p-arr" id="phoneLanes"></div>
+      <div class="p-sheet">
+        <div class="grab"></div>
+        <div class="msg"><div class="who ic">Claude</div><div class="tx">Two takes over your bass, bars 1–4. Hold one to hear it with the song.</div></div>
+        <div class="tk-wrap" id="takesPhone"></div>
+      </div>
+      <div class="p-tabs">
+        <div><span class="lamp"></span>Song</div>
+        <div><span class="lamp"></span>Sketch</div>
+        <div class="on"><span class="lamp c"></span>Agent</div>
+        <div><span class="lamp"></span>History</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= LANDING HERO ======================= -->
+<div class="cap"><b>The landing page, first screen</b><span>No badge, no eyebrow, no glow. The overprinted line, the Weave at the record head, and the four ways in drawn as input jacks.</span></div>
+<section class="hero">
+  <div class="h-nav">
+    <div class="lockup"><img class="mark" src="../../../app/assets/logo.svg" alt=""><img class="word" src="../../../app/assets/wordmark.svg" alt="overdub"></div>
+    <span class="cat">A studio for you and your agents</span>
+    <nav><a>Guide</a><a>Devices</a><a>For agents</a><a>Press</a><a class="key">Open the studio</a></nav>
+  </div>
+  <div class="h-body">
+    <h1 class="over"><span class="a">Play over each other.</span><span class="b" aria-hidden="true">Play over each other.</span></h1>
+  </div>
+  <div class="weave" id="weave">
+    <div class="head"></div>
+    <span class="lbl iw" id="lblYou">you</span>
+    <span class="lbl ic" id="lblAgent">your agent</span>
+  </div>
+  <div class="h-low">
+    <div>
+      <p class="lede">Overdub is a studio in your browser. You hum, tap or play a part into the song and your agent plays over it, take after take. Every take is signed, so you can undo the agent's and keep your own.</p>
+      <div class="ctas"><a class="key go">Open the studio</a><a class="key"><span class="lamp"></span>Hum into it</a><span class="note">The mic turns on only after you press it.</span></div>
+    </div>
+    <div class="jacks">
+      <div class="rowj">
+        <div class="jack"><i></i><span>hum</span></div>
+        <div class="jack"><i></i><span>tap</span></div>
+        <div class="jack"><i></i><span>play</span></div>
+        <div class="jack"><i></i><span>say</span></div>
+      </div>
+      <p>Four ways in. Sing the hook, tap the beat on your keyboard, play a MIDI keyboard or guitar, or tell the agent how it should feel.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+// Night Shift, from app/src/core/demo.js
+const NAMES = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
+const parse = (s) => s.trim().split(/\s+/).map((tok) => { const m = tok.match(/^([A-G]#?)(-?\d)@([\d.]+):([\d.]+)/); return { p: 12 * (+m[2] + 1) + NAMES[m[1]], t: +m[3], d: +m[4] }; });
+const bass = parse(`A1@0:0.75 A1@0.75:0.25 E2@1.5:0.5 A1@2:1 G1@3.5:0.5 F1@4:0.75 F1@4.75:0.25 C2@5.5:0.5 F1@6:1 E1@7.5:0.5 C2@8:0.75 C2@8.75:0.25 G1@9.5:0.5 C2@10:1 B1@11.5:0.5 G1@12:0.75 G1@12.75:0.25 D2@13.5:0.5 G1@14:1 G#1@15.5:0.5`);
+const lead = parse(`E5@0:0.5 D5@0.5:0.5 C5@1:0.5 A4@1.5:1.5 G4@3:0.5 A4@3.5:0.5 C5@4:1 A4@5:0.5 C5@5.5:0.5 D5@6:1.5 C5@7.5:0.5 E5@8:0.5 G5@8.5:0.5 E5@9:0.5 D5@9.5:0.5 C5@10:1.5 D5@11.5:0.5 B4@12:1 D5@13:0.5 B4@13.5:0.5 A4@14:2`);
+const flies = parse(`E6@0:0.5 C6@0.75:0.5 A5@1.5:1 G6@2.5:0.5 E6@3:1 F6@4:0.5 C6@4.75:0.5 A5@5.5:1 E6@6.5:0.5 C6@7:1 G6@8:0.5 E6@8.75:0.5 C6@9.5:1 D6@10.5:0.5 E6@11:1 D6@12:0.5 B5@12.75:0.5 G5@13.5:1 A5@14.5:0.5 B5@15:1`);
+const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [52, 55, 60, 64], [55, 59, 62, 65]];
+const keys = []; for (let b = 0; b < 8; b++) for (const p of chords[b % 4]) keys.push({ p, t: b * 4, d: 1.5 }, { p, t: b * 4 + 1.5, d: 0.5 }, { p, t: b * 4 + 2.5, d: 1.4 });
+const drums = [];
+for (let b = 0; b < 8; b++) {
+  const fill = b === 3 || b === 7;
+  const rows = fill ? { kick: 'x.....x...x.....', snare: '....X.......X.xx', hat: 'x.x.x.x.x.x.x...', open: '..............x.' } : { kick: 'x.....x...x.....', snare: '....X.......X...', hat: 'x.xox.xox.xox.xo', open: '................' };
+  ['open', 'hat', 'snare', 'kick'].forEach((r, ri) => [...rows[r]].forEach((ch, i) => { if (ch !== '.') drums.push({ row: ri, t: b * 4 + i * 0.25, open: ch === 'o' && r === 'hat' }); }));
+}
+// your guitar take: a deterministic waveform
+function wave(n, seed) { let s = seed; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; const a = []; let env = 0;
+  for (let i = 0; i < n; i++) { const strum = i % 26 < 2 ? 1 : 0; env = Math.max(env * 0.93, strum * (0.75 + 0.25 * r())); a.push(Math.min(1, 0.08 + env * (0.55 + 0.45 * r()))); } return a; }
+
+const svgNS = 'http://www.w3.org/2000/svg';
+function notesSvg(notes, w, h, beat, color, opts = {}) {
+  const ps = notes.map((n) => n.p); const lo = Math.min(...ps) - 1, hi = Math.max(...ps) + 1; const rng = hi - lo;
+  const nh = Math.max(2, Math.min(5, (h - 4) / rng));
+  let out = '';
+  for (const n of notes) {
+    const x = n.t * beat, y = 2 + (hi - n.p) / rng * (h - 4 - nh);
+    const c = n.c || color;
+    out += opts.outline
+      ? `<rect x="${x + .5}" y="${y + .5}" width="${Math.max(1.5, n.d * beat - 2)}" height="${nh - 1}" fill="none" stroke="${c}" stroke-width="1" rx=".5"/>`
+      : `<rect x="${x}" y="${y}" width="${Math.max(1.5, n.d * beat - 1.5)}" height="${nh}" fill="${c}" rx=".5"/>`;
+  }
+  return `<svg width="${w}" height="${h}" xmlns="${svgNS}">${out}</svg>`;
+}
+function drumsSvg(w, h, beat, color) {
+  const rh = (h - 4) / 4; let out = '';
+  for (const d of drums) out += `<rect x="${d.t * beat}" y="${2 + d.row * rh + rh * 0.2}" width="${Math.max(1.5, beat * 0.12)}" height="${rh * 0.6}" fill="${color}" opacity="${d.open ? .55 : 1}"/>`;
+  return `<svg width="${w}" height="${h}">${out}</svg>`;
+}
+function waveSvg(w, h, color) {
+  const a = wave(Math.floor(w / 2), 7); let top = '', bot = '';
+  a.forEach((v, i) => { top += `${i ? 'L' : 'M'}${i * 2} ${h / 2 - v * h / 2 * 0.92} `; });
+  for (let i = a.length - 1; i >= 0; i--) bot += `L${i * 2} ${h / 2 + a[i] * h / 2 * 0.92} `;
+  return `<svg width="${w}" height="${h}"><path d="${top}${bot}Z" fill="${color}"/></svg>`;
+}
+
+const TRACKS = [
+  { name: 'Drums', dev: 'Gobo Kit', c: '--c-1', clips: [{ s: 0, l: 32, name: 'Beat', by: 'h', kind: 'drums' }] },
+  { name: 'Bass', dev: 'Capstan', c: '--c-5', clips: [{ s: 0, l: 16, name: 'Walk', by: 'h', notes: bass }, { s: 16, l: 16, name: 'Walk 2', by: 'h', notes: bass, muted: true }] },
+  { name: 'Keys', dev: 'Lamp Tines, Night Bus', c: '--c-6', clips: [{ s: 0, l: 32, name: 'Changes', by: 'h', notes: keys }] },
+  { name: 'Hook', dev: 'Pinch Roller', c: '--c-4', clips: [{ s: 16, l: 16, name: 'Hook', by: 'h', notes: lead }] },
+  { name: 'Fireflies', dev: 'Firefly', devBy: 'c', c: '--c-2', clips: [{ s: 16, l: 16, name: 'Twinkle', by: 'c', notes: flies }] },
+  { name: 'Guitar', dev: 'Audio in, Tidal Cathedral', c: '--c-8', arm: true, clips: [{ s: 16, l: 8, name: 'Take 1', by: 'w', kind: 'audio', selected: true }] },
+];
+
+function arranger(root, { bar, head, rowH, rulerH, bars, compact, pencil, playBeat }) {
+  const beat = bar / 4;
+  const cols = `${head}px 1fr`;
+  let html = '';
+  // ruler
+  let rl = '';
+  for (let b = 0; b <= bars; b++) rl += `<div style="position:absolute;left:${b * bar}px;bottom:0;height:${compact ? 10 : 14}px;width:1px;background:var(--line-2)"></div><span class="mono" style="position:absolute;left:${b * bar + 4}px;bottom:3px;font-size:10px;color:var(--text-3)">${b + 1}</span>`;
+  for (let b = 0; b < bars * 4; b++) if (b % 4) rl += `<div style="position:absolute;left:${b * beat}px;bottom:0;height:4px;width:1px;background:var(--line)"></div>`;
+  const sec = (x, name) => `<div style="position:absolute;left:${x}px;top:${compact ? 5 : 7}px;display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px"><span style="width:1px;height:12px;background:var(--text-2)"></span>${name}</div>`;
+  rl += sec(0, 'Verse'); rl += sec(4 * bar, 'Chorus');
+  rl += `<div style="position:absolute;left:0;width:${8 * bar}px;top:${compact ? 21 : 25}px;height:2px;background:var(--accent-2)"></div><div style="position:absolute;left:0;top:${compact ? 18 : 22}px;width:2px;height:8px;background:var(--accent-2)"></div><div style="position:absolute;left:${8 * bar - 2}px;top:${compact ? 18 : 22}px;width:2px;height:8px;background:var(--accent-2)"></div>`;
+  html += `<div class="row ruler" style="top:0;height:${rulerH}px;grid-template-columns:${cols}">` +
+    (compact ? `<div class="th" style="padding:6px 10px"><span class="ss">bars</span></div>` : `<div class="th"><span class="ss">sections</span><span class="ss">loop</span><span class="ss">bars</span></div>`) +
+    `<div class="lane" style="background:var(--bg)">${rl}</div></div>`;
+  // grid lines for lanes
+  let grid = '';
+  for (let b = 0; b <= bars; b++) grid += `<div style="position:absolute;left:${b * bar}px;top:0;bottom:0;width:1px;background:var(--line)"></div>`;
+  for (let b = 0; b < bars * 4; b++) if (b % 4) grid += `<div style="position:absolute;left:${b * beat}px;top:0;bottom:0;width:1px;background:rgba(47,43,37,.45)"></div>`;
+  TRACKS.forEach((tr, i) => {
+    const top = rulerH + i * rowH;
+    const keysHtml = compact ? '' : `<div class="ks"><b class="key">M</b><b class="key">S</b><b class="key arm" style="${tr.arm ? 'color:var(--rec)' : ''}">●</b></div>`;
+    const dev = compact ? '' : `<small class="${tr.devBy === 'c' ? 'ic' : ''}">${tr.dev}</small>`;
+    let clips = '';
+    for (const cl of tr.clips) {
+      const left = cl.s * beat, w = cl.l * beat - 2, ih = Math.max(6, rowH - 10 - 19);
+      if (left > bars * bar) continue;
+      const tc = `var(${tr.c})`;
+      let body = '';
+      const ncol = cl.muted ? 'var(--line-2)' : `color-mix(in srgb, ${tc} 92%, white)`;
+      if (cl.kind === 'drums') body = drumsSvg(w, ih, beat, ncol);
+      else if (cl.kind === 'audio') body = waveSvg(w, ih, `color-mix(in srgb, ${tc} 75%, transparent)`);
+      else body = notesSvg(cl.notes, w, ih, beat, cl.muted ? '#5a5248' : ncol, { outline: cl.muted });
+      const lampCls = cl.by === 'w' ? 'w' : cl.by === 'c' ? 'c' : '';
+      const chCls = cl.by === 'w' ? 'by-w' : cl.by === 'c' ? 'by-c' : '';
+      clips += `<div class="clip${cl.muted ? ' muted' : ''}${cl.selected ? ' selected' : ''}" style="left:${left + 1}px;width:${w}px;--tc:${tc}"><div class="ch ${chCls}"><i class="lamp ${lampCls}"></i>${cl.name}${cl.muted ? '<span class="off">off</span>' : ''}</div>${body}</div>`;
+      if (cl.selected) clips += `<div class="sel" style="left:${left + 1 - 4}px;width:${w + 8}px;top:1px;height:${rowH - 2}px"></div>`;
+    }
+    html += `<div class="row" style="top:${top}px;height:${rowH}px;grid-template-columns:${cols}">
+      <div class="th"${compact ? ' style="padding:0 6px 0 10px;gap:7px"' : ''}><i class="sw" style="background:var(${tr.c})"></i><div class="tn"${compact ? ' style="font-size:12px"' : ''}>${tr.name}${dev}</div>${keysHtml}</div>
+      <div class="lane"><div class="grid-bg">${grid}</div>${clips}</div></div>`;
+  });
+  // the agent's pointer: grease pencil around Bass bars 1-4
+  if (pencil) {
+    const top = rulerH + rowH * 1 + 2;
+    html += `<div class="pencil" style="left:${head - 2}px;top:${top}px;width:${4 * bar + 5}px;height:${rowH - 4}px;z-index:3;left:${head - 1}px"></div>`;
+    html += `<div class="pencil-tag" style="left:${head + 4 * bar - (compact ? 22 : 132)}px;top:${top - 7}px;z-index:3">${compact ? 'Claude: bars 1–4' : 'Claude is on bars 1–4'}</div>`;
+  }
+  html += `<div class="playhead" style="left:${head + playBeat * beat}px"></div>`;
+  root.innerHTML = html;
+}
+
+arranger(document.getElementById('lanes'), { bar: 104, head: 208, rowH: 54, rulerH: 50, bars: 8, pencil: true, playBeat: 18 });
+arranger(document.getElementById('phoneLanes'), { bar: 39, head: 76, rowH: 38, rulerH: 36, bars: 8, compact: true, pencil: true, playBeat: 10 });
+
+// the welcome sticker, over the empty corner of the lanes (Hook / Fireflies / Guitar, bars 1-4)
+document.getElementById('lanes').insertAdjacentHTML('beforeend', `
+<div class="sticker" style="left:${208 + 18}px;top:${50 + 54 * 3 + 6}px">
+  <span class="x">close ×</span>
+  <h3>This is Night Shift.</h3>
+  <p>The house wrote this demo. Press <kbd>space</kbd> to hear it, then lay one down in <b>Sketch</b> or <b>ask the agent</b> to play over it.</p>
+  <div class="legend">
+    <span class="lamp w"></span><span>Warm lamp on a clip: you played it.</span>
+    <span class="lamp c"></span><span>Cool lamp: Claude did, like Twinkle.</span>
+    <span class="lamp h"></span><span>No light: the house.</span>
+  </div>
+  <div class="acts"><span class="pkey">Take the two-minute tour</span><a><span style="font-family:var(--font-mono);font-size:11px">?</span> shows every key</a></div>
+</div>`);
+
+// the step grid: two bars of 1/16, your pass so far, playhead on step 9 of bar 1 (beat 3)
+const rowsTap = [['open', '..............x.'.repeat(2)], ['hat', '..x...x...x.....' + '..x.....'], ['snare', '....x.......x...' + '....x...'], ['kick', 'x.....x...x.....' + 'x.......']];
+let sh = '';
+for (const [n, pat] of rowsTap) { sh += `<span class="rn">${n}</span>`; for (let i = 0; i < 32; i++) sh += `<i class="${pat[i] === 'x' ? 'hit' : (i % 4 === 0 ? 'q' : '')}${i % 16 === 0 && i ? ' bar' : ''}"></i>`; }
+const steps = document.getElementById('steps'); steps.innerHTML = sh;
+requestAnimationFrame(() => { const cells = steps.querySelectorAll('i'); const c = cells[8]; steps.insertAdjacentHTML('beforeend', `<div class="phcol" style="left:${c.offsetLeft - 3}px"></div>`); });
+
+// the fresh take's mini grid (8 hits, 1 bar)
+const miniPat = ['................', '..x...x...x.....', '....x.......x...', 'x.....x.........'];
+document.getElementById('mini').innerHTML = miniPat.map((r) => [...r].map((ch) => `<i class="${ch === 'x' ? 'hit' : ''}"></i>`).join('')).join('');
+
+// the agent's takes: your notes stay neutral, the notes Claude added are cool
+const neutral = '#6d6457';
+const longs = bass.filter((n) => n.t < 16 && n.d >= 0.75);
+const takeA = [...bass.map((n) => ({ ...n, c: neutral })), ...longs.map((n) => ({ p: n.p + 12, t: n.t + 0.5, d: 0.25, c: 'var(--agent)' }))];
+const takeB = [...bass.map((n) => ({ ...n, c: neutral })), { p: 28, t: 3.75, d: 0.25, c: 'var(--agent)' }, { p: 35, t: 7.75, d: 0.25, c: 'var(--agent)' }, { p: 30, t: 11.75, d: 0.25, c: 'var(--agent)' }];
+const orig = bass.map((n) => ({ ...n, c: neutral }));
+function takes(el, w, phone) {
+  const T = [
+    { L: 'A', t: 'Octave pops on the off-beats', f: '+8 notes, F2–C3', n: takeA },
+    { L: 'B', t: 'Chromatic pickups into each bar', f: '+3 notes, E1–B1', n: takeB, hearing: true },
+    ...(phone ? [] : [{ L: '–', t: 'As it was', f: 'Walk, 20 notes', n: orig, orig: true }]),
+  ];
+  el.innerHTML = T.map((k) => `<div class="tk${k.hearing ? ' hearing' : ''}">
+    <span class="L" style="${k.orig ? 'color:var(--text-3)' : ''}">${k.L}</span>
+    <span class="tt">${k.orig ? '' : '<span class="lamp c"></span>'}${k.t}</span>
+    <div class="ml">${notesSvg(k.n, w, 30, w / 16, neutral)}${k.hearing ? `<div style="position:absolute;top:0;bottom:0;left:${w * 0.35}px;width:1px;background:var(--accent)"></div>` : ''}</div>
+    <span class="fm">${k.f}</span>
+    <div class="acts">${k.hearing ? '<button class="key in"><span class="lamp g"></span>Hearing B</button>' : '<button class="key"><span class="lamp"></span>Hold to hear</button>'}<button class="key">${k.orig ? 'Keep as it was' : 'Keep ' + k.L}</button></div>
+  </div>`).join('') + (phone ? `<div class="tk-foot"><a class="link">Keep it as it was</a><a class="link">None of these</a></div>` : `<div class="tk-foot"><span>A kept take is signed Claude.</span><a class="link">None of these</a></div>`);
+}
+takes(document.getElementById('takesDesk'), 286);
+takes(document.getElementById('takesPhone'), 310, true);
+
+// the Weave on the landing hero: the cool strand exact, the warm one breathing; over and under, warm on top first
+function weave() {
+  const el = document.getElementById('weave'); const W = el.clientWidth, H = el.clientHeight; const mid = H / 2, A = H * 0.27;
+  const lam = Math.min(560, W * 0.62); const k = 2 * Math.PI / lam; const x0 = W * 0.72;
+  const cool = (x) => mid - A * Math.cos(k * (x - x0));
+  const warm = (x) => mid + A * Math.cos(k * (x - x0)) * (1 + 0.08 * Math.sin(x * 0.011)) + 1.5 * Math.sin(x * 0.07);
+  const path = (f, a, b) => { let d = ''; for (let x = a; x <= b; x += 3) d += `${x === a ? 'M' : 'L'}${x.toFixed(1)} ${f(x).toFixed(1)} `; return d; };
+  const sw = W < 600 ? 7 : 11, gap = sw + 7;
+  const headX = x0; // strands are written at the head: tape to the left of it is written, right of it is blank
+  let s = `<svg width="${W}" height="${H}">`;
+  s += `<path d="${path(cool, 0, headX)}" stroke="var(--agent)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  s += `<path d="${path(warm, 0, headX)}" stroke="var(--bg)" stroke-width="${gap}" fill="none" stroke-linecap="round"/>`;
+  s += `<path d="${path(warm, 0, headX)}" stroke="var(--human)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  // crossings at x0 - lam/4 - n*lam/2: the newest one (n=0, nearest the head) has warm on top, then they alternate
+  for (let n = 1; x0 - lam / 4 - n * lam / 2 > -lam; n += 2) {
+    const cx = x0 - lam / 4 - n * lam / 2, a = cx - lam * 0.09, b = Math.min(headX, cx + lam * 0.09);
+    s += `<path d="${path(cool, a, b)}" stroke="var(--bg)" stroke-width="${gap}" fill="none" stroke-linecap="butt"/>`;
+    s += `<path d="${path(cool, a, b)}" stroke="var(--agent)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  }
+  s += '</svg>';
+  el.insertAdjacentHTML('afterbegin', s);
+  const you = document.getElementById('lblYou'), ag = document.getElementById('lblAgent');
+  you.style.left = (headX + 12) + 'px'; you.style.top = (warm(headX) - 6) + 'px';
+  ag.style.left = (headX + 12) + 'px'; ag.style.top = (cool(headX) - 6) + 'px';
+}
+weave();
+</script>
+</body>
+</html>

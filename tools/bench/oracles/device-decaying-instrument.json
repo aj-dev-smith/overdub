@@ -1,0 +1,28 @@
+{
+  "task": "device-decaying-instrument",
+  "why": "Two sine partials (1 and 2.76, a struck bar) under an exponential envelope that loses 60 dB in RING seconds (0.8 s by default) whether or not the key is held, and in 0.15 s once it is let go.",
+  "ops": [
+    {
+      "type": "device.define",
+      "device": {
+        "id": "bench.struck-bar",
+        "name": "Struck Bar",
+        "kind": "instrument",
+        "cat": "keys",
+        "blurb": "A struck metal bar that always dies away",
+        "tail": 2,
+        "params": [
+          { "key": "ring", "label": "RING", "min": 0.2, "max": 1.2, "def": 0.8, "curve": "log", "unit": "s", "role": "decay" }
+        ],
+        "look": { "color": "#6b5a2c", "ink": "#fff6e0", "shape": "box", "finish": "flat", "knob": "black", "label": "block", "led": "#9fd8ff" },
+        "kernel": "({\n  poly: 8,\n  create({ sr, dsp }) {\n    return {\n      voice(i) {\n        const a = dsp.osc('sine'), b = dsp.osc('sine');\n        let amp = 0, k = 1, kr = 1, held = false;\n        return {\n          start(pitch, vel, p) {\n            a.freq(dsp.mtof(pitch)).reset(0); b.freq(dsp.mtof(pitch) * 2.76).reset(0);\n            amp = 0.3 * vel; held = true;\n            k = Math.exp(Math.log(0.001) / (p.ring * sr));        // -60 dB in p.ring seconds\n            kr = Math.exp(Math.log(0.001) / (0.15 * sr));         // and in 0.15 s once let go\n          },\n          release(p) { held = false; },\n          render(L, R, n, p) {\n            const g = held ? k : kr;\n            for (let i = 0; i < n; i++) {\n              const y = amp * (0.8 * a.next() + 0.2 * b.next() * amp / 0.3);\n              amp *= g; L[i] += y; R[i] += y;\n            }\n            return amp > 1e-5;\n          },\n        };\n      },\n    };\n  },\n})"
+      }
+    },
+    {
+      "type": "instrument.set",
+      "track": "Bell",
+      "device": "bench.struck-bar",
+      "params": {}
+    }
+  ]
+}

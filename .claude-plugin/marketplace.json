@@ -1,0 +1,25 @@
+{
+  "name": "overdub",
+  "description": "Overdub: a studio for you and your agents. The plugin is this repository: the MCP server, the studio it serves, and the session skill.",
+  "owner": { "name": "AJ Smith", "url": "https://ajsmithhq.com" },
+  "plugins": [
+    {
+      "name": "overdub",
+      "displayName": "Overdub",
+      "source": "./",
+      "description": "Drive the Overdub studio from Claude Code: the Overdub MCP server (20 tools) and a skill for running a session (write parts, offer takes, build devices, measure the mix, turn a hum into a part).",
+      "author": { "name": "AJ Smith", "url": "https://ajsmithhq.com" },
+      "homepage": "https://overdub.ajsmithhq.com",
+      "repository": "https://github.com/aj-dev-smith/overdub",
+      "keywords": ["music", "daw", "audio", "mcp", "web-audio", "composition", "mixing"],
+      "category": "creative",
+      "skills": ["./integrations/claude-code/skills/"],
+      "mcpServers": {
+        "overdub": {
+          "command": "node",
+          "args": ["${CLAUDE_PLUGIN_ROOT}/server/mcp.js"]
+        }
+      }
+    }
+  ]
+}

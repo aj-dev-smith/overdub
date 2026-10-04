@@ -1,0 +1,4 @@
+{ "task": "mix-hook-in-front", "why": "Hook up 2 dB, Kit down 1.5 and Bass down 1.5: the hook leads by 2.4 LU and the chorus is no louder.",
+  "ops": [{ "type": "track.set", "track": "Hook", "patch": { "gain": 5 } },
+          { "type": "track.set", "track": "Kit", "patch": { "gain": -1.5 } },
+          { "type": "track.set", "track": "Bass", "patch": { "gain": -3 } }] }

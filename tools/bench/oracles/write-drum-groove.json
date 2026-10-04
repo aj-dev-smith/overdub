@@ -1,0 +1,6 @@
+{ "task": "write-drum-groove", "why": "Kick on 1 and 3, snare on 2 and 4, eighth hats; bar 4 drops the last hats for a snare roll and an open hat.",
+  "ops": [{ "type": "notes.replace", "track": "Kit", "clip": "c_kit001", "grid": { "steps": 64, "step": 0.25, "rows": {
+    "kick":  "x.......x.......x.......x.......x.......x.......x.......x.....x.",
+    "snare": "....X.......X.......X.......X.......X.......X.......X.......XoXX",
+    "hat":   "x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.......",
+    "open":  "..........................................................x....." } } }] }

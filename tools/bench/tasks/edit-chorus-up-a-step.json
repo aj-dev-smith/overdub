@@ -1,0 +1,16 @@
+{
+  "id": "edit-chorus-up-a-step",
+  "family": "editing",
+  "title": "Chorus up a whole step",
+  "instruction": "Take the chorus (bars 5-8) up a whole step: every pitched part (bass, keys, hook) moves up two semitones, the drums stay as they are, and the verse doesn't change.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "moved", "label": "Share of chorus bass, keys and hook notes now two semitones up", "kind": "transposed", "semitones": 2,
+      "sel": { "tracks": ["Bass", "Keys", "Hook"], "from": 16, "to": 32 }, "target": [1, 1], "soft": 0.75, "weight": 3 },
+    { "id": "heard", "label": "Key heard in the chorus is B minor (or D major)", "kind": "key",
+      "scope": { "section": "Chorus" }, "expect": { "root": "B", "scale": "minor" }, "relative": true, "target": [1, 1], "weight": 1 },
+    { "id": "verse", "label": "Verse notes as they were", "kind": "unchanged", "sel": { "from": 0, "to": 16 }, "target": [1, 1], "soft": 0.5, "gate": true },
+    { "id": "drums", "label": "Drum notes as they were", "kind": "unchanged", "sel": { "tracks": ["Kick", "Kit"] }, "target": [1, 1], "soft": 0.5, "gate": true }
+  ]
+}

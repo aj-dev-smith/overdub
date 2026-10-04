@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>Wren brand board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* night: the hedge before sunrise */
+  --bg: #121a16; --bg-2: #17211c; --bg-3: #203026; --panel: #1a2620; --line: #2a3a31; --line-2: #3d5045;
+  --text: #f6efe1; --text-2: #c9cdbc; --text-3: #97a596;
+  --accent: #f4dc6e;   /* primrose: first light */
+  --accent-2: #f2a3bc; /* hawthorn */
+  --human: #ffa95a; --agent: #80d0ff;
+  --c-1: #f39579; --c-2: #eec45c; --c-3: #b3d77a; --c-4: #7dd6c3; --c-5: #8eabf7; --c-6: #bb98ee; --c-7: #ee8cc6; --c-8: #d9c8a2;
+  /* day: the landing page */
+  --paper: #f6efe1; --paper-2: #ece3d0; --ink: #16211b; --ink-2: #4a5a4f; --human-ink: #a8500c; --agent-ink: #1d6a97;
+  --display: 'Young Serif', Georgia, serif;
+  --ui: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { background: var(--paper); color: var(--ink); font-family: var(--ui); -webkit-font-smoothing: antialiased; }
+
+/* ── hero: night, the first light coming up behind the bird ── */
+.hero { position: relative; height: 566px; background: var(--bg); overflow: hidden; }
+.hero .glow { position: absolute; inset: 0;
+  background:
+    radial-gradient(520px 420px at 830px 250px, rgba(244, 220, 110, .28), rgba(244, 220, 110, 0) 70%),
+    radial-gradient(1200px 260px at 540px 620px, rgba(125, 214, 195, .10), rgba(125, 214, 195, 0) 70%),
+    linear-gradient(180deg, #0d1411 0%, #121a16 62%, #16211b 100%); }
+.hero .sky { position: absolute; inset: 0; }
+.plate { position: absolute; top: 40px; left: 56px; right: 56px; display: flex; justify-content: space-between;
+  font: 600 19px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.plate b { color: var(--accent); font-weight: 600; }
+.mark { position: absolute; left: 662px; top: 76px; width: 350px; height: 350px; filter: drop-shadow(0 0 60px rgba(244, 220, 110, .25)); }
+.wordmark { position: absolute; left: 46px; top: 318px; height: 150px; }
+.twig { position: absolute; left: 0; right: 0; top: 441px; height: 2px; background: linear-gradient(90deg, rgba(246,239,225,0), rgba(246,239,225,.28) 12%, rgba(246,239,225,.28) 88%, rgba(246,239,225,0)); }
+.tagline { position: absolute; left: 58px; top: 478px; font: 50px/1 var(--display); color: var(--accent); letter-spacing: -.01em; }
+.tagline span { color: var(--text); }
+.hero .latin { position: absolute; right: 56px; top: 552px; text-align: right; font: 19px/1.35 var(--ui); color: var(--text-2); }
+.hero .latin em { font-style: normal; font-family: var(--display); color: var(--text); font-size: 22px; }
+
+/* ── the duet ── */
+.duet { padding: 28px 56px 0; display: grid; grid-template-columns: 1fr; gap: 6px; }
+.duet p { font: 26px/1.32 var(--ui); color: var(--ink); max-width: 960px; }
+.duet p b { font-weight: 700; }
+.you { color: var(--human-ink); font-weight: 700; }
+.agent { color: var(--agent-ink); font-weight: 700; }
+
+/* ── palette ── */
+.row { padding: 24px 56px 0; }
+.label { font: 600 17px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px; }
+.chips { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr 1fr; gap: 12px; }
+.chip { height: 100px; border-radius: 16px; padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; }
+.chip .n { font: 25px/1 var(--display); }
+.chip .h { font: 16px/1.25 var(--mono); opacity: .85; white-space: nowrap; }
+.tracks { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+.tracks i { width: 30px; height: 30px; border-radius: 50%; display: block; }
+.tracks span { font: 18px/1 var(--ui); white-space: nowrap; color: var(--ink-2); margin-left: 10px; }
+
+/* ── type ── */
+.type { display: flex; align-items: center; gap: 30px; white-space: nowrap; }
+.type .disp { font: 62px/1 var(--display); letter-spacing: -.015em; }
+.type .ui { font: 20px/1.4 var(--ui); border-left: 1.5px solid #d9cfba; padding-left: 26px; color: var(--ink-2); }
+.type .ui code { font: 19px var(--mono); color: var(--ink); }
+
+/* ── studio top bar ── */
+.bar { margin: 24px 40px 0; height: 72px; white-space: nowrap; gap: 17px !important; background: var(--bg); border-radius: 18px; display: flex; align-items: center; gap: 20px; padding: 0 22px; color: var(--text); box-shadow: 0 10px 30px rgba(22, 33, 27, .25); }
+.bar .brand { display: flex; align-items: center; gap: 0; }
+.bar .brand img { height: 34px; display: block; }
+.bar .song { font: 26px/1 var(--display); color: var(--text); padding-left: 18px; border-left: 1px solid var(--line-2); }
+.bar .tp { display: flex; gap: 14px; align-items: center; }
+.bar .tp svg { width: 24px; height: 24px; }
+.bar .pos { font: 600 20px/1 var(--mono); background: var(--bg-3); border: 1px solid var(--line-2); border-radius: 9px; padding: 9px 12px; }
+.bar .m { font: 600 20px/1 var(--mono); color: var(--text); }
+.bar .m small { font-size: 14px; color: var(--text-3); letter-spacing: .1em; }
+.bar .pill { margin-left: auto; display: flex; align-items: center; gap: 9px; font: 600 18px/1 var(--ui); color: var(--agent); border: 1.5px solid var(--agent); border-radius: 99px; padding: 8px 14px; background: rgba(128, 208, 255, .1); }
+.bar .pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--agent); }
+
+/* ── bottom: landing + pedals ── */
+.bottom { display: grid; grid-template-columns: 548px 1fr; gap: 18px; padding: 20px 40px 0; }
+.landing { position: relative; height: 250px; border-radius: 20px; overflow: hidden; background: var(--paper-2); border: 1.5px solid #dcd2bd; }
+.landing .sun { position: absolute; right: -46px; top: -64px; width: 176px; height: 176px; }
+.landing .nav { position: absolute; left: 22px; top: 20px; height: 28px; }
+.landing .nav img { height: 28px; }
+.landing .navl { position: absolute; left: 190px; top: 27px; display: flex; gap: 18px; font: 600 16px/1 var(--ui); color: var(--ink-2); }
+.landing h1 { position: absolute; left: 22px; top: 66px; font: 48px/1 var(--display); white-space: nowrap; letter-spacing: -.02em; color: var(--ink); }
+.landing p { position: absolute; left: 24px; top: 166px; font: 18px/1.3 var(--ui); color: var(--ink-2); }
+.landing .cta { position: absolute; right: 20px; bottom: 18px; font: 700 19px/1 var(--ui); background: var(--ink); color: var(--accent); padding: 14px 18px; border-radius: 12px; }
+.landing .ways { position: absolute; left: 24px; bottom: 26px; display: flex; gap: 8px; }
+.landing .ways span { font: 600 15px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 6px 9px; border-radius: 7px; background: rgba(22, 33, 27, .07); color: var(--ink); }
+
+.pedals { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 118px 118px; gap: 14px; }
+.pedal { position: relative; border-radius: 14px; padding: 12px 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.18), 0 6px 14px rgba(22, 33, 27, .22); overflow: hidden; }
+.pedal .k { display: flex; gap: 10px; }
+.pedal .k b { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #3a463f, #121a16 70%); position: relative; box-shadow: 0 2px 3px rgba(0,0,0,.35); }
+.pedal .k b::after { content: ''; position: absolute; left: 12px; top: 3px; width: 2px; height: 9px; background: #f6efe1; border-radius: 2px; transform-origin: 1px 10px; transform: rotate(var(--r, 30deg)); }
+.pedal .led { position: absolute; right: 14px; top: 16px; width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 10px 2px currentColor; background: currentColor; }
+.pedal .nm { position: absolute; left: 14px; right: 10px; bottom: 32px; font: 23px/1 var(--display); letter-spacing: -.01em; }
+.pedal .fs { position: absolute; right: 14px; bottom: 12px; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #fbfaf6, #b9bdb6 55%, #7d837c); box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.pedal .what { position: absolute; left: 15px; bottom: 11px; font: 600 13px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
+.pedal .by { position: absolute; right: 12px; bottom: 10px; font: 700 12px/1 var(--ui); padding: 4px 7px; border-radius: 99px; }
+.foot { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font: 16px/1 var(--mono); letter-spacing: .1em; color: var(--ink-2); text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="glow"></div>
+  <svg class="sky" id="sky" width="1080" height="640" viewBox="0 0 1080 640" aria-hidden="true"></svg>
+  <div class="plate"><span>Field plate &middot; <b>Wren</b></span><span>a direction for AJ</span></div>
+  <img class="mark" src="mark.svg" alt="The Wren mark: a wren drawn as a musical note against the first-light sun">
+  <div class="twig"></div>
+  <img class="wordmark" src="wordmark.svg" alt="wren">
+  <div class="tagline">Small studio. <span>Big song.</span></div>
+</section>
+
+<section class="duet">
+  <p><b>Wrens duet.</b> Two birds trade syllables so tightly it sounds like one song. That is the studio: <span class="you">warm is you</span>, <span class="agent">cool is your agent</span>, one song between you.</p>
+</section>
+
+<section class="row">
+  <div class="label">Palette &middot; the hedge at first light</div>
+  <div class="chips">
+    <div class="chip" style="background:var(--bg);color:var(--text)"><span class="n">Hedge</span><span class="h">#121A16<br>the room</span></div>
+    <div class="chip" style="background:var(--paper);color:var(--ink);border:1.5px solid #d9cfba"><span class="n">Eggshell</span><span class="h">#F6EFE1<br>paper, text</span></div>
+    <div class="chip" style="background:var(--accent);color:var(--ink)"><span class="n">Primrose</span><span class="h">#F4DC6E<br>first light</span></div>
+    <div class="chip" style="background:var(--human);color:var(--ink)"><span class="n">You</span><span class="h">#FFA95A<br>warm: a person</span></div>
+    <div class="chip" style="background:var(--agent);color:var(--ink)"><span class="n">Agent</span><span class="h">#80D0FF<br>cool: an agent</span></div>
+  </div>
+  <div class="tracks">
+    <i style="background:var(--c-1)"></i><i style="background:var(--c-2)"></i><i style="background:var(--c-3)"></i><i style="background:var(--c-4)"></i>
+    <i style="background:var(--c-5)"></i><i style="background:var(--c-6)"></i><i style="background:var(--c-7)"></i><i style="background:var(--c-8)"></i>
+    <span>Tracks: rosehip, gorse, lichen, robin’s egg, bluebell&hellip;</span>
+  </div>
+</section>
+
+<section class="row">
+  <div class="type">
+    <span class="disp">Sing it to Wren.</span>
+    <span class="ui"><b style="color:var(--ink)">Young Serif</b> for names and titles<br><b style="color:var(--ink)">Atkinson Hyperlegible</b> for the rest<br><code>C4@0:0.5 &middot; A min &middot; −14 LUFS</code></span>
+  </div>
+</section>
+
+<div class="bar">
+  <div class="brand"><img src="wordmark.svg" alt="wren"></div>
+  <span class="song">Night Shift</span>
+  <div class="tp">
+    <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2" fill="#c9cdbc"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="#f4dc6e"/></svg>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="#ff5468"/></svg>
+  </div>
+  <span class="pos">3.2.1</span>
+  <span class="m">92 <small>BPM</small></span>
+  <span class="m">A min</span>
+  <span class="pill"><i></i>Claude listening</span>
+</div>
+
+<section class="bottom">
+  <div class="landing">
+    <img class="sun" src="mark.svg" alt="">
+    <div class="nav"><img src="wordmark-ink.svg" alt="wren"></div>
+    <div class="navl"><span>Studio</span><span>Devices</span><span>Agents</span></div>
+    <h1>You hum it.<br>Wren writes it down.</h1>
+    <div class="ways"><span>Hum</span><span>Tap</span><span>Play</span><span>Say</span></div>
+    <p>A studio for you and your agents.</p>
+    <div class="cta">Open the studio</div>
+  </div>
+  <div class="pedals">
+    <div class="pedal" style="background:#f39579;color:#16211b">
+      <div class="k"><b style="--r:-40deg"></b><b style="--r:20deg"></b><b style="--r:70deg"></b></div>
+      <span class="led" style="color:#ff5468"></span>
+      <span class="nm">Woodpecker</span><span class="what">Drum kit</span><span class="fs"></span>
+    </div>
+    <div class="pedal" style="background:#bb98ee;color:#16211b">
+      <div class="k"><b style="--r:60deg"></b><b style="--r:-10deg"></b></div>
+      <span class="led" style="color:#f6efe1"></span>
+      <span class="nm">Whispering Gallery</span><span class="what">Reverb</span><span class="fs"></span>
+    </div>
+    <div class="pedal" style="background:#eec45c;color:#16211b">
+      <div class="k"><b style="--r:10deg"></b><b style="--r:-50deg"></b><b style="--r:40deg"></b></div>
+      <span class="led" style="color:#7dd6c3"></span>
+      <span class="nm">Huddle</span><span class="what">Compressor</span><span class="fs"></span>
+    </div>
+    <div class="pedal" style="background:#203026;color:#f6efe1">
+      <div class="k"><b style="--r:-70deg"></b><b style="--r:35deg"></b></div>
+      <span class="led" style="color:#80d0ff"></span>
+      <span class="nm">Birdseed</span><span class="what">Bitcrusher</span><span class="fs"></span>
+    </div>
+  </div>
+</section>
+
+
+<script>
+// The duet, drawn as a sonogram: syllables leave the wren's bill and grow as they travel (a small bird, a big song).
+// Warm and cool alternate, the way a pair of wrens trade syllables. Seeded, so the board renders the same every time.
+(function () {
+  const svg = document.getElementById('sky');
+  const ns = 'http://www.w3.org/2000/svg';
+  const add = (tag, attrs, parent = svg) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  // pre-dawn stars, faint, only where the sun is not
+  for (let i = 0; i < 46; i++) { const x = rnd() * 1080, y = 70 + rnd() * 300; if (Math.hypot(x - 837, y - 251) < 260) continue; add('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: (0.8 + rnd() * 1.4).toFixed(1), fill: '#f6efe1', opacity: (0.12 + rnd() * 0.3).toFixed(2) }); }
+  // the bill tip of the mark (mark at 662,76, 350 px for 512 units); the song starts just clear of the sun
+  const k0 = 350 / 512, bill = { x: 662 + k0 * 98, y: 76 + k0 * 232 };
+  // a faint sonogram grid: the studio measures, because agents can't hear
+  const g0 = add('g', { opacity: .5 });
+  [0, 1, 2, 3].forEach((j) => {
+    const y = 268 - j * 44;
+    add('line', { x1: 56, x2: 640, y1: y, y2: y, stroke: '#f6efe1', 'stroke-opacity': .10, 'stroke-width': 1.5, 'stroke-dasharray': '2 8' }, g0);
+    const e = add('text', { x: 56, y: y - 8, fill: '#97a596', 'font-family': 'Atkinson Hyperlegible Mono', 'font-size': 14 }, g0); e.textContent = `${2 + j * 2} kHz`;
+  });
+  const shapes = ['up', 'down', 'trill', 'cup', 'up', 'hook', 'down', 'trill', 'up'];
+  const N = shapes.length;
+  let x = 618; const labs = [];
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const k = 0.62 + t * 0.78;                 // grows as it travels: a small bird, a big song
+    const w = 30 * k, h = 36 * k;
+    x -= (i ? 34 + 26 * k : 0);
+    const y = 226 - 70 * Math.sin(t * Math.PI * 0.5) + (i % 2 ? -10 : 8);
+    const col = i % 2 ? '#80d0ff' : '#ffa95a';
+    const g = add('g', { stroke: col, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    let d;
+    const L = x - w / 2, Rr = x + w / 2, T = y - h / 2, B = y + h / 2;
+    switch (shapes[i]) {
+      case 'up': d = `M${L} ${B} C${x} ${B} ${x} ${T} ${Rr} ${T}`; break;
+      case 'down': d = `M${L} ${T} C${x} ${T} ${x} ${B} ${Rr} ${B}`; break;
+      case 'cup': d = `M${L} ${T} C${L + w * .2} ${B} ${Rr - w * .2} ${B} ${Rr} ${T}`; break;
+      case 'hook': d = `M${L} ${B} L${x} ${T} C${x + w * .2} ${T + h * .4} ${Rr} ${y} ${Rr} ${y}`; break;
+      case 'trill': d = Array.from({ length: 4 }, (_, j) => { const xx = L + j * w / 3; const yy = B - j * h / 4.5; return `M${xx} ${yy} L${xx + w / 9} ${yy - h / 3.2}`; }).join(' '); break;
+    }
+    add('path', { d, 'stroke-width': (3.4 + 3.4 * k).toFixed(1) }, g);
+    add('path', { d, 'stroke-width': (1.4 + 1.0 * k).toFixed(1), opacity: .28, transform: `translate(0 ${-(h * .7 + 6).toFixed(1)})` }, g);
+  }
+  const lab = (x, y, txt, col, anchor = 'middle') => { const e = add('text', { x, y, fill: col, 'text-anchor': anchor, 'font-family': 'Atkinson Hyperlegible Mono', 'font-size': 17, 'font-weight': 600, 'letter-spacing': '2.5' }); e.textContent = txt; };
+  lab(56, 300, 'YOU', '#ffa95a', 'start'); lab(110, 300, '+', '#97a596', 'start'); lab(134, 300, 'AGENT', '#80d0ff', 'start'); lab(218, 300, '= ONE SONG', '#97a596', 'start');
+})();
+</script>
+</body>
+</html>

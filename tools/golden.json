@@ -1,0 +1,357 @@
+{
+  "rule": "Never regenerate casually: a hash that moves means the sound moved. Regenerate only the scenes whose sound changed on purpose (UPDATE_GOLDEN=<scene,...> node tools/golden-test.js) and say which and why in the commit. See tools/golden-test.js.",
+  "hash": "SHA-256 of the render's float samples: channel 0 then channel 1, each as Float32 little-endian (app/src/engine/node/io.js sha256)",
+  "renderer": "app/src/engine/node/render.js at 48 kHz; scenes from tools/golden-scenes.js",
+  "made": {
+    "node": "24.16.0",
+    "v8": "13.6.233.17-node.49",
+    "arch": "arm64",
+    "platform": "darwin",
+    "date": "2026-10-03"
+  },
+  "scenes": {
+    "inst:core.poly": {
+      "sha256": "f4ca11e62d7ad01e2b76309f572af5ebd571d6feaff4f8385652cf764e295494",
+      "frames": 864000,
+      "lufs": -16.33,
+      "truePeak": -4.11,
+      "peak": -4.12
+    },
+    "inst:core.bass": {
+      "sha256": "28f6340143177e773092350b2c407796afa009c18268cebcc21e30fb09b3a37f",
+      "frames": 864000,
+      "lufs": -17.97,
+      "truePeak": -6.7,
+      "peak": -6.7
+    },
+    "inst:core.keys": {
+      "sha256": "bf3ba35d3257000a2cba385d7c40dfe62b240c3f840617073eb5ba0f2d609d7f",
+      "frames": 864000,
+      "lufs": -15.95,
+      "truePeak": -3.47,
+      "peak": -3.47
+    },
+    "inst:core.pluck": {
+      "sha256": "142757f5a4822fdf49ee418791b8b8734e59ce9f3686c5eccf52f2fbcc5e3495",
+      "frames": 864000,
+      "lufs": -17.46,
+      "truePeak": -1.51,
+      "peak": -1.52
+    },
+    "inst:core.drums": {
+      "sha256": "ed7a6361f71cdcfe80f96d3f00e1931ae73b23cadc023e0e5b9fd8dbd650c093",
+      "frames": 672000,
+      "lufs": -16.23,
+      "truePeak": -7.27,
+      "peak": -7.29
+    },
+    "inst:core.pad": {
+      "sha256": "c1df163ec5c86a56518edf36809264f23d184734bab828c9726b8d442800fb2a",
+      "frames": 864000,
+      "lufs": -17.09,
+      "truePeak": -3.68,
+      "peak": -3.68
+    },
+    "inst:claude.firefly": {
+      "sha256": "1d12fa95b8c12cc7cefa8167eeaea0c6627e8efbf0aa36f90b1b0d21df7fe0f8",
+      "frames": 864000,
+      "lufs": -17.08,
+      "truePeak": -1.99,
+      "peak": -1.99
+    },
+    "fx:core.eq": {
+      "sha256": "0d776a471bb41918fd99eea31b66f1172d6b2edc9ec9bf064da2c196dd3e82e3",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "fx:core.comp": {
+      "sha256": "f459594df30a05f4b93400497776cfd9d336abe265cb36ce8f6395a5e335319a",
+      "frames": 576000,
+      "lufs": -21.16,
+      "truePeak": -9.46,
+      "peak": -10.29
+    },
+    "fx:core.verb": {
+      "sha256": "e293ed9e8f63eb25edcca5f40630c585cd405c2166e81f95fee10d4ffbda4931",
+      "frames": 576000,
+      "lufs": -21.16,
+      "truePeak": -9.89,
+      "peak": -9.93
+    },
+    "fx:core.delay": {
+      "sha256": "f35e7f3181f1bd548fde73c1ce1135cfa4f8bd7a3a68e551c41dd2bcae35449c",
+      "frames": 576000,
+      "lufs": -21.45,
+      "truePeak": -10.07,
+      "peak": -10.54
+    },
+    "fx:core.chorus": {
+      "sha256": "f9e026e3e46a2852e0443ab46fcbfe65a9a07a006c6986643171fdef466c36a0",
+      "frames": 576000,
+      "lufs": -21.76,
+      "truePeak": -10.18,
+      "peak": -10.48
+    },
+    "fx:core.filter": {
+      "sha256": "895e607653c2d38ea8ea6ec4dfa6ddb9c79232836ffd2282e3c927e1ef664c7f",
+      "frames": 576000,
+      "lufs": -21.07,
+      "truePeak": -11.14,
+      "peak": -11.14
+    },
+    "fx:core.drive": {
+      "sha256": "662ceb71c14e49c998a1161676965d557b02983b6dbb55eb1e189bb58f925d19",
+      "frames": 576000,
+      "lufs": -20.21,
+      "truePeak": -10.46,
+      "peak": -10.46
+    },
+    "fx:core.crush": {
+      "sha256": "f43b957199dccea075fe26b9b9342ff35a6b9e6f7b503a38df5da8bf563ad882",
+      "frames": 576000,
+      "lufs": -22.06,
+      "truePeak": -10.22,
+      "peak": -12.04
+    },
+    "fx:core.width": {
+      "sha256": "0d776a471bb41918fd99eea31b66f1172d6b2edc9ec9bf064da2c196dd3e82e3",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "fx:core.limiter": {
+      "sha256": "ab091c71b573b7fc682ff73786ad5e0533716c67ffd4b380bb8eca98c2cd9bf0",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "fx:claude.tidal-cathedral": {
+      "sha256": "494d4ee7b54192400bee8103ce76c7167d1a75fda5d0c1f442d826a2bee67a55",
+      "frames": 576000,
+      "lufs": -21.11,
+      "truePeak": -10.52,
+      "peak": -10.52
+    },
+    "fx:claude.night-bus": {
+      "sha256": "ac6bb198395a4ec5e42745cf6cfc15ee7c088e89fb3dc2f353c753535166ebbb",
+      "frames": 576000,
+      "lufs": -20.96,
+      "truePeak": -11.38,
+      "peak": -11.44
+    },
+    "demo": {
+      "sha256": "987ef4ec30718454114b09b9f2cf4987b69ee78e91643dec49f7cb75fa875403",
+      "frames": 1097740,
+      "lufs": -10.57,
+      "truePeak": -1.21,
+      "peak": -1.36
+    },
+    "demo-kernels": {
+      "sha256": "987ef4ec30718454114b09b9f2cf4987b69ee78e91643dec49f7cb75fa875403",
+      "frames": 1097740,
+      "lufs": -10.57,
+      "truePeak": -1.21,
+      "peak": -1.36
+    },
+    "inst:core.piano": {
+      "sha256": "bdf2998c840747bffa102de4a9eb96e0b72e24936a699ed37a5a93d663016324",
+      "frames": 864000,
+      "lufs": -15.54,
+      "truePeak": -1.37,
+      "peak": -1.37
+    },
+    "inst:core.organ": {
+      "sha256": "fc2d645e3d4e8920a11415ac8b34b5bc5adbbc2ac3217760ee6528b216814c8a",
+      "frames": 864000,
+      "lufs": -15.6,
+      "truePeak": -3.34,
+      "peak": -3.34
+    },
+    "inst:core.strings": {
+      "sha256": "b358f16d0eba805944b04b476fe37e6afb1abf987c71fe4ca49031d216576d84",
+      "frames": 864000,
+      "lufs": -16.3,
+      "truePeak": -4.02,
+      "peak": -4.02
+    },
+    "inst:core.bassguitar": {
+      "sha256": "105a29d7324aa8815a7bbabd15b957eb93cb8a36a8b99fe9a425ffe3401498a3",
+      "frames": 864000,
+      "lufs": -16.55,
+      "truePeak": -6.16,
+      "peak": -6.16
+    },
+    "demo:sodium": {
+      "sha256": "7488a119a0e3b5f695eecd18eb233830124847fed8c07f3b05b46165705d8bf7",
+      "frames": 2754462,
+      "lufs": -10.22,
+      "truePeak": -1.24,
+      "peak": -1.36
+    },
+    "demo:red-eye": {
+      "sha256": "fac1688a9f621b0a6c5d6b1b81338b01ea7642c530e196f4952b6934ae619136",
+      "frames": 2729143,
+      "lufs": -10.67,
+      "truePeak": -1.15,
+      "peak": -1.36
+    },
+    "demo:late-checkout": {
+      "sha256": "e28cadd220b3803b2ba35049647738ef06f40de147ca3946958ce09c7a92856e",
+      "frames": 3387429,
+      "lufs": -10.64,
+      "truePeak": -1.22,
+      "peak": -1.36
+    },
+    "inst:core.guitar": {
+      "sha256": "d9082822b3bd3e3cac5f904027f9a1c54af4ee222859f36593b890cba34ecea4",
+      "frames": 864000,
+      "lufs": -16.25,
+      "truePeak": -1.9,
+      "peak": -1.91
+    },
+    "inst:core.ep": {
+      "sha256": "f1206e669638f7cdf157255bbf41c91abbd903d3c93912d3ee02347ae5fa33e8",
+      "frames": 864000,
+      "lufs": -17.15,
+      "truePeak": -2.66,
+      "peak": -2.67
+    },
+    "inst:core.mallets": {
+      "sha256": "c315beeae26cd8a8ec431e02ca20ee452f0e1a506c6408a5b0174bc26037c5fa",
+      "frames": 864000,
+      "lufs": -16.26,
+      "truePeak": -1.46,
+      "peak": -1.46
+    },
+    "inst:core.drums:808": {
+      "sha256": "d6d16931640611d7f40841f0e6fca7a92f5e30426dfa1ff42fbe49ac15b528a9",
+      "frames": 672000,
+      "lufs": -16.63,
+      "truePeak": -7.26,
+      "peak": -7.37
+    },
+    "inst:core.drums:909": {
+      "sha256": "29eece2401cacb93ad4196dd9259d9441f228d828e81ee93010be025238520fd",
+      "frames": 672000,
+      "lufs": -16.54,
+      "truePeak": -6.83,
+      "peak": -7.08
+    },
+    "inst:core.drums:acoustic-plus": {
+      "sha256": "22caa32d9341d35f999f76a7941f4591deedae806a67da8208f178a41aeecf67",
+      "frames": 672000,
+      "lufs": -15.99,
+      "truePeak": -6.73,
+      "peak": -7.06
+    },
+    "automation": {
+      "sha256": "03125e8155a411d65690a3bd5469d06ade4ad99f90ed24d303d8c8ddc0871c10",
+      "frames": 480000,
+      "lufs": -22.74,
+      "truePeak": -10.02,
+      "peak": -10.04
+    },
+    "demo:wake-up-call": {
+      "sha256": "cd0516e5cc6694b0a60ed7c93ce4cf89686769c8da0a351c5dd7b2404d52d1e8",
+      "frames": 3586910,
+      "lufs": -10.29,
+      "truePeak": -1.15,
+      "peak": -1.36
+    },
+    "demo:lobby-bar": {
+      "sha256": "3859791a86887c7f00d9c00c094c4ebee30bb18d56b11fac4b077b6b150d4b9a",
+      "frames": 2806589,
+      "lufs": -10.17,
+      "truePeak": -1.3,
+      "peak": -1.36
+    },
+    "demo:room-service": {
+      "sha256": "49bd5b26c1d646e1806119a2787b1eef21c104724768735abd1707af044c85ed",
+      "frames": 2564572,
+      "lufs": -10.07,
+      "truePeak": -1.3,
+      "peak": -1.36
+    },
+    "inst:core.poly2": {
+      "sha256": "94b1ca1e5ebcef0f06130f1351ef0e9a182d7c602b7eb4fcb524fe2f76b0c42c",
+      "frames": 864000,
+      "lufs": -16.51,
+      "truePeak": -2.84,
+      "peak": -2.85
+    },
+    "inst:core.brass": {
+      "sha256": "c789f9fbebcc754c2bfa359a7ee5c0189ff4207fccbfe3b2e4a47bc4f5a45e28",
+      "frames": 864000,
+      "lufs": -16.75,
+      "truePeak": -1.8,
+      "peak": -1.8
+    },
+    "inst:core.choir": {
+      "sha256": "bf536a3505aa9a53f98dca835a123211b66bbc63f9b4ca148b3b0b233f640f3e",
+      "frames": 864000,
+      "lufs": -16.1,
+      "truePeak": -3.52,
+      "peak": -3.52
+    },
+    "demo:turndown": {
+      "sha256": "f7345b103cea67dcd0ae5e12948dbf2ded8b6642b0733c96d771be0f9c816ca6",
+      "frames": 3068904,
+      "lufs": -10.43,
+      "truePeak": -1.1,
+      "peak": -1.36
+    },
+    "demo:ice-machine": {
+      "sha256": "545ba8aab5d8b475e0d9fedb01241f0b800d7421ff29290ded3c1201b6783404",
+      "frames": 3782401,
+      "lufs": -10.95,
+      "truePeak": -1.15,
+      "peak": -1.36
+    },
+    "inst:core.drumroom": {
+      "sha256": "1e90313df809d74c873229226afbab18921c39c0d218571b6589f06d08ab4f31",
+      "frames": 672000,
+      "lufs": -18.05,
+      "truePeak": -1.41,
+      "peak": -1.63
+    },
+    "inst:core.wavetable": {
+      "sha256": "27adaba88569220a85273a62a2a92fd2d8cfbe2e41d9bbd010a6d2040f6e141b",
+      "frames": 864000,
+      "lufs": -15.64,
+      "truePeak": -3.23,
+      "peak": -3.23
+    },
+    "fx:core.eq8": {
+      "sha256": "0d776a471bb41918fd99eea31b66f1172d6b2edc9ec9bf064da2c196dd3e82e3",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "fx:core.shaper": {
+      "sha256": "0d776a471bb41918fd99eea31b66f1172d6b2edc9ec9bf064da2c196dd3e82e3",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "fx:core.multiband": {
+      "sha256": "15f19b77cf7fb5f556d1f4aa3c11320f6662fe2f2003fd7285be1016efaaf112",
+      "frames": 576000,
+      "lufs": -20.19,
+      "truePeak": -8.53,
+      "peak": -9.28
+    },
+    "demo:vacancy": {
+      "sha256": "5422490d59fb4ff75f51f89aa290423f9f8327096affe0836b3ff280844d417b",
+      "frames": 6451863,
+      "lufs": -10.54,
+      "truePeak": -1.1,
+      "peak": -1.36
+    }
+  }
+}

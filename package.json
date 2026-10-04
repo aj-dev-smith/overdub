@@ -1,0 +1,14 @@
+{
+  "name": "overdub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A studio for you and your agents: a web DAW built so humans and AI make music together.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/serve.js",
+    "mcp": "node server/mcp.js",
+    "test": "node tools/run-all.js"
+  },
+  "engines": { "node": ">=22" },
+  "license": "MIT"
+}

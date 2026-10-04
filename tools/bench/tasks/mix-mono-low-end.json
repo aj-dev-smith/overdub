@@ -1,0 +1,16 @@
+{
+  "id": "mix-mono-low-end",
+  "family": "mix",
+  "title": "Mono low end",
+  "instruction": "The chorus on the bass smeared the low end across the speakers. Make everything under 120 Hz mono (side at least 30 dB under mid), but keep the width above 1 kHz where it is (within 1.5 dB).",
+  "song": "songs/night-shift.json",
+  "setup": [{ "type": "insert.add", "track": "Bass", "insert": { "id": "fx_bchor1", "device": "core.chorus", "params": { "depth": 1, "rate": 0.4, "mix": 0.8 } } }],
+  "checks": [
+    { "id": "lows", "label": "Side/mid under 120 Hz, the mix", "kind": "measure", "metric": "side.20-120", "unit": "dB",
+      "scope": {}, "target": [null, -30], "soft": 15, "weight": 1 },
+    { "id": "highs", "label": "Side/mid 1-8 kHz vs before, the mix", "kind": "measure", "metric": "side.1000-8000", "unit": "dB", "relative": true,
+      "scope": {}, "target": [-1.5, 1.5], "soft": 3, "gate": true },
+    { "id": "level", "label": "Mix loudness vs before", "kind": "measure", "metric": "lufs", "unit": "LU", "relative": true,
+      "scope": {}, "target": [-1, 1], "soft": 2, "gate": true }
+  ]
+}

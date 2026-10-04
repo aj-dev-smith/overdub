@@ -1,0 +1,11 @@
+{
+  "task": "mix-bass-under-kick",
+  "why": "Pulls the bass down 30 dB: it is under the kick, but gone.",
+  "ops": [
+    {
+      "type": "track.set",
+      "track": "Bass",
+      "patch": { "gain": -31.5 }
+    }
+  ]
+}

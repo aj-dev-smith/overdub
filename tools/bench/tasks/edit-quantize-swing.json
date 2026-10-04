@@ -1,0 +1,17 @@
+{
+  "id": "edit-quantize-swing",
+  "family": "editing",
+  "title": "Tighten, keep the swing",
+  "instruction": "The drums were played loose. Quantize them to 1/16 without changing the groove's swing by more than 10%: tighten every hit, keep the offbeat sixteenths as late as they sit now. Same hits, same pitches, and leave the bass alone.",
+  "song": "songs/loose-groove.json",
+  "setup": [],
+  "checks": [
+    { "id": "tight", "label": "RMS distance of the drum hits from the swung 1/16 grid", "kind": "jitter", "unit": "beats",
+      "sel": { "tracks": ["Drums"] }, "grid": 0.25, "target": [0, 0.004], "soft": 0.008, "weight": 3 },
+    { "id": "swing", "label": "Change in swing (share of the starting swing)", "kind": "swing",
+      "sel": { "tracks": ["Drums"] }, "grid": 0.25, "target": [0, 0.1], "soft": 0.4, "weight": 1 },
+    { "id": "hits", "label": "Drum hits", "kind": "count", "unit": "notes", "sel": { "tracks": ["Drums"] }, "target": [84, 84], "soft": 8, "gate": true },
+    { "id": "kicks", "label": "Kick and snare hits", "kind": "count", "unit": "notes", "sel": { "tracks": ["Drums"], "pitches": [36, 38] }, "target": [20, 20], "soft": 4, "gate": true },
+    { "id": "bass", "label": "Bass notes as they were", "kind": "unchanged", "sel": { "tracks": ["Bass"] }, "target": [1, 1], "soft": 0.5, "gate": true }
+  ]
+}

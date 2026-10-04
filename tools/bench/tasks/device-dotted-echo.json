@@ -1,0 +1,17 @@
+{
+  "id": "device-dotted-echo",
+  "family": "device",
+  "title": "Dotted-eighth echo",
+  "instruction": "Build an echo effect (write the kernel) and put it on the Snaps track: repeats at a dotted eighth, locked to the song's tempo, each repeat at least 6 dB under the dry hit, and the dry hit left as it is.",
+  "song": "songs/lab.json",
+  "setup": [],
+  "checks": [
+    { "id": "built", "label": "An effect written in this song is on Snaps", "kind": "defined", "track": "Snaps", "deviceKind": "effect", "target": [1, 1], "gate": true },
+    { "id": "time", "label": "First repeat's distance from a dotted eighth (worst of 100 and 130 bpm)", "kind": "echoTime", "unit": "ms",
+      "track": "Snaps", "beats": 0.75, "tempos": [100, 130], "target": [0, 3], "soft": 15, "weight": 3 },
+    { "id": "level", "label": "First repeat against the dry hit", "kind": "echoLevel", "unit": "dB",
+      "track": "Snaps", "tempos": [100, 130], "target": [-30, -6], "soft": 4, "weight": 2 },
+    { "id": "dry", "label": "Dry hit against no effect", "kind": "dryKept", "unit": "dB",
+      "track": "Snaps", "tempos": [100], "target": [-1.5, 1.5], "soft": 3, "weight": 1 }
+  ]
+}

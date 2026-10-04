@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kernel test bench</title>
+<body style="background:#111;color:#ddd;font:13px ui-monospace,monospace">
+<pre id="log">Overdub kernel test bench (driven by tools/kernel-test.js)</pre>
+<script type="module">
+  // Everything tools/kernel-test.js needs, on window.K, plus small render helpers on window.H.
+  import * as dsp from '../app/src/kernel/dsp.js';
+  import * as worklet from '../app/src/kernel/worklet.js';
+  import * as host from '../app/src/kernel/host.js';
+  import * as check from '../app/src/kernel/check.js';
+  import * as examples from '../app/src/kernel/examples.js';
+  import * as guide from '../app/src/kernel/guide.js';
+  import * as registry from '../app/src/devices/registry.js';
+  window.K = { dsp, worklet, host, check, examples, guide, registry };
+
+  const SR = 48000;
+  // An offline render of a def. opts: { secs, params, notes: [{ p, v, t, d }], input: [L, R], seed,
+  //   at: [{ time, run(inst, c) }] (suspends at `time`, runs, waits for the worklet to catch up, resumes) }
+  async function render(def, { secs = 1, params = {}, notes = [], input = null, seed = 1, at = [], chain = null } = {}) {
+    const c = new OfflineAudioContext(2, Math.round(secs * SR), SR);
+    const inst = await host.kernelInstance(c, def, { seed, params });
+    let readyErr = null;
+    try { await inst.ready; } catch (e) { readyErr = e.message; }
+    if (input) {
+      const b = c.createBuffer(2, input[0].length, SR); b.copyToChannel(input[0], 0); b.copyToChannel(input[1] || input[0], 1);
+      const s = c.createBufferSource(); s.buffer = b; s.connect(inst.input); s.start(0);
+    }
+    for (const n of notes) { inst.noteOn(n.p, n.v ?? 0.8, n.t); if (n.d != null) inst.noteOff(n.p, n.t + n.d); }
+    inst.output.connect(c.destination);
+    for (const a of at) c.suspend(a.time).then(async () => { await a.run(inst, c); await inst.sync(); c.resume(); });
+    const t0 = performance.now();
+    const buf = await c.startRendering();
+    const ms = performance.now() - t0;
+    const stats = await inst.stats();
+    const out = { L: Array.from(buf.getChannelData(0)), R: Array.from(buf.getChannelData(1)), errors: inst.errors.slice(), readyErr, stats, ms, faulted: inst.faulted, latency: inst.latency };
+    inst.dispose();
+    return out;
+  }
+  window.H = { render, SR };
+  window.K.ready = true;
+</script>

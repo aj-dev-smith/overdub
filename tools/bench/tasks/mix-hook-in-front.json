@@ -1,0 +1,15 @@
+{
+  "id": "mix-hook-in-front",
+  "family": "mix",
+  "title": "Hook in front",
+  "instruction": "In the chorus, bring the hook to the front: it should measure at least 2 LU louder than any other track there, and the whole chorus shouldn't get more than 1 LU louder than it is now.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "front", "label": "Hook loudness minus the loudest other track, chorus", "kind": "measure", "metric": "lufs", "unit": "LU",
+      "scope": { "tracks": ["Hook"], "section": "Chorus" }, "minus": { "each": true, "scope": { "tracks": ["Kick", "Kit", "Bass", "Keys"], "section": "Chorus" } },
+      "target": [2, null], "soft": 3, "weight": 1 },
+    { "id": "mix", "label": "Chorus loudness vs before", "kind": "measure", "metric": "lufs", "unit": "LU", "relative": true,
+      "scope": { "section": "Chorus" }, "target": [null, 1], "soft": 2, "gate": true }
+  ]
+}

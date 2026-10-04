@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OverdubBench · Overdub docs</title>
+<meta name="description" content="Fifteen jobs a musician would ask an agent for (mix, write, edit, build a device), each scored 0 to 1 by measurement with the canonical renderer, never by a judge: the tasks, the scoring and how to run an agent.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overdub Studio">
+<meta property="og:title" content="OverdubBench · Overdub docs">
+<meta property="og:description" content="Fifteen jobs a musician would ask an agent for (mix, write, edit, build a device), each scored 0 to 1 by measurement with the canonical renderer, never by a judge: the tasks, the scoring and how to run an agent.">
+<meta property="og:image" content="/site/assets/og.png">
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<link rel="stylesheet" href="/site/docs/docs.css">
+</head>
+<body class="docs-page">
+<a class="skip" href="#doc">Skip to the text</a>
+<header class="top">
+  <a class="brand" href="/" aria-label="Overdub home"><img class="brand-mark" src="/site/assets/logo.svg" alt="" width="40" height="40"><img class="brand-word" src="/site/assets/wordmark.svg" alt="overdub" width="150" height="24"></a>
+  <nav class="top-nav" aria-label="Site">
+    <a class="top-more" href="/site/docs/guide.html">Guide</a>
+    <a href="/site/docs/" aria-current="page">Docs</a>
+    <a href="/site/press/">Press</a>
+    <a class="top-cta" href="/app/">Open the studio</a>
+  </nav>
+</header>
+<div class="docs-layout">
+  <aside class="docs-side">
+    <nav class="docs-nav" aria-label="Docs">
+      <p class="side-head"><a href="/site/docs/">Docs</a></p>
+      <ol>
+        <li><a href="guide.html">Guide</a></li>
+        <li><a href="agents.html">For agents</a></li>
+        <li><a href="integrations.html">Connect an agent</a></li>
+        <li><a href="devices.html">Writing devices</a></li>
+        <li><a href="bench.html" aria-current="page">OverdubBench</a></li>
+        <li><a href="remote-mcp.html">Remote MCP</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+      </ol>
+    </nav>
+    <details class="toc">
+      <summary>On this page</summary>
+      <nav aria-label="On this page"><ol>
+<li><a href="#the-tasks">The tasks</a></li>
+<li><a href="#files">Files</a></li>
+<li><a href="#scoring">Scoring</a><ol><li><a href="#check-kinds">Check kinds</a></li><li><a href="#what-makes-it-repeatable">What makes it repeatable</a></li></ol></li>
+<li><a href="#oracles-baselines-and-near-misses">Oracles, baselines and near misses</a></li>
+<li><a href="#running-an-agent">Running an agent</a></li>
+<li><a href="#adding-a-task">Adding a task</a></li>
+<li><a href="#what-the-bench-has-found-so-far">What the bench has found so far</a></li>
+      </ol></nav>
+    </details>
+  </aside>
+  <main id="doc" class="doc">
+    <h1 id="top" class="doc-title"><a class="h-link" href="#top">OverdubBench</a></h1>
+    <p class="doc-meta">From <code>docs/BENCH.md</code> (<a href="/docs/BENCH.md">the Markdown</a>), about 10 min to read</p>
+    <article class="prose">
+<p>An open benchmark for agents that make music with a person: fifteen jobs a musician would actually ask for, each
+scored 0 to 1 by <strong>measurement</strong>, not by a judge. The bench renders the agent's song with the canonical Node renderer
+(<code>app/src/engine/node/render.js</code>), listens with the studio's own ears (<code>app/src/audio/measure.js</code>: LUFS, true peak,
+band energy, stereo, key) and reads the notes (key, clashes, range, timing). A number is held against a target range.
+Nothing in a score is an opinion, and nothing in it changes between runs.</p>
+<p>Why it exists: agents can't hear, so the studio measures; publishing the
+measurements as a benchmark sets the terms for what &quot;an agent that can mix&quot; means.</p>
+<div class="code" data-lang="sh"><pre><code>node tools/bench/run.js                                    <span class="c"># every task: its oracle and the do-nothing baseline</span>
+node tools/bench/run.js --list                             <span class="c"># the tasks and their instructions</span>
+node tools/bench/run.js mix-chorus-lift ops.json           <span class="c"># score an agent's ops on one task</span>
+node tools/bench/run.js mix-chorus-lift --song final.json  <span class="c"># score a song exported from the studio</span>
+node tools/bench/run.js mix-chorus-lift --start --out start.json   <span class="c"># the song the agent is handed</span>
+node tools/bench-test.js                                   <span class="c"># oracles &gt;= 0.9, baselines &lt; 0.5, scores repeat</span></code></pre></div>
+<p><code>--json</code> prints one JSON result per line. No install, no network, no LLM: the bench never calls a model.</p>
+<p><strong>A submission is code.</strong> Scoring renders the agent's song, and its devices (<code>define_device</code>, the song's own kernels)
+run in Node, not in a browser's audio worklet. So <code>run.js</code> scores an ops log or a song from outside the checkout
+under Node's permission model (<code>tools/node-permissions.js</code>): it runs itself again in a process that can read the checkout and
+that one file, write nothing and start no other program. Node 24's model doesn't cover the network, so a kernel could
+still send what it can read. Score submissions you'd run as code. <code>OVERDUB_TRUST_KERNELS=1</code> scores in-process instead;
+<code>node tools/render.js song.json</code> works the same way.</p>
+<h2 id="the-tasks"><a class="h-link" href="#the-tasks">The tasks</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>task</th><th>family</th><th>the instruction (short)</th><th>what is measured</th></tr></thead>
+<tbody>
+<tr><td><code>mix-bass-under-kick</code></td><td>mix</td><td>bass about 3 dB under the kick below 250 Hz, kick untouched</td><td>Bass minus Kick, sub+low band energy, verse</td></tr>
+<tr><td><code>mix-chorus-lift</code></td><td>mix</td><td>chorus 1.5-3 LU louder than the verse and wider</td><td>LUFS and side/mid, chorus minus verse</td></tr>
+<tr><td><code>mix-darken-keys</code></td><td>mix</td><td>keys 3-6 dB down in presence (4-8 kHz), loudness within 1 LU</td><td>Keys presence and LUFS vs before</td></tr>
+<tr><td><code>mix-master-loudness</code></td><td>mix</td><td>-11 LUFS, true peak at most -1 dBTP, crest down 6 dB at most</td><td>integrated LUFS, true peak, crest vs before</td></tr>
+<tr><td><code>mix-mono-low-end</code></td><td>mix</td><td>side under 120 Hz at least 30 dB under mid, highs as wide as before</td><td>band-limited side/mid of the mix</td></tr>
+<tr><td><code>mix-hook-in-front</code></td><td>mix</td><td>hook 2 LU over every other track in the chorus, chorus up 1 LU at most</td><td>per-track LUFS, chorus</td></tr>
+<tr><td><code>write-counter-melody</code></td><td>writing</td><td>8+ notes in key on a new track, no semitone clashes on beats 1 and 3, within 18 semitones, its own line</td><td>the notes, plus the new track's loudness</td></tr>
+<tr><td><code>write-bassline</code></td><td>writing</td><td>roots of Am F C G on every downbeat, 12+ notes, in key, E1 to C3</td><td>the notes, plus the bass's loudness</td></tr>
+<tr><td><code>write-drum-groove</code></td><td>writing</td><td>kick 1 and 3, snare 2 and 4, eighth hats, a different bar 4</td><td>hits on the grid, plus the kit's loudness</td></tr>
+<tr><td><code>write-harmonize-hook</code></td><td>writing</td><td>a held chord per chorus bar, 3+ notes, in key, containing the hook's downbeat note</td><td>chords under the melody</td></tr>
+<tr><td><code>device-dotted-echo</code></td><td>device</td><td>write an echo: dotted eighth, tempo-locked, repeats at least 6 dB under the dry</td><td>a click through it at 100 and 130 bpm</td></tr>
+<tr><td><code>device-decaying-instrument</code></td><td>device</td><td>write an instrument whose notes fall under -60 dBFS within 1.5 s, held or not</td><td>three probe notes, one held 2 s</td></tr>
+<tr><td><code>device-rumble-filter</code></td><td>device</td><td>write an effect: 100 Hz down 18 dB, 50 Hz down 24, 1 and 3 kHz within 1 dB</td><td>test tones through it vs bypass</td></tr>
+<tr><td><code>edit-quantize-swing</code></td><td>editing</td><td>quantize the loose drums to 1/16, swing kept within 10%</td><td>distance from the swung grid, swing ratio</td></tr>
+<tr><td><code>edit-chorus-up-a-step</code></td><td>editing</td><td>chorus bass, keys and hook up two semitones; drums and verse untouched</td><td>the notes, and the key measure() hears (B minor or D major)</td></tr>
+</tbody></table></div>
+<p>The full instruction is the task's <code>instruction</code> field, written the way a musician says it. That sentence, and the
+song, is everything an agent is given.</p>
+<h2 id="files"><a class="h-link" href="#files">Files</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>path</th><th>what</th></tr></thead>
+<tbody>
+<tr><td><code>tools/bench/tasks/&lt;id&gt;.json</code></td><td>a task: <code>id</code>, <code>family</code>, <code>title</code>, <code>instruction</code>, <code>song</code> (a file in <code>songs/</code>), <code>setup</code> (ops the house applies first), <code>checks</code></td></tr>
+<tr><td><code>tools/bench/songs/*.json</code></td><td>the starting songs, with fixed ids (ids seed devices, so they are part of the sound). <code>make-songs.js</code> wrote them from <code>app/src/core/demo.js</code> and a few hand-built parts; rerun it only to change a song on purpose</td></tr>
+<tr><td><code>tools/bench/score.js</code></td><td>the scorer: <code>loadTask</code>, <code>startSong</code>, <code>applyOps</code>, <code>scoreTask</code>, <code>report</code>, <code>transactionsOf</code></td></tr>
+<tr><td><code>tools/bench/probes.js</code></td><td>the bench's test sources (<code>bench.click</code>, <code>bench.sine</code>) for device probes</td></tr>
+<tr><td><code>tools/bench/run.js</code></td><td>the command line</td></tr>
+<tr><td><code>tools/bench/oracles/&lt;id&gt;.json</code></td><td>a hand-made solution for every task: <code>{ task, why, ops }</code></td></tr>
+<tr><td><code>tools/bench/oracles/near-misses/*.json</code></td><td>plausible wrong answers that must score under 0.5</td></tr>
+<tr><td><code>tools/bench-test.js</code></td><td>the bench's own checks (run by <code>tools/run-all.js</code>)</td></tr>
+</tbody></table></div>
+<h2 id="scoring"><a class="h-link" href="#scoring">Scoring</a></h2>
+<p>A task is a list of checks. Each check measures one number and holds it against a target <code>[lo, hi]</code> (<code>null</code> is
+open-ended). Inside the range it scores 1; outside, it falls off linearly to 0 over <code>soft</code> (no <code>soft</code>: pass or fail).</p>
+<div class="code"><pre><code>score = (sum of weight x check score over the goals / sum of weights) x (product of the gates' scores)</code></pre></div>
+<p><strong>Goals</strong> are what the instruction asks for (&quot;1.5-3 LU louder&quot;). <strong>Gates</strong> are what it says must not happen (&quot;don't
+touch the verse&quot;, &quot;a device written for the job&quot;, &quot;the hook as it was&quot;); a gate multiplies, so breaking the song to
+hit a number scores nothing. Every task also gets the house gate <code>clean</code>: everything the scorer rendered came out
+without NaN and without a device that failed to build or faulted. The result lists every check with its value, unit,
+target and score, plus any render warnings, so a score explains itself:</p>
+<div class="code"><pre><code>mix-chorus-lift  1.000  (Make the chorus lift)
+  1.00 w3  Chorus loudness minus verse loudness: 2.12 LU (want [1.5, 3] ±1.5)
+  1.00 w2  Chorus side/mid minus verse side/mid: 7.13 dB (want [1, …] ±1)
+  1.00 gate  Verse loudness vs before: 0 LU (want [-0.5, 0.5] ±1.5)
+  1.00 gate  True peak of the mix: -0.61 dBTP (want […, -0.5] ±1.5)
+  1.00 gate  renders clean (no NaN, no failed or faulting device): 0 problems (want [0, 0])</code></pre></div>
+<h3 id="check-kinds"><a class="h-link" href="#check-kinds">Check kinds</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>kind</th><th>measures</th></tr></thead>
+<tbody>
+<tr><td><code>measure</code></td><td>a <code>metric</code> of <code>measure()</code> over a <code>scope</code> (<code>tracks</code>: names, <code>&quot;new&quot;</code> or the mix; <code>from</code>/<code>to</code> in beats or a <code>section</code>). Metrics: <code>lufs</code>, <code>truePeak</code>, <code>peak</code>, <code>rms</code>, <code>crest</code>, <code>lra</code>, <code>centroid</code>, <code>correlation</code>, <code>sideDb</code>, <code>onsetsPerSec</code>, <code>band.&lt;name&gt;</code> (absolute energy in a band, dB; <code>band.sub+low</code> sums bands), <code>bandRel.&lt;name&gt;</code> (relative to the whole spectrum), <code>side.&lt;lo&gt;-&lt;hi&gt;</code> (side against mid between two frequencies, dB). <code>minus</code> subtracts another scope (<code>each: true</code> takes the loudest of several tracks); <code>relative: true</code> subtracts the same number on the starting song</td></tr>
+<tr><td><code>key</code></td><td>the key <code>measure()</code> hears in a scope is <code>expect</code> (or its relative major/minor)</td></tr>
+<tr><td><code>count</code>, <code>inKey</code>, <code>span</code>, <code>within</code></td><td>notes in a selection (<code>tracks</code>, <code>from</code>, <code>to</code>, <code>pitches</code>): how many, the share in the song's key, highest minus lowest, the share inside <code>lo</code>..<code>hi</code></td></tr>
+<tr><td><code>clashes</code></td><td>strong beats (1 and 3) where the selection sounds a semitone, major 7th or minor 9th against another</td></tr>
+<tr><td><code>doubling</code></td><td>the share of notes that start with the same pitch class as another part (a copy is not a counter-melody)</td></tr>
+<tr><td><code>unchanged</code>, <code>transposed</code></td><td>the share of the starting song's notes still exactly there, or exactly <code>semitones</code> away</td></tr>
+<tr><td><code>roots</code>, <code>pattern</code>, <code>differs</code>, <code>chordsUnder</code></td><td>chord roots on downbeats; hits at given positions in each bar; one bar differs from another; held in-key chords containing the melody's note</td></tr>
+<tr><td><code>jitter</code>, <code>swing</code></td><td>RMS distance from the 1/16 grid swung as the starting groove swings; how much the swing moved</td></tr>
+<tr><td><code>defined</code></td><td>the track's instrument, or one of its inserts, is a kernel written in this song since the start</td></tr>
+<tr><td><code>echoTime</code>, <code>echoLevel</code>, <code>dryKept</code></td><td>a click (<code>bench.click</code>) through the track's inserts at each tempo: the first repeat's delay and level against the dry hit; the dry hit against no inserts</td></tr>
+<tr><td><code>decayTime</code>, <code>decayPeak</code></td><td>probe notes on the track's instrument alone: time to fall under a threshold after the strike; peaks</td></tr>
+<tr><td><code>toneGain</code></td><td>sine tones (<code>bench.sine</code>) through the track's inserts, against the same tones with nothing in the way</td></tr>
+</tbody></table></div>
+<p>Device probes measure the device, not the mix: the scorer builds a one-track song with the track's inserts (or its
+instrument), a test source and no master inserts, and renders that.</p>
+<h3 id="what-makes-it-repeatable"><a class="h-link" href="#what-makes-it-repeatable">What makes it repeatable</a></h3>
+<ul>
+<li><strong>One renderer.</strong> Scores come from the canonical Node render, never the browser preview. It runs kernels only:
+graph devices (the pedals and amps) are bypassed there, so every task needs kernel devices only (<code>bench-test</code>
+checks the starting songs). An agent that reaches for a pedal is scored as if the pedal weren't there, and the
+result says so in <code>warnings</code>.</li>
+<li><strong>Stable ids.</strong> The studio gives new tracks, clips and inserts random ids, and ids seed devices. Before rendering,
+the scorer renames every id the starting song didn't have by position (<code>t_nw0000</code>, <code>fx_nw0000</code>, ...), so the same
+ops score the same however many times they are applied.</li>
+<li><strong>Checked.</strong> <code>tools/bench-test.js</code> scores every oracle twice, the second time with fresh renders and fresh random
+ids, and requires every check's value to match exactly.</li>
+</ul>
+<h2 id="oracles-baselines-and-near-misses"><a class="h-link" href="#oracles-baselines-and-near-misses">Oracles, baselines and near misses</a></h2>
+<p>Every task has a hand-made solution in <code>oracles/</code>, written as ops the way an agent sends them (<code>apply_ops</code>), with a
+one-line <code>why</code>. The device oracles are short kernels (<code>bench.dotted-echo</code>, <code>bench.struck-bar</code>, <code>bench.rumble-cut</code>)
+written against the public <code>dsp</code> stdlib. Today every oracle scores 1.000.</p>
+<p>The <strong>do-nothing baseline</strong> is the starting song, unchanged: mean 0.040, and at most 0.295 (<code>mix-mono-low-end</code>,
+where the smeared low end sits partway to the target). The <strong>near misses</strong> are the answers a careless agent gives:
+a plain 1/16 quantize that kills the swing, transposing only the hook, burying the bass to get it under the kick,
+darkening the keys by turning them down, the house echo at a straight eighth. Each scores 0.000. Together they show
+the scorers discriminate: the right move scores high, doing nothing scores low, and the plausible wrong move scores
+low too.</p>
+<p><code>node tools/bench/run.js</code> prints the table.</p>
+<h2 id="running-an-agent"><a class="h-link" href="#running-an-agent">Running an agent</a></h2>
+<p>The bench scores a song; how the agent got there is up to the harness. With Overdub's MCP server (no LLM is called
+by the bench itself):</p>
+<ol>
+<li><strong>Hand over the song.</strong> <code>node tools/bench/run.js &lt;task&gt; --start --out start.overdub.json</code> writes the starting
+song. Open the studio (<code>node server/serve.js</code>, then <a href="http://localhost:3279/app/?new">http://localhost:3279/app/?new</a>) and open the file (Song menu,
+⌘O, or drop it on the page). A scripted harness can do the same through <code>tools/pw.js</code>:
+<code>page.evaluate((s) =&gt; overdub.store.load(s), song)</code>.</li>
+<li><strong>Connect the agent.</strong> <code>claude mcp add overdub -- node &lt;repo&gt;/server/mcp.js</code> (or the claude.ai
+connector, <a href="remote-mcp.html">REMOTE-MCP.md</a>). Give it the task's <code>instruction</code>, verbatim, and nothing else from the
+task file. A typical run: <code>get_guide</code> → <code>get_project</code> (<code>detail: &quot;full&quot;</code>) → <code>render_and_measure</code> → <code>apply_ops</code> /
+<code>define_device</code> → <code>render_and_measure</code> again to check its own work → done. Its own measurements come from the
+browser preview, which agrees with the canonical render within -90 dBFS for kernels.</li>
+<li><strong>Export the song.</strong> Song menu → Save project (<code>.overdub.json</code>), or from a harness
+<code>JSON.stringify(overdub.store.get())</code>. Alternatively, log the agent's MCP tool calls as
+<code>{ &quot;calls&quot;: [{ &quot;tool&quot;, &quot;input&quot; }] }</code>: <code>run.js</code> replays <code>apply_ops</code> and <code>define_device</code> (with <code>use_on</code>) through the
+same store and ignores the rest.</li>
+<li><strong>Score it.</strong> <code>node tools/bench/run.js &lt;task&gt; --song final.overdub.json</code> (or <code>&lt;task&gt; calls.json</code>).</li>
+</ol>
+<p>A fair run: a fresh starting song per task, the instruction and the studio's tools only (no task files, oracles or
+scorer), every task attempted, the per-task scores and checks published with the mean, plus the model, the date, the
+number of runs, and the bench version (<code>overdub-bench/0</code>, in every result). Don't tune a prompt on the tasks.</p>
+<h2 id="adding-a-task"><a class="h-link" href="#adding-a-task">Adding a task</a></h2>
+<p>Write <code>tasks/&lt;id&gt;.json</code> (copy a neighbour), point it at a song in <code>songs/</code> (or add one through <code>make-songs.js</code>),
+add <code>oracles/&lt;id&gt;.json</code>, and run <code>node tools/bench/run.js &lt;id&gt; --oracle</code> and <code>node tools/bench/run.js &lt;id&gt;</code> until the
+oracle scores at least 0.9 and doing nothing scores under 0.5. If there is a plausible wrong answer, put it in
+<code>oracles/near-misses/&lt;id&gt;.&lt;what&gt;.json</code>. Never change a published task's targets or song: add a new task id instead
+(task ids are forever, like device ids), so scores from different dates stay comparable.</p>
+<h2 id="what-the-bench-has-found-so-far"><a class="h-link" href="#what-the-bench-has-found-so-far">What the bench has found so far</a></h2>
+<ul>
+<li><strong>Gatefold's MONO BASS (<code>core.width</code> <code>monobass</code>) widens the lows it should narrow.</strong> On the <code>mix-mono-low-end</code>
+starting song, the Bass track's side/mid under 120 Hz reads -15.5 dB with Gatefold at its default; with MONO BASS
+at 120 Hz it reads -13.2 dB (wider), at 250 Hz -13.9, and only at 500 Hz -17.7. The side's lows are taken out as
+<code>s - lp(lp(s))</code> with two 2nd-order low-passes, which is not a complement: below the cutoff the phase shift makes the
+difference larger than the input. The oracle uses Gatefold's WIDTH at 0 on the bass instead.</li>
+<li><strong>Partial credit is real credit.</strong> Turning the master up 10 dB alone puts <code>mix-master-loudness</code> at -10.96 LUFS
+with true peaks at -0.51 dBTP, half a dB over the spec: it scores 0.673 (the true-peak gate at 0.67). The oracle's
+limiter, pushing 2.5 dB into a -1.5 dB ceiling, lands at -10.98 LUFS and -1.6 dBTP and scores 1.</li>
+</ul>
+    </article>
+    <nav class="pager" aria-label="Next and previous">
+      <a class="pager-prev" href="devices.html"><small>Previous</small>Writing devices</a>
+      <a class="pager-next" href="remote-mcp.html"><small>Next</small>Remote MCP</a>
+    </nav>
+  </main>
+</div>
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <img src="/site/assets/wordmark.svg" alt="overdub" width="120" height="19">
+    <p>An early prototype by AJ Smith.</p>
+    <p class="foot-links"><a href="/">Home</a> <a href="/site/docs/">Docs</a> <a href="/site/press/">Press</a> <a href="/llms.txt">llms.txt</a></p>
+  </div>
+</footer>
+<script>
+(function () {
+  var toc = document.querySelector('.toc');
+  if (toc && window.matchMedia('(min-width: 961px)').matches) toc.open = true;
+  // mark the section you're reading in "On this page"
+  var links = {}, hs = [];
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (a) { links[a.hash.slice(1)] = a; });
+  document.querySelectorAll('.prose h2[id], .prose h3[id]').forEach(function (h) { if (links[h.id]) hs.push(h); });
+  var here = null;
+  function spy() {
+    var cur = null;
+    for (var i = 0; i < hs.length && hs[i].getBoundingClientRect().top < 120; i++) cur = hs[i];
+    var a = cur && links[cur.id];
+    if (a !== here) { if (here) here.classList.remove('is-here'); if (a) a.classList.add('is-here'); here = a; }
+  }
+  if (hs.length) { addEventListener('scroll', function () { requestAnimationFrame(spy); }, { passive: true }); spy(); }
+  document.querySelectorAll('.code pre, .table-wrap').forEach(function (el) {
+    if (el.scrollWidth > el.clientWidth + 1) { el.tabIndex = 0; el.setAttribute('role', 'region'); el.setAttribute('aria-label', el.tagName === 'PRE' ? 'Code (scrolls sideways)' : 'Table (scrolls sideways)'); }
+  });
+  if (!navigator.clipboard) return;
+  document.querySelectorAll('.code').forEach(function (box) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'code-copy'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(box.querySelector('code').innerText).then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select and copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1800);
+    });
+    box.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

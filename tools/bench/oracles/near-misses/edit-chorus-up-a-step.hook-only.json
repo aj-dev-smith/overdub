@@ -1,0 +1,34 @@
+{
+  "task": "edit-chorus-up-a-step",
+  "why": "Only the hook moves: the band stays in A minor underneath it.",
+  "ops": [
+    {
+      "type": "notes.set",
+      "track": "Hook",
+      "clip": "c_hook02",
+      "notes": [
+        { "id": "n1", "p": 78 },
+        { "id": "n2", "p": 76 },
+        { "id": "n3", "p": 74 },
+        { "id": "n4", "p": 71 },
+        { "id": "n5", "p": 69 },
+        { "id": "n6", "p": 71 },
+        { "id": "n7", "p": 74 },
+        { "id": "n8", "p": 71 },
+        { "id": "n9", "p": 74 },
+        { "id": "na", "p": 76 },
+        { "id": "nb", "p": 74 },
+        { "id": "nc", "p": 78 },
+        { "id": "nd", "p": 81 },
+        { "id": "ne", "p": 78 },
+        { "id": "nf", "p": 76 },
+        { "id": "ng", "p": 74 },
+        { "id": "nh", "p": 76 },
+        { "id": "ni", "p": 73 },
+        { "id": "nj", "p": 76 },
+        { "id": "nk", "p": 73 },
+        { "id": "nl", "p": 71 }
+      ]
+    }
+  ]
+}

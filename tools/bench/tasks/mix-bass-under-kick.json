@@ -1,0 +1,15 @@
+{
+  "id": "mix-bass-under-kick",
+  "family": "mix",
+  "title": "Bass under the kick",
+  "instruction": "In the verse, the bass is fighting the kick. Make the bass sit about 3 dB under the kick in the low end (everything below 250 Hz). Leave the kick where it is.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "gap", "label": "Bass low end minus Kick low end, verse", "kind": "measure", "metric": "band.sub+low", "unit": "dB",
+      "scope": { "tracks": ["Bass"], "from": 0, "to": 16 }, "minus": { "scope": { "tracks": ["Kick"], "from": 0, "to": 16 } },
+      "target": [-4, -2], "soft": 3, "weight": 1 },
+    { "id": "kick", "label": "Kick low end vs before", "kind": "measure", "metric": "band.sub+low", "unit": "dB", "relative": true,
+      "scope": { "tracks": ["Kick"], "from": 0, "to": 16 }, "target": [-1, 1], "soft": 2, "gate": true }
+  ]
+}

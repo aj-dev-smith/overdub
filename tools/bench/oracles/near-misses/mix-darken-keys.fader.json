@@ -1,0 +1,11 @@
+{
+  "task": "mix-darken-keys",
+  "why": "Turns the keys down 4 dB: less presence, but only because everything is quieter.",
+  "ops": [
+    {
+      "type": "track.set",
+      "track": "Keys",
+      "patch": { "gain": -7 }
+    }
+  ]
+}

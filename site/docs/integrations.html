@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bring your agent to Overdub · Overdub docs</title>
+<meta name="description" content="Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overdub Studio">
+<meta property="og:title" content="Bring your agent to Overdub · Overdub docs">
+<meta property="og:description" content="Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.">
+<meta property="og:image" content="/site/assets/og.png">
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<link rel="stylesheet" href="/site/docs/docs.css">
+</head>
+<body class="docs-page">
+<a class="skip" href="#doc">Skip to the text</a>
+<header class="top">
+  <a class="brand" href="/" aria-label="Overdub home"><img class="brand-mark" src="/site/assets/logo.svg" alt="" width="40" height="40"><img class="brand-word" src="/site/assets/wordmark.svg" alt="overdub" width="150" height="24"></a>
+  <nav class="top-nav" aria-label="Site">
+    <a class="top-more" href="/site/docs/guide.html">Guide</a>
+    <a href="/site/docs/" aria-current="page">Docs</a>
+    <a href="/site/press/">Press</a>
+    <a class="top-cta" href="/app/">Open the studio</a>
+  </nav>
+</header>
+<div class="docs-layout">
+  <aside class="docs-side">
+    <nav class="docs-nav" aria-label="Docs">
+      <p class="side-head"><a href="/site/docs/">Docs</a></p>
+      <ol>
+        <li><a href="guide.html">Guide</a></li>
+        <li><a href="agents.html">For agents</a></li>
+        <li><a href="integrations.html" aria-current="page">Connect an agent</a></li>
+        <li><a href="devices.html">Writing devices</a></li>
+        <li><a href="bench.html">OverdubBench</a></li>
+        <li><a href="remote-mcp.html">Remote MCP</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+      </ol>
+    </nav>
+    <details class="toc">
+      <summary>On this page</summary>
+      <nav aria-label="On this page"><ol>
+<li><a href="#first-live-site-or-local-server">First: live site or local server?</a></li>
+<li><a href="#claude-code">Claude Code</a><ol><li><a href="#option-a-the-plugin-recommended">Option A: the plugin (recommended)</a></li><li><a href="#option-b-just-the-mcp-server">Option B: just the MCP server</a></li></ol></li>
+<li><a href="#claude-desktop">Claude Desktop</a></li>
+<li><a href="#cursor">Cursor</a></li>
+<li><a href="#any-other-mcp-client">Any other MCP client</a></li>
+<li><a href="#settings">Settings</a></li>
+<li><a href="#when-it-doesnt-work">When it doesn't work</a></li>
+<li><a href="#safety">Safety</a></li>
+<li><a href="#for-maintainers">For maintainers</a><ol><li><a href="#not-switched-on-yet">Not switched on yet</a></li></ol></li>
+      </ol></nav>
+    </details>
+  </aside>
+  <main id="doc" class="doc">
+    <h1 id="top" class="doc-title"><a class="h-link" href="#top">Bring your agent to Overdub</a></h1>
+    <p class="doc-meta">From <code>integrations/README.md</code>, about 8 min to read</p>
+    <article class="prose">
+<p>Overdub's studio speaks MCP. One local server, <code>server/mcp.js</code>, gives any MCP client the same tools the in-app
+agent uses: read the song and the selection, edit through signed and undoable ops, offer takes as A/B cards, write
+devices that the studio checks before they play, and render-and-measure so an agent that can't hear can still
+report what changed. This folder makes that one install away for Claude Code and a short JSON block away for
+everything else.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>file</th><th>what</th></tr></thead>
+<tbody>
+<tr><td><code>claude-code/</code></td><td>the Claude Code plugin: <code>.claude-plugin/plugin.json</code> (the MCP server) and <code>skills/overdub/SKILL.md</code> (how to run a good session)</td></tr>
+<tr><td><code>.claude-plugin/marketplace.json</code> (at the repo root)</td><td>the marketplace file that makes this repo installable with <code>/plugin</code>: see <a href="#for-maintainers">For maintainers</a></td></tr>
+<tr><td><code>check.js</code></td><td><code>node integrations/check.js</code>: validates the manifests and runs every config on this page over stdio</td></tr>
+</tbody></table></div>
+<h2 id="first-live-site-or-local-server"><a class="h-link" href="#first-live-site-or-local-server">First: live site or local server?</a></h2>
+<p><strong>The bridge between an outside agent and the studio only runs on your machine.</strong></p>
+<ul>
+<li><strong><a href="https://overdub.ajsmithhq.com/app/">overdub.ajsmithhq.com/app/</a></strong> (the public studio) works with the agents that
+live inside the page: the <strong>Agent tab</strong> with your own Anthropic API key (kept in that browser, sent only to
+Anthropic), and the <strong>demo agent</strong>, a scripted session that needs no key. Claude Code, Claude Desktop and Cursor
+<strong>can't</strong> connect to a tab on the public site. The page doesn't even try: the bridge stays quiet off localhost.</li>
+<li><strong><a href="http://localhost:3279/app/" rel="noopener">localhost:3279/app/</a></strong> (the studio served by your clone) is the one outside agents
+drive. You don't have to start it: <code>server/mcp.js</code> starts the local server itself if nothing is listening, and on
+the first tool call it opens the studio in your default browser if no tab is connected. Any current browser works
+(Chrome, Edge, Safari, Firefox), as long as the tab is on localhost; keep it open while you work.</li>
+</ul>
+<p>Your songs are stored per origin in the browser, so a song on the public site and a song on <code>localhost:3279</code> are
+separate. To move a song across, save the song file (⌘S) on one and open it (⌘O) on the other. Audio recordings stay
+in the browser they were made in.</p>
+<p>Requirements for the local route: a clone of this repo and Node 22 or later. There is nothing to <code>npm install</code>; the
+server has no dependencies.</p>
+<div class="code" data-lang="sh"><pre><code>git clone https://github.com/aj-dev-smith/overdub.git ~/Code/overdub</code></pre></div>
+<h2 id="claude-code"><a class="h-link" href="#claude-code">Claude Code</a></h2>
+<h3 id="option-a-the-plugin-recommended"><a class="h-link" href="#option-a-the-plugin-recommended">Option A: the plugin (recommended)</a></h3>
+<p>The plugin bundles the MCP server and the <code>overdub</code> skill, which teaches Claude the room's rules and five recipes:
+write a part, offer takes, build a device, check the mix, and turn a hum into a part.</p>
+<p>From GitHub, inside Claude Code:</p>
+<div class="code" data-lang="text"><pre><code>/plugin marketplace add aj-dev-smith/overdub
+/plugin install overdub@overdub</code></pre></div>
+<p>Or from your shell: <code>claude plugin marketplace add aj-dev-smith/overdub</code> then <code>claude plugin install overdub@overdub</code>.
+Claude Code copies the repo into its plugin cache and runs the server from there, so you don't need a separate clone.</p>
+<p>From a clone you're working on, so your edits apply on the next session or <code>/reload-plugins</code>:</p>
+<div class="code" data-lang="sh"><pre><code>claude plugin marketplace add ~/Code/overdub          <span class="c"># loads the plugin in place from the clone</span>
+claude plugin install overdub@overdub</code></pre></div>
+<p>For one session only, without installing anything:</p>
+<div class="code" data-lang="sh"><pre><code>claude --plugin-dir ~/Code/overdub/integrations/claude-code</code></pre></div>
+<p>Then just ask: <em>&quot;Look at my Overdub song and give me two takes on the bassline.&quot;</em> The skill loads on its own when the
+request is about Overdub. You can also invoke it as <code>/overdub:overdub</code>. The tools appear as
+<code>mcp__plugin_overdub_overdub__*</code>.</p>
+<h3 id="option-b-just-the-mcp-server"><a class="h-link" href="#option-b-just-the-mcp-server">Option B: just the MCP server</a></h3>
+<div class="code" data-lang="sh"><pre><code>claude mcp add overdub --scope user -- node ~/Code/overdub/server/mcp.js</code></pre></div>
+<p><code>--scope user</code> makes it available in every project. Leave the scope out to add it to the current project only. The
+tools appear as <code>mcp__overdub__*</code>. With this route you get the tools and the server's built-in instructions, but not
+the skill. To add the skill on its own, copy <code>integrations/claude-code/skills/overdub/</code> into <code>~/.claude/skills/</code>.</p>
+<p>With settings, as JSON:</p>
+<div class="code" data-lang="sh"><pre><code>claude mcp add-json overdub '{&quot;type&quot;:&quot;stdio&quot;,&quot;command&quot;:&quot;node&quot;,&quot;args&quot;:[&quot;/path/to/overdub/server/mcp.js&quot;],&quot;env&quot;:{&quot;OVERDUB_PORT&quot;:&quot;3279&quot;}}' --scope user</code></pre></div>
+<p>Use one route or the other. With both, Claude sees every tool twice (<code>mcp__overdub__*</code> and
+<code>mcp__plugin_overdub_overdub__*</code>). It still works, but it's noise.</p>
+<h2 id="claude-desktop"><a class="h-link" href="#claude-desktop">Claude Desktop</a></h2>
+<p>Settings → Developer → Edit Config, which opens <code>claude_desktop_config.json</code>
+(<code>~/Library/Application Support/Claude/</code> on macOS, <code>%APPDATA%\Claude\</code> on Windows). Add:</p>
+<div class="code" data-lang="json"><pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;overdub&quot;: {
+      &quot;command&quot;: &quot;node&quot;,
+      &quot;args&quot;: [&quot;/path/to/overdub/server/mcp.js&quot;]
+    }
+  }
+}</code></pre></div>
+<p>Restart Claude Desktop. Two things catch people out:</p>
+<ul>
+<li><strong>Use absolute paths, including for <code>node</code>.</strong> Desktop apps don't read your shell profile, so a <code>node</code> installed
+through nvm, mise, fnm or asdf usually isn't on their <code>PATH</code>. If the server doesn't show up, put the output of
+<code>which node</code> in <code>command</code> (for example <code>/Users/you/.local/share/mise/installs/node/lts/bin/node</code>).</li>
+<li>Claude Desktop doesn't load the skill. It gets the server's built-in instructions (read the etiquette guide, act on
+the selection, measure before and after) from the MCP handshake, and the tools themselves explain the rest.</li>
+</ul>
+<h2 id="cursor"><a class="h-link" href="#cursor">Cursor</a></h2>
+<p>Add the server to <code>~/.cursor/mcp.json</code> (all projects) or <code>.cursor/mcp.json</code> (one project):</p>
+<div class="code" data-lang="json"><pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;overdub&quot;: {
+      &quot;command&quot;: &quot;node&quot;,
+      &quot;args&quot;: [&quot;/path/to/overdub/server/mcp.js&quot;]
+    }
+  }
+}</code></pre></div>
+<p>The same absolute-<code>node</code> caveat applies. The studio shows the agent as &quot;Cursor&quot;.</p>
+<h2 id="any-other-mcp-client"><a class="h-link" href="#any-other-mcp-client">Any other MCP client</a></h2>
+<p>Overdub is a plain <strong>stdio</strong> server: JSON-RPC 2.0, one message per line, nothing but protocol on stdout (logs go to
+stderr). It speaks protocol versions <code>2025-06-18</code>, <code>2025-03-26</code> and <code>2024-11-05</code>, and offers tools only (no resources
+or prompts). Most clients take the same <code>mcpServers</code> block as Cursor. VS Code's <code>.vscode/mcp.json</code> uses <code>servers</code>
+and a <code>type</code>:</p>
+<div class="code" data-lang="json"><pre><code>{
+  &quot;servers&quot;: {
+    &quot;overdub&quot;: {
+      &quot;type&quot;: &quot;stdio&quot;,
+      &quot;command&quot;: &quot;node&quot;,
+      &quot;args&quot;: [&quot;/path/to/overdub/server/mcp.js&quot;]
+    }
+  }
+}</code></pre></div>
+<p>Codex CLI, in <code>~/.codex/config.toml</code>:</p>
+<div class="code" data-lang="toml"><pre><code>[mcp_servers.overdub]
+command = &quot;node&quot;
+args = [&quot;/path/to/overdub/server/mcp.js&quot;]</code></pre></div>
+<p>The studio names the agent from the client's <code>clientInfo.name</code>. Its edits are signed <code>mcp:&lt;name&gt;</code> and shown in the
+cool agent colour.</p>
+<p>Two tools wait for the human. <code>propose_variations</code> waits up to 90 s for a pick, and <code>ask_human</code> up to 120 s for an
+answer. If your client times tool calls out sooner, pass a smaller <code>wait_seconds</code>, then poll
+<code>get_variation_result</code> with the returned <code>id</code>.</p>
+<p>What this page has actually exercised: Claude Code (the plugin from a local marketplace, from a git-hosted marketplace
+and with <code>--plugin-dir</code>; <code>claude mcp add</code>; <code>claude mcp add-json</code>) reported the server ✔ Connected, and a session listed
+the skill and the studio's tools. <code>check.js</code> runs every JSON config above over stdio. It hasn't been tried inside Claude
+Desktop, Cursor, VS Code or Codex themselves, so their file locations and keys come from those clients' docs.</p>
+<h2 id="settings"><a class="h-link" href="#settings">Settings</a></h2>
+<p>Set these in the client's <code>env</code> block, or with <code>-e</code> on <code>claude mcp add</code>.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>variable</th><th>default</th><th>what</th></tr></thead>
+<tbody>
+<tr><td><code>OVERDUB_PORT</code></td><td><code>3279</code></td><td>the local server's port. The studio URL follows it: <code>http://localhost:&lt;port&gt;/app/</code></td></tr>
+<tr><td><code>OVERDUB_URL</code></td><td><code>http://localhost:3279</code></td><td>a full base URL instead. A non-local URL is never started for you</td></tr>
+<tr><td><code>OVERDUB_OPEN_WAIT</code></td><td><code>20</code></td><td>seconds to wait for a studio tab after opening the browser</td></tr>
+<tr><td><code>OVERDUB_NO_OPEN</code></td><td>unset</td><td><code>1</code> stops it opening a browser (tests use this)</td></tr>
+</tbody></table></div>
+<p>If you already run <code>node server/serve.js</code> yourself, the MCP server uses that server instead of starting its own.</p>
+<h2 id="when-it-doesnt-work"><a class="h-link" href="#when-it-doesnt-work">When it doesn't work</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>you see</th><th>do this</th></tr></thead>
+<tbody>
+<tr><td><code>No Overdub studio tab is connected.</code></td><td>Open <code>http://localhost:3279/app/</code> (or the URL in the message) in your browser and keep it open, then ask again. A tab on overdub.ajsmithhq.com doesn't count.</td></tr>
+<tr><td>The server isn't listed, or shows ✘ Failed</td><td>Run <code>node /path/to/overdub/server/mcp.js</code> in a terminal. It should sit silently waiting for input (Ctrl-C to quit). If <code>node</code> isn't found or is older than 22, fix the <code>command</code> path.</td></tr>
+<tr><td><code>Overdub is not running at …</code></td><td><code>OVERDUB_URL</code> points somewhere the MCP server can't start a server. Unset it, or start the server there yourself.</td></tr>
+<tr><td>Port 3279 is taken by something else</td><td>Set <code>OVERDUB_PORT</code> (say <code>3280</code>) and open the studio on that port.</td></tr>
+<tr><td>Tools show up twice</td><td>You have both the plugin and <code>claude mcp add overdub</code>. Remove one.</td></tr>
+<tr><td>The plugin doesn't update</td><td>Without a <code>version</code> field, the plugin tracks the repo's commits. Run <code>/plugin marketplace update overdub</code>, then <code>/reload-plugins</code>.</td></tr>
+</tbody></table></div>
+<h2 id="safety"><a class="h-link" href="#safety">Safety</a></h2>
+<ul>
+<li>The bridge listens on <code>127.0.0.1</code> only, and refuses requests that carry another site's browser <code>Origin</code>, so a web
+page can't drive your studio.</li>
+<li>The plugin runs exactly one process, <code>node &lt;repo&gt;/server/mcp.js</code>, which is the code in this repo. It has no
+dependencies and nothing is installed.</li>
+<li>Agent edits are ops in the song's undo history, signed and coloured. The History tab can revert everything an agent
+did while keeping your edits in between.</li>
+<li>The skill pre-approves only the tools that read, measure, point or talk (<code>get_*</code>, <code>list_devices</code>,
+<code>render_and_measure</code>, <code>highlight</code>, <code>say</code>), and only while the skill is running. Tools that change the song still
+ask, unless you allow them.</li>
+</ul>
+<h2 id="for-maintainers"><a class="h-link" href="#for-maintainers">For maintainers</a></h2>
+<p><strong>The marketplace file lives at the repo root</strong>, <code>&lt;repo&gt;/.claude-plugin/marketplace.json</code>, because that is the only
+place Claude Code looks for one (<code>/plugin marketplace add aj-dev-smith/overdub</code>). It was staged under
+<code>integrations/repo-root/</code> at first and has since moved; <code>check.js</code> still finds it in either place.</p>
+<p>Why the plugin's source is the repo root and not <code>integrations/claude-code</code>: an installed plugin is copied into
+Claude Code's cache, and only the plugin's own directory is copied. A plugin rooted at <code>integrations/claude-code</code>
+couldn't reach <code>server/mcp.js</code> (or the studio it serves) after install. So the marketplace entry points at <code>./</code>. It
+names the skill folder (<code>./integrations/claude-code/skills/</code>) and runs <code>${CLAUDE_PLUGIN_ROOT}/server/mcp.js</code>. The
+tracked repo is about 33 MB (most of it the film, its social cuts and the deck's PDF), so the copy is cheap enough. Keep a <code>plugin.json</code> out of the repo root: if one existed there it
+would become the manifest, and the entry's <code>mcpServers</code> would be ignored.</p>
+<p><code>integrations/claude-code/.claude-plugin/plugin.json</code> is for <code>--plugin-dir</code> and other in-place loads from a clone.
+Its server path is <code>${CLAUDE_PLUGIN_ROOT}/../../server/mcp.js</code>, which only resolves when the plugin isn't copied.</p>
+<p>Neither manifest sets <code>version</code>, so installs track commits. Add <code>&quot;version&quot;</code> to the marketplace entry when you want
+users to stay on a release until you bump it.</p>
+<p>Before shipping a change here:</p>
+<div class="code" data-lang="sh"><pre><code>node integrations/check.js                                         <span class="c"># manifests, skill, every config above over stdio</span>
+claude plugin validate .                                           <span class="c"># the marketplace</span>
+claude plugin validate integrations/claude-code                    <span class="c"># the --plugin-dir plugin</span></code></pre></div>
+<p><code>claude plugin validate integrations/claude-code</code> warns that <code>version</code> is unset. That's on purpose.</p>
+<h3 id="not-switched-on-yet"><a class="h-link" href="#not-switched-on-yet">Not switched on yet</a></h3>
+<p>Our landscape research noted that a browser-hosted MCP that works
+from claude.ai would be an advantage no local-socket desktop bridge can match. The local bridge stays local by design.
+A hosted relay for claude.ai is written and tested (<code>server/relay.js</code>, <code>tools/relay-test.js</code>; the design, limits and
+hosting are in <a href="remote-mcp.html">REMOTE-MCP.md</a>), but it isn't deployed, so the studio's Connect tab stays
+hidden on the public site. Until it is, claude.ai can't drive a studio.</p>
+    </article>
+    <nav class="pager" aria-label="Next and previous">
+      <a class="pager-prev" href="agents.html"><small>Previous</small>For agents</a>
+      <a class="pager-next" href="devices.html"><small>Next</small>Writing devices</a>
+    </nav>
+  </main>
+</div>
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <img src="/site/assets/wordmark.svg" alt="overdub" width="120" height="19">
+    <p>An early prototype by AJ Smith.</p>
+    <p class="foot-links"><a href="/">Home</a> <a href="/site/docs/">Docs</a> <a href="/site/press/">Press</a> <a href="/llms.txt">llms.txt</a></p>
+  </div>
+</footer>
+<script>
+(function () {
+  var toc = document.querySelector('.toc');
+  if (toc && window.matchMedia('(min-width: 961px)').matches) toc.open = true;
+  // mark the section you're reading in "On this page"
+  var links = {}, hs = [];
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (a) { links[a.hash.slice(1)] = a; });
+  document.querySelectorAll('.prose h2[id], .prose h3[id]').forEach(function (h) { if (links[h.id]) hs.push(h); });
+  var here = null;
+  function spy() {
+    var cur = null;
+    for (var i = 0; i < hs.length && hs[i].getBoundingClientRect().top < 120; i++) cur = hs[i];
+    var a = cur && links[cur.id];
+    if (a !== here) { if (here) here.classList.remove('is-here'); if (a) a.classList.add('is-here'); here = a; }
+  }
+  if (hs.length) { addEventListener('scroll', function () { requestAnimationFrame(spy); }, { passive: true }); spy(); }
+  document.querySelectorAll('.code pre, .table-wrap').forEach(function (el) {
+    if (el.scrollWidth > el.clientWidth + 1) { el.tabIndex = 0; el.setAttribute('role', 'region'); el.setAttribute('aria-label', el.tagName === 'PRE' ? 'Code (scrolls sideways)' : 'Table (scrolls sideways)'); }
+  });
+  if (!navigator.clipboard) return;
+  document.querySelectorAll('.code').forEach(function (box) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'code-copy'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(box.querySelector('code').innerText).then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select and copy'; });
+      setTimeout(function () { b.textContent = 'Copy'; }, 1800);
+    });
+    box.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

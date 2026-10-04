@@ -1,0 +1,18 @@
+{
+  "id": "write-harmonize-hook",
+  "family": "writing",
+  "title": "Pad under the hook",
+  "instruction": "Add a pad on a new track under the chorus (bars 5-8): one held chord per bar, at least three different notes each, in key, and each chord containing the note the hook plays on that bar's downbeat. Leave the hook alone.",
+  "song": "songs/night-shift.json",
+  "setup": [],
+  "checks": [
+    { "id": "chords", "label": "Chorus bars with a held, in-key chord of 3+ notes containing the hook's downbeat note", "kind": "chordsUnder",
+      "sel": { "tracks": "new" }, "melody": { "tracks": ["Hook"] }, "bars": [4, 8], "voices": 3, "hold": 2, "target": [1, 1], "soft": 0.75, "weight": 3 },
+    { "id": "key", "label": "Share of pad notes in A minor", "kind": "inKey",
+      "sel": { "tracks": "new" }, "target": [0.95, 1], "soft": 0.4, "weight": 1 },
+    { "id": "heard", "label": "New tracks' loudness in the chorus", "kind": "measure", "metric": "lufs", "unit": "LUFS",
+      "scope": { "tracks": "new", "section": "Chorus" }, "target": [-32, null], "soft": 10, "weight": 1 },
+    { "id": "hook", "label": "Hook notes as they were", "kind": "unchanged",
+      "sel": { "tracks": ["Hook"] }, "target": [1, 1], "soft": 0.5, "gate": true }
+  ]
+}

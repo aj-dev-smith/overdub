@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-uGeow0EboMPbeSTJUkoLI5AqigEELrQf0hCR0tiF4n4='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<!-- The studio's policy (index.html says why each part is there) less what this page doesn't use (sound, the API, a
+     relay), and its one inline script allowed by its hash. The page shares the studio's origin, and so its localStorage
+     and the API key in it. Editing the script below changes its hash: tools/compat-test.js checks it and prints the new
+     one. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device faces, Overdub</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style/tokens.css">
+<style>
+  /* The gallery: every registered device's face, by category, at full and compact size. The QA page for faces and a
+     screenshot source for the landing page. ?q=fuzz  ?cat=amp  ?size=compact|both  ?only=pedal.quack,amp.punk  ?bare=1 */
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 400 14px/1.45 var(--font-ui); -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  .g-top { position: sticky; top: 0; z-index: 20; display: grid; gap: 10px; padding: 14px 20px 12px; background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .g-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .g-brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+  .g-brand img { height: 22px; width: auto; }
+  .g-brand h1 { margin: 0; font: italic 800 20px/1 var(--font-display); font-variation-settings: var(--font-display-vars); letter-spacing: -0.01em; color: var(--text); }
+  .g-n { color: var(--text-3); font: 400 12px var(--font-mono); }
+  .g-q { flex: 1 1 260px; max-width: 420px; height: 36px; padding: 0 12px; border: var(--rule-2); border-radius: var(--r-press); background: transparent; color: var(--text); font: inherit; }
+  .g-q:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* filters are underlined words (the one showing is cream, underlined); no pills */
+  .g-seg { display: inline-flex; gap: 14px; }
+  .g-seg button, .g-cat { min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: 600 12.5px var(--font-ui); cursor: pointer; white-space: nowrap; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+  .g-seg button:hover, .g-cat:hover { color: var(--text); }
+  .g-seg button[aria-pressed="true"], .g-cat[aria-pressed="true"] { color: var(--text); text-decoration: underline; }
+  .g-cats { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .g-cat { flex: 0 0 auto; }
+  .g-cat i { font-style: normal; font-family: var(--font-mono); font-weight: 400; color: var(--text-3); margin-left: 4px; }
+  main { padding: 8px 20px 60px; }
+  .g-sec { padding-top: 22px; }
+  .g-sec[hidden], .g-card[hidden] { display: none; }
+  /* one heavy head a screen (the page's own); a category is a plain head over a hairline */
+  .g-sec h2 { margin: 0 0 4px; padding-top: 10px; border-top: var(--rule-2); font: 600 15px/1.2 var(--font-ui); color: var(--text); display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .g-sec h2 small { font: 400 12px var(--font-mono); color: var(--text-3); }
+  .g-grid { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 30px 26px; padding: 18px 0 22px; }
+  .g-sec[data-cat="amp"] .g-grid { align-items: flex-start; }
+  .g-card { display: grid; justify-items: center; gap: 8px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; } /* (a 380 px rack face on a 390 px phone scrolls inside its card, not the page) */
+  .g-faces > * { max-width: 100%; min-width: 0; }
+  .g-sec[data-cat="amp"] .g-card { flex: 1 1 520px; max-width: 720px; justify-items: stretch; }
+  .g-faces { display: flex; align-items: flex-end; gap: 14px; max-width: 100%; min-width: 0; }
+  .g-sec[data-cat="amp"] .g-faces { display: grid; gap: 14px; justify-items: center; }
+  .g-cap { max-width: 210px; text-align: center; display: grid; gap: 1px; }
+  .g-sec[data-cat="amp"] .g-cap { max-width: none; text-align: left; }
+  .g-cap b { font: 600 13px var(--font-ui); color: var(--text); }
+  .g-cap code { font: 400 10.5px var(--font-mono); color: var(--text-3); }
+  .g-cap span { font-size: 12px; color: var(--text-2); }
+  .g-cap .g-val { font: 400 11px var(--font-mono); color: var(--accent-2); min-height: 15px; }
+  .g-none { color: var(--text-2); padding: 30px 0; }
+  .g-none[hidden] { display: none; }
+  /* rigs as a ledger: the bank's colour is its 8 px square, the way a track's colour is in the arranger */
+  .g-rigs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); column-gap: 28px; border-top: var(--rule-2); }
+  .g-rig { padding: 10px 0 12px; border-bottom: var(--rule); display: grid; gap: 4px; }
+  .g-rig b::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--bc); vertical-align: 1px; }
+  .g-rig b { font: 600 13px var(--font-ui); } .g-rig small { color: var(--text-3); font: 400 10.5px var(--font-mono); }
+  .g-rig span { color: var(--text-2); font-size: 12px; }
+  .g-chain { display: flex; flex-wrap: wrap; gap: 3px; }
+  .g-chain i { width: 14px; height: 10px; background: var(--c); opacity: 0.35; }
+  .g-chain i.on { opacity: 1; } .g-chain i.amp { width: 26px; background: linear-gradient(#3d3843, #25212a); opacity: 1; }
+  body.bare .g-top, body.bare .g-cap, body.bare .g-sec h2 { display: none; }
+  body.bare main { padding: 0; } body.bare .g-grid { border: 0; border-radius: 0; }
+  @media (max-width: 560px) {
+    .g-top { padding: 10px 12px; } main { padding: 4px 10px 40px; }
+    .g-grid { padding: 14px 8px; gap: 20px 10px; justify-content: center; }
+    .g-faces { flex-direction: column; align-items: center; }
+    .g-sec[data-cat="amp"] .g-card { flex-basis: 100%; }
+    .g-brand h1 { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<header class="g-top">
+  <div class="g-row">
+    <div class="g-brand"><img src="assets/wordmark.svg" alt="overdub"><h1>Device faces</h1><span class="g-n" id="count"></span></div>
+    <input class="g-q" id="q" type="search" placeholder="Search devices: fuzz, tape, chorus, plexi…" aria-label="Search devices">
+    <div class="g-seg" role="group" aria-label="Size" id="size">
+      <button type="button" data-size="full">Full</button><button type="button" data-size="compact">Compact</button><button type="button" data-size="both">Both</button>
+    </div>
+  </div>
+  <nav class="g-cats" id="cats" aria-label="Categories"></nav>
+</header>
+<main id="main"><p class="g-none" id="none" hidden>Nothing matches that.</p></main>
+<script type="module">
+  import { listDevices, DEVICE_CATS, getDevice } from './src/devices/registry.js';
+  import { renderFace } from './src/ui/faces.js';
+  // everything there is: the Guitar Studio's pedals and amps, and Overdub's own devices if they're in
+  const G = await import('./src/devices/guitar/index.js');
+  try { await import('./src/devices/builtin/index.js'); } catch (e) {
+    for (const f of ['poly', 'keys', 'bass', 'pluck']) { try { await import(`./src/devices/builtin/${f}.js`); } catch (e2) { /* not there yet */ } }
+  }
+  const P = new URLSearchParams(location.search);
+  if (P.get('bare')) document.body.classList.add('bare');
+  const only = P.get('only') ? P.get('only').split(',') : null;
+  // agent-written examples (not registered: just their faces), to show the byline and the looks a hash picks
+  const EXAMPLES = [
+    { id: 'claude.tidal-verb', name: 'Tidal Verb', kind: 'effect', cat: 'ambient', by: 'claude', blurb: 'A reverb that breathes with the tide', kindLabel: 'REVERB · SWELL',
+      params: [{ key: 'size', label: 'SIZE', min: 0, max: 10, def: 6 }, { key: 'tide', label: 'TIDE', min: 0.05, max: 2, def: 0.25, curve: 'log', unit: 'Hz' }, { key: 'mix', label: 'MIX', min: 0, max: 100, def: 35, unit: '%' }] },
+    { id: 'mcp:cursor.gloop', name: 'Gloop', kind: 'effect', cat: 'filter', by: 'mcp:cursor', params: [{ key: 'cutoff', label: 'CUTOFF', min: 40, max: 18000, def: 900, curve: 'log', unit: 'Hz' }, { key: 'q', label: 'RES', min: 0.5, max: 20, def: 4 }] },
+    { id: 'claude.eight-knob', name: 'Octopus Desk', kind: 'effect', cat: 'eq', by: 'claude', blurb: 'Eight knobs: it goes to a rack',
+      params: ['low', 'lomid', 'mid', 'himid', 'high', 'air', 'drive', 'out'].map((k, i) => ({ key: k, label: k.toUpperCase(), min: -12, max: 12, def: 0, unit: 'dB' })) },
+    { id: 'you.honk', name: 'Honk', kind: 'effect', cat: 'mod', by: 'you', look: { shape: 'round', finish: 'sparkle' }, params: [{ key: 'rate', label: 'RATE', min: 0.1, max: 12, def: 3, unit: 'Hz', curve: 'log' }, { key: 'depth', label: 'DEPTH', min: 0, max: 10, def: 5 }, { key: 'wave', label: 'WAVE', opts: ['SIN', 'TRI', 'SQR'], def: 0 }] },
+    { id: 'claude.sea-synth', name: 'Sea Synth', kind: 'instrument', cat: 'synth', by: 'claude', blurb: 'A soft saw pad with a tide in its filter',
+      params: [{ key: 'wave', label: 'WAVE', opts: ['SAW', 'SQR', 'TRI', 'SINE'], def: 0 }, { key: 'cutoff', label: 'CUTOFF', min: 60, max: 16000, def: 2400, curve: 'log', unit: 'Hz' }, { key: 'res', label: 'RES', min: 0, max: 1, def: 0.2 },
+        { key: 'attack', label: 'ATTACK', min: 1, max: 4000, def: 20, curve: 'log', unit: 'ms' }, { key: 'release', label: 'RELEASE', min: 5, max: 8000, def: 600, curve: 'log', unit: 'ms' }, { key: 'detune', label: 'DETUNE', min: 0, max: 50, def: 12 }] },
+    { id: 'claude.brine-amp', name: 'Brine 50', kind: 'effect', cat: 'amp', by: 'claude', blurb: 'An agent-built amp: borrows a look by its style', style: 'british',
+      params: [{ key: 'gain', label: 'GAIN', min: 0, max: 10, def: 5 }, { key: 'tone', label: 'TONE', min: 0, max: 10, def: 5 }, { key: 'level', label: 'VOLUME', min: 0, max: 10, def: 6 }, { key: 'boost', label: 'BOOST', opts: ['OFF', 'ON'], def: 0 }] },
+  ];
+  const all = listDevices().concat(EXAMPLES.map((d) => Object.assign({ example: true }, d))).filter((d) => !only || only.includes(d.id));
+  const CAT_NAME = Object.fromEntries(DEVICE_CATS);
+  const order = DEVICE_CATS.map((c) => c[0]);
+  const cats = [...new Set(all.map((d) => d.cat || 'other'))].sort((a, b) => (order.indexOf(a) + 99 * (order.indexOf(a) < 0)) - (order.indexOf(b) + 99 * (order.indexOf(b) < 0)));
+  const main = document.getElementById('main'), none = document.getElementById('none');
+  let size = ['full', 'compact', 'both'].includes(P.get('size')) ? P.get('size') : 'full', cat = P.get('cat') || 'all';
+  const cards = [];
+  const sections = {};
+  for (const c of cats) {
+    const s = document.createElement('section');
+    s.className = 'g-sec'; s.dataset.cat = c;
+    s.innerHTML = `<h2>${CAT_NAME[c] || c} <small></small></h2><div class="g-grid"></div>`;
+    main.appendChild(s); sections[c] = s;
+  }
+  window.__faces = [];
+  function card(d) {
+    const el = document.createElement('div');
+    el.className = 'g-card';
+    el.dataset.id = d.id;
+    el.dataset.text = (d.id + ' ' + d.name + ' ' + (d.blurb || '') + ' ' + (d.nod || '') + ' ' + (d.kindLabel || '') + ' ' + (d.cat || '') + ' ' + (d.by || '')).toLowerCase();
+    const faces = document.createElement('div'); faces.className = 'g-faces';
+    const cap = document.createElement('div'); cap.className = 'g-cap';
+    cap.innerHTML = `<b></b><code></code><span></span><output class="g-val"></output>`;
+    cap.children[0].textContent = d.name; cap.children[1].textContent = d.id + (d.example ? '  (example)' : ''); cap.children[2].textContent = d.blurb || '';
+    el.append(faces, cap);
+    const vals = {}; let on = true; const made = [];
+    const say = (t) => { cap.children[3].textContent = t; };
+    const draw = () => {
+      for (const f of made) f.destroy();
+      made.length = 0;
+      for (const sz of size === 'both' ? ['full', 'compact'] : [size]) {
+        const f = renderFace(d, vals, { on, size: sz,
+          onParam: (k, v, { commit }) => { vals[k] = v; for (const g of made) if (g !== f) g.update(vals); const p = d.params.find((q) => q.key === k); say(`${k} = ${+v.toFixed(4)}${commit ? '' : ' …'}`); },
+          onToggle: (x) => { on = x; for (const g of made) g.update(vals, on); say(on ? 'on' : 'off'); } });
+        made.push(f); faces.appendChild(f.el); window.__faces.push(f);
+      }
+    };
+    el.redraw = draw;
+    draw();
+    return el;
+  }
+  for (const d of all) { const el = card(d); sections[d.cat || 'other'].querySelector('.g-grid').appendChild(el); cards.push(el); }
+  // categories
+  const catNav = document.getElementById('cats');
+  const btn = (id, label, n) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'g-cat'; b.dataset.cat = id; b.innerHTML = `${label}<i>${n}</i>`; b.addEventListener('click', () => { cat = id; filter(); }); catNav.appendChild(b); };
+  btn('all', 'All', all.length);
+  for (const c of cats) btn(c, CAT_NAME[c] || c, all.filter((d) => (d.cat || 'other') === c).length);
+  const rigsSec = document.createElement('section');
+  rigsSec.className = 'g-sec'; rigsSec.dataset.cat = 'rigs';
+  rigsSec.innerHTML = `<h2>Rigs <small>${G.RIGS.length} from ${G.RIG_BANKS.length} banks</small></h2><div class="g-rigs"></div>`;
+  for (const r of G.RIGS) {
+    const x = document.createElement('div'); x.className = 'g-rig'; x.style.setProperty('--bc', r.bank.color);
+    x.dataset.text = (r.id + ' ' + r.name + ' ' + r.blurb + ' ' + r.bank.name + ' ' + r.tags.join(' ') + ' ' + r.chain.map((s) => s.device).join(' ')).toLowerCase();
+    x.innerHTML = `<b></b><small></small><span></span><div class="g-chain"></div>`;
+    x.children[0].textContent = r.name; x.children[1].textContent = `${r.id}, ${r.bank.name}`; x.children[2].textContent = r.blurb;
+    for (const s of r.chain) { const i = document.createElement('i'); const dd = getDevice(s.device); if (s.device.startsWith('amp.')) i.className = 'amp'; else { i.className = s.on ? 'on' : ''; i.style.setProperty('--c', (dd && dd.look && dd.look.color) || '#888'); } i.title = (dd ? dd.name : s.device) + (s.on ? '' : ' (off)'); x.children[3].appendChild(i); }
+    rigsSec.querySelector('.g-rigs').appendChild(x);
+  }
+  if (!only) { main.appendChild(rigsSec); btn('rigs', 'Rigs', G.RIGS.length); }
+  const q = document.getElementById('q');
+  q.value = P.get('q') || '';
+  function filter() {
+    const s = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const el of cards) { const hit = !s || s.split(/\s+/).every((w) => el.dataset.text.includes(w)); el.hidden = !hit; }
+    for (const [c, sec] of Object.entries(sections)) {
+      const n = [...sec.querySelectorAll('.g-card')].filter((e) => !e.hidden).length;
+      sec.hidden = !n || (cat !== 'all' && cat !== c);
+      sec.querySelector('h2 small').textContent = n;
+      if (!sec.hidden) shown += n;
+    }
+    for (const r of rigsSec.querySelectorAll('.g-rig')) r.hidden = !!s && !s.split(/\s+/).every((w) => r.dataset.text.includes(w));
+    rigsSec.hidden = (cat !== 'all' && cat !== 'rigs') || ![...rigsSec.querySelectorAll('.g-rig')].some((r) => !r.hidden);
+    none.hidden = shown > 0 || !rigsSec.hidden;
+    for (const b of catNav.children) b.setAttribute('aria-pressed', b.dataset.cat === cat);
+    document.getElementById('count').textContent = `${G.PEDALS.length} pedals, ${G.AMPS.length} amps, ${all.length} devices`;
+  }
+  q.addEventListener('input', filter);
+  const seg = document.getElementById('size');
+  const setSize = (s) => { size = s; for (const b of seg.children) b.setAttribute('aria-pressed', b.dataset.size === s); for (const el of cards) el.redraw(); };
+  seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSize(b.dataset.size); });
+  for (const b of seg.children) b.setAttribute('aria-pressed', b.dataset.size === size);
+  filter();
+  window.__gallery = { ready: true, devices: all.length, cards: cards.length };
+</script>
+</body>
+</html>

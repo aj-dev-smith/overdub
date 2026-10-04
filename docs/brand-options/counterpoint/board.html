@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>Counterpoint brand board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=block" rel="stylesheet">
+<style>
+  /* Counterpoint: proposed values for the same token names (app/style/tokens.css). Warm = a person, cool = an agent. */
+  :root {
+    --bg: #121116;        /* ebony: the room */
+    --bg-2: #18171e;
+    --bg-3: #221f2b;
+    --panel: #1a1921;
+    --line: #2b2836;
+    --line-2: #3e3a4d;
+    --text: #f4eee2;      /* ivory: manuscript paper */
+    --text-2: #c4bdd0;
+    --text-3: #918aa3;
+    --accent: #b59cff;    /* unison: the note you share. Primary action, playhead, selection */
+    --accent-2: #e8cc7e;  /* brass: the loop, what the agent points at */
+    --human: #ffae57;     /* WARM: rosin. A person did this */
+    --agent: #7cc9ff;     /* COOL: glass. An agent did this */
+    --c-1: #f2939d; --c-2: #dcc06c; --c-3: #a8cf86; --c-4: #63cfae;
+    --c-5: #86a8f0; --c-6: #d08fd6; --c-7: #d9c9a8; --c-8: #a9b8c9;
+    --font-display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
+    --font-ui: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1350px; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-ui); position: relative; }
+  .disp { font-family: var(--font-display); font-optical-sizing: auto; }
+  .lbl { font: 600 19px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+
+  /* paper grain + a lamp on either side: warm desk lamp left, cool screen glow right */
+  body::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(700px 520px at -8% 18%, rgba(255,174,87,.10), transparent 70%),
+                radial-gradient(700px 520px at 108% 30%, rgba(124,201,255,.09), transparent 70%); }
+
+  header { position: absolute; left: 56px; right: 56px; top: 44px; display: flex; justify-content: space-between; align-items: baseline; }
+  header .lbl b { color: var(--text-2); font-weight: 600; }
+
+  /* hero lockup */
+  .hero { position: absolute; left: 40px; top: 92px; width: 1000px; height: 420px; }
+  .hero .mark { position: absolute; left: 0; top: 0; width: 400px; height: 400px; }
+  .hero .word { position: absolute; left: 380px; top: 88px; width: 610px; }
+  .hero .tag { position: absolute; left: 382px; top: 210px; font-size: 62px; white-space: nowrap; font-style: italic; font-weight: 500; line-height: 1; letter-spacing: -.01em; }
+  .hero .tag .w { color: var(--human); } .hero .tag .c { color: var(--agent); }
+  .hero .sub { position: absolute; left: 386px; top: 302px; width: 610px; font-size: 26px; line-height: 1.38; color: var(--text-2); }
+
+  /* the score: two voices on one staff */
+  .score { position: absolute; left: 0; top: 500px; width: 1080px; height: 220px; }
+
+  /* studio top bar */
+  .bar { position: absolute; left: 40px; right: 40px; top: 726px; height: 78px; border-radius: 16px; background: var(--bg-2);
+    border: 1px solid var(--line); display: flex; align-items: center; gap: 14px; padding: 0 14px 0 18px; box-shadow: 0 14px 40px rgba(0,0,0,.4); }
+  .bar .lock { display: flex; align-items: center; gap: 4px; }
+  .bar .lock img.m { width: 46px; height: 46px; margin: 0 -2px 0 -8px; }
+  .bar .lock img.w { height: 27px; margin-top: 3px; }
+  .bar .sep { width: 1px; height: 38px; background: var(--line-2); }
+  .bar .song { font-size: 27px; font-style: italic; font-weight: 500; white-space: nowrap; }
+  .bar .tp { display: flex; gap: 6px; }
+  .bar .tp i { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--bg-3); }
+  .bar .tp i.on { background: var(--accent); }
+  .bar .ctr { font: 600 22px/1 var(--font-mono); padding: 9px 12px; border: 1px solid var(--line-2); border-radius: 10px; }
+  .bar .meta { font: 600 22px/1 var(--font-mono); color: var(--text-2); white-space: nowrap; }
+  .bar .meta small { font-size: 15px; color: var(--text-3); }
+  .bar .who { margin-left: auto; display: flex; gap: 8px; }
+  .chip { font: 600 19px/1 var(--font-ui); padding: 9px 13px 9px 11px; border-radius: 999px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .chip.you { background: rgba(255,174,87,.14); color: var(--human); }
+  .chip.ag { background: rgba(124,201,255,.14); color: var(--agent); }
+  .chip .dot { width: 11px; height: 11px; border-radius: 50%; background: currentColor; }
+  .chip.ag .dot { background: none; border: 2.5px solid currentColor; }
+
+  /* lower grid */
+  .site { position: absolute; left: 40px; top: 832px; width: 516px; height: 300px; border-radius: 18px; overflow: hidden;
+    background: #f4eee2; color: #1d1a24; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  .site .chrome { height: 30px; background: #e9e1d2; display: flex; align-items: center; gap: 7px; padding: 0 14px; }
+  .site .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #cfc5b3; }
+  .site .chrome span { margin-left: 12px; font: 600 14px var(--font-mono); color: #8a8172; }
+  .site .nav { display: flex; align-items: center; padding: 14px 22px 0; }
+  .site .nav img { height: 22px; }
+  .site .nav .m { width: 30px; height: 30px; margin-right: 2px; }
+  .site .nav span { margin-left: auto; font: 600 15px var(--font-ui); color: #5d566b; }
+  .site h2 { position: absolute; left: 24px; top: 84px; font-size: 37px; line-height: 1.04; font-weight: 500; letter-spacing: -.015em; width: 330px; }
+  .site h2 em { color: #c25f05; } .site h2 b { font-weight: 500; font-style: italic; color: #1478b3; }
+  .site .cta { position: absolute; left: 24px; bottom: 22px; display: flex; gap: 10px; }
+  .site .cta span { font: 700 16px/1 var(--font-ui); padding: 12px 16px; border-radius: 999px; }
+  .site .cta .p { background: #7a5ae8; color: #fff; }
+  .site .cta .g { border: 1.5px solid #c9bfae; color: #3d3747; }
+  .site svg.mini { position: absolute; right: 2px; top: 92px; width: 168px; height: 176px; }
+
+  .pedals { position: absolute; left: 576px; top: 832px; width: 464px; height: 300px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ped { border-radius: 14px; position: relative; padding: 14px 14px 0; overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.45); }
+  .ped .knobs { display: flex; gap: 10px; }
+  .ped .k { width: 26px; height: 26px; border-radius: 50%; position: relative;
+    background: radial-gradient(circle at 35% 30%, #fff8e8, #d8ccb4 55%, #a99c84); box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+  .ped .k::after { content: ''; position: absolute; left: 12px; top: 3px; width: 2.5px; height: 10px; background: #2a2420; border-radius: 2px; transform-origin: 1px 10px; transform: rotate(var(--r, 0deg)); }
+  .ped .k.blk { background: radial-gradient(circle at 35% 30%, #4a4550, #17151b 65%); }
+  .ped .k.blk::after { background: #f4eee2; }
+  .ped .led { position: absolute; right: 16px; top: 22px; width: 11px; height: 11px; border-radius: 50%; }
+  .ped .nm { position: absolute; left: 14px; bottom: 12px; font-size: 29px; font-style: italic; font-weight: 600; line-height: .98; letter-spacing: -.01em; white-space: nowrap; }
+  .ped .nm .amp { font-weight: 400; }
+  .ped .kind { position: absolute; right: 14px; bottom: 16px; font: 600 13px/1 var(--font-ui); letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+  .ped .by { position: absolute; right: 12px; top: 12px; font: 700 13px/1 var(--font-ui); padding: 5px 8px; border-radius: 999px; background: rgba(124,201,255,.18); color: var(--agent); border: 1px solid rgba(124,201,255,.5); }
+
+  /* palette + type */
+  .pal { position: absolute; left: 40px; top: 1158px; width: 1000px; display: flex; gap: 10px; }
+  .sw { flex: 1; height: 112px; border-radius: 14px; padding: 12px 13px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--line); }
+  .sw b { font: 600 23px/1 var(--font-ui); } .sw span { font: 400 17px/1.2 var(--font-mono); opacity: .85; }
+  .tracks { position: absolute; left: 40px; top: 1282px; width: 600px; display: flex; gap: 6px; align-items: center; }
+  .tracks i { flex: 1; height: 26px; border-radius: 6px; }
+  .tracks .lbl { flex: none; margin-right: 8px; }
+  .type { position: absolute; left: 664px; top: 1278px; right: 40px; display: flex; align-items: baseline; gap: 14px; white-space: nowrap; }
+  .type .aa { font-size: 40px; font-weight: 500; line-height: 1; }
+  .type .aa i { font-weight: 400; }
+  .type .t2 { font: 400 18px/1.25 var(--font-ui); color: var(--text-2); }
+  .type .t2 b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="lbl"><b>Counterpoint</b> &nbsp;·&nbsp; a brand direction for the studio</div>
+    <div class="lbl">for AJ</div>
+  </header>
+
+  <section class="hero">
+    <img class="mark" src="mark.svg" alt="The Counterpoint mark: one notehead with two stems, warm rising, cool falling">
+    <img class="word" src="wordmark.svg" alt="counterpoint">
+    <div class="tag disp">Two <span class="w">voices.</span> One <span class="c">song.</span></div>
+    <p class="sub">You write a line. Your agent writes one against it. Every note signed: warm is you, cool is your agent.</p>
+  </section>
+
+  <svg class="score" id="score" viewBox="0 0 1080 220" aria-label="Two voices on one staff, crossing and meeting in unison"></svg>
+
+  <div class="bar">
+    <div class="lock"><img class="m" src="mark.svg" alt=""><img class="w" src="wordmark.svg" alt="counterpoint"></div>
+    <div class="sep"></div>
+    <div class="song disp">Night Shift</div>
+    <div class="tp">
+      <i><svg width="14" height="14"><rect width="14" height="14" rx="2" fill="#c4bdd0"/></svg></i>
+      <i class="on"><svg width="16" height="18"><path d="M2 1 L15 9 L2 17Z" fill="#121116"/></svg></i>
+      <i><svg width="16" height="16"><circle cx="8" cy="8" r="7" fill="#ff5468"/></svg></i>
+    </div>
+    <div class="ctr">5.1.1</div>
+    <div class="meta">92 <small>BPM</small> &nbsp;A <small>min</small></div>
+    <div class="who">
+      <span class="chip you"><span class="dot"></span>You</span>
+      <span class="chip ag"><span class="dot"></span>Claude</span>
+    </div>
+  </div>
+
+  <div class="site">
+    <div class="chrome"><i></i><i></i><i></i><span>counterpoint.studio</span></div>
+    <div class="nav"><img class="m" src="mark.svg" alt=""><img src="wordmark-ink.svg" alt="counterpoint"><span>How it sounds</span></div>
+    <h2 class="disp">Hum the <em>first line.</em> Your agent writes <b>the second.</b></h2>
+    <svg class="mini" id="mini" viewBox="0 0 210 220"></svg>
+    <div class="cta"><span class="p">Open the studio</span><span class="g">Hear a duet</span></div>
+  </div>
+
+  <div class="pedals">
+    <div class="ped" style="background:#5a3424;color:#f4e6cf">
+      <div class="knobs"><span class="k" style="--r:-40deg"></span><span class="k" style="--r:20deg"></span><span class="k" style="--r:70deg"></span></div>
+      <span class="led" style="background:#ffd27a;box-shadow:0 0 10px #ffd27a"></span>
+      <div class="nm disp">Hammer<br><span class="amp">&amp;</span> Tine</div>
+    </div>
+    <div class="ped" style="background:#6e1f2c;color:#f6dccf">
+      <div class="knobs"><span class="k blk" style="--r:60deg"></span><span class="k blk" style="--r:-20deg"></span></div>
+      <span class="led" style="background:#ff6a4d;box-shadow:0 0 10px #ff6a4d"></span>
+      <div class="nm disp">Ember<br><span class="amp">&amp;</span> Bellows</div>
+    </div>
+    <div class="ped" style="background:#cfc6b4;color:#262029">
+      <div class="knobs"><span class="k blk" style="--r:-60deg"></span><span class="k blk" style="--r:10deg"></span><span class="k blk" style="--r:45deg"></span></div>
+      <span class="led" style="background:#7fd18a;box-shadow:0 0 10px #7fd18a"></span>
+      <div class="nm disp">Canyon<br><span class="amp">&amp;</span> Call</div>
+    </div>
+    <div class="ped" style="background:#1d2b45;color:#e6eefb">
+      <span class="by">by Claude</span>
+      <div class="knobs"><span class="k" style="--r:-15deg"></span><span class="k" style="--r:35deg"></span></div>
+      <span class="led" style="right:118px;background:#7cc9ff;box-shadow:0 0 10px #7cc9ff"></span>
+      <div class="nm disp">Lantern<br><span class="amp">&amp;</span> Undertow</div>
+    </div>
+  </div>
+
+  <div class="pal">
+    <div class="sw" style="background:#121116;color:#f4eee2"><b>Ebony</b><span>the room<br>#121116</span></div>
+    <div class="sw" style="background:#f4eee2;color:#1d1a24"><b>Ivory</b><span>paper, text<br>#f4eee2</span></div>
+    <div class="sw" style="background:#ffae57;color:#2a1704;border:0"><b>Rosin</b><span>warm: you<br>#ffae57</span></div>
+    <div class="sw" style="background:#7cc9ff;color:#06202e;border:0"><b>Glass</b><span>cool: agent<br>#7cc9ff</span></div>
+    <div class="sw" style="background:#b59cff;color:#1b1233;border:0"><b>Unison</b><span>accent<br>#b59cff</span></div>
+    <div class="sw" style="background:#e8cc7e;color:#2b2209;border:0"><b>Brass</b><span>loop<br>#e8cc7e</span></div>
+  </div>
+  <div class="tracks"><span class="lbl">Tracks</span>
+    <i style="background:var(--c-1)"></i><i style="background:var(--c-2)"></i><i style="background:var(--c-3)"></i><i style="background:var(--c-4)"></i>
+    <i style="background:var(--c-5)"></i><i style="background:var(--c-6)"></i><i style="background:var(--c-7)"></i><i style="background:var(--c-8)"></i>
+  </div>
+  <div class="type">
+    <span class="aa disp">Aa <i>&amp;</i></span>
+    <span class="t2"><b>Bodoni Moda</b> display<br><b>Atkinson Hyperlegible</b> UI</span>
+  </div>
+
+<script>
+  // Two voices on one staff, notated the way two-voice music is: the upper voice (you, warm) has its stems up, the
+  // lower voice (your agent, cool) has its stems down. They start together, move in contrary motion, cross, and land
+  // on the same note again. A shared note is one head with two stems, in the accent colour.
+  const W = '#ffae57', C = '#7cc9ff', U = '#b59cff', LINE = '#3a3648';
+  function score(svg, { x0, x1, top, gap, warm, cool, labels = true, head = 1, stemLen = 3.3, ink = LINE, curves = true, warmC = W, coolC = C, uniC = U, alpha = .55 }) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (n, a) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+    const step = gap / 2, y = (s) => top + 4 * gap - s * step;   // s = 0 bottom line … 8 top line
+    for (let i = 0; i < 5; i++) el('line', { x1: x0, x2: x1, y1: top + i * gap, y2: top + i * gap, stroke: ink, 'stroke-width': 1.6 });
+    // double bar at the end
+    el('line', { x1: x1 - 7, x2: x1 - 7, y1: top, y2: top + 4 * gap, stroke: ink, 'stroke-width': 1.6 });
+    el('rect', { x: x1 - 3, y: top, width: 4.5, height: 4 * gap, fill: ink });
+    const n = warm.length, pad = gap * 2.2, dx = (x1 - x0 - pad * 2 - 10) / (n - 1);
+    const X = (i) => x0 + pad + i * dx;
+    const rx = gap * .66 * head, ry = gap * .47 * head, tilt = -22;
+    const hw = Math.sqrt(rx * rx * Math.cos(tilt * Math.PI / 180) ** 2 + ry * ry * Math.sin(tilt * Math.PI / 180) ** 2);
+    // the lines: each voice as one continuous phrase (Catmull-Rom through its notes)
+    const path = (v) => { const P = v.map((s, i) => [X(i), y(s)]); let d = `M${P[0][0]} ${P[0][1]}`;
+      for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
+        d += ` C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]} ${p2[1]}`; }
+      return d; };
+    if (curves) {
+      el('path', { d: path(warm), stroke: warmC, 'stroke-width': gap * .2, fill: 'none', opacity: alpha, 'stroke-linecap': 'round' });
+      el('path', { d: path(cool), stroke: coolC, 'stroke-width': gap * .2, fill: 'none', opacity: alpha, 'stroke-linecap': 'round' });
+    }
+    const sw = Math.max(1.6, gap * .1), L = gap * stemLen;
+    for (let i = 0; i < n; i++) {
+      const x = X(i);
+      const uni = warm[i] === cool[i];
+      if (warm[i] != null) el('rect', { x: x + hw - sw, y: y(warm[i]) - L, width: sw, height: L, fill: warmC });
+      if (cool[i] != null) el('rect', { x: x - hw, y: y(cool[i]), width: sw, height: L, fill: coolC });
+      // ledger lines if a note leaves the staff
+      for (const s of [warm[i], cool[i]]) { for (let l = -2; l >= s; l -= 2) el('line', { x1: x - hw - 6, x2: x + hw + 6, y1: y(l), y2: y(l), stroke: ink, 'stroke-width': 1.6 });
+        for (let l = 10; l <= s; l += 2) el('line', { x1: x - hw - 6, x2: x + hw + 6, y1: y(l), y2: y(l), stroke: ink, 'stroke-width': 1.6 }); }
+      if (uni) el('ellipse', { cx: x, cy: y(warm[i]), rx: rx * 1.08, ry: ry * 1.08, transform: `rotate(${tilt} ${x} ${y(warm[i])})`, fill: uniC });
+      else {
+        el('ellipse', { cx: x, cy: y(warm[i]), rx, ry, transform: `rotate(${tilt} ${x} ${y(warm[i])})`, fill: warmC });
+        el('ellipse', { cx: x, cy: y(cool[i]), rx, ry, transform: `rotate(${tilt} ${x} ${y(cool[i])})`, fill: coolC });
+      }
+    }
+    if (labels) {
+      const t = (txt, yy, col) => { const e = el('text', { x: x0 - 14, y: yy, fill: col, 'text-anchor': 'end', 'font-family': 'Bodoni Moda', 'font-style': 'italic', 'font-size': 27, 'font-weight': 500 }); e.textContent = txt; };
+      t('you', top + gap * 1.2, warmC); t('your agent', top + gap * 3.9, coolC);
+      // two real score markings: "a due" (for two) where it starts, "fine" (the end) where it lands
+      const m = (txt, x, yy, anchor) => { const e = el('text', { x, y: yy, fill: '#c4bdd0', 'text-anchor': anchor, 'font-family': 'Bodoni Moda', 'font-style': 'italic', 'font-size': 25, 'font-weight': 700 }); e.textContent = txt; };
+      m('a due', x0 - 14, top - 30, 'end'); m('fine', x1, top + gap * 4 + 42, 'end');
+    }
+  }
+  //            0  1  2  3  4  5  6  7  8  9 10 11 12
+  const warm = [4, 5, 7, 8, 7, 6, 4, 2, 1, 0, 2, 3, 4];
+  const cool = [4, 3, 1, 0, 1, 2, 4, 6, 7, 9, 6, 5, 4];
+  score(document.getElementById('score'), { x0: 210, x1: 1040, top: 66, gap: 22, warm, cool });
+  score(document.getElementById('mini'), { x0: 6, x1: 200, top: 70, gap: 13, warm: [4, 6, 7, 4, 1, 2, 4], cool: [4, 2, 1, 4, 7, 6, 4],
+    labels: false, ink: '#cfc5b3', warmC: '#e07a12', coolC: '#1d8fd0', uniC: '#7a5ae8', alpha: .5 });
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+{ "task": "mix-darken-keys", "why": "A high shelf at 4 kHz, down 7 dB, before the reverb: presence drops about 4.5 dB, loudness barely moves.",
+  "ops": [{ "type": "insert.add", "track": "Keys", "index": 0, "insert": { "device": "core.eq", "params": { "highf": 4000, "high": -7 } } }] }

@@ -1,0 +1,2 @@
+{ "task": "mix-mono-low-end", "why": "Keep the chorus's movement but fold the bass to mono after it (Gatefold, width 0): the bass has almost nothing above 1 kHz, so the keys and hook keep their width.",
+  "ops": [{ "type": "insert.add", "track": "Bass", "insert": { "device": "core.width", "params": { "width": 0 } } }] }

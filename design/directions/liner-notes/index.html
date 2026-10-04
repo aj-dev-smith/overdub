@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overdub liner notes</title>
+<meta name="description" content="A style direction for Overdub: the studio set like a record sleeve. Rules and whitespace instead of boxes, big numerals, bylines for authorship.">
+<style>
+/* ---------- faces: the repo's own files (copied from deck/assets/fonts, latin subset) ---------- */
+@font-face { font-family: 'Archivo'; font-style: italic; font-weight: 400 900; font-stretch: 62% 125%; font-display: block; src: url(fonts/archivo-italic-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400 900; font-stretch: 62% 125%; font-display: block; src: url(fonts/archivo-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 400 700; font-display: block; src: url(fonts/atkinson-next-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 400 600; font-display: block; src: url(fonts/atkinson-mono-latin.woff2) format('woff2'); }
+
+/* ---------- tokens: today's values (app/style/tokens.css), plus the few this direction adds ---------- */
+:root {
+  color-scheme: dark;
+  --bg: #141210; --bg-2: #1a1815; --bg-3: #24211c; --panel: #1d1b17;
+  --line: #2f2b25; --line-2: #46413a;
+  --text: #f4ead6; --text-2: #cbc0aa; --text-3: #9a8f7c;
+  --accent: #d9f36a; --accent-2: #f1dc8a;
+  --human: #ffa043; --agent: #4cc3ff; --rec: #ff4d4d; --warn: #ffd166;
+  --c-1: #e98a6c; --c-2: #dcb45e; --c-3: #a8c470; --c-4: #95c6a8; --c-5: #8fa8d4; --c-6: #b69cd8; --c-7: #e68ba8; --c-8: #d9c8a4;
+  /* paper (the insert, the toast's sibling, the tape box) and its two inks, dark enough for 12 px text */
+  --paper: #f4ead6; --ink: #16130f; --ink-2: #4c4336; --ink-human: #9a4400; --ink-agent: #085f92;
+  --riso-warm: #ff7a1a; --riso-cool: #1d9be6;
+
+  --font-ui: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Archivo', 'Arial Black', ui-sans-serif, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, Menlo, monospace;
+
+  /* new in this direction */
+  --rule: 1px solid var(--line);          /* the hairline: separates, never encloses */
+  --rule-2: 1px solid var(--line-2);      /* a bar line, an input's edge */
+  --rule-heavy: 2px solid var(--text);    /* a sleeve's heavy rule: one per region, above its title */
+  --r: 2px;                               /* one radius, for things you press; containers are square */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --gutter: 24px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body::before { /* the brand's fine grain, so the room feels printed */
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.mono { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0; }
+.num { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 125%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1; }
+.disp { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 125%; letter-spacing: -.012em; line-height: 1.02; }
+.disp-s { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 112%; letter-spacing: -.005em; }
+.t2 { color: var(--text-2); } .t3 { color: var(--text-3); }
+/* the bylines: authorship is a signature, set in the author's ink */
+.by { font-weight: 600; white-space: nowrap; }
+.by-you { color: var(--human); } .by-agent { color: var(--agent); } .by-house { color: var(--text-3); font-weight: 400; }
+kbd { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-2); border: var(--rule-2); border-radius: var(--r); padding: 0 4px; line-height: 16px; display: inline-block; }
+
+/* the two marks that replace the sparkle and the smiley: your stroke breathes, the agent's is exact */
+.mk { display: inline-block; width: 16px; height: 8px; vertical-align: 1px; }
+.mk path { fill: none; stroke-width: 2; stroke-linecap: round; }
+.mk-agent path { stroke: var(--agent); } .mk-you path { stroke: var(--human); }
+
+/* buttons: square-ish, rule-edged; one leader-green primary per region; text buttons for the rest */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: var(--rule-2); border-radius: var(--r); color: var(--text); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.btn:hover { border-color: var(--text-3); }
+.btn-go { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn-txt { border-color: transparent; padding: 0 4px; color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.btn-held { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn svg { width: 10px; height: 10px; fill: currentColor; }
+/* toggles are the one place a lit state shows: a square lamp, lit or not */
+.tog { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px; border-radius: var(--r); color: var(--text-3); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.tog i { width: 6px; height: 6px; background: var(--line-2); display: inline-block; }
+.tog.on { color: var(--text); } .tog.on i { background: var(--accent-2); box-shadow: 0 0 6px rgba(241,220,138,.5); }
+
+/* ================= FIG 1: THE STUDIO ================= */
+.studio { position: relative; height: 900px; display: grid; grid-template-rows: 68px 1fr; grid-template-columns: 1fr 384px; border-bottom: var(--rule-2); overflow: hidden; }
+.top { grid-column: 1 / -1; display: flex; align-items: center; gap: 0; border-bottom: var(--rule); padding: 0 16px 0 18px; }
+.top > * { flex: none; }
+.lockup { display: flex; align-items: center; gap: 7px; padding-right: 20px; }
+.lockup svg { width: 28px; height: 28px; }
+.lockup b { font: italic 800 21px/1 var(--font-display); font-stretch: 125%; letter-spacing: -.02em; }
+.song { display: flex; flex-direction: column; justify-content: center; padding: 0 18px; border-left: var(--rule); height: 40px; }
+.song b { font: normal 800 19px/1 var(--font-display); font-stretch: 125%; letter-spacing: -.01em; }
+.song span { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.song span .by-house { font-size: 11px; }
+.trans { display: flex; align-items: center; gap: 2px; padding: 0 12px; border-left: var(--rule); height: 40px; }
+.tb { width: 34px; height: 34px; border-radius: var(--r); display: grid; place-items: center; color: var(--text-2); }
+.tb svg { width: 13px; height: 13px; fill: currentColor; }
+.tb.play { background: var(--accent); color: var(--bg); width: 44px; }
+.tb.rec svg { fill: none; stroke: var(--rec); stroke-width: 2.2; }
+.pos { display: flex; align-items: baseline; gap: 10px; padding: 0 16px; border-left: var(--rule); height: 40px; align-items: center; }
+.pos .num { font-size: 30px; }
+.pos .num em { font-style: inherit; color: var(--text-3); margin: 0 1px; }
+.pos .mono { color: var(--text-3); line-height: 1.25; }
+.spec { display: flex; flex-direction: column; justify-content: center; padding: 0 12px; border-left: var(--rule); height: 40px; }
+.spec small { font-size: 10.5px; color: var(--text-3); line-height: 1; margin-bottom: 4px; }
+.spec .num { font-size: 18px; }
+.spec .val { font-weight: 600; font-size: 14px; line-height: 1; }
+.click { display: flex; align-items: center; gap: 8px; padding: 0 10px; border-left: var(--rule); height: 40px; }
+.beats { display: flex; gap: 3px; }
+.beats i { width: 9px; height: 9px; background: var(--line-2); }
+.beats i.one { width: 13px; }
+.beats i.now { background: var(--text); }
+.top .grow { flex: 1; }
+.alloff { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid rgba(255,77,77,.55); border-radius: var(--r); color: var(--text); font-weight: 600; font-size: 12.5px; margin-right: 12px; }
+.alloff svg { width: 11px; height: 11px; fill: var(--rec); }
+.meter { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-left: var(--rule); height: 40px; }
+.meter .bars { display: grid; gap: 3px; }
+.meter .bars i { display: block; height: 4px; width: 64px; background: linear-gradient(90deg, var(--text-2) 0 62%, var(--line) 62%); }
+.meter .bars i + i { background: linear-gradient(90deg, var(--text-2) 0 58%, var(--line) 58%); }
+.meter .mono { color: var(--text-2); }
+.share { padding-left: 14px; border-left: var(--rule); height: 40px; display: flex; align-items: center; gap: 6px; }
+
+/* the arranger */
+.work { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; position: relative; }
+.arr { display: grid; grid-template-columns: 244px 1fr; position: relative; }
+.arr-tools { display: flex; align-items: flex-end; gap: 10px; padding: 0 14px 7px 18px; border-bottom: var(--rule); border-right: var(--rule); }
+.arr-tools .btn-txt { font-size: 12px; }
+.ruler { position: relative; height: 58px; border-bottom: var(--rule); }
+.ruler .sec { position: absolute; top: 8px; padding-left: 6px; font-size: 13px; border-left: 1px solid var(--text-3); line-height: 14px; }
+.ruler .bar { position: absolute; bottom: 9px; padding-left: 5px; font-size: 15px; color: var(--text-2); }
+.ruler .bar::before { content: ''; position: absolute; left: 0; bottom: -9px; height: 9px; border-left: 1px solid var(--line-2); }
+.ruler .loop { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent-2); opacity: .9; }
+.ruler .bar.here { color: var(--text); }
+.trk { display: contents; }
+.th { height: 60px; display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 0 4px; padding: 0 12px 0 14px; border-bottom: var(--rule); border-right: var(--rule); }
+.th .n { font-size: 17px; color: var(--text-3); align-self: center; }
+.th .nm { min-width: 0; }
+.th .nm b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.2; }
+.th .nm span { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw { width: 8px; height: 8px; flex: none; display: inline-block; } /* the track colour: a DAW's own idiom, kept, as a square */
+.msr { display: flex; gap: 2px; }
+.msr button { width: 19px; height: 19px; border: var(--rule-2); border-radius: var(--r); font: 600 10px/17px var(--font-mono); color: var(--text-3); text-align: center; }
+.msr button.r { color: var(--rec); }
+.th.sel { background: var(--bg-3); }
+.lane { position: relative; height: 60px; border-bottom: var(--rule); background-image: repeating-linear-gradient(90deg, var(--line-2) 0 1px, transparent 1px 12.5%); }
+.lane::before { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(90deg, rgba(47,43,37,.55) 0 1px, transparent 1px 3.125%); pointer-events: none; }
+.clip { position: absolute; top: 5px; bottom: 5px; display: flex; flex-direction: column; background: color-mix(in srgb, var(--tc) 13%, var(--bg)); outline: 1px solid color-mix(in srgb, var(--tc) 42%, transparent); outline-offset: -1px; overflow: hidden; }
+.clip header { display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 0; font-size: 11.5px; line-height: 15px; white-space: nowrap; }
+.clip header b { font-weight: 600; color: var(--tc); }
+.clip header .by { margin-left: auto; font-size: 11px; }
+.clip svg { position: absolute; left: 4px; right: 4px; top: 19px; bottom: 4px; width: calc(100% - 8px); height: calc(100% - 23px); display: block; }
+.clip svg rect { fill: var(--tc); }
+.clip.agent svg rect { stroke: var(--agent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.clip.you svg path { stroke: var(--tc); }
+/* selected: a cream frame and the label printed in reverse, like a highlighted credit */
+.clip.sel { outline: 1.5px solid var(--text); outline-offset: -1.5px; }
+.clip.sel header { background: var(--text); }
+.clip.sel header b, .clip.sel header .by { color: var(--bg); }
+/* muted: printed in outline only, the name struck through */
+.clip.muted { background: transparent; outline: 1px dashed var(--line-2); }
+.clip.muted header b { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.clip.muted svg rect { fill: none; stroke: var(--text-3); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .7; }
+/* the agent is pointing here: grease-pencil crop marks, as a printer marks a crop */
+.crop { position: absolute; top: 2px; bottom: 2px; pointer-events: none; }
+.crop i { position: absolute; width: 10px; height: 10px; border: 0 solid var(--accent-2); }
+.crop i:nth-child(1) { left: -3px; top: -1px; border-left-width: 2px; border-top-width: 2px; }
+.crop i:nth-child(2) { right: -3px; top: -1px; border-right-width: 2px; border-top-width: 2px; }
+.crop i:nth-child(3) { left: -3px; bottom: -1px; border-left-width: 2px; border-bottom-width: 2px; }
+.crop i:nth-child(4) { right: -3px; bottom: -1px; border-right-width: 2px; border-bottom-width: 2px; }
+.crop span { position: absolute; right: 2px; top: -1px; transform: translateY(-100%); font: 600 10.5px/14px var(--font-ui); color: var(--accent-2); white-space: nowrap; background: var(--bg); padding: 0 3px; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--accent); z-index: 4; pointer-events: none; }
+.playhead::before { content: ''; position: absolute; top: 0; left: -6px; border: 5px solid transparent; border-top: 7px solid var(--accent); border-bottom: 0; }
+.lanes-col { position: relative; }
+
+/* the welcome: a printed insert slipped into the sleeve */
+.insert { position: absolute; z-index: 6; left: 260px; top: 300px; width: 392px; background: var(--paper); color: var(--ink); padding: 15px 18px 13px; box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 20px 50px rgba(0,0,0,.55); }
+.insert h3 { margin: 0 0 10px; font-size: 23px; color: var(--ink); }
+.insert p { margin: 0 0 8px; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.insert kbd { color: var(--ink); border-color: #b9ad97; }
+.credits { margin: 0 0 10px; padding: 6px 0 0; border-top: 2px solid var(--ink); list-style: none; }
+.credits li { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; padding: 1px 0; color: var(--ink); }
+.credits li::after { content: none; }
+.credits .lead { flex: 1; border-bottom: 1px dotted #a99c86; transform: translateY(-4px); }
+.credits .who-h { color: var(--ink-2); }
+.credits .who-a { color: var(--ink-agent); font-weight: 600; }
+.credits .who-y { color: var(--ink-human); font-weight: 600; }
+.insert .acts { display: flex; align-items: center; gap: 12px; padding-top: 9px; white-space: nowrap; border-top: 1px solid #d6c9b1; }
+.insert .acts .btn { border-color: var(--ink); color: var(--ink); }
+.insert .acts a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #b9ad97; }
+.insert .x { position: absolute; right: 12px; top: 12px; font-size: 12px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.insert .foot { font-size: 12px; color: var(--ink-2); margin-left: auto; }
+
+/* the toast: one line, a signature, the undo */
+.toast { position: absolute; z-index: 7; right: 18px; bottom: 18px; max-width: 600px; display: flex; align-items: center; gap: 14px; background: var(--bg-3); border: var(--rule-2); padding: 9px 10px 9px 14px; box-shadow: 0 16px 40px rgba(0,0,0,.5); font-size: 13px; line-height: 1.4; }
+.toast .by { font-size: 12px; }
+.toast .sep { width: 1px; align-self: stretch; background: var(--line-2); }
+
+/* the dock: tabs are words; the open one is underlined */
+.tabs { display: flex; align-items: flex-end; gap: 22px; height: 40px; padding: 0 18px; border-bottom: var(--rule); border-top: var(--rule-2); }
+.tabs button { height: 40px; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button.on { color: var(--text); border-bottom-color: var(--text); }
+.tabs .aside { margin-left: auto; align-self: center; font-size: 12px; color: var(--text-3); }
+.dock { min-height: 0; overflow: hidden; }
+.sketch { display: grid; grid-template-columns: 150px 1fr 312px; height: 100%; }
+.modes { padding: 18px 0 0 18px; border-right: var(--rule); display: flex; flex-direction: column; gap: 9px; }
+.modes button { text-align: left; font-size: 14px; color: var(--text-3); font-weight: 600; }
+.modes button.on { font: italic 800 23px/1 var(--font-display); font-stretch: 125%; color: var(--text); letter-spacing: -.02em; margin: 2px 0; }
+.modes small { margin-top: auto; padding: 0 12px 16px 0; font-size: 11.5px; color: var(--text-3); line-height: 1.4; }
+.rec { padding: 14px 22px 0; display: grid; grid-template-rows: auto auto auto auto; align-content: start; gap: 12px; min-width: 0; }
+.rec-line { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: var(--text-2); }
+.rec-line .live { color: var(--rec); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.rec-line .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--rec); box-shadow: 0 0 8px rgba(255,77,77,.7); }
+.rec-line b { color: var(--text); font-weight: 600; }
+.count { display: flex; align-items: flex-end; gap: 20px; }
+.count .num { font-size: 46px; color: var(--line-2); }
+.count .num.done { color: var(--text-3); }
+.count .num.now { color: var(--text); }
+.count .of { margin-left: 4px; padding-bottom: 6px; font-size: 12px; color: var(--text-3); line-height: 1.4; }
+.strip { position: relative; height: 72px; border-top: var(--rule-2); border-bottom: var(--rule); background-image: repeating-linear-gradient(90deg, var(--line-2) 0 1px, transparent 1px 12.5%); }
+.strip .rows { position: absolute; inset: 14px 0 6px; }
+.strip .lab { position: absolute; top: 2px; font-size: 10.5px; color: var(--text-3); padding-left: 4px; }
+.strip .take { position: absolute; top: 0; bottom: 0; outline: 1.5px solid var(--rec); outline-offset: -1.5px; background: rgba(255,77,77,.06); }
+.strip .take span { position: absolute; right: 4px; top: 2px; font-size: 10.5px; color: var(--rec); font-weight: 600; }
+.strip svg { position: absolute; inset: 16px 0 6px; width: 100%; height: calc(100% - 22px); }
+.pads { display: flex; gap: 8px; align-items: center; } .pads .btn { margin-left: 8px; height: 40px; }
+.pad { width: 86px; height: 40px; border: var(--rule-2); border-radius: var(--r); display: flex; align-items: center; justify-content: space-between; padding: 0 9px; font-weight: 600; font-size: 12.5px; }
+.pad.hit { border-color: var(--text); background: rgba(244,234,214,.07); }
+.pads .gap { flex: 1; }
+.takes { border-left: var(--rule); padding: 14px 18px 0 20px; min-width: 0; }
+.takes > header { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: var(--rule-heavy); }
+.takes > header h4 { margin: 0; font-size: 19px; }
+.takes > header .t3 { margin-left: auto; font-size: 11.5px; }
+.tk { display: grid; grid-template-columns: 52px 1fr; gap: 2px 12px; padding: 12px 0; border-bottom: var(--rule); }
+.tk .big { font-size: 44px; grid-row: span 3; color: var(--text); }
+.tk .meta { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
+.tk .meta .mono { color: var(--text-3); margin-left: auto; }
+.tk svg { width: 100%; height: 30px; display: block; }
+.tk .acts { display: flex; gap: 6px; margin-top: 6px; }
+.tk.old .big { color: var(--text-3); font-size: 30px; }
+.tk.old { grid-template-columns: 52px 1fr; }
+
+/* the agent: a session log, speakers in the margin, steps as lines */
+.agent { grid-row: 2; grid-column: 2; border-left: var(--rule); background: var(--bg-2); display: grid; grid-template-rows: 40px auto 1fr auto; min-height: 0; }
+.agent .tabs { border-top: 0; padding: 0 18px; }
+.ag-stat { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-bottom: var(--rule); font-size: 12.5px; }
+.ag-stat .dot { width: 6px; height: 6px; background: var(--agent); border-radius: 50%; }
+.ag-stat .t3 { margin-left: auto; }
+.log { padding: 4px 18px 0; overflow: hidden; }
+.say { display: grid; grid-template-columns: 54px 1fr; gap: 0 10px; padding: 10px 0; }
+.say + .say { border-top: var(--rule); }
+.say > .by { font-size: 12px; padding-top: 1px; }
+.say p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.steps { margin: 8px 0 0; padding: 0; list-style: none; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); line-height: 1.6; }
+.steps b { font-weight: 400; color: var(--text-2); display: inline-block; width: 74px; }
+.offer { margin-top: 2px; }
+.offer > header { display: flex; align-items: baseline; gap: 10px; padding: 10px 0 8px; border-bottom: var(--rule-heavy); }
+.offer > header h4 { margin: 0; font-size: 17px; }
+.offer > header .mono { margin-left: auto; color: var(--text-3); }
+.ab { display: grid; grid-template-columns: 46px 1fr; gap: 0 12px; padding: 11px 0 11px; border-bottom: var(--rule); }
+.ab .big { font-size: 40px; line-height: .9; grid-row: span 4; padding-top: 2px; }
+.ab h5 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.ab p { margin: 1px 0 6px; font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+
+.ab .row { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
+.ab .row .mono { margin-left: auto; color: var(--text-3); }
+.ab.orig .big { color: var(--text-3); font-size: 13px; padding-top: 2px; line-height: 1.2; }
+.offer footer { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; font-size: 12px; color: var(--text-3); }
+.compose { border-top: var(--rule-2); padding: 12px 18px 14px; }
+.compose .field { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--text-3); padding: 4px 0 8px; color: var(--text-3); font-size: 13.5px; }
+.compose .field span { flex: 1; }
+.compose small { display: block; margin-top: 7px; font-size: 11px; color: var(--text-3); }
+
+/* ================= sections below the studio ================= */
+.cap { display: flex; gap: 14px; align-items: baseline; padding: 10px 18px 0; color: var(--text-3); font-size: 12px; }
+.cap .num { font-size: 14px; color: var(--text-2); }
+.sheet { padding: 56px 64px 72px; border-bottom: var(--rule-2); }
+.sheet > h2 { margin: 0 0 6px; font-size: 40px; }
+.sheet > .lede { margin: 0 0 36px; max-width: 64ch; color: var(--text-2); font-size: 15px; }
+.two { display: grid; grid-template-columns: 384px 1fr; gap: 64px; align-items: start; }
+
+/* History: a track sheet, not a stack of cards */
+.hist { background: var(--bg-2); border-top: var(--rule-heavy); }
+.hist .tabs { border-top: 0; }
+.hist-in { padding: 16px 18px 18px; }
+.hist h4 { margin: 0 0 12px; font-size: 17px; }
+.shares { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0 26px; margin-bottom: 10px; }
+.shares div { display: grid; gap: 4px; }
+.shares .num { font-size: 30px; }
+.shares .num sup { font-size: 13px; vertical-align: 12px; margin-left: 1px; }
+.shares .by { font-size: 12px; }
+.tape { display: flex; height: 8px; margin-bottom: 14px; }
+.tape i { display: block; height: 100%; }
+.filters { display: flex; gap: 16px; align-items: baseline; padding-bottom: 10px; border-bottom: var(--rule); font-size: 12.5px; }
+.filters button { color: var(--text-3); font-weight: 600; }
+.filters button .mono { margin-left: 3px; }
+.filters button.on { color: var(--text); text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 2px; }
+.filters .btn-txt { margin-left: auto; font-size: 12px; font-weight: 400; }
+.ledger { margin: 0; padding: 0; list-style: none; }
+.ledger li { display: grid; grid-template-columns: 40px 52px 1fr; gap: 0 10px; padding: 9px 0; border-bottom: var(--rule); align-items: baseline; }
+.ledger .mono { color: var(--text-3); }
+.ledger .by { font-size: 12px; }
+.ledger .what { font-size: 13px; }
+.ledger .why { display: block; font-size: 12px; color: var(--text-2); font-style: italic; margin-top: 2px; }
+.ledger .where { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.ledger li.hov { background: var(--bg-3); margin: 0 -18px; padding-left: 18px; padding-right: 18px; grid-template-columns: 40px 52px 1fr auto; }
+.ledger li.hov .btn-txt { font-size: 12px; }
+
+/* the sleeve: the system on one sheet */
+.spec-sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px; }
+.spec-sheet section { border-top: var(--rule-heavy); padding-top: 12px; margin-bottom: 36px; }
+.spec-sheet h4 { margin: 0 0 14px; font-size: 15px; }
+.scale { margin: 0; padding: 0; list-style: none; }
+.scale li { display: grid; grid-template-columns: 86px 1fr; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: var(--rule); }
+.scale li > span:first-child { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.states { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 18px; }
+.states figure { margin: 0; }
+.states .lane { height: 50px; border-bottom: 0; background-image: none; }
+.states .lane::before { display: none; }
+.states figcaption { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+.states figcaption b { color: var(--text); font-weight: 600; }
+.inks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 12px; }
+.inks div { font-size: 12px; color: var(--text-2); }
+.inks i { display: block; height: 30px; margin-bottom: 6px; border: 1px solid var(--line); }
+.inks b { display: block; color: var(--text); font-weight: 600; }
+.bylines p { margin: 0 0 8px; font-size: 13px; }
+
+/* ================= FIG 3: the landing hero ================= */
+.land { position: relative; padding: 28px 64px 72px; }
+.land nav { display: flex; align-items: center; gap: 28px; padding-bottom: 18px; border-bottom: var(--rule); }
+.land nav .lockup { padding: 0; }
+.land nav .lockup svg { width: 34px; height: 34px; }
+.land nav .lockup b { font-size: 26px; }
+.land nav a { color: var(--text-2); font-weight: 600; text-decoration: none; font-size: 14px; }
+.land nav a:first-of-type { margin-left: auto; }
+.land nav .btn { height: 34px; padding: 0 14px; font-size: 14px; }
+.over { position: relative; margin: 44px 0 0; font: italic 800 clamp(48px, 10.6vw, 154px)/.92 var(--font-display); font-stretch: 125%; letter-spacing: -.035em; }
+.over span { display: block; }
+.over .b { position: absolute; inset: 0; color: var(--human); mix-blend-mode: screen; transform: translate(-.028em, -.024em); }
+.over .a { color: var(--agent); }
+.weave { display: block; width: calc(100% + 128px); margin: 18px -64px 0; height: auto; }
+.cols { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 24px; margin-top: 18px; padding-top: 22px; border-top: var(--rule-heavy); }
+.cols .lede { grid-column: 1 / span 5; margin: 0; font-size: 20px; line-height: 1.55; color: var(--text); }
+.cols .cr { grid-column: 7 / span 3; }
+.cols .cr h4 { margin: 0 0 8px; font-size: 15px; }
+.cols .cr ul { margin: 0; padding: 0; list-style: none; }
+.cols .cr li { display: flex; gap: 6px; align-items: baseline; font-size: 13.5px; padding: 3px 0; }
+.cols .cr .lead { flex: 1; border-bottom: 1px dotted var(--line-2); transform: translateY(-4px); }
+.cols .go { grid-column: 10 / span 3; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.cols .go .btn { height: 44px; padding: 0 18px; font-size: 15px; }
+.cols .go p { margin: 4px 0 0; font-size: 12.5px; color: var(--text-3); line-height: 1.5; }
+.colophon { padding: 22px 64px 40px; display: flex; gap: 24px; color: var(--text-3); font-size: 12px; border-top: var(--rule); }
+
+/* ================= phone: arranger + the agent's takes ================= */
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+  .studio { height: auto; grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow: visible; }
+  .top { flex-wrap: wrap; padding: 0 16px; height: auto; }
+  .lockup { padding: 10px 0; } .lockup b { display: none; }
+  .song { border-left: 0; padding: 0 0 0 10px; } .song b { font-size: 17px; }
+  .trans { order: 3; border-left: 0; padding: 0; margin-left: auto; gap: 2px; }
+  .trans .tb.rec, .trans .tb:first-child { display: none; }
+  .pos { order: 4; width: 100%; border-left: 0; border-top: var(--rule); padding: 0; height: 52px; gap: 14px; }
+  .pos .num { font-size: 26px; }
+  .spec, .click, .meter, .share, .top .grow, .undo { display: none; }
+  .pos .alloff-m { display: inline-flex; margin: 0 0 0 auto; }
+  .alloff { display: none; }
+  .work { grid-template-rows: auto auto; }
+  .arr { grid-template-columns: 104px 1fr; }
+  .arr-tools { padding: 0 8px 8px 16px; } .arr-tools .btn-txt + .btn-txt { display: none; }
+  .ruler { height: 48px; } .ruler .bar { font-size: 12px; } .ruler .sec { font-size: 12px; top: 6px; }
+  .th { height: 58px; grid-template-columns: 28px 1fr; padding: 0 8px 0 12px; }
+  .th .n { font-size: 14px; }
+  .th .msr { display: none; }
+  .th .nm b { font-size: 13px; } .th .nm span { display: none; }
+  .lane { height: 58px; }
+  .clip header { padding: 1px 4px 0; font-size: 10.5px; } .clip header .hs { display: none; } .clip.sel header .hs { display: inline; }
+  .crop span { font-size: 10px; }
+  .insert, .dock, .work > .tabs { display: none; }
+  .toast { position: static; transform: none; margin: 12px 16px; white-space: normal; font-size: 12.5px; box-shadow: none; }
+  .agent { grid-row: auto; grid-column: 1; border-left: 0; border-top: var(--rule-heavy); }
+  .log { padding: 4px 16px 0; }
+  .say { grid-template-columns: 48px 1fr; }
+  .compose { padding: 12px 16px 16px; }
+  .ag-stat { padding: 10px 16px; }
+  .agent .tabs { padding: 0 16px; }
+  .ab .row { flex-wrap: wrap; } .ab .row .btn, .tk .acts .btn { height: 40px; padding: 0 14px; } .compose small { display: none; }
+  .cap { padding: 10px 16px 0; }
+  .sheet { padding: 40px 16px 48px; }
+  .sheet > h2 { font-size: 28px; }
+  .two { grid-template-columns: 1fr; gap: 40px; }
+  .spec-sheet { grid-template-columns: 1fr; }
+  .inks { grid-template-columns: repeat(2, 1fr); }
+  .land { padding: 20px 16px 48px; }
+  .land nav a { display: none; } .land nav .btn { margin-left: auto; }
+  .over { margin-top: 28px; }
+  .weave { width: calc(100% + 32px); height: 170px; margin: 12px -16px 0; }
+  .cols { grid-template-columns: 1fr; gap: 28px; }
+  .cols .lede, .cols .cr, .cols .go { grid-column: 1; }
+  .cols .lede { font-size: 17px; }
+  .colophon { padding: 20px 16px 32px; flex-wrap: wrap; }
+}
+@media (min-width: 641px) { .alloff-m { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ======================= FIG 1: THE STUDIO ======================= -->
+<div class="studio" id="studio">
+  <div class="top">
+    <div class="lockup"><svg viewBox="0 0 100 100" aria-hidden="true" id="mark"></svg><b>overdub</b></div>
+    <div class="song"><b>Night Shift</b><span>played by <span class="by by-house">the house</span>, <span class="by by-agent">Claude</span> and <span class="by by-you">you</span></span></div>
+    <div class="trans">
+      <button class="tb" title="Stop"><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg></button>
+      <button class="tb play" title="Play (Space)"><svg viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9Z"/></svg></button>
+      <button class="tb rec" title="Record (R)"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.4"/></svg></button>
+    </div>
+    <div class="pos"><span class="num">5<em>.</em>3<em>.</em>1</span><span class="mono">0:11.7<br>bar.beat</span>
+      <button class="alloff alloff-m" title="Stop every sound now (Esc Esc)"><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>All off</button></div>
+    <div class="spec"><small>Tempo</small><span class="num">92</span></div>
+    <div class="spec"><small>Meter</small><span class="num">4/4</span></div>
+    <div class="spec"><small>Key</small><span class="val">A minor</span></div>
+    <div class="click"><button class="tog on"><i></i>Click</button><span class="beats" aria-label="beat 3 of 4"><i class="one"></i><i></i><i class="now"></i><i></i></span><span class="t3" style="font-size:11.5px;white-space:nowrap">count-in<br>1 bar</span></div>
+        <div class="grow"></div>
+    <button class="alloff" title="Stop every sound now: the song, held notes, previews, takes. Esc twice does it too."><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>All off</button>
+    <div class="meter"><span class="bars"><i></i><i></i></span><span class="mono">−10.6 LUFS</span></div>
+    <div class="share undo"><button class="btn">Song</button></div>
+  </div>
+
+  <div class="work">
+    <div class="arr" id="arr">
+      <div class="arr-tools"><button class="btn btn-txt">Add a track</button><button class="btn btn-txt">Snap 1/16</button><button class="btn btn-txt">Fit</button></div>
+      <div class="ruler" id="ruler"></div>
+      <!-- tracks are written by the script below, from Night Shift's own notes -->
+    </div>
+
+    <div class="tabs"><button class="on">Sketch</button><button>Notes</button><button>Beat</button><button>Devices</button><button>Mixer</button><button>Reference</button><span class="aside">Into <b class="t2">Drums</b>, from bar 5, with the song</span></div>
+    <div class="dock">
+      <div class="sketch">
+        <div class="modes">
+          <button>Hum it</button>
+          <button class="on">Tap it</button>
+          <button>Play it</button>
+          <button>Record</button>
+          <small>Takes land where the playhead is. Press <kbd>0</kbd> on a clip to mute it.</small>
+        </div>
+        <div class="rec">
+          <div class="rec-line"><span class="live">Recording take 4</span><span>into <b>Drums</b>, bars 5 to 6. The click counted you in; the song plays along.</span></div>
+          <div class="count"><span class="num done">1</span><span class="num done">2</span><span class="num now">3</span><span class="num">4</span><span class="of">beat 3<br>of bar 5</span></div>
+          <div class="strip" id="strip"></div>
+          <div class="pads">
+            <span class="pad">Kick <kbd>F</kbd></span><span class="pad hit">Snare <kbd>J</kbd></span><span class="pad">Hat <kbd>K</kbd></span><span class="pad">Open <kbd>L</kbd></span>
+            <button class="btn"><svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>Stop <kbd>R</kbd></button>
+          </div>
+        </div>
+        <div class="takes">
+          <header><h4 class="disp">Takes</h4><span class="t3">this song, never wiped</span></header>
+          <div class="tk">
+            <span class="big num">3</span>
+            <div class="meta"><span>tapped by <span class="by by-you">you</span></span><span class="mono">just now</span></div>
+            <svg id="take3" viewBox="0 0 16 4" preserveAspectRatio="none"></svg>
+            <div><div class="meta"><span class="mono" style="margin-left:0">8 hits, 1 bar, bar 5</span></div>
+            <div class="acts"><button class="btn btn-go">Keep</button><button class="btn">Band</button><button class="btn"><svg class="mk mk-agent" viewBox="0 0 16 8"><path d="M2 6.5 L14 1.5"/></svg>Agent</button></div></div>
+          </div>
+          <div class="tk old">
+            <span class="big num">2</span>
+            <div class="meta"><span>hummed by <span class="by by-you">you</span></span><span class="mono">4 min ago</span></div>
+            <div class="meta"><span class="mono" style="margin-left:0">7 notes, A minor, kept on Keys</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" role="status"><span>Hook muted, bars 5 to 8. It stays in the song; press <kbd>0</kbd> to hear it again.</span><span class="sep"></span><button class="btn btn-txt">Undo</button></div>
+  </div>
+
+  <aside class="agent">
+    <div class="tabs"><button class="on">Agent</button><button>History</button></div>
+    <div class="ag-stat"><span class="dot"></span><span class="by by-agent">Claude</span><span class="t2">demo agent, waiting for your pick</span><span class="t3">MCP ready</span></div>
+    <div class="log">
+      <div class="say"><span class="by by-you">You</span><p>More bounce in the bass, verse only. Keep its notes.</p></div>
+      <div class="say"><span class="by by-agent">Claude</span>
+        <div><p>Two takes over Walk, bars 1 to 4, built from your notes. Same harmony; they move differently. Hold one to hear it in the song.</p>
+          <ul class="steps"><li><b>listened</b>Bass, bars 1–4</li><li><b>measured</b>−16.3 LUFS on Bass</li><li><b>wrote</b>take A, take B</li></ul></div>
+      </div>
+      <div class="offer">
+        <header><h4 class="disp">Bass, Walk</h4><span class="mono">bars 1–4</span></header>
+        <div class="ab">
+          <span class="big num by-agent">A</span>
+          <h5>Octave pops on the off-beats</h5>
+          <p>Each long note answers itself an octave up.</p>
+          <svg id="takeA" preserveAspectRatio="none"></svg>
+          <div class="row"><button class="btn btn-held"><svg viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9Z"/></svg>Hearing A</button><button class="btn">Keep</button><span class="mono">+8 notes</span></div>
+        </div>
+        <div class="ab">
+          <span class="big num by-agent">B</span>
+          <h5>Chromatic pickups into each bar</h5>
+          <p>A ghosted half-step pulls into every downbeat.</p>
+          <svg id="takeB" preserveAspectRatio="none"></svg>
+          <div class="row"><button class="btn"><svg viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9Z"/></svg>Hold to hear</button><button class="btn">Keep</button><span class="mono">+3 notes</span></div>
+        </div>
+        <div class="ab orig">
+          <span class="big disp-s">as it<br>was</span>
+          <h5>Walk, as the house played it</h5>
+          <div class="row" style="margin-top:6px"><button class="btn"><svg viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9Z"/></svg>Hold to hear</button><button class="btn">Keep as it was</button></div>
+        </div>
+        <footer><span>Order is shuffled; neither is recommended.</span><button class="btn-txt btn" style="height:auto">None of these</button></footer>
+      </div>
+    </div>
+    <div class="compose"><div class="field"><span>Ask, or say how it should feel</span><kbd>Cmd Enter</kbd></div><small><kbd>Cmd /</kbd> asks from anywhere</small></div>
+  </aside>
+</div>
+<div class="cap"><span class="num">1</span><span>The studio, Night Shift at bar 5. Walk 2 is selected, the Hook clip is muted, Claude points at bars 1–4 of the bass, and you are tapping take 4 into the song.</span></div>
+
+<!-- ======================= FIG 2: HISTORY AND THE SLEEVE ======================= -->
+<div class="sheet">
+  <h2 class="disp">Who played what</h2>
+  <p class="lede">History is a track sheet: one line per change, the player's name where you'd sign it, the time in the margin. The system it comes from is set beside it.</p>
+  <div class="two">
+    <div class="hist">
+      <div class="tabs"><button>Agent</button><button class="on">History</button></div>
+      <div class="hist-in">
+        <h4 class="disp">Who wrote the notes</h4>
+        <div class="shares">
+          <div><span class="num">79<sup>%</sup></span><span class="by by-house">the house</span></div>
+          <div><span class="num">12<sup>%</sup></span><span class="by by-you">you</span></div>
+          <div><span class="num">9<sup>%</sup></span><span class="by by-agent">Claude</span></div>
+        </div>
+        <div class="tape" aria-hidden="true"><i style="width:79%;background:var(--line-2)"></i><i style="width:12%;background:var(--human)"></i><i style="width:9%;background:var(--agent)"></i></div>
+        <div class="filters"><button class="on">All<span class="mono">6</span></button><button>You<span class="mono">4</span></button><button>Claude<span class="mono">2</span></button><button class="btn btn-txt">Undo Claude's, keep mine</button></div>
+        <ol class="ledger">
+          <li class="hov"><span class="mono">10:42</span><span class="by by-you">you</span><span class="what">Muted Hook<span class="where">bars 5–8</span></span><button class="btn btn-txt">Undo</button></li>
+          <li><span class="mono">10:41</span><span class="by by-agent">Claude</span><span class="what">Offered two takes for Walk<span class="why">You asked for more bounce in the verse.</span><span class="where">Bass, bars 1–4</span></span></li>
+          <li><span class="mono">10:38</span><span class="by by-you">you</span><span class="what">Tapped take 3 into Drums<span class="where">8 hits, bar 5</span></span></li>
+          <li><span class="mono">10:31</span><span class="by by-agent">Claude</span><span class="what">Keys down 1.5 dB under the hook<span class="why">The hook was 2 LU under the keys in the chorus.</span><span class="where">gain, Keys</span></span></li>
+          <li><span class="mono">10:30</span><span class="by by-you">you</span><span class="what">Guitar right<span class="where">pan, Guitar</span></span></li>
+          <li><span class="mono">10:29</span><span class="by by-you">you</span><span class="what">Bass down 2 dB<span class="where">gain, Bass</span></span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="spec-sheet">
+      <section>
+        <h4 class="disp">Type</h4>
+        <ul class="scale">
+          <li><span>numeral 44</span><span class="num" style="font-size:44px">A 3 92</span></li>
+          <li><span>head 19</span><span class="disp" style="font-size:19px">Takes</span></li>
+          <li><span>section 13</span><span class="disp-s" style="font-size:13px">Verse, Chorus</span></li>
+          <li><span>body 13.5</span><span style="font-size:13.5px">Two takes over Walk, bars 1 to 4.</span></li>
+          <li><span>byline 12</span><span style="font-size:12px">played by <span class="by by-you">you</span>, <span class="by by-agent">Claude</span>, <span class="by by-house">the house</span></span></li>
+          <li><span>data 11.5</span><span class="mono">−16.3 LUFS on Bass</span></li>
+        </ul>
+      </section>
+      <section class="bylines">
+        <h4 class="disp">Authorship is a signature</h4>
+        <p>The player's name, in their ink, where you'd sign a track sheet: <span class="by by-you">you</span> warm, <span class="by by-agent">Claude</span> cool, <span class="by by-house">the house</span> in pencil.</p>
+        <p>Notes the agent wrote keep their track colour and get a cool outline. No container is ever striped, tinted or filled by who made it.</p>
+        <p>The verb says how: <span class="t2">played, tapped, hummed, built, changed.</span></p>
+      </section>
+      <section>
+        <h4 class="disp">State</h4>
+        <div class="states" id="states"></div>
+      </section>
+      <section>
+        <h4 class="disp">Inks</h4>
+        <div class="inks">
+          <div><i style="background:var(--bg)"></i><b>Room</b>#141210</div>
+          <div><i style="background:var(--text)"></i><b>Leader cream</b>text, selection</div>
+          <div><i style="background:var(--accent)"></i><b>Leader green</b>playhead, the one go</div>
+          <div><i style="background:var(--accent-2)"></i><b>Grease pencil</b>loop, pointed at</div>
+          <div><i style="background:var(--human)"></i><b>Warm</b>a person</div>
+          <div><i style="background:var(--agent)"></i><b>Cool</b>an agent</div>
+          <div><i style="background:var(--rec)"></i><b>Record</b>a take in progress</div>
+          <div><i style="background:var(--line-2)"></i><b>Rule</b>bar lines, edges</div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="cap"><span class="num">2</span><span>History as a ledger, and the sleeve: type, bylines, state, inks.</span></div>
+
+<!-- ======================= FIG 3: THE LANDING HERO ======================= -->
+<div class="land">
+  <nav><div class="lockup"><svg viewBox="0 0 100 100" aria-hidden="true" class="mark2"></svg><b>overdub</b></div><a href="#">Guide</a><a href="#">For agents</a><a href="#">Press</a><button class="btn">Open the studio</button></nav>
+  <h1 class="over"><span class="a">Play over<br>each other.</span><span class="b" aria-hidden="true">Play over<br>each other.</span></h1>
+  <svg class="weave" id="weave" viewBox="0 0 1440 230" preserveAspectRatio="xMaxYMid slice" aria-label="Two strands crossing: you, played a little loose, and your agent, exact"></svg>
+  <div class="cols">
+    <p class="lede">Overdub is a music studio for you and your agents. You lay down a take: hum it, tap it, play it or say it. Your agent plays over it, you play over that, and every take is signed: warm for you, cool for your agent.</p>
+    <div class="cr">
+      <h4 class="disp">Night Shift, 92 bpm</h4>
+      <ul>
+        <li>Drums, bass, keys, hook<span class="lead"></span><span class="by by-house">the house</span></li>
+        <li>Fireflies<span class="lead"></span><span class="by by-agent">Claude</span></li>
+        <li>Take one<span class="lead"></span><span class="by by-you">you</span></li>
+        <li>Mixed to<span class="lead"></span><span class="mono">−10.6 LUFS</span></li>
+      </ul>
+    </div>
+    <div class="go">
+      <button class="btn btn-go">Open the studio</button>
+      <button class="btn">Hum into it</button>
+      <p>The mic turns on only when you press the button, and nothing leaves your device.</p>
+    </div>
+  </div>
+</div>
+<div class="cap"><span class="num">3</span><span>The landing hero: the overprint and the Weave kept, the badge, the eyebrow and the halos gone, the demo's credits set as a sleeve's.</span></div>
+<div class="colophon"><span>Liner notes, a style direction for Overdub</span><span>Archivo Expanded, Atkinson Hyperlegible Next and Mono</span><span>A static mockup; nothing here is wired</span></div>
+
+<script>
+// ---------- Night Shift's own notes (app/src/core/demo.js) ----------
+const NAMES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midi = (s) => { const m = /^([A-G])(#?)(-?\d)$/.exec(s); return 12 * (+m[3] + 1) + NAMES[m[1]] + (m[2] ? 1 : 0); };
+const parse = (src) => src.trim().split(/\s+/).map((tok) => { const [n, rest] = tok.split('@'); const [t, dv] = rest.split(':'); const [d, v] = dv.split('*'); return { p: midi(n), t: +t, d: +d, v: v ? +v : 0.8 }; });
+const bass = parse(`A1@0:0.75 A1@0.75:0.25 E2@1.5:0.5 A1@2:1 G1@3.5:0.5 F1@4:0.75 F1@4.75:0.25 C2@5.5:0.5 F1@6:1 E1@7.5:0.5 C2@8:0.75 C2@8.75:0.25 G1@9.5:0.5 C2@10:1 B1@11.5:0.5 G1@12:0.75 G1@12.75:0.25 D2@13.5:0.5 G1@14:1 G#1@15.5:0.5`);
+const lead = parse(`E5@0:0.5 D5@0.5:0.5 C5@1:0.5 A4@1.5:1.5 G4@3:0.5 A4@3.5:0.5 C5@4:1 A4@5:0.5 C5@5.5:0.5 D5@6:1.5 C5@7.5:0.5 E5@8:0.5 G5@8.5:0.5 E5@9:0.5 D5@9.5:0.5 C5@10:1.5 D5@11.5:0.5 B4@12:1 D5@13:0.5 B4@13.5:0.5 A4@14:2`);
+const fireflies = parse(`E6@0:0.5*0.7 C6@0.75:0.5*0.55 A5@1.5:1*0.6 G6@2.5:0.5*0.5 E6@3:1*0.65 F6@4:0.5*0.7 C6@4.75:0.5*0.55 A5@5.5:1*0.6 E6@6.5:0.5*0.5 C6@7:1*0.65 G6@8:0.5*0.72 E6@8.75:0.5*0.55 C6@9.5:1*0.6 D6@10.5:0.5*0.5 E6@11:1*0.66 D6@12:0.5*0.7 B5@12.75:0.5*0.55 G5@13.5:1*0.6 A5@14.5:0.5*0.5 B5@15:1*0.7`);
+const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [52, 55, 60, 64], [55, 59, 62, 65]];
+const keys = []; for (let bar = 0; bar < 8; bar++) for (const p of chords[bar % 4]) { const t0 = bar * 4; keys.push({ p, t: t0, d: 1.5 }, { p, t: t0 + 1.5, d: 0.5 }, { p, t: t0 + 2.5, d: 1.4 }); }
+const ROWS = ['kick', 'snare', 'hat', 'open'];
+const drumBar = (fill) => fill ? { kick: 'x.....x...x.....', snare: '....X.......X.xx', hat: 'x.x.x.x.x.x.x...', open: '..............x.' } : { kick: 'x.....x...x.....', snare: '....X.......X...', hat: 'x.xox.xox.xox.xo', open: '................' };
+const drums = []; for (let bar = 0; bar < 8; bar++) { const g = drumBar(bar === 3 || bar === 7); ROWS.forEach((r, ri) => [...g[r]].forEach((c, i) => { if (c === 'x' || c === 'X') drums.push({ p: ri, t: bar * 4 + i * 0.25, d: 0.2 }); else if (c === 'o' && r === 'hat') drums.push({ p: 3, t: bar * 4 + i * 0.25, d: 0.2 }); })); }
+
+const NS = 'http://www.w3.org/2000/svg';
+function rollSVG(notes, beats, { drum = false, extra = [], dim = false } = {}) {
+  const all = notes.concat(extra.map((n) => ({ ...n, x: 1 })));
+  const ps = all.map((n) => n.p); const lo = drum ? 0 : Math.min(...ps) - 1, hi = drum ? 3 : Math.max(...ps) + 1, H = hi - lo + 1;
+  let s = `<svg viewBox="0 0 ${beats} ${H}" preserveAspectRatio="none">`;
+  for (const n of all) {
+    const h = drum ? 0.56 : Math.max(0.8, H * 0.11), y = drum ? n.p + 0.22 : ((hi - n.p) / H) * (H - h) + 0.05, w = drum ? Math.min(0.16, beats / 100) : Math.max(n.d - 0.06, 0.1);
+    s += `<rect x="${n.t}" y="${y}" width="${w}" height="${h}"${n.x ? ' class="x"' : ''}${dim && !n.x ? ' opacity=".55"' : ''}/>`;
+  }
+  return s + '</svg>';
+}
+
+// ---------- the arranger ----------
+const BARS = 8, pct = (beats) => (beats / (BARS * 4)) * 100;
+const ruler = document.getElementById('ruler');
+ruler.innerHTML = `<span class="sec disp-s" style="left:0">Verse</span><span class="sec disp-s" style="left:50%">Chorus</span>`
+  + Array.from({ length: BARS }, (_, i) => `<span class="bar num${i === 4 ? ' here' : ''}" style="left:${(i / BARS) * 100}%">${i + 1}</span>`).join('')
+  + `<span class="loop" title="Loop: bars 1 to 9"></span>`;
+const wave = (() => { let d = 'M0 50'; for (let x = 0; x <= 400; x += 2) { const a = (Math.abs(Math.sin(x * 0.11) * Math.sin(x * 0.023 + 1)) * 0.75 + 0.12) * (x % 32 < 3 ? 1 : 0.8) * 42; d += ` M${x} ${50 - a} L${x} ${50 + a}`; } return d; })();
+const tracks = [
+  { n: 1, name: 'Drums', dev: 'Gobo Kit', c: 'var(--c-1)', clips: [{ name: 'Beat', s: 0, l: 32, notes: drums, drum: true, by: 'house' }] },
+  { n: 2, name: 'Bass', dev: 'Capstan', c: 'var(--c-5)', sel: true, crop: [0, 16, 'Claude: 2 takes, bars 1–4'], clips: [{ name: 'Walk', s: 0, l: 16, notes: bass, by: 'house' }, { name: 'Walk 2', s: 16, l: 16, notes: bass, by: 'house', sel: true }] },
+  { n: 3, name: 'Keys', dev: 'Lamp Tines', fx: 'Night Bus', c: 'var(--c-6)', clips: [{ name: 'Changes', s: 0, l: 32, notes: keys, by: 'house' }] },
+  { n: 4, name: 'Hook', dev: 'Pinch Roller', c: 'var(--c-4)', clips: [{ name: 'Hook', s: 16, l: 16, notes: lead, by: 'house', muted: true }] },
+  { n: 5, name: 'Fireflies', dev: 'Firefly', built: true, c: 'var(--c-2)', clips: [{ name: 'Twinkle', s: 16, l: 16, notes: fireflies, by: 'agent' }] },
+  { n: 6, name: 'Guitar', dev: 'Audio in', c: 'var(--c-8)', clips: [{ name: 'Take 1', s: 16, l: 16, audio: true, by: 'you' }] },
+];
+const BYL = { house: '<span class="by by-house hs">house</span>', agent: '<span class="by by-agent">Claude</span>', you: '<span class="by by-you">you</span>' };
+const arr = document.getElementById('arr');
+let html = '';
+for (const t of tracks) {
+  const devLine = t.built ? `<span><i class="sw" style="background:${t.c}"></i>${t.dev}, by <span class="by by-agent">Claude</span></span>` : `<span><i class="sw" style="background:${t.c}"></i>${t.dev}</span>`;
+  html += `<div class="th${t.sel ? ' sel' : ''}"><span class="n num">${String(t.n).padStart(2, '0')}</span><div class="nm"><b>${t.name}</b>${devLine}</div><div class="msr"><button>M</button><button>S</button><button class="r">R</button></div></div>`;
+  html += `<div class="lane" style="--tc:${t.c}">`;
+  for (const c of t.clips) {
+    const cls = ['clip', c.by === 'agent' ? 'agent' : c.by === 'you' ? 'you' : '', c.sel ? 'sel' : '', c.muted ? 'muted' : ''].join(' ');
+    const by = c.muted ? '<span class="by by-house">muted</span>' : BYL[c.by];
+    const body = c.audio ? `<svg viewBox="0 0 400 100" preserveAspectRatio="none"><path d="${wave}" stroke-width="1.2" vector-effect="non-scaling-stroke" fill="none"/></svg>`
+      : rollSVG(c.notes.filter((n) => n.t >= 0 && n.t < c.l + (c.drum ? 0 : 0)), c.l, { drum: c.drum });
+    html += `<div class="${cls}" style="left:${pct(c.s)}%;width:${pct(c.l)}%"><header><b>${c.name}</b>${by}</header>${body}</div>`;
+  }
+  if (t.crop) html += `<div class="crop" style="left:${pct(t.crop[0])}%;width:${pct(t.crop[1])}%"><i></i><i></i><i></i><i></i><span>${t.crop[2]}</span></div>`;
+  html += `</div>`;
+}
+arr.insertAdjacentHTML('beforeend', html);
+// the playhead runs from the ruler down through the lanes: it lives in a column overlay
+const ph = document.createElement('div'); ph.className = 'playhead';
+const lanesTop = ruler.offsetTop; ph.style.top = (lanesTop) + 'px'; ph.style.bottom = '0';
+ph.style.left = `calc(var(--hw, 244px) + (100% - var(--hw, 244px)) * ${(4 + 2 / 4) / BARS})`;
+arr.append(ph);
+const setHw = () => arr.style.setProperty('--hw', getComputedStyle(arr).gridTemplateColumns.split(' ')[0]);
+setHw(); addEventListener('resize', setHw);
+
+// the welcome insert sits over the quiet corner (bars 1-4 of Hook, Fireflies, Guitar)
+const ins = document.createElement('div'); ins.className = 'insert'; ins.setAttribute('role', 'note');
+ins.innerHTML = `<button class="x">Got it</button><h3 class="disp">This is Night Shift.</h3>
+<ul class="credits"><li>Drums, bass, keys, hook<span class="lead"></span><span class="who-h">the house</span></li>
+<li>Fireflies, and the Firefly itself<span class="lead"></span><span class="who-a">Claude</span></li>
+<li>Your takes, in Sketch<span class="lead"></span><span class="who-y">you</span></li></ul>
+<div class="acts"><button class="btn">Take the two-minute tour</button><a href="#">ask the agent</a><span class="foot"><kbd>Space</kbd> plays it</span></div>`;
+document.querySelector('.work').append(ins);
+const placeInsert = () => { const lanes = arr.querySelectorAll('.lane'); const l4 = lanes[3]; if (!l4) return; ins.style.top = (l4.offsetTop - 4) + 'px'; ins.style.left = (l4.offsetLeft + 16) + 'px'; };
+placeInsert(); addEventListener('resize', placeInsert);
+
+// ---------- Sketch: the song strip, your taps landing on it ----------
+const strip = document.getElementById('strip');
+const tapped = [{ p: 0, t: 16 }, { p: 2, t: 16.5 }, { p: 1, t: 17.02 }, { p: 2, t: 17.48 }, { p: 0, t: 17.76 }];
+let ss = `<svg viewBox="0 0 32 4" preserveAspectRatio="none">`;
+for (const n of drums) ss += `<rect x="${n.t}" y="${n.p + 0.3}" width="0.09" height="0.4" fill="var(--text-3)" opacity=".35"/>`;
+for (const n of tapped) ss += `<rect x="${n.t - 0.04}" y="${n.p + 0.08}" width="0.14" height="0.84" fill="var(--human)"/>`;
+ss += `</svg>`;
+strip.innerHTML = `<span class="take" style="left:${pct(16)}%;width:${pct(8)}%"><span>take 4</span></span>`
+  + Array.from({ length: BARS }, (_, i) => `<span class="lab num" style="left:${(i / BARS) * 100}%">${i + 1}</span>`).join('')
+  + `<span class="lab disp-s" style="left:calc(${pct(16)}% + 14px)">Chorus</span>` + ss
+  + `<span class="playhead" style="left:${pct(18)}%"></span>`;
+// take 3, a bar of taps
+const t3 = [{ p: 0, t: 0 }, { p: 0, t: 2.5 }, { p: 1, t: 1 }, { p: 1, t: 3 }, { p: 2, t: 0.5 }, { p: 2, t: 1.5 }, { p: 2, t: 2 }, { p: 2, t: 3.5 }];
+document.getElementById('take3').outerHTML = `<svg viewBox="0 0 4 4" preserveAspectRatio="none" style="width:100%;height:30px;display:block;background:var(--bg-2)">${t3.map((n) => `<rect x="${n.t + 0.03}" y="${n.p + 0.2}" width="0.06" height="0.6" fill="var(--c-1)"/>`).join('')}${[1, 2, 3].map((b) => `<rect x="${b}" y="0" width="0.008" height="4" fill="var(--line-2)"/>`).join('')}</svg>`;
+
+// ---------- the agent's two takes: the house's notes dimmed, Claude's added notes outlined cool ----------
+const walk = bass.filter((n) => n.t < 16);
+const addA = walk.filter((n) => n.d >= 0.75).map((n) => ({ p: n.p + 12, t: n.t + 0.5, d: 0.25 }));
+const addB = [{ p: midi('E1'), t: 3.75, d: 0.25 }, { p: midi('B1'), t: 7.75, d: 0.25 }, { p: midi('F#1'), t: 11.75, d: 0.25 }];
+const take = (id, extra) => { const el = document.getElementById(id); el.outerHTML = rollSVG(walk, 16, { extra, dim: true }).replace('<svg', `<svg class="mini" style="--tc:var(--c-5)"`); };
+take('takeA', addA); take('takeB', addB);
+const st = document.createElement('style');
+st.textContent = `.ab svg.mini{width:100%;height:30px;display:block;background:var(--bg)} .ab svg.mini rect{fill:var(--text-3)} .ab svg.mini rect.x{fill:var(--agent)}
+.clip svg rect.x{stroke:var(--agent)}`;
+document.head.append(st);
+
+// ---------- the state figures on the sleeve ----------
+const states = [
+  ['Selected', 'a cream frame, the label in reverse', 'sel', 'house'],
+  ['Muted', 'outline only, the name struck through', 'muted', 'house'],
+  ['Pointed at', 'grease-pencil crop marks', 'crop', 'house'],
+  ['Recording', 'the record ink, and nothing else', 'rec', 'you'],
+];
+document.getElementById('states').innerHTML = states.map(([b, d, k, by]) => {
+  const inner = k === 'crop' ? `<div class="clip" style="left:4%;width:92%"><header><b>Walk</b>${BYL[by]}</header>${rollSVG(walk, 16)}</div><div class="crop" style="left:4%;width:92%"><i></i><i></i><i></i><i></i></div>`
+    : k === 'rec' ? `<div class="clip you" style="left:4%;width:92%;outline:1.5px solid var(--rec);outline-offset:-1.5px;background:rgba(255,77,77,.06)"><header><b style="color:var(--rec)">Take 4</b>${BYL.you}</header>${rollSVG(tapped.map((n) => ({ ...n, t: n.t - 16, d: .1 })), 8, { drum: true })}</div>`
+    : `<div class="clip ${k}" style="left:4%;width:92%"><header><b>Walk 2</b>${k === 'muted' ? '<span class="by by-house">muted</span>' : BYL[by]}</header>${rollSVG(walk, 16)}</div>`;
+  return `<figure><div class="lane" style="--tc:var(--c-5)">${inner}</div><figcaption><b>${b}</b>: ${d}</figcaption></figure>`;
+}).join('');
+
+// ---------- the Weave: the mark, and the hero's strip of tape ----------
+function strand(f, x0, x1, step = 2) { let d = ''; for (let x = x0; x <= x1; x += step) d += (d ? ' L' : 'M') + x.toFixed(1) + ' ' + f(x).toFixed(2); return d; }
+function weave(svg, { W, cy, A, lam, sw, head, bg, skew = 0 }) {
+  const cool = (x) => cy - A * Math.sin((2 * Math.PI * x) / lam);
+  const warm = (x) => cy + A * Math.sin((2 * Math.PI * x) / lam) * (1 + 0.08 * Math.sin(x / (lam * 0.7))) + 1.6 * Math.sin(x / 23);
+  const end = head ?? W;
+  let s = `<g transform="skewX(${skew})">`;
+  s += `<path d="${strand(cool, 0, end)}" stroke="var(--agent)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  s += `<path d="${strand(warm, 0, end)}" stroke="var(--human)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  // at every crossing one strand passes over: warm on the first, cool on the next
+  for (let k = 1; k * lam / 2 < end; k++) {
+    const x = k * lam / 2, a = Math.max(0, x - lam / 7), b = Math.min(end, x + lam / 7), top = k % 2 ? 'human' : 'agent', f = k % 2 ? warm : cool;
+    s += `<path d="${strand(f, a, b)}" stroke="${bg}" stroke-width="${sw + sw * 0.7}" fill="none"/><path d="${strand(f, a, b)}" stroke="var(--${top})" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  }
+  s += '</g>';
+  svg.innerHTML = s;
+  return { cool, warm };
+}
+for (const el of [document.getElementById('mark'), ...document.querySelectorAll('.mark2')]) {
+  el.setAttribute('viewBox', '0 0 100 100');
+  weave(el, { W: 84, cy: 50, A: 25, lam: 66, sw: 12, bg: 'var(--bg)', skew: -10 });
+  el.firstChild.setAttribute('transform', 'translate(16 0) skewX(-10)');
+}
+const wv = document.getElementById('weave'), HEAD = 1180;
+const fns = weave(wv, { W: 1440, cy: 115, A: 62, lam: 300, sw: 15, head: HEAD, bg: 'var(--bg)' });
+let grid = '';
+for (let x = 30; x < 1440; x += 75) grid += `<line x1="${x}" y1="20" x2="${x}" y2="215" stroke="var(--line)" stroke-width="1"/>`;
+for (let x = 30, b = 5; x < 1440; x += 300, b++) grid += `<line x1="${x}" y1="10" x2="${x}" y2="215" stroke="var(--line-2)" stroke-width="1"/><text x="${x + 6}" y="22" fill="var(--text-3)" style="font:italic 800 14px var(--font-display);font-stretch:125%">${b}</text>`;
+wv.insertAdjacentHTML('afterbegin', `<g>${grid}<line x1="0" y1="115" x2="1440" y2="115" stroke="var(--line)"/></g>`);
+const cy1 = fns.cool(HEAD), cy2 = fns.warm(HEAD);
+wv.insertAdjacentHTML('beforeend', `<line x1="${HEAD}" y1="6" x2="${HEAD}" y2="224" stroke="var(--accent)" stroke-width="2"/><path d="M${HEAD - 7} 6 L${HEAD + 7} 6 L${HEAD} 16Z" fill="var(--accent)"/>
+<circle cx="${HEAD}" cy="${cy1}" r="5" fill="var(--bg)" stroke="var(--agent)" stroke-width="3"/><circle cx="${HEAD}" cy="${cy2}" r="5" fill="var(--bg)" stroke="var(--human)" stroke-width="3"/>
+<text x="${HEAD + 16}" y="${cy1 + 5}" fill="var(--agent)" style="font:600 15px var(--font-ui)">your agent, exact</text>
+<text x="${HEAD + 16}" y="${cy2 + 5}" fill="var(--human)" style="font:600 15px var(--font-ui)">you, played</text>`);
+</script>
+</body>
+</html>

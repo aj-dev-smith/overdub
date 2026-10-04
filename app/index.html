@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.anthropic.com https://overdub-relay.ajsmithhq.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta charset="utf-8">
+  <!-- The policy comes first, so it covers everything the page loads. This page keeps the person's Anthropic API key
+       in localStorage, so a script that isn't ours is the worst case: scripts load from this origin only, and the page
+       talks to this origin and the Messages API. Worklet modules are scripts too, and every one is a file here
+       (src/kernel/processor.js, src/devices/worklets/, vendor/clawd/worklets/, src/input/cap-worklet.js), so
+       script-src needs neither data: nor blob: (with data:, markup slipped into the page could run script on this
+       origin through an <iframe srcdoc>; tools/compat-test.js tries it in each browser). Stylesheets and fonts are files
+       here too (style/fonts.css), so no other host's CSS is on this page and a visitor's address goes to no font host.
+       What it allows beyond that:
+       - script-src 'unsafe-eval': kernels compile with new Function in the AudioWorklet, which runs under this page's
+         policy, and the page parses kernel source the same way (it never runs it).
+       - worker-src blob: the engine's timer Worker (src/engine/engine.js, ticker) is made from a blob: URL.
+       - style-src 'unsafe-inline': the panels inject their own <style> elements.
+       - connect-src https://overdub-relay.ajsmithhq.com : the hosted relay behind Connect to Claude (RELAY in
+         src/agent/remote.js; docs/REMOTE-MCP.md). The tab talks to it only while Connect is on, and its own key travels
+         in a request header, never in a URL. (Until the relay is deployed, RELAY_LIVE keeps Connect hidden here.)
+       - connect-src http://localhost:* http://127.0.0.1:* : a relay on this machine (?relay=, which the studio honours
+         only when it is itself on localhost; tools/relay-test.js, node server/relay.js). A meta policy can't depend on
+         the host, so the live site carries these two as well, but nothing there connects to them.
+       tools/compat-test.js checks that a session raises no violation in each browser, and tools/relay-test.js that
+       connect-src names RELAY. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Overdub Studio</title>
+  <meta name="description" content="A studio for you and your agents: hum it, tap it, play it, say it, and build any instrument or effect together.">
+  <meta name="theme-color" content="#141210">
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style/tokens.css">
+  <link rel="stylesheet" href="./style/app.css">
+  <script type="module" src="./src/main.js"></script>
+</head>
+<body>
+  <div id="studio" aria-label="Overdub studio"></div>
+  <noscript>Overdub needs JavaScript.</noscript>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "id": "mix-darken-keys",
+  "family": "mix",
+  "title": "Darken the keys",
+  "instruction": "The keys are too glassy. Darken them by 3 to 6 dB in the presence band (4-8 kHz) without changing their loudness by more than 1 LU.",
+  "song": "songs/night-shift.json",
+  "setup": [{ "type": "instrument.set", "track": "Keys", "params": { "bright": 1, "bell": 1 } }],
+  "checks": [
+    { "id": "presence", "label": "Keys presence (4-8 kHz) vs before", "kind": "measure", "metric": "band.presence", "unit": "dB", "relative": true,
+      "scope": { "tracks": ["Keys"], "from": 0, "to": 16 }, "target": [-6, -3], "soft": 2, "weight": 1 },
+    { "id": "loudness", "label": "Keys loudness vs before", "kind": "measure", "metric": "lufs", "unit": "LU", "relative": true,
+      "scope": { "tracks": ["Keys"], "from": 0, "to": 16 }, "target": [-1, 1], "soft": 1.5, "gate": true }
+  ]
+}

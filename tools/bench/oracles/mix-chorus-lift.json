@@ -1,0 +1,3 @@
+{ "task": "mix-chorus-lift", "why": "A wide pad (Room Tone, chorus all the way up) holding the changes under the chorus only: about 2 LU up and much wider, the verse untouched.",
+  "ops": [{ "type": "track.add", "ref": "pad", "track": { "name": "Lift", "instrument": { "device": "core.pad", "params": { "chorus": 1, "space": 0.6 } }, "gain": 1 } },
+          { "type": "clip.add", "track": "$pad", "clip": { "start": 16, "length": 16, "name": "Lift", "notes": "A3@0:4 C4@0:4 E4@0:4 F3@4:4 A3@4:4 C4@4:4 E3@8:4 G3@8:4 C4@8:4 G3@12:4 B3@12:4 D4@12:4" } }] }

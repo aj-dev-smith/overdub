@@ -1,0 +1,17 @@
+{
+  "id": "device-decaying-instrument",
+  "family": "device",
+  "title": "A bell that dies away",
+  "instruction": "The pad on the Bell track rings on forever. Build an instrument (write the kernel) for the Bell track that is struck, not held: every note falls below -60 dBFS within 1.5 s of being played, even if the key is held, and still speaks (peaks above -30 dBFS, never over -1).",
+  "song": "songs/lab.json",
+  "setup": [],
+  "checks": [
+    { "id": "built", "label": "Bell's instrument is one written in this song", "kind": "defined", "track": "Bell", "deviceKind": "instrument", "target": [1, 1], "gate": true },
+    { "id": "decay", "label": "Slowest note's time to fall below -60 dBFS (C3, C5 short; C4 held 2 s)", "kind": "decayTime", "unit": "s",
+      "track": "Bell", "notes": [{ "p": 48, "d": 0.5 }, { "p": 72, "d": 0.5 }, { "p": 60, "d": 4 }], "threshold": -60, "target": [0, 1.5], "soft": 1, "weight": 3 },
+    { "id": "speaks", "label": "Quietest note's peak", "kind": "decayPeak", "which": "quietest", "unit": "dBFS",
+      "track": "Bell", "notes": [{ "p": 48, "d": 0.5 }, { "p": 72, "d": 0.5 }, { "p": 60, "d": 4 }], "target": [-30, null], "soft": 10, "weight": 1 },
+    { "id": "ceiling", "label": "Loudest note's peak", "kind": "decayPeak", "which": "loudest", "unit": "dBFS",
+      "track": "Bell", "notes": [{ "p": 48, "d": 0.5 }, { "p": 72, "d": 0.5 }, { "p": 60, "d": 4 }], "target": [null, -1], "soft": 3, "weight": 1 }
+  ]
+}

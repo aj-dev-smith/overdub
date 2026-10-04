@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tape and Print</title>
+<meta name="description" content="Overdub style direction: the analogue studio's own artifacts. A person signs in grease pencil, an agent signs with a rubber stamp, the house is printed.">
+<style>
+/* ---------------------------------------------------------------- faces (the repo's own files, latin subsets) */
+@font-face { font-family: 'Archivo'; font-style: italic; font-weight: 400 900; font-stretch: 62% 125%; src: url(fonts/archivo-italic-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 400 900; font-stretch: 62% 125%; src: url(fonts/archivo-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-weight: 400 700; src: url(fonts/atkinson-next-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-weight: 400 600; src: url(fonts/atkinson-mono-latin.woff2) format('woff2'); }
+
+/* ---------------------------------------------------------------- tokens: BRAND.md values, plus this direction's extras */
+:root {
+  color-scheme: dark;
+  --bg: #141210; --bg-2: #1a1815; --bg-3: #24211c; --panel: #1d1b17;
+  --line: #2f2b25; --line-2: #46413a;
+  --text: #f4ead6; --text-2: #cbc0aa; --text-3: #9a8f7c;
+  --accent: #d9f36a;   /* leader green: the playhead and the one primary action */
+  --accent-2: #f1dc8a; /* grease pencil (yellow): the loop, what the agent points at */
+  --human: #ffa043; --agent: #4cc3ff;
+  --rec: #ff4d4d; --ok: #8fdca0;
+  --c-1: #e98a6c; --c-2: #dcb45e; --c-3: #a8c470; --c-4: #95c6a8; --c-5: #8fa8d4; --c-6: #b69cd8; --c-7: #e68ba8; --c-8: #d9c8a4;
+  /* paper: only for things handed to you (the welcome sheet, the toast tape, the tape box) */
+  --paper: #f4ead6; --paper-2: #e9dcc0; --ink: #16130f; --ink-2: #4c4336;
+  --riso-warm: #f07612; --riso-cool: #1b95dc;
+  --font-ui: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-display: 'Archivo', 'Arial Black', sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, Menlo, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --r: 2px;          /* one radius: a cut edge, not a pill */
+  --rule: 1px solid var(--line);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); }
+body { background: var(--bg); color: var(--text); font: 13px/1.4 var(--font-ui); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ================================================================ THE MARKS
+   you      grease pencil: a china-marker hand in warm, a little loose, underlined by a stroke
+   CLAUDE   a rubber stamp in cool: printed capitals in a ruled box, inked unevenly, set a degree off square
+   house    printed: plain small mono in --text-3; the form itself, so it needs no mark */
+.sig { position: relative; display: inline-block; font: italic 700 15px/1 var(--font-display); font-stretch: 78%; color: var(--human);
+  transform: rotate(-4deg); filter: url(#grease); padding: 0 2px 3px; white-space: nowrap; letter-spacing: .01em; }
+.sig svg { position: absolute; left: -2px; right: -4px; bottom: -3px; width: calc(100% + 6px); height: 7px; overflow: visible; }
+.sig svg path { fill: none; stroke: var(--human); stroke-width: 1.8; stroke-linecap: round; }
+.sig.lg { font-size: 22px; }
+.stamp { display: inline-block; font: 600 10px/1 var(--font-mono); letter-spacing: .13em; text-transform: uppercase; color: var(--agent);
+  padding: 4px 4px 3px 6px; box-shadow: inset 0 0 0 2px var(--agent); border-radius: 1px; transform: rotate(-2deg); filter: url(#stampink); white-space: nowrap; }
+.stamp.r { transform: rotate(1.5deg); }
+.stamp.lg { font-size: 12px; padding: 5px 6px 4px 8px; box-shadow: inset 0 0 0 2px var(--agent); }
+.printed { font: 400 10.5px/1 var(--font-mono); color: var(--text-3); letter-spacing: .02em; }
+
+/* crop marks: selection. Four corners, drawn outside the thing, the way a printer marks the trim */
+.crop { position: absolute; inset: -5px; pointer-events: none; }
+.crop i { position: absolute; width: 9px; height: 9px; border: 0 solid var(--text); }
+.crop i:nth-child(1) { left: 0; top: 0; border-left-width: 1.5px; border-top-width: 1.5px; }
+.crop i:nth-child(2) { right: 0; top: 0; border-right-width: 1.5px; border-top-width: 1.5px; }
+.crop i:nth-child(3) { left: 0; bottom: 0; border-left-width: 1.5px; border-bottom-width: 1.5px; }
+.crop i:nth-child(4) { right: 0; bottom: 0; border-right-width: 1.5px; border-bottom-width: 1.5px; }
+
+/* keys: square hardware keys, never pills */
+.key { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; min-width: 28px; padding: 0 9px; border-radius: var(--r);
+  border: 1px solid var(--line-2); background: var(--bg-2); color: var(--text-2); font-weight: 600; font-size: 12px; }
+.key:hover { border-color: var(--text-3); color: var(--text); }
+.key.go { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.key.lit { color: var(--text); border-color: var(--text-3); background: var(--bg-3); }
+.key.sq { width: 22px; min-width: 22px; height: 20px; padding: 0; font: 600 10px var(--font-mono); }
+.key svg { width: 14px; height: 14px; }
+.link { color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; font-weight: 600; }
+.link:hover { color: var(--text); text-decoration-color: var(--text-3); }
+kbd { font: 500 10.5px var(--font-mono); color: var(--text-2); border-bottom: 1px solid var(--line-2); padding: 0 2px; }
+
+/* ================================================================ STUDIO */
+.studio { height: 900px; display: grid; grid-template-rows: 56px 1fr; border-bottom: var(--rule); position: relative; }
+
+/* --- top bar: the tape machine's face */
+.bar { display: flex; align-items: center; gap: 18px; padding: 0 16px; border-bottom: var(--rule); background: var(--bg); }
+.lockup { display: flex; align-items: center; gap: 7px; }
+.lockup img.m { width: 26px; height: 26px; }
+.lockup img.w { height: 17px; }
+.reel-label { display: flex; align-items: baseline; gap: 10px; padding: 6px 12px 5px; background: var(--paper); color: var(--ink); transform: rotate(-.6deg);
+  clip-path: polygon(0 4%, 2% 0, 98% 3%, 100% 0, 99% 50%, 100% 100%, 3% 97%, 0 100%, 1% 50%); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.reel-label b { font: 800 15px/1 var(--font-display); font-stretch: 112%; letter-spacing: -.005em; }
+.reel-label span { font: 600 9px/1 var(--font-mono); letter-spacing: .12em; color: var(--ink-2); text-transform: uppercase; }
+.transport { display: flex; align-items: center; gap: 4px; margin-left: 6px; }
+.transport .key { width: 32px; padding: 0; }
+.transport .rec svg { color: var(--rec); }
+.counter { display: grid; grid-template-columns: auto auto; column-gap: 12px; align-items: baseline; padding: 0 14px; height: 40px; align-content: center; border-left: var(--rule); border-right: var(--rule); }
+.counter .pos { font: 600 22px/1 var(--font-mono); letter-spacing: .02em; grid-row: span 2; }
+.counter small { font: 400 10px/1.25 var(--font-mono); color: var(--text-3); }
+.meta { display: flex; gap: 16px; align-items: baseline; }
+.meta b { font: 600 14px var(--font-mono); }
+.meta small { font: 400 10px var(--font-mono); color: var(--text-3); margin-left: 3px; }
+.click { display: flex; align-items: center; gap: 4px; }
+.beats { display: flex; gap: 3px; }
+.beats i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--line-2); }
+.beats i.on { background: var(--text); border-color: var(--text); }
+.spacer { flex: 1; }
+.meter { display: flex; flex-direction: column; gap: 2px; width: 110px; }
+.meter i { display: block; height: 3px; background: linear-gradient(90deg, var(--ok) 0 70%, #ffd166 70% 88%, var(--rec) 88%); clip-path: inset(0 38% 0 0); }
+.meter i + i { clip-path: inset(0 44% 0 0); }
+.meter span { font: 400 9.5px var(--font-mono); color: var(--text-3); }
+.alloff { border-color: var(--line-2); color: var(--text); }
+.alloff svg { color: var(--rec); }
+
+/* --- the room under the bar */
+.room { display: grid; grid-template-columns: 1fr 408px; min-height: 0; }
+.mainc { display: grid; grid-template-rows: auto 1fr; min-width: 0; border-right: var(--rule); }
+
+/* --- arranger */
+.arr { position: relative; --hw: 206px; }
+.toolrow { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: var(--rule); color: var(--text-3); }
+.toolrow .tab { font-weight: 600; color: var(--text-2); }
+.toolrow .hint { margin-left: auto; font-size: 12px; }
+.ruler { display: grid; grid-template-columns: var(--hw) 1fr; height: 54px; border-bottom: var(--rule); }
+.ruler .lbl { padding: 8px 12px 0; }
+.ruler .lbl .printed { display: block; line-height: 1.55; }
+.rz { position: relative; }
+.sec { position: absolute; top: 6px; font: 600 11px var(--font-ui); color: var(--text-2); padding-left: 5px; border-left: 1px solid var(--text-3); height: 13px; line-height: 13px; }
+.loopmark { position: absolute; top: 22px; height: 12px; }
+.loopmark svg { width: 100%; height: 12px; overflow: visible; }
+.loopmark path { fill: none; stroke: var(--accent-2); stroke-width: 2.2; stroke-linecap: round; filter: url(#grease); }
+.bars { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; }
+.bars span { position: absolute; bottom: 2px; font: 400 10px var(--font-mono); color: var(--text-3); padding-left: 4px; border-left: 1px solid var(--line-2); height: 12px; line-height: 12px; }
+.tracks { position: relative; }
+.trk { display: grid; grid-template-columns: var(--hw) 1fr; height: 60px; border-bottom: var(--rule); }
+.th { display: grid; grid-template-columns: 14px 1fr auto; grid-template-rows: auto auto; column-gap: 8px; align-content: center; padding: 0 10px 0 12px; border-right: var(--rule); position: relative; }
+.th.sel { background: var(--bg-2); }
+.dot { width: 11px; height: 11px; border-radius: 50%; background: var(--tc); grid-row: span 2; align-self: center; box-shadow: inset 0 -2px 0 rgba(0,0,0,.18); }
+.th .nm { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.th .dv { color: var(--text-3); font-size: 11.5px; grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.th .ks { grid-row: 1 / span 2; grid-column: 3; display: flex; gap: 3px; align-self: center; }
+.th .ks .on-m { background: var(--text-2); color: var(--bg); border-color: var(--text-2); }
+.lane { position: relative; background:
+  repeating-linear-gradient(90deg, transparent 0 calc(100% / 32 - 1px), rgba(244,234,214,.035) calc(100% / 32 - 1px) calc(100% / 32)),
+  repeating-linear-gradient(90deg, transparent 0 calc(100% / 8 - 1px), var(--line) calc(100% / 8 - 1px) calc(100% / 8)); }
+.clip { position: absolute; top: 5px; bottom: 5px; border-radius: var(--r); background: color-mix(in oklab, var(--tc) 17%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tc) 45%, transparent); }
+.clip .cn { position: absolute; left: 6px; top: 4px; font: 700 11px/1 var(--font-ui); color: color-mix(in oklab, var(--tc) 70%, var(--text)); display: flex; gap: 7px; align-items: center; z-index: 2; }
+.clip .cn .sig { font-size: 13px; }
+.clip .cn .stamp { font-size: 8.5px; padding: 2px 3px 1px 4px; }
+.clip svg.notes { position: absolute; left: 3px; right: 3px; top: 18px; bottom: 4px; width: calc(100% - 6px); height: calc(100% - 22px); }
+.clip.muted { background: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(244,234,214,.06) 5px 6px), var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); }
+.clip.muted .cn { color: var(--text-3); }
+.clip.muted svg.notes rect { fill: var(--text-3) !important; opacity: .45; stroke: none !important; }
+.clip .cn .printed { font-size: 9.5px; }
+.ptr { position: absolute; pointer-events: none; z-index: 3; }
+.ptr svg { overflow: visible; }
+.ptr path { fill: none; stroke: var(--accent-2); stroke-width: 2; stroke-linecap: round; filter: url(#grease); }
+.ptr .note { position: absolute; white-space: nowrap; font: 600 11px var(--font-ui); color: var(--accent-2); }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--accent); z-index: 4; pointer-events: none; }
+.playhead::before { content: ''; position: absolute; top: -1px; left: -6px; border: 5px solid transparent; border-top: 7px solid var(--accent); }
+.addtrk { display: flex; gap: 14px; align-items: center; height: 40px; padding: 0 12px; color: var(--text-3); }
+
+/* --- the welcome sheet: a J-card on the desk */
+.welcome { position: absolute; z-index: 6; left: 216px; top: 206px; width: 400px; padding: 16px 20px 14px; background: var(--paper); color: var(--ink); padding: 18px 20px 16px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.5), 0 14px 32px -8px rgba(0,0,0,.65); background-image: var(--grain); }
+.welcome::before { content: ''; position: absolute; left: 0; right: 0; top: 46px; border-top: 1px solid var(--ink); }
+.welcome .x { position: absolute; right: 10px; top: 10px; width: 24px; height: 24px; color: var(--ink-2); display: grid; place-items: center; }
+.welcome h3 { font: italic 800 21px/1 var(--font-display); font-stretch: 118%; letter-spacing: -.01em; margin-bottom: 22px; }
+.welcome p { font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+.welcome p + p { margin-top: 9px; }
+.welcome kbd { color: var(--ink); border-color: var(--ink-2); font-size: 11.5px; }
+.legend { display: grid; grid-template-columns: 70px 1fr; row-gap: 6px; align-items: center; margin: 10px 0 10px; padding: 8px 0; border-top: 1px dashed rgba(22,19,15,.35); border-bottom: 1px dashed rgba(22,19,15,.35); }
+.legend .sig { color: var(--riso-warm); font-size: 17px; justify-self: start; }
+.legend .sig svg path { stroke: var(--riso-warm); }
+.legend .stamp { color: var(--riso-cool); box-shadow: inset 0 0 0 1.5px var(--riso-cool); justify-self: start; }
+.legend .printed { color: var(--ink-2); font-size: 11.5px; justify-self: start; }
+.legend span.t { font-size: 13px; color: var(--ink-2); }
+.welcome .acts { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.welcome .acts .key { background: transparent; border-color: var(--ink); color: var(--ink); }
+.welcome .acts small { font: 400 11px var(--font-mono); color: var(--ink-2); }
+.welcome a { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+
+/* --- dock + Sketch */
+.dock { display: grid; grid-template-rows: 38px 1fr; min-height: 0; border-top: var(--rule); }
+.tabs { display: flex; gap: 22px; align-items: stretch; padding: 0 16px; border-bottom: var(--rule); }
+.tabs button { position: relative; color: var(--text-3); font-weight: 600; }
+.tabs button.on { color: var(--text); }
+.tabs button.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--text); }
+.sketch { display: grid; grid-template-columns: 120px 1fr 300px; min-height: 0; }
+.modes { border-right: var(--rule); padding: 14px 0; display: flex; flex-direction: column; }
+.modes button { text-align: left; padding: 8px 16px; color: var(--text-3); font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.modes button kbd { font-size: 10px; color: var(--text-3); border: 0; }
+.modes button.on { color: var(--text); background: var(--bg-2); }
+.tap { padding: 14px 18px; display: grid; grid-template-rows: auto auto auto 1fr; gap: 12px; align-content: start; min-width: 0; }
+.taph { display: flex; align-items: baseline; gap: 14px; }
+.taph h4 { font: italic 800 20px/1 var(--font-display); font-stretch: 118%; }
+.taph .where { color: var(--text-2); }
+.taph .where b { color: var(--text); }
+.countin { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 400 11px var(--font-mono); color: var(--text-3); }
+.countin .beats i { width: 10px; height: 10px; }
+.countin .beats i.on { background: var(--accent); border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: 64px 1fr; row-gap: 0; border: var(--rule); border-radius: var(--r); position: relative; }
+.grid .rl { font-size: 12px; color: var(--text-2); font-weight: 600; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: var(--rule); height: 30px; border-right: var(--rule); }
+.grid .rl kbd { font-size: 10px; color: var(--text-3); border: 0; }
+.grid .rr { position: relative; border-bottom: var(--rule); height: 30px; background:
+  repeating-linear-gradient(90deg, transparent 0 calc(100% / 32 - 1px), var(--line) calc(100% / 32 - 1px) calc(100% / 32)),
+  repeating-linear-gradient(90deg, rgba(244,234,214,.025) 0 calc(100% / 8), transparent calc(100% / 8) calc(100% / 4)); }
+.grid .rr:last-of-type, .grid .rl:nth-last-of-type(2) { border-bottom: 0; }
+.grid .cell { position: absolute; top: 5px; bottom: 5px; width: calc(100% / 32 - 3px); margin-left: 1px; background: color-mix(in oklab, var(--c-1) 34%, var(--bg)); border-radius: 1px; }
+.grid .hit { position: absolute; top: 3px; bottom: 3px; width: 0; border-left: 2.5px solid var(--human); filter: url(#grease); }
+.grid .beatnums { grid-column: 2; display: flex; height: 18px; border-top: var(--rule); }
+.grid .beatnums span { flex: 1; font: 400 10px/18px var(--font-mono); color: var(--text-3); padding-left: 4px; }
+.grid .beatnums span.b1 { color: var(--text-2); }
+.grid .ph { position: absolute; top: 0; bottom: 18px; border-left: 1.5px solid var(--accent); }
+.tapfoot { display: flex; gap: 10px; align-items: center; color: var(--text-3); font-size: 12px; }
+.tapfoot .key.rec { color: var(--text); }
+.tapfoot .key.rec i { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); }
+.takes { border-left: var(--rule); padding: 14px 16px; display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.takes h5 { display: flex; justify-content: space-between; font: 600 12px var(--font-ui); color: var(--text-2); padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+.takes h5 span { font: 400 11px var(--font-ui); color: var(--text-3); }
+.take { padding: 12px 0 12px; border-bottom: var(--rule); }
+.take .tl { display: flex; align-items: center; gap: 10px; }
+.take .tl b { font: italic 800 15px/1 var(--font-display); font-stretch: 112%; }
+.take .tl .when { margin-left: auto; font: 400 10.5px var(--font-mono); color: var(--text-3); }
+.take .strip { position: relative; height: 26px; margin: 10px 0 6px; background: var(--bg-2); border-radius: var(--r);
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%); }
+.take .strip i { position: absolute; top: 5px; bottom: 5px; border-left: 2px solid var(--human); filter: url(#grease); }
+.take .facts { font: 400 11px var(--font-mono); color: var(--text-3); }
+.take .acts { display: flex; gap: 6px; margin-top: 10px; }
+.take.old { opacity: .78; padding: 9px 0; }
+.take.old .tl b { font-size: 13px; color: var(--text-2); }
+
+/* --- agent panel: a session log */
+.agent { display: grid; grid-template-rows: 38px 1fr auto; min-height: 0; background: var(--panel); }
+.agent .tabs { gap: 20px; }
+.agent .tabs .state { margin-left: auto; align-self: center; font-size: 11.5px; color: var(--text-3); display: flex; gap: 6px; align-items: center; }
+.agent .tabs .state i { width: 6px; height: 6px; border-radius: 50%; background: var(--agent); }
+.log { overflow: hidden; padding: 6px 0 0; }
+.utt { display: grid; grid-template-columns: 72px 1fr; column-gap: 12px; padding: 10px 18px 8px 14px; }
+.utt .who { padding-top: 2px; }
+.utt .say { font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.utt.you .say { color: var(--text); }
+.steps { margin-top: 4px; font: 400 11.5px/1.65 var(--font-mono); color: var(--text-3); }
+.steps div::before { content: '·'; display: inline-block; width: 14px; color: var(--line-2); }
+.steps b { color: var(--text-2); font-weight: 400; }
+.folder { margin: 4px 18px 0 14px; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+.folder-h { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0 7px; font-size: 12px; color: var(--text-2); }
+.folder-h b { color: var(--text); }
+.folder-h span { font: 400 10.5px var(--font-mono); color: var(--text-3); }
+.tk { display: grid; grid-template-columns: 30px 1fr; column-gap: 10px; padding: 8px 0 9px; border-top: var(--rule); position: relative; }
+.tk .L { font: italic 800 24px/1 var(--font-display); font-stretch: 112%; color: var(--text-2); padding-top: 1px; }
+.tk .d { font-size: 12.5px; color: var(--text); font-weight: 600; }
+.tk .d small { display: block; font: 400 11.5px/1.4 var(--font-ui); color: var(--text-3); margin-top: 1px; }
+.tk .mini { position: relative; height: 32px; margin: 6px 0 6px; background: var(--bg); border-radius: var(--r); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.tk .mini svg { position: absolute; inset: 3px 4px; width: calc(100% - 8px); height: 26px; }
+.tk .row { display: flex; gap: 6px; align-items: center; }
+.tk .row .key { height: 26px; }
+.tk .row .fx { margin-left: auto; font: 400 10.5px var(--font-mono); color: var(--text-3); }
+.tk.hearing .L { color: var(--text); }
+.tk.hearing .mini { box-shadow: inset 0 0 0 1px var(--text-3); }
+.tk.hearing .mini .ph { position: absolute; top: 0; bottom: 0; left: 38%; border-left: 1.5px solid var(--accent); }
+.tk.hearing .key.hold { background: var(--bg-3); color: var(--text); border-color: var(--text-2); }
+.tk.orig .L { color: var(--text-3); }
+.folder-f { display: flex; justify-content: space-between; padding: 8px 0 9px; font-size: 11.5px; color: var(--text-3); border-top: var(--rule); }
+.compose { border-top: var(--rule); padding: 12px 14px 12px; }
+.compose .field { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-2); border-radius: var(--r); padding: 0 6px 0 12px; height: 40px; background: var(--bg); color: var(--text-3); font-size: 13.5px; }
+.compose .field .key { margin-left: auto; }
+.compose small { display: block; margin-top: 7px; font-size: 11px; color: var(--text-3); }
+
+/* --- the toast: a strip of masking tape stuck to the desk */
+.toast { position: absolute; z-index: 8; left: 300px; bottom: 18px; transform: rotate(-.8deg); display: flex; align-items: center; gap: 16px;
+  padding: 10px 26px 10px 24px; background: #ece0c3; color: var(--ink); font-size: 13.5px; background-image: var(--grain);
+  clip-path: polygon(0 8%, 1.2% 0, 2% 6%, 3% 0, 97% 0, 98% 7%, 99% 0, 100% 9%, 99.3% 30%, 100% 52%, 99.2% 74%, 100% 92%, 98.5% 100%, 97% 94%, 3% 100%, 1.5% 93%, 0 100%, .8% 70%, 0 48%, .7% 26%);
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.55)); }
+.toast b { font-weight: 700; }
+.toast .u { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.toast .sig { color: var(--riso-warm); font-size: 16px; }
+.toast .sig svg path { stroke: var(--riso-warm); }
+
+/* ================================================================ SHEET (History + the mark specimen) */
+.plate { position: relative; padding: 56px 64px 64px; border-bottom: var(--rule); }
+.reg { position: absolute; width: 22px; height: 22px; }
+.reg::before, .reg::after { content: ''; position: absolute; background: var(--line-2); }
+.reg::before { left: 10px; top: 0; width: 1px; height: 22px; }
+.reg::after { top: 10px; left: 0; height: 1px; width: 22px; }
+.reg i { position: absolute; inset: 5px; border: 1px solid var(--line-2); border-radius: 50%; }
+.reg.tl { left: 20px; top: 20px; } .reg.tr { right: 20px; top: 20px; } .reg.bl { left: 20px; bottom: 20px; } .reg.br { right: 20px; bottom: 20px; }
+.cap { font: 400 11px var(--font-mono); color: var(--text-3); margin-bottom: 18px; }
+.sheet { display: grid; grid-template-columns: 560px 1fr; gap: 64px; align-items: start; }
+
+.hist { background: var(--panel); border: var(--rule); }
+.hist .tabs { background: var(--panel); }
+.hist .head { padding: 16px 18px 14px; }
+.hist .head h5 { display: flex; justify-content: space-between; font-weight: 600; font-size: 12.5px; color: var(--text-2); }
+.hist .head h5 span { font: 400 11px var(--font-mono); color: var(--text-3); }
+.tapebar { display: flex; height: 14px; margin: 10px 0 8px; transform: rotate(-.3deg); filter: url(#tapeedge); }
+.tapebar i { display: block; height: 100%; }
+.tapebar .y { background: var(--human); } .tapebar .c { background: var(--agent); } .tapebar .h { background: #5b5348; }
+.shares { display: flex; gap: 18px; align-items: center; font-size: 12px; color: var(--text-2); }
+.shares .mono { font-size: 11px; color: var(--text-3); margin-left: 4px; }
+.filters { display: flex; gap: 16px; padding: 10px 18px; border-top: var(--rule); border-bottom: 1px solid var(--line-2); font-size: 12.5px; align-items: center; }
+.filters button { color: var(--text-3); font-weight: 600; }
+.filters button.on { color: var(--text); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+.filters .revert { margin-left: auto; font-weight: 600; color: var(--text-2); font-size: 12px; }
+.ledger { width: 100%; border-collapse: collapse; }
+.ledger th { text-align: left; font: 400 10px var(--font-mono); color: var(--text-3); letter-spacing: .1em; text-transform: uppercase; padding: 8px 0 6px; border-bottom: var(--rule); }
+.ledger th:first-child, .ledger td:first-child { padding-left: 18px; }
+.ledger th:last-child, .ledger td:last-child { padding-right: 18px; text-align: right; }
+.ledger td { padding: 11px 0; border-bottom: var(--rule); vertical-align: top; }
+.ledger td.t { width: 70px; font: 400 11px/18px var(--font-mono); color: var(--text-3); }
+.ledger td.w { width: 104px; }
+.ledger td.c { font-size: 13px; line-height: 18px; color: var(--text); }
+.ledger td.c em { display: block; font-style: normal; color: var(--text-3); font-size: 12px; margin-top: 2px; }
+.ledger td.c .op { display: block; font: 400 10.5px var(--font-mono); color: var(--text-3); margin-top: 3px; }
+.ledger td.u { width: 74px; }
+.ledger td.u button { font-size: 12px; color: var(--text-3); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.ledger tr.house td.c { color: var(--text-2); }
+.ledger tr.picked td.c::after { content: none; }
+
+.spec h4 { font: italic 800 30px/1 var(--font-display); font-stretch: 118%; margin-bottom: 8px; }
+.spec > p { font-size: 15px; line-height: 1.55; color: var(--text-2); max-width: 54ch; }
+.spec dl { margin-top: 26px; display: grid; grid-template-columns: 130px 1fr; border-top: 1px solid var(--line-2); }
+.spec dt, .spec dd { padding: 14px 0; border-bottom: var(--rule); }
+.spec dt { display: flex; align-items: center; }
+.spec dd { font-size: 13.5px; color: var(--text-2); line-height: 1.5; }
+.spec dd b { color: var(--text); }
+.swatch-sel { position: relative; width: 70px; height: 26px; background: color-mix(in oklab, var(--c-5) 17%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c-5) 45%, transparent); }
+.swatch-mute { width: 70px; height: 26px; background: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(244,234,214,.08) 5px 6px), var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); }
+.swatch-loop svg { width: 80px; height: 14px; overflow: visible; }
+.swatch-loop path { fill: none; stroke: var(--accent-2); stroke-width: 2.2; stroke-linecap: round; filter: url(#grease); }
+.swatch-ph { height: 28px; width: 40px; position: relative; }
+.swatch-ph::before { content: ''; position: absolute; left: 14px; top: 4px; bottom: 0; border-left: 1.5px solid var(--accent); }
+.swatch-ph::after { content: ''; position: absolute; top: 0; left: 9px; border: 5px solid transparent; border-top: 7px solid var(--accent); }
+
+/* ================================================================ LANDING HERO */
+.hero { position: relative; padding: 52px 80px 0; overflow: hidden; }
+.hero .top { display: flex; align-items: center; justify-content: space-between; }
+.hero .top .lockup img.m { width: 38px; height: 38px; } .hero .top .lockup img.w { height: 24px; }
+.hero .top a { color: var(--text); font-weight: 700; font-size: 15px; text-decoration: none; }
+.form { display: grid; grid-template-columns: repeat(5, auto) 1fr; margin-top: 46px; border-top: 1px solid var(--line-2); border-bottom: var(--rule); }
+.form div { padding: 7px 26px 8px 0; margin-right: 22px; border-right: var(--rule); }
+.form div:last-child { border-right: 0; }
+.form label { display: block; font: 400 9.5px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.form span { display: block; margin-top: 4px; font-size: 14px; min-height: 20px; }
+.form .sig { font-size: 17px; }
+.form .stamp { margin-top: 1px; }
+.over { position: relative; font: italic 800 clamp(48px, 10.2vw, 150px)/.95 var(--font-display); font-stretch: 125%; letter-spacing: -.01em; margin-top: 34px; }
+.over .a { color: var(--agent); display: block; }
+.over .b { position: absolute; inset: 0; color: var(--human); mix-blend-mode: screen; transform: translate(-.028em, -.024em); }
+.weave { display: block; width: calc(100% + 160px); margin: 28px -80px 0; height: 240px; }
+.hero-copy { display: grid; grid-template-columns: 1fr auto; gap: 60px; align-items: start; padding: 16px 0 60px; }
+.hero-copy p { font-size: 20px; line-height: 1.55; color: var(--text-2); max-width: 36em; }
+.hero-copy .cta { display: flex; gap: 10px; }
+.hero-copy .key { height: 52px; padding: 0 22px; font-size: 16px; }
+.hero-copy .fine { font-size: 13px; color: var(--text-3); margin-top: 12px; max-width: 34ch; }
+.colorbar { display: flex; height: 12px; margin: 0 -80px; }
+.colorbar i { flex: 1; }
+.weave-wrap { position: relative; }
+.weave-lbl { position: absolute; left: calc(80% + 84px); font: 600 13px var(--font-ui); background: var(--bg); padding: 2px 6px; }
+
+/* grain for paper */
+:root { --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1  0 0 0 0 .08  0 0 0 0 .05  0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* ================================================================ PHONE (390) */
+.phone-only { display: none; }
+@media (max-width: 600px) {
+  .desk-only { display: none !important; }
+  .phone-only { display: block; }
+  .studio { height: auto; grid-template-rows: auto auto; border-bottom: 0; }
+  .bar { flex-wrap: wrap; gap: 10px; padding: 10px 16px; height: auto; }
+  .bar .lockup img.w { display: none; }
+  .reel-label { order: 2; }
+  .reel-label b { font-size: 14px; }
+  .bar .spacer { display: none; }
+  .bar .alloff { order: 3; margin-left: auto; }
+  .bar .transport { order: 4; margin-left: 0; }
+  .bar .counter { order: 5; border: 0; padding: 0 0 0 4px; height: auto; }
+  .counter .pos { font-size: 19px; }
+  .bar .meta { order: 6; margin-left: auto; gap: 10px; }
+  .room { grid-template-columns: 1fr; }
+  .mainc { border-right: 0; }
+  .arr { --hw: 98px; }
+  .toolrow { display: none; }
+  .ruler { height: 46px; }
+  .ruler .lbl { padding: 6px 10px 0; }
+  .trk { height: 54px; }
+  .th { grid-template-columns: 10px 1fr; padding: 0 6px 0 10px; column-gap: 7px; }
+  .th .ks { display: none; }
+  .th .nm { font-size: 12.5px; }
+  .th .nm .stamp { display: none; }
+  .th .dv { font-size: 10.5px; }
+  .dot { width: 9px; height: 9px; }
+  .clip .cn { font-size: 10px; left: 4px; }
+  .clip .cn .printed, .clip .cn .stamp { display: none; }
+  .ptr { display: none; }
+  .agent { grid-template-rows: auto; border-top: 1px solid var(--line-2); }
+  .agent .tabs { height: 40px; }
+  .utt { grid-template-columns: 62px 1fr; padding: 12px 16px; }
+  .folder { margin: 4px 16px 0; }
+  .compose { padding: 12px 16px 16px; }
+  .tk .row .key { height: 34px; padding: 0 12px; }
+  .toast { position: relative; left: auto; bottom: auto; transform: rotate(-.8deg); margin: 18px 16px 26px; font-size: 13px; padding: 10px 18px; flex-wrap: wrap; gap: 6px 12px; }
+  .phone-bar { display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 16px; border-bottom: var(--rule); color: var(--text-3); font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ink filters: the grease pencil's waxy edge, the stamp's uneven ink, the torn tape -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="grease" x="-10%" y="-30%" width="120%" height="160%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.1" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="1" seed="9" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.4 0 0 0 2.05" result="wax"/>
+    <feComposite in="d" in2="wax" operator="in"/>
+  </filter>
+  <filter id="stampink" x="-6%" y="-25%" width="112%" height="150%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="11" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -5 0 0 0 3.55" result="holes"/>
+    <feComposite in="SourceGraphic" in2="holes" operator="in" result="inked"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="1" seed="2" result="w"/>
+    <feDisplacementMap in="inked" in2="w" scale="0.6"/>
+  </filter>
+  <filter id="tapeedge" x="-2%" y="-40%" width="104%" height="180%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.06 0.8" numOctaves="2" seed="5" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<!-- ================================================================ STUDIO -->
+<section class="studio" aria-label="The studio">
+  <header class="bar">
+    <div class="lockup"><img class="m" src="logo.svg" alt=""><img class="w" src="wordmark.svg" alt="overdub"></div>
+    <div class="reel-label" title="Rename the song"><b>Night Shift</b><span>Reel 1</span></div>
+    <div class="transport" role="group" aria-label="Transport">
+      <button class="key" aria-label="Back to start"><svg viewBox="0 0 16 16"><path d="M4 3v10M13 3 6 8l7 5z" fill="currentColor" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      <button class="key" aria-label="Stop"><svg viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg></button>
+      <button class="key lit" aria-label="Play" aria-pressed="true"><svg viewBox="0 0 16 16"><path d="M5 3l8 5-8 5z" fill="var(--accent)"/></svg></button>
+      <button class="key rec" aria-label="Record"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.5" fill="currentColor"/></svg></button>
+      <button class="key lit" aria-label="Loop" aria-pressed="true" title="Loop bars 1 to 8"><svg viewBox="0 0 16 16" fill="none" stroke="var(--accent-2)" stroke-width="1.6"><path d="M3 9V7a3 3 0 0 1 3-3h7m-2-2 2 2-2 2M13 7v2a3 3 0 0 1-3 3H3m2 2-2-2 2-2"/></svg></button>
+    </div>
+    <div class="counter"><span class="pos mono">5.3.1</span><small>0:11.7</small><small>bar.beat.16th</small></div>
+    <div class="meta">
+      <span><b>92</b><small>bpm</small></span>
+      <span><b>4/4</b></span>
+      <span><b>A min</b></span>
+      <span class="click" title="Click: on while recording, with a 1 bar count-in"><button class="key lit" style="height:24px;padding:0 7px;font-size:11px">Click</button><span class="beats"><i></i><i></i><i class="on"></i><i></i></span></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="meter desk-only"><i></i><i></i><span class="mono">out −14.2 LUFS</span></div>
+    <button class="key alloff" title="Stop everything that is sounding (Esc twice)"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="6" y="6" width="4" height="4" fill="currentColor"/></svg>All off</button>
+    <button class="key desk-only">Song</button>
+  </header>
+
+  <div class="room">
+    <div class="mainc">
+      <div class="arr" id="arr">
+        <div class="toolrow"><span class="tab">Arrange</span><button class="key" style="height:24px">+ Track</button><span class="mono" style="font-size:11px">Snap 1/16</span><button class="link" style="font-size:12px">Fit</button><span class="hint">Drag across bars to point the agent at them</span></div>
+        <div class="ruler">
+          <div class="lbl"><span class="printed">sections</span><span class="printed">loop</span><span class="printed">bar</span></div>
+          <div class="rz">
+            <span class="sec" style="left:0">Verse</span>
+            <span class="sec" style="left:50%">Chorus</span>
+            <div class="loopmark" style="left:0;right:0"><svg viewBox="0 0 800 12" preserveAspectRatio="none"><path d="M2 11 L3 3 Q 200 1.5 400 3.2 T 797 2.6 L798 11"/></svg></div>
+            <div class="bars" id="bars"></div>
+          </div>
+        </div>
+        <div class="tracks" id="tracks"></div>
+        <div class="addtrk desk-only"><button class="link" style="font-size:12px">Add a track</button><span style="font-size:12px">or drop a sound from Sounds</span></div>
+
+        <aside class="welcome desk-only" role="note" aria-label="Welcome">
+          <button class="x" aria-label="Dismiss"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <h3>This is Night Shift.</h3>
+          <p>The house wrote this demo. Press <kbd>Space</kbd> to hear it.</p>
+          <div class="legend">
+            <span class="sig" data-sig>you</span><span class="t">your takes, signed in pencil</span>
+            <span><span class="stamp">Claude</span></span><span class="t">what an agent played, stamped</span>
+            <span class="printed">house</span><span class="t">the demo: printed, no mark</span>
+          </div>
+          <p>Lay a take in <a href="#">Sketch</a>, or <a href="#">ask the agent</a> to play over this.</p>
+          <div class="acts"><button class="key">Take the two-minute tour</button><small><kbd>?</kbd> every key</small></div>
+        </aside>
+      </div>
+
+      <div class="dock desk-only">
+        <nav class="tabs"><button class="on">Sketch</button><button>Notes</button><button>Beat</button><button>Devices</button><button>Mixer</button></nav>
+        <div class="sketch">
+          <div class="modes"><button>Hum it <kbd>H</kbd></button><button class="on">Tap it <kbd>T</kbd></button><button>Play it <kbd>P</kbd></button><button>Record <kbd>R</kbd></button></div>
+          <div class="tap">
+            <div class="taph"><h4>Tap it.</h4><span class="where">Into <b>Drums</b>, bars <b>5–6</b>, over the song</span>
+              <span class="countin">count-in done <span class="beats"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></span></div>
+            <div class="grid" id="tapgrid"></div>
+            <div class="tapfoot"><button class="key rec"><i></i>Tap again</button><span>Your taps are the orange ticks; the cells are where they snap (1/16). Keys <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd>.</span></div>
+          </div>
+          <div class="takes">
+            <h5>Takes <span>kept until you clear them</span></h5>
+            <div class="take">
+              <div class="tl"><b>Take 3</b><span class="sig" data-sig>you</span><span class="when">just now</span></div>
+              <div class="strip" id="take3"></div>
+              <div class="facts">tapped, 11 hits, 2 bars, lands at bar 5</div>
+              <div class="acts"><button class="key go">Keep</button><button class="key">Band</button><button class="key">Agent</button><button class="key" style="margin-left:auto" aria-label="Play take 3"><svg viewBox="0 0 16 16"><path d="M5 3l8 5-8 5z" fill="currentColor"/></svg></button></div>
+            </div>
+            <div class="take old"><div class="tl"><b>Take 2</b><span class="sig" data-sig>you</span><span class="when">07:41</span></div></div>
+            <div class="take old" style="border-bottom:0"><div class="tl"><b>Take 1</b><span class="sig" data-sig>you</span><span class="when">07:38</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="agent" aria-label="Agent">
+      <nav class="tabs"><button class="on">Agent</button><button>History</button><span class="state"><i></i>Claude, demo session</span></nav>
+      <div class="log">
+        <div class="utt you"><div class="who"><span class="sig" data-sig>you</span></div><div class="say">The bass feels stiff. Loosen it up?</div></div>
+        <div class="utt"><div class="who"><span class="stamp">Claude</span></div><div>
+          <div class="say">Three takes over your Walk, bars 1–4, built from its notes. Hold one to hear it in the song.</div>
+          <div class="steps"><div>read the song, <b>6 tracks</b></div><div>pointed at <b>Bass, Walk</b></div><div>measured <b>−16.3 LUFS</b>, bars 1–4</div></div>
+        </div></div>
+        <div class="folder" id="folder">
+          <div class="folder-h"><span style="font:inherit;color:var(--text-2)">Take folder: <b>Bass, Walk</b></span><span>order shuffled</span></div>
+        </div>
+      </div>
+      <div class="compose desk-only">
+        <div class="field">Ask, or describe how it should feel<button class="key">Send</button></div>
+        <small><kbd>⌘</kbd><kbd>/</kbd> to ask, <kbd>Enter</kbd> sends</small>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" role="status"><span>Kept <b>Take 3</b> on Drums, bars 5–6.</span><span class="sig" data-sig>yours</span><span>Undo with <kbd style="color:var(--ink);border-color:var(--ink-2)">⌘Z</kbd></span><span class="u">Band</span></div>
+</section>
+
+<!-- ================================================================ HISTORY + MARKS -->
+<section class="plate desk-only" aria-label="History and the marks">
+  <span class="reg tl"><i></i></span><span class="reg tr"><i></i></span><span class="reg bl"><i></i></span><span class="reg br"><i></i></span>
+  <p class="cap">History, as a track sheet. Right panel, History tab.</p>
+  <div class="sheet">
+    <div class="hist">
+      <nav class="tabs"><button>Agent</button><button class="on">History</button></nav>
+      <div class="head">
+        <h5>Who wrote the notes <span>309 notes</span></h5>
+        <div class="tapebar"><i class="y" style="width:9%"></i><i class="c" style="width:6%"></i><i class="h" style="width:85%"></i></div>
+        <div class="shares"><span><span class="sig" data-sig>you</span><span class="mono">9%</span></span><span><span class="stamp">Claude</span><span class="mono">6%</span></span><span><span class="printed">house</span><span class="mono">85%</span></span></div>
+      </div>
+      <div class="filters"><button class="on">All 7</button><button>You 4</button><button>Claude 2</button><button>House 1</button><button class="revert">Undo Claude's changes, keep mine</button></div>
+      <table class="ledger">
+        <thead><tr><th>Time</th><th>Who</th><th>Change</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="t">07:52</td><td class="w"><span class="sig" data-sig>you</span></td><td class="c">Kept Take 3 on Drums, bars 5–6<span class="op">add_notes, 11 notes</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr><td class="t">07:50</td><td class="w"><span class="stamp">Claude</span></td><td class="c">Keys down 1.5 dB under the hook<em>The hook was 2 LU under the keys in the chorus.</em><span class="op">gain, Keys</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr><td class="t">07:49</td><td class="w"><span class="sig" data-sig>you</span></td><td class="c">Bass down 2 dB<span class="op">gain, Bass</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr><td class="t">07:49</td><td class="w"><span class="sig" data-sig>you</span></td><td class="c">Muted the Hook clip, bars 5–8<span class="op">clip_mute, Hook</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr><td class="t">07:46</td><td class="w"><span class="stamp r">Claude</span></td><td class="c">Take B on Walk: chromatic pickups into each bar<em>Picked by you from four takes.</em><span class="op">add_notes, 3 notes</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr><td class="t">07:38</td><td class="w"><span class="sig" data-sig>you</span></td><td class="c">Recorded Take 1 on Guitar, bars 5–8<span class="op">add_clip, audio 10.4 s</span></td><td class="u"><button>Undo this</button></td></tr>
+          <tr class="house" style="border-bottom:0"><td class="t">07:30</td><td class="w"><span class="printed">house</span></td><td class="c">Opened Night Shift, 8 bars, A minor, 92 bpm</td><td class="u"></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="spec">
+      <h4>Who played what.</h4>
+      <p>Takes are signed the way a session is: the player's pencil on the track sheet, the machine's stamp on the box. Nothing gets a coloured bar. Warm is still a person and cool is still an agent; the colour lives in the signature and in the notes.</p>
+      <dl>
+        <dt><span class="sig lg" data-sig>you</span></dt><dd><b>A person: grease pencil.</b> Your name in a china-marker hand, warm, a little loose, with a stroke under it. Your notes get a warm outline.</dd>
+        <dt><span class="stamp lg">Claude</span></dt><dd><b>An agent: a rubber stamp.</b> Printed capitals in a ruled box, cool, a degree off square. Its notes get a cool outline. Played versus exact, as in the Weave.</dd>
+        <dt><span class="printed" style="font-size:12px">house</span></dt><dd><b>The house: printed.</b> Demo parts are the form itself. No mark, no colour.</dd>
+        <dt><span class="swatch-sel" style="display:block"><span class="crop"><i></i><i></i><i></i><i></i></span></span></dt><dd><b>Selected: crop marks.</b> Four corners outside the clip, in cream. No glow, no fill change.</dd>
+        <dt><span class="swatch-mute" style="display:block"></span></dt><dd><b>Muted: hatched, colour off.</b> The clip keeps its shape and loses its ink. Every clip can be muted, every track has M, and All off stops every sound at once.</dd>
+        <dt><span class="swatch-loop"><svg viewBox="0 0 80 14" preserveAspectRatio="none"><path d="M2 13 L3 3 Q 40 1.5 77 3 L78 13"/></svg></span></dt><dd><b>Loop and pointer: yellow grease pencil.</b> The engineer's marks on the tape: the loop bracket, and a ring round what the agent is pointing at.</dd>
+        <dt><span class="swatch-ph"></span></dt><dd><b>Leader green</b>: the playhead and the one primary action in a region. Nothing else.</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ LANDING HERO -->
+<section class="hero desk-only" aria-label="Landing page hero">
+  <span class="reg tl"><i></i></span><span class="reg tr"><i></i></span>
+  <div class="top"><div class="lockup"><img class="m" src="logo.svg" alt=""><img class="w" src="wordmark.svg" alt="overdub"></div><a href="#">Open the studio</a></div>
+  <div class="form" aria-label="Track sheet">
+    <div><label>Studio</label><span>Overdub Studio</span></div>
+    <div><label>Artist</label><span><span class="sig" data-sig>you</span></span></div>
+    <div><label>Over</label><span><span class="stamp">your agent</span></span></div>
+    <div><label>Reel / take</label><span class="mono">1 / 2</span></div>
+    <div><label>Tempo</label><span class="mono">92</span></div>
+    <div><label>Session</label><span style="color:var(--text-2)">a studio for you and your agents</span></div>
+  </div>
+  <h1 class="over"><span class="a">Play over each&nbsp;other.</span><span class="b" aria-hidden="true">Play over each&nbsp;other.</span></h1>
+  <div class="weave-wrap"><svg class="weave" id="weave" viewBox="0 0 1600 240" preserveAspectRatio="none" aria-hidden="true"></svg><span class="weave-lbl" style="color:var(--agent);top:60px">your agent, exact</span><span class="weave-lbl" style="color:var(--human);top:152px">you, a little loose</span></div>
+  <div class="hero-copy">
+    <p>Overdub is a music studio for you and your agents. You lay down a take: hum it, tap it, play it, say it. Your agent plays over it, and you play over that. Every take is signed, in your hand or in its stamp.</p>
+    <div><div class="cta"><button class="key go">Open the studio</button><button class="key">Hum into it</button></div><p class="fine">The mic turns on only when you press the button, and nothing leaves your device.</p></div>
+  </div>
+  <div class="colorbar" aria-hidden="true"><i style="background:var(--riso-warm)"></i><i style="background:var(--riso-cool)"></i><i style="background:#1f5b3a"></i><i style="background:var(--paper)"></i><i style="background:var(--ink)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent-2)"></i><i style="background:var(--bg-3)"></i></div>
+</section>
+
+<script>
+/* Everything below draws real Night Shift data (app/src/core/demo.js) into the mockup. No product code is imported. */
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, kids = []) => { const e = tag.startsWith('svg:') ? document.createElementNS(NS, tag.slice(4)) : document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'text' ? e.textContent = v : e.setAttribute(k, v); for (const c of kids) e.append(c); return e; };
+const SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midi = (s) => { const m = /^([A-G])(#|b)?(-?\d)$/.exec(s); return 12 * (+m[3] + 1) + SEMI[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); };
+const parse = (txt) => txt.trim().split(/\s+/).map((tok) => { const [a, vel] = tok.split('*'); const [n, rest] = a.split('@'); const [t, d] = rest.split(':'); return { p: midi(n), t: +t, d: +d, v: vel ? +vel : .7 }; });
+
+const bass = parse(`A1@0:0.75 A1@0.75:0.25 E2@1.5:0.5 A1@2:1 G1@3.5:0.5 F1@4:0.75 F1@4.75:0.25 C2@5.5:0.5 F1@6:1 E1@7.5:0.5
+  C2@8:0.75 C2@8.75:0.25 G1@9.5:0.5 C2@10:1 B1@11.5:0.5 G1@12:0.75 G1@12.75:0.25 D2@13.5:0.5 G1@14:1 G#1@15.5:0.5`);
+const lead = parse(`E5@0:0.5 D5@0.5:0.5 C5@1:0.5 A4@1.5:1.5 G4@3:0.5 A4@3.5:0.5 C5@4:1 A4@5:0.5 C5@5.5:0.5 D5@6:1.5 C5@7.5:0.5
+  E5@8:0.5 G5@8.5:0.5 E5@9:0.5 D5@9.5:0.5 C5@10:1.5 D5@11.5:0.5 B4@12:1 D5@13:0.5 B4@13.5:0.5 A4@14:2`);
+const fire = parse(`E6@0:0.5*0.7 C6@0.75:0.5*0.55 A5@1.5:1*0.6 G6@2.5:0.5*0.5 E6@3:1*0.65 F6@4:0.5*0.7 C6@4.75:0.5*0.55 A5@5.5:1*0.6 E6@6.5:0.5*0.5 C6@7:1*0.65
+  G6@8:0.5*0.72 E6@8.75:0.5*0.55 C6@9.5:1*0.6 D6@10.5:0.5*0.5 E6@11:1*0.66 D6@12:0.5*0.7 B5@12.75:0.5*0.55 G5@13.5:1*0.6 A5@14.5:0.5*0.5 B5@15:1*0.7`);
+const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [52, 55, 60, 64], [55, 59, 62, 65]];
+const keys = []; for (let b = 0; b < 8; b++) for (const p of chords[b % 4]) { const t0 = b * 4; keys.push({ p, t: t0, d: 1.5 }, { p, t: t0 + 1.5, d: .5 }, { p, t: t0 + 2.5, d: 1.4 }); }
+const drums = []; const ROW = { kick: 0, snare: 1, hat: 2, open: 3 };
+for (let b = 0; b < 8; b++) { const fill = b === 3 || b === 7;
+  const rows = fill ? { kick: 'x.....x...x.....', snare: '....X.......X.xx', hat: 'x.x.x.x.x.x.x...', open: '..............x.' } : { kick: 'x.....x...x.....', snare: '....X.......X...', hat: 'x.xox.xox.xox.xo' };
+  for (const [r, s] of Object.entries(rows)) [...s].forEach((c, i) => { if (c !== '.') drums.push({ p: ROW[r], t: b * 4 + i * .25, d: .2 }); }); }
+
+/* a clip's notes as SVG: beats across, pitch up; who wrote each note decides its outline */
+function notesSvg(notes, len, { lo, hi, by = null, color = 'var(--tc)', addBy = null } = {}) {
+  const ps = notes.map((n) => n.p); lo = lo ?? Math.min(...ps) - 1; hi = hi ?? Math.max(...ps) + 1;
+  const svg = el('svg:svg', { class: 'notes', viewBox: `0 0 ${len} ${hi - lo + 1}`, preserveAspectRatio: 'none' });
+  for (const n of notes) {
+    const r = el('svg:rect', { x: n.t, y: hi - n.p, width: Math.max(n.d - .04, .12), height: .82, fill: n.add ? 'var(--agent)' : color, rx: .05 });
+    const who = n.add ? null : by;
+    if (who) { r.setAttribute('stroke', who === 'you' ? 'var(--human)' : 'var(--agent)'); r.setAttribute('stroke-width', '1'); r.setAttribute('vector-effect', 'non-scaling-stroke'); }
+    if (n.add) r.setAttribute('opacity', '.95');
+    svg.append(r);
+  }
+  return svg;
+}
+function wave(len, seed = 3) {
+  const svg = el('svg:svg', { class: 'notes', viewBox: `0 -1 ${len * 40} 2`, preserveAspectRatio: 'none' });
+  let d = 'M0 0'; let s = seed;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < len * 40; i++) { const beat = i / 40; const env = Math.exp(-((beat % 2) * 1.4)) * .85 + .12; const a = env * (.55 + rnd() * .45); d += ` L${i} ${-a} L${i + .5} ${a}`; }
+  svg.append(el('svg:path', { d, fill: 'none', stroke: 'var(--tc)', 'stroke-width': '1', 'vector-effect': 'non-scaling-stroke', opacity: '.85' }));
+  return svg;
+}
+function sig(text) {
+  const s = el('span', { class: 'sig' }); s.textContent = text;
+  const svg = el('svg:svg', { viewBox: '0 0 100 7', preserveAspectRatio: 'none' });
+  svg.append(el('svg:path', { d: 'M1 4.6 C 22 2.6, 48 5.4, 70 3.4 S 92 2.2, 99 3.6' }));
+  s.append(svg); return s;
+}
+document.querySelectorAll('[data-sig]').forEach((n) => n.replaceWith(Object.assign(sig(n.textContent), { className: n.className })));
+function fixSig(root) { root.querySelectorAll('.sig').forEach((n) => { if (!n.querySelector('svg')) n.replaceWith(Object.assign(sig(n.textContent), { className: n.className })); }); }
+
+/* ---------- the arranger */
+const BEATS = 32, pct = (b) => (b / BEATS * 100) + '%';
+const bars = document.getElementById('bars');
+for (let b = 0; b < 8; b++) bars.append(el('span', { style: `left:${pct(b * 4)}`, text: String(b + 1) }));
+const TRACKS = [
+  { name: 'Drums', dev: 'Gobo Kit', c: 'var(--c-1)', clips: [{ s: 0, l: 32, name: 'Beat', notes: drums, lo: 0, hi: 3 }] },
+  { name: 'Bass', dev: 'Capstan', c: 'var(--c-5)', sel: true, clips: [{ s: 0, l: 16, name: 'Walk', notes: bass, selected: true }, { s: 16, l: 16, name: 'Walk 2', notes: bass }] },
+  { name: 'Keys', dev: 'Lamp Tines, Night Bus', c: 'var(--c-6)', clips: [{ s: 0, l: 32, name: 'Changes', notes: keys }] },
+  { name: 'Hook', dev: 'Pinch Roller', c: 'var(--c-4)', clips: [{ s: 16, l: 16, name: 'Hook', notes: lead, muted: true }] },
+  { name: 'Fireflies', dev: 'Firefly', c: 'var(--c-2)', by: 'claude', clips: [{ s: 16, l: 16, name: 'Twinkle', notes: fire, by: 'claude' }] },
+  { name: 'Guitar', dev: 'Jangle amp, Tidal Cathedral', c: 'var(--c-8)', clips: [{ s: 16, l: 16, name: 'Take 1', audio: true, by: 'you' }] },
+];
+const tracksEl = document.getElementById('tracks');
+for (const t of TRACKS) {
+  const row = el('div', { class: 'trk', style: `--tc:${t.c}` });
+  const th = el('div', { class: 'th' + (t.sel ? ' sel' : '') });
+  const nm = el('div', { class: 'nm' }); nm.append(t.name);
+  const dv = el('div', { class: 'dv', text: t.dev }); if (t.by === 'claude') dv.prepend(el('span', { class: 'stamp', text: 'Claude', style: 'font-size:8px;padding:2px 3px 1px 4px;margin-right:6px;box-shadow:inset 0 0 0 1.5px var(--agent)' }));
+  th.append(el('i', { class: 'dot' }), nm, dv);
+  const ks = el('div', { class: 'ks' }); ks.append(el('button', { class: 'key sq', text: 'M', title: 'Mute track' }), el('button', { class: 'key sq', text: 'S', title: 'Solo' }), el('button', { class: 'key sq', text: '●', title: 'Arm', style: 'font-size:8px' }));
+  th.append(ks);
+  const lane = el('div', { class: 'lane' });
+  for (const c of t.clips) {
+    const cl = el('div', { class: 'clip' + (c.muted ? ' muted' : ''), style: `left:calc(${pct(c.s)} + 1px);width:calc(${pct(c.l)} - 2px)` });
+    const cn = el('div', { class: 'cn' });
+    if (c.by === 'you') cn.append(sig(c.name)); else cn.append(c.name);
+    if (c.by === 'claude') cn.append(el('span', { class: 'stamp', text: 'Claude' }));
+    if (c.muted) cn.append(el('span', { class: 'printed', text: 'muted' }));
+    cl.append(cn);
+    cl.append(c.audio ? wave(c.l) : notesSvg(c.notes, c.l, { lo: c.lo, hi: c.hi, by: c.by }));
+    if (c.selected) { const cr = el('span', { class: 'crop' }); for (let i = 0; i < 4; i++) cr.append(el('i')); cl.append(cr); }
+    lane.append(cl);
+  }
+  row.append(th, lane); tracksEl.append(row);
+}
+// the playhead at 5.3.1 (beat 18) and the agent's pointer: a yellow grease-pencil ring round Walk
+const lanesLeft = 'var(--hw)';
+const ph = el('div', { class: 'playhead', style: `left:calc(${lanesLeft} + (100% - ${lanesLeft}) * ${18 / 32})` }); tracksEl.append(ph);
+const ptr = el('div', { class: 'ptr', style: `left:calc(${lanesLeft} + 4px); top:62px; width:calc((100% - ${lanesLeft}) * .5 - 6px); height:56px` });
+ptr.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 400 56" preserveAspectRatio="none"><path d="M24 4 C 140 -1, 330 0, 393 6 C 401 20, 399 44, 390 52 C 280 57, 110 56, 8 51 C 1 40, 0 16, 10 6 C 16 2, 30 1, 60 2"/></svg>`;
+tracksEl.append(ptr);
+
+/* ---------- Sketch: the tapped take, loose against the grid */
+const grid = document.getElementById('tapgrid');
+const TAPS = { Kick: { k: 'F', at: [0.18, 6.3, 9.85, 16.12, 22.2, 25.9] }, Snare: { k: 'J', at: [3.8, 12.2, 20.1, 28.35] }, Hat: { k: 'K', at: [] }, Open: { k: 'L', at: [30.15] } };
+for (const [name, r] of Object.entries(TAPS)) {
+  const rl = el('div', { class: 'rl' }); rl.append(name, el('kbd', { text: r.k })); grid.append(rl);
+  const rr = el('div', { class: 'rr' });
+  for (const a of r.at) { const s = Math.round(a); rr.append(el('span', { class: 'cell', style: `left:${s / 32 * 100}%` }), el('span', { class: 'hit', style: `left:calc(${a / 32 * 100}% + ${100 / 64}% )` })); }
+  grid.append(rr);
+}
+const bn = el('div', { class: 'beatnums' }); for (let i = 0; i < 8; i++) bn.append(el('span', { class: i % 4 === 0 ? 'b1' : '', text: i % 4 === 0 ? `${5 + i / 4}` : `${(i % 4) + 1}` })); grid.append(bn);
+grid.append(el('span', { class: 'ph', style: 'left:calc(64px + (100% - 64px) * .97)' }));
+const t3 = document.getElementById('take3');
+if (t3) for (const r of Object.values(TAPS)) for (const a of r.at) t3.append(el('i', { style: `left:${a / 32 * 100}%` }));
+
+/* ---------- the take folder: four lanes over Walk bars 1-4. The agent's added notes are cool; yours/the house's are not */
+const walk = bass.filter((n) => n.t < 16);
+const A = walk.flatMap((n) => n.d >= 1 ? [n, { p: n.p + 12, t: n.t + .5, d: .25, add: 1 }] : [n]);
+const B = walk.flatMap((n) => n.t % 4 === 0 && n.t > 0 ? [{ p: n.p - 1, t: n.t - .25, d: .25, add: 1 }, n] : [n]);
+const D = walk.flatMap((n) => n.d >= 1 ? [n, { p: n.p + 7, t: n.t + .5, d: .5, add: 1 }] : [n]);
+const LANES = [
+  { L: 'A', d: 'Octave pops on the off-beats', s: 'answers each long note an octave up', fx: '+4 notes', n: A },
+  { L: 'B', d: 'Chromatic pickups into each bar', s: 'a ghosted half-step pulls into every downbeat', fx: '+3 notes', n: B, hearing: true },
+  { L: 'C', d: 'As it was', s: 'the Walk you have now', fx: 'original', n: walk, orig: true },
+  { L: 'D', d: 'Fifths answering the roots', s: 'walks a little, keeps the bottom solid', fx: '+4 notes', n: D },
+];
+const folder = document.getElementById('folder');
+for (const l of LANES) {
+  const tk = el('div', { class: 'tk' + (l.hearing ? ' hearing' : '') + (l.orig ? ' orig' : '') });
+  const body = el('div');
+  const d = el('div', { class: 'd' }); d.append(l.d, el('small', { text: l.s }));
+  const mini = el('div', { class: 'mini', style: '--tc:var(--c-5)' });
+  mini.append(notesSvg(l.n, 16, { lo: 26, hi: 47, color: l.orig ? 'var(--text-3)' : 'color-mix(in oklab, var(--c-5) 70%, var(--bg))' }));
+  if (l.hearing) mini.append(el('span', { class: 'ph' }));
+  const row = el('div', { class: 'row' });
+  row.append(el('button', { class: 'key hold', text: l.hearing ? 'Hearing B' : 'Hold to hear' }), el('button', { class: 'key', text: l.orig ? 'Keep as it was' : 'Keep' }), el('span', { class: 'fx', text: l.fx }));
+  body.append(d, mini, row);
+  tk.append(el('div', { class: 'L', text: l.L }), body); folder.append(tk);
+}
+const ff = el('div', { class: 'folder-f' }); ff.append(el('span', { text: 'None is recommended.' }), el('button', { class: 'link', style: 'font-size:11.5px', text: 'None of these' })); folder.append(ff);
+
+/* ---------- the Weave, static: warm breathes, cool is exact; warm on top at the first crossing */
+const wv = document.getElementById('weave');
+if (wv) {
+  const W = 1600, H = 240, mid = 120, amp = 62, wl = 400, ph0 = 60;
+  const pts = (fn) => { let d = ''; for (let x = -20; x <= W + 20; x += 4) d += (d ? ' L' : 'M') + x + ' ' + fn(x).toFixed(1); return d; };
+  const cool = (x) => mid - amp * Math.sin((x - ph0) / wl * 2 * Math.PI);
+  const warm = (x) => mid + amp * (1 + .08 * Math.sin(x / 260)) * Math.sin((x - ph0) / wl * 2 * Math.PI) + 2.5 * Math.sin(x / 37);
+  for (let b = 0; b <= 4; b++) wv.append(el('svg:line', { x1: ph0 + b * wl, x2: ph0 + b * wl, y1: 6, y2: H - 6, stroke: 'var(--line)', 'stroke-width': 1 }));
+  wv.append(el('svg:line', { x1: 0, x2: W, y1: mid, y2: mid, stroke: 'var(--line)', 'stroke-width': 1 }));
+  const mkMask = (id, fn, from, to) => { const m = el('svg:mask', { id, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: W, height: H }); m.append(el('svg:rect', { width: W, height: H, fill: '#fff' }));
+    for (let x0 = from; x0 < W; x0 += wl) { let d = ''; for (let x = x0 - 46; x <= x0 + 46; x += 3) d += (d ? ' L' : 'M') + x + ' ' + fn(x).toFixed(1); m.append(el('svg:path', { d, stroke: '#000', 'stroke-width': 32, fill: 'none' })); } return m; };
+  const defs = el('svg:defs'); defs.append(mkMask('cutCool', warm, ph0, 0), mkMask('cutWarm', cool, ph0 + wl / 2, 0)); wv.append(defs);
+  wv.append(el('svg:path', { d: pts(cool), fill: 'none', stroke: 'var(--agent)', 'stroke-width': 15, 'stroke-linecap': 'round', mask: 'url(#cutCool)' }));
+  wv.append(el('svg:path', { d: pts(warm), fill: 'none', stroke: 'var(--human)', 'stroke-width': 15, 'stroke-linecap': 'round', mask: 'url(#cutWarm)' }));
+  const hx = 1280; wv.append(el('svg:line', { x1: hx, x2: hx, y1: 8, y2: H - 8, stroke: 'var(--accent)', 'stroke-width': 2.5 }));
+}
+</script>
+</body>
+</html>

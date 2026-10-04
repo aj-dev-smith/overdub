@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-w2WsJYGaMjVczwKbdcAAq4Ks85Q19SqLSAFCCdNqTP4=' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<!-- The studio's policy (index.html says why each part is there) less what this page doesn't use (the API, a relay),
+     and its one inline script allowed by its hash. The page shares the studio's origin, and so its localStorage and the
+     API key in it. Editing the script below changes its hash: tools/compat-test.js checks it and prints the new one. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device library · Overdub Studio</title>
+<meta name="description" content="Every instrument and effect that ships with Overdub Studio, the house's own and the ones Claude built from one request each. Each passed the device check. Hear any of them in the page.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style/tokens.css">
+<style>
+  /* The device library: every device that ships with the studio, as its face, with its request (agent-built ones),
+     its device-check summary, a ▶ that renders a short demo through it right here (offline, the same worklet the
+     studio runs) and a way into a new song. Colours are tokens only: the brand owns the values. ?kind= ?by= */
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: dark; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; }
+  .lb-wrap { max-width: 1320px; margin: 0 auto; padding: 0 28px; }
+
+  /* the top strip */
+  .lb-top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); border-bottom: var(--rule); }
+  .lb-top .lb-wrap { display: flex; align-items: center; gap: 8px 26px; min-height: 58px; flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+  .lb-mark { display: inline-flex; align-items: baseline; gap: 12px; text-decoration: none; margin-right: auto; }
+  .lb-mark b { font: italic 800 21px/1 var(--font-display); font-variation-settings: var(--font-display-vars); letter-spacing: -0.01em; }
+  .lb-mark span { font: 400 14px/1 var(--font-ui); color: var(--text-3); }
+  /* filters are underlined words: the one showing is cream and underlined, the count beside it in pencil */
+  .lb-seg { display: inline-flex; gap: 2px 16px; flex-wrap: wrap; }
+  .lb-seg button { min-height: 36px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: 600 13.5px var(--font-ui); cursor: pointer; white-space: nowrap; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+  .lb-seg button:hover { color: var(--text); }
+  .lb-seg button[aria-pressed="true"] { color: var(--text); text-decoration: underline; }
+  .lb-seg button i { font-style: normal; font-family: var(--font-mono); font-weight: 400; color: var(--text-3); margin-left: 5px; }
+  .lb-studio { height: 36px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: var(--r-press); border: var(--rule-2); text-decoration: none; font: 600 13px var(--font-ui); color: var(--text); }
+  .lb-studio:hover { border-color: var(--text-3); }
+
+  /* the head: a title and what's on the shelf */
+  .lb-hero { padding: 56px 0 30px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px 56px; align-items: end; }
+  .lb-hero h1 { margin: 0; font: italic 800 clamp(40px, 6.4vw, 84px)/0.94 var(--font-display); font-variation-settings: var(--font-display-vars); letter-spacing: -0.02em; text-wrap: balance; }
+  .lb-lede { margin: 0; color: var(--text-2); font-size: 16.5px; line-height: 1.55; max-width: 560px; }
+  .lb-lede p { margin: 0 0 12px; }
+
+  /* bylines: the author's name in their ink; the house is unsigned */
+  .by { font-weight: 600; white-space: nowrap; }
+  .by.by-human { color: var(--human); }
+  .by.by-agent { color: var(--agent); }
+
+  /* sections: a heavy rule and the title */
+  .lb-sec { padding: 26px 0 8px; }
+  .lb-sec[hidden], .lb-card[hidden] { display: none; }
+  .lb-sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin: 0 0 22px; padding-top: 12px; border-top: var(--rule-heavy); }
+  .lb-sec-h h2 { margin: 0; font: italic 800 28px/1 var(--font-display); font-variation-settings: var(--font-display-vars); letter-spacing: -0.01em; }
+  .lb-sec-h small { font: 400 13px var(--font-mono); color: var(--text-3); }
+  .lb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 40px 32px; }
+
+  /* an entry: the face on its shelf, then the paperwork under a hairline. No card, no stripe */
+  .lb-card { position: relative; display: flex; flex-direction: column; min-width: 0; }
+  .lb-stage { position: relative; display: grid; place-items: center; min-height: 268px; padding: 30px 16px 22px; overflow: hidden; background: var(--bg-2); }
+  .lb-face { position: relative; z-index: 1; transform-origin: center; }
+  .lb-face .ewf-by { display: none; }   /* signed once, on the name line: no second badge on the face */
+  .lb-cat { position: absolute; top: 10px; left: 12px; font: 400 13px var(--font-ui); color: var(--text-3); z-index: 2; }
+  .lb-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 0 0; flex: 1; }
+  .lb-name { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+  .lb-name h3 { margin: 0; font: italic 800 23px/1.05 var(--font-display); font-variation-settings: var(--font-display-vars); letter-spacing: -0.01em; }
+  .lb-who { font-size: 15px; color: var(--text-3); white-space: nowrap; }
+  .lb-name code { margin-left: auto; font: 400 12px var(--font-mono); color: var(--text-3); }
+  .lb-blurb { margin: 0; color: var(--text-2); font-size: 14.5px; }
+  /* what was asked for: a quote, signed, the way a sleeve carries a note. No box */
+  .lb-req { margin: 0; padding: 0; }
+  .lb-req small { display: block; font: 400 13px var(--font-ui); color: var(--text-3); margin-bottom: 2px; }
+  .lb-req q { font-size: 15.5px; font-style: italic; line-height: 1.45; color: var(--text); quotes: '“' '”'; }
+
+  /* the check, as a ledger: the measure on the left, the number on the right, a hairline under each */
+  .lb-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; margin: 0; padding: 0; list-style: none; border-top: var(--rule-2); }
+  .lb-stats li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: var(--rule); font: 400 12.5px var(--font-mono); color: var(--text); white-space: nowrap; min-width: 0; }
+  .lb-stats li small { font: 400 13px var(--font-ui); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; }
+  .lb-stats li.ok span { color: var(--ok); }
+  .lb-stats li.warn span { color: var(--warn); }
+  .lb-stats li.bad span { color: var(--bad); }
+  .lb-meas { font-size: 12px; color: var(--text-3); margin: -4px 0 0; }
+
+  .lb-wave { position: relative; height: 44px; background: var(--bg-2); overflow: hidden; display: none; }
+  .lb-card[data-state="playing"] .lb-wave, .lb-card[data-state="ready"] .lb-wave { display: block; }
+  .lb-wave canvas { width: 100%; height: 100%; display: block; }
+  .lb-wave i { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: var(--accent); opacity: 0; }
+  .lb-card[data-state="playing"] .lb-wave i { opacity: 1; }
+
+  .lb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: auto; padding-top: 4px; }
+  .lb-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: var(--r-press); border: var(--rule-2); background: transparent; color: var(--text);
+    font: 600 13px var(--font-ui); text-decoration: none; cursor: pointer; white-space: nowrap; }
+  .lb-btn:hover { border-color: var(--text-3); }
+  .lb-btn:active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .lb-btn:focus-visible, .lb-seg button:focus-visible, .lb-link:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .lb-play { min-width: 92px; }
+  .lb-play svg { width: 14px; height: 14px; fill: currentColor; }
+  .lb-play .ic-stop, .lb-card[data-state="playing"] .lb-play .ic-play { display: none; }
+  .lb-card[data-state="playing"] .lb-play .ic-stop { display: block; }
+  .lb-card[data-state="rendering"] .lb-play { color: var(--text-2); }
+  .lb-card[data-state="playing"] .lb-play { border-color: var(--text); }
+  .lb-more { margin-left: auto; display: inline-flex; gap: 14px; }
+  .lb-link { min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: 600 13px var(--font-ui); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-2); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+  .lb-link:hover { color: var(--text); text-decoration-color: var(--text); }
+  .lb-hint { font-size: 12px; color: var(--text-3); margin: 0; min-height: 18px; }
+
+  .lb-foot { margin: 46px 0 0; padding: 26px 0 60px; border-top: var(--rule); color: var(--text-3); font-size: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px 40px; }
+  .lb-foot b { color: var(--text-2); display: block; margin-bottom: 4px; font-weight: 600; }
+  .lb-foot p { margin: 0; }
+  .lb-none { color: var(--text-2); padding: 40px 0; }
+
+  @media (max-width: 860px) {
+    .lb-hero { grid-template-columns: 1fr; padding-top: 40px; }
+  }
+  @media (max-width: 560px) {
+    .lb-wrap { padding: 0 16px; }
+    .lb-top { position: static; }
+    .lb-top .lb-wrap { gap: 0 18px; }
+    .lb-mark { width: 100%; padding: 8px 0 2px; }
+    .lb-seg button { min-height: 40px; font-size: 13px; }
+    .lb-studio { display: none; }
+    .lb-hero { padding: 30px 0 18px; }
+    .lb-stage { min-height: 220px; padding: 28px 8px 18px; }
+    .lb-stats { grid-template-columns: minmax(0, 1fr); }
+    .lb-more { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="lb-top">
+  <div class="lb-wrap">
+    <a class="lb-mark" href="./" title="Open the studio"><b>overdub</b><span>Device library</span></a>
+    <div class="lb-seg" role="group" aria-label="Show" id="kind"></div>
+    <div class="lb-seg" role="group" aria-label="Made by" id="by"></div>
+    <a class="lb-studio" href="./">Open the studio</a>
+  </div>
+</header>
+
+<div class="lb-wrap">
+  <section class="lb-hero">
+    <div>
+      <h1>Every device in the house, and the ones Claude built.</h1>
+    </div>
+    <div class="lb-lede">
+      <p id="lede">Every instrument and effect that ships with Overdub.</p>
+      <p>Each one passed the device check before it got a place here: level, true peak, tail and CPU are each measured. Press Play to hear one. It renders here in the page, through the same code the studio runs.</p>
+    </div>
+  </section>
+  <main id="main"><p class="lb-none" id="none" hidden>Nothing here matches.</p></main>
+  <footer class="lb-foot">
+    <div><b>Take one home</b><p>Use in a new song opens the studio with that device on a track and a few bars to hear it with.</p></div>
+    <div><b>Bring your own</b><p>A device you or your agent wrote in a song can be exported from its info card in the rack (a .overdub-device.json) and imported into another song from the Song menu. It is checked again on the way in, and refused with the report if it fails.</p></div>
+    <div><b>Turn the knobs</b><p>The faces work. Change a setting and press ▶ again to hear it; an effect's footswitch plays the dry signal.</p></div>
+  </footer>
+</div>
+
+<script type="module">
+  import { defineDevice, paramValues, instantiate, DEVICE_CATS } from './src/devices/registry.js';
+  import { renderFace, authorName } from './src/ui/faces.js';
+  import { BUILTINS } from './src/devices/builtin/index.js';
+  import { SHOWCASE } from './src/devices/showcase.js';
+  import { LIBRARY_DEFS } from './src/devices/library/index.js';
+  import { ensureKernelWorklet } from './src/kernel/host.js';
+  import * as T from './src/audio/testsignals.js';
+  import { lufs, truePeak } from './src/audio/measure.js';
+  import { toDeviceFile, FILE_EXT } from './src/ui/devices-io.js';
+
+  let REPORTS = {}, MEASURED = '';
+  try { ({ REPORTS, MEASURED } = await import('./src/devices/library/reports.js')); } catch (e) { /* not generated yet: live checks only */ }
+
+  // the shelf: the house's built-ins, the demo song's three, the library's ten
+  const showcase = SHOWCASE.map((s) => defineDevice({ ...s, source: 'project' }, { replace: true }));
+  const ALL = [...BUILTINS, ...showcase, ...LIBRARY_DEFS];
+  const isAgent = (d) => d.by && d.by !== 'overdub';
+  const CAT = Object.fromEntries(DEVICE_CATS);
+  const order = (d) => { const i = DEVICE_CATS.findIndex(([k]) => k === d.cat); return i < 0 ? 99 : i; };
+  const nAgent = ALL.filter(isAgent).length, nHouse = ALL.length - nAgent;
+  document.getElementById('lede').textContent = `Every instrument and effect that ships with Overdub: ${nHouse} are the house's own, and ${nAgent} were written by Claude, each from one request you can read on its card.`;
+
+  const P = new URLSearchParams(location.search);
+  const state = { kind: P.get('kind') || 'all', by: P.get('by') || 'all' };
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const sgn = (x) => (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x).toFixed(1);
+  const neg = (x) => (x < 0 ? '−' : '') + Math.abs(x).toFixed(1);
+  const tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---- audio: one context, one demo at a time */
+  let ctx = null, now = null; // now: { card, src, t0, dur, raf }
+  function stop() {
+    if (!now) return;
+    try { now.src.stop(); } catch (e) { /* already stopped */ }
+    cancelAnimationFrame(now.raf);
+    now.card.dataset.state = 'ready';
+    now.card.querySelector('.lb-play span').textContent = 'Play';
+    now = null;
+  }
+  async function renderDemo(def, vals, on) {
+    const sr = 48000, bpm = 120, spb = 60 / bpm, tail = Math.min(3, Math.max(1, +def.tail || 1));
+    const instrument = def.kind === 'instrument';
+    let notes = null, input = null, secs;
+    if (instrument) {
+      const src = def.cat === 'drums' ? T.drumPhrase() : def.cat === 'bass' ? T.bassPhrase() : T.phrase();
+      notes = src.filter((n) => n.t < 8);
+      secs = 8 * spb + tail;
+    } else {
+      input = T.diStrum(5, sr);
+      secs = 5 + tail;
+    }
+    const c = new OfflineAudioContext(2, Math.round(secs * sr), sr);
+    const params = paramValues(def, vals);
+    if (!instrument && !on) { // the footswitch is off: the dry strum, for A/B
+      const b = c.createBuffer(2, input.length, sr); b.copyToChannel(input, 0); b.copyToChannel(input, 1);
+      const s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0);
+      return c.startRendering();
+    }
+    await ensureKernelWorklet(c);
+    const inst = await instantiate(c, def, { uid: 'library-' + def.id, seed: 7, params, bpm });
+    await inst.ready;
+    inst.set(params, { bpm, first: true });
+    if (input) {
+      const b = c.createBuffer(2, input.length, sr); b.copyToChannel(input, 0); b.copyToChannel(input, 1);
+      const s = c.createBufferSource(); s.buffer = b; s.connect(inst.input); s.start(0);
+    }
+    if (notes) for (const n of notes) { const t = 0.05 + n.t * spb; inst.noteOn(n.p, n.v, t); inst.noteOff(n.p, t + Math.max(0.02, n.d * spb)); }
+    inst.output.connect(c.destination);
+    const buf = await c.startRendering();
+    inst.dispose();
+    return buf;
+  }
+  function drawWave(canvas, buf) {
+    const w = canvas.clientWidth || 300, h = canvas.clientHeight || 44, dpr = Math.min(2, devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const g = canvas.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+    const L = buf.getChannelData(0), R = buf.getChannelData(1), step = Math.max(1, Math.floor(L.length / w));
+    g.fillStyle = tok('--text-3') || 'gray';
+    for (let x = 0; x < w; x++) {
+      let m = 0; for (let i = x * step, e = Math.min(L.length, i + step); i < e; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a > m) m = a; }
+      const y = Math.max(1, Math.min(1, m / 0.9) * (h - 6));
+      g.fillRect(x, (h - y) / 2, 1, y);
+    }
+  }
+  async function play(card) {
+    const d = card.def;
+    if (now && now.card === card) { stop(); return; }
+    stop();
+    ctx = ctx || new AudioContext();
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) { /* the next click will */ } }
+    const key = JSON.stringify([card.vals, card.on]);
+    card.dataset.state = 'rendering';
+    const label = card.querySelector('.lb-play span');
+    label.textContent = 'Rendering…';
+    try {
+      if (!card.buf || card.bufKey !== key) {
+        card.buf = await renderDemo(d, card.vals, card.on); card.bufKey = key;
+        const L = lufs(card.buf), tp = truePeak(card.buf);
+        card.dataset.lufs = L.toFixed(1); card.dataset.tp = tp.toFixed(1);
+        card.querySelector('.lb-hint').textContent = `This demo: ${neg(L)} LUFS, ${neg(tp)} dBTP${d.kind === 'effect' ? (card.on ? ', through it (the DI strum)' : ', dry (the footswitch is off)') : `, ${d.cat === 'drums' ? 'a two-bar groove' : d.cat === 'bass' ? 'two bars of bass' : 'two bars of chords and melody'}`}.`;
+        drawWave(card.querySelector('.lb-wave canvas'), card.buf);
+      }
+    } catch (e) {
+      card.dataset.state = 'error'; label.textContent = 'Play';
+      card.querySelector('.lb-hint').textContent = `Couldn’t render: ${e.message}`;
+      console.warn('library demo', d.id, e);
+      return;
+    }
+    const src = ctx.createBufferSource(); src.buffer = card.buf; src.connect(ctx.destination);
+    const t0 = ctx.currentTime + 0.03; src.start(t0);
+    const head = card.querySelector('.lb-wave i');
+    now = { card, src, t0, dur: card.buf.duration, raf: 0 };
+    card.dataset.state = 'playing'; label.textContent = 'Stop';
+    src.onended = () => { if (now && now.src === src) stop(); };
+    const tick = () => {
+      if (!now || now.src !== src) return;
+      head.style.left = `calc(${Math.min(1, Math.max(0, (ctx.currentTime - t0) / now.dur)) * 100}% - 1px)`;
+      now.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  /* ---- the check summary (stored, or live) */
+  function statsOf(d, r, live) {
+    const ul = document.createElement('ul'); ul.className = 'lb-stats';
+    const li = (cls, html, title) => { const x = document.createElement('li'); if (cls) x.className = cls; x.innerHTML = html; x.title = title; ul.append(x); };
+    if (!r) { li('', '<small>Not measured yet</small><span></span>', 'press Check to run the device check here'); return ul; }
+    li(r.ok ? 'ok' : 'bad', `<small>Device check</small><span>${r.ok ? 'passes' : 'fails'}</span>`, r.ok ? 'passes the device check' : 'fails the device check');
+    if (r.kind === 'effect') li(Math.abs(r.deltaLU) <= 1.5 ? '' : 'warn', `<small>Level vs bypass</small><span>${sgn(r.deltaLU)} LU</span>`, 'loudness against bypassed, on the DI strum test signal, at default settings');
+    else li(r.lufs >= -18.5 && r.lufs <= -13.5 ? '' : 'warn', `<small>Loudness</small><span>${neg(r.lufs)} LUFS</span>`, 'the instrument test phrase at default settings (the house aims for about -14 to -18 LUFS)');
+    li(r.truePeak <= -1 ? '' : 'warn', `<small>True peak</small><span>${neg(r.truePeak)} dBTP</span>`, 'true peak at default settings (the house keeps it at or under -1 dBTP)');
+    if (r.cpu != null) li('', `<small>CPU</small><span>${r.cpu.toFixed(1)}%</span>`, 'one instance: render time of 4 s of audio, as a share of real time' + (live ? ' (on this machine)' : ''));
+    if (r.tail != null) li('', `<small>Tail</small><span>${r.tail.toFixed(1)} s</span>`, 'time to fall under -60 dBFS after the input or the last note stops');
+    return ul;
+  }
+  const compact = (r) => ({ ok: r.ok, kind: r.kind, lufs: r.level?.lufs, deltaLU: r.level?.deltaLU, truePeak: r.truePeak, cpu: r.cpu?.pct, tail: r.tail?.seconds });
+
+  /* ---- the cards */
+  const main = document.getElementById('main'), none = document.getElementById('none');
+  const sections = {};
+  for (const [kind, title] of [['instrument', 'Instruments'], ['effect', 'Effects']]) {
+    const s = document.createElement('section');
+    s.className = 'lb-sec'; s.dataset.kind = kind;
+    s.innerHTML = `<div class="lb-sec-h"><h2>${title}</h2><small></small></div><div class="lb-grid"></div>`;
+    main.append(s); sections[kind] = s;
+  }
+  const cards = [];
+  const PLAY = '<svg class="ic-play" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z"/></svg><svg class="ic-stop" viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" rx="1.5"/></svg>';
+  for (const d of ALL.slice().sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'instrument' ? -1 : 1) || order(a) - order(b))) {
+    const agent = isAgent(d);
+    const card = document.createElement('article');
+    card.className = 'lb-card';   // signed on the name line, never by the container
+    card.dataset.id = d.id; card.dataset.kind = d.kind; card.dataset.by = agent ? 'agent' : 'house'; card.dataset.state = 'idle';
+    card.def = d;
+    card.vals = { ...paramValues(d), ...(d.demo?.params || {}) };
+    card.on = true;
+    const stored = REPORTS[d.id] && REPORTS[d.id].hash === d.hash ? REPORTS[d.id] : null;
+    card.innerHTML = `
+      <div class="lb-stage"><span class="lb-cat">${esc(CAT[d.cat] || d.cat || '')}</span><div class="lb-face"></div></div>
+      <div class="lb-body">
+        <div class="lb-name"><h3>${esc(d.name)}</h3>${agent ? `<span class="lb-who">built by <span class="by by-agent" data-by="${esc(d.by)}">${esc(authorName(d.by))}</span></span>` : ''}<code>${esc(d.id)}</code></div>
+        ${d.request ? `<blockquote class="lb-req"><small>Asked for</small><q>${esc(d.request)}</q></blockquote>` : ''}
+        <p class="lb-blurb">${esc(d.blurb)}</p>
+        <div class="lb-statbox"></div>
+        <p class="lb-meas">${stored ? `Measured by the device check${MEASURED ? ` on ${esc(MEASURED)}` : ''}.` : 'Not measured yet: press Check.'}</p>
+        <div class="lb-wave"><canvas></canvas><i></i></div>
+        <div class="lb-actions">
+          <button class="lb-btn lb-play" type="button" aria-label="Play a demo of ${esc(d.name)}">${PLAY}<span>Play</span></button>
+          <a class="lb-btn lb-use" href="./?new&device=${encodeURIComponent(d.id)}">Use in a new song</a>
+          <span class="lb-more"><button class="lb-link lb-check" type="button">Check</button><button class="lb-link lb-export" type="button">Export</button></span>
+        </div>
+        <p class="lb-hint"></p>
+      </div>`;
+    card.querySelector('.lb-statbox').append(statsOf(d, stored));
+    const face = renderFace(d, card.vals, {
+      on: true, size: 'full',
+      onParam: (k, v, { commit }) => { card.vals[k] = v; if (commit && now && now.card === card) { stop(); play(card); } },
+      onToggle: d.kind === 'effect' ? (on) => { card.on = on; face.update(card.vals, on); if (now && now.card === card) { stop(); play(card); } } : undefined,
+    });
+    card.face = face;
+    card.querySelector('.lb-face').append(face.el);
+    card.querySelector('.lb-play').addEventListener('click', () => play(card));
+    card.querySelector('.lb-check').addEventListener('click', async (e) => {
+      const b = e.currentTarget; b.disabled = true; b.textContent = 'Checking…';
+      try {
+        const { checkDevice } = await import('./src/kernel/check.js');
+        const r = compact(await checkDevice(d));
+        card.querySelector('.lb-statbox').replaceChildren(statsOf(d, r, true));
+        card.querySelector('.lb-meas').textContent = 'Checked just now, in this browser.';
+      } catch (err) { card.querySelector('.lb-meas').textContent = `The check couldn’t run: ${err.message}`; }
+      b.disabled = false; b.textContent = 'Check';
+    });
+    card.querySelector('.lb-export').addEventListener('click', () => {
+      const file = toDeviceFile(d);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = d.id.replace(/[^a-z0-9]+/g, '-') + FILE_EXT; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      card.querySelector('.lb-hint').textContent = `Saved ${a.download}. Import it into a song from the Song menu.`;
+    });
+    sections[d.kind].querySelector('.lb-grid').append(card);
+    cards.push(card);
+  }
+
+  /* ---- fit each face to its shelf (a rack or a synth panel is wider than a phone) */
+  function fit(card) {
+    const box = card.querySelector('.lb-face'), stage = card.querySelector('.lb-stage');
+    box.style.zoom = 1;
+    const w = box.scrollWidth, avail = stage.clientWidth - 24;
+    box.style.zoom = w > avail && w > 0 ? String(Math.max(0.4, avail / w)) : 1;
+  }
+  const ro = new ResizeObserver((es) => { for (const e of es) fit(e.target.closest('.lb-card')); });
+  for (const c of cards) ro.observe(c.querySelector('.lb-stage'));
+  document.fonts?.ready.then(() => cards.forEach(fit));
+
+  /* ---- filters */
+  function seg(el, key, opts) {
+    el.innerHTML = '';
+    for (const [v, label, n] of opts) {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.v = v;
+      b.innerHTML = `${label}<i>${n}</i>`;
+      b.addEventListener('click', () => { state[key] = v; apply(); });
+      el.append(b);
+    }
+  }
+  seg(document.getElementById('kind'), 'kind', [['all', 'All', ALL.length], ['instrument', 'Instruments', ALL.filter((d) => d.kind === 'instrument').length], ['effect', 'Effects', ALL.filter((d) => d.kind === 'effect').length]]);
+  seg(document.getElementById('by'), 'by', [['all', 'Everyone', ALL.length], ['house', 'House', nHouse], ['agent', 'Claude', nAgent]]);
+  function apply() {
+    for (const [id, key] of [['kind', 'kind'], ['by', 'by']]) for (const b of document.getElementById(id).children) b.setAttribute('aria-pressed', String(b.dataset.v === state[key]));
+    let shown = 0;
+    for (const c of cards) { const vis = (state.kind === 'all' || c.dataset.kind === state.kind) && (state.by === 'all' || c.dataset.by === state.by); c.hidden = !vis; shown += vis; }
+    for (const s of Object.values(sections)) {
+      const n = s.querySelectorAll('.lb-card:not([hidden])').length;
+      s.hidden = !n; s.querySelector('small').textContent = `${n} device${n === 1 ? '' : 's'}`;
+    }
+    none.hidden = shown > 0;
+    const u = new URL(location.href);
+    for (const k of ['kind', 'by']) { if (state[k] === 'all') u.searchParams.delete(k); else u.searchParams.set(k, state[k]); }
+    history.replaceState(null, '', u.pathname + u.search);
+    cards.forEach((c) => { if (!c.hidden) fit(c); });
+  }
+  apply();
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') stop(); });
+
+  // for checks and the curious
+  window.__library = { cards, ALL, play: (id) => play(cards.find((c) => c.dataset.id === id)), stop, renderDemo, REPORTS };
+  document.documentElement.dataset.ready = '1';
+</script>
+</body>
+</html>

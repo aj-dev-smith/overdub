@@ -1,0 +1,16 @@
+import { open } from './pw.js';
+const { page, errors, close } = await open('/app/', { query: 'demo' });
+await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+const run = (n, i) => page.evaluate(([n, i]) => window.overdub.tools.run(n, i, { by: 'claude' }), [n, i]);
+const proj = await run('get_project', {});
+console.log(proj.song.split('\n').filter(l => /track |section/.test(l)).join('\n').slice(0, 1500));
+let r = await run('adjust', { axis: 'level', target: { track: 'Keys' }, over: { bars: [1, 4] }, shape: 'fade_in' });
+console.log(JSON.stringify(r, null, 1).slice(0, 2000));
+r = await run('render_and_measure', { tracks: ['Keys'], bars: [1, 4], series: 'bars' });
+console.log(r.series?.gloss);
+r = await run('adjust', { axis: 'brightness', target: { track: 'Bass' }, over: { bars: [3, 4] }, shape: 'ramp' });
+console.log(JSON.stringify(r, null, 1).slice(0, 2500));
+const p2 = await run('get_project', {});
+console.log(p2.song.split('\n').filter(l => /auto:/.test(l)).join('\n'));
+console.log('errors', errors);
+await close();

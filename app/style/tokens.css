@@ -1,0 +1,90 @@
+/* Overdub brand tokens. The NAMES are a contract (docs/ARCHITECTURE.md); the brand owns the VALUES (docs/BRAND.md).
+   "The control room at night": a graphite room, leader-tape cream text, and two lamps. WARM is a person, COOL is an
+   agent, everywhere (notes, clips, cursors, history). Leader green, the colour of the tape where a take starts, is
+   spent on two things only: the playhead and the one primary action. Every text colour below clears WCAG AA (4.5:1)
+   on every surface (--bg … --bg-3, --panel); --text-3 is the floor (5.0:1 on --bg-3). Measured by the contrast check
+   in tools/brand-test.js.
+   The look is "Liner notes" (design/DECISION.md; the kit is design/LINER-NOTES-KIT.md): the studio set like the back
+   of a record sleeve. Hairline rules and whitespace instead of boxes; square containers; one 2 px radius for things
+   you press; authorship as a byline in warm or cool ink, never a stripe, a tint or a fill. */
+
+/* The faces. Archivo, pushed to its widest (wdth 125) and set ExtraBold Italic, is the display face: it looks like
+   the logo on a tape box. Atkinson Hyperlegible Next (UI) and Mono were drawn by the Braille Institute for telling
+   look-alike characters apart (1 l I, 0 O, rn m), which is what a long night of reading note names and numbers
+   needs. They are served from the site itself (fonts.css, beside this file, says what each file is and its licence);
+   if one can't load, the stacks fall back to the system faces and nothing breaks. */
+@import url('fonts.css');
+
+:root {
+  color-scheme: dark;
+
+  --bg: #141210;          /* the room: graphite with a little warmth in it, not black (long sessions; colour reads truer) */
+  --bg-2: #1a1815;        /* panels */
+  --bg-3: #24211c;        /* raised: hovered rows, open menus, the selected clip's lane */
+  --panel: #1d1b17;       /* the detail and agent panes */
+  --line: #2f2b25;        /* hairlines, the beat grid */
+  --line-2: #46413a;      /* bar lines, input borders, focus-adjacent edges */
+  --text: #f4ead6;        /* leader-tape cream (15.7:1 on --bg) */
+  --text-2: #cbc0aa;      /* secondary (8.9:1 on --bg-3) */
+  --text-3: #9a8f7c;      /* hints, units, disabled (5.0:1 on --bg-3) */
+  --accent: #d9f36a;      /* leader green: where a take starts. The playhead and the one primary action. Nothing else. */
+  --accent-2: #f1dc8a;    /* grease pencil: the loop region, the thing the agent is pointing at */
+  --human: #ffa043;       /* WARM: what a person did (the lamp on the desk) */
+  --agent: #4cc3ff;       /* COOL: what an agent did (the meter-bridge glow) */
+  --ok: #8fdca0;
+  --warn: #ffd166;
+  --bad: #ff6b6b;
+  --rec: #ff4d4d;         /* record arm and the take in progress; never decoration */
+
+  /* Track colours: eight inks from a well-used studio (rust, ochre, moss, sage, slate, heather, rose, linen), muted
+     enough to sit on graphite for hours, each readable as text on --bg (≥ 6:1). They say "which part", never "who":
+     authorship is a byline. Slate is a grey-violet (hue 234°, 23% saturation), well away from the agent's cyan (200°,
+     100%), so a bass in slate never reads as the agent's. */
+  --c-1: #e98a6c;   /* rust */
+  --c-2: #dcb45e;   /* ochre */
+  --c-3: #a8c470;   /* moss */
+  --c-4: #95c6a8;   /* sage */
+  --c-5: #a2a6c6;   /* slate (was #8fa8d4: too close to cool) */
+  --c-6: #b69cd8;   /* heather */
+  --c-7: #e68ba8;   /* rose */
+  --c-8: #d9c8a4;   /* linen */
+
+  --font-ui: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Archivo', 'Arial Black', 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Corners: one radius, 2 px, for things you press (buttons, keys, pads, toggles, inputs, notes). Containers are
+     square. No pills. */
+  --r-1: 2px;       /* inputs, notes, keys */
+  --r-2: 2px;       /* clips, buttons, device faces */
+  --r-3: 0px;       /* panels, sheets, lists: square */
+  /* Elevation only for things that float (the welcome insert, the toast, menus). Nothing that sits in the page
+     casts a shadow, so --shadow-1 is none. */
+  --shadow-1: none;
+  --shadow-2: 0 1px 0 rgba(255, 246, 228, .05) inset, 0 16px 40px rgba(4, 3, 2, .55);
+
+  /* ---- Liner notes (additions; the names are a contract like the ones above) */
+  --rule: 1px solid var(--line);          /* the hairline: separates rows and regions, never closes a shape */
+  --rule-2: 1px solid var(--line-2);      /* a bar line, an input's edge, a button's edge */
+  --rule-heavy: 2px solid var(--text);    /* a sleeve's heavy rule over a region's title: at most two per screen */
+  --r-press: 2px;                         /* the one radius: things you press */
+  /* Paper: the welcome insert, the provenance print, the tape box. Ink on cream. The warm and cool paper inks are the
+     bylines on paper: the riso pair (#f07612 / #1b95dc) is 2.4:1 and 2.8:1 on cream, too light for 12 px text, so
+     these are deeper (5.5:1 and 5.7:1, checked by tools/brand-test.js). */
+  --paper: #f4ead6;       /* leader-tape cream as a surface */
+  --ink: #16130f;         /* type on paper (15.5:1) */
+  --ink-2: #4c4336;       /* secondary type on paper (8.1:1) */
+  --ink-3: #6e6352;       /* small print and dot leaders on paper (4.9:1) */
+  --ink-human: #9a4400;   /* WARM on paper: a person's byline (5.5:1) */
+  --ink-agent: #085f92;   /* COOL on paper: an agent's byline (5.7:1) */
+  --paper-rule: #cbbfa8;  /* a hairline on paper */
+
+  /* Extras (not in the contract): washes and the motion curves. The warm and cool washes are NOT for authorship (no
+     container is tinted by who made it); they stay for a held key or a live meter that is already warm or cool. */
+  --human-wash: rgba(255, 160, 67, .14);
+  --agent-wash: rgba(76, 195, 255, .14);
+  --accent-wash: rgba(217, 243, 106, .16);
+  --ease: cubic-bezier(.2, .8, .2, 1);     /* things arrive quickly and settle */
+  --ease-wiggle: cubic-bezier(.34, 1.56, .64, 1); /* the one bounce: the agent's take list arriving, nothing else */
+  --font-display-vars: 'wdth' 125;          /* font-variation-settings for display text: Archivo at its widest */
+}

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Overdub social card</title>
+<!-- The social card (og.png, 1200x630): the sleeve (lockup, the head, the line, the credits signed in the paper
+     inks) over a strip of tape with the Weave on it. Rendered by
+     `node tools/brand-og.js`; edit here, then re-run it. -->
+<link rel="stylesheet" href="/app/style/tokens.css">
+<link rel="stylesheet" href="/site/assets/site.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { background: var(--paper) var(--grain-paper); color: var(--ink); }
+  .card { position: relative; width: 1200px; height: 630px; }
+  .lockup { position: absolute; left: 56px; top: 50px; display: flex; align-items: center; gap: 16px; }
+  .lockup .m { width: 104px; height: 104px; }
+  .lockup .w { width: 344px; height: auto; }
+  h1 { position: absolute; left: 62px; top: 182px; margin: 0; font-size: 80px; line-height: 1; white-space: nowrap; letter-spacing: -0.015em; }
+  p.lede { position: absolute; left: 66px; top: 292px; margin: 0; font: 400 27px/1.42 var(--font-ui); color: var(--ink-2); width: 640px; }
+  /* the sleeve's credits: the part, a dotted leader, the byline in the paper inks; the house line unsigned */
+  .credits { position: absolute; left: 780px; top: 290px; width: 356px; }
+  .credits-head { margin: 0 0 8px; font: italic 800 21px/1.2 var(--font-display); font-variation-settings: var(--font-display-vars); font-stretch: 125%; color: var(--ink); }
+  .credits ul { list-style: none; margin: 0; padding: 0; }
+  .credits li { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font: 400 18px/1.35 var(--font-ui); color: var(--ink-2); }
+  .credits li > i { flex: 1; min-width: 12px; border-bottom: 2px dotted var(--ink-3); transform: translateY(-5px); }
+  .credits .by { font-weight: 600; }
+  .credits .by-agent { color: var(--ink-agent); }
+  .credits .by-human { color: var(--ink-human); }
+  .strip { position: absolute; left: 0; right: 0; bottom: 0; height: 196px; background: var(--bg) var(--grain-dark); }
+  canvas { position: absolute; left: 0; top: 8px; width: 1200px; height: 188px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="lockup"><img class="m" src="/site/assets/logo.svg" alt=""><img class="w" src="/site/assets/wordmark-ink.svg" alt="overdub"></div>
+  <h1 class="over over--ink"><span class="over-a">Play over each other.</span><span class="over-b" aria-hidden="true">Play over each other.</span></h1>
+  <p class="lede">A music studio for you and your agents.<br>You lay down a take. Your agent plays over it.</p>
+  <div class="credits">
+    <p class="credits-head">Night Shift, 92 bpm</p>
+    <ul>
+      <li><span>Drums, bass, keys, hook</span></li>
+      <li><span>Fireflies</span><i></i><span class="by by-agent">Claude</span></li>
+      <li><span>Guitar, take one</span><i></i><span class="by by-human">you</span></li>
+    </ul>
+  </div>
+  <div class="strip"><canvas id="c"></canvas></div>
+</div>
+<script type="module">
+  import { createWeave } from '/site/assets/weave.js';
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((im) => im.decode().catch(() => {})));
+  const w = createWeave(document.getElementById('c'), { reduced: true });
+  w.frame(performance.now());
+  window.__ogReady = true;
+</script>
+</body>
+</html>

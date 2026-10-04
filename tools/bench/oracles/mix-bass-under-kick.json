@@ -1,0 +1,2 @@
+{ "task": "mix-bass-under-kick", "why": "Pull the bass fader down 5 dB: the low end measures about 3.4 dB under the kick.",
+  "ops": [{ "type": "track.set", "track": "Bass", "patch": { "gain": -6.5 } }] }

@@ -1,0 +1,151 @@
+{
+  "format": "overdub/0",
+  "id": "p_blab01",
+  "title": "Device lab (bench)",
+  "tempo": 100,
+  "meter": [
+    4,
+    4
+  ],
+  "key": { "root": "C", "scale": "major" },
+  "loop": { "on": false, "start": 0, "end": 16 },
+  "tracks": [
+    {
+      "id": "t_snap01",
+      "name": "Snaps",
+      "color": "var(--c-1)",
+      "kind": "instrument",
+      "instrument": {
+        "device": "core.drums",
+        "params": { "kit": 1, "room": 0 }
+      },
+      "inserts": [],
+      "clips": [
+        {
+          "id": "c_snap01",
+          "kind": "notes",
+          "start": 0,
+          "length": 16,
+          "name": "Claps",
+          "by": "overdub",
+          "notes": [
+            { "p": 39, "t": 1, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n1" },
+            { "p": 37, "t": 2.5, "d": 0.25, "v": 0.45, "by": "overdub", "id": "n3" },
+            { "p": 39, "t": 3, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n2" },
+            { "p": 39, "t": 5, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n4" },
+            { "p": 37, "t": 6.5, "d": 0.25, "v": 0.45, "by": "overdub", "id": "n6" },
+            { "p": 39, "t": 7, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n5" },
+            { "p": 39, "t": 9, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n7" },
+            { "p": 37, "t": 10.5, "d": 0.25, "v": 0.45, "by": "overdub", "id": "n9" },
+            { "p": 39, "t": 11, "d": 0.25, "v": 0.8, "by": "overdub", "id": "n8" },
+            { "p": 39, "t": 13, "d": 0.25, "v": 0.8, "by": "overdub", "id": "na" },
+            { "p": 37, "t": 14.5, "d": 0.25, "v": 0.45, "by": "overdub", "id": "nc" },
+            { "p": 39, "t": 15, "d": 0.25, "v": 0.8, "by": "overdub", "id": "nb" }
+          ]
+        }
+      ],
+      "gain": -3,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "by": "overdub"
+    },
+    {
+      "id": "t_bell01",
+      "name": "Bell",
+      "color": "var(--c-3)",
+      "kind": "instrument",
+      "instrument": {
+        "device": "core.pad",
+        "params": { "release": 3, "space": 0.6 }
+      },
+      "inserts": [],
+      "clips": [
+        {
+          "id": "c_bell01",
+          "kind": "notes",
+          "start": 0,
+          "length": 16,
+          "name": "Tune",
+          "by": "overdub",
+          "notes": [
+            { "p": 72, "t": 0, "d": 1, "v": 0.8, "by": "overdub", "id": "n1" },
+            { "p": 76, "t": 1, "d": 1, "v": 0.8, "by": "overdub", "id": "n2" },
+            { "p": 79, "t": 2, "d": 2, "v": 0.8, "by": "overdub", "id": "n3" },
+            { "p": 77, "t": 4, "d": 1, "v": 0.8, "by": "overdub", "id": "n4" },
+            { "p": 76, "t": 5, "d": 1, "v": 0.8, "by": "overdub", "id": "n5" },
+            { "p": 74, "t": 6, "d": 2, "v": 0.8, "by": "overdub", "id": "n6" },
+            { "p": 76, "t": 8, "d": 1, "v": 0.8, "by": "overdub", "id": "n7" },
+            { "p": 79, "t": 9, "d": 1, "v": 0.8, "by": "overdub", "id": "n8" },
+            { "p": 84, "t": 10, "d": 2, "v": 0.8, "by": "overdub", "id": "n9" },
+            { "p": 83, "t": 12, "d": 1, "v": 0.8, "by": "overdub", "id": "na" },
+            { "p": 79, "t": 13, "d": 1, "v": 0.8, "by": "overdub", "id": "nb" },
+            { "p": 72, "t": 14, "d": 2, "v": 0.8, "by": "overdub", "id": "nc" }
+          ]
+        }
+      ],
+      "gain": -4,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "by": "overdub"
+    },
+    {
+      "id": "t_room01",
+      "name": "Room",
+      "color": "var(--c-5)",
+      "kind": "instrument",
+      "instrument": {
+        "device": "core.poly",
+        "params": { "cutoff": 1800 }
+      },
+      "inserts": [],
+      "clips": [
+        {
+          "id": "c_room01",
+          "kind": "notes",
+          "start": 0,
+          "length": 16,
+          "name": "Chords",
+          "by": "overdub",
+          "notes": [
+            { "p": 36, "t": 0, "d": 4, "v": 0.8, "by": "overdub", "id": "n1" },
+            { "p": 43, "t": 0, "d": 4, "v": 0.8, "by": "overdub", "id": "n2" },
+            { "p": 52, "t": 0, "d": 4, "v": 0.8, "by": "overdub", "id": "n3" },
+            { "p": 33, "t": 4, "d": 4, "v": 0.8, "by": "overdub", "id": "n4" },
+            { "p": 40, "t": 4, "d": 4, "v": 0.8, "by": "overdub", "id": "n5" },
+            { "p": 48, "t": 4, "d": 4, "v": 0.8, "by": "overdub", "id": "n6" },
+            { "p": 29, "t": 8, "d": 4, "v": 0.8, "by": "overdub", "id": "n7" },
+            { "p": 36, "t": 8, "d": 4, "v": 0.8, "by": "overdub", "id": "n8" },
+            { "p": 45, "t": 8, "d": 4, "v": 0.8, "by": "overdub", "id": "n9" },
+            { "p": 31, "t": 12, "d": 4, "v": 0.8, "by": "overdub", "id": "na" },
+            { "p": 38, "t": 12, "d": 4, "v": 0.8, "by": "overdub", "id": "nb" },
+            { "p": 47, "t": 12, "d": 4, "v": 0.8, "by": "overdub", "id": "nc" }
+          ]
+        }
+      ],
+      "gain": -6,
+      "pan": 0,
+      "mute": false,
+      "solo": false,
+      "arm": false,
+      "by": "overdub"
+    }
+  ],
+  "sections": [],
+  "devices": {},
+  "assets": {},
+  "master": {
+    "gain": 0,
+    "inserts": []
+  },
+  "meta": {
+    "created": "2026-10-01T00:00:00.000Z",
+    "modified": "2026-10-01T00:00:00.000Z",
+    "authors": {
+      "overdub": { "kind": "house", "name": "Overdub" }
+    }
+  }
+}

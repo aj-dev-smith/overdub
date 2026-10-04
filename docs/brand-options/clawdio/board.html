@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>Clawdio brand board</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Silkscreen&display=swap">
+<style>
+  :root {
+    /* Clawdio: "the rock pool after the gig". Token NAMES follow app/style/tokens.css; warm = a person, cool = an agent. */
+    --bg: #0f1626; --bg-2: #141c2f; --bg-3: #1c2640; --panel: #172034; --line: #263352; --line-2: #364668;
+    --text: #f6eedf; --text-2: #c2c9da; --text-3: #8f9ab4;
+    --accent: #ff66c4;   /* anemone: the one primary action, the playhead, the selection; the note in the mark */
+    --accent-2: #ffd98a; /* sand: the loop region, what the agent points at */
+    --human: #ffb35c; --agent: #79d7ff; --rec: #ff4d61;
+    --shell: #ff7a59;    /* brand only: the claw. Never a UI state. */
+    --ink: #141a2b; --paper: #f6eedf;
+    --c-1: #f7967a; --c-2: #f0c565; --c-3: #9fd56f; --c-4: #56d3b5; --c-5: #78a9f8; --c-6: #b391f4; --c-7: #f08ac8; --c-8: #d8c4a0;
+    --font-display: 'Archivo', 'Arial Black', sans-serif;
+    --font-ui: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+    --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+    --font-pixel: 'Silkscreen', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1350px; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-ui); position: relative; }
+  /* photocopy grain over everything: it's a flyer, not a slide */
+  body::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .13; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .abs { position: absolute; }
+  .pix { font-family: var(--font-pixel); text-transform: uppercase; letter-spacing: .04em; }
+
+  /* header */
+  .top { left: 48px; right: 48px; top: 34px; display: flex; justify-content: space-between; font-size: 20px; color: var(--text-3); }
+  .top b { color: var(--shell); font-weight: 400; }
+
+  /* hero */
+  .rings { left: -150px; top: -60px; width: 760px; height: 760px; }
+  .mark { left: 40px; top: 92px; width: 400px; height: 400px; filter: drop-shadow(0 18px 40px rgba(255, 102, 196, .16)); }
+  .word { left: 470px; top: 108px; width: 562px; }
+  .tag { left: 468px; top: 236px; font-family: var(--font-display); font-weight: 900; font-stretch: 62%; font-size: 93px; line-height: .88; text-transform: uppercase; letter-spacing: -.005em; }
+  .tag em { font-style: normal; color: var(--accent); }
+  .alts { left: 472px; top: 428px; font-size: 25px; line-height: 1.3; color: var(--text-2); }
+  .alts span { color: var(--text-3); font-size: 20px; }
+
+  /* studio mock */
+  .studio { left: 48px; top: 566px; width: 984px; height: 226px; background: var(--bg-2); border: 1.5px solid var(--line-2); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 18px 50px rgba(3, 6, 16, .6); }
+  .bar { height: 78px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1.5px solid var(--line); background: var(--bg); }
+  .bar .lock { display: flex; align-items: center; gap: 8px; }
+  .bar .lock img:first-child { width: 42px; height: 42px; }
+  .bar .lock img:last-child { width: 118px; }
+  .bar .title { font-family: var(--font-display); font-weight: 800; font-stretch: 80%; font-size: 28px; margin-left: 4px; white-space: nowrap; }
+  .sep { width: 1.5px; height: 34px; background: var(--line-2); }
+  .tbtn { width: 22px; height: 22px; display: grid; place-items: center; }
+  .ctr { font-family: var(--font-mono); font-size: 22px; padding: 6px 12px; border: 1.5px solid var(--line-2); border-radius: 8px; line-height: 1.05; background: var(--bg-2); }
+  .meta { font-family: var(--font-mono); font-size: 22px; color: var(--text); white-space: nowrap; }
+  .meta small { font-size: 14px; color: var(--text-3); }
+  .pill { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 600; color: var(--agent); padding: 7px 14px; border: 1.5px solid var(--agent); border-radius: 99px; background: rgba(121, 215, 255, .12); white-space: nowrap; }
+  .pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--agent); box-shadow: 0 0 10px var(--agent); }
+  .lanes { position: relative; padding: 10px 0 0; }
+  .lane { height: 64px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+  .lh { width: 250px; padding: 0 20px; flex: none; }
+  .lh b { display: block; font-size: 21px; font-weight: 700; }
+  .lh span { font-size: 17px; color: var(--text-3); white-space: nowrap; }
+  .grid { flex: 1; height: 100%; position: relative; background: repeating-linear-gradient(90deg, transparent 0 89px, var(--line) 89px 90px); }
+  .clip { position: absolute; top: 8px; bottom: 8px; border-radius: 9px; overflow: hidden; }
+  .clip .h { height: 20px; font-size: 15px; font-weight: 700; color: var(--ink); padding: 1px 10px; }
+  .clip .b { position: absolute; inset: 20px 0 0; opacity: .9; }
+  .tab { position: absolute; top: 0; right: 0; font-size: 13px; font-weight: 700; padding: 2px 8px 3px 10px; border-bottom-left-radius: 9px; color: var(--ink); }
+  .playhead { position: absolute; top: 0; bottom: 0; left: 610px; width: 2.5px; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .legend { position: absolute; right: 20px; bottom: 10px; font-size: 17px; color: var(--text-3); }
+  .legend b { font-weight: 700; }
+
+  /* clawd on the edge */
+  .clawd { left: 850px; top: 456px; width: 170px; image-rendering: pixelated; }
+
+  /* landing mock */
+  .landing { left: 44px; top: 828px; width: 584px; height: 316px; background: var(--paper); color: var(--ink); border-radius: 6px; transform: rotate(-1.4deg);
+    box-shadow: 0 22px 50px rgba(0, 0, 0, .5); padding: 20px 26px; overflow: hidden; }
+  .landing::before { content: ''; position: absolute; inset: 0; opacity: .5; mix-blend-mode: multiply;
+    background: radial-gradient(circle at 1px 1px, rgba(20, 26, 43, .13) 1px, transparent 1.6px) 0 0 / 7px 7px; pointer-events: none; }
+  .tape { position: absolute; width: 110px; height: 30px; background: rgba(255, 217, 138, .72); z-index: 3; }
+  .lnav { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; }
+  .lnav img:first-child { width: 34px; height: 34px; }
+  .lnav img:nth-child(2) { width: 104px; }
+  .lnav span { margin-left: auto; color: #4a5269; }
+  .lh1 { margin-top: 12px; font-family: var(--font-display); font-weight: 900; font-stretch: 70%; font-size: 64px; line-height: .88; text-transform: uppercase; letter-spacing: -.01em; }
+  .lh1 em { font-style: normal; color: #d93c8f; }
+  .lsub { margin-top: 10px; font-size: 21px; line-height: 1.28; color: #2c3347; width: 290px; }
+  .cta { position: absolute; left: 26px; bottom: 20px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 19px; padding: 11px 18px; border-radius: 10px; }
+  .cta i { color: var(--accent); font-style: normal; }
+  .story { position: absolute; right: 16px; bottom: 14px; width: 236px; height: 120px; }
+
+  /* pedals */
+  .pedals { left: 660px; top: 818px; width: 380px; height: 330px; }
+  .ped { position: absolute; width: 176px; height: 148px; border-radius: 14px; padding: 10px 12px; box-shadow: 0 2px 0 rgba(255,255,255,.18) inset, 0 -3px 0 rgba(0,0,0,.25) inset, 0 12px 26px rgba(0, 0, 0, .55); }
+  .ped .led { position: absolute; top: 12px; right: 14px; width: 11px; height: 11px; border-radius: 50%; }
+  .ped .knobs { display: flex; gap: 14px; margin-top: 4px; }
+  .ped .k { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4b4b55, #15151b 70%); position: relative; box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+  .ped .k::after { content: ''; position: absolute; left: 50%; top: 4px; width: 3px; height: 12px; margin-left: -1.5px; background: #f6eedf; border-radius: 2px; transform-origin: 50% 13px; transform: rotate(var(--r, 0deg)); }
+  .ped .k.cream { background: radial-gradient(circle at 35% 30%, #fff8e8, #d9ccb0 70%); }
+  .ped .k.cream::after { background: #141a2b; }
+  .ped .nm { font-family: var(--font-display); font-weight: 900; font-stretch: 72%; font-size: 33px; line-height: .92; text-transform: uppercase; margin-top: 10px; }
+  .ped .cat { font-family: var(--font-mono); font-size: 14px; opacity: .8; margin-top: 4px; }
+  .ped .fs { position: absolute; right: 14px; bottom: 14px; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #e8e8ec, #8a8a94 70%); box-shadow: 0 2px 4px rgba(0,0,0,.45); }
+
+  /* palette */
+  .pal { left: 48px; top: 1170px; width: 984px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .chip { height: 92px; border-radius: 12px; padding: 9px 11px; display: flex; flex-direction: column; justify-content: space-between; border: 1.5px solid rgba(255,255,255,.08); }
+  .chip b { font-size: 19px; font-weight: 700; line-height: 1; }
+  .chip span { font-family: var(--font-mono); font-size: 14px; line-height: 1.2; opacity: .85; }
+  .reef { left: 48px; top: 1272px; width: 984px; height: 14px; display: flex; gap: 4px; }
+  .reef i { flex: 1; border-radius: 3px; }
+
+  /* type */
+  .type { left: 48px; top: 1298px; right: 48px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; white-space: nowrap; color: var(--text-2); font-size: 20px; }
+  .type .x1 { font-family: var(--font-display); font-weight: 900; font-stretch: 125%; font-size: 32px; color: var(--text); }
+  .type .x2 { font-family: var(--font-display); font-weight: 900; font-stretch: 62%; font-size: 36px; color: var(--text); text-transform: uppercase; }
+  .type .x3 { font-size: 21px; color: var(--text); }
+  .type .x4 { font-family: var(--font-mono); font-size: 18px; }
+  .type .x5 { font-family: var(--font-pixel); font-size: 16px; color: var(--shell); }
+</style>
+</head>
+<body>
+
+<div class="abs top pix"><span>Brand direction <b>·</b> Clawdio</span><span>A Claw'd-o-Matic sequel <b>·</b> fan-made</span></div>
+
+<!-- sonar rings behind the mark: the rock pool, and the echo that comes back -->
+<svg class="abs rings" viewBox="0 0 760 760" aria-hidden="true">
+  <g fill="none" stroke="#f6eedf">
+    <circle cx="390" cy="350" r="150" stroke-opacity=".07" stroke-width="2"/>
+    <circle cx="390" cy="350" r="210" stroke-opacity=".055" stroke-width="2"/>
+    <circle cx="390" cy="350" r="275" stroke-opacity=".04" stroke-width="2" stroke-dasharray="2 10"/>
+    <circle cx="390" cy="350" r="345" stroke-opacity=".03" stroke-width="2"/>
+  </g>
+</svg>
+<img class="abs mark" src="mark.svg" alt="The Clawdio mark: a raised crab claw holding a note by its stem">
+<img class="abs word" src="wordmark.svg" alt="clawdio">
+<div class="abs tag">Your song,<br>in good <em>claws.</em></div>
+<div class="abs alts">Claude's in the studio.<br>Hum it to the crab. <span>(alternates)</span></div>
+
+<!-- the studio's top bar, with two lanes to show the grammar: warm tab = you, cool tab = your agent -->
+<div class="abs studio">
+  <div class="bar">
+    <div class="lock"><img src="mark.svg" alt=""><img src="wordmark.svg" alt="clawdio"></div>
+    <div class="title">Low Tide Riot</div>
+        <div class="tbtn"><svg width="18" height="18"><rect width="18" height="18" rx="3" fill="#c2c9da"/></svg></div>
+    <div class="tbtn"><svg width="20" height="22"><path d="M2 1 L19 11 L2 21 Z" fill="#f6eedf"/></svg></div>
+    <div class="tbtn"><svg width="20" height="20"><circle cx="10" cy="10" r="9" fill="#ff4d61"/></svg></div>
+    <div class="ctr">5.1.1</div>
+    <div class="meta">168 <small>BPM</small></div>
+    <div class="meta">E <small>min</small></div>
+        <div class="pill"><i></i>Claude working</div>
+  </div>
+  <div class="lanes">
+    <div class="lane">
+      <div class="lh"><b>Guitar</b><span>Snapper → Kraken Hall</span></div>
+      <div class="grid">
+        <div class="clip" style="left:8px;width:352px;background:#f7967a">
+          <div class="h">Riff</div><div class="tab" style="background:var(--human)">you</div>
+          <svg class="b" viewBox="0 0 352 28" preserveAspectRatio="none"><g fill="#3b1e17" fill-opacity=".55"><rect x="8" y="6" width="34" height="5"/><rect x="48" y="6" width="20" height="5"/><rect x="74" y="14" width="40" height="5"/><rect x="120" y="20" width="26" height="5"/><rect x="152" y="6" width="34" height="5"/><rect x="192" y="6" width="20" height="5"/><rect x="218" y="14" width="40" height="5"/><rect x="264" y="10" width="40" height="5"/><rect x="310" y="20" width="30" height="5"/></g></svg>
+        </div>
+      </div>
+    </div>
+    <div class="lane" style="border-bottom:0">
+      <div class="lh"><b>Bass</b><span>Bottom Feeder</span></div>
+      <div class="grid">
+        <div class="clip" style="left:368px;width:356px;background:#78a9f8">
+          <div class="h">Walk</div><div class="tab" style="background:var(--agent)">Claude</div>
+          <svg class="b" viewBox="0 0 356 28" preserveAspectRatio="none"><g fill="#101a3a" fill-opacity=".5"><rect x="8" y="20" width="40" height="5"/><rect x="54" y="14" width="40" height="5"/><rect x="100" y="8" width="40" height="5"/><rect x="146" y="14" width="40" height="5"/><rect x="192" y="20" width="40" height="5"/><rect x="238" y="14" width="40" height="5"/><rect x="284" y="6" width="60" height="5"/></g></svg>
+        </div>
+      </div>
+    </div>
+    <div class="playhead"></div>
+  </div>
+</div>
+
+<!-- Clawd (pixel, as he is in Claw'd-o-Matic), on the edge of the studio, headphones on. He never speaks for the agent. -->
+<svg class="abs clawd" viewBox="-1 -3 19 14" shape-rendering="crispEdges" aria-label="Clawd, the house crab, in headphones">
+  <rect x="2" y="0" width="13" height="8" fill="#d77757"/>
+  <rect x="2" y="0" width="13" height=".5" fill="#e89274"/>
+  <rect x="2" y="7.5" width="13" height=".5" fill="#b35f42"/>
+  <rect x="0" y="4" width="2" height="2" fill="#d77757"/><rect x="15" y="3" width="2" height="2" fill="#d77757"/>
+  <rect x="4" y="8" width="1" height="2" fill="#d77757"/><rect x="6" y="8" width="1" height="2" fill="#d77757"/><rect x="10" y="8" width="1" height="2" fill="#d77757"/><rect x="12" y="8" width="1" height="2" fill="#d77757"/>
+  <rect x="4" y="2" width="1" height="2" fill="#000"/><rect x="12" y="2" width="1" height="2" fill="#000"/>
+  <!-- headphones -->
+  <rect x="3" y="-2" width="11" height="1" fill="#c2c9da"/><rect x="2" y="-1" width="1" height="1" fill="#c2c9da"/><rect x="14" y="-1" width="1" height="1" fill="#c2c9da"/>
+  <rect x="1" y="0" width="2" height="3" fill="#ff66c4"/><rect x="14" y="0" width="2" height="3" fill="#ff66c4"/>
+</svg>
+
+<!-- landing hero, on paper: the light use of the mark -->
+<div class="abs landing">
+  <div class="tape" style="left:-24px;top:10px;transform:rotate(-32deg)"></div>
+  <div class="tape" style="right:-26px;top:14px;transform:rotate(30deg)"></div>
+  <div class="lnav"><img src="mark.svg" alt=""><img src="wordmark-ink.svg" alt="clawdio"><span>Open the studio →</span></div>
+  <div class="lh1">Hum it. Tap it.<br>Play it. <em>Yell it.</em></div>
+  <div class="lsub">Claude writes it down.<br>You sign the song.</div>
+  <div class="cta">Open the studio <i>♪</i></div>
+  <!-- the story with the sound off: a warm hum trace becomes cool notes on the staff -->
+  <svg class="story" viewBox="0 18 250 122" aria-hidden="true">
+    <g stroke="#141a2b" stroke-opacity=".18" stroke-width="1.5"><line x1="0" y1="40" x2="250" y2="40"/><line x1="0" y1="62" x2="250" y2="62"/><line x1="0" y1="84" x2="250" y2="84"/><line x1="0" y1="106" x2="250" y2="106"/><line x1="0" y1="128" x2="250" y2="128"/></g>
+    <path d="M4 104 C 18 92, 26 70, 40 74 S 58 104, 72 92 S 92 52, 108 58 S 124 86, 132 80" fill="none" stroke="#e8941f" stroke-width="6" stroke-linecap="round"/>
+    <g fill="#2a9bd0"><ellipse cx="156" cy="96" rx="9" ry="6.5" transform="rotate(-22 156 96)"/><ellipse cx="186" cy="74" rx="9" ry="6.5" transform="rotate(-22 186 74)"/><ellipse cx="216" cy="62" rx="9" ry="6.5" transform="rotate(-22 216 62)"/>
+      <rect x="163.5" y="58" width="3" height="38"/><rect x="193.5" y="36" width="3" height="38"/><rect x="223.5" y="24" width="3" height="38"/><path d="M164 58 L227 24 L227 32 L164 66 Z"/></g>
+  </svg>
+</div>
+
+<!-- four of the sixteen house devices, as stomp boxes -->
+<div class="abs pedals">
+  <div class="ped" style="left:0;top:0;background:#1e6f73;color:#f6eedf;transform:rotate(-2.5deg)">
+    <i class="led" style="background:#ff66c4;box-shadow:0 0 10px #ff66c4"></i>
+    <div class="knobs"><i class="k cream" style="--r:-40deg"></i><i class="k cream" style="--r:30deg"></i></div>
+    <div class="nm">Bottom<br>Feeder</div><div class="cat">core.bass</div><i class="fs"></i>
+  </div>
+  <div class="ped" style="left:196px;top:10px;background:#f0c565;color:#141a2b;transform:rotate(2deg)">
+    <i class="led" style="background:#ff4d61;box-shadow:0 0 10px #ff4d61"></i>
+    <div class="knobs"><i class="k" style="--r:60deg"></i><i class="k" style="--r:-20deg"></i><i class="k" style="--r:10deg"></i></div>
+    <div class="nm">Shell<br>Kit</div><div class="cat">core.drums</div><i class="fs"></i>
+  </div>
+  <div class="ped" style="left:6px;top:166px;background:#5a3fa6;color:#f6eedf;transform:rotate(1.5deg)">
+    <i class="led" style="background:#ffd98a;box-shadow:0 0 10px #ffd98a"></i>
+    <div class="knobs"><i class="k cream" style="--r:-60deg"></i><i class="k cream" style="--r:45deg"></i><i class="k cream" style="--r:0deg"></i></div>
+    <div class="nm">Sonar</div><div class="cat">core.delay</div><i class="fs"></i>
+  </div>
+  <div class="ped" style="left:200px;top:172px;background:#9fd56f;color:#141a2b;transform:rotate(-2deg)">
+    <i class="led" style="background:#ff66c4;box-shadow:0 0 10px #ff66c4"></i>
+    <div class="knobs"><i class="k" style="--r:-30deg"></i><i class="k" style="--r:80deg"></i></div>
+    <div class="nm">Baleen</div><div class="cat">core.filter</div><i class="fs"></i>
+  </div>
+</div>
+
+<!-- palette -->
+<div class="abs pal">
+  <div class="chip" style="background:#0f1626;color:#f6eedf;border-color:#364668"><b>Rock pool</b><span>bg<br>#0f1626</span></div>
+  <div class="chip" style="background:#f6eedf;color:#141a2b"><b>Bone</b><span>text<br>#f6eedf</span></div>
+  <div class="chip" style="background:#ff7a59;color:#141a2b"><b>Shell</b><span>the claw<br>#ff7a59</span></div>
+  <div class="chip" style="background:#ff66c4;color:#141a2b"><b>Anemone</b><span>accent<br>#ff66c4</span></div>
+  <div class="chip" style="background:#ffd98a;color:#141a2b"><b>Sand</b><span>accent-2<br>#ffd98a</span></div>
+  <div class="chip" style="background:#ffb35c;color:#141a2b"><b>You</b><span>human<br>#ffb35c</span></div>
+  <div class="chip" style="background:#79d7ff;color:#141a2b"><b>Your agent</b><span>agent<br>#79d7ff</span></div>
+</div>
+<div class="abs reef"><i style="background:var(--c-1)"></i><i style="background:var(--c-2)"></i><i style="background:var(--c-3)"></i><i style="background:var(--c-4)"></i><i style="background:var(--c-5)"></i><i style="background:var(--c-6)"></i><i style="background:var(--c-7)"></i><i style="background:var(--c-8)"></i></div>
+
+<!-- type -->
+<div class="abs type"><span class="x1">Archivo</span><span class="x2">wide &amp; narrow</span><span class="x3">Atkinson Hyperlegible</span><span class="x4">C4@0:0.5 −14 LU</span><span class="x5">Silkscreen</span></div>
+
+</body>
+</html>
