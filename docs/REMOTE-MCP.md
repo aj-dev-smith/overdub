@@ -4,7 +4,7 @@ Claude Code reaches the studio through the **local bridge**: `server/mcp.js` (st
 localhost → the open tab. claude.ai on the web and the Claude apps can't do that. They connect to remote MCP servers
 from Anthropic's cloud. The **relay** is the remote half. It is a small public server that claude.ai adds as a
 custom connector, and it hands each tool call to the studio tab the human has open at
-<https://overdub.ajsmithhq.com/app/>. No install, no terminal, no API key: the person uses their own Claude account.
+<https://overdubstudio.com/app/>. No install, no terminal, no API key: the person uses their own Claude account.
 
 ```
 claude.ai (Anthropic's cloud)                     relay (server/relay.js)                     the studio tab (browser)
@@ -17,7 +17,7 @@ claude.ai (Anthropic's cloud)                     relay (server/relay.js)       
 ## For the human
 
 **On trial.** The relay is deployed, and the live site shows Connect only to a browser that asks for it, until AJ
-decides to keep it: open <https://overdub.ajsmithhq.com/app/?connect=1> once (the browser remembers; `?connect=0`
+decides to keep it: open <https://overdubstudio.com/app/?connect=1> once (the browser remembers; `?connect=0`
 hides it again). The switch reveals Connect for the hosted relay and nothing else (`relayPreview` in
 `app/src/agent/remote.js`; `?relay=` stays local-only). Making it public is `RELAY_LIVE = true` and a site deploy.
 
@@ -175,7 +175,7 @@ catalog and the relay won't load one, and `tools/agent-test.js` checks every cat
 
 Every one of these takes the header `x-overdub-tab-secret: <secret>`, and a request without the secret the token was
 made from gets `403` (and nothing is created for it). CORS is allowed on these routes only, and only for
-`https://overdub.ajsmithhq.com` and `http://localhost:*` / `127.0.0.1:*`, with that header allowed in the preflight
+`https://overdubstudio.com` and `http://localhost:*` / `127.0.0.1:*`, with that header allowed in the preflight
 and `Retry-After` readable. Other origins get `403` with no CORS headers.
 
 When a tab's stream drops, its in-flight calls wait **10 s** for the same tab to come back (a network blip), then

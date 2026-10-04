@@ -78,7 +78,7 @@ function installOverlay([css, win]) {
   const st = document.createElement('style'); st.textContent = css; document.head.append(st);
   const dv = document.createElement('div'); dv.id = 'dv';
   dv.innerHTML = `<div class="cap" data-cap><span data-line></span><small data-small></small></div><div class="cur" data-cur><svg viewBox="0 0 24 24"><path d="M4 2.5 L4 19.5 L8.6 15.4 L11.6 22 L14.6 20.7 L11.7 14.2 L18 14.2 Z" fill="#ffa043" stroke="#141210" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
-    <div class="end" data-end><canvas data-weave></canvas><div class="lockup"><img class="mark" src="/app/assets/logo.svg" alt=""><img class="word" src="/app/assets/wordmark.svg" alt=""></div><p>A studio for <span class="w">you</span> and <span class="c">your agents</span>.</p><div class="slate">overdub.ajsmithhq.com</div></div>`;
+    <div class="end" data-end><canvas data-weave></canvas><div class="lockup"><img class="mark" src="/app/assets/logo.svg" alt=""><img class="word" src="/app/assets/wordmark.svg" alt=""></div><p>A studio for <span class="w">you</span> and <span class="c">your agents</span>.</p><div class="slate">overdubstudio.com</div></div>`;
   document.body.append(dv);
   const cap = dv.querySelector('[data-cap]'), line = dv.querySelector('[data-line]'), small = dv.querySelector('[data-small]');
   const cur = dv.querySelector('[data-cur]'), end = dv.querySelector('[data-end]');

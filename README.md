@@ -6,8 +6,8 @@ agent plays over it, in notes, sounds and settings you can see and undo, and you
 signed, warm for you and cool for it. Take one is always yours, and between you, you build whatever the song needs,
 including instruments and effects that didn't exist until you described them.
 
-Live at **[overdub.ajsmithhq.com](https://overdub.ajsmithhq.com)** (the studio is at
-[/app/](https://overdub.ajsmithhq.com/app/); the docs at [/site/docs/](https://overdub.ajsmithhq.com/site/docs/)).
+Live at **[overdubstudio.com](https://overdubstudio.com)** (the studio is at
+[/app/](https://overdubstudio.com/app/); the docs at [/site/docs/](https://overdubstudio.com/site/docs/)).
 To run your own copy:
 
 ```sh
@@ -39,7 +39,7 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
-  [device library](https://overdub.ajsmithhq.com/app/library.html) has 13 devices Claude wrote, each with the request
+  [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
   behind it, next to the 28 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note

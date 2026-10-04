@@ -9,7 +9,7 @@ the agent asking before it takes anything out of a song from a link.
 
 ## What it protects, and from whom
 
-- **The person's Anthropic API key**, kept in `localStorage` (`overdub:anthropic-key`) on overdub.ajsmithhq.com. It
+- **The person's Anthropic API key**, kept in `localStorage` (`overdub:anthropic-key`) on overdubstudio.com. It
   leaves the browser only in the `x-api-key` header of requests to api.anthropic.com. The review checked it with a
   placeholder key: it isn't in a share link, a song file, History, the agent's messages, analytics, toasts, logs, the
   MCP server or the relay, and no song or link can make it go anywhere else.

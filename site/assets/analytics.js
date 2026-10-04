@@ -1,10 +1,10 @@
 // Counting, not tracking: one anonymous "view" per page load of the landing page, on the live site only
-// (overdub.ajsmithhq.com over https), and nothing at all when the browser sends Do Not Track or Global Privacy Control.
+// (overdubstudio.com over https), and nothing at all when the browser sends Do Not Track or Global Privacy Control.
 // It is one GET of /site/e.gif?e=view, plus r = the referring site's host when there is one (no path, no query).
 // No cookies, nothing stored, no ids, no third parties, no retries. CloudFront's access log is the pipeline;
 // tools/stats.sh reads it with Athena. The studio counts a few more things: app/src/analytics.js.
 
-const HOST = 'overdub.ajsmithhq.com';
+const HOST = 'overdubstudio.com';
 
 export function optedOut(nav = navigator, win = window) {
   try {

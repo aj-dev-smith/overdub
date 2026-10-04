@@ -213,9 +213,9 @@ function expected(p) {
   {
     // its fonts come from the studio's own files (by URL in its tab, inline when saved), never from a font host
     const csp = (h) => /<meta http-equiv="Content-Security-Policy" content="([^"]*)">/.exec(h)?.[1] || '';
-    const byUrl = provenanceHtml(m, { fonts: "@font-face { font-family: 'Archivo'; src: url(https://overdub.ajsmithhq.com/app/style/fonts/archivo/archivo-latin.woff2) format('woff2'); }", fontSrc: 'https://overdub.ajsmithhq.com' });
+    const byUrl = provenanceHtml(m, { fonts: "@font-face { font-family: 'Archivo'; src: url(https://overdubstudio.com/app/style/fonts/archivo/archivo-latin.woff2) format('woff2'); }", fontSrc: 'https://overdubstudio.com' });
     const odd = provenanceHtml(m, { fontSrc: "'unsafe-inline' https://fonts.gstatic.com" });
-    T.ok(/font-src data:$/.test(csp(html)) && /font-src https:\/\/overdub\.ajsmithhq\.com$/.test(csp(byUrl)) && /font-src data:$/.test(csp(odd)) && ![html, byUrl].some((x) => /googleapis|gstatic/.test(x)),
+    T.ok(/font-src data:$/.test(csp(html)) && /font-src https:\/\/overdubstudio\.com$/.test(csp(byUrl)) && /font-src data:$/.test(csp(odd)) && ![html, byUrl].some((x) => /googleapis|gstatic/.test(x)),
       `the report's policy takes fonts from data: or the studio's own origin, and nothing else (${csp(byUrl)})`);
   }
   T.ok(html.includes('A tiny glassy room for the hum, like singing into a jar.') && html.includes('Glass Box'), 'the agent device and its request are on the page');

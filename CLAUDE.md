@@ -5,7 +5,7 @@ before changing anything: it is the contract between the core, the engine, devic
 says which module owns what. [`docs/UX-RESEARCH.md`](docs/UX-RESEARCH.md) is why the studio behaves the way it does;
 [`docs/BRAND.md`](docs/BRAND.md) is how it looks and talks; [`docs/DEVICES.md`](docs/DEVICES.md) is how to write an
 instrument or effect; [`docs/AGENTS.md`](docs/AGENTS.md) is how an agent drives the studio;
-[`docs/GUIDE.md`](docs/GUIDE.md) is what a musician is told to press. Live at https://overdub.ajsmithhq.com.
+[`docs/GUIDE.md`](docs/GUIDE.md) is what a musician is told to press. Live at https://overdubstudio.com.
 
 ## Commands
 

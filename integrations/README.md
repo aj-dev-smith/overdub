@@ -16,7 +16,7 @@ everything else.
 
 **The bridge between an outside agent and the studio only runs on your machine.**
 
-- **[overdub.ajsmithhq.com/app/](https://overdub.ajsmithhq.com/app/)** (the public studio) works with the agents that
+- **[overdubstudio.com/app/](https://overdubstudio.com/app/)** (the public studio) works with the agents that
   live inside the page: the **Agent tab** with your own Anthropic API key (kept in that browser, sent only to
   Anthropic), and the **demo agent**, a scripted session that needs no key. Claude Code, Claude Desktop and Cursor
   **can't** connect to a tab on the public site. The page doesn't even try: the bridge stays quiet off localhost.
@@ -186,7 +186,7 @@ If you already run `node server/serve.js` yourself, the MCP server uses that ser
 
 | you see | do this |
 |---|---|
-| `No Overdub studio tab is connected.` | Open `http://localhost:3279/app/` (or the URL in the message) in your browser and keep it open, then ask again. A tab on overdub.ajsmithhq.com doesn't count. |
+| `No Overdub studio tab is connected.` | Open `http://localhost:3279/app/` (or the URL in the message) in your browser and keep it open, then ask again. A tab on overdubstudio.com doesn't count. |
 | The server isn't listed, or shows ✘ Failed | Run `node /path/to/overdub/server/mcp.js` in a terminal. It should sit silently waiting for input (Ctrl-C to quit). If `node` isn't found or is older than 22, fix the `command` path. |
 | `Overdub is not running at …` | `OVERDUB_URL` points somewhere the MCP server can't start a server. Unset it, or start the server there yourself. |
 | Port 3279 is taken by something else | Set `OVERDUB_PORT` (say `3280`) and open the studio on that port. |

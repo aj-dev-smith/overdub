@@ -169,7 +169,7 @@ For "I've got this melody in my head", or "here's the rhythm I mean".
 
 - **"No Overdub studio tab is connected."** The server is up but no studio page is talking to it. Tell the human to
   open `http://localhost:3279/app/` in Chrome and keep the tab open, then call the tool again. A tab on the public
-  site (`overdub.ajsmithhq.com`) can't connect: the bridge only talks to the studio served by the local server on
+  site (`overdubstudio.com`) can't connect: the bridge only talks to the studio served by the local server on
   this machine. If the server was started with `OVERDUB_PORT`, the URL in the error message is the one to open.
 - **"Overdub is not running at …"** The URL points at a host the MCP server can't start a server for. Ask them to run
   `node server/serve.js` in their Overdub clone, or fix `OVERDUB_URL`.

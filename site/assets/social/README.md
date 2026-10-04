@@ -36,8 +36,8 @@ What each cut says, in order (the counts and the small lines are read from the s
 4. *Ask your agent to play over it.* In words. It works on what you select.
 5. *The agent plays over you.* Three takes on the bass. You keep one.
 6. *Every take is signed.* Warm is you, cool is the agent. (vertical adds: Undo the agent's change and yours stay.)
-7. The end card: the living Weave, the lockup, "A studio for you and your agents.", overdub.ajsmithhq.com.
+7. The end card: the living Weave, the lockup, "A studio for you and your agents.", overdubstudio.com.
 
 Suggested post text, in the house voice (edit freely): "Overdub is a music studio for you and your agents. Tap a
 beat into a song; the Band button builds chords and bass around it; your agent plays over it; every take is signed.
-overdub.ajsmithhq.com"
+overdubstudio.com"

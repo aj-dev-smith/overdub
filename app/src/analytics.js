@@ -1,4 +1,4 @@
-// Counting, not tracking. On the live site only (overdub.ajsmithhq.com over https), and only when the browser hasn't
+// Counting, not tracking. On the live site only (overdubstudio.com over https), and only when the browser hasn't
 // asked us not to (Do Not Track, Global Privacy Control), the studio sends a few anonymous counts. Each count is one
 // GET of /app/e.gif with the event in the query string; CloudFront's access log is the whole pipeline (read with
 // Athena: tools/stats.sh; set up by deploy/analytics/setup.sh). No cookies, nothing stored, no ids (not even per
@@ -21,7 +21,7 @@
 //   app.analytics = { enabled, count(e, p), sent }     count() ignores anything not in EVENTS; `sent` lists the URLs
 //                                                      this page load sent (empty off production)
 
-export const HOST = 'overdub.ajsmithhq.com';
+export const HOST = 'overdubstudio.com';
 export const BEACON = '/app/e.gif';
 export const EVENTS = {
   open: ['demo', 'new', 'saved', 'device', 'link'],

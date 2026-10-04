@@ -6,7 +6,7 @@ then shows where everything else lives. In the studio, `?` shows every key.
 
 ## Your first overdub in five minutes
 
-1. **Open the studio.** [overdub.ajsmithhq.com/app/](/app/) in Chrome, Safari or Firefox, on a computer or a phone.
+1. **Open the studio.** [overdubstudio.com/app/](/app/) in Chrome, Safari or Firefox, on a computer or a phone.
    Nothing to install, no account. It opens on Night Shift; the Song menu's **Demos** has three more, in other
    genres. The first time, a small card called **Take one** walks you through the steps below. It waits for each one
    to really happen, and you can close it. It stays out of songs someone sends you, and closing it puts back the loop

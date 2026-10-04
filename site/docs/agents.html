@@ -75,7 +75,7 @@ same undo history as the human's edits, signed with its name, in its colour, wit
 <h3 id="claude-code-or-any-mcp-client"><a class="h-link" href="#claude-code-or-any-mcp-client">Claude Code (or any MCP client)</a></h3>
 <div class="code" data-lang="sh"><pre><code>claude mcp add overdub -- node &lt;repo&gt;/server/mcp.js</code></pre></div>
 <p><code>&lt;repo&gt;</code> is your local copy of Overdub: MCP clients reach a studio tab served from your own computer, not one on
-overdub.ajsmithhq.com. That's all. The command starts the Overdub server itself if it isn't running (or run <code>node server/serve.js</code>
+overdubstudio.com. That's all. The command starts the Overdub server itself if it isn't running (or run <code>node server/serve.js</code>
 yourself), and if no studio tab is connected when the first tool is called it opens <a href="http://localhost:3279/app/">http://localhost:3279/app/</a> in
 your default browser (once per session) and waits up to 20 s for it. Keep the tab open while you work. Ask Claude Code something like
 <em>&quot;Look at my Overdub song and give me two takes on the bassline&quot;</em>.</p>
@@ -468,7 +468,7 @@ you keep it, after the device check).</li>
 <h2 id="privacy"><a class="h-link" href="#privacy">Privacy</a></h2>
 <p>Your song and your key stay in your browser. The in-app agent's conversation goes only to <code>api.anthropic.com</code>, and
 what an outside agent does travels only between your tab and that agent (through the relay while Connect is on). On
-overdub.ajsmithhq.com, and nowhere else, the pages also send a few anonymous counts: one GET of <code>e.gif</code> each, with
+overdubstudio.com, and nowhere else, the pages also send a few anonymous counts: one GET of <code>e.gif</code> each, with
 an event name and at most one word from a fixed list. That is page views (with the linking site's host), and in the
 studio: opens (<code>demo</code>, <code>new</code>, <code>saved</code>, <code>device</code>, <code>link</code>, with the linking site's host), the first play, agent
 messages (<code>demo</code>, <code>byok</code>, <code>mcp</code>, <code>claude.ai</code>; outside agents once per page load), devices defined (<code>you</code>, <code>agent</code>),

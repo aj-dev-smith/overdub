@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stats.sh — what people did on overdub.ajsmithhq.com, counted from CloudFront's access logs with Athena.
+# stats.sh — what people did on overdubstudio.com, counted from CloudFront's access logs with Athena.
 # usage: tools/stats.sh [days=7]        (first, once: deploy/analytics/setup.sh)
 # What is counted, and how: app/src/analytics.js and site/assets/analytics.js. Logs land a few minutes to an hour
 # after the fact and are deleted after 90 days. Requires AWS credentials (`aws login`).
@@ -42,8 +42,8 @@ WHERE \"date\" >= ${SINCE} AND e IN ('agent', 'device', 'export', 'share', 'keep
 
 echo; echo "== where views and opens came from (the linking site's host only; none = typed, bookmarked or private)"
 run "SELECT coalesce(nullif(r, ''), '(none)') AS referrer, count_if(e = 'view') AS views, count_if(e = 'open') AS opens
-FROM overdub.events WHERE \"date\" >= ${SINCE} AND e IN ('view', 'open') AND r <> 'overdub.ajsmithhq.com'
+FROM overdub.events WHERE \"date\" >= ${SINCE} AND e IN ('view', 'open') AND r <> 'overdubstudio.com'
 GROUP BY 1 ORDER BY 2 DESC, 3 DESC LIMIT 25"
 
 echo; echo "== studio opens from the landing page"
-run "SELECT count(*) AS opens FROM overdub.events WHERE \"date\" >= ${SINCE} AND e = 'open' AND r = 'overdub.ajsmithhq.com'"
+run "SELECT count(*) AS opens FROM overdub.events WHERE \"date\" >= ${SINCE} AND e = 'open' AND r = 'overdubstudio.com'"

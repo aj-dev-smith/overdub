@@ -36,7 +36,7 @@ const FFMPEG = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'].find((p) =>
 const FFPROBE = FFMPEG.replace(/ffmpeg$/, 'ffprobe');
 const W = 1280, H = 720, DSF = 2, SR = 48000, FPS = 30;
 const MAX_BYTES = 7.6 * 1024 * 1024, GIF_MAX = 2.9 * 1024 * 1024;
-const URL_TEXT = 'overdub.ajsmithhq.com';
+const URL_TEXT = 'overdubstudio.com';
 const BAR = 2;   // a bar at the session's 120 bpm (the new song the beat is tapped into)
 fs.mkdirSync(WORK, { recursive: true });
 fs.mkdirSync(DEST, { recursive: true });

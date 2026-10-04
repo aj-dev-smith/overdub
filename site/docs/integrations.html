@@ -75,7 +75,7 @@ everything else.</p>
 <h2 id="first-live-site-or-local-server"><a class="h-link" href="#first-live-site-or-local-server">First: live site or local server?</a></h2>
 <p><strong>The bridge between an outside agent and the studio only runs on your machine.</strong></p>
 <ul>
-<li><strong><a href="https://overdub.ajsmithhq.com/app/">overdub.ajsmithhq.com/app/</a></strong> (the public studio) works with the agents that
+<li><strong><a href="https://overdubstudio.com/app/">overdubstudio.com/app/</a></strong> (the public studio) works with the agents that
 live inside the page: the <strong>Agent tab</strong> with your own Anthropic API key (kept in that browser, sent only to
 Anthropic), and the <strong>demo agent</strong>, a scripted session that needs no key. Claude Code, Claude Desktop and Cursor
 <strong>can't</strong> connect to a tab on the public site. The page doesn't even try: the bridge stays quiet off localhost.</li>
@@ -188,7 +188,7 @@ Desktop, Cursor, VS Code or Codex themselves, so their file locations and keys c
 <div class="table-wrap"><table>
 <thead><tr><th>you see</th><th>do this</th></tr></thead>
 <tbody>
-<tr><td><code>No Overdub studio tab is connected.</code></td><td>Open <code>http://localhost:3279/app/</code> (or the URL in the message) in your browser and keep it open, then ask again. A tab on overdub.ajsmithhq.com doesn't count.</td></tr>
+<tr><td><code>No Overdub studio tab is connected.</code></td><td>Open <code>http://localhost:3279/app/</code> (or the URL in the message) in your browser and keep it open, then ask again. A tab on overdubstudio.com doesn't count.</td></tr>
 <tr><td>The server isn't listed, or shows ✘ Failed</td><td>Run <code>node /path/to/overdub/server/mcp.js</code> in a terminal. It should sit silently waiting for input (Ctrl-C to quit). If <code>node</code> isn't found or is older than 22, fix the <code>command</code> path.</td></tr>
 <tr><td><code>Overdub is not running at …</code></td><td><code>OVERDUB_URL</code> points somewhere the MCP server can't start a server. Unset it, or start the server there yourself.</td></tr>
 <tr><td>Port 3279 is taken by something else</td><td>Set <code>OVERDUB_PORT</code> (say <code>3280</code>) and open the studio on that port.</td></tr>

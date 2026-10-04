@@ -19,7 +19,7 @@ import { DOCS } from './docs-build.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const t = tally('pages');
-const PROD = 'https://overdub.ajsmithhq.com';
+const PROD = 'https://overdubstudio.com';
 // The deck, the strategy memo and the launch drafts live in a private repo beside this one (OVERDUB_PRIVATE to point
 // elsewhere). The claims checks read them when they're there and skip them in a public clone.
 const PRIV = process.env.OVERDUB_PRIVATE || path.resolve(ROOT, '..', 'overdub-private');

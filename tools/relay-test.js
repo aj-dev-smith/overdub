@@ -291,12 +291,12 @@ try {
     const pre = (origin) => fetch(`${base}/s/${tok}/hello`, { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': `content-type, ${SECRET_HEADER}` } });
     let p = await pre('http://localhost:5173');
     t.ok(p.status === 204 && p.headers.get('access-control-allow-origin') === 'http://localhost:5173' && /POST/.test(p.headers.get('access-control-allow-methods') || ''), 'CORS preflight from http://localhost:* is allowed');
-    p = await pre('https://overdub.ajsmithhq.com');
-    t.ok(p.status === 204 && p.headers.get('access-control-allow-origin') === 'https://overdub.ajsmithhq.com' && (p.headers.get('access-control-allow-headers') || '').includes(SECRET_HEADER),
-      `CORS preflight from https://overdub.ajsmithhq.com is allowed, with the secret's header (${p.headers.get('access-control-allow-headers')})`);
+    p = await pre('https://overdubstudio.com');
+    t.ok(p.status === 204 && p.headers.get('access-control-allow-origin') === 'https://overdubstudio.com' && (p.headers.get('access-control-allow-headers') || '').includes(SECRET_HEADER),
+      `CORS preflight from https://overdubstudio.com is allowed, with the secret's header (${p.headers.get('access-control-allow-headers')})`);
     p = await pre('https://evil.example');
     t.ok(p.status === 403 && !p.headers.get('access-control-allow-origin'), 'CORS preflight from another site is refused');
-    r = await post(base, tok, { tab: 'x' }, { route: 'hello', secret: P.secret, headers: { origin: 'https://overdub.ajsmithhq.com.evil.example' } });
+    r = await post(base, tok, { tab: 'x' }, { route: 'hello', secret: P.secret, headers: { origin: 'https://overdubstudio.com.evil.example' } });
     t.ok(r.status === 403, 'a look-alike origin is refused on the studio routes');
     r = await post(base, tok, req('ping'), { sid, headers: { origin: 'https://evil.example' } });
     t.ok(r.status === 403, 'a browser on another site cannot use the MCP endpoint');
@@ -579,7 +579,7 @@ try {
       const { relayOverride: o } = await import('/app/src/agent/remote.js');
       if (!o) return 'no relayOverride';
       return [o('?relay=http://127.0.0.1:8787', 'localhost'), o('?relay=http://localhost:8787/x', '127.0.0.1'), o('?relay=https://relay.example', 'localhost'),
-        o('?relay=http://127.0.0.1:8787', 'overdub.ajsmithhq.com'), o('?relay=http://localhost:8787', 'overdub.example'), o('?relay=javascript:alert(1)', 'localhost'), o('', 'localhost')];
+        o('?relay=http://127.0.0.1:8787', 'overdubstudio.com'), o('?relay=http://localhost:8787', 'overdub.example'), o('?relay=javascript:alert(1)', 'localhost'), o('', 'localhost')];
     });
     t.ok(JSON.stringify(pure) === JSON.stringify(['http://127.0.0.1:8787', 'http://localhost:8787', 'https://relay.example', null, null, null, null]), `?relay= counts only on a local studio (localhost, 127.0.0.1): ${JSON.stringify(pure)}`);
     // the live site, played by a made-up origin served from the local server (nothing leaves this machine), for someone

@@ -65,7 +65,7 @@
 localhost → the open tab. claude.ai on the web and the Claude apps can't do that. They connect to remote MCP servers
 from Anthropic's cloud. The <strong>relay</strong> is the remote half. It is a small public server that claude.ai adds as a
 custom connector, and it hands each tool call to the studio tab the human has open at
-<a href="https://overdub.ajsmithhq.com/app/">https://overdub.ajsmithhq.com/app/</a>. No install, no terminal, no API key: the person uses their own Claude account.</p>
+<a href="https://overdubstudio.com/app/">https://overdubstudio.com/app/</a>. No install, no terminal, no API key: the person uses their own Claude account.</p>
 <div class="code"><pre><code>claude.ai (Anthropic's cloud)                     relay (server/relay.js)                     the studio tab (browser)
   POST /s/&lt;token&gt;/mcp  ── JSON-RPC ──────────────▶  sessions, limits, routing  ◀── GET /s/&lt;token&gt;/events ───────  app/src/agent/remote.js
                        ◀── JSON or SSE ──────────   its own tool catalog        ── { type:'call', id, tool, input } ─▶  app.tools.run(…, { by:'claude.ai' })
@@ -73,7 +73,7 @@ custom connector, and it hands each tool call to the studio tab the human has op
                                                     (every tab request carries x-overdub-tab-secret; the URL never does)</code></pre></div>
 <h2 id="for-the-human"><a class="h-link" href="#for-the-human">For the human</a></h2>
 <p><strong>On trial.</strong> The relay is deployed, and the live site shows Connect only to a browser that asks for it, until AJ
-decides to keep it: open <a href="https://overdub.ajsmithhq.com/app/?connect=1">https://overdub.ajsmithhq.com/app/?connect=1</a> once (the browser remembers; <code>?connect=0</code>
+decides to keep it: open <a href="https://overdubstudio.com/app/?connect=1">https://overdubstudio.com/app/?connect=1</a> once (the browser remembers; <code>?connect=0</code>
 hides it again). The switch reveals Connect for the hosted relay and nothing else (<code>relayPreview</code> in
 <code>app/src/agent/remote.js</code>; <code>?relay=</code> stays local-only). Making it public is <code>RELAY_LIVE = true</code> and a site deploy.</p>
 <ol>
@@ -218,7 +218,7 @@ catalog and the relay won't load one, and <code>tools/agent-test.js</code> check
 </tbody></table></div>
 <p>Every one of these takes the header <code>x-overdub-tab-secret: &lt;secret&gt;</code>, and a request without the secret the token was
 made from gets <code>403</code> (and nothing is created for it). CORS is allowed on these routes only, and only for
-<code>https://overdub.ajsmithhq.com</code> and <code>http://localhost:*</code> / <code>127.0.0.1:*</code>, with that header allowed in the preflight
+<code>https://overdubstudio.com</code> and <code>http://localhost:*</code> / <code>127.0.0.1:*</code>, with that header allowed in the preflight
 and <code>Retry-After</code> readable. Other origins get <code>403</code> with no CORS headers.</p>
 <p>When a tab's stream drops, its in-flight calls wait <strong>10 s</strong> for the same tab to come back (a network blip), then
 fail with <em>&quot;the studio tab closed or reloaded&quot;</em>. A reload is a new tab id, so the claude.ai session survives it and

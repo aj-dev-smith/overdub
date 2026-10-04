@@ -17,7 +17,7 @@ claude mcp add overdub -- node <repo>/server/mcp.js
 ```
 
 `<repo>` is your local copy of Overdub: MCP clients reach a studio tab served from your own computer, not one on
-overdub.ajsmithhq.com. That's all. The command starts the Overdub server itself if it isn't running (or run `node server/serve.js`
+overdubstudio.com. That's all. The command starts the Overdub server itself if it isn't running (or run `node server/serve.js`
 yourself), and if no studio tab is connected when the first tool is called it opens <http://localhost:3279/app/> in
 your default browser (once per session) and waits up to 20 s for it. Keep the tab open while you work. Ask Claude Code something like
 *"Look at my Overdub song and give me two takes on the bassline"*.
@@ -485,7 +485,7 @@ what it flags.
 
 Your song and your key stay in your browser. The in-app agent's conversation goes only to `api.anthropic.com`, and
 what an outside agent does travels only between your tab and that agent (through the relay while Connect is on). On
-overdub.ajsmithhq.com, and nowhere else, the pages also send a few anonymous counts: one GET of `e.gif` each, with
+overdubstudio.com, and nowhere else, the pages also send a few anonymous counts: one GET of `e.gif` each, with
 an event name and at most one word from a fixed list. That is page views (with the linking site's host), and in the
 studio: opens (`demo`, `new`, `saved`, `device`, `link`, with the linking site's host), the first play, agent
 messages (`demo`, `byok`, `mcp`, `claude.ai`; outside agents once per page load), devices defined (`you`, `agent`),

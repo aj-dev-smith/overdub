@@ -43,7 +43,7 @@ export const SECRET_HEADER = 'x-overdub-tab-secret';
 export const TOKEN_PREFIX = 'overdub-relay-token/v1:';                  // so this hash means "connector token" and nothing else
 export const CATALOG_FILE = path.join(HERE, 'relay-catalog.json');
 const TAB_RE = /^[A-Za-z0-9_-]{1,40}$/;
-const STUDIO_URL = 'https://overdub.ajsmithhq.com/app/';
+const STUDIO_URL = 'https://overdubstudio.com/app/';
 const NO_TAB = 'Open your Overdub studio and turn on Connect to Claude.';
 
 // The connector token for a tab secret. The studio computes the same in the browser (app/src/agent/remote.js).
@@ -113,7 +113,7 @@ export const DEFAULTS = {
   statMs: 3600e3,                    // how often the counts line is logged
   maxResultChars: 150000,            // claude.ai's tool result ceiling (text); beyond it we answer with an error
 
-  studioOrigins: ['https://overdub.ajsmithhq.com'],
+  studioOrigins: ['https://overdubstudio.com'],
   mcpOrigins: ['https://claude.ai', 'https://claude.com'],   // browser-based MCP clients we accept (plus the studio's)
   trustProxy: false,                 // take the client address from X-Forwarded-For (only behind CloudFront)
   originSecret: '',                  // when set, every request must carry x-overdub-origin: <secret> (CloudFront adds it)

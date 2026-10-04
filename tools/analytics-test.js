@@ -1,7 +1,7 @@
 // Analytics checks: counting, not tracking (app/src/analytics.js, site/assets/analytics.js).
 //   1. the pieces: host and opt-out rules, the referrer host, the fixed event list, the GIFs
 //   2. off production (localhost) nothing fires, whatever you do
-//   3. on a faked production host (https://overdub.ajsmithhq.com routed to the local server) exactly the right URLs
+//   3. on a faked production host (https://overdubstudio.com routed to the local server) exactly the right URLs
 //      fire for the right actions, with no referrer and no cookie, and nothing else
 //   4. Do Not Track, Global Privacy Control and automation (navigator.webdriver) send nothing
 import fs from 'node:fs';
@@ -22,9 +22,9 @@ const GIF = fs.readFileSync(path.join(ROOT, 'app/e.gif'));
     t.ok(b.length === 43 && b.subarray(0, 6).toString() === 'GIF89a' && b[b.length - 1] === 0x3b, `${f} is a 43-byte GIF`);
   }
   const loc = (hostname, protocol = 'https:') => ({ hostname, protocol });
-  t.ok(allowed(loc(HOST), {}, {}), 'allowed on https://overdub.ajsmithhq.com');
+  t.ok(allowed(loc(HOST), {}, {}), 'allowed on https://overdubstudio.com');
   t.ok(!allowed(loc('localhost', 'http:'), {}, {}) && !allowed(loc('127.0.0.1', 'http:'), {}, {}), 'not on localhost');
-  t.ok(!allowed(loc(HOST, 'http:'), {}, {}) && !allowed(loc('overdub.ajsmithhq.com.evil.test'), {}, {}) && !allowed(loc('ajsmithhq.com'), {}, {}), 'not over http, nor on look-alike hosts');
+  t.ok(!allowed(loc(HOST, 'http:'), {}, {}) && !allowed(loc('overdubstudio.com.evil.test'), {}, {}) && !allowed(loc('overdub.ajsmithhq.com'), {}, {}), 'not over http, nor on look-alike hosts');
   t.ok(!allowed(loc(HOST), { doNotTrack: '1' }, {}) && !allowed(loc(HOST), {}, { doNotTrack: '1' }) && !allowed(loc(HOST), { msDoNotTrack: '1' }, {}), 'Do Not Track: nothing');
   t.ok(!allowed(loc(HOST), { globalPrivacyControl: true }, {}), 'Global Privacy Control: nothing');
   t.ok(!allowed(loc(HOST), { webdriver: true }, {}), 'automation: nothing');

@@ -77,7 +77,7 @@ function inline(src, ctx) {
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, label, href) => {
     const to = ctx.href(href);
     if (!to) return label;   // a repo file that isn't served: keep the words, drop the link
-    const ext = /^https?:/.test(to) && !to.startsWith('https://overdub.ajsmithhq.com');
+    const ext = /^https?:/.test(to) && !to.startsWith('https://overdubstudio.com');
     return hold(`<a href="${esc(to)}"${ext ? ' rel="noopener"' : ''}>`) + label + hold('</a>');
   });
   // Pass 3: escape what's left, then emphasis.

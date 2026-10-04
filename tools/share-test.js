@@ -75,7 +75,7 @@ console.log('core/share.js');
     T.ok(!('reference' in sh.song) && sh.dropped.reference === 1 && withRef.reference.name && S.shareable(richSong()).dropped.reference === 0, 'the reference track (its name, profile and asset) stays out of a link, and is counted');
   }
 
-  const dec = await S.decodeShare('https://overdub.ajsmithhq.com/app/' + enc.hash);
+  const dec = await S.decodeShare('https://overdubstudio.com/app/' + enc.hash);
   const expect = S.shareable(song).song;
   T.ok(dec.ok && same(dec.song, expect), 'decode gives back exactly what was shared (every note, param, section, the mix)');
   T.ok(dec.song.tracks.find((t) => t.id === 't_audio1').clips.length === 0 && Object.keys(dec.song.assets).length === 0, 'no audio clip or asset in the link');

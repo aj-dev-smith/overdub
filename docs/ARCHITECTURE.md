@@ -1402,7 +1402,7 @@ hidden.
   check reports, this session's edits as runs by author, and where the song was forked from. `provenanceModel` and
   `provenanceHtml` are pure (a scriptless page with a strict CSP); it opens as a blob in a new tab. It is a record,
   not a legal opinion, and says so. A held device is listed as kept off and never checked for it.
-- **Analytics** (`app/src/analytics.js`, `site/assets/analytics.js`): on overdub.ajsmithhq.com only, and not under Do
+- **Analytics** (`app/src/analytics.js`, `site/assets/analytics.js`): on overdubstudio.com only, and not under Do
   Not Track or Global Privacy Control, one GET of `e.gif` per counted event, with one word from a fixed list. No
   cookies, ids or storage; never the song. AGENTS.md ("Privacy") lists the events; `tools/analytics-test.js` holds
   the copy to the code.

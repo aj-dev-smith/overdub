@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Overdub to https://overdub.ajsmithhq.com: the landing page (site/), the studio (app/) and the public docs.
+# Deploy Overdub to https://overdubstudio.com (the bucket keeps its first name): the landing page (site/), the studio (app/) and the public docs.
 # Text files revalidate every time (no-cache + ETag, so a deploy is live at once); media caches for a day.
 # Run deploy/setup.sh once first. Usage: deploy/deploy.sh [--skip-tests]
 set -euo pipefail

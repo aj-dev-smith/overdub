@@ -654,8 +654,8 @@ async function phoneLoop(b, base, tag) {
   const { createStore } = await import('../app/src/core/store.js');
   const { provenanceModel, provenanceHtml } = await import('../app/src/ui/provenance.js');
   const model = provenanceModel(createStore(null).get(), {});
-  const report = cspOf(provenanceHtml(model)), tabbed = cspOf(provenanceHtml(model, { fonts: '', fontSrc: 'https://overdub.ajsmithhq.com' }));
-  T.ok(dir(report, 'default-src') === "'none'" && dir(report, 'style-src') === "'unsafe-inline'" && dir(report, 'font-src') === 'data:' && dir(tabbed, 'font-src') === 'https://overdub.ajsmithhq.com' && ![report, tabbed].some((c) => /googleapis|gstatic/.test(c)),
+  const report = cspOf(provenanceHtml(model)), tabbed = cspOf(provenanceHtml(model, { fonts: '', fontSrc: 'https://overdubstudio.com' }));
+  T.ok(dir(report, 'default-src') === "'none'" && dir(report, 'style-src') === "'unsafe-inline'" && dir(report, 'font-src') === 'data:' && dir(tabbed, 'font-src') === 'https://overdubstudio.com' && ![report, tabbed].some((c) => /googleapis|gstatic/.test(c)),
     `the provenance report's policy: default-src 'none', no font host; its fonts inline (${dir(report, 'font-src')}) or the studio's own (${dir(tabbed, 'font-src')})`);
   const heads = ['site/index.html', 'site/press/index.html', ...fs.readdirSync(new URL('../site/docs/', import.meta.url)).filter((f) => f.endsWith('.html')).map((f) => `site/docs/${f}`), 'app/index.html', 'app/library.html', 'app/gallery.html']
     .map((f) => [f, (/<head>([\s\S]*?)<\/head>/.exec(fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8')) || ['', ''])[1]])

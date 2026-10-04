@@ -2,7 +2,7 @@
 // and nothing errors. Not part of run-all (it needs the network): node tools/prod-check.js [base-url]
 import { openUrl, tally } from './pw.js';
 
-const BASE = process.argv[2] || 'https://overdub.ajsmithhq.com';
+const BASE = process.argv[2] || 'https://overdubstudio.com';
 const t = tally('prod');
 
 for (const [route, type] of [['/', 'text/html'], ['/app/', 'text/html'], ['/app/src/main.js', 'text/javascript'], ['/llms.txt', 'text/plain'], ['/docs/AGENTS.md', 'text/markdown'], ['/app', null]]) {

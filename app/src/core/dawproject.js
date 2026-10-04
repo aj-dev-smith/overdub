@@ -234,7 +234,7 @@ export function dawprojectXml(p, { getDevice = () => null, audio = {}, app = {} 
   for (const t of p.tracks || []) for (const c of t.clips || []) for (const n of c.notes || []) { counts[n.by] = (counts[n.by] || 0) + 1; total++; }
   const share = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([by, n]) => `${nameOf(by)} ${Math.round((n / total) * 100)}%`).join(', ');
   const comment = [
-    'Made in Overdub Studio (overdub.ajsmithhq.com).',
+    'Made in Overdub Studio (overdubstudio.com).',
     keyText ? `Key: ${keyText}.` : null,
     total ? `Notes by author: ${share}.` : null,
     p.meta?.forkedFrom?.title ? `Forked from “${p.meta.forkedFrom.title}”.` : null,
