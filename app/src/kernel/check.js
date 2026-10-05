@@ -5,8 +5,11 @@
 //   const report = await checkDevice(def, { quick = false, signal = null, timeout = 60000, renderer = null })
 //   report = {
 //     ok,                       false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a
-//                               raw peak over +24 dBFS at an extreme setting (a runaway), a stuck note, or a check
-//                               that ran out of time (timedOut)
+//                               raw peak over +24 dBFS at an extreme setting (a runaway), a stuck note, no sound at
+//                               default settings (under -60 LUFS: instruments on the phrase, effects on both the DI
+//                               strum and the drum loop), an error the kernel's side reported, stealing that let
+//                               more than poly + 2 voices run (or, from a renderer, no voice counts back), a render
+//                               that came back malformed ('render: ...'), or a check that ran out of time (timedOut)
 //     errors: [string], warnings: [string],                       each one says what to change; what a kernel threw
 //                                                                 is quoted trimmed to 200 characters
 //     timedOut,                 false, or where the time ran out: 'process' (a render never finished: process() may
@@ -32,12 +35,18 @@
 //   }
 //
 // The verdict is measured here, from samples. A render (on this page's audio thread, or in `renderer`'s process)
-// hands back stereo Float32Arrays and a few things the kernel's side says about itself: the errors it hit, its
-// latency, poly and voice counts. accept() keeps only samples of exactly the length asked for and bounded claims, and
-// every number in the report (level, peaks, NaN, tails, determinism, cpu as wall time timed on this side) is measured
-// from those samples by this module and audio/measure.js. What the kernel's side says can only add errors, never take
-// one away: a kernel that keeps quiet about its own fault is left with the silence a fault makes, which the level
-// checks see. Anything malformed coming back ends the check as a failure ('render: ...').
+// hands back stereo Float32Arrays and a few things the render's side says about itself: the errors it hit, its
+// latency, poly and voice counts. accept() keeps only samples of exactly the length asked for and claims in range.
+// Level, peaks, NaN, tails, determinism and cpu (wall time timed on this side) are measured from those samples by this
+// module and audio/measure.js; poly, declared latency and voice counts are the render's side's own word, bounded. An
+// error it reports adds to the verdict, and voice counts another process doesn't send back fail the check, so going
+// quiet removes nothing: a kernel that hides its own fault is left with the silence a fault makes, which the
+// level checks see. Anything malformed coming back ends the check as a failure ('render: ...').
+//
+// Whose samples they are depends on where the render ran. In the browser the worklet core (not the kernel) reports
+// errors and voice counts, and the samples are what the device played. With a renderer that runs the kernel in its own
+// process (engine/node/check.js), everything that process sends is the kernel's to shape, samples included: a kernel
+// written to fool the check can. Either way, a kernel can tell it's being checked and behave differently elsewhere.
 //
 // renderer (optional; Node's is engine/node/check.js): { render(def, job, { created }) -> Promise<{ channels: [L, R],
 // ms, errors, stats, latency, poly } | { compileError, line }> }, where job = { secs, sr, bpm, seed, params, input,
@@ -344,7 +353,7 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const tp = Math.max(measureTruePeak(main.buffer), dr.buffer ? measureTruePeak(dr.buffer) : -120);
       report.truePeak = round(tp); report.peak = round(dBFS(Math.max(s1.peak, s2.peak)));
       peakError(tp, 'at default settings');
-      if (outL < -60 && (!dr.buffer || outD < -60)) errors.push(`level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent)`);
+      if (outL < -60 && (!dr.buffer || outD < -60)) errors.push(`level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent). A gate, a mute or a triggered effect should let the test signals through at its defaults`);
       else levelWarnings(report.level, warnings);
       report.cpu = { pct: round((main.ms / 4000) * 100), ms: Math.round(main.ms), secs: 4 };
       if (report.cpu.pct > 25) warnings.push(`cpu: a 4 s render took ${report.cpu.ms} ms (${report.cpu.pct}% of real time) for one instance: look for per-sample trig/pow/exp you could move to per-block`);
@@ -451,6 +460,13 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       if (note(st, `${poly + 4} notes at once (poly ${poly})`) && st.buffer) {
         const v = st.stats || {};
         report.voices = { poly, maxVoices: v.maxVoices ?? null, steals: v.steals ?? null };
+        // Another process's render always answers with both (its worklet core counts them), so none back there means
+        // its side kept them back, and the check fails rather than skip the stealing error. On this page they come from
+        // the worklet core over its port, and only a reply that's late (1 s) is missing: a warning.
+        if (v.maxVoices == null || v.steals == null) {
+          const m = `voices: the voice counts didn't come back from ${poly + 4} notes held at once, so voice stealing wasn't checked`;
+          if (renderer) errors.push(m); else warnings.push(m);
+        }
         if (v.maxVoices != null && v.maxVoices > poly + 2) errors.push(`voices: ${v.maxVoices} voices ran at once with poly ${poly} (stealing failed)`);
         if (v.steals != null && v.steals < 4 && v.maxVoices >= poly) warnings.push(`voices: ${poly + 4} held notes caused ${v.steals} steals (expected 4)`);
         const stp = measureTruePeak(st.buffer);

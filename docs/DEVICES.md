@@ -65,13 +65,16 @@ a boost the player chose, not a bug). Level, tail, cpu, latency and determinism 
 Drum kits (`cat: 'drums'`) are played the General MIDI drum phrase instead of the melodic one. Every message says what to change. `quick: true` skips
 the per-param extremes and shortens the renders (a few hundred ms instead of about a second).
 
-Every number in the report is measured by the checker from the samples a render hands back, never taken from the
-kernel. What the kernel's side says about itself (an error it hit, its latency, its poly, its voice counts) can only add
-errors, and a value out of range is dropped. A kernel that hides its own fault is left with the silence a fault makes,
-which fails the level check. In Node, `checkDeviceNode` (`app/src/engine/node/check.js`) runs the kernel in a child
-process that can read `app/src` and nothing else, and sends back samples only; the parent, which never runs kernel
-code, measures them. A child that sends anything else, or ends early, fails the check. Passing means the device
-behaved in the measured ways while it was checked; it doesn't say the code is harmless. Read it.
+Level, peaks, NaN, tails, determinism and CPU are measured by the checker from the samples a render hands back. Poly,
+declared latency and voice counts are what the render's side says about itself, kept only in range; an error it
+reports makes the device fail. A kernel that hides its own fault is left with the silence a fault makes, which fails
+the level check, so an effect that is meant to be silent at its defaults (a gate set above the test signals, a mute)
+fails too: give it defaults that let sound through. In Node, `checkDeviceNode` (`app/src/engine/node/check.js`) runs
+the kernel in a child process that can read `app/src`, writes no files and starts no processes (the network is still
+open), and the parent, which never runs kernel code, measures what comes back. A child that sends anything but the
+frames asked for, or ends early, fails the check. That keeps a kernel from rewriting the report, not from shaping its
+own samples: everything the child sends is the kernel's, so a kernel written to fool the check can. Passing means the
+device behaved in the measured ways while it was checked; it doesn't say the code is harmless. Read it.
 
 ## How a device gets its face
 

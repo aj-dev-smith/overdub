@@ -93,6 +93,15 @@ const T = tally('kernel');
     return { voice() { return { start() {}, release() {}, render() { return false; } }; } }; } })` };
   const t0 = Date.now(), rc = await checkDeviceNode(claims, { quick: true, timeout: 15000 });
   T.ok(!rc.ok && rc.voices && rc.voices.poly === 8 && rc.voices.maxVoices === null && rc.voices.steals === null && rc.latency.declared === 0 && Date.now() - t0 < 15000, `its claims are bounded (poly ${rc.voices && rc.voices.poly}, latency ${rc.latency && rc.latency.declared}) and the silence fails it: ${rc.errors[0]}`);
+  T.ok(rc.errors.some((e) => /voice counts didn't come back/.test(e)), 'voice counts it kept back fail the check instead of skipping the stealing error');
+  // cpu is timed from the job going out: a heavy kernel that holds its 'ready' frame back until its samples go still
+  // measures its whole render
+  const heavy = (pre) => ({ id: 'x.heavy', kind: 'effect', params: [], kernel: `({ create() { const G = [].constructor.constructor; const P = G('return process')(); ${pre};
+    return { process(L, R, n) { let s = 0; for (let k = 0; k < 20000; k++) s += Math.sin(k); for (let i = 0; i < n; i++) { L[i] *= 0.5 + s * 1e-12; R[i] *= 0.5; } } }; } })` });
+  const hc = await checkDeviceNode(heavy(''), { quick: true });
+  const sc = await checkDeviceNode(heavy(`const o = P.stdout, w = o.write.bind(o); let held = null;
+    o.write = (b, ...a) => { const s = b.toString('latin1', 8, 80); if (s.includes('"type":"ready"')) { held = b; return true; } if (held && s.includes('"type":"done"')) { w(held); held = null; } return w(b, ...a); }`), { quick: true });
+  T.ok(hc.cpu.ms > 50 && sc.cpu.ms > hc.cpu.ms * 0.5, `holding back its 'ready' frame doesn't shrink its cpu (${hc.cpu.ms} ms honest, ${sc.cpu.ms} ms holding back)`);
   // a process() that never returns: refused at the deadline, and its process killed
   const t1 = Date.now(), rh = await checkDeviceNode({ id: 'x.hang', kind: 'effect', params: [], kernel: '({ create() { return { process() { for (;;) {} } }; } })' }, { quick: true, timeout: 2000 });
   T.ok(!rh.ok && rh.timedOut === 'process' && Date.now() - t1 < 4000, `a process() that never returns is refused at the deadline (${Date.now() - t1} ms): ${rh.errors[0]}`);

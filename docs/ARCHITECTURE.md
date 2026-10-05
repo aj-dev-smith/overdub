@@ -556,11 +556,14 @@ say the thread is held instead of queueing behind it, since loading a worklet th
 
 The verdict is measured from samples. A render hands back stereo Float32Arrays and what the kernel's side says about
 itself (errors, latency, poly, voice counts); the check keeps samples only at the length it asked for and claims only in
-range, and computes every number itself with `audio/measure.js`. A claim can add an error, never remove one. In the
-browser the kernel runs in the worklet, a realm apart from the report. Node has no such realm, so
-`engine/node/check.js` (`checkDeviceNode`, which `checkDevice(def, { renderer })` makes possible) runs the kernel in a
-child process (`engine/node/check-render.js`, under Node's permission model: reads `app/src`, nothing else) that sends
-back framed samples only, kills it at the deadline, and measures in the parent, which never evaluates kernel code.
+range, and measures level, peaks, NaN, tails, determinism and CPU itself with `audio/measure.js`. Poly, declared latency
+and voice counts are claims, bounded; a reported error makes the device fail, and a renderer that sends no voice counts
+back fails it too. In the browser the kernel runs in the worklet, a realm apart from the report. Node has no such realm,
+so `engine/node/check.js` (`checkDeviceNode`, which `checkDevice(def, { renderer })` makes possible) runs the kernel in
+a child process (`engine/node/check-render.js`, under Node's permission model: reads `app/src`, writes no files, starts
+no processes, network still open) that sends back framed samples only, kills it at the deadline, times CPU from the job
+going out to the samples coming back, and measures in the parent, which never evaluates kernel code. The kernel shares
+the child, so the samples are its own: this stops a kernel rewriting the report, not one written to fool the check.
 
 ## The engine
 

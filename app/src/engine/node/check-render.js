@@ -8,7 +8,8 @@
 //
 //   in:  { type: 'job', id, def: { id, kind, kernel, params, poly, tail }, secs, sr, bpm, seed, params, notes,
 //          allOffAt, stats, inFrames } + the input (L then R, inFrames each; effects)
-//   out: { type: 'ready', id }                                        create() returned; the render starts
+//   out: { type: 'hi' }                                               once, at start, before any kernel has run
+//        { type: 'ready', id }                                        create() returned; the render starts
 //        { type: 'done', id, errors, stats, latency, poly } + L, R    secs * sr frames each (latency in samples)
 //        { type: 'done', id, compileError, line }                    it didn't compile, or create() threw
 import { kernelCore, kernelCompiler } from '../../kernel/worklet.js';
@@ -76,4 +77,6 @@ const rd = reader({
   maxHeader: 4 << 20,
 });
 process.stdin.on('data', (b) => rd.push(b));
+coreAt(48000); // (the check's rate: made now, so the first job's cpu time is the kernel's, not the stdlib's setup)
+send({ type: 'hi' });
 process.stdin.on('end', () => process.exit(0));

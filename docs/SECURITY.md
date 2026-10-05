@@ -22,7 +22,7 @@ runs; and text in a song written to steer an agent.
 
 ## How the studio takes a stranger's song
 
-- **Code.** A song's devices are kernels: source text, evaluated only in the AudioWorklet (and the Node renderer),
+- **Code.** A song's devices are kernels: source text, evaluated only in the AudioWorklet (and, in Node, the renderer and the device check's child process),
   never on the page that holds the key. The page only parses kernel source. A song's device brings nothing else that
   runs: `build` and `worklets` (module source the graph path loads into the audio thread) are dropped by a song file,
   a link and the registry. The worklet scope is a rule for determinism, not a security boundary.
@@ -86,6 +86,7 @@ runs; and text in a song written to steer an agent.
 | The relay (not deployed): one token unlocks both the MCP side and the tab side | Medium before it ships | Fixed: the tab proves a 256-bit secret the connector URL doesn't carry (the token is a one-way hash of it), in a header, never a URL; `tools/list` is the relay's own catalog, not the tab's, and other names are refused |
 | The relay echoed request text at length in errors, logged error messages (which can quote a request), compared its origin secret in variable time, and took any nesting or batch size | Low | Fixed: names cut to 64 safe characters, bad ids refused, only an error's kind logged, constant-time compares, 64 levels and 16 messages at most |
 | In the Node renderer a song's kernel could read the whole checkout | Medium | Reads narrowed (`62f4c8a`); the network is still open (Node 24 has no network permission) |
+| In Node the device check ran the kernel in the process that writes the report, so a kernel could rewrite it or print its own | Medium | The kernel runs in a child process that reads `app/src` only, writes no files and starts no processes; the parent measures the samples it sends (`engine/node/check.js`). The network is still open, and the samples are still the kernel's, so a kernel written to fool the check can |
 | A kernel that never returns: the agent waited until reload, and live audio stops with no recovery | Medium (availability) | Checks have a deadline and Stop works (`62f4c8a`); renders don't queue behind a held one (`289ad3d`); live playback is open |
 | Song size limits weren't applied to a link | Low to medium | Fixed (`2e39267`) |
 | `?relay=` worked on the live site (shows Connect; could send a tab's token to a local port) | Low | Fixed (`e53e3a9`); the relay's trial switch, `?connect=1`, shows Connect for the hosted relay only |
