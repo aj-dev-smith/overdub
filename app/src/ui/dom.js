@@ -58,6 +58,8 @@ const P = {
   play: '<path d="M6 4.5v11l9-5.5z" fill="currentColor" stroke="none"/>',
   stop: '<rect x="5" y="5" width="10" height="10" rx="1.5" fill="currentColor" stroke="none"/>',
   pause: '<path d="M6.5 4.5v11M13.5 4.5v11" stroke-width="2.4"/>',
+  // back to the start: a bar and a triangle pointing at it (the transport's first key, beside play's stop)
+  back: '<path d="M5.5 5v10" stroke-width="2.2"/><path d="M15 5v10l-7.5-5z" fill="currentColor" stroke="none"/>',
   record: '<circle cx="10" cy="10" r="5.2" fill="currentColor" stroke="none"/>',
   loop: '<path d="M4 9a5 5 0 0 1 5-5h6m-2.5-2.5L15 4l-2.5 2.5M16 11a5 5 0 0 1-5 5H5m2.5 2.5L5 16l2.5-2.5"/>',
   metronome: '<path d="M7 17h6l-2.2-13h-1.6zM10 12l4.5-6.5"/>',

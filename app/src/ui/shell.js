@@ -701,7 +701,7 @@ button { font: inherit; color: inherit; }
   .ew-split-v:hover { background: var(--bg); }
   .ew-grip { display: block; position: relative; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: inherit; touch-action: none; }
   .ew-grip::before { content: ''; position: absolute; left: 50%; top: 8px; width: 36px; height: 3px; margin-left: -18px; border-radius: 0; background: var(--text-3); }
-  .ew-grip::after { content: ''; position: absolute; left: 0; right: 0; top: -18px; bottom: 0; }   /* a 40 px target, most of it above the line */
+  .ew-grip::after { content: ''; position: absolute; left: 0; right: 0; top: -24px; bottom: 0; }   /* a 44 px target, most of it above the line */
   .ew-grip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; border-radius: 0; }
   .ew-region-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .ew-region-bottom > .ew-tabs { gap: 0; padding: 0 max(4px, env(safe-area-inset-right)) 0 max(4px, env(safe-area-inset-left)); overflow: hidden; }

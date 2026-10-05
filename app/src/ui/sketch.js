@@ -215,8 +215,14 @@ function mount(el, app) {
     const r = it.getBoundingClientRect(), v = scroll.getBoundingClientRect();
     if (r.bottom > v.bottom) scroll.scrollTop += Math.min(r.bottom - v.bottom + 6, Math.max(0, r.top - v.top - 4));
   }
+  // the note under the ways in (a computer): only where the column has room for all of it, never cut off at the footer
+  function fitRailNote() {
+    railNote.hidden = false;
+    if (isSplit() || !railNote.getClientRects().length) return;
+    railNote.hidden = modes.scrollHeight > modes.clientHeight + 1;
+  }
   placeFoot();
-  const footRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(placeFoot)) : null;
+  const footRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => requestAnimationFrame(() => { placeFoot(); fitRailNote(); })) : null;
   footRO?.observe(el);
 
   /* ---------------------------------------------------------------- shared bits */
@@ -1029,7 +1035,9 @@ function mount(el, app) {
     const takeRow = h('div.sk-take');
     function place() {
       if (!touch) return;
-      if (isSplit()) { takeRow.replaceChildren(status, acts); body.replaceChildren(padCol, takeRow, gridWrap); gridWrap.append(readEl); }
+      // (a phone: the grid over the pads, so the beat you tap is drawn in view above them and the pads are nearest the
+      // thumb; under the pads, it sat under the pinned row, below the fold)
+      if (isSplit()) { takeRow.replaceChildren(status, acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
       else { body.replaceChildren(padCol, gridWrap); gridWrap.append(status, readEl); foot.insertBefore(acts, bbBtn.nextSibling); }
       paintKept();
     }
@@ -1070,7 +1078,7 @@ function mount(el, app) {
     const flash = new Map();
     let pending = null;   // the take's own hits, as tapped (performance.now seconds, and the song's beat if it played)
     const offHit = tap.on('hit', (e) => { flash.set(e.row, performance.now()); if (!e.rec && !e.live && tap.take) pending = { hits: tap.take.hits, playing: tap.take.playing }; dirty = true; });
-    const offTake = tap.on('take', (c) => { if (c && c.id && pending) rawOf.set(c.id, { ...pending, tempo: c.tempo || store.get().tempo }); pending = null; dirty = true; paint(); bringKeep(acts, padCol); });
+    const offTake = tap.on('take', (c) => { if (c && c.id && pending) rawOf.set(c.id, { ...pending, tempo: c.tempo || store.get().tempo }); pending = null; dirty = true; paint(); bringKeep(acts, isSplit() ? gridWrap : padCol); });
     const offMode = input.on('mode', (m) => { keysOn = m === 'tap'; paintOpts(); });
     let dirty = true;
     function paint() {
@@ -1515,14 +1523,15 @@ function mount(el, app) {
         mini.cv,
         h('div.sk-idea-meta.mono', bits.join(', ')),
         other ? h('div.sk-idea-from', p.songTitle ? `from “${p.songTitle}”` : 'from an earlier song') : null,
-        ins ? h('button.btn.btn-txt.sk-insong', { type: 'button', title: 'Show it in the arranger', onclick: () => revealIn(ins) }, `in the song: ${ins.track.name}, ${ins.bars}`) : null,
-        h('div.sk-idea-act',
+        ins ? h('button.btn.btn-txt.sk-insong', { type: 'button', title: 'Show it in the arranger', onclick: () => revealIn(ins) }, `in the song: ${ins.track.name}, ${ins.bars}`) : null),
+      // (the actions run the card's whole width, under the numeral too: beside it, a 236 px column cut them off)
+      h('div.sk-idea-act',
           canPut ? h('button.btn.sk-put', { type: 'button', onclick: () => putIn(p.id), title: p.beat != null ? 'Put it in the song at the beats where you played it' : 'Put it in the song at the marker’s bar' }, newest && !touch ? ['Put it in the song ', h('kbd', '⇧R')] : 'Put it in the song') : null,
           p.kind === 'audio' ? hearBtnFor(p.id, 'Hear it', () => hearAudio(p.audio, p.id)) : hearBtnFor(p.id, 'Hear it', () => hear(pn.notes, p.track, { drums: p.kind === 'drums', id: p.id })),
           p.audio && p.kind !== 'audio' ? hearBtnFor(p.id + ':me', 'Hear what you hummed', () => hearAudio(p.audio, p.id + ':me')) : null,
           p.kind === 'audio' ? null : h('button.btn.sk-keep', { type: 'button', onclick: (e) => keepMenu(e.currentTarget, p), title: 'Keep it as a clip on a track you pick', 'aria-haspopup': 'menu' }, 'Keep on…', icon('down', { size: 11 })),
           kept && p.kind !== 'audio' ? app.band?.button?.({ track: kept.track, clip: kept.clip }) : null, // "Build a band around it" (agent/arrange-tool.js)
-          h('button.btn.ew-btn-agent', { type: 'button', onclick: () => toAgent(p.id), title: 'Hand it to the agent' }, icon('agent', { size: 13 }), 'Agent'))));
+          h('button.btn.ew-btn-agent', { type: 'button', onclick: () => toAgent(p.id), title: 'Hand it to the agent' }, icon('agent', { size: 13 }), 'Agent')));
     requestDraw.add(() => drawMini(mini, p, pn));
     return card;
   }
@@ -1743,7 +1752,8 @@ const CSS = `
 @container sketch (min-width: 641px) {
   .sk-foot { position: sticky; bottom: 0; z-index: 4; background: var(--bg); }
   .sk-ideas { contain: size; }
-  /* (the ways in never make the sheet taller: a pane too short for them scrolls them) */
+  /* (the ways in never make the sheet taller: a pane too short for them scrolls them; fitRailNote() shows the note
+     under them only in a column tall enough for all of it, never cut off at the footer) */
   .sk-modes { contain: size; }
   .sk-pad kbd { flex: none; }
 }
@@ -1892,12 +1902,12 @@ const CSS = `
 .sk-idea-n { font-size: 30px; color: var(--text-3); padding-top: 1px; white-space: nowrap; }
 .sk-idea.sk-new .sk-idea-n { font-size: 44px; color: var(--text); }
 .sk-idea-body { min-width: 0; }
-.sk-idea-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 12.5px; }
+.sk-idea-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; font-size: 12.5px; }
 .sk-idea-who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
 .sk-ago { margin-left: auto; color: var(--text-3); white-space: nowrap; }
 .sk-mini { display: block; width: 100%; height: 26px; margin: 6px 0 4px; }
 .sk-idea-meta { color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sk-idea-act { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sk-idea-act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-width: 0; }
 @media (min-width: 900px) { .sk-idea-act .btn, .sk-idea-act .band-btn { height: 26px; padding: 0 9px; } }
 .sk-idea-act .band-btn { border: var(--rule-2); border-radius: var(--r-press); background: none; color: var(--text); font: 600 12.5px/1 var(--font-ui); }
 .sk-idea-act .band-btn svg { display: none; }
@@ -1959,6 +1969,17 @@ const CSS = `
 .sk-take > .sk-acts { flex-wrap: wrap; }
 .sk-take .sk-destwrap { display: none; }
 .sk-take .sk-acts .btn-go { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Tap it on a phone: the grid, the beat's lamps and the pads in one view above the pinned row, with the ways in over
+   them (390x844, the sheet at its first height: 267 px). The blurb gives way (the line under the pads says what to tap,
+   and Beatbox is in the pinned row); the snap row keeps its 44 px reach from its chips' own ::before */
+.sk.sk-split[data-mode="tap"] .sk-stage { padding-top: 6px; gap: 6px; }
+.sk.sk-split[data-mode="tap"] .sk-blurb { display: none; }
+.sk.sk-split[data-mode="tap"] .sk-head { min-height: 0; }
+.sk.sk-split[data-mode="tap"] .sk-opts { padding-block: 2px; }
+.sk.sk-split[data-mode="tap"] .sk-body { gap: 8px; }
+.sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap { flex: none; min-height: 0; }
+.sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap > .sk-cv { flex: none; height: 76px; }   /* (four 14 px rows under the bar numbers; a pass's line goes under it) */
+.sk.sk-split[data-mode="tap"] .sk-pad { min-height: 56px; }
 /* the line a take records onto, on a phone: over the pads (or the dial), in record ink while it records */
 .sk.sk-split .sk-body > .sk-recnote { flex: none; font-size: 13px; line-height: 1.35; color: var(--text-2); }
 .sk.sk-split .sk-body > .sk-recnote.rec { color: var(--rec); }
