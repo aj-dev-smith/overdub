@@ -362,7 +362,7 @@ try {
     await call('get_selection', {});
     const tl = (await rpc('tools/list')).result?.tools || [];
     const size = JSON.stringify({ tools: tl }).length;
-    t.ok(size < 69000 && tl.find((x) => x.name === 'apply_ops')?.description.length < 3000, `tools/list is ${size} characters (under 69,000 since the prompt diet; 70,000 before it; 73,165 before FRESH-EYES-6; apply_ops's description ${tl.find((x) => x.name === 'apply_ops')?.description.length}, it was 6,650)`);
+    t.ok(size < 68000 && tl.find((x) => x.name === 'apply_ops')?.description.length < 3000, `tools/list is ${size} characters (under 68,000 since the prompt diet; 70,000 before it; 73,165 before FRESH-EYES-6; apply_ops's description ${tl.find((x) => x.name === 'apply_ops')?.description.length}, it was 6,650)`);
   }
 
   // 11. Claude Code behind the Agent panel (server/local-claude.js): the panel's own chat, answered by `claude -p` on

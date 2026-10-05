@@ -24,11 +24,11 @@ const TUNING_LIST = TUNING_IDS.map((id) => `${id}: ${TUNINGS[id].notes}`).join('
 export const TRANSFORM_SCHEMA = {
   name: 'transform',
   annotations: { title: 'Transform notes', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },   // can rewrite or remove the person's notes (mode apply)
-  description: `Run a named musical transform or infill on notes, deterministically (the same seed gives the same notes), as ONE undo step signed by you. The human has the same transforms in the piano roll's Transform menu.
-target: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (guessed from the notes when the song has none).
+  description: `Run a named musical transform or infill on notes, deterministically (seeded), as ONE undo step signed by you (the human has the same in the piano roll's Transform menu).
+target: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (or the notes' own).
 mode: "auto" (default) applies it, unless it would rewrite or remove notes a person wrote: then nothing changes and you get { proposal: true, variations } to pass straight to propose_variations (two takes; the studio adds "Original"). "propose" always returns the proposal; "apply" applies even over the human's notes (only when they asked for exactly this).
-into_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip (e.g. chords from the Hook onto Keys).
-Transforms (name: what it does [params]; get_guide "transforms" has each in full, with its defaults):
+into_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip.
+Transforms [params] (get_guide "transforms" has the defaults):
 ${TRANSFORMS.map((t) => `${t.name}: ${t.blurb.replace(/\s*\([^)]*\)/g, '').split(/[,:;]/)[0].trim().replace(/\.$/, '')} [${Object.keys(t.params).join(' ')}]`).join('\n')}`,
   input_schema: {
     type: 'object',
@@ -244,7 +244,7 @@ export const JAM_TRACK_SCHEMA = {
   description: `Makes a backing track to play over and opens it as the song, in place of the song on screen: drums, bass and a chord part in a style, key, tempo and progression, signed by the caller, with sections, the loop round the form and a Guitar track with the style's tone. The song that was on screen goes to Recent songs, and only the person can bring it back (Song → Recent songs, or the toast's Undo for a few seconds): undo and revert_my_changes don't reach it. Refused while a take records, and on a song from someone's link until the person makes it theirs.
 style: ${JAM_STYLE_IDS.map((s) => `${s} (${JAM_STYLES[s].blurb}; ${JAM_STYLES[s].key.root} ${JAM_STYLES[s].key.scale}, ${JAM_STYLES[s].tempo} BPM)`).join('; ')}.
 key: a note, optionally with major or minor ("E", "E minor", "Bb"); a bare note keeps the style's scale (a blues stays a blues). tempo: 40-240 BPM. progression: chord names, a bar each ("Am F C G"), or numerals in the key ("I7 IV7 I7 V7", "i iv bVII"); | puts two chords in a bar ("C G | Am F"), % repeats the bar before; default the style's own form (a twelve-bar for blues). bars: the length (default the form; a short progression repeats to 16 bars). seed: another take of the same recipe (velocities, fills).
-Returns the title, key, tempo, bars, the sections with their chords, the tracks and the Guitar track's tone.`,
+Returns title, key, tempo, bars, sections and their chords, tracks, the Guitar's tone.`,
   input_schema: {
     type: 'object',
     properties: {
