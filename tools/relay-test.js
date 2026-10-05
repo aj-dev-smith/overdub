@@ -249,6 +249,9 @@ try {
     t.ok(r.status === 404, 'an unknown session id: 404 (the client re-initialises)');
     r = await post(base, tok, req('tools/list'), { sid, headers: { 'mcp-protocol-version': '1999-01-01' } });
     t.ok(r.status === 400, 'an unsupported MCP-Protocol-Version: 400');
+    // a newer client sends its own version in the header on initialize; the body negotiates it down, so no 400
+    r = await post(base, tok, req('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'newer', version: '0' } }), { headers: { 'mcp-protocol-version': '2025-11-25' } });
+    t.ok(r.status === 200 && r.data?.result?.protocolVersion === '2025-06-18', `initialize with a newer MCP-Protocol-Version header is answered in a version we speak (${r.status}, ${r.data?.result?.protocolVersion})`);
     // a client on the stateless 2026-07-28 revision tries a modern request first; a 4xx without a modern error body
     // (-32022) tells a dual-era client this is an initialize-based server, and it falls back to initialize
     r = await post(base, tok, { ...req('tools/list'), params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } }, { headers: { 'mcp-protocol-version': '2026-07-28' } });

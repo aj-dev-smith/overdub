@@ -577,7 +577,6 @@ export async function startRelay(opts = {}) {
     if (req.method !== 'POST') return json(res, 405, rpcErr(null, -32000, 'method not allowed'), { allow: 'POST, DELETE' });
 
     const pv = req.headers['mcp-protocol-version'];
-    if (pv && !PROTOCOLS.includes(pv)) return json(res, 400, rpcErr(null, -32000, `unsupported MCP-Protocol-Version ${clip(pv, 20)}; this server speaks ${PROTOCOLS.join(', ')}`));
     const got = await readJson(req, res, 'mcp', acct);
     if (!got) return;
     const parsed = got.value;
@@ -588,6 +587,9 @@ export async function startRelay(opts = {}) {
 
     // initialize: a fresh session (never inside a batch)
     const init = msgs.find((m) => m && m.method === 'initialize');
+    // The header is checked on requests after initialize only. On initialize the version is negotiated in the body, and
+    // a newer client (claude.ai's connector check sends 2025-11-25) may send its own version in the header too.
+    if (!init && pv && !PROTOCOLS.includes(pv)) return json(res, 400, rpcErr(null, -32000, `unsupported MCP-Protocol-Version ${clip(pv, 20)}; this server speaks ${PROTOCOLS.join(', ')}`));
     let S;
     if (init) {
       if (msgs.length > 1) return json(res, 400, rpcErr(init.id, -32600, 'initialize must be sent on its own'));
