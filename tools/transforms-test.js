@@ -212,6 +212,17 @@ for (const t of TRANSFORMS) {
   T.ok(bad.error && bad.hint, `errors come back with a hint ("${bad.error}")`);
   const bad2 = await run({ name: 'nope' });
   T.ok(bad2.error && /transforms:/.test(bad2.hint || ''), 'an unknown transform lists the real ones');
+  // a param it can't read is refused with the options, not quietly swapped for the default ("down" would double UP)
+  h0 = await E(() => window.overdub.store.history.length);
+  const bp = await run({ name: 'double', target: { track: 'Hook', clip: mine }, params: { octave: 'down' } });
+  const bo = await run({ name: 'retrograde', target: { track: 'Hook', clip: mine }, params: { mode: 'pitch' } });
+  const bk = await run({ name: 'double', target: { track: 'Hook', clip: mine }, params: { octaves: -1 } });
+  const okNum = await run({ name: 'double', target: { track: 'Hook', clip: mine }, params: { octave: '-1' } });
+  T.ok(bp.error && /octave: a number -2 to 2/.test(bp.hint || '') && bo.error && /mode: time \| pitches/.test(bo.hint || '') && bk.error && /no param "octaves"/.test(bk.error) && okNum.ok
+    && (await E(() => window.overdub.store.history.length)) === h0 + 1, `a bad param is refused with what it takes ("${bp.error}"; ${bp.hint}), a number as text still works`);
+  await E(() => window.overdub.store.undo());
+  const bb = await run({ name: 'transpose', target: { track: 'Hook', clip: mine, bars: [40, 41] }, params: { steps: 1 } });
+  T.ok(bb.error && /song's, 1-based: the clip covers bars 1–2/.test(bb.hint || ''), `bars outside the clip say they are song bars ("${bb.hint}")`);
 
   // the human: the piano roll's Transform menu
   await E((x) => { window.overdub.ui.select({ track: x.hook, clip: x.mine, notes: [] }); window.overdub.ui.show('pianoroll'); }, { ...ids, mine });

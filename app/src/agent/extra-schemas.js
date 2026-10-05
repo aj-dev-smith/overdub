@@ -36,7 +36,7 @@ ${TRANSFORMS.map((t) => `${t.name}: ${t.blurb.replace(/\s*\([^)]*\)/g, '').split
       name: { type: 'string', enum: TRANSFORMS.map((t) => t.name), description: 'which transform' },
       target: {
         type: 'object',
-        properties: { track: { type: 'string' }, clip: { type: 'string' }, notes: { type: 'array', items: { type: 'string' } }, bars: { type: 'array', items: { type: 'number' } } },
+        properties: { track: { type: 'string' }, clip: { type: 'string' }, notes: { type: 'array', items: { type: 'string' } }, bars: { type: 'array', items: { type: 'number' }, description: 'song bars, 1-based, not the clip\'s' } },
       },
       params: { type: 'object', description: 'omitted ones use their defaults' },
       mode: { type: 'string', enum: ['auto', 'apply', 'propose'] },

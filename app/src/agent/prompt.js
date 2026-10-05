@@ -40,7 +40,7 @@ Example (a new track with a clip, one call):
 // names each op and its fields and leaves the rest (automation, drum grids, examples) to get_guide "ops" (FRESH-EYES-6:
 // it was the whole guide again, 7 KB of every agent's tool list). The in-app agent works from this too: its system
 // prompt carries only NOTES_BRIEF, and get_guide "ops" serves OPS_CHEATSHEET + NOTES_FORMAT to everyone.
-export const OPS_BRIEF = `Ops (get_guide "ops" has each op's fields in full, automation lanes, the notes and drum-grid formats, and examples: read it before your first call):
+export const OPS_BRIEF = `Ops (get_guide "ops" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):
 project.set { patch: { title?, tempo?, meter?, key?, loop? } }
 track.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }
 instrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move
@@ -48,7 +48,7 @@ clip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.s
 notes.add, notes.replace { track, clip, notes: "text" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }
 section.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split
 auto.write { track, insert?, param, points: "beat:value ...", from?, to? }   auto.clear   auto.set
-Tracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. "A2@0:0.5 C3@0.5:0.5*0.9" (beats from the clip start). Param values are in each param's units and range (list_devices detail "params", get_device): one outside it is refused, with the range; a switch takes its number or its name; preset: "<name>" sets that whole sound, params on top. Devices: define_device.`;
+Tracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. "A2@0:0.5 C3@0.5:0.5*0.9" (beats from the clip start). preset: "<name>" sets a device's whole sound (get_device lists them), params on top. Param values are in each param's units: one out of range is refused, with the range; a switch takes its number or its name.`;
 
 export const NOTES_FORMAT = `Notes text format: pitch@start:dur[*vel], space separated. Pitch is a name (C4 = 60, F#3, Bb2) or MIDI number; start and dur in beats FROM THE CLIP START (quarter notes); vel 0..1 (default 0.8). Chords = same start. "C2@0:0.5 C2@0.5:0.5 G1@1:1*0.9". Fractions work: E4@1/3:1/3.
 Drum grids (clip.add / notes.replace with grid): { steps: 16, step: 0.25, rows: { kick: 'x...x...x...x...', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' } }. X accent, x hit, o ghost, . rest. Rows: kick snare clap rim hat pedal open tom1 tom2 tom3 crash ride cowbell shaker (General MIDI).

@@ -99,7 +99,7 @@
  },
  {
   "name": "apply_ops",
-  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason (why, in musician terms). All-or-nothing: if any op fails nothing changes and you get the failing op's index and an explanation.\nReturns created ids (by ref), a compact diff of what changed, and the undo hint.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.\nOps (get_guide \"ops\" has each op's fields in full, automation lanes, the notes and drum-grid formats, and examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). Param values are in each param's units and range (list_devices detail \"params\", get_device): one outside it is refused, with the range; a switch takes its number or its name; preset: \"<name>\" sets that whole sound, params on top. Devices: define_device.",
+  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason, in musician terms. All-or-nothing: if any op fails nothing changes, and you get which op and why.\nReturns created ids (by ref), a diff and the undo hint.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.\nOps (get_guide \"ops\" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). preset: \"<name>\" sets a device's whole sound (get_device lists them), params on top. Param values are in each param's units: one out of range is refused, with the range; a switch takes its number or its name.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -393,7 +393,8 @@
      "enum": [
       "more",
       "less"
-     ]
+     ],
+     "description": "default more"
     },
     "amount": {
      "type": "string",
@@ -401,7 +402,8 @@
       "a_touch",
       "a_bit",
       "a_lot"
-     ]
+     ],
+     "description": "default a_bit"
     },
     "target": {
      "type": "object",
@@ -470,7 +472,8 @@
       "dip",
       "fade_in",
       "fade_out"
-     ]
+     ],
+     "description": "with over. hold (default): in, held, out at the end. ramp: to the new value across the range, then stays (ramp_up / ramp_down say which way without direction). swell: out and back, peaking mid-range (dip: downwards)"
     },
     "drop": {
      "type": "number",
@@ -941,7 +944,8 @@
        "type": "array",
        "items": {
         "type": "number"
-       }
+       },
+       "description": "song bars, 1-based, not the clip's"
       }
      }
     },

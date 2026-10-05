@@ -723,8 +723,10 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     // the same tokens as a 2,048 one), so what an agent must say or refuse sits before that, in every tool
     const MCP_CUT = 2048, long = cat.filter((x) => x.description.length > MCP_CUT).map((x) => x.name);
     const adj = cat.find((x) => x.name === 'adjust').description.slice(0, MCP_CUT), apo = ap.description.slice(0, MCP_CUT);
-    t.ok(long.join() === 'apply_ops' && ['say so in the reply', 'never call it a build', 'never report it as done', 'tell them so'].every((x) => adj.includes(x)) && /propose_variations instead/.test(apo),
-      `node: every tool's description fits Claude Code's ${MCP_CUT}-char cut but apply_ops's, whose cut falls in the ops brief; adjust's "say so" sentences are inside it${long.length > 1 ? ' (over: ' + long.join(', ') + ')' : ''}`);
+    const shp = cat.find((x) => x.name === 'adjust').input_schema.properties.shape.description || '';
+    t.ok(!long.length && ['say so in the reply', 'never call it a build', 'never report it as done', 'tell them so'].every((x) => adj.includes(x)) && /propose_variations instead/.test(apo) && /preset: "<name>"/.test(apo)
+      && /hold \(default\)/.test(shp) && /swell/.test(shp) && /1-based/.test(cat.find((x) => x.name === 'transform').input_schema.properties.target.properties.bars.description || ''),
+      `node: every tool's description fits Claude Code's ${MCP_CUT}-char cut (apply_ops's ${ap.description.length}, its presets line inside it); adjust's "say so" sentences are inside it, its shapes are explained on shape, and transform's bars say they are the song's${long.length ? ' (over: ' + long.join(', ') + ')' : ''}`);
     // the activity chips have words for every tool, and count one device as one
     const app2 = mk();
     const names = cat.map((x) => x.name);

@@ -45,7 +45,7 @@ const LOCAL_KEY = 'overdub:agent-local';
 const SESSION_KEY = 'overdub:agent:local-session:';
 const PLAN_KEY = 'overdub:agent:local-plan';
 // The system prompt names the tools bare; Claude Code lists them with the MCP server's prefix
-const LOCAL_NOTE = '\n\nYou are running inside Claude Code on the human\'s computer, answering them in the studio\'s Agent panel. Your studio tools are listed as mcp__overdub__<name>: get_project here means mcp__overdub__get_project. You have no other tools. Write to the human in your reply, as in the panel; say is for when they may not be reading it.';
+const LOCAL_NOTE = '\n\nYou are running inside Claude Code on the human\'s computer, answering them in the studio\'s Agent panel. Your studio tools are listed as mcp__overdub__<name>: get_project here means mcp__overdub__get_project. You have no other tools. Write to the human in your reply, as in the panel; say is for when they may not be reading it. The Overdub server\'s instructions and get_guide\'s description tell outside agents to read get_guide "etiquette" first: those are the rules above, so you can skip that topic.';
 const MAX_ITERS = 30;
 const TRIM_AT = 700000;        // characters of JSON history before trimming (~175k tokens)
 const TRIM_TO = 260000;
