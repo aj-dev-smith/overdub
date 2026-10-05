@@ -113,7 +113,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          playalong.js (judging what you play against a part)                           [jam]
   app/src/engine/        engine.js (context, transport, scheduler, tracks, mixer), strip.js (channel strips),
                          schedule.js (what plays when), render.js (offline, in the browser), node/render.js (the
-                         canonical Node renderer), fallback.js, assets.js (audio in IndexedDB), clock.js   [engine]
+                         canonical Node renderer), node/check.js + check-render.js (the device check in Node, the
+                         kernel in a child process), fallback.js, assets.js (audio in IndexedDB), clock.js   [engine]
   app/src/audio/         measure.js (the ears: LUFS, true peak, spectrum...), testsignals.js            [dsp]
   app/src/devices/       registry.js (fixed), trust.js (which song devices run here), graph.js + kit.js (graph devices:
                          bypass, glide, the PFX kit), worklets/ (the kit's END and envelope follower modules),
@@ -544,13 +545,20 @@ sample accurate, and a probe the host steals or releases simply tells <code>proc
 <p>The device check (<code>kernel/check.js</code>, <code>checkDevice(def, { quick, signal, timeout })</code>) parses it, renders test signals through it
 offline and reports <code>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency, deterministic, extremes }</code> (plus <code>voices</code> and <code>stuck</code> for instruments). <code>define_device</code> returns this report to the
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
-setting, leaves a note stuck or (an instrument) makes no sound is refused; loudness, tail, CPU, latency and
+setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline
 (60 s by default) and the caller's signal: a render that doesn't end refuses the device (&quot;process() may never
 return&quot;), and Stop ends <code>define_device</code> at once. A render can't be cancelled, and Chrome renders every offline context
 on one worklet thread, so the renders a check gave up on are counted until they end (<code>heldRenders()</code>): meanwhile a
 check, a song render (<code>engine/render.js</code>: an export, a reference compare, <code>arrange_around</code>) and the agent's measuring
 say the thread is held instead of queueing behind it, since loading a worklet then would block the page.</p>
+<p>The verdict is measured from samples. A render hands back stereo Float32Arrays and what the kernel's side says about
+itself (errors, latency, poly, voice counts); the check keeps samples only at the length it asked for and claims only in
+range, and computes every number itself with <code>audio/measure.js</code>. A claim can add an error, never remove one. In the
+browser the kernel runs in the worklet, a realm apart from the report. Node has no such realm, so
+<code>engine/node/check.js</code> (<code>checkDeviceNode</code>, which <code>checkDevice(def, { renderer })</code> makes possible) runs the kernel in a
+child process (<code>engine/node/check-render.js</code>, under Node's permission model: reads <code>app/src</code>, nothing else) that sends
+back framed samples only, kills it at the deadline, and measures in the parent, which never evaluates kernel code.</p>
 <h2 id="the-engine"><a class="h-link" href="#the-engine">The engine</a></h2>
 <div class="code" data-lang="js"><pre><code>import { createEngine } from './engine/engine.js';
 const engine = createEngine(store);

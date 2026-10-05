@@ -68,7 +68,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 33 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 34 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -91,6 +91,7 @@ can be up to 256 KB.</p>
 <tr><td><code>app/src/kernel/processor.js</code></td><td>the worklet's module: registers that processor in each audio context</td></tr>
 <tr><td><code>app/src/kernel/host.js</code></td><td><code>kernelInstance(c, def, opts)</code>, <code>ensureKernelWorklet(c)</code>, <code>compileKernel(source)</code></td></tr>
 <tr><td><code>app/src/kernel/check.js</code></td><td><code>checkDevice(def, { quick })</code>, <code>summarize(report)</code></td></tr>
+<tr><td><code>app/src/engine/node/check.js</code></td><td><code>checkDeviceNode(def, { quick })</code>: the same check in Node, the kernel in a child process</td></tr>
 <tr><td><code>app/src/kernel/expr.js</code></td><td>expression: <code>noteExpr(note, spb)</code>, <code>normCurve</code>, <code>chanExpr</code> (pitch bend, mod wheel, sustain)</td></tr>
 <tr><td><code>app/src/kernel/guide.js</code></td><td><code>KERNEL_GUIDE</code> (the agent's version of this page), <code>GUIDE_EFFECT</code>, <code>GUIDE_INSTRUMENT</code></td></tr>
 <tr><td><code>app/src/kernel/examples.js</code></td><td><code>core.testsynth</code> and <code>core.testfilter</code>, the reference kernels (registered on import)</td></tr>
@@ -127,10 +128,17 @@ reports:</p>
 <tr><td><code>timedOut</code></td><td><code>'process'</code>: a render didn't finish by the deadline (60 s); <code>'create'</code>: <code>create()</code> didn't return; <code>'busy'</code>: the audio thread is still held by an earlier render that didn't; else <code>false</code></td><td>same</td></tr>
 </tbody></table></div>
 <p><code>ok</code> is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
-(a raw peak over +24 dBFS), or a stuck note. Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
+(a raw peak over +24 dBFS), a stuck note, or no sound at all at default settings (under -60 LUFS). Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
 a boost the player chose, not a bug). Level, tail, cpu, latency and determinism problems are warnings too.
 Drum kits (<code>cat: 'drums'</code>) are played the General MIDI drum phrase instead of the melodic one. Every message says what to change. <code>quick: true</code> skips
 the per-param extremes and shortens the renders (a few hundred ms instead of about a second).</p>
+<p>Every number in the report is measured by the checker from the samples a render hands back, never taken from the
+kernel. What the kernel's side says about itself (an error it hit, its latency, its poly, its voice counts) can only add
+errors, and a value out of range is dropped. A kernel that hides its own fault is left with the silence a fault makes,
+which fails the level check. In Node, <code>checkDeviceNode</code> (<code>app/src/engine/node/check.js</code>) runs the kernel in a child
+process that can read <code>app/src</code> and nothing else, and sends back samples only; the parent, which never runs kernel
+code, measures them. A child that sends anything else, or ends early, fails the check. Passing means the device
+behaved in the measured ways while it was checked; it doesn't say the code is harmless. Read it.</p>
 <h2 id="how-a-device-gets-its-face"><a class="h-link" href="#how-a-device-gets-its-face">How a device gets its face</a></h2>
 <p>Nobody writes UI for a device: <code>app/src/ui/faces.js</code> draws it from the def. Effects become a stompbox (more than six
 params make it a rack) in <code>look</code>'s colour, finish, knobs and lettering, with an LED and a footswitch; instruments get a
@@ -550,7 +558,7 @@ damp 0 bright .. 1 dark) -&gt; .tick(l, r) then .l .r (wet) .set(size, decay, da
 <p>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
 latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
-extreme setting, or a stuck note. Effects are
+extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes
 and soft to hard velocities. Fix every error; act on warnings unless you mean them.</p>
 <h2 id="example-an-effect"><a class="h-link" href="#example-an-effect">Example: an effect</a></h2>
