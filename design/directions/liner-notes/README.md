@@ -106,7 +106,9 @@ No tracked capitals anywhere in the studio. Labels are sentence case and sit abo
 ## Iconography
 
 - Mostly words. Tabs, toggles and most buttons are text.
-- Transport keeps its three glyphs (square, triangle, ring) because every musician reads them.
+- Transport keeps three glyphs because every musician reads them: back (a bar and a triangle), play (a triangle that
+  becomes a square while the song plays) and record (a ring). The first key was a square until FRESH-EYES-5: while
+  the song played there were two stop squares side by side, so the one square on screen is now play's own stop.
 - The sparkle (`✦` and the `sparkle` icon) and the smiley `agent` icon are gone. The agent's mark is a short straight
   cool stroke (the Weave's exact strand); a person's is the same stroke with a breath. Used on the Agent button and
   nowhere decorative.

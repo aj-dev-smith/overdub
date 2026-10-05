@@ -169,6 +169,9 @@ async function phone(pw, srvUrl, run) {
     const tb = await E(boxes, topSels);
     T.ok(tb.every((b) => !b.miss && b.on), `${label}: the top bar fits: title, song menu, stop, play, record, browser, agent all on screen (${fmt(tb.filter((b) => b.miss || !b.on)) || 'all there'})`);
     T.ok(tb.slice(1).every((b) => big(b, 40)), `${label}: top bar controls are 40 px targets (${fmt(tb.slice(1))})`);
+    // the transport's back and record keys and the logo are 44 px under a finger (app.css, the coarse-pointer block)
+    const k44 = await E(boxes, ['.tp-g-play .tp-btn:first-child', '.tp-rec', '.ew-brand']);
+    T.ok(k44.every((b) => big(b, 44)), `${label}: back, record and the logo are 44 px targets (${fmt(k44)})`);
     const title = await E(() => { const t = document.querySelector('.tp-title'); return { text: t.textContent, clipped: t.scrollWidth > t.clientWidth + 1, fs: parseFloat(getComputedStyle(t).fontSize) }; });
     T.ok(!title.clipped && title.fs >= 15, `${label}: the song title reads whole ("${title.text}", ${title.fs} px)`);
     await readable('.ew-top', 'in the top bar');
@@ -482,6 +485,23 @@ async function phone(pw, srvUrl, run) {
     await tap('#ew-tab-mixer'); await sleep(350);
     const mxb = await E(boxes, ['.mx-strip:not(.mx-master) .mx-mute', '.mx-strip:not(.mx-master) .mx-solo', '.mx-strip:not(.mx-master) .mx-arm', '.mx-strip:not(.mx-master) .mx-pan .mk']);
     T.ok(mxb.every((b) => big(b, 44, 44)), `${label}: the mixer's M, S, ● and pan knob are 44 px targets (${fmt(mxb)})`);
+    // the sticky master sits over no strip's S or ● (the strips fit whole beside it), and a phone with room for one
+    // strip only (360 px) shows the next one's edge, not one strip stretched across the screen
+    const mxFit = () => E(() => {
+      const m = document.querySelector('.mx-master').getBoundingClientRect();
+      const ws = [...document.querySelectorAll('.mx-strip:not(.mx-master)')].map((e) => Math.round(e.getBoundingClientRect().width));
+      const cut = [...document.querySelectorAll('.mx-strip:not(.mx-master) :is(.mx-solo, .mx-arm)')].filter((e) => { const r = e.getBoundingClientRect(); return r.left < m.left - 0.5 && r.right > m.left + 0.5; }).length;
+      return { w: ws[0], n: ws.length, cut, room: Math.round(m.left), vw: innerWidth };
+    });
+    const f1 = await mxFit();
+    T.ok(f1.n && !f1.cut, `${label}: the master covers no strip's S or ● (${f1.cut} cut; strips ${f1.w} px in ${f1.room} px beside it)`);
+    if (!run.device && !run.turn) {
+      const vp = page.viewportSize();
+      await page.setViewportSize({ width: 360, height: 640 }); await sleep(400);
+      const f2 = await mxFit();
+      T.ok(f2.n > 1 && !f2.cut && f2.w < f2.room - 40, `${label} at 360x640: one strip and the next one's edge, the master over neither's S or ● (strip ${f2.w} px in ${f2.room}, ${f2.cut} cut)`);
+      await page.setViewportSize(vp); await sleep(400);
+    }
     await shot('mixer-keys');
     await tap('#ew-tab-rack'); await sleep(300);
     // ---- small chips under a finger: History's Undo this and filter chips, the agent's context ✕, the Band picker's
@@ -927,6 +947,17 @@ async function fingerEdits(page, E, label, shot) {
       return { n: els.length, bad: bad.length, bottom: last ? Math.round(last.bottom) : null, foot: Math.round(foot.top), footH: Math.round(foot.height) };
     }, m);
     T.ok(cov.n && !cov.bad && cov.bottom <= cov.foot + 0.5, `${label}: in ${m === 'tap' ? 'Tap it every pad' : 'Hum it the dial'} is whole on screen above the pinned row (${cov.n} ${m === 'tap' ? 'pads' : 'dial'}, ${cov.bad} covered; bottom ${cov.bottom}, the row from ${cov.foot}, ${cov.footH} px tall)`);
+    if (m === 'tap') {
+      // ... and over the pads, in view too: the ways in, the line that says what to tap (and, while you tap, how many
+      // hits), and the grid the beat is drawn on (the line once sat under the pads, under the pinned row)
+      const v = await E(() => {
+        const sk = document.querySelector('[data-panel="sketch"]'), sc = sk.querySelector('.sk-scroll')?.getBoundingClientRect(), foot = sk.querySelector('.sk-foot').getBoundingClientRect();
+        const top = sc ? sc.top : 0, it = (sel) => { const e = [...sk.querySelectorAll(sel)].find((x) => x.getClientRects().length); if (!e) return null; const r = e.getBoundingClientRect(); return r.top >= top - 0.5 && r.bottom <= foot.top + 0.5 ? 'in view' : `${Math.round(r.top)}..${Math.round(r.bottom)}`; };
+        const st = [...sk.querySelectorAll('.sk-status')].find((x) => x.getClientRects().length);
+        return { modes: it('.sk-mode[data-mode="tap"]'), status: it('.sk-status'), grid: it('.sk-body > .sk-rollwrap'), text: st ? st.textContent.trim().slice(0, 50) : '', top: Math.round(top), foot: Math.round(foot.top) };
+      });
+      T.ok(v.modes === 'in view' && v.status === 'in view' && v.grid === 'in view' && !!v.text, `${label}: Tap it's ways in, its line ("${v.text}") and its grid are in view between ${v.top} and the pinned row at ${v.foot} (ways in ${v.modes}, line ${v.status}, grid ${v.grid})`);
+    }
     await shot('sketch-' + m + '-clear');
   }
   await E(() => { window.overdub.input.emit('sketch:mode', 'tap'); window.overdub.input.setMode?.(null); window.overdub.beat.draw(); });

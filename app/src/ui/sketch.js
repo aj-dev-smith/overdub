@@ -1030,15 +1030,17 @@ function mount(el, app) {
     // keeps it in the pinned footer, under the thumb)
     // (a computer: the pass line is the caption while there is one, so the grid keeps its rows: a line of its own under
     // it left four 5 px rows in a 900 px window)
-    // (a phone: the pinned row is one row, Beatbox, Record and its track; what the take is and its Keep row go under
-    // the pads, in the sheet)
+    // (a phone: the pinned row is one row, Beatbox, Record and its track; what the take is goes beside the snap chips,
+    // over the grid, and its Keep row under the pads, in the sheet)
     const takeRow = h('div.sk-take');
     function place() {
       if (!touch) return;
-      // (a phone: the grid over the pads, so the beat you tap is drawn in view above them and the pads are nearest the
-      // thumb; under the pads, it sat under the pinned row, below the fold)
-      if (isSplit()) { takeRow.replaceChildren(status, acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
+      // (a phone: the line, beside the snap chips (paintOpts), then the grid, over the pads, so what to tap and the beat
+      // you tap are in view above them and the pads are nearest the thumb; under the pads, they sat under the pinned
+      // row, below the fold)
+      if (isSplit()) { takeRow.replaceChildren(acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
       else { body.replaceChildren(padCol, gridWrap); gridWrap.append(status, readEl); foot.insertBefore(acts, bbBtn.nextSibling); }
+      paintOpts();
       paintKept();
     }
     if (touch) foot.append(bbBtn);
@@ -1071,7 +1073,9 @@ function mount(el, app) {
     function paintOpts() {
       optsEl.replaceChildren(...[
         touch ? null : chip(keysOn ? 'F J K L play pads: on' : 'F J K L play pads: off', keysOn, () => { keysOn = !keysOn; input.setMode(keysOn ? 'tap' : null); paintOpts(); }, keysOn ? 'F J K L play the pads (Shift for an accent), not the studio’s shortcuts. Click or Esc to turn them off.' : 'F J K L are the studio’s shortcuts again (L is loop). Click to make them play the pads.'),
-        seg([[0.25, '1/16'], [0.5, '1/8']], input.options.grid, (g) => { input.options.grid = g; paintOpts(); }, 'Grid')].filter(Boolean));
+        seg([[0.25, '1/16'], [0.5, '1/8']], input.options.grid, (g) => { input.options.grid = g; paintOpts(); }, 'Grid'),
+        // (a phone: the line sits beside the snap chips, over the grid, so it is in view with the pads and costs no row)
+        touch && isSplit() ? status : null].filter(Boolean));
     }
     paintOpts();
     input.setMode('tap');
@@ -1969,17 +1973,22 @@ const CSS = `
 .sk-take > .sk-acts { flex-wrap: wrap; }
 .sk-take .sk-destwrap { display: none; }
 .sk-take .sk-acts .btn-go { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-/* Tap it on a phone: the grid, the beat's lamps and the pads in one view above the pinned row, with the ways in over
-   them (390x844, the sheet at its first height: 267 px). The blurb gives way (the line under the pads says what to tap,
-   and Beatbox is in the pinned row); the snap row keeps its 44 px reach from its chips' own ::before */
-.sk.sk-split[data-mode="tap"] .sk-stage { padding-top: 6px; gap: 6px; }
+/* Tap it on a phone: the ways in, the line that says what to tap (and, while you tap, how many hits) beside the snap
+   chips, the grid, the beat's lamps and the pads in one view above the pinned row (390x844, the sheet at its first
+   height: 267 px over the pinned row; tools/phone-test.js checks each is in view). The blurb gives way (the line says
+   what to tap), and so do the pads' beatbox syllables (Beatbox is in the pinned row, and the line says them while you
+   beatbox); the snap row keeps its 44 px reach from its chips' own ::before */
+.sk.sk-split[data-mode="tap"] .sk-stage { padding-top: 2px; gap: 4px; }
 .sk.sk-split[data-mode="tap"] .sk-blurb { display: none; }
 .sk.sk-split[data-mode="tap"] .sk-head { min-height: 0; }
 .sk.sk-split[data-mode="tap"] .sk-opts { padding-block: 2px; }
-.sk.sk-split[data-mode="tap"] .sk-body { gap: 8px; }
+.sk.sk-split[data-mode="tap"] .sk-body { gap: 6px; }
+.sk.sk-split[data-mode="tap"] .sk-opts > .sk-status { flex: 1 1 auto; min-width: 0; padding: 0; white-space: normal; overflow: visible; font-size: 12.5px; line-height: 17px; }
 .sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap { flex: none; min-height: 0; }
-.sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap > .sk-cv { flex: none; height: 76px; }   /* (four 14 px rows under the bar numbers; a pass's line goes under it) */
-.sk.sk-split[data-mode="tap"] .sk-pad { min-height: 56px; }
+.sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap > .sk-cv { flex: none; height: 76px; }   /* (four 14.75 px rows under a 14 px band of bar numbers; a pass's line goes under it) */
+.sk.sk-split[data-mode="tap"] .sk-padcol { gap: 4px; }
+.sk.sk-split[data-mode="tap"] .sk-pad { min-height: 48px; justify-content: center; }
+.sk.sk-split[data-mode="tap"] .sk-pad small { display: none; }
 /* the line a take records onto, on a phone: over the pads (or the dial), in record ink while it records */
 .sk.sk-split .sk-body > .sk-recnote { flex: none; font-size: 13px; line-height: 1.35; color: var(--text-2); }
 .sk.sk-split .sk-body > .sk-recnote.rec { color: var(--rec); }

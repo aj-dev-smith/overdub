@@ -469,8 +469,9 @@ function mountTransport(el, app) {
   const btn = (ic, label, run, cls = '') => h('button.tp-btn' + cls, { title: label, 'aria-label': label, onclick: run }, icon(ic, { size: 16 }));
   const mk = app.transport.marker;
   // the first key goes back: playing, it stops at the marker; stopped, it takes the marker to bar 1. It draws a bar and a
-  // triangle, not a square, so the one square on screen is play's while the song plays (FRESH-EYES-5: two stop squares)
-  const stopB = btn('back', 'Stop, back to the marker (Space). Stopped: the marker to bar 1 (Home)', () => { if (engine.playing || engine.starting) engine.stop(); else app.transport.home(); });
+  // triangle, not a square, so the one square on screen is play's while the song plays (FRESH-EYES-5: two stop squares;
+  // design/LINER-NOTES-KIT.md records it)
+  const stopB = btn('back', 'Back: stop and go to the marker (Space). Stopped: the marker to bar 1 (Home)', () => { if (engine.playing || engine.starting) engine.stop(); else app.transport.home(); });
   const playB = h('button.tp-btn.tp-play', { title: 'Play from the marker (Space)', 'aria-label': 'Play (Space)', onclick: () => app.transport.playStop() },
     h('span.ico-play', icon('play', { size: 16 })), h('span.ico-stop', icon('stop', { size: 16 })));
   // the record key: a round lamp (the one round thing: it is a lamp), its state drawn in frame() (see the header)

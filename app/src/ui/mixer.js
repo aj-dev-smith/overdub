@@ -26,6 +26,8 @@ const TICKS = [6, 0, -6, -12, -24, -48];
 const TICK_RANK = [0, -48, -12, 6, -24, -6];
 // a touch screen's narrowest strip: M, S and ● in a row at 44 px each, 2 px apart, inside the strip's 6 px edges
 const STRIP_MIN = 3 * 44 + 2 * 2 + 2 * 6;
+// how much of the next strip shows when only one fits: its left edge and its M, up to its S
+const PEEK = 6 + 44 + 2;
 // a fader's scale shows a mark only where it clears its neighbours (the law packs −12 to −48 into the bottom third)
 function fitScale(s) {
   if (!s.scale) return;
@@ -66,7 +68,8 @@ export default function (app) {
       let loud = null; // the master loudness tap
 
       root.addEventListener('pointerdown', () => { ui.state.focus = 'mixer'; }, true);
-      // the strips' fit (a touch screen: whole strips beside the master, never one under it) and each fader's scale
+      // the strips' fit (a touch screen: whole strips beside the master, or one and the next one's edge where only one
+      // fits; the master over no strip's S or ●) and each fader's scale
       // (only the marks that have room at this height), measured whenever the pane changes size
       const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit()) : null;
       if (ro) ro.observe(root);
@@ -76,8 +79,10 @@ export default function (app) {
         if (coarse() && ms) {
           const cs = getComputedStyle(ms), mw = ms.offsetWidth + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
           const box = lane.querySelector('.mx-strips'), pl = box ? parseFloat(getComputedStyle(box).paddingLeft) || 0 : 0;
-          const room = root.clientWidth - mw - pl, n = Math.max(1, Math.floor(room / STRIP_MIN));
-          root.style.setProperty('--mx-sw', `${Math.max(STRIP_MIN, Math.floor(room / n))}px`);
+          // (room for one strip only, a 360 px phone: the next one shows its edge up to its M beside it, so the mixer
+          // reads as a row to swipe, not one strip stretched across the screen; its S and ● stay clear of the master)
+          const room = root.clientWidth - mw - pl, n = Math.floor(room / STRIP_MIN);
+          root.style.setProperty('--mx-sw', `${n < 2 ? Math.max(STRIP_MIN, room - PEEK) : Math.floor(room / n)}px`);
         } else root.style.removeProperty('--mx-sw');
         for (const s of strips.values()) fitScale(s);
       }
