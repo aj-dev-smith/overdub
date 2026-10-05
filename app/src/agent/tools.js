@@ -33,6 +33,7 @@ import { resolveWord, planMoves, scaleMoves, eqPlan, amountOf, glossDeltas, glos
 import * as personal from './lexicon-personal.js';
 import { OPS_CHEATSHEET, OPS_BRIEF, NOTES_FORMAT, ETIQUETTE, kernelGuide } from './prompt.js';
 import { lexiconSummary } from './lexicon.js';
+import { catalog as transformCatalog } from '../core/transforms.js';
 import { installKeep, keepFirst, itemsText, whoseIds, takenBy, heldCodeFirst, HELD_CODE_FINE, kernelPrint } from './keep.js';
 import { keyChosen } from '../input/hum.js';
 
@@ -257,12 +258,22 @@ const TARGET_SCHEMA = {
     insert: { type: 'string' }, section: { type: 'string' },
   },
 };
+// get_guide's topics, said once for both its descriptions
+const GUIDE_TOPICS = '"etiquette" (how to work with the human here: scope, proposals vs direct edits, measuring), "devices" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), "ops" (every op and the notes / drum-grid text formats), "lexicon" (musical words → perceptual axes, for adjust; plus "personal": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), "transforms" (every transform with its params and defaults).';
+// Descriptions the in-app agent (agent/claude.js) gets in place of the catalog's: its system prompt already carries the
+// etiquette, so get_guide doesn't send it to read that again (the prompt diet; outside agents keep the catalog's).
+export const IN_APP_DESCRIPTIONS = {
+  get_guide: `Read one of the studio's guides (the etiquette is in your system prompt already): ${GUIDE_TOPICS}`,
+};
+
 const RANGE_PROPS = {
   bars: { type: 'array', items: { type: 'number' }, description: '[first, last] bar, 1-based inclusive, e.g. [1, 4]' },
   from: { type: 'number', description: 'start in beats (alternative to bars)' },
   to: { type: 'number', description: 'end in beats' },
   section: { type: 'string', description: 'a section id or name, e.g. "Chorus"' },
 };
+// the same range without the words, where a tool's description already says them (the prompt diet)
+const RANGE_BARE = { bars: { type: 'array', items: { type: 'number' } }, from: { type: 'number' }, to: { type: 'number' }, section: { type: 'string' } };
 
 // Every tool carries MCP annotations beside its name, the same in every catalog (schemas(), catalogSchemas(),
 // server/mcp.js, server/bridge.js, server/relay-catalog.json), so MCP clients know what a call does before making it
@@ -296,20 +307,21 @@ Ids: tracks t_…, clips c_…, inserts fx_…, sections s_…. All times are in
   {
     name: 'get_guide',
     annotations: { title: 'Read a guide', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    description: `Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): "etiquette" (how to work with the human here: scope, proposals vs direct edits, measuring), "devices" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), "ops" (every op and the notes / drum-grid text formats), "lexicon" (musical words → perceptual axes, for adjust; plus "personal": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it).`,
-    input_schema: { type: 'object', properties: { topic: { type: 'string', enum: ['etiquette', 'devices', 'ops', 'lexicon'] } }, required: ['topic'], additionalProperties: false },
+    description: `Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): ${GUIDE_TOPICS}`,
+    input_schema: { type: 'object', properties: { topic: { type: 'string', enum: ['etiquette', 'devices', 'ops', 'lexicon', 'transforms'] } }, required: ['topic'], additionalProperties: false },
     async run(input) {
       switch (input.topic) {
         case 'etiquette': return { guide: ETIQUETTE };
         case 'devices': return { guide: await kernelGuide() };
         case 'ops': return { guide: OPS_CHEATSHEET + '\n\n' + NOTES_FORMAT };
+        case 'transforms': return { guide: 'Transforms (name: what it does. params, with their defaults):\n' + transformCatalog() };
         case 'lexicon': {
           const mine = personal.forAgents();
           const lines = Object.entries(mine.words).map(([w, x]) => `- "${w}" = ${x.means} (picked ${x.picked}×, used ${x.used}×${x.set_by_hand ? ', set by hand' : ''}): adjust { axis: "${x.adjust.axis}", direction: "${x.adjust.direction}" }; the other way (less ${w}): ${x.opposite}`);
           const yours = `\n\nThis person's words (learned from their A/B picks; use these, not the table above):\n${lines.join('\n') || '- none yet'}${mine.asks.length ? `\nNot learned yet (adjust offers two audible readings and remembers the pick): ${mine.asks.join(', ')}` : ''}`;
           return { guide: lexiconSummary() + '\nAmounts: a_touch, a_bit, a_lot. Bands: sub <60 Hz, low 60-250, low-mid 250-500, mid 500-2k, high-mid 2-4k, presence 4-8k, air >8k.' + yours, personal: mine };
         }
-        default: return err(`no guide "${input.topic}"`, 'topics: etiquette, devices, ops, lexicon');
+        default: return err(`no guide "${input.topic}"`, 'topics: etiquette, devices, ops, lexicon, transforms');
       }
     },
   },
@@ -495,13 +507,12 @@ series: "bars" adds per-bar numbers over the range (lufsShortMax, rms, centroid 
   {
     name: 'adjust',
     annotations: { title: 'Adjust a sound', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },   // time-feel words move notes; over a range it can replace lane points
-    description: `A perceptual move, measured: "brightness a bit", "warmth a touch", "less mud", "more space". Resolves the word through the translator lexicon to concrete params on the devices already on the target (filter cutoff, tone, drive, reverb mix …) or adds an EQ / comp / reverb insert when needed, applies it (one undo step), renders and measures before/after, corrects once if the measured change went the wrong way or was too small (on an insert it added too), and returns exactly which params moved, the measured result for the axis, and any level side effect.
-axis: a word or axis (brightness, warmth, air, mud, boom, body, harshness, honk, grit, punch, squash, space, distance, width, length, level, swing, laid_back, tight_timing, dynamics — or words like warm, dark, punchy, lush, lazy, tight). direction: "more" (default) | "less". amount: "a_touch" | "a_bit" (default) | "a_lot".
-Time-feel axes (swing, laid_back, tight_timing, dynamics) move notes in the target clip(s) instead of params.
-over (bars, beats or a section) makes it automation: the move is written as lanes on the params it moves, only over that range, in a shape: "hold" (default: in over half a beat, held, back out at the end), "ramp" (from where it is to the moved value across the range, then stays; ramp_up / ramp_down say which way when direction isn't given), "build" (a riser: it jumps at the start of the range to well below where it plays now, drop: the share of the knob's travel, default 0.4, and rises to the moved value; the bars before keep their value), "swell" (out and back, peaking in the middle; dip is the same downwards), "fade_in" / "fade_out" (the fader from −60 dB up to the track's level, or from it down to −60 dB; the level is the lane's value at that end, or the fader's when the lane is silent there, and always an explicit point; a fade out that ends before the song does comes back to the level it had there, and points the human drew at either end are kept). The result lists replaced: the human's points the lanes took out (say so in the reply), and trend_mismatch when the per-bar numbers don't rise (or fall) the way a ramp or build was meant to: say it barely changed and offer to start lower, never call it a build. When the per-bar numbers contradict the move (a fade in that ends silent or no louder), the result has contradiction: say so plainly and undo or retry; never report it as done. "Open the filter over the chorus" = { axis: "brightness", over: { section: "Chorus" }, shape: "ramp" }; "fade the pad in over bars 1–4" = { axis: "level", target: { track: "Pad" }, over: { bars: [1, 4] }, shape: "fade_in" }. It measures the first and last bars of the range and the bars either side before and after, corrects once if the last bar moved the wrong way or too little, and reports per-bar numbers.
+    description: `A perceptual move, measured: "brightness a bit", "warmth a touch", "less mud", "more space". Resolves the word through the translator lexicon to params on the target's devices (or adds an EQ / comp / reverb insert when needed), applies it (one undo step), renders and measures before/after, corrects once if the measured change went the wrong way or was too small, and returns the params that moved, the measured result for the axis and any level side effect.
+axis: a word or axis (brightness, warmth, air, mud, boom, body, harshness, honk, grit, punch, squash, space, distance, width, length, level, swing, laid_back, tight_timing, dynamics — or words like warm, dark, punchy, lush, lazy, tight). Time-feel axes (swing, laid_back, tight_timing, dynamics) move notes in the target clip(s) instead of params.
+over (bars, beats or a section) makes it automation: lanes on the params it moves, only over that range, in a shape: hold (default), ramp (ramp_up / ramp_down), build (a riser from well under where it plays now; drop says how far), swell, dip, fade_in / fade_out (the fader from −60 dB to the track's level, or down to it; a fade out that ends before the song does comes back to its level). It measures the range and the bars either side and reports per-bar numbers. The result lists replaced: the human's points the lanes took out (say so in the reply), and trend_mismatch when the per-bar numbers don't rise (or fall) the way a ramp or build was meant to: say it barely changed and offer to start lower, never call it a build. When the per-bar numbers contradict the move (a fade in that ends silent or no louder), the result has contradiction: say so plainly and undo or retry; never report it as done. "Open the filter over the chorus" = { axis: "brightness", over: { section: "Chorus" }, shape: "ramp" }; "fade the pad in over bars 1–4" = { axis: "level", target: { track: "Pad" }, over: { bars: [1, 4] }, shape: "fade_in" }.
 A param that already has a lane (not held): without over, adjust moves the whole lane by the planned amount (its shape kept) instead of the knob's own value, and says so.
 Words people disagree on (warm/cold, fat, tight): the first time, adjust doesn't guess. It shows the human two audible readings as A/B cards ("Darker top" vs "Fuller low-mid"), waits for the pick (wait_seconds, default 90), applies it and remembers it as their meaning; it returns { asked: true, picked, learned } or { status: "pending", id } (poll get_variation_result). After that it uses their meaning without asking and returns personal: 'using your "warm": darker top' — tell them so. reading: a reading id to use this once without asking (only when the human just told you which they mean).`,
-    input_schema: { type: 'object', properties: { axis: { type: 'string' }, direction: { type: 'string', enum: ['more', 'less'] }, amount: { type: 'string', enum: ['a_touch', 'a_bit', 'a_lot'] }, target: { type: 'object', properties: { track: { type: 'string' }, insert: { type: 'string' }, clip: { type: 'string' } }, description: 'default: the selected track' }, ...RANGE_PROPS, over: { type: 'object', properties: { ...RANGE_PROPS }, description: 'write the move as automation over this range only (bars, from/to beats or a section); the range adjust measures is then this one plus a bar either side' }, shape: { type: 'string', enum: ['hold', 'ramp', 'ramp_up', 'ramp_down', 'build', 'swell', 'dip', 'fade_in', 'fade_out'], description: 'with over: the shape of the lane (default hold)' }, drop: { type: 'number', description: 'shape build: how far under where it plays now the build starts, as a share of the knob\'s travel (0.1-0.8, default 0.4)' }, reason: { type: 'string' }, reading: { type: 'string', description: 'warm: darker_top | fuller_lowmid; fat: fuller_low | wider_layered; tight: on_the_grid | shorter_tails' }, wait_seconds: { type: 'number', description: 'how long to wait for the human to pick a reading (default 90)' } }, required: ['axis'], additionalProperties: false },
+    input_schema: { type: 'object', properties: { axis: { type: 'string' }, direction: { type: 'string', enum: ['more', 'less'] }, amount: { type: 'string', enum: ['a_touch', 'a_bit', 'a_lot'] }, target: { type: 'object', properties: { track: { type: 'string' }, insert: { type: 'string' }, clip: { type: 'string' } }, description: 'default: the selected track' }, ...RANGE_PROPS, over: { type: 'object', properties: RANGE_BARE, description: 'automation over this range only (bars, from/to beats or a section)' }, shape: { type: 'string', enum: ['hold', 'ramp', 'ramp_up', 'ramp_down', 'build', 'swell', 'dip', 'fade_in', 'fade_out'] }, drop: { type: 'number', description: 'build: the start under where it plays now, a share of the knob\'s travel (0.1-0.8, default 0.4)' }, reason: { type: 'string' }, reading: { type: 'string', description: 'warm: darker_top | fuller_lowmid; fat: fuller_low | wider_layered; tight: on_the_grid | shorter_tails' }, wait_seconds: { type: 'number', description: 'how long to wait for the human to pick a reading (default 90)' } }, required: ['axis'], additionalProperties: false },
     run(input, ctx) { return adjust(ctx.app, ctx.by, input, ctx); },
   },
   {
@@ -1434,7 +1445,7 @@ async function defineDevice(app, by, device, input, signal = null) {
     return { refused: true, reason: `"${d.id}" is ${owner}'s device`, error: `${prevDoc.name || d.id} was written by ${owner}${usedOn.length ? ` and is on ${usedOn.join(', ')}` : ''}: define_device won't rewrite someone else's device without asking`, hint: `write yours under a new id (${slug(by)}.${d.id.split('.').slice(1).join('-')}) and offer it with propose_variations; replace: true rewrites theirs, only after the human said yes`, owner: prevDoc.by, used_on: usedOn };
   }
   if (!['effect', 'instrument'].includes(d.kind)) return err('device.kind must be "effect" or "instrument"');
-  if (typeof d.kernel !== 'string' || !d.kernel.trim()) return err('device.kernel must be the kernel source (one JS expression)', 'see the device-writing guide: ({ create({ sr, seed, dsp }) { return { process(L, R, n, p) { … } }; } })');
+  if (typeof d.kernel !== 'string' || !d.kernel.trim()) return err('device.kernel must be the kernel source (one JS expression)', 'get_guide "devices" has the format and two working kernels: ({ create({ sr, seed, dsp }) { return { process(L, R, n, p) { … } }; } })');
   // A held device's code (the song brought it; the person hasn't let it run here) isn't the agent's to run: not through
   // the check, and not under another name, as it is or with its names, comments or spacing changed (keep.js
   // kernelPrint). Only the person can let it play.
@@ -1452,7 +1463,7 @@ async function defineDevice(app, by, device, input, signal = null) {
   d.by = by; d.cat = d.cat || (d.kind === 'instrument' ? 'synth' : 'other');
   const syn = SYNTAX(d.kernel);
   // (the parser's message can quote the source at any length: trimmed, as the check trims what a kernel throws)
-  if (syn) return { refused: true, reason: 'syntax error', error: `the kernel does not compile: ${syn.length > 200 ? syn.slice(0, 199) + '…' : syn}`, hint: 'the source must be ONE expression, e.g. ({ create(…) { … } }) — check brackets and commas' };
+  if (syn) return { refused: true, reason: 'syntax error', error: `the kernel does not compile: ${syn.length > 200 ? syn.slice(0, 199) + '…' : syn}`, hint: 'the source must be ONE expression, e.g. ({ create(…) { … } }) — check brackets and commas (get_guide "devices" has two working kernels)' };
   // a dry registration check (ids, param ranges) without touching the registry
   for (const p of d.params) {
     const q = Array.isArray(p) ? { key: p[0], min: p[2], max: p[3], def: p[4] } : p;

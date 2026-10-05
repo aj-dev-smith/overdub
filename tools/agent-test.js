@@ -710,8 +710,15 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     const cat = await tools.catalogSchemas();
     const ap = cat.find((x) => x.name === 'apply_ops'), guide = await run(app, 'get_guide', { topic: 'ops' });
     const listed = JSON.stringify(cat.map((x) => ({ name: x.name, title: x.annotations?.title, description: x.description, inputSchema: x.input_schema, annotations: x.annotations }))).length;
-    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 70000,
-      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars`);
+    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 69000,
+      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars (under 69,000 since the prompt diet trimmed adjust and transform; 70,000 before)`);
+    // the prompt diet: the system prompt carries the rules and the voice, and points at the guides for the rest (the
+    // device guide, every op's fields, the lexicon); a cap so it can't regrow unnoticed
+    const sys = await prompt.buildSystemPrompt();
+    const tg = await run(app, 'get_guide', { topic: 'transforms' }), dg = await run(app, 'get_guide', { topic: 'devices' });
+    t.ok(sys.length < 9500 && sys.includes(prompt.ETIQUETTE) && sys.includes(prompt.NOTES_BRIEF) && !sys.includes(prompt.OPS_CHEATSHEET) && !sys.includes((dg.guide || 'x').slice(0, 400)) && /get_guide "devices"/.test(sys) && /get_guide "ops"/.test(sys)
+      && /humanize: .*amount=0\.35/.test(tg.guide || '') && /get_guide "transforms"/.test(cat.find((x) => x.name === 'transform').description) && /etiquette is in your system prompt/.test(tools.IN_APP_DESCRIPTIONS.get_guide),
+      `node: the system prompt is ${sys.length} chars (under 9,500; 29,509 before the prompt diet), with the etiquette and without the ops sheet or the device guide, which get_guide serves; get_guide "transforms" has every transform's params`);
     // the activity chips have words for every tool, and count one device as one
     const app2 = mk();
     const names = cat.map((x) => x.name);

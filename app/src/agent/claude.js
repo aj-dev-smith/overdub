@@ -28,7 +28,7 @@
 // they are only stripped once, at a trim boundary or as the documented recovery).
 
 import { buildSystemPrompt } from './prompt.js';
-import { runTool, schemas, cancelRequest } from './tools.js';
+import { runTool, schemas, cancelRequest, IN_APP_DESCRIPTIONS } from './tools.js';
 import { runMock } from './mock.js';
 import { isLocalHost } from './bridge.js';
 
@@ -153,7 +153,8 @@ export function createAgent(app) {
   }
   function toolDefs() {
     // only the fields the Messages API takes on a tool: the catalog's MCP annotations would be refused (a 400)
-    const list = schemas().map(({ name, description, input_schema }) => ({ name, description, input_schema, eager_input_streaming: true }));
+    // (IN_APP_DESCRIPTIONS: a few say less here, where the system prompt already says it)
+    const list = schemas().map(({ name, description, input_schema }) => ({ name, description: IN_APP_DESCRIPTIONS[name] || description, input_schema, eager_input_streaming: true }));
     list[list.length - 1] = { ...list[list.length - 1], cache_control: { type: 'ephemeral' } };
     return list;
   }

@@ -1287,9 +1287,13 @@ AGENTS.md documents each tool in the catalog; by job:
   and tempo go straight through; so does everything after Make it yours. `arrange_song` dispatches its plan's
   primitives with `as: [the arrangement op]`, so a split or bars put in read as what they are.
 - **The prompt** (`agent/prompt.js`): `ETIQUETTE` (the rules of the room, also `get_guide "etiquette"` and the MCP
-  server's `instructions`), `OPS_CHEATSHEET`, `NOTES_FORMAT`, the kernel guide (`kernel/guide.js`) and the lexicon
-  summary. The system prompt is frozen per conversation (prompt caching); the live context travels in each user
-  message.
+  server's `instructions`), the voice, `NOTES_BRIEF` (notes text, drum grids, time) and one line each pointing at the
+  rest. Every API call re-reads the system prompt, so what only some requests need stays a `get_guide` topic away:
+  the kernel guide (`kernel/guide.js`, topic `devices`), `OPS_CHEATSHEET` + `NOTES_FORMAT` (`ops`), the lexicon
+  (`lexicon`) and the transforms' params (`transforms`); `tools/agent-test.js` caps the prompt's size and the
+  catalog's. The in-app agent gets `IN_APP_DESCRIPTIONS` (`agent/tools.js`) in place of a few catalog descriptions
+  that would repeat its prompt. The system prompt is frozen per conversation (prompt caching); the live context
+  travels in each user message.
 - **Plumbing.** `app.agent` (the in-app client: `send`, `stop`, `setKey`, `useMock`, `on`), `app.bridge` (MCP connection
   state), `app.remote` (the Connect tab); ui events `agent:compose { text, attach, send? }`, `agent:tool`, `agent:say`,
   `agent:request`, `agent:tools`, `edit-clip { track, clip }`, `focus`, `presence`, `presence:status`, `bridge:state`,

@@ -368,7 +368,7 @@ also means regenerating `server/relay-catalog.json`.
 | `get_selection` | "Act on THIS by default." | `ETIQUETTE` rule 1 already ("Act on the current selection"): drop |
 | `get_history` | "Check it before re-doing something: if the human undid or changed your work, respect that." | `ETIQUETTE` rule 6 already ("If the human undoes something, don't redo it"); add "get_history shows it" there, as AGENTS.md has it |
 | `apply_ops` | "Small, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead." (now in step with `ETIQUETTE` rule 2; the ops sheet that held "use adjust with over and shape" left the description for `get_guide "ops"`, FRESH-EYES-6) | `ETIQUETTE` rule 2 already: drop |
-| `define_device` | "(read get_guide "devices" first: the dsp stdlib and two working examples)" | the servers' instructions already ("…get_guide "devices" before define_device") and the in-app prompt carries the guide: drop |
+| `define_device` | "(read get_guide "devices" first: the dsp stdlib and two working examples)" | the servers' instructions already ("…get_guide "devices" before define_device") and the in-app prompt points at it too: drop |
 | `define_device` | "…is refused, with the reason: fix and call again." | stays as "is refused with the reason"; the retry is the agent's own |
 | `define_device` | "someone else's device is refused unless replace: true, after the human agreed" | the condition moves to `ETIQUETTE` (with rule 8's device lines): `replace: true` only after the person said yes |
 | `render_and_measure` | "Listen (you can't hear, so the studio renders offline …)" | `ETIQUETTE` rule 4 already says it; the description can start at "Renders offline through the graph the person hears" |
