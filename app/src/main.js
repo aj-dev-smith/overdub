@@ -20,7 +20,9 @@ const params = new URLSearchParams(location.search);
 const DEVICE_MODULES = ['./devices/builtin/index.js', './devices/guitar/index.js', './devices/library/index.js'];
 // The studio's panels and features, in load order.
 const MODULES = [
-  './ui/transport.js', './ui/arranger.js', './ui/pianoroll.js', './ui/drumgrid.js', './ui/rack.js', './ui/mixer.js',
+  './ui/transport.js', './ui/arranger.js',
+  './ui/round.js', // ?view=round only (a prototype): the section as a circle, a ring per track, over the simple view
+  './ui/pianoroll.js', './ui/drumgrid.js', './ui/rack.js', './ui/mixer.js',
   './ui/browser.js', './ui/inspector.js', './ui/export.js', './ui/sketch.js', './input/index.js',
   './agent/transforms-tool.js', // the `transform` tool (core/transforms.js); before the bridges so MCP clients list it
   './agent/arrange-tool.js', // "Build a band around it" (core/arrange.js): Sketch's Band button, Shift+B, the arrange_around tool
@@ -200,7 +202,7 @@ async function boot() {
   const em = await engineLoading;
   const engine = em ? em.createEngine(store) : silentEngine(store);
 
-  const app = { store, engine, devices, music, summarize: (o) => summarize(store.get(), { ...o, devices: devices.getDevice, held: devices.heldDevice }), version: '0.1.0', agent: null, tools: null, input: null, opened };
+  const app = { store, engine, devices, music, summarize: (o) => summarize(store.get(), { ...o, devices: devices.getDevice, held: devices.heldDevice }), version: '0.1.0', agent: null, tools: null, input: null, opened, round: !!workspace.round };
   if (shared) app.share = { incoming: shared, listening: !!shared.ok };
   // app.trust: what's held, and the person's way to let it play (ui/share.js and the rack call play; no agent tool does)
   app.trust = {

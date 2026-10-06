@@ -26,12 +26,15 @@ export function readSaved(storage) {
 }
 
 // The view this load opens in, in order: ?view= (this load only), the saved view, full under a test browser
-// (navigator.webdriver), full for an existing user, else simple. -> { view, persist, from }
+// (navigator.webdriver), full for an existing user, else simple. -> { view, persist, from, round? }
 // persist: write the view to storage now (the last two: the choice is made once, then remembered).
+// ?view=round (a prototype, ui/round.js) is the simple view with the song drawn as a circle on top: round: true, for
+// this load only, never written down.
 export function decideView({ search = '', storage = null, webdriver = false } = {}) {
   let q = null;
   try { q = new URLSearchParams(search || '').get('view'); } catch (e) { q = null; }
   if (VIEWS.includes(q)) return { view: q, persist: false, from: 'url' };
+  if (q === 'round') return { view: 'simple', persist: false, from: 'url', round: true };
   const saved = readSaved(storage);
   if (saved.view) return { view: saved.view, persist: false, from: 'saved' };
   if (webdriver) return { view: 'full', persist: false, from: 'webdriver' };
