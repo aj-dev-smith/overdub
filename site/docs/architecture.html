@@ -1219,9 +1219,13 @@ auditioned before Keep). A card for a song that closed is cancelled. Adds, mix m
 and tempo go straight through; so does everything after Make it yours. <code>arrange_song</code> dispatches its plan's
 primitives with <code>as: [the arrangement op]</code>, so a split or bars put in read as what they are.</li>
 <li><strong>The prompt</strong> (<code>agent/prompt.js</code>): <code>ETIQUETTE</code> (the rules of the room, also <code>get_guide &quot;etiquette&quot;</code> and the MCP
-server's <code>instructions</code>), <code>OPS_CHEATSHEET</code>, <code>NOTES_FORMAT</code>, the kernel guide (<code>kernel/guide.js</code>) and the lexicon
-summary. The system prompt is frozen per conversation (prompt caching); the live context travels in each user
-message.</li>
+server's <code>instructions</code>), the voice, <code>NOTES_BRIEF</code> (notes text, drum grids, time) and one line each pointing at the
+rest. Every API call re-reads the system prompt, so what only some requests need stays a <code>get_guide</code> topic away:
+the kernel guide (<code>kernel/guide.js</code>, topic <code>devices</code>), <code>OPS_CHEATSHEET</code> + <code>NOTES_FORMAT</code> (<code>ops</code>), the lexicon
+(<code>lexicon</code>) and the transforms' params (<code>transforms</code>); <code>tools/agent-test.js</code> caps the prompt's size and the
+catalog's. The in-app agent gets <code>IN_APP_DESCRIPTIONS</code> (<code>agent/tools.js</code>) in place of a few catalog descriptions
+that would repeat its prompt. The system prompt is frozen per conversation (prompt caching); the live context
+travels in each user message.</li>
 <li><strong>Plumbing.</strong> <code>app.agent</code> (the in-app client: <code>send</code>, <code>stop</code>, <code>setKey</code>, <code>useMock</code>, <code>on</code>), <code>app.bridge</code> (MCP connection
 state), <code>app.remote</code> (the Connect tab); ui events <code>agent:compose { text, attach, send? }</code>, <code>agent:tool</code>, <code>agent:say</code>,
 <code>agent:request</code>, <code>agent:tools</code>, <code>edit-clip { track, clip }</code>, <code>focus</code>, <code>presence</code>, <code>presence:status</code>, <code>bridge:state</code>,

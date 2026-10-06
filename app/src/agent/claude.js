@@ -28,7 +28,7 @@
 // they are only stripped once, at a trim boundary or as the documented recovery).
 
 import { buildSystemPrompt } from './prompt.js';
-import { runTool, schemas, cancelRequest } from './tools.js';
+import { runTool, schemas, cancelRequest, IN_APP_DESCRIPTIONS } from './tools.js';
 import { runMock } from './mock.js';
 import { isLocalHost } from './bridge.js';
 
@@ -45,7 +45,7 @@ const LOCAL_KEY = 'overdub:agent-local';
 const SESSION_KEY = 'overdub:agent:local-session:';
 const PLAN_KEY = 'overdub:agent:local-plan';
 // The system prompt names the tools bare; Claude Code lists them with the MCP server's prefix
-const LOCAL_NOTE = '\n\nYou are running inside Claude Code on the human\'s computer, answering them in the studio\'s Agent panel. Your studio tools are listed as mcp__overdub__<name>: get_project here means mcp__overdub__get_project. You have no other tools. Write to the human in your reply, as in the panel; say is for when they may not be reading it.';
+const LOCAL_NOTE = '\n\nYou are running inside Claude Code on the human\'s computer, answering them in the studio\'s Agent panel. Your studio tools are listed as mcp__overdub__<name>: get_project here means mcp__overdub__get_project. You have no other tools. Write to the human in your reply, as in the panel; say is for when they may not be reading it. The Overdub server\'s instructions and get_guide\'s description tell outside agents to read get_guide "etiquette" first: those are the rules above, so you can skip that topic.';
 const MAX_ITERS = 30;
 const TRIM_AT = 700000;        // characters of JSON history before trimming (~175k tokens)
 const TRIM_TO = 260000;
@@ -153,7 +153,8 @@ export function createAgent(app) {
   }
   function toolDefs() {
     // only the fields the Messages API takes on a tool: the catalog's MCP annotations would be refused (a 400)
-    const list = schemas().map(({ name, description, input_schema }) => ({ name, description, input_schema, eager_input_streaming: true }));
+    // (IN_APP_DESCRIPTIONS: a few say less here, where the system prompt already says it)
+    const list = schemas().map(({ name, description, input_schema }) => ({ name, description: IN_APP_DESCRIPTIONS[name] || description, input_schema, eager_input_streaming: true }));
     list[list.length - 1] = { ...list[list.length - 1], cache_control: { type: 'ephemeral' } };
     return list;
   }

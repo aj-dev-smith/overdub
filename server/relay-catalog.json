@@ -29,7 +29,7 @@
  },
  {
   "name": "get_guide",
-  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it).",
+  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), \"transforms\" (every transform with its params and defaults).",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -39,7 +39,8 @@
       "etiquette",
       "devices",
       "ops",
-      "lexicon"
+      "lexicon",
+      "transforms"
      ]
     }
    },
@@ -98,7 +99,7 @@
  },
  {
   "name": "apply_ops",
-  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason (why, in musician terms). All-or-nothing: if any op fails nothing changes and you get the failing op's index and an explanation.\nReturns created ids (by ref), a compact diff of what changed, and the undo hint.\nOps (get_guide \"ops\" has each op's fields in full, automation lanes, the notes and drum-grid formats, and examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). Param values are in each param's units and range (list_devices detail \"params\", get_device): one outside it is refused, with the range; a switch takes its number or its name; preset: \"<name>\" sets that whole sound, params on top. Devices: define_device.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.",
+  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason, in musician terms. All-or-nothing: if any op fails nothing changes, and you get which op and why.\nReturns created ids (by ref), a diff and the undo hint.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.\nOps (get_guide \"ops\" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). preset: \"<name>\" sets a device's whole sound (get_device lists them), params on top. Param values are in each param's units: one out of range is refused, with the range; a switch takes its number or its name.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -380,7 +381,7 @@
  },
  {
   "name": "adjust",
-  "description": "A perceptual move, measured: \"brightness a bit\", \"warmth a touch\", \"less mud\", \"more space\". Resolves the word through the translator lexicon to concrete params on the devices already on the target (filter cutoff, tone, drive, reverb mix …) or adds an EQ / comp / reverb insert when needed, applies it (one undo step), renders and measures before/after, corrects once if the measured change went the wrong way or was too small (on an insert it added too), and returns exactly which params moved, the measured result for the axis, and any level side effect.\naxis: a word or axis (brightness, warmth, air, mud, boom, body, harshness, honk, grit, punch, squash, space, distance, width, length, level, swing, laid_back, tight_timing, dynamics — or words like warm, dark, punchy, lush, lazy, tight). direction: \"more\" (default) | \"less\". amount: \"a_touch\" | \"a_bit\" (default) | \"a_lot\".\nTime-feel axes (swing, laid_back, tight_timing, dynamics) move notes in the target clip(s) instead of params.\nover (bars, beats or a section) makes it automation: the move is written as lanes on the params it moves, only over that range, in a shape: \"hold\" (default: in over half a beat, held, back out at the end), \"ramp\" (from where it is to the moved value across the range, then stays; ramp_up / ramp_down say which way when direction isn't given), \"build\" (a riser: it jumps at the start of the range to well below where it plays now, drop: the share of the knob's travel, default 0.4, and rises to the moved value; the bars before keep their value), \"swell\" (out and back, peaking in the middle; dip is the same downwards), \"fade_in\" / \"fade_out\" (the fader from −60 dB up to the track's level, or from it down to −60 dB; the level is the lane's value at that end, or the fader's when the lane is silent there, and always an explicit point; a fade out that ends before the song does comes back to the level it had there, and points the human drew at either end are kept). The result lists replaced: the human's points the lanes took out (say so in the reply), and trend_mismatch when the per-bar numbers don't rise (or fall) the way a ramp or build was meant to: say it barely changed and offer to start lower, never call it a build. When the per-bar numbers contradict the move (a fade in that ends silent or no louder), the result has contradiction: say so plainly and undo or retry; never report it as done. \"Open the filter over the chorus\" = { axis: \"brightness\", over: { section: \"Chorus\" }, shape: \"ramp\" }; \"fade the pad in over bars 1–4\" = { axis: \"level\", target: { track: \"Pad\" }, over: { bars: [1, 4] }, shape: \"fade_in\" }. It measures the first and last bars of the range and the bars either side before and after, corrects once if the last bar moved the wrong way or too little, and reports per-bar numbers.\nA param that already has a lane (not held): without over, adjust moves the whole lane by the planned amount (its shape kept) instead of the knob's own value, and says so.\nWords people disagree on (warm/cold, fat, tight): the first time, adjust doesn't guess. It shows the human two audible readings as A/B cards (\"Darker top\" vs \"Fuller low-mid\"), waits for the pick (wait_seconds, default 90), applies it and remembers it as their meaning; it returns { asked: true, picked, learned } or { status: \"pending\", id } (poll get_variation_result). After that it uses their meaning without asking and returns personal: 'using your \"warm\": darker top' — tell them so. reading: a reading id to use this once without asking (only when the human just told you which they mean).",
+  "description": "A perceptual move, measured: \"brightness a bit\", \"warmth a touch\", \"less mud\", \"more space\". Moves params on the target's devices (or adds an EQ / comp / reverb) as one undo step, measures before and after, corrects once if it went the wrong way or too little, and returns what moved and the measurement.\naxis: brightness, warmth, air, mud, boom, body, harshness, honk, grit, punch, squash, space, distance, width, length, level, or a time-feel one that moves notes instead (swing, laid_back, tight_timing, dynamics); words like warm, dark, punchy, lazy work too.\nover (bars, beats or a section) writes it as lanes over that range only, in a shape (build: a riser from well under where it plays now; fade_in / fade_out: the fader from or to −60 dB; a fade out that ends mid-song comes back to its level), with per-bar numbers. The result lists replaced: the human's points the lanes took out (say so in the reply), and trend_mismatch when the per-bar numbers don't rise (or fall) the way a ramp or build was meant to: say it barely changed and offer to start lower, never call it a build. When the per-bar numbers contradict the move (a fade in that ends silent or no louder), the result has contradiction: say so plainly and undo or retry; never report it as done. \"Fade the pad in over bars 1–4\" = { axis: \"level\", target: { track: \"Pad\" }, over: { bars: [1, 4] }, shape: \"fade_in\" }.\nA param that already has a lane (not held): without over, adjust moves the whole lane by the planned amount (its shape kept) instead of the knob's own value, and says so.\nWords people disagree on (warm/cold, fat, tight): the first time, adjust doesn't guess. It shows the human two audible readings as A/B cards (\"Darker top\" vs \"Fuller low-mid\"), waits for the pick, applies it and remembers it as their meaning; it returns { asked: true, picked, learned } or { status: \"pending\", id } (poll get_variation_result). After that it uses their meaning without asking and returns personal: 'using your \"warm\": darker top' — tell them so.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -392,7 +393,8 @@
      "enum": [
       "more",
       "less"
-     ]
+     ],
+     "description": "default more"
     },
     "amount": {
      "type": "string",
@@ -400,7 +402,8 @@
       "a_touch",
       "a_bit",
       "a_lot"
-     ]
+     ],
+     "description": "default a_bit"
     },
     "target": {
      "type": "object",
@@ -443,23 +446,19 @@
        "type": "array",
        "items": {
         "type": "number"
-       },
-       "description": "[first, last] bar, 1-based inclusive, e.g. [1, 4]"
+       }
       },
       "from": {
-       "type": "number",
-       "description": "start in beats (alternative to bars)"
+       "type": "number"
       },
       "to": {
-       "type": "number",
-       "description": "end in beats"
+       "type": "number"
       },
       "section": {
-       "type": "string",
-       "description": "a section id or name, e.g. \"Chorus\""
+       "type": "string"
       }
      },
-     "description": "write the move as automation over this range only (bars, from/to beats or a section); the range adjust measures is then this one plus a bar either side"
+     "description": "automation over this range only (bars, from/to beats or a section)"
     },
     "shape": {
      "type": "string",
@@ -474,18 +473,18 @@
       "fade_in",
       "fade_out"
      ],
-     "description": "with over: the shape of the lane (default hold)"
+     "description": "with over. hold (default): in, held, out at the end. ramp: to the new value across the range, then stays (ramp_up / ramp_down say which way without direction). swell: out and back, peaking mid-range (dip: downwards)"
     },
     "drop": {
      "type": "number",
-     "description": "shape build: how far under where it plays now the build starts, as a share of the knob's travel (0.1-0.8, default 0.4)"
+     "description": "build: the start under where it plays now, a share of the knob's travel (0.1-0.8, default 0.4)"
     },
     "reason": {
      "type": "string"
     },
     "reading": {
      "type": "string",
-     "description": "warm: darker_top | fuller_lowmid; fat: fuller_low | wider_layered; tight: on_the_grid | shorter_tails"
+     "description": "a reading to use once without asking, only when the human just told you which they mean. warm: darker_top | fuller_lowmid; fat: fuller_low | wider_layered; tight: on_the_grid | shorter_tails"
     },
     "wait_seconds": {
      "type": "number",
@@ -900,7 +899,7 @@
  },
  {
   "name": "transform",
-  "description": "Run a named musical transform or infill on notes, deterministically (the same seed gives the same notes), as ONE undo step signed by you. The human has the same transforms in the piano roll's Transform menu.\ntarget: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (guessed from the notes when the song has none).\nmode: \"auto\" (default) applies it, unless it would rewrite or remove notes a person wrote: then nothing changes and you get { proposal: true, variations } to pass straight to propose_variations (two takes; the studio adds \"Original\"). \"propose\" always returns the proposal; \"apply\" applies even over the human's notes (only when they asked for exactly this).\ninto_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip (e.g. chords from the Hook onto Keys).\nTransforms (name: what it does. params):\nhumanize: loosen timing and velocity a little, like a player (seeded; downbeats move least). params amount=0.35, timing=true, velocity=true, seed=1\nquantize: pull onsets toward the grid by strength, with swing on every second step (music.quantize). params grid=0.25, strength=1, swing=0\nstrum: spread each chord in time, low to high (up), high to low (down) or alternating with the beat. params direction up|down|alternate, ms=30\narpeggiate: turn each chord into a pattern of its notes (up, down, updown or seeded random) at a rate. params pattern up|down|updown|random, rate=0.25, gate=0.85, seed=1\nlegato: stretch each note to the next onset (the last keeps its length), with optional overlap. params overlap=0\nstaccato: shorten every note to a fraction of its length. params length=0.5\ntranspose: move notes by scale steps in the key (2 steps = up a third), so they stay in key. params steps=2\ninvert: mirror the line around a pitch by scale steps (default: its first note), staying in key. params around first|middle|lowest|highest, pitch=null\nretrograde: play it backwards: reverse the timing (\"time\"), or keep the rhythm and reverse the pitches (\"pitches\"). params mode time|pitches\ndouble: add a copy an octave up (1) or down (-1), a little softer; skips doubles that already exist. params octave=1\nthin: keep every Nth onset, and/or drop notes quieter than a velocity. params every=2, below=0\nornament: add grace notes, mordents and turns (scale neighbours) to some notes, chosen by seed. params density=0.3, kind mix|grace|mordent|turn, seed=1\nchords_from_melody: harmonize the line in the key: a triad or seventh under it on each strong beat, voice-led. params kind triads|sevenths, every bar|half|beat\nmelody_from_chords: write a singable line over the chords: chord tones on the beats, passing and neighbour tones between (seeded). params rate=0.5, rests=0.1, seed=1\ncontinue: extend the phrase by N bars from its own motifs: repetition with variation (sequence, neighbours), cadence at the end (seeded). params bars=2, variation=0.5, seed=1\nfill_the_gap: bridge the longest silence between two phrases: the first one's motif sequenced toward the second (\"motif\"), or a scale run (\"run\"). params style motif|run, seed=1",
+  "description": "Run a named musical transform or infill on notes, deterministically (seeded), as ONE undo step signed by you (the human has the same in the piano roll's Transform menu).\ntarget: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (or the notes' own).\nmode: \"auto\" (default) applies it, unless it would rewrite or remove notes a person wrote: then nothing changes and you get { proposal: true, variations } to pass straight to propose_variations (two takes; the studio adds \"Original\"). \"propose\" always returns the proposal; \"apply\" applies even over the human's notes (only when they asked for exactly this).\ninto_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip.\nTransforms [params] (get_guide \"transforms\" has the defaults):\nhumanize: loosen timing and velocity a little [amount timing velocity seed]\nquantize: pull onsets toward the grid by strength [grid strength swing]\nstrum: spread each chord in time [direction ms]\narpeggiate: turn each chord into a pattern of its notes at a rate [pattern rate gate seed]\nlegato: stretch each note to the next onset [overlap]\nstaccato: shorten every note to a fraction of its length [length]\ntranspose: move notes by scale steps in the key [steps]\ninvert: mirror the line around a pitch by scale steps [around pitch]\nretrograde: play it backwards [mode]\ndouble: add a copy an octave up or down [octave]\nthin: keep every Nth onset [every below]\nornament: add grace notes [density kind seed]\nchords_from_melody: harmonize the line in the key [kind every]\nmelody_from_chords: write a singable line over the chords [rate rests seed]\ncontinue: extend the phrase by N bars from its own motifs [bars variation seed]\nfill_the_gap: bridge the longest silence between two phrases [style seed]",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -928,7 +927,6 @@
     },
     "target": {
      "type": "object",
-     "description": "track (id or exact name), clip (id), and optionally notes (note ids) or bars ([first, last], 1-based, song bars) to scope it",
      "properties": {
       "track": {
        "type": "string"
@@ -946,13 +944,14 @@
        "type": "array",
        "items": {
         "type": "number"
-       }
+       },
+       "description": "song bars, 1-based, not the clip's"
       }
      }
     },
     "params": {
      "type": "object",
-     "description": "the transform's params (see the list); omitted ones use their defaults"
+     "description": "omitted ones use their defaults"
     },
     "mode": {
      "type": "string",
@@ -1412,7 +1411,7 @@
  },
  {
   "name": "get_jam",
-  "description": "Reads the Jam room, whether or not it's open, and changes nothing. Returns the song's key (set, or read from its notes) and the pentatonic that fits it, with the fret its box starts at; the chords read from the song's notes, each with its bars, Roman numeral, tones by interval and, for a slash chord, its bass; the sections; where the playhead is (bar, beat, section, the chord now, the next chord and how many beats off it is); the rig (the Guitar track the room plays through, its tone and chain, what the keys play); the guitar input (open, monitoring, level, the tuner's note); the practice speed and loop; the tab lane; the neck (tuning, hand, overlays, what's shown on it); and the room's tips, one of them a two-bar lick with its tab. Chords come from notes only: audio clips aren't read, and a bar with no pitched notes has no chord.",
+  "description": "Reads the Jam room, whether or not it's open, and changes nothing. Returns the song's key (set, or read from its notes) and the pentatonic that fits it, with the fret its box starts at; the chords read from the song's notes, each with its bars, Roman numeral, tones by interval and, for a slash chord, its bass; the sections; where the playhead is (bar, beat, section, the chord now, the next chord and how many beats off it is); the rig (the Guitar track the room plays through, its tone and chain, what the keys play); the guitar input (open, monitoring, level, the tuner's note); the practice speed and loop; the tab lane; the neck (tuning, hand, overlays, what's shown on it); and the room's tips, one of them a two-bar lick with its tab. Chords come from notes only: audio clips aren't read, and a bar with no pitched notes has no chord, so offer them as a reading, not a fact. To a guitarist, talk in frets, strings and bars (\"the 5th fret, first finger on the low E\") and show it with show_on_fretboard.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -1440,7 +1439,7 @@
  },
  {
   "name": "make_jam_track",
-  "description": "Makes a backing track to play over and opens it as the song, in place of the song on screen: drums, bass and a chord part in a style, key, tempo and progression, signed by the caller, with sections, the loop round the form and a Guitar track with the style's tone. The song that was on screen goes to Recent songs, and only the person can bring it back (Song → Recent songs, or the toast's Undo for a few seconds): undo and revert_my_changes don't reach it. Refused while a take records, and on a song from someone's link until the person makes it theirs.\nstyle: blues (a twelve-bar shuffle: boogie bass, organ on the backbeat; A blues, 92 BPM); funk (a two-chord vamp: sixteenth hats, ghost notes, stabs on the e-piano; E minor, 104 BPM); indie (eighth-note bass and a bright piano under a jangly verse and chorus; G major, 122 BPM); ballad (broken piano chords, strings, a half-time kit; C major, 68 BPM); neosoul (lazy drums, ninth chords on the electric piano, a round bass; Eb major, 78 BPM); metal (a palm-muted chug on a rhythm guitar, double kick, power chords; E minor, 132 BPM); reggae (a one drop: the kick and rim on three, the organ skank on two and four; A minor, 74 BPM); bossa (the clave on the rim, a soft kick heartbeat, felt piano comping; D minor, 132 BPM); lofi (dusty Rhodes sevenths, a lazy swung beat, a warm round bass; F major, 80 BPM); rock (driving eighths, power chords and a big backbeat; E mixolydian, 116 BPM).\nkey: a note, optionally with major or minor (\"E\", \"E minor\", \"Bb\"); a bare note keeps the style's scale (a blues stays a blues). tempo: 40-240 BPM. progression: chord names, a bar each (\"Am F C G\"), or numerals in the key (\"I7 IV7 I7 V7\", \"i iv bVII\"); | puts two chords in a bar (\"C G | Am F\"), % repeats the bar before; default the style's own form (a twelve-bar for blues). bars: the length (default the form; a short progression repeats to 16 bars). seed: another take of the same recipe (velocities, fills).\nReturns the title, key, tempo, bars, the sections with their chords, the tracks and the Guitar track's tone.",
+  "description": "Makes a backing track to play over and opens it as the song, in place of the song on screen: drums, bass and a chord part in a style, key, tempo and progression, signed by the caller, with sections, the loop round the form and a Guitar track with the style's tone. The song that was on screen goes to Recent songs, and only the person can bring it back (Song → Recent songs, or the toast's Undo for a few seconds): undo and revert_my_changes don't reach it. Refused while a take records, and on a song from someone's link until the person makes it theirs.\nstyle: blues (a twelve-bar shuffle: boogie bass, organ on the backbeat; A blues, 92 BPM); funk (a two-chord vamp: sixteenth hats, ghost notes, stabs on the e-piano; E minor, 104 BPM); indie (eighth-note bass and a bright piano under a jangly verse and chorus; G major, 122 BPM); ballad (broken piano chords, strings, a half-time kit; C major, 68 BPM); neosoul (lazy drums, ninth chords on the electric piano, a round bass; Eb major, 78 BPM); metal (a palm-muted chug on a rhythm guitar, double kick, power chords; E minor, 132 BPM); reggae (a one drop: the kick and rim on three, the organ skank on two and four; A minor, 74 BPM); bossa (the clave on the rim, a soft kick heartbeat, felt piano comping; D minor, 132 BPM); lofi (dusty Rhodes sevenths, a lazy swung beat, a warm round bass; F major, 80 BPM); rock (driving eighths, power chords and a big backbeat; E mixolydian, 116 BPM).\nkey: a note, optionally with major or minor (\"E\", \"E minor\", \"Bb\"); a bare note keeps the style's scale (a blues stays a blues). tempo: 40-240 BPM. progression: chord names, a bar each (\"Am F C G\"), or numerals in the key (\"I7 IV7 I7 V7\", \"i iv bVII\"); | puts two chords in a bar (\"C G | Am F\"), % repeats the bar before; default the style's own form (a twelve-bar for blues). bars: the length (default the form; a short progression repeats to 16 bars). seed: another take of the same recipe (velocities, fills).\nReturns title, key, tempo, bars, sections and their chords, tracks, the Guitar's tone.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -1616,7 +1615,7 @@
  },
  {
   "name": "write_tab",
-  "description": "Writes a riff given as ASCII tab into the song, as notes that keep their strings and frets: a clip from bar at_bar on the Jam room's Guitar track (a DI Box track, made in the same step when there is none) or on track, with the tuning and capo it was read in, one undo step signed by the caller. When those bars on that track already hold notes, nothing changes: the take goes to the person as a card (Keep / Keep as it was) and the call returns { offered: true, id, status: \"pending\" } (get_variation_result with the id says what they chose); mode \"propose\" always does that, and so does a song from someone's link. tuning (standard: E A D G B E, drop-d: D A D G B E, half-down: Eb Ab Db Gb Bb Eb, dadgad: D A D G A D, open-g: D G D G B D) and capo: what the tab is written in (default: what its labels and a \"Drop D\" or \"Capo 2\" line say, else standard, no capo). name: the clip's name (default \"Riff\"). Returns where it landed ({ landed: \"clip\", track, clip, bars } or { landed: \"card\", id, why }), the tuning, the notes, how the text was read (read.grid; read.warnings: a tab with no = marks is read with each note ringing to the next on its string, and says so) and the tab as the studio writes it back; the Jam room's tab lane shows it. Refused while the person records on that track.\nTab text: six lines, the high e on top (e|, B|, G|, D|, A|, E|, each labelled with its open string), a bar line | every bar; one column per 16th (16 a bar in 4/4; 8th-note triplets, 12 a bar, when the rhythm swings); a number is the fret a note starts on (counted from the capo, with one), = holds it on (a note lasts the columns its number and its = take), - is silence; numbers in one column are a chord; 7b9 is picked at the 7th fret and bent up to the 9th's pitch (7b9r7: and back), 5h7 / 7p5 / 5/7 a second note not picked. A count line above (|1e+a2e+a3e+a4e+a|) is ignored when read.",
+  "description": "Writes a riff given as ASCII tab into the song, as notes that keep their strings and frets: a clip from bar at_bar on the Jam room's Guitar track (a DI Box track, made in the same step when there is none) or on track, with the tuning and capo it was read in, one undo step signed by the caller. When those bars on that track already hold notes, nothing changes: the take goes to the person as a card (Keep / Keep as it was) and the call returns { offered: true, id, status: \"pending\" } (get_variation_result with the id says what they chose); mode \"propose\" always does that, and so does a song from someone's link. tuning (standard: E A D G B E, drop-d: D A D G B E, half-down: Eb Ab Db Gb Bb Eb, dadgad: D A D G A D, open-g: D G D G B D) and capo: what the tab is written in (default: what its labels and a \"Drop D\" or \"Capo 2\" line say, else standard, no capo). name: the clip's name (default \"Riff\"). Returns where it landed ({ landed: \"clip\", track, clip, bars } or { landed: \"card\", id, why }), the tuning, the notes, how the text was read (read.grid; read.warnings: a tab with no = marks is read with each note ringing to the next on its string, and says so) and the tab as the studio writes it back; the Jam room's tab lane shows it. Refused while the person records on that track. Keep a riff under one hand (four frets), with chord tones on the strong beats from get_jam's chords, and read it back with tab_for.\nTab text: six lines, the high e on top (e|, B|, G|, D|, A|, E|, each labelled with its open string), a bar line | every bar; one column per 16th (16 a bar in 4/4; 8th-note triplets, 12 a bar, when the rhythm swings); a number is the fret a note starts on (counted from the capo, with one), = holds it on (a note lasts the columns its number and its = take), - is silence; numbers in one column are a chord; 7b9 is picked at the 7th fret and bent up to the 9th's pitch (7b9r7: and back), 5h7 / 7p5 / 5/7 a second note not picked. A count line above (|1e+a2e+a3e+a4e+a|) is ignored when read.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -1688,7 +1687,7 @@
  },
  {
   "name": "suggest_riff",
-  "description": "Offers the house riff writer's riffs for a section of the song as takes on a card (2-4, default 3), each a 1-4 bar riff as tab on the Guitar track over the section's first bars (its chord cycle). The writer is a deterministic program, not a model: a style's motif, repeated over the bars and answered with another ending, on the chords sounding there; chord tones on beats 1 and 3, the rest from the key's scale or pentatonic; every note under one hand position, fingered; each riff's text says what it does and only what it checked. section: a section name or id, or bars: [first, last] (default: the section at the playhead). style: rock (driving eighths on the low strings: roots, fifths and the pentatonic); blues (a shuffle: the boogie walk, a two-string shuffle, a call with a blue third); funk (tight sixteenths in the middle of the neck: octave pops, the seventh, a walk); indie (a chord shape picked across the strings and let ring, the top note moving); metal (palm-muted chugs on the low string with power-chord accents) (default: the song's, from a jam track's style or a blues key, else rock). difficulty: easy (eighths, single notes, low frets), medium (default), hard (sixteenth passing notes, bends). seed: the same seed gives the same riffs; next_seed gives the next ones. Uses the Jam room's tuning. Returns { status: \"pending\", id, takes: [{ label, text, tab, notes, position }], section, bars, chords, style, difficulty, next_seed }; the person holds a take to hear it on the Guitar track and keeps one (get_variation_result with the id says which; wait_seconds waits for it). The Jam room's tab lane shows the takes too. Refused while the person records on the Guitar track.",
+  "description": "Offers the house riff writer's riffs for a section of the song as takes on a card (2-4, default 3), each a 1-4 bar riff as tab on the Guitar track over the section's first bars (its chord cycle). The writer is a deterministic program, not a model: a style's motif, repeated over the bars and answered with another ending, on the chords sounding there; chord tones on beats 1 and 3, the rest from the key's scale or pentatonic; every note under one hand position, fingered; each riff's text says what it does and only what it checked. section: a section name or id, or bars: [first, last] (default: the section at the playhead). style: rock (driving eighths on the low strings: roots, fifths and the pentatonic); blues (a shuffle: the boogie walk, a two-string shuffle, a call with a blue third); funk (tight sixteenths in the middle of the neck: octave pops, the seventh, a walk); indie (a chord shape picked across the strings and let ring, the top note moving); metal (palm-muted chugs on the low string with power-chord accents) (default: the song's, from a jam track's style or a blues key, else rock). difficulty: easy (eighths, single notes, low frets), medium (default), hard (sixteenth passing notes, bends). seed: the same seed gives the same riffs; next_seed gives the next ones. Uses the Jam room's tuning. Returns { status: \"pending\", id, takes: [{ label, text, tab, notes, position }], section, bars, chords, style, difficulty, next_seed }; the person holds a take to hear it on the Guitar track and keeps one (get_variation_result with the id says which; wait_seconds waits for it). The Jam room's tab lane shows the takes too. Refused while the person records on the Guitar track. The riffs are the house writer's: say so, never call them yours.",
   "input_schema": {
    "type": "object",
    "properties": {

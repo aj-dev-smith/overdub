@@ -53,7 +53,7 @@ function resolveTarget(app, target) {
     const bpb = beatsPerBar(app.store.get().meter);
     const a = (Math.max(1, Number(t.bars[0]) || 1) - 1) * bpb, b = Math.max(1, Number(t.bars[1] ?? t.bars[0]) || 1) * bpb;
     ids = f.clip.notes.filter((n) => f.clip.start + n.t >= a - 1e-6 && f.clip.start + n.t < b - 1e-6).map((n) => n.id);
-    if (!ids.length) return { error: err(`no notes in bars ${t.bars.join('–')} of that clip`, `the clip covers beats ${f.clip.start}–${f.clip.start + f.clip.length}`) };
+    if (!ids.length) return { error: err(`no notes in bars ${t.bars.join('–')} of that clip`, `bars are the song's, 1-based: the clip covers bars ${Math.floor(f.clip.start / bpb) + 1}–${Math.ceil((f.clip.start + f.clip.length) / bpb)} (beats ${f.clip.start}–${f.clip.start + f.clip.length})`) };
     scope += `, bars ${t.bars[0]}–${t.bars[1] ?? t.bars[0]}`;
   } else if (!target && sel.clip === f.clip.id && sel.notes?.size) {
     ids = [...sel.notes].filter((id) => f.clip.notes.some((n) => n.id === id));
@@ -97,11 +97,30 @@ function altParams(t, p) {
   return 'seed' in t.params ? { ...cur, seed: (Number(cur.seed) || 1) + 1 } : null;
 }
 
+// What a transform takes, for an error: each param with its options or range and its default.
+const paramsHint = (t) => `${t.name} takes ${Object.entries(t.params).map(([k, s]) => (s.opts ? `${k}: ${s.opts.join(' | ')}` : typeof s.def === 'boolean' ? `${k}: true | false` : k === 'seed' ? 'seed: any number' : `${k}: a number${s.min != null ? ` ${+s.min.toFixed(5)} to ${+s.max.toFixed(5)}` : ''}`) + (s.def != null ? ` (default ${s.def})` : '')).join('; ')}`;
+
+// readParams quietly falls back to the default for a value it can't read (the piano roll's menu never sends one);
+// an agent's "octave: 'down'" would then double an octave UP and report success, so a bad one is refused here.
+function badParam(t, params) {
+  for (const [k, v] of Object.entries(params)) {
+    const s = t.params[k];
+    if (!s) return `${t.name} has no param "${k}"`;
+    if (v === undefined || v === null || v === '') continue;
+    if (s.opts && !s.opts.includes(String(v))) return `${k} "${v}" isn't one of ${t.name}'s options`;
+    if (!s.opts && typeof s.def === 'boolean' && ![true, false, 'true', 'false', 0, 1].includes(v)) return `${k} must be true or false`;
+    if (!s.opts && typeof s.def !== 'boolean' && k !== 'seed' && !Number.isFinite(Number(v))) return `${k} must be a number, not "${v}"`;
+  }
+  return null;
+}
+
 function runTool(app, by, input) {
   const t = findTransform(input.name);
   if (!t) return err(`no transform "${input.name}"`, `transforms: ${TRANSFORMS.map((x) => x.name).join(', ')}`);
   const params = parse(input.params) || {};
-  if (typeof params !== 'object') return err('params must be an object', `e.g. ${JSON.stringify(t.presets[0])}`);
+  if (typeof params !== 'object' || Array.isArray(params)) return err('params must be an object', `e.g. ${JSON.stringify(t.presets[0])}`);
+  const bad = badParam(t, params);
+  if (bad) return err(bad, `${paramsHint(t)}. Nothing changed.`);
   const target = parse(input.target);
   const tr = resolveTarget(app, target && typeof target === 'object' ? target : null);
   if (tr.error) return tr.error;

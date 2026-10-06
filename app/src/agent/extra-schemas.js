@@ -14,7 +14,7 @@
 // tools/relay-catalog.js won't write a catalog with a tool that has none.
 
 import { STYLES, STYLE_IDS, PARTS } from '../core/arrange.js';
-import { TRANSFORMS, catalog as transformCatalog } from '../core/transforms.js';
+import { TRANSFORMS } from '../core/transforms.js';
 import { library as grooveLibrary, PARTS as GROOVE_PARTS } from '../core/grooves.js';
 import { JAM_STYLES, JAM_STYLE_IDS } from '../core/jam.js';
 import { RIFF_STYLES, RIFF_STYLE_IDS, DIFFICULTIES } from '../core/riff.js';
@@ -24,22 +24,21 @@ const TUNING_LIST = TUNING_IDS.map((id) => `${id}: ${TUNINGS[id].notes}`).join('
 export const TRANSFORM_SCHEMA = {
   name: 'transform',
   annotations: { title: 'Transform notes', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },   // can rewrite or remove the person's notes (mode apply)
-  description: `Run a named musical transform or infill on notes, deterministically (the same seed gives the same notes), as ONE undo step signed by you. The human has the same transforms in the piano roll's Transform menu.
-target: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (guessed from the notes when the song has none).
+  description: `Run a named musical transform or infill on notes, deterministically (seeded), as ONE undo step signed by you (the human has the same in the piano roll's Transform menu).
+target: { track, clip, notes?: [note ids], bars?: [first, last] } (default: the human's selected clip and notes). Without notes/bars it works on the whole clip. Pitch-writing transforms stay in the song's key (or the notes' own).
 mode: "auto" (default) applies it, unless it would rewrite or remove notes a person wrote: then nothing changes and you get { proposal: true, variations } to pass straight to propose_variations (two takes; the studio adds "Original"). "propose" always returns the proposal; "apply" applies even over the human's notes (only when they asked for exactly this).
-into_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip (e.g. chords from the Hook onto Keys).
-Transforms (name: what it does. params):
-${transformCatalog()}`,
+into_track: for transforms that only add notes (double, chords_from_melody, melody_from_chords, continue, fill_the_gap...), put the new notes in a new clip on that track at the same place instead of in the source clip.
+Transforms [params] (get_guide "transforms" has the defaults):
+${TRANSFORMS.map((t) => `${t.name}: ${t.blurb.replace(/\s*\([^)]*\)/g, '').split(/[,:;]/)[0].trim().replace(/\.$/, '')} [${Object.keys(t.params).join(' ')}]`).join('\n')}`,
   input_schema: {
     type: 'object',
     properties: {
       name: { type: 'string', enum: TRANSFORMS.map((t) => t.name), description: 'which transform' },
       target: {
         type: 'object',
-        description: 'track (id or exact name), clip (id), and optionally notes (note ids) or bars ([first, last], 1-based, song bars) to scope it',
-        properties: { track: { type: 'string' }, clip: { type: 'string' }, notes: { type: 'array', items: { type: 'string' } }, bars: { type: 'array', items: { type: 'number' } } },
+        properties: { track: { type: 'string' }, clip: { type: 'string' }, notes: { type: 'array', items: { type: 'string' } }, bars: { type: 'array', items: { type: 'number' }, description: 'song bars, 1-based, not the clip\'s' } },
       },
-      params: { type: 'object', description: 'the transform\'s params (see the list); omitted ones use their defaults' },
+      params: { type: 'object', description: 'omitted ones use their defaults' },
       mode: { type: 'string', enum: ['auto', 'apply', 'propose'] },
       into_track: { type: 'string', description: 'additive transforms only: write the new notes into a new clip on this track' },
       label: { type: 'string', description: 'History label (default: the transform and its setting)' },
@@ -228,7 +227,7 @@ export const DRUM_TRACK_SCHEMA = {
 export const JAM_SCHEMA = {
   name: 'get_jam',
   annotations: { title: 'Read the Jam room', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  description: `Reads the Jam room, whether or not it's open, and changes nothing. Returns the song's key (set, or read from its notes) and the pentatonic that fits it, with the fret its box starts at; the chords read from the song's notes, each with its bars, Roman numeral, tones by interval and, for a slash chord, its bass; the sections; where the playhead is (bar, beat, section, the chord now, the next chord and how many beats off it is); the rig (the Guitar track the room plays through, its tone and chain, what the keys play); the guitar input (open, monitoring, level, the tuner's note); the practice speed and loop; the tab lane; the neck (tuning, hand, overlays, what's shown on it); and the room's tips, one of them a two-bar lick with its tab. Chords come from notes only: audio clips aren't read, and a bar with no pitched notes has no chord.`,
+  description: `Reads the Jam room, whether or not it's open, and changes nothing. Returns the song's key (set, or read from its notes) and the pentatonic that fits it, with the fret its box starts at; the chords read from the song's notes, each with its bars, Roman numeral, tones by interval and, for a slash chord, its bass; the sections; where the playhead is (bar, beat, section, the chord now, the next chord and how many beats off it is); the rig (the Guitar track the room plays through, its tone and chain, what the keys play); the guitar input (open, monitoring, level, the tuner's note); the practice speed and loop; the tab lane; the neck (tuning, hand, overlays, what's shown on it); and the room's tips, one of them a two-bar lick with its tab. Chords come from notes only: audio clips aren't read, and a bar with no pitched notes has no chord, so offer them as a reading, not a fact. To a guitarist, talk in frets, strings and bars ("the 5th fret, first finger on the low E") and show it with show_on_fretboard.`,
   input_schema: {
     type: 'object',
     properties: {
@@ -245,7 +244,7 @@ export const JAM_TRACK_SCHEMA = {
   description: `Makes a backing track to play over and opens it as the song, in place of the song on screen: drums, bass and a chord part in a style, key, tempo and progression, signed by the caller, with sections, the loop round the form and a Guitar track with the style's tone. The song that was on screen goes to Recent songs, and only the person can bring it back (Song → Recent songs, or the toast's Undo for a few seconds): undo and revert_my_changes don't reach it. Refused while a take records, and on a song from someone's link until the person makes it theirs.
 style: ${JAM_STYLE_IDS.map((s) => `${s} (${JAM_STYLES[s].blurb}; ${JAM_STYLES[s].key.root} ${JAM_STYLES[s].key.scale}, ${JAM_STYLES[s].tempo} BPM)`).join('; ')}.
 key: a note, optionally with major or minor ("E", "E minor", "Bb"); a bare note keeps the style's scale (a blues stays a blues). tempo: 40-240 BPM. progression: chord names, a bar each ("Am F C G"), or numerals in the key ("I7 IV7 I7 V7", "i iv bVII"); | puts two chords in a bar ("C G | Am F"), % repeats the bar before; default the style's own form (a twelve-bar for blues). bars: the length (default the form; a short progression repeats to 16 bars). seed: another take of the same recipe (velocities, fills).
-Returns the title, key, tempo, bars, the sections with their chords, the tracks and the Guitar track's tone.`,
+Returns title, key, tempo, bars, sections and their chords, tracks, the Guitar's tone.`,
   input_schema: {
     type: 'object',
     properties: {
@@ -319,7 +318,7 @@ export const TAB_FOR_SCHEMA = {
 export const WRITE_TAB_SCHEMA = {
   name: 'write_tab',
   annotations: { title: 'Write a riff as tab', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },   // a take the person keeps replaces what was in those bars
-  description: `Writes a riff given as ASCII tab into the song, as notes that keep their strings and frets: a clip from bar at_bar on the Jam room's Guitar track (a DI Box track, made in the same step when there is none) or on track, with the tuning and capo it was read in, one undo step signed by the caller. When those bars on that track already hold notes, nothing changes: the take goes to the person as a card (Keep / Keep as it was) and the call returns { offered: true, id, status: "pending" } (get_variation_result with the id says what they chose); mode "propose" always does that, and so does a song from someone's link. tuning (${TUNING_LIST}) and capo: what the tab is written in (default: what its labels and a "Drop D" or "Capo 2" line say, else standard, no capo). name: the clip's name (default "Riff"). Returns where it landed ({ landed: "clip", track, clip, bars } or { landed: "card", id, why }), the tuning, the notes, how the text was read (read.grid; read.warnings: a tab with no = marks is read with each note ringing to the next on its string, and says so) and the tab as the studio writes it back; the Jam room's tab lane shows it. Refused while the person records on that track.
+  description: `Writes a riff given as ASCII tab into the song, as notes that keep their strings and frets: a clip from bar at_bar on the Jam room's Guitar track (a DI Box track, made in the same step when there is none) or on track, with the tuning and capo it was read in, one undo step signed by the caller. When those bars on that track already hold notes, nothing changes: the take goes to the person as a card (Keep / Keep as it was) and the call returns { offered: true, id, status: "pending" } (get_variation_result with the id says what they chose); mode "propose" always does that, and so does a song from someone's link. tuning (${TUNING_LIST}) and capo: what the tab is written in (default: what its labels and a "Drop D" or "Capo 2" line say, else standard, no capo). name: the clip's name (default "Riff"). Returns where it landed ({ landed: "clip", track, clip, bars } or { landed: "card", id, why }), the tuning, the notes, how the text was read (read.grid; read.warnings: a tab with no = marks is read with each note ringing to the next on its string, and says so) and the tab as the studio writes it back; the Jam room's tab lane shows it. Refused while the person records on that track. Keep a riff under one hand (four frets), with chord tones on the strong beats from get_jam's chords, and read it back with tab_for.
 ${TAB_TEXT}`,
   input_schema: {
     type: 'object',
@@ -342,7 +341,7 @@ ${TAB_TEXT}`,
 export const SUGGEST_RIFF_SCHEMA = {
   name: 'suggest_riff',
   annotations: { title: 'Suggest riffs for a section', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },   // the take the person keeps replaces what was in those bars on the Guitar track
-  description: `Offers the house riff writer's riffs for a section of the song as takes on a card (2-4, default 3), each a 1-4 bar riff as tab on the Guitar track over the section's first bars (its chord cycle). The writer is a deterministic program, not a model: a style's motif, repeated over the bars and answered with another ending, on the chords sounding there; chord tones on beats 1 and 3, the rest from the key's scale or pentatonic; every note under one hand position, fingered; each riff's text says what it does and only what it checked. section: a section name or id, or bars: [first, last] (default: the section at the playhead). style: ${RIFF_STYLE_IDS.map((s) => `${s} (${RIFF_STYLES[s].blurb})`).join('; ')} (default: the song's, from a jam track's style or a blues key, else rock). difficulty: easy (eighths, single notes, low frets), medium (default), hard (sixteenth passing notes, bends). seed: the same seed gives the same riffs; next_seed gives the next ones. Uses the Jam room's tuning. Returns { status: "pending", id, takes: [{ label, text, tab, notes, position }], section, bars, chords, style, difficulty, next_seed }; the person holds a take to hear it on the Guitar track and keeps one (get_variation_result with the id says which; wait_seconds waits for it). The Jam room's tab lane shows the takes too. Refused while the person records on the Guitar track.`,
+  description: `Offers the house riff writer's riffs for a section of the song as takes on a card (2-4, default 3), each a 1-4 bar riff as tab on the Guitar track over the section's first bars (its chord cycle). The writer is a deterministic program, not a model: a style's motif, repeated over the bars and answered with another ending, on the chords sounding there; chord tones on beats 1 and 3, the rest from the key's scale or pentatonic; every note under one hand position, fingered; each riff's text says what it does and only what it checked. section: a section name or id, or bars: [first, last] (default: the section at the playhead). style: ${RIFF_STYLE_IDS.map((s) => `${s} (${RIFF_STYLES[s].blurb})`).join('; ')} (default: the song's, from a jam track's style or a blues key, else rock). difficulty: easy (eighths, single notes, low frets), medium (default), hard (sixteenth passing notes, bends). seed: the same seed gives the same riffs; next_seed gives the next ones. Uses the Jam room's tuning. Returns { status: "pending", id, takes: [{ label, text, tab, notes, position }], section, bars, chords, style, difficulty, next_seed }; the person holds a take to hear it on the Guitar track and keeps one (get_variation_result with the id says which; wait_seconds waits for it). The Jam room's tab lane shows the takes too. Refused while the person records on the Guitar track. The riffs are the house writer's: say so, never call them yours.`,
   input_schema: {
     type: 'object',
     properties: {

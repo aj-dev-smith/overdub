@@ -710,8 +710,23 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     const cat = await tools.catalogSchemas();
     const ap = cat.find((x) => x.name === 'apply_ops'), guide = await run(app, 'get_guide', { topic: 'ops' });
     const listed = JSON.stringify(cat.map((x) => ({ name: x.name, title: x.annotations?.title, description: x.description, inputSchema: x.input_schema, annotations: x.annotations }))).length;
-    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 70000,
-      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars`);
+    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 68000,
+      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars (under 68,000 since the prompt diet trimmed adjust and transform; 70,000 before)`);
+    // the prompt diet: the system prompt carries the rules and the voice, and points at the guides for the rest (the
+    // device guide, every op's fields, the lexicon); a cap so it can't regrow unnoticed
+    const sys = await prompt.buildSystemPrompt();
+    const tg = await run(app, 'get_guide', { topic: 'transforms' }), dg = await run(app, 'get_guide', { topic: 'devices' });
+    t.ok(sys.length < 9500 && sys.includes(prompt.ETIQUETTE) && sys.includes(prompt.NOTES_BRIEF) && !sys.includes(prompt.OPS_CHEATSHEET) && !sys.includes((dg.guide || 'x').slice(0, 400)) && /get_guide "devices"/.test(sys) && /get_guide "ops"/.test(sys)
+      && /humanize: .*amount=0\.35/.test(tg.guide || '') && /get_guide "transforms"/.test(cat.find((x) => x.name === 'transform').description) && /etiquette is in your system prompt/.test(tools.IN_APP_DESCRIPTIONS.get_guide),
+      `node: the system prompt is ${sys.length} chars (under 9,500; 29,509 before the prompt diet), with the etiquette and without the ops sheet or the device guide, which get_guide serves; get_guide "transforms" has every transform's params`);
+    // Claude Code cuts an MCP tool's description at 2,048 characters (measured: a 3,000- and a 6,000-char description cost
+    // the same tokens as a 2,048 one), so what an agent must say or refuse sits before that, in every tool
+    const MCP_CUT = 2048, long = cat.filter((x) => x.description.length > MCP_CUT).map((x) => x.name);
+    const adj = cat.find((x) => x.name === 'adjust').description.slice(0, MCP_CUT), apo = ap.description.slice(0, MCP_CUT);
+    const shp = cat.find((x) => x.name === 'adjust').input_schema.properties.shape.description || '';
+    t.ok(!long.length && ['say so in the reply', 'never call it a build', 'never report it as done', 'tell them so'].every((x) => adj.includes(x)) && /propose_variations instead/.test(apo) && /preset: "<name>"/.test(apo)
+      && /hold \(default\)/.test(shp) && /swell/.test(shp) && /1-based/.test(cat.find((x) => x.name === 'transform').input_schema.properties.target.properties.bars.description || ''),
+      `node: every tool's description fits Claude Code's ${MCP_CUT}-char cut (apply_ops's ${ap.description.length}, its presets line inside it); adjust's "say so" sentences are inside it, its shapes are explained on shape, and transform's bars say they are the song's${long.length ? ' (over: ' + long.join(', ') + ')' : ''}`);
     // the activity chips have words for every tool, and count one device as one
     const app2 = mk();
     const names = cat.map((x) => x.name);
@@ -1704,6 +1719,7 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     o.store.dispatch({ type: 'track.set', track: d.id, patch: { solo: true } }, { by: 'you', label: 'solo the drums' });
     o.ui.select({ track: b.id, clip: b.clips.find((c) => c.notes?.length).id, notes: [] });
     await o.agent.send('Play over this part');
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));   // the panel draws the last words in the next frame
     const l = [...document.querySelectorAll('.ag-agent')].pop();
     return { coarse: matchMedia('(pointer: coarse)').matches, text: [...(l?.querySelectorAll('.ag-text') || [])].map((x) => x.textContent).join(' ').trim() };
   });
