@@ -55,6 +55,8 @@ export function createShell(root, app) {
   root.classList.add('ew-shell');
   const top = h('header.ew-top', h('a.ew-brand', { href: '../', title: 'Overdub: play over each other', 'aria-label': 'Overdub' }, h('img.ew-mark', { src: './assets/logo.svg', alt: '', width: 26, height: 26 }), h('img.ew-word', { src: './assets/wordmark.svg', alt: 'Overdub', width: 107, height: 17 })),
     ui.regions.top = h('div.ew-region.ew-region-top'),
+    // the workspace's corner (ui/workspace.js fills it): the note slot, More, and Full studio / Simple view
+    ui.wsBox = h('div.ew-ws'),
     h('div.ew-toggles',
       toggleBtn('panelLeft', 'Browser (B)', () => setOpen('left', !layout.open.left), { label: 'Browser' }),
       toggleBtn('panelBottom', 'Detail (D)', () => setOpen('bottom', !layout.open.bottom)),
@@ -69,6 +71,10 @@ export function createShell(root, app) {
   const AGENT_PHONE = window.matchMedia('(max-width: 640px)');
   const agentGrip = h('button.ew-agent-grip', { type: 'button', 'aria-label': 'Agent sheet: taller or shorter', onclick: (e) => { if (!e.detail) agentFull(!root.classList.contains('ew-agent-full')); } });
   right.box.prepend(agentGrip);
+  // the full studio's place for More and Simple view (ui/workspace.js): the empty end of the agent pane's tab row, so
+  // the full studio's top bar keeps every bit of its room
+  ui.wsSide = h('div.ew-ws-side');
+  right.box.append(ui.wsSide);
   const agentFull = (on) => { root.classList.toggle('ew-agent-full', !!on); right.box.style.removeProperty('height'); ui.emit('resize'); };
   drag(agentGrip, {
     start: () => { agentGrip._h = right.box.offsetHeight; agentGrip._moved = false; },
@@ -101,7 +107,7 @@ export function createShell(root, app) {
   // On a phone the two side-sheet toggles say what they open in words ("Agent" is the headline feature; two
   // look-alike pane icons hid it): the label shows and the pane icon gives way to it (app/style/app.css, under 640 px).
   function toggleBtn(ic, title, run, { label = null } = {}) {
-    return h('button.ew-iconbtn.ew-t-' + ic + (label ? '.ew-labelled' : ''), { title, 'aria-label': title, onclick: run },
+    return h('button.ew-iconbtn.ew-t-' + ic + (label ? '.ew-labelled' : ''), { title, 'aria-label': title, onclick: run, dataset: { feature: 'panes' } },
       h('span.ew-t-ico', icon(ic)), label ? h('span.ew-t-label', { 'aria-hidden': 'true' }, ic === 'panelRight' ? h('span.ew-t-mark', icon('agent', { size: 14 })) : null, label) : null);
   }
   function regionBox(region) {
@@ -162,6 +168,9 @@ export function createShell(root, app) {
     for (const r of ['left', 'right', 'bottom']) root.classList.toggle('ew-closed-' + r, !layout.open[r]);
     grip.setAttribute('aria-expanded', String(!!layout.open.bottom));
     for (const [r, ic] of [['left', 'panelLeft'], ['bottom', 'panelBottom'], ['right', 'panelRight']]) top.querySelector('.ew-t-' + ic)?.setAttribute('aria-expanded', String(!!layout.open[r]));
+    // a closed detail pane on a wide screen is 0 px tall but still holds its controls: out of the tab order with it
+    // (a phone's closed sheet hides its content; its open sheets make the rest inert, below)
+    bottom.box.inert = !phone() && !layout.open.bottom;
     syncSheet();
     ui.emit('resize');
   }
@@ -212,12 +221,28 @@ export function createShell(root, app) {
     const most = sheetMax();
     if (layout.bottomH > most) { layout.bottomH = most; applyLayout(); }
   });
-  function setOpen(region, open) {
+  // Who reached for a put-away part: an explicit by, else the agent whose tool is running (ui.state.actor), unless the
+  // call comes straight from the person's own click, tap or key. A tool can run for a minute (adjust waits on a pick,
+  // a render measures), and what the person reaches for meanwhile is theirs, not the agent's.
+  const PERSON = /^(key|pointer|mouse|click|dblclick|auxclick|contextmenu|touch|input|change|submit|drop|wheel)/;
+  const reacher = (by) => {
+    if (by) return by;
+    const e = globalThis.event;
+    return (e && e.isTrusted && PERSON.test(e.type)) ? 'you' : (ui.state.actor || 'you');
+  };
+  // save: false opens or closes it for now without remembering (the workspace tidying up after a view change)
+  function setOpen(region, open, { save = true } = {}) {
+    // an empty pane (every panel in it put away, in the simple view) opening by hand or by key brings back its first
+    // panel: B opens the Browser, signed by whoever reached (reacher, above)
+    if (open && !layout.open[region] && region !== 'top' && ui.workspace) {
+      const here = [...panels.values()].filter((p) => p.region === region && p.tab).sort(byOrder);
+      if (here.length && !here.some((p) => shownPanel(p.def.id))) ui.workspace.reach(ui.workspace.featureOfPanel(here[0].def.id), reacher());
+    }
     layout.open[region] = open;
     // one full-height sheet at a time on a phone
     if (open && phone() && (region === 'left' || region === 'right')) layout.open[region === 'left' ? 'right' : 'left'] = false;
     if (region === 'right') { root.classList.remove('ew-agent-full'); right.box.style.removeProperty('height'); }   // the agent sheet opens at 70% again
-    applyLayout(); saveLayout(); if (open && active[region]) panels.get(active[region])?.view?.refresh?.(); }
+    applyLayout(); if (save) saveLayout(); if (open && active[region]) panels.get(active[region])?.view?.refresh?.(); }
   ui.setOpen = setOpen;
   ui.isOpen = (region) => !!layout.open[region];
   function loadLayout() {
@@ -231,6 +256,41 @@ export function createShell(root, app) {
   if (phone()) { layout.bottomH = Math.round(window.innerHeight * (window.innerHeight < 720 ? 0.4 : 0.45)); applyLayout(); }
 
   /* ---------------------------------------------------------------- panels */
+  const byOrder = (a, b) => (a.def.order ?? 50) - (b.def.order ?? 50);
+  // a panel is shown unless the workspace (ui/workspace.js) has its feature put away in the simple view
+  const shownPanel = (id) => !ui.workspace || ui.workspace.panelShown(id);
+  // A region's tab strip: its shown panels' tabs in order; one or none and the strip goes (.ew-single). Runs on
+  // registration and on every 'workspace' change.
+  function retab(region) {
+    const box = boxes[region];
+    if (!box) return;
+    const sibs = [...panels.values()].filter((p) => p.region === region && p.tab && shownPanel(p.def.id)).sort(byOrder);
+    box.tabs.replaceChildren(...sibs.map((p) => p.tab));
+    box.box.classList.toggle('ew-single', sibs.length < 2);
+  }
+  ui.retab = retab;
+  // After the workspace changes (a view switch, a put away): a region showing a put-away panel falls back to its first
+  // shown panel, by order, without remembering it (the full studio opens on the tab you left); a region with none
+  // closes. A region with nothing open shows its first shown panel again.
+  function reconcile() {
+    for (const region of ['left', 'center', 'bottom', 'right']) {
+      retab(region);
+      const cur = active[region];
+      if (cur && shownPanel(cur)) continue;
+      const first = [...panels.values()].filter((p) => p.region === region && p.tab && shownPanel(p.def.id)).sort(byOrder)[0];
+      if (first) { ui.show(first.def.id, { save: false }); continue; }
+      if (cur) {
+        const p = panels.get(cur);
+        p.el.hidden = true; p.tab?.setAttribute('aria-selected', 'false'); p.tab?.classList.remove('on'); if (p.tab) p.tab.tabIndex = -1;
+        active[region] = null;
+      } else if (![...panels.values()].some((p) => p.region === region && p.tab)) continue;
+      // every panel here is put away (even one that never became active, at load over a saved open pane): it closes
+      if (layout.open[region]) setOpen(region, false, { save: false });
+    }
+  }
+  ui.on('workspace', reconcile);
+  ui.on('ready', reconcile);
+
   // def: { id, region, title, icon?, order?, mount(el, ctx) -> { update(evt), frame(now), refresh(), unmount() } }
   ui.panel = (def) => {
     if (!REGIONS.includes(def.region)) throw new Error(`panel ${def.id}: region must be one of ${REGIONS.join(', ')}`);
@@ -245,12 +305,13 @@ export function createShell(root, app) {
     rec.tab = h('button.ew-tab', { role: 'tab', 'aria-selected': 'false', tabindex: -1, onclick: () => ui.show(def.id), title: def.title }, h('span', def.title));
     rec.tab.id = 'ew-tab-' + def.id;
     el.setAttribute('aria-labelledby', rec.tab.id);
-    // keep tabs in order
-    const sibs = [...panels.values()].filter((p) => p.region === def.region && p.tab).sort((a, b) => (a.def.order ?? 50) - (b.def.order ?? 50));
-    box.tabs.replaceChildren(...sibs.map((p) => p.tab));
+    // keep tabs in order (a put-away panel's tab is left out)
     box.content.append(el);
-    box.box.classList.toggle('ew-single', sibs.length < 2);
-    const want = layout.tabs[def.region];
+    retab(def.region);
+    // registration never makes a put-away panel the active one, and a remembered tab that is put away counts as none
+    if (!shownPanel(def.id)) return rec;
+    let want = layout.tabs[def.region];
+    if (want && ui.workspace && !ui.workspace.panelShown(want)) want = null;
     if (!active[def.region] || want === def.id || (!want && (def.order ?? 50) < (panels.get(active[def.region])?.def.order ?? 50))) ui.show(def.id, { save: false });
     return rec;
   };
@@ -261,9 +322,16 @@ export function createShell(root, app) {
     try { rec.view = rec.def.mount(rec.el, app) || {}; } catch (e) { console.error('panel mount failed', rec.def.id, e); rec.view = {}; rec.el.append(h('div.ew-panel-error', `This panel failed to load: ${e.message}`)); }
   }
 
-  ui.show = (id, { save = true } = {}) => {
+  // Showing a put-away panel (simple view) is reaching for it: its feature comes back, signed by `by`, else by
+  // whoever reached (reacher: the person's own click or key, else an agent's running tool, else you). With save: false (a registration, a fallback) it never does.
+  ui.show = (id, { save = true, by = null } = {}) => {
     const rec = panels.get(id);
     if (!rec || rec.region === 'top') return;
+    if (!shownPanel(id)) {
+      if (save === false) return;
+      ui.workspace.reach(ui.workspace.featureOfPanel(id), reacher(by));
+      if (!shownPanel(id)) return;
+    }
     const prev = active[rec.region];
     if (prev && prev !== id) { const p = panels.get(prev); p.el.hidden = true; p.tab?.setAttribute('aria-selected', 'false'); p.tab?.classList.remove('on'); if (p.tab) p.tab.tabIndex = -1; }
     active[rec.region] = id;
@@ -314,7 +382,8 @@ export function createShell(root, app) {
   ui.keys = {
     // { key: e.code ('Space', 'KeyZ', 'Delete', 'ArrowLeft'...), mod: 'mod' (cmd/ctrl) | 'shift' | 'alt' | 'mod+shift' | null,
     //   run(e), when?() -> bool, label, group, global? (fires even while typing), first? (tried before the keys added
-    //   earlier: a mode's Esc ahead of clearing a selection) }
+    //   earlier: a mode's Esc ahead of clearing a selection), feature? (the workspace feature its control belongs to:
+    //   after it runs, a put-away feature comes back, ui.workspace.reach) }
     add(k) {
       const clash = keys.find((x) => x.key === k.key && (x.mod || null) === (k.mod || null) && !x.when && !k.when);
       if (clash) console.warn(`key ${k.mod ? k.mod + '+' : ''}${k.key} is taken by "${clash.label}"; "${k.label}" skipped`);
@@ -395,6 +464,9 @@ export function createShell(root, app) {
       e.preventDefault();
       if (e.code === 'Space') spaceTaken = true;
       try { k.run(e); } catch (err) { console.error('key', k.label, err); }
+      // a key whose control is put away still works, and brings the control back (k.feature: a workspace feature id)
+      // A key is always the person's; under a take the screen holds still, so a refused key reveals nothing either.
+      if (k.feature && !app.transport?.locked?.()) { try { ui.workspace?.reach(k.feature, 'you'); } catch (err) { console.error('key reach', k.label, err); } }
       return;
     }
     // nothing here took it: a key other DAWs use says what does that here
@@ -600,6 +672,16 @@ button { font: inherit; color: inherit; }
 .ew-top-tight .ew-brand .ew-word { display: none; }   /* (a crowded bar: the mark alone, so nothing on the bar is pushed off) */
 .ew-region-top { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: row; align-items: center; gap: 8px; background: transparent; overflow: visible; }
 .ew-region-top > .ew-panel { flex: 1; min-width: 0; }
+.ew-ws { display: flex; align-items: center; gap: 6px; flex: none; height: 40px; margin-left: 6px; padding-left: 8px; border-left: var(--rule); min-width: 0; }
+.ew-ws:empty, .ws-full .ew-ws:not(.ws-here) { display: none; }
+.ew-region-right { position: relative; }
+.ew-ws-side { position: absolute; top: 0; right: 12px; z-index: 2; height: 40px; display: flex; align-items: center; gap: 4px; }
+.ew-ws-side:empty, .ws-simple .ew-ws-side { display: none; }
+@media (max-width: 900px) { .ew-ws-side { top: env(safe-area-inset-top); right: calc(env(safe-area-inset-right) + 58px); height: 52px; } }
+@media (max-width: 640px) { .ew-ws-side { top: 20px; height: 44px; } }
+/* the simple view puts the pane buttons away (data-feature="panes"), but a phone's Agent button is how its sheet opens */
+@media (max-width: 900px) { .ws-off-panes .ew-toggles > .ew-t-panelRight { display: inline-grid !important; } }
+@media (max-width: 640px) { .ws-off-panes .ew-toggles > .ew-t-panelRight { display: inline-flex !important; } }
 .ew-toggles { display: flex; align-items: center; gap: 0; flex: none; height: 40px; margin-left: 6px; padding-left: 4px; border-left: var(--rule); }
 .ew-iconbtn { display: inline-grid; place-items: center; width: 30px; height: 32px; border: 0; border-radius: var(--r-press); background: transparent; color: var(--text-3); cursor: pointer; }
 .ew-iconbtn:hover { background: var(--bg-3); color: var(--text); }

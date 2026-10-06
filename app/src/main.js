@@ -10,6 +10,8 @@ import { demoProject, demoById, DEMOS } from './core/demo.js';
 import * as devices from './devices/registry.js';
 import { createTrust, heldIn, kernelHash, TRUST_KEY } from './devices/trust.js';
 import { createShell } from './ui/shell.js';
+import { decideView, WORKSPACE_KEY } from './ui/workspace-view.js';
+import { installWorkspace } from './ui/workspace.js';
 
 const SAVE_KEY = 'overdub:project', PREV_KEY = 'overdub:previous';
 const params = new URLSearchParams(location.search);
@@ -28,6 +30,7 @@ const MODULES = [
   './ui/plugin.js', // device windows (a device opened big: app.plugin) and the show_device tool; before the bridges too
   './ui/grooves.js', // the Grooves tab (core/grooves.js) and the find_grooves, use_groove and drum_track tools; before the bridges too
   './ui/jam.js', // the Jam room beside Arrange, and its tools (get_jam, make_jam_track, set_tone, show_on_fretboard)
+  './agent/workspace-tool.js', // the workspace tool (what's on screen in the simple view); before the panel and the bridges
   './agent/panel.js', './agent/history.js', './agent/presence.js', './agent/bridge.js',
   './agent/remote.js',
   './ui/devices-io.js', // export / import device files; ?device=<id> opens the song with that device on a track
@@ -109,6 +112,9 @@ function migrateLegacyStorage() {
 }
 
 let opened = 'demo'; // how the song was opened (app.opened): 'new' | 'demo' | 'saved'
+// Which view this load opens in (ui/workspace-view.js): decided before the song, since a first visit in the simple
+// view opens a blank song ("Take 1 is yours."), not the demo. Night Shift stays one click away.
+let workspace = { view: 'full', persist: false, from: 'default' };
 // ?new and ?demo=… (the landing page's links) open another song over the one saved here. That one is kept as the
 // previous song (the key ui/export.js keepPrevious uses) and in Recent songs (app.exporter.putAside), and the studio
 // says so, with an Undo, once it's up; then the parameter leaves the address. A blank song, or the same demo unedited,
@@ -129,6 +135,7 @@ function loadSaved() {
   if (params.has('new')) { opened = 'new'; return putAside(createProject()); }
   if (params.has('demo')) return putAside(demoById(params.get('demo')));
   try { const s = localStorage.getItem(SAVE_KEY); if (s) { const p = cleanProject(JSON.parse(s)); opened = 'saved'; return p; } } catch (e) { console.warn('overdub: saved project unreadable, starting the demo', e); }
+  if (workspace.view === 'simple') { opened = 'new'; return createProject(); }
   return demoProject();
 }
 
@@ -143,6 +150,13 @@ function stylesheetsLoaded() {
 
 async function boot() {
   migrateLegacyStorage();
+  // the view, before anything writes overdub:layout (an existing user's sign) or the song
+  {
+    let storage = null;
+    try { storage = window.localStorage; } catch (e) { /* blocked */ }
+    workspace = decideView({ search: location.search, storage, webdriver: !!navigator.webdriver });
+    if (workspace.persist) { try { const cur = JSON.parse(storage?.getItem(WORKSPACE_KEY) || 'null'); storage?.setItem(WORKSPACE_KEY, JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view })); } catch (e) { /* private mode */ } }
+  }
   // Fetch every graph at once (an import runs nothing until default(app)); they start below, in order. One after
   // another, the panels' fetches took ~250 ms each and the studio ~12 s to finish booting.
   const loading = MODULES.map(tryImport);
@@ -208,13 +222,15 @@ async function boot() {
   };
   window.overdub = app;
   app.ui = createShell(root, app);
+  // the workspace (ui/workspace.js): which features are on screen, More, the view switch; before the panels register
+  try { installWorkspace(app.ui, app, workspace); } catch (e) { console.error('overdub: the workspace failed to start', e); }
 
   // undo / redo (everyone's, newest first): before the panels, so ⌘Z works while they load
   const undo = () => { const r = store.undo(); if (!r.ok) app.ui.toast(r.error); else app.ui.toast(`Undid "${r.txn.label}"${store.isAgent(r.txn.by) ? ` (by ${store.author(r.txn.by).name})` : ''}`); };
   const redo = () => { const r = store.redo(); if (!r.ok) app.ui.toast(r.error); };
   app.ui.keys.add({ key: 'KeyZ', mod: 'mod', run: undo, label: 'Undo', group: 'Edit' });
-  app.ui.keys.add({ key: 'KeyZ', mod: 'mod+shift', run: redo, label: 'Redo', group: 'Edit' });
-  app.ui.keys.add({ key: 'KeyY', mod: 'mod', run: redo, label: 'Redo', group: 'Edit' });
+  app.ui.keys.add({ key: 'KeyZ', mod: 'mod+shift', run: redo, label: 'Redo', group: 'Edit', feature: 'redo' });
+  app.ui.keys.add({ key: 'KeyY', mod: 'mod', run: redo, label: 'Redo', group: 'Edit', feature: 'redo' });
 
   // the panels and features, started in MODULES order as each one's graph arrives
   for (let i = 0; i < MODULES.length; i++) {

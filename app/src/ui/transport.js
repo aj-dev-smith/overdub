@@ -43,6 +43,11 @@
 // The killswitch (All off, a key printed in record red; Shift+Esc, from anywhere, even a text field): engine.silence() stops
 // the transport and cuts every sound in about 20 ms (notes, held notes, reverb and delay tails, previews, the click,
 // whatever an agent started), and input monitoring goes off. See engine.js.
+//
+// The simple view (ui/workspace.js) puts parts of the bar away by their data-feature: the position and the ball
+// (position), Meter, Tap, the click and the count-in (song-settings), Loop (loop), Onto (record-options), Redo (redo),
+// All off and the output meter (meters). Their keys still work, and a press brings the part back (ui.keys feature).
+// app.transport.openKey(anchor) opens the key's popover under anchor (More's Key row, on a phone).
 
 import { h, css, icon, clamp, byline, authorOf, tok } from './dom.js';
 import { palette, popover, menu, closePopover, fmtClock, MOD } from './arrange-kit.js';
@@ -72,7 +77,7 @@ export default function (app) {
   ui.keys.add({ key: 'Enter', run: home, label: 'The marker back to bar 1', group: 'Transport' });
   ui.keys.add({ key: 'Home', run: home, label: 'The marker back to bar 1', group: 'Transport' });
   const loopKey = () => { if (lockedSay(app, 'The loop')) return; toggleLoop(); };
-  ui.keys.add({ key: 'KeyL', run: loopKey, label: 'Loop on/off', group: 'Transport' });
+  ui.keys.add({ key: 'KeyL', run: loopKey, label: 'Loop on/off', group: 'Transport', feature: 'loop' });
   const click = clickSettings(app);
   // the first press of each in a browser: what it did, and that the key moved (once; after that the announcement alone)
   const clickKey = () => {
@@ -85,11 +90,11 @@ export default function (app) {
     const n = click.cycleCountIn({ announce: !first });
     if (first && n != null) ui.toast(`Count-in: ${n ? `${n} bar${n > 1 ? 's' : ''}` : 'off'}. \`⇧K\` steps it now, beside the click on \`K\`.`, { ms: 6000 });
   };
-  ui.keys.add({ key: 'KeyK', run: clickKey, label: 'The click (metronome) on/off', group: 'Transport' });
-  ui.keys.add({ key: 'KeyK', mod: 'shift', run: countKey, label: 'Count-in: 1 bar, 2 bars, off', group: 'Transport' });
+  ui.keys.add({ key: 'KeyK', run: clickKey, label: 'The click (metronome) on/off', group: 'Transport', feature: 'song-settings' });
+  ui.keys.add({ key: 'KeyK', mod: 'shift', run: countKey, label: 'Count-in: 1 bar, 2 bars, off', group: 'Transport', feature: 'record-options' });
   ui.keys.add({ key: 'KeyR', run: () => record(app), label: 'Record into the song from the marker (again: punch out)', group: 'Transport' });
   const silence = () => silenceAll(app);
-  ui.keys.add({ key: 'Escape', mod: 'shift', global: true, run: silence, label: 'Silence everything (the killswitch)', group: 'Transport' });
+  ui.keys.add({ key: 'Escape', mod: 'shift', global: true, run: silence, label: 'Silence everything (the killswitch)', group: 'Transport', feature: 'meters' });
   app.transport = { toggleLoop, record: () => record(app), silence, marker, playStop, playOn, home, click, ball: null, over: 0, countdown: () => countdown(app), locked: () => takeRunning(app) };
   // (the recorder loads after the transport: input/index.js)
   let heard = false;
@@ -482,7 +487,7 @@ function mountTransport(el, app) {
   // R and the key's title name. A click picks another track: selected, and any arm set on another gives way, as a
   // click on its header does
   const recToV = h('span.tp-val.tp-recto-v', '—');
-  const recTo = h('button.tp-spec.tp-recto', { type: 'button', 'aria-haspopup': 'menu', onclick: () => pickRecTrack() }, h('small.tp-lab', 'Onto'), recToV);
+  const recTo = h('button.tp-spec.tp-recto', { type: 'button', 'aria-haspopup': 'menu', dataset: { feature: 'record-options' }, onclick: () => pickRecTrack() }, h('small.tp-lab', 'Onto'), recToV);
   function pickRecTrack() {
     if (takeRunning(app)) { lockedSay(app, 'The track a take records onto'); return; }
     // (where the take lands: in Hum it, the tracks a hum goes onto, the drums left out unless armed: recorder.lands, onto)
@@ -504,6 +509,7 @@ function mountTransport(el, app) {
   // toggles are square lamps beside a word
   const tog = (label, title, run, cls) => h('button.tog.tp-tog' + cls, { type: 'button', title, 'aria-pressed': 'false', onclick: run }, label);
   const loopB = tog('Loop', 'Loop (L)', () => { if (!lockedSay(app, 'The loop')) app.transport.toggleLoop(); }, '.tp-loop');
+  loopB.dataset.feature = 'loop';
   const ck = app.transport.click;
   const metB = tog('Click', 'The click: a metronome to play along to (K)', () => { ck.set({ on: !engine.metronome }); sync(); }, '.tp-met');
   // the click's options: a caret beside the toggle opens them
@@ -517,7 +523,8 @@ function mountTransport(el, app) {
   const takeMark = h('span.tp-take', { 'aria-hidden': 'true' }, recLab);
   // count-in before a take (input/recorder.js): 1 bar, 2 bars or none; a click (or Shift+K) steps through them
   const countV = h('span.tp-val', '1 bar');
-  const countB = h('button.tp-spec.tp-count', { type: 'button', title: 'Count-in: clicks (and the bar before, playing) before a take starts recording. Click or Shift+K for 1 bar, 2 bars or none.', onclick: () => { ck.cycleCountIn({ announce: true }); sync(); } }, h('small.tp-lab', 'Count-in'), countV);
+  // (More files the count-in under Recording options, so it comes back with them)
+  const countB = h('button.tp-spec.tp-count', { type: 'button', dataset: { feature: 'record-options' }, title: 'Count-in: clicks (and the bar before, playing) before a take starts recording. Click or Shift+K for 1 bar, 2 bars or none.', onclick: () => { ck.cycleCountIn({ announce: true }); sync(); } }, h('small.tp-lab', 'Count-in'), countV);
   function openClick() {
     const paint = () => {
       const c = ck.get();
@@ -619,7 +626,7 @@ function mountTransport(el, app) {
     inp.addEventListener('blur', () => finish(true));
   }
   const taps = [];
-  const tapB = h('button.tp-tap', { type: 'button', title: 'Tap tempo: tap along to the beat in your head', onclick: () => {
+  const tapB = h('button.tp-tap', { type: 'button', dataset: { feature: 'song-settings' }, title: 'Tap tempo: tap along to the beat in your head', onclick: () => {
     if (lockedSay(app, 'Tempo')) return;
     const now = performance.now();
     if (taps.length && now - taps[taps.length - 1] > 2000) taps.length = 0;
@@ -635,18 +642,21 @@ function mountTransport(el, app) {
 
   /* ------------------------------------------------ meter and key: spec-sheet labels over their values */
   const meterV = h('span.tp-val.num', '4/4');
-  const meterB = h('button.tp-chip.tp-spec.tp-meter-sig', { type: 'button', title: 'Time signature', onclick: () => !lockedSay(app, 'The meter') && menu(meterB, [{ head: 'Time signature' },
+  const meterB = h('button.tp-chip.tp-spec.tp-meter-sig', { type: 'button', dataset: { feature: 'song-settings' }, title: 'Time signature', onclick: () => !lockedSay(app, 'The meter') && menu(meterB, [{ head: 'Time signature' },
     ...METERS.map((m) => ({ label: m.join('/'), sub: m[0] === p().meter[0] && m[1] === p().meter[1] ? '●' : '', run: () => store.dispatch({ type: 'project.set', patch: { meter: m } }, { by: 'you', label: `meter ${m.join('/')}` }) }))]) },
   h('small.tp-lab', 'Meter'), meterV);
   const keyV = h('span.tp-val');
   const keyB = h('button.tp-chip.tp-key.tp-spec', { type: 'button', title: 'Key: what the piano roll, agents and devices follow', onclick: () => openKey() }, h('small.tp-lab', 'Key'), keyV);
-  function openKey() {
+  // (anchor: what it opens under; More's Key row on a phone, where the top bar has no room for the key)
+  function openKey(anchor = keyB) {
+    if (!anchor?.isConnected) anchor = keyB;
     const k = p().key;
     const set = (key) => store.dispatch({ type: 'project.set', patch: { key } }, { by: 'you', label: key ? `key ${key.root} ${key.scale}` : 'no key' });
-    const roots = h('div.tp-roots', ROOTS.map((r) => h('button.tp-root' + (k && same(k.root, r) ? '.on' : '') + (r.length > 1 ? '.acc' : ''), { onclick: () => { set({ root: r, scale: k?.scale || 'minor' }); openKey(); } }, r)));
-    const scales = h('div.tp-scales', SCALE_LIST.map(([id, name]) => h('button.ek-item' + (k?.scale === id ? '.on' : ''), { onclick: () => { set({ root: k?.root || 'C', scale: id }); openKey(); } }, h('span', name), k?.scale === id ? h('span.ek-sub', '●') : null)));
-    popover(keyB, [h('div.ek-head', 'Key'), roots, h('div.ek-sep'), scales, h('div.ek-sep'), h('button.ek-item', { onclick: () => { set(null); closePopover(); } }, 'No key (atonal, nothing snaps)')], { cls: 'tp-keypop' });
+    const roots = h('div.tp-roots', ROOTS.map((r) => h('button.tp-root' + (k && same(k.root, r) ? '.on' : '') + (r.length > 1 ? '.acc' : ''), { onclick: () => { set({ root: r, scale: k?.scale || 'minor' }); openKey(anchor); } }, r)));
+    const scales = h('div.tp-scales', SCALE_LIST.map(([id, name]) => h('button.ek-item' + (k?.scale === id ? '.on' : ''), { onclick: () => { set({ root: k?.root || 'C', scale: id }); openKey(anchor); } }, h('span', name), k?.scale === id ? h('span.ek-sub', '●') : null)));
+    popover(anchor, [h('div.ek-head', 'Key'), roots, h('div.ek-sep'), scales, h('div.ek-sep'), h('button.ek-item', { onclick: () => { set(null); closePopover(); } }, 'No key (atonal, nothing snaps)')], { cls: 'tp-keypop' });
   }
+  app.transport.openKey = (anchor) => openKey(anchor || keyB);
 
   /* ------------------------------------------------ undo / redo */
   const undoB = btn('undo', 'Undo', () => {
@@ -654,6 +664,7 @@ function mountTransport(el, app) {
     if (!r.ok) ui.toast(r.error); else ui.toast(`Undid “${r.txn.label}”${store.isAgent(r.txn.by) ? ` (by ${store.author(r.txn.by).name})` : ''}`);
   }, '.tp-undo');
   const redoB = btn('redo', 'Redo', () => { const r = store.redo(); if (!r.ok) ui.toast(r.error); }, '.tp-redo');
+  redoB.dataset.feature = 'redo';
 
   /* ------------------------------------------------ the output meter: peak over RMS, and the held peak in dB */
   // It reads the mix before the master's safety clip (engine.meters.master; engine/strip.js): after the clip nothing
@@ -732,13 +743,15 @@ function mountTransport(el, app) {
   const holdB = h('button.tog.on.tp-hold', { type: 'button', 'aria-pressed': 'true', hidden: true, onclick: () => releaseKeys() });
   const left = h('div.tp-group.tp-g-title', h('div.tp-song', title, credits, holdB));
   const transport = h('div.tp-group.tp-g-play', stopB, playB, recB, recTo);
-  const timeG = h('div.tp-group.tp-g-pos', pos, ball, takeMark);
+  // (data-feature: the parts the simple view puts away until someone adds them, ui/workspace.js; a group whose parts
+  // are all put away goes with them, in CSS below)
+  const timeG = h('div.tp-group.tp-g-pos', { dataset: { feature: 'position' } }, pos, ball, takeMark);
   const tempoG = h('div.tp-group.tp-g-tempo', tempo, tapB);
   const songG = h('div.tp-group.tp-g-song', meterB, keyB);
-  const modeG = h('div.tp-group.tp-g-mode', h('span.tp-metwrap', metB, metMore), countB, loopB);
+  const modeG = h('div.tp-group.tp-g-mode', h('span.tp-metwrap', { dataset: { feature: 'song-settings' } }, metB, metMore), countB, loopB);
   const editG = h('div.tp-group.tp-g-edit', undoB, redoB);
-  const killG = h('div.tp-group.tp-g-kill', killB);
-  const meterG = h('div.tp-group.tp-g-meter', meter);
+  const killG = h('div.tp-group.tp-g-kill', { dataset: { feature: 'meters' } }, killB);
+  const meterG = h('div.tp-group.tp-g-meter', { dataset: { feature: 'meters' } }, meter);
   // back to the lanes: whenever a lane in the song is held (a knob or fader moved by hand), one word gives every held
   // lane back in one undo step; out of sight otherwise (docs/research/AUTOMATION.md 3.6)
   const heldB = h('button.btn.btn-txt.tp-held', { type: 'button', onclick: () => backToLanes() });
@@ -1369,4 +1382,20 @@ const CSS = `
   .ew-shell .tp-g-play .tp-btn:first-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .tp-kill:not(.hit), .tp-tap:not(.hit) { transition: none; } }
+/* The simple view (ui/workspace.js puts .ws-off-<id> on the root for each feature put away, and hides its tagged
+   parts): the click's group goes once the click and the loop are both away, so no hairline stands over nothing. On a
+   phone its top bar is mark, title, Agent; then stop, play, record, Undo and More: the tempo and the key are More's first
+   rows (the song menu is too: ui/export.js), and Undo stays on the bar at every width. */
+.ws-off-song-settings.ws-off-loop .tp-g-mode { display: none; }
+/* (the steps above are for the whole bar; the simple one is a third of it, so its title, key and Undo stay on a much
+   narrower bar: a note beside More takes 200 px or more of it) */
+@container tp (min-width: 480px) and (max-width: 840px) { .ws-simple .tp-g-edit { display: flex; } }
+@container tp (min-width: 480px) and (max-width: 810px) { .ws-simple .tp-g-title { display: flex; min-width: 96px; max-width: 200px; } .ws-simple .tp-g-pos { border-left: var(--rule); } }
+@container tp (min-width: 480px) and (max-width: 690px) { .ws-simple .tp-g-song { display: flex; } }
+/* (and a part just added shows, the note beside More saying so: Loop, Onto and the meter give way later than on the whole bar) */
+@container tp (min-width: 640px) and (max-width: 880px) { .ws-simple .tp-loop { display: inline-flex; } .ws-simple .tp-recto { display: flex; } .ws-simple .tp-g-meter { display: flex; } }
+@media (max-width: 640px) {
+  .ws-simple .ew-shell .tp-g-tempo, .ws-simple .ew-shell .tp-g-song { display: none; }
+  .ws-simple .ew-shell .tp-g-edit { display: flex; }
+}
 `;

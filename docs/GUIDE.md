@@ -7,12 +7,19 @@ then shows where everything else lives. In the studio, `?` shows every key.
 ## Your first overdub in five minutes
 
 1. **Open the studio.** [overdubstudio.com/app/](/app/) in Chrome, Safari or Firefox, on a computer or a phone.
-   Nothing to install, no account. It opens on Night Shift; the Song menu's **Demos** has three more, in other
-   genres. The first time, a small card called **Take one** walks you through the steps below. It waits for each one
-   to really happen, and you can close it. It stays out of songs someone sends you, and closing it puts back the loop
-   it set, unless you've changed that loop since.
-2. **Hear it.** Press `Space` (on a phone, ▶ at the top). Warm parts were played by a person, cool ones by an agent.
-3. **Lay down take one.** Open the **Sketch** tab and pick a way in:
+   Nothing to install, no account. The first time, it opens in the [simple view](#simple-view-and-the-full-studio)
+   on a blank song: **Take 1 is yours.**, and the ways in under it (**Tap a beat**, **Draw a beat**, **Hum it**,
+   **Play it**, **Ask your agent**). Nothing plays until you press something. Under them, **Night Shift** is a
+   finished song to hear first; the Song menu's **Demos** has more, in other genres. **Tap a beat** (or the Song
+   menu's **Take one**) brings a small card called **Take one** that walks you through the steps below. It waits for
+   each one to really happen, and you can close it. It stays out of songs someone sends you, and closing it puts back
+   the loop it set, unless you've changed that loop since. If you've used Overdub in this browser before, it opens
+   where you left off, in the full studio.
+2. **Hear one first, if you like.** **Night Shift**, under the ways in, opens a finished song: press `Space` (on a
+   phone, ▶ at the top). Warm parts were played by a person, cool ones by an agent. **New song** in the Song menu
+   brings you back to a blank one.
+3. **Lay down take one.** Pick a way in on the blank song (**Hum it** and **Play it** open the **Sketch** tab under
+   the song), or open Sketch yourself:
    - **Hum it.** `H` turns the mic on (the browser asks first) and `H` again stops. The notes are written as you go,
      as you sang them. Once the song has a key (one you set, or a part in one; a beat alone doesn't give it one), notes
      between keys move into it, and it says how many ("Moved 2 notes into A minor"), with **Undo**.
@@ -37,8 +44,30 @@ then shows where everything else lives. In the studio, `?` shows every key.
    you like.
 
 That's an overdub. Take one is yours, take two is the agent's, and the **History** tab shows both, with the reason the
-agent gave. `⌘Z` undoes the latest edit. **Revert all Claude's changes (keep mine)** takes back everything the agent
-did and leaves your edits alone, and `⇧⌘Z` puts it back, as it does after **Undo** on one of the agent's lines there.
+agent gave (in the simple view, add it from **More**). `⌘Z` undoes the latest edit.
+**Revert all Claude's changes (keep mine)** takes back everything the agent did and leaves your edits alone, and
+`⇧⌘Z` puts it back, as it does after **Undo** on one of the agent's lines there.
+
+## Simple view and the full studio
+
+The simple view is the whole studio with most of it put away: the song, the transport, Sketch and the Agent tab. A
+newcomer starts there. Nothing is removed, and everything is one step away.
+
+- **More**, in the top bar, lists what's put away, grouped by what it's for (Make, Sound, Balance, Song, Recording,
+  Agent, Files, Layout), each with a line on what it does. Type to find one: *piano roll* finds **Notes**, *faders*
+  finds the **Mixer**. **Add** brings it into your studio; **Put away** takes it back out. `Esc` closes More.
+- **Reach for it and it's there.** Double-click a clip and **Notes** (or the **Beat grid**) comes in; `L` brings the
+  **Loop**, `K` the click, `/` the instruments and effects. A line by **More** says so (*Loop is in your studio
+  now.*), with **Put away** beside it.
+- **Your agent can add things too.** Ask it where something is (*"where's the mixer?"*) and it brings it in, signed
+  in its ink: *Claude added the Mixer.* It adds what you'd need to see its change, and otherwise offers in one line.
+  It puts away only what it added, never while you record, and never switches your view unless you ask.
+- **Full studio** shows every panel and control; **Simple view** goes back. In the full studio it and More sit at the
+  right end of the agent pane's tabs while that pane is open, and in the top bar when it's closed. This browser
+  remembers which, and what you added. Your song doesn't change either way: the layout isn't an edit, so `⌘Z`
+  doesn't undo it and a share link doesn't carry it.
+- **Your own Claude**, Claude Code and MCP are in More under **Connect your own agent**, or in the full studio's
+  Agent tab.
 
 ## Record into the song
 
@@ -363,6 +392,9 @@ An agent can read the room, make a jam track, set a tone, point at the neck, and
 ([the tools](AGENTS.md#the-tools)).
 
 ## On a phone
+
+In the simple view the top row is the song's title, the Agent, the transport, Undo and **More**; the Song menu,
+the tempo and the key are the first rows of More, which comes up as a sheet from the bottom.
 
 The detail pane is a sheet under the song: drag its handle to size it, or tap the handle to tuck the sheet down to its
 tabs. Turn the phone on its side and the top bar takes one row, and the top of the song stays in view however far the

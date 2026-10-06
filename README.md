@@ -69,7 +69,7 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
 - **claude.ai:** open the studio's **Connect** tab, turn it on and add the URL to claude.ai as a custom connector;
   Claude plays in that tab through a hosted relay, on your Claude plan ([docs/REMOTE-MCP.md](docs/REMOTE-MCP.md)).
 
-[`docs/AGENTS.md`](docs/AGENTS.md) covers all 38 tools, the op format and the etiquette.
+[`docs/AGENTS.md`](docs/AGENTS.md) covers all 39 tools, the op format and the etiquette.
 
 ## Keys
 

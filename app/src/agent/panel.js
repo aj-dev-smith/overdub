@@ -32,8 +32,40 @@ export default function (app) {
   installPresence(app);
   installTools(app);
   if (!app.agent) app.agent = createAgent(app);
+  // The simple view (ui/workspace.js) starts on the demo agent: no key screen, no setup, the ask box and suggestions
+  // straight away. Only when nothing else is on (no key, no Claude Code, no agent connected over MCP); the full studio
+  // is as it was.
+  // Claude Code is known only once its probe answers and an MCP agent once the bridge connects, both after this runs,
+  // so the demo it turns on gives way to either when they turn up. It re-decides when the view switches to simple,
+  // not on every add or put away (a person who turned the demo off keeps it off).
+  demoByDefault(app);
+  let lastView = app.ui.workspace?.view?.();
+  app.ui.on?.('workspace', ({ view } = {}) => { if (view === 'simple' && lastView !== 'simple') demoByDefault(app); lastView = view; });
+  app.agent?.on?.('provider', () => yieldDemo(app));
+  app.presence?.on?.((e) => { if (e?.type === 'agents') yieldDemo(app); });
   css('agent-panel', CSS);
   app.ui.panel({ id: 'agent', region: 'right', title: 'Agent', icon: 'agent', order: 10, mount: (el) => mountPanel(el, app) });
+}
+
+const isSimple = (app) => app.ui?.workspace?.view?.() === 'simple';
+const mcpHere = (app) => { try { return (app.presence?.agents?.() || []).some((a) => a.source === 'mcp' && a.connected !== false); } catch (e) { return false; } };
+let autoDemo = false;    // the demo agent is on because the simple view chose it, not the person
+function demoByDefault(app) {
+  const a = app.agent;
+  if (!a || !isSimple(app) || a.provider || mcpHere(app)) return;
+  a.useMock(true);
+  autoDemo = true;
+  // not remembered for the tab: the next load decides again, so Claude Code or a key set meanwhile wins
+  try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ }
+}
+const localWanted = (app) => { try { return localStorage.getItem('overdub:agent-local') === '1' && !!app.agent?.local?.available; } catch (e) { return false; } };
+function yieldDemo(app) {
+  const a = app.agent;
+  if (!autoDemo || !a) return;
+  if (a.provider !== 'mock') { autoDemo = false; return; }
+  if (!mcpHere(app) && !localWanted(app)) return;
+  autoDemo = false;
+  a.useMock(false);
 }
 
 function mountPanel(el, app) {
@@ -59,8 +91,8 @@ function mountPanel(el, app) {
   // speaker's name in a margin column, the agent's tool steps as mono lines, its takes as a ruled list; the composer is
   // an underlined field at the foot.
   const who = h('div.ag-who');
-  const btnNew = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Start a new conversation', 'aria-label': 'New conversation', onclick: () => { agent.reset(); feed = []; saveFeed(); renderAll(); } }, 'New');
-  const btnKey = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Agent settings: model, Claude Code, the demo agent', 'aria-label': 'Agent settings', onclick: () => { showKey = !showKey; renderAll(); } }, 'Settings');
+  const btnNew = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Start a new conversation', 'aria-label': 'New conversation', dataset: { feature: 'agent-setup' }, onclick: () => { agent.reset(); feed = []; saveFeed(); renderAll(); } }, 'New');
+  const btnKey = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Agent settings: model, Claude Code, the demo agent', 'aria-label': 'Agent settings', dataset: { feature: 'agent-setup' }, onclick: () => { showKey = !showKey; renderAll(); } }, 'Settings');
   const head = h('div.ag-head', who, h('div.ag-hbtns', btnNew, btnKey));
   const feedEl = h('div.ag-feed', { role: 'log', 'aria-live': 'polite', 'aria-label': 'Conversation with your agents' });
   const statusEl = h('div.ag-status', { 'aria-live': 'polite' });
@@ -474,8 +506,8 @@ function mountPanel(el, app) {
     if (first) {
       return h('div.ag-keycard.ag-kc-firstlook', ccLead, mcpLead, demoSec,
         h('div.ag-kc-own',
-          h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
-          h('p.ag-kc-small', `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)),
+          h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', dataset: { feature: 'agent-setup' }, onclick: () => openOwn() }, 'Use your own Claude'),
+          h('p.ag-kc-small', { dataset: { feature: 'agent-setup' } }, `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)),
         cu.setupRow(true));
     }
     // a self-hoster's own API key lives on the local server, never on this page (server/local-claude.js)
@@ -542,8 +574,11 @@ function mountPanel(el, app) {
       speaker('claude'),
       h('div.ag-body',
         h('p', 'I work on what you select. Lay down a take (hum it, tap it, play it) or say how it should feel, and I’ll play over it: notes, knobs and devices you can hear, see and undo.'),
-        h('p.t3', 'Every change is signed in History: ', byline('you'), ' in warm ink, ', byline('claude'), ' in cool.'),
-        h('div', h('button.btn', { type: 'button', onclick: () => send('What would you change?') }, 'What would you change?'))));
+        isSimple(app)
+          ? h('p.t3', 'Every change is signed: ', byline('you'), ' in warm ink, ', byline('claude'), ' in cool. Ask me where anything is, too.')
+          : h('p.t3', 'Every change is signed in History: ', byline('you'), ' in warm ink, ', byline('claude'), ' in cool.'),
+        // (the simple view has it among the suggestions by the box already)
+        isSimple(app) ? null : h('div', h('button.btn', { type: 'button', onclick: () => send('What would you change?') }, 'What would you change?'))));
   }
 
   /* ---------------------------------------------------------------- head, composer */
@@ -562,10 +597,19 @@ function mountPanel(el, app) {
       who.replaceChildren(...pills);
       return;
     }
+    // the simple view: one plain status line, not a door to settings (those are put away as agent-setup)
+    if (isSimple(app) && p) {
+      const said = p === 'mock' ? `demo, ${agent.busy ? (app.presence?.waiting?.('claude') ? 'waiting for you' : 'working') : 'free'}` : st;
+      pills.push(h(`span.ag-pill.ag-pill-plain${agent.busy ? '.busy' : ''}`, { title: p === 'mock' ? 'A scripted demo agent that uses the real tools. Everything it does is signed and undoable.' : `Claude in this tab (${how})` }, h('span.ag-pill-dot'), h('span', `Your agent · ${said}`)));
+      if (p === 'local' && agent.plan) pills.push(planLine(agent.plan));
+      for (const a of bridge.agents.filter((x) => x.connected)) pills.push(h(`span.ag-pill.mcp${a.status ? '.busy' : ''}`, { title: `${a.name} over MCP${a.status ? ': ' + a.status : ''}` }, h('span.ag-pill-dot'), byline(a.by || 'mcp:' + a.name, { app, name: a.name }), h('span', a.status ? (app.presence?.waiting?.(a.by) ? 'waiting for you' : 'working') : 'connected')));
+      who.replaceChildren(...pills);
+      return;
+    }
     pills.push(h(`button.ag-pill${agent.busy ? '.busy' : ''}${p ? '' : '.off'}`, { type: 'button', title: p ? `Claude in this tab (${p === 'mock' ? 'scripted demo' : modelName(agent.model)}): settings` : 'Choose an agent to talk to here', onclick: () => { showKey = !showKey; renderAll(); } }, h('span.ag-pill-dot'), byline('claude', { cap: true }), h('span', st)));
     if (p === 'local' && agent.plan) pills.push(planLine(agent.plan));
     for (const a of bridge.agents.filter((x) => x.connected)) pills.push(h(`span.ag-pill.mcp${a.status ? '.busy' : ''}`, { title: `${a.name} over MCP${a.status ? ': ' + a.status : ''}` }, h('span.ag-pill-dot'), byline(a.by || 'mcp:' + a.name, { app, name: a.name }), h('span', a.status ? (app.presence?.waiting?.(a.by) ? 'waiting for you' : 'working') : 'over MCP')));
-    if (bridge.state !== 'off' && !bridge.agents.some((x) => x.connected)) pills.push(h(`span.ag-bridge.${bridge.state}`, { title: bridge.state === 'on' ? 'The MCP bridge is listening: connect Claude Code (settings)' : 'Reconnecting to the MCP bridge…' }, bridge.state === 'on' ? 'MCP ready' : 'MCP reconnecting'));
+    if (bridge.state !== 'off' && !bridge.agents.some((x) => x.connected)) pills.push(h(`span.ag-bridge.${bridge.state}`, { dataset: { feature: 'agent-setup' }, title: bridge.state === 'on' ? 'The MCP bridge is listening: connect Claude Code (settings)' : 'Reconnecting to the MCP bridge…' }, bridge.state === 'on' ? 'MCP ready' : 'MCP reconnecting'));
     who.replaceChildren(...pills);
   }
   // The person's Claude plan, as Claude Code last reported it: the 5-hour window and the week, used so far. A window
@@ -642,7 +686,7 @@ function mountPanel(el, app) {
       h('p.ag-held-t', 'Not sent: no agent is on yet.'),
       h('div.ag-held-acts',
         h('button.btn.ag-held-demo', { type: 'button', onclick: () => useDemo() }, icon('agent', { size: 12 }), 'Ask the demo agent'),
-        h('button.btn.btn-txt.ag-link.ag-held-own', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude')),
+        h('button.btn.btn-txt.ag-link.ag-held-own', { type: 'button', dataset: { feature: 'agent-setup' }, onclick: () => openOwn() }, 'Use your own Claude')),
       h('p.ag-kc-small', `The demo agent is a script: it answers what it can, with the real tools. Your own Claude (${app.remote ? 'claude.ai through Connect, or ' : ''}Claude Code, on your Claude plan) reads every word.`),
     ] : []));
   }
@@ -671,6 +715,11 @@ function mountPanel(el, app) {
     // screen to keep, a question it asked is set aside (FRESH-EYES-6 phone #3: a pending card blocked the next chip)
     if (agent.busy && agent.provider === 'mock' && moveOn(app)) await idle(5000);
     if (agent.busy) { ui.toast('The agent is still working: Stop it first, or wait a moment'); return; }
+    if (!agent.provider && isSimple(app)) {
+      // the simple view never opens the key screen: the demo agent answers (what it can't do, it says so)
+      agent.useMock(true); showKey = false; held = false;
+      if (!agent.provider) { ui.toast('The agent is still starting: try again in a moment'); return; }
+    }
     if (!agent.provider) {
       if (!input.value.trim()) { input.value = text; grow(); }
       held = true; renderHeld(); input.focus();
@@ -846,6 +895,8 @@ function mountPanel(el, app) {
   offs.push(ui.on('presence:agents', (list) => { const was = connected(); bridge.agents = list.filter((a) => a.source === 'mcp'); renderHead(); renderComposer(); if (connected() !== was && (showKey || !agent.provider)) renderAll(); }));
   // Make it yours: a card asked while the song came from a link says so, and that it still waits (FRESH-EYES-6 agent
   // builder, confused #3)
+  // the head says it differently in each view (a plain line in simple, the Claude pill in full): redrawn on a switch
+  offs.push(ui.on('workspace', () => renderHead()));
   offs.push(ui.on('share:fork', () => { for (const e of feed) if (e.k === 'request') mark(e); }));
   offs.push(ui.on('presence:status', ({ by }) => { if (by !== 'claude') { bridge.agents = app.presence.agents().filter((a) => a.source === 'mcp'); renderHead(); renderComposer(); } else renderHead(); }));   // 'claude': working / waiting for you
   offs.push(ui.on('bridge:state', (s) => {
@@ -965,6 +1016,10 @@ const CSS = `
 .ag-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--agent); flex: none; }
 .ag-pill.off .ag-pill-dot { background: var(--text-3); }
 .ag-pill.mcp { cursor: default; }
+.ag-pill.ag-pill-plain { cursor: default; color: var(--text-2); }
+.ag-pill.ag-pill-plain:hover > span:last-child { color: var(--text-2); }
+/* the demo agent's finger on something outside the song (the blank sheet's first door): agent ink, no glow, no pulse */
+.ag-pointed { outline: 2px solid var(--agent); outline-offset: 3px; }
 .ag-plan { font-size: 12px; color: var(--text-3); white-space: nowrap; flex: none; font-variant-numeric: tabular-nums; }
 .ag-plan.limited { color: var(--text-2); }
 .ag-bridge { font-size: 12px; color: var(--text-3); white-space: nowrap; flex: none; }

@@ -16,6 +16,7 @@
 // It never blocks the studio (a small card over the arranger's quiet corner; clicks elsewhere go where they always
 // go), it can be skipped a step at a time or closed for good, and it remembers where you were. It never starts
 // under navigator.webdriver (the checks), unless forced: ?coach in the URL or app.onboard.start({ force: true }).
+// Nor by itself in the simple view (ui/workspace.js): there a door (Tap a beat), Song → Take one or ?coach starts it.
 // It never runs on someone else's song by itself: a tour left half-way doesn't resume on a link, and a link opened
 // mid-tour sends it aside until a song of yours is back. Closing it gives back the loop it set only on the song it set
 // it on, only if nobody has changed that loop since, signed by the house (it's tidying up, not an edit of yours).
@@ -36,6 +37,8 @@ const ls = {
 };
 const SRC_WORD = { hum: 'hummed', tap: 'tapped', beatbox: 'beatboxed', midi: 'played', qwerty: 'played on the keys', touch: 'played', rec: 'recorded' };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+// where the agent's thread is: the Agent tab in the full studio; the simple view's agent pane has no tab strip
+const agentAt = (app) => (app.ui?.workspace?.view?.() === 'simple' ? 'the agent pane' : 'the Agent tab');
 // the agent's takes, counted and lettered as the Agent tab letters them: "three versions, A, B and C"
 const TAKE_N = ['no', 'one', 'two', 'three', 'four', 'five'];
 const takesWord = (n) => {
@@ -201,7 +204,7 @@ export default function (app) {
       offs.push(rec.on('state', () => { if (fm && (step() === 'take' || step() === 'ask')) paint(); }));
       offs.push(rec.on('pass', () => { if (fm && (step() === 'take' || step() === 'ask')) paint(); }));
     }
-    if (app.agent?.on) offs.push(app.agent.on('user', () => { if (step() === 'ask') { note = 'It’s listening to your part. Its takes show up in the Agent tab.'; paintNote(); } }));
+    if (app.agent?.on) offs.push(app.agent.on('user', () => { if (step() === 'ask') { note = `It’s listening to your part. Its takes show up in ${agentAt(app)}.`; paintNote(); } }));
     if (app.agent?.on) offs.push(app.agent.on('error', (e) => { if (step() === 'ask' && e?.code === 'noagent') { note = 'No agent is on yet: press the button to use the demo agent.'; paintNote(); } }));
   }
   function keptClip(e) {
@@ -555,10 +558,10 @@ export default function (app) {
       body = [title('Your part is in the song.'),
         h('p', `Your ${plural(take.notes || 0, word())} ${take.notes === 1 ? 'is' : 'are'} on a track, signed `, h('span.by.by-human.ob-warm', 'you'), `. Next, let the agent play a part over ${take.notes === 1 ? 'it' : 'them'}.`),
         h('div.ob-acts', btn(mock ? 'Ask the demo agent' : 'Ask for a take', askAgent, '.ew-btn-agent', 'agent')),
-        mock ? h('p.ob-small', 'No key needed: the demo agent is scripted, but it uses the real tools. Everything it does is signed, and undoable.') : h('p.ob-small', 'Or type your own ask in the Agent tab', ...(coarse ? ['.'] : [' (', kbd('⌘/'), ').'])) ];
+        mock ? h('p.ob-small', 'No key needed: the demo agent is scripted, but it uses the real tools. Everything it does is signed, and undoable.') : h('p.ob-small', `Or type your own ask in ${agentAt(app)}`, ...(coarse ? ['.'] : [' (', kbd('⌘/'), ').'])) ];
     } else if (s === 'pick') {
       body = [title('Pick the one you like.'),
-        h('p', `The agent played ${takesWord(two.takes)} over yours in the Agent tab. Hold one to hear it with your part, then Keep the one you like.`),
+        h('p', `The agent played ${takesWord(two.takes)} over yours in ${agentAt(app)}. Hold one to hear it with your part, then Keep the one you like.`),
         h('div.ob-acts', btn('Show me', () => ui.show?.('agent'), '', 'agent'))];
     } else if (s === 'done') {
       const who = two.by ? store.author(two.by).name : 'The agent';
@@ -571,7 +574,7 @@ export default function (app) {
         h('p', 'First you: ', h('span.by.by-human.ob-warm', `your ${playedText(mine)}`), '. Then ', h('span.by.by-agent.ob-cool', `${who}’s${two.label ? ` (${two.label.replace(/^take:\s*/, '')})` : ''}`), ', over it. Both are signed in History, and either comes back out with one click.'),
         h('p.ob-small', 'Playing over what’s already there is called an overdub.')]
         : [title('Your part is in the song.'),
-          h('p', 'In the song: ', h('span.by.by-human.ob-warm', `your ${playedText(mine)}`), ', signed in History. When you want a part over it, ask the agent (the Agent tab).'),
+          h('p', 'In the song: ', h('span.by.by-human.ob-warm', `your ${playedText(mine)}`), `, signed in History. When you want a part over it, ask the agent (${agentAt(app)}).`),
           h('p.ob-small', 'Playing over what’s already there is called an overdub.')];
       body.push(
         listening ? h('p.ob-small', 'This song came from a link and isn’t saved yet: Make it yours (top) keeps it.') : null,
@@ -657,7 +660,11 @@ export default function (app) {
   const welcomeUp = () => !!app.welcome?.el?.isConnected && !app.welcome.el.classList.contains('out');
   // (never on someone else's song: a link opened with a tour left half-way, or on a first visit, waits for a song of
   // yours)
+  // The simple view never starts it by itself (its first screen is the blank sheet, and each door is its own start):
+  // it runs from Tap a beat (the first minute), Song → Take one, and ?coach. (A tour left half-way waits there too.)
+  const simple = ui.workspace?.view?.() === 'simple';
   if (forced) start({ force: true, restart: true });
+  else if (simple) { /* not by itself */ }
   else if (!navigator.webdriver && elsewhere() && ((was && was.state === 'on') || (!was && firstVisit))) paused = true;
   else if (!navigator.webdriver && !elsewhere() && ((was && was.state === 'on') || (!was && firstVisit && !welcomeUp()))) start();
   // a tour that stepped aside for a link picks up when a song of yours is on screen again; not when the link's song is
@@ -665,7 +672,7 @@ export default function (app) {
   let forking = false;
   ui.on?.('share:fork', () => { forking = true; setTimeout(() => { forking = false; }, 0); });
   store.on('change', (e) => {
-    if (e.kind !== 'load' || !paused || idx >= 0) return;
+    if (e.kind !== 'load' || !paused || idx >= 0 || ui.workspace?.view?.() === 'simple') return;
     setTimeout(() => { if (paused && idx < 0 && !forking && !elsewhere()) { paused = false; start(); } }, 0);
   });
 }

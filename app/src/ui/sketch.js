@@ -272,6 +272,8 @@ function mount(el, app) {
   // a track's colour for the canvases, through the timeline views' allowlist (a token or a hex colour, else sage)
   const colorOf = (trackId) => { const t = trackId && store.track(trackId); return resolveColor(t ? t.color : 'var(--c-4)', '#5fd0b2'); };
   function chip(label, on, onclick, title) { return h('button.sk-chip' + (on ? '.on' : ''), { type: 'button', onclick, title: title || label, 'aria-pressed': String(!!on) }, label); }
+  // a part the simple view can put away (ui/workspace.js hides [data-feature~=id] while that feature is put away)
+  function tagged(el, feature) { el.dataset.feature = feature; return el; }
   function seg(opts, cur, onpick, label) {
     return h('div.sk-seg', { role: 'radiogroup', 'aria-label': label }, opts.map(([v, l]) => h('button' + (v === cur ? '.on' : ''), { role: 'radio', 'aria-checked': String(v === cur), onclick: () => onpick(v) }, l)));
   }
@@ -597,7 +599,7 @@ function mount(el, app) {
     }
     if (!shown.length && !trace.length && !cnt) {
       g.fillStyle = cs.text3; g.font = `13px ${cs.ui}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(rec.state === 'rec' ? 'Recording. What you play lands here on its beat.' : drums ? 'Tap along: each tap lands here on its beat.' : 'Play along: each note lands here on its beat.', (L + Rr) / 2, (T + B) / 2);
+      g.fillText(rec.state === 'rec' ? 'Recording. What you play lands here on its beat.' : drums ? 'Tap along: each tap lands here on its beat.' : extra.hum ? 'Hum along: each note lands here on its beat.' : 'Play along: each note lands here on its beat.', (L + Rr) / 2, (T + B) / 2);
     }
   }
 
@@ -624,8 +626,10 @@ function mount(el, app) {
   const recNote = h('span.sk-recnote', { role: 'status', 'aria-live': 'polite' });
   // how a take records (Each pass, the count-in, the click): in the strip on a computer; on a touch screen a row of its
   // own under the canvas, so the pinned strip stays one row and these are still a tap away
-  const recOpts = h('div.sk-recopts', { role: 'group', 'aria-label': 'How a take records' }, h('span.sk-field.sk-each-f', h('small', 'Each pass'), passWrap), countB, clickB);
-  strip.append(recBtn, h('label.sk-field', h('small', 'Onto'), tgtSel), ...(touch ? [] : [recOpts]), recNote);
+  // (the simple view puts these away as Recording options, data-feature="record-options": Record keeps today's
+  // defaults, onto the selected or a new track, and the take line still says where it went)
+  const recOpts = h('div.sk-recopts', { role: 'group', 'aria-label': 'How a take records', dataset: { feature: 'record-options' } }, h('span.sk-field.sk-each-f', h('small', 'Each pass'), passWrap), countB, clickB);
+  strip.append(recBtn, h('label.sk-field.sk-onto', { dataset: { feature: 'record-options' } }, h('small', 'Onto'), tgtSel), ...(touch ? [] : [recOpts]), recNote);
   // The line saying what a take records onto ("Recording onto Drums, pass 1."): the strip's last word on a computer; on
   // a phone, above the pads (or the dial), so the pinned row stays one row (it wrapped to two and covered the pads'
   // bottom: a low tap on Kick hit Beatbox). Play it's strip is in the sheet already, over the keys: it stays there.
@@ -834,7 +838,8 @@ function mount(el, app) {
     const keepDest = () => (isSplit() ? stripDest('notes') : dest.firstChild?.value);
     const destTrack = () => { const v = keepDest(); return v && !v.startsWith('new:') ? v : null; };
 
-    const optsEl = h('div.sk-opts');
+    // (Snap, the grid and My timing: Recording options, put away in the simple view; the take line still says what moved)
+    const optsEl = h('div.sk-opts', { dataset: { feature: 'record-options' } });
     function paintOpts() {
       // the song's key once it's one somebody meant (a part in a key, or a key was set); else the key heard in the take
       const key = hum.songKey(), tk = hum.take, heard = tk && tk.opts && !tk.opts.key ? tk.opts.heard : null;
@@ -871,7 +876,8 @@ function mount(el, app) {
         const moved = m ? ` Moved ${m} ${m === 1 ? 'note' : 'notes'} into ${keyLabel(key)}.` : fromHum ? ' Heard in your hum; nothing moved.' : key && tk.opts.snapKey === false ? ' As you sang it: nothing moved.' : '';
         status.replaceChildren(h('b', `Your hum is in. ${n} note${n === 1 ? '' : 's'}${key ? ', ' + keyLabel(key) : ''}.`), moved,
           r.low ? ` ${r.low} dimmed: not sure of ${r.low === 1 ? 'it' : 'them'}.` : '');
-      } else status.replaceChildren(h('span.ew-muted', touch ? 'Tap Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.' : 'Press Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.'));
+      } else if (tk && !tk.result && !(tk.segs && tk.segs.length)) status.replaceChildren(h('b', 'Heard nothing.'), ' Hum a little louder, or closer to the mic.');
+      else status.replaceChildren(h('span.ew-muted', touch ? 'Tap Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.' : 'Press Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.'));
       status.title = status.textContent;
     }
     async function go() {
@@ -894,7 +900,7 @@ function mount(el, app) {
 
     function drawRoll(now) {
       // the song is playing: the ruler, with the hum's pitch drawn up to the cursor
-      if (following()) { drawRuler(roll, 'pitch', now, { trace: hum.active ? hum.trace().slice(-400) : null }); return; }
+      if (following()) { drawRuler(roll, 'pitch', now, { trace: hum.active ? hum.trace().slice(-400) : null, hum: true }); return; }
       roll.fit();
       const g = roll.g, w = roll.w, H = roll.h;
       g.clearRect(0, 0, w, H);
@@ -1073,7 +1079,7 @@ function mount(el, app) {
     function paintOpts() {
       optsEl.replaceChildren(...[
         touch ? null : chip(keysOn ? 'F J K L play pads: on' : 'F J K L play pads: off', keysOn, () => { keysOn = !keysOn; input.setMode(keysOn ? 'tap' : null); paintOpts(); }, keysOn ? 'F J K L play the pads (Shift for an accent), not the studio’s shortcuts. Click or Esc to turn them off.' : 'F J K L are the studio’s shortcuts again (L is loop). Click to make them play the pads.'),
-        seg([[0.25, '1/16'], [0.5, '1/8']], input.options.grid, (g) => { input.options.grid = g; paintOpts(); }, 'Grid'),
+        tagged(seg([[0.25, '1/16'], [0.5, '1/8']], input.options.grid, (g) => { input.options.grid = g; paintOpts(); }, 'Grid'), 'record-options'),
         // (a phone: the line sits beside the snap chips, over the grid, so it is in view with the pads and costs no row)
         touch && isSplit() ? status : null].filter(Boolean));
     }

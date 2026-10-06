@@ -71,7 +71,8 @@ overdub/
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
-  app/src/ui/            shell.js + dom.js (fixed frame), transport.js, arranger.js, lanes.js (automation lanes),
+  app/src/ui/            shell.js + dom.js (fixed frame), workspace.js + workspace-view.js (the simple view),
+                         transport.js, arranger.js, lanes.js (automation lanes),
                          arrange-kit.js, pianoroll.js, drumgrid.js, grooves.js (the Grooves tab)        [ui-arrange]
                          mixer.js, rack.js, faces.js*, browser.js, inspector.js                         [ui-mix] (*faces: guitar)
                          touch.js (a finger on a knob, a slider or a fader: a drag scrolls, a hold moves it)  [ui-mix]
@@ -740,7 +741,9 @@ go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, t
 `app/src/ui/shell.js` lays out regions and owns the one animation loop and the key handler:
 
 ```
-top     transport bar and the Song menu
+top     transport bar and the Song menu; then the workspace's note, More and Full studio / Simple view (div.ew-ws;
+        in full, with the agent pane open on a wide screen, More and Simple view sit at the end of its tab row,
+        ui.wsSide)
 left    Browser, Inspector (tabs)
 center  Arrange, Jam (tabs; ui/jam.js puts them in the arranger's toolbar row, so they cost the song no height)
 bottom  detail (tabs: Sketch, Notes, Beat, Grooves, Devices, Mixer, Reference)
@@ -749,9 +752,9 @@ right   Agent, Connect, History (tabs)
 
 ```js
 ui.panel({ id, region, title, icon?, order?, mount(el, ctx) { return { update(evt), frame(now), unmount() } } })
-ui.show(panelId) ; ui.state ; ui.select(sel) ; ui.on(type, fn) ; ui.emit(type, detail) ; ui.toast(text, { kind, action })
+ui.show(panelId, { save?, by? }) ; ui.state ; ui.select(sel) ; ui.on(type, fn) ; ui.emit(type, detail) ; ui.toast(text, { kind, action })
 ui.announce(text)                 // a screen-reader-only status line (agent edits and messages while the Agent tab is hidden)
-ui.keys.add({ key: 'Space' | 'KeyZ' | ..., mod: 'mod' | 'shift' | 'alt' | 'mod+shift' | null, run(e), when?(), label, group, global? })
+ui.keys.add({ key: 'Space' | 'KeyZ' | ..., mod: 'mod' | 'shift' | 'alt' | 'mod+shift' | null, run(e), when?(), label, group, global?, feature? })
 ui.state = { selection: { track, clip, notes: Set<noteId>, range: { from, to } | null, insert }, zoom: { pxPerBeat, trackH },
              scrollX, scrollY, focus: panelId, presence }
 ctx = the app object (window.overdub)
@@ -792,10 +795,38 @@ the finger is, so a slider or a fader moves from where it sits and never jumps t
 A mouse and a pen are left alone. Toasts: the same words again while they're up count on the note there ("×3") instead
 of stacking, a phone shows two at most, and an open device window is never under one (`ui.dockToasts`, below).
 
+**The workspace seam** (`ui/workspace.js`, `ui.workspace`): what's on screen, kept apart from the song. There is one
+studio, one set of panels and one undo; the **simple view** is that studio with the features nobody has added yet put
+away. `FEATURES` is the registry: each feature has a permanent id (`notes`, `mixer`, `loop`, `agent-setup`, …), a
+group, a title and a one-line purpose for More, its panels (mapped centrally, so panel files don't tag themselves)
+and search aliases. Parts outside a panel are tagged in place, `data-feature="<id>"` (space-separated for more than
+one); an untagged part always shows. A hidden feature puts `ws-off-<id>` on the root, and one generated rule
+(`.ws-off-<id> [data-feature~="<id>"] { display: none !important }`) takes its parts out of the layout, the tab order
+and the accessibility tree; the root also carries `ws-simple` or `ws-full`. The shell skips a hidden panel's tab,
+never makes it a region's active panel, and recomputes `.ew-single` in `retab(region)`. Reaching for a feature adds
+it: `ui.show(id, { save, by })` on a hidden panel (unless `save: false`), a key declared with `feature`
+(`ui.keys.add({ …, feature })`: the key runs, then `ui.workspace.reach(feature)`), or opening a region whose panels
+are all hidden. Every add is signed: `by` is `'you'` or an agent's id, and while a tool runs `tools.run` sets
+`ui.state.actor`, so a panel an agent's tool shows is the agent's add; a one-line note by More says who added what,
+with Put away. The layout is per browser, `localStorage['overdub:workspace'] = { v: 1, view, added: { [id]: by } }`,
+and is **never an op**: not in the store, not undoable, never in a share link or a song file. Which view a load opens
+in is `decideView` (`ui/workspace-view.js`, pure): `?view=` for that load only, then the saved view, then `full`
+under `navigator.webdriver` (so the suites see today's studio), then `full` for anyone with an `overdub:layout`,
+`overdub:welcomed` or saved song, else `simple`; a first visit in simple opens a blank song. Other modules never
+import `workspace.js`: they tag parts and call `app.ui.workspace?.…`. Changes emit `ui.emit('workspace', { view,
+hidden })`; agents read and change it with the `workspace` tool (`agent/workspace-tool.js`; `get_selection` carries
+`studio: { view, hidden }`).
+
+```js
+ui.workspace = { FEATURES, view(), setView(view, { by }), has(id), panelShown(panelId), featureOfPanel(panelId),
+                 add(ids, { by, note }), putAway(ids, { by }), reach(id, by), list(), openMore({ query }) }
+```
+
 **Take one** (`ui/onboard.js`, `app.onboard`): the first-run coach (hear it, take one, keep it, ask the agent, keep
 its take). Each step advances on the real event (transport, capture `add`, a kept clip by you, an agent's request or
 notes). State in `overdub:onboard`; never starts under `navigator.webdriver` unless `?coach` or `start({ force })`.
-The Song menu's **Take one** restarts it. `app.onboard = { start({ force?, restart? }), stop(), skip(), done(), ask(),
+Never starts by itself in the simple view: there it comes from **Tap a beat**
+(`firstMinute`), the Song menu's **Take one** or `?coach`. The Song menu's **Take one** restarts it. `app.onboard = { start({ force?, restart? }), stop(), skip(), done(), ask(),
 firstMinute(kind = 'tap'), keysOver(), step, index, steps, active, state, take }`; ui event `'onboard'`.
 `firstMinute()` is the first minute (`docs/research/RECORDING-UX.md` 3.3; **Tap a beat** on the card and on a new
 song's blank sheet): a Drums track if the song has none, selected, a 2-bar loop at the marker, the click, Sketch on
@@ -1474,7 +1505,8 @@ of this version trusts the kept songs' devices, once), decodes a share link if t
 (the link's song, `?new`, `?demo`, the saved song, or the demo), the engine (a silent stand-in if it fails), the
 shell, then starts each module in `MODULES` (each `export default function (app)`) in order; one failing never stops
 the rest. Audio starts on the first gesture. URL switches: `?new`, `?demo=<id>`, `?device=<id>`, `?agent=mock`,
-`?coach`, `?autostart`, `#s=…`.
+`?coach`, `?autostart`, `?view=simple|full`, `#s=…`. Straight after the shell,
+`installWorkspace(ui, app)` gives it `ui.workspace`, before any module mounts a panel.
 
 The app object (`window.overdub`): `{ store, engine, ui, devices, music, summarize, version, opened, trust, agent,
 tools, input, presence, bridge, remote, share, onboard, devicesIO, importers, reference, band, provenance, exporter,

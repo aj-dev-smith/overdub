@@ -81,6 +81,10 @@ first). Asked for anything past its script (a counter-melody, a new part, a ques
 the nearest thing it can, on what the ask named (its track, by name or by what it is, "the bass line"; its bars or
 section) before what happens to be selected. Everything it does is real and undoable.
 
+In the simple view (a newcomer's first screen; see [The studio layout](#the-studio-layout)) the demo agent is on from
+the start when there's no key and no MCP client, and the key, Claude Code and MCP are put away under More › **Connect
+your own agent**. Ask it "where is the mixer" and it brings the Mixer in, signed as its own.
+
 ## The rules of the room
 
 These are the studio's etiquette, the eight rules the in-app agent's system prompt carries and outside agents read
@@ -93,8 +97,11 @@ two together):
    gives its length), never the selected clip's or the playhead's.
 2. **Small, reversible moves they asked for** (a param nudge, a mix move, a new clip or track, a new insert) you just
    make, then say what changed and why. What nobody asked for (an effect after a take is kept, a fade, a new part) you
-   offer in one line ("Want it warmer? I can build an effect"), never make; and never move their panels or selection.
-   Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
+   offer in one line ("Want it warmer? I can build an effect"), never make. Never move their selection. Their studio
+   may be in the simple view, with features put away (`get_selection` says which): when they ask where something is or
+   to see it, or when they need a hidden control to see or take over your change, bring it in with `workspace` (add or
+   open) and say where it is in one line; otherwise offer it in one line ("That's in the Mixer. Add it?"). Only put
+   away what you added, and never switch their view, unless they ask. Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
    structure, or would take long to audition: `propose_variations` (2-4 takes, each labelled by what differs). Never
    make the whole song unasked, and never replace it unasked: `make_jam_track` replaces the song on screen, so make one
    only when they ask for something to jam over.
@@ -204,6 +211,7 @@ the device's presets.
 | `suggest_riff` | the house riff writer's riffs for a section (`section`, or `bars`; default the section at the playhead), offered as 2-4 takes on a card and in the Jam room's tab lane: each a 1-4 bar riff as tab on the section's chords, in a `style` (`rock`, `blues`, `funk`, `indie`, `metal`; default the song's) and a `difficulty` (`easy`, `medium`, `hard`). The writer (`app/src/core/riff.js`) is a deterministic program, seeded: a motif repeated and answered, chord tones on the strong beats, scale or pentatonic notes between, one hand position. The same `seed` gives the same riffs; `next_seed` gives new ones. The person holds a take to hear it and keeps one; `get_variation_result` says which. Refused while the person records on the Guitar track. |
 | `share_link` | a link to the song as it is now, for the human to send: the whole song (notes, devices including their kernels, the mix, sections; not audio clips) compressed into the link itself, with no Overdub server in between. Returns `{ url, size, dropped }`, or an error if the song is too big for a link. |
 | `provenance_report` | who wrote what, in numbers: each author's share of the notes, recorded audio by author, the devices agents wrote with their requests and check reports, this session's edits as runs by author, and where the song was forked from. Read-only; a record, not a legal opinion. Held devices are listed (`held`), never checked. |
+| `workspace` | the person's studio layout: what's on screen. In the simple view most features are put away until someone adds them. `action` is `list` (the view, and each feature with its id, title, purpose, group, whether it's shown and who added it), `add` or `put_away` (`features`: ids from the list), `open` (one `feature`: added if it was put away, then its panel shown or its part scrolled into view) or `view` (`simple` or `full`). Adds are signed by you, in a one-line note by the More button and in More itself. You put away only what you added; something the person added, or a change of view, needs `asked: true`, and only when they asked. Refused while the person records (except `list`); in the full view everything is already on screen, so nothing changes. Layout is never part of the song: `undo` doesn't reach it, and a share link never carries it. See [The studio layout](#the-studio-layout). |
 
 ### Held devices
 
@@ -248,6 +256,46 @@ An agent doesn't have to learn this from its first card: while the song is from 
 `get_selection` lead with `from_link` (whose link it was, and what waits for a Keep). A card still pending after the
 person pressed Make it yours says so when `get_variation_result` reads it: it still waits for their choice, and a call
 like it now applies directly.
+
+### The studio layout
+
+A newcomer's studio opens in the **simple view**: the same studio with most of it put away, so the first screen is a
+blank song, the transport and the Agent tab. The person brings things back from **More** (each with **Add** and
+**Put away**), or by reaching for them: a key, a double-click on a clip, a link. **Full studio** shows everything.
+Existing users, and browsers driven by a test (`navigator.webdriver`), open in the full view.
+
+`workspace` is how an agent sees and changes that layout. Features have fixed ids, grouped by what they're for:
+
+| group | ids |
+|---|---|
+| Make | `notes` (the piano roll), `beat` (the Beat grid), `grooves`, `jam` (the Jam room) |
+| Sound | `devices` (a track's instrument and effects), `browser` (instruments and effects to try or add) |
+| Balance | `mixer`, `compare` (the Reference tab), `meters` (the level meter and All off) |
+| Song | `loop`, `position` (the counter and the beat lights), `song-settings` (meter, tap tempo, the click), `tracks` (Add a track, snap, zoom, colours), `redo` |
+| Recording | `record-options` (the Onto picker, track arm, count-in, layering, timing) |
+| Agent | `history`, `details` (the Inspector), `agent-setup` (your own key, Claude Code, MCP) |
+| Files | `files` (import, export, stems, DAWproject, reports) |
+| Layout | `panes` (the buttons that show and hide the panes) |
+
+Undo, Stop, Play and Record, the bylines, track mute and solo, Arrange, Sketch and Agent, and the Song menu's New
+song, Open the demo, Demos, Save, Share a link, Export mix and Take one are never put away.
+
+When to use it: when the person asks where something is or asks to see it, or when they need a hidden control to see
+or take over your change (you changed the mix and they'll want the faders). Otherwise say where it is in one line and
+offer ("That's in the Mixer. Add it?"). `get_selection`'s `studio` says what's hidden, so check it before telling
+someone to drag a fader. A tool that shows a panel by itself (opening a clip in the Beat grid, say) adds that feature
+too, signed by you.
+
+```json
+{ "action": "open", "feature": "mixer", "reason": "they asked where the faders are" }
+→ { "view": "simple", "added": ["mixer"], "already": [], "where": "the Mixer tab, under the song" }
+```
+
+The note by More reads "Claude added the Mixer." with **Put away**, and More marks the row *added by Claude*. Errors
+come back as `{ error, hint }`: an unknown id (the hint lists the ids), `the person is recording` (wait with
+`get_recording`'s `wait_seconds`), and putting away what the person added, or switching their view, without
+`asked: true` (`they added that`, `that's their choice`: offer it in one line instead). Layout is kept per browser
+(`overdub:workspace`), never in the song: it isn't an op, `undo` doesn't reach it, and a share link doesn't carry it.
 
 ## Ops (for `apply_ops`)
 
@@ -525,6 +573,7 @@ and browser, and which are deleted after 90 days. The code: `app/src/analytics.j
 | `app/src/agent/prompt.js` | the system prompt (etiquette, voice, the notes and drum-grid formats; the device guide, the full ops sheet and the lexicon are `get_guide` topics) |
 | `app/src/agent/lexicon.js` | the translator lexicon: words → axes → param moves, and `READINGS` for the words that get asked (editable data) |
 | `app/src/agent/lexicon-personal.js` | the human's own meanings (localStorage `overdub:lexicon-personal`, with counts); Agent settings › Your words |
+| `app/src/agent/workspace-tool.js` / `app/src/ui/workspace.js` | `workspace`; the feature registry, More and the simple view (`ui.workspace`) |
 | `app/src/agent/panel.js` / `history.js` / `presence.js` | the Agent tab, the History tab, `app.presence` |
 | `app/src/agent/keep.js` | a song from a link: what an agent's change would take away, and the store's guard that holds it for the person's Keep; a song with held devices: new code waits for Keep too, and a held kernel is known with its names changed (`kernelPrint`) |
 | `app/src/agent/bridge.js` / `remote.js` | the page side of the local MCP bridge (`app.bridge`) and of the claude.ai relay (`app.remote`) |

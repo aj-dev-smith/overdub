@@ -473,8 +473,9 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
   T.ok(ownUndo.title === 'S6' && /“S1” was the oldest/.test(ownUndo.own.toast) && ownUndo.list.join() === 'S7,S5,S4,S3,S2' && !ownUndo.list.includes('Untitled'),
     `Make your own on a full list says “S1” went; Undo brings S6 back with no empty "Untitled" in the list, so S2 stays (${ownUndo.own.list.join(', ')} → ${ownUndo.list.join(', ')})`);
 
-  // the empty arrangement's "open the demo song" replaces the song as the Song menu does: the song goes to Recent
-  // songs, and the toast's Undo brings it back
+  // the empty arrangement's foot line in the full studio ("Or add a track yourself, or hear a finished one: Night
+  // Shift."): its Night Shift replaces the song as the Song menu does: the song goes to Recent songs, and the toast's
+  // Undo brings it back
   const emptyDemo = await E(async () => {
     const o = window.overdub, ex = o.exporter;
     await ex.newSong();
@@ -483,12 +484,14 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     o.store.dispatch({ type: 'track.remove', track: o.store.get().tracks[0].id }, { by: 'you', label: 'remove' });
     for (const t of document.querySelectorAll('.ew-toast')) t.remove();
     await new Promise((r) => setTimeout(r, 300));
-    const link = [...document.querySelectorAll('.ar-empty .ar-link')].find((b) => b.textContent === 'open the demo song');
+    const foot = document.querySelector('.ar-empty-foot')?.textContent.trim().replace(/\s+/g, ' ');
+    const link = [...document.querySelectorAll('.ar-empty .ar-link')].find((b) => b.textContent === 'Night Shift');
     link?.click();
     await new Promise((r) => setTimeout(r, 500));
-    return { link: !!link, title: o.store.get().title, recent: ex.recent().map((e) => e.title), undo: [...document.querySelectorAll('.ew-toast')].some((t) => /Mine, empty/.test(t.textContent) && t.querySelector('.ew-toast-act')) };
+    return { foot, link: !!link, title: o.store.get().title, recent: ex.recent().map((e) => e.title), undo: [...document.querySelectorAll('.ew-toast')].some((t) => /Mine, empty/.test(t.textContent) && t.querySelector('.ew-toast-act')) };
   });
-  T.ok(emptyDemo.link && emptyDemo.title === 'Night Shift' && emptyDemo.recent[0] === 'Mine, empty' && emptyDemo.undo, `the empty arrangement's "open the demo song" puts the song in Recent songs, with an Undo (${JSON.stringify(emptyDemo)})`);
+  T.ok(emptyDemo.foot === 'Or add a track yourself, or hear a finished one: Night Shift.', `the empty arrangement's foot line in the full studio: "${emptyDemo.foot}"`);
+  T.ok(emptyDemo.link && emptyDemo.title === 'Night Shift' && emptyDemo.recent[0] === 'Mine, empty' && emptyDemo.undo, `the empty arrangement's "Night Shift" puts the song in Recent songs, with an Undo (${JSON.stringify(emptyDemo)})`);
 
   // replacing the song while a take records: the take goes into the song first, so Recent songs and Undo keep it
   const tk0 = await E(async () => {

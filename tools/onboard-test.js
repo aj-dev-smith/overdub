@@ -9,6 +9,8 @@
 //     on a new track (Tune), never muting or covering the song's chords
 //   - the toast after each take stays off the detail pane (the Takes list's Hear, Keep and Agent) and off the tour card
 //   - the cards speak plainly: no "Now the overdub." or "That's an overdub." as a headline
+//   - the simple view: a first visit in a person's browser (no webdriver) opens simple on the blank sheet with no coach
+//     and no welcome card; ?coach still starts the tour there, and Tap a beat still starts the first minute
 //   node tools/onboard-test.js      (screenshots: tools/.out/onboard-*.png)
 import fs from 'node:fs';
 import { open, tally } from './pw.js';
@@ -252,7 +254,7 @@ try {
     const ctx = await s.browser.newContext({ viewport: { width: 1440, height: 900 } });
     await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }));
     const fp = await ctx.newPage();
-    await fp.goto(s.base + '/app/', { waitUntil: 'load' });
+    await fp.goto(s.base + '/app/?view=full', { waitUntil: 'load' });   // the full studio: a clean browser opens simple, with no welcome
     await fp.waitForSelector('html[data-ready="1"]', { timeout: 45000 });
     await sleep(800);
     const fv = await fp.evaluate(() => ({ webdriver: navigator.webdriver, welcome: !!document.querySelector('.ar-welcome:not(.out) .ar-welcome-own'), tour: document.querySelector('.ob:not(.out) .ob-t')?.textContent || null, active: window.overdub.onboard.active }));
@@ -281,7 +283,9 @@ try {
     await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }));
     const pg = await ctx.newPage();
     const P = (fn, a) => pg.evaluate(fn, a);
-    const boot = async (url) => { await pg.goto(s.base + url, { waitUntil: 'load' }); await pg.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); await sleep(700); };
+    // in the full studio (?view=full): a clean, non-webdriver browser opens simple, where the coach never starts by itself
+    const full = (url) => { const [a, hash = null] = url.split('#'); return (a.includes('?') ? a.replace('?', '?view=full&') : a + '?view=full') + (hash != null ? '#' + hash : ''); };
+    const boot = async (url) => { await pg.goto(s.base + full(url), { waitUntil: 'load' }); await pg.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); await sleep(700); };
     const card = () => P(() => ({ card: !!document.querySelector('.ob:not(.out)'), active: window.overdub.onboard.active, step: window.overdub.onboard.step, listening: !!window.overdub.share?.listening, title: window.overdub.store.get().title }));
     await boot('/app/?demo');
     await P(() => { localStorage.setItem('overdub:welcomed', '1'); localStorage.setItem('overdub:onboard', JSON.stringify({ state: 'on', step: 'take' })); });
@@ -360,6 +364,33 @@ try {
     await tapAt(g.solo[0], g.solo[1]);
     const onS = await st();
     T.ok(got.every((x) => x.sel && !x.solo) && onS.solo, `a tap beside a track's name selects it and never soloes it (${got.map((x) => (x.solo ? 'S' : x.sel ? 'sel' : '-')).join(' ')}); a tap on S soloes it (${onS.solo})`);
+    await ctx.close();
+  }
+
+  /* ================================================================ the simple view: no coach until you choose a door
+     A person's first visit (navigator.webdriver hidden, so the coach's own first-visit rule runs) opens the simple view
+     on the blank sheet: the coach doesn't start by itself and the welcome card doesn't show. ?coach still starts it,
+     and Tap a beat (the first minute) still runs. */
+  {
+    const hide = () => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true }); };
+    const ctx = await s.browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['microphone'] });
+    await ctx.addInitScript(hide);
+    const pg = await ctx.newPage();
+    const boot = async (url) => { await pg.goto(s.base + url, { waitUntil: 'load' }); await pg.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); await sleep(900); };
+    await boot('/app/');
+    const first = await pg.evaluate(() => { const o = window.overdub, w = document.querySelector('.ar-welcome'); return { wd: navigator.webdriver, view: o.ui.workspace?.view?.() || null, coach: !!o.onboard?.active, card: !!document.querySelector('.ob:not(.out)'), welcome: !!w && w.getClientRects().length > 0, blank: !!document.querySelector('.ar-empty-title')?.getClientRects().length }; });
+    T.ok(first.wd === false && first.view === 'simple' && first.blank, `a person's first visit opens the simple view on the blank sheet (${JSON.stringify(first)})`);
+    T.ok(!first.coach && !first.card && !first.welcome, `... and the coach doesn't start by itself, nor the welcome card show (coach ${first.coach}, welcome ${first.welcome})`);
+    await boot('/app/?view=simple&coach');
+    const forced = await pg.evaluate(() => ({ coach: !!window.overdub.onboard?.active, step: window.overdub.onboard?.step, view: window.overdub.ui.workspace?.view?.() || null }));
+    T.ok(forced.coach && forced.view === 'simple', `?coach still starts the tour in the simple view (${JSON.stringify(forced)})`);
+    await pg.evaluate(() => window.overdub.onboard.stop());
+    await boot('/app/?view=simple');
+    await pg.evaluate(() => [...document.querySelectorAll('.ar-empty-actions button')].find((b) => b.textContent.trim() === 'Tap a beat')?.click());
+    await sleep(900);
+    const door = await pg.evaluate(() => { const o = window.overdub; return { minute: !!o.onboard?.minute, tracks: o.store.get().tracks.map((t) => t.name) }; });
+    T.ok(door.minute && door.tracks.includes('Drums'), `Tap a beat on the blank sheet still starts the first minute (${JSON.stringify(door)})`);
+    await pg.evaluate(() => { const o = window.overdub; o.engine.stop?.(); o.onboard?.stop?.(); });
     await ctx.close();
   }
 

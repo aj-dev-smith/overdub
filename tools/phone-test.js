@@ -20,10 +20,15 @@
 // Then a phone turned on its side (844x390 in Chromium, the iPhone 13's 750x342 in WebKit), from upright: the song
 // keeps a band in view however the sheet is dragged, the top bar is one row with the title and 40 px keys, the track
 // headers' M S R are 40 px, no mouse hint, and Devices keeps 40 px knobs and scrolls down to what's under them.
+// Then the simple view (?view=simple, a blank song) upright, in Chromium at 390x844 and WebKit as an iPhone 13: 18 or
+// fewer controls on screen, the top row's title, stop, play, record, agent and More on screen as 40 px keys, the Song
+// menu, Tempo and Key off the bar, and More as a bottom sheet inside the viewport and no taller than 70% of it, Full
+// studio, the Song menu, Tempo and Key first, 40 px Add keys, a 16 px search field, no text under 12 px, closing again.
 // Screenshots: tools/.out/phone-<engine>-<width>-<pane>.png
 //
 //   node tools/phone-test.js                     all six
-//   node tools/phone-test.js chromium            just Chromium (390, 430 and on its side); also webkit
+//   node tools/phone-test.js chromium            just Chromium (390, 430, on its side and simple); also webkit
+//   node tools/phone-test.js simple              just the simple view passes (simple chromium: one of them)
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -43,7 +48,9 @@ const RUNS = [
   { engine: 'webkit', device: 'iPhone 13' },
   { engine: 'webkit', device: 'iPhone 14 Pro Max' },
   { engine: 'webkit', device: 'iPhone 13', turn: [750, 342] },
-].filter((r) => !only.length || only.includes(r.engine));
+  { engine: 'chromium', w: 390, h: 844, simple: true },
+  { engine: 'webkit', device: 'iPhone 13', simple: true },
+].filter((r) => !only.length || (only.includes('simple') ? r.simple && (only.length === 1 || only.includes(r.engine)) : only.includes(r.engine)));
 const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|the server responded with a status of 404/.test(e);
 
 function findPlaywright() {
@@ -638,6 +645,101 @@ async function phone(pw, srvUrl, run) {
   await browser.close().catch(() => {});
 }
 
+// ------------------------------------------------------------------------------------------------ the simple view
+// The controls a person sees (the inventory probe's rule: visible button, a, input, select, textarea and button-like
+// roles, in the viewport)
+const controls = () => [...document.querySelectorAll('button, a[href], a[role], input:not([type=hidden]), select, textarea, [role=button], [role=tab], [role=slider], [role=spinbutton]')].filter((e) => {
+  if (!e.getClientRects().length || e.closest('[inert]')) return false;
+  const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+  return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth && cs.visibility !== 'hidden' && Number(cs.opacity) > 0;
+}).map((e) => (e.getAttribute('aria-label') || e.textContent || e.className || e.tagName).trim().replace(/\s+/g, ' ').slice(0, 20));
+// The More sheet: the box around its search field, marked [data-test-more] so the text check can scope to it
+const moreSheet = () => {
+  const inp = [...document.querySelectorAll('input')].find((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length);
+  if (!inp) return null;
+  let b = inp.parentElement;
+  while (b && b !== document.body && !(b.getAttribute('role') === 'dialog' || ['fixed', 'absolute'].includes(getComputedStyle(b).position))) b = b.parentElement;
+  b.setAttribute('data-test-more', '');
+  const r = b.getBoundingClientRect(), t = b.innerText;
+  const adds = [...b.querySelectorAll('button')].filter((x) => /^(Add|Put away)$/.test(x.textContent.trim()) && x.getClientRects().length).map((x) => x.getBoundingClientRect()).filter((q) => q.top >= r.top && q.bottom <= Math.min(r.bottom, innerHeight));
+  const at = (re) => { const m = re.exec(t); return m ? m.index : -1; };
+  return { l: Math.round(r.left), t: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom), h: Math.round(r.height), vh: innerHeight, vw: innerWidth,
+    full: at(/Full studio/), song: at(/\bSong\b/), tempo: at(/Tempo/), key: at(/\bKey\b/), make: at(/(^|\n)Make(\n|$)/),
+    adds: adds.map((q) => Math.round(q.height)), searchPx: parseFloat(getComputedStyle(inp).fontSize) };
+};
+async function simplePhone(pw, srvUrl, run) {
+  const tag = `${run.engine}-${run.device ? pw.devices[run.device].viewport.width : run.w}-simple`;
+  const label = (run.device ? `${run.engine} ${run.device}` : `${run.engine} ${run.w}x${run.h}`) + ', simple';
+  let browser;
+  try {
+    browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+  } catch (e) {
+    const msg = String(e && e.message || e).split('\n')[0];
+    if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);
+    else T.note(`${label}: not available here, skipped (${msg})`);
+    return;
+  }
+  const opts = run.device ? { ...pw.devices[run.device] } : { viewport: { width: run.w, height: run.h }, deviceScaleFactor: 3, isMobile: true, hasTouch: true };
+  const context = await browser.newContext(opts);
+  const page = await context.newPage();
+  page.setDefaultTimeout(15000);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push('pageerror: ' + (e && (e.stack || e.message) || e)));
+  page.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) errors.push('console: ' + m.text()); });
+  const E = (fn, arg) => page.evaluate(fn, arg);
+  const shot = (n) => page.screenshot({ path: path.join(OUTDIR, `phone-${tag}-${n}.png`) });
+  const noSideways = async (where) => { const s = await E(pageWide); T.ok(s.doc <= s.vw && s.body <= s.vw && s.sx === 0, `${label}: no sideways page scroll ${where} (${s.doc} px in ${s.vw})`); };
+  const readable = async (scope, where) => { const s = await E(smallText, scope); T.ok(!s.length, `${label}: no text under 12 px ${where}${s.length ? ': ' + s.slice(0, 6).join(', ') : ''}`); };
+  const fmt = (bs) => bs.map((b) => b.miss ? `${b.sel} missing` : `${b.sel} ${b.w}x${b.h}${b.on ? '' : ' off screen'}`).join(', ');
+  const moreBtn = () => E(() => { const bar = document.querySelector('.ew-ws') || document.querySelector('.ew-top'); const b = [...bar.querySelectorAll('button')].find((x) => x.getClientRects().length && x.textContent.trim() === 'More'); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: Math.round(r.width), h: Math.round(r.height), on: r.left >= 0 && r.right <= innerWidth && r.top >= 0 }; });
+  try {
+    await page.goto(srvUrl + '/app/?view=simple', { waitUntil: 'load' });
+    await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 });
+    await sleep(700);
+    const view = await E(() => window.overdub.ui.workspace?.view?.() || null);
+    T.ok(view === 'simple', `${label}: ?view=simple opens the simple view (${view})`);
+    const c = await E(controls);
+    T.ok(c.length <= 18, `${label}: 18 or fewer controls on the first screen (${c.length}: ${c.join(' | ')})`);
+    await noSideways('on the first screen');
+    // the top row: mark, title, agent, stop, play, record, undo, More; the Song menu, Tempo and Key are in More
+    const tb = await E(boxes, ['.tp-title', '.tp-g-play .tp-btn:first-child', '.tp-play', '.tp-rec', '.ew-t-panelRight']);
+    const mb = await moreBtn();
+    T.ok(tb.every((b) => !b.miss && b.on) && mb && mb.on, `${label}: the top row fits: title, stop, play, record, agent and More on screen (${fmt(tb.filter((b) => b.miss || !b.on)) || 'all there'}${mb ? '' : ', More missing'})`);
+    T.ok(tb.slice(1).every((b) => !b.miss && b.h >= 39.5 && b.w >= 39.5) && mb && mb.h >= 39.5 && mb.w >= 39.5, `${label}: its keys are 40 px targets (${fmt(tb.slice(1))}, More ${mb ? mb.w + 'x' + mb.h : 'missing'})`);
+    const off = await E(() => {
+      const vis = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+      const labs = [...document.querySelectorAll('[data-panel="transport"] .tp-lab')].filter(vis).map((x) => x.textContent.trim());
+      return { song: [...document.querySelectorAll('.ew-top .sm-btn')].some(vis), labs };
+    });
+    T.ok(!off.song && !off.labs.some((l) => /^(Tempo|Key)$/.test(l)), `${label}: the Song menu, Tempo and Key are off the top row (Song ${off.song ? 'on the bar' : 'in More'}; labels: ${off.labs.join(', ') || 'none'})`);
+    await shot('first');
+    // More: a bottom sheet, inside the viewport, at most 70% of its height
+    if (mb) { await page.touchscreen.tap(mb.x, mb.y); await sleep(400); }
+    const sh = await E(moreSheet);
+    T.ok(!!sh, `${label}: a tap on More opens its sheet`);
+    if (sh) {
+      T.ok(sh.l >= 0 && sh.r <= sh.vw && sh.t >= 0 && sh.b <= sh.vh + 0.5 && sh.vh - sh.b <= 2, `${label}: the More sheet sits at the bottom, inside the viewport (${sh.l},${sh.t}..${sh.r},${sh.b} in ${sh.vw}x${sh.vh})`);
+      T.ok(sh.h <= sh.vh * 0.7 + 1, `${label}: ... no taller than 70% of it (${sh.h} of ${sh.vh} px)`);
+      T.ok(sh.full >= 0 && sh.song >= 0 && sh.tempo >= 0 && sh.key >= 0 && (sh.make < 0 || Math.max(sh.full, sh.song, sh.tempo, sh.key) < sh.make), `${label}: its first rows are Full studio, the Song menu, Tempo and Key, before the features (at ${sh.full}, ${sh.song}, ${sh.tempo}, ${sh.key}; Make at ${sh.make})`);
+      T.ok(sh.adds.length > 0 && sh.adds.every((hh) => hh >= 39.5), `${label}: its Add keys are 40 px targets (${sh.adds.join(', ')} px)`);
+      T.ok(sh.searchPx >= 16, `${label}: its search field is 16 px text, so Safari doesn't zoom into it (${sh.searchPx} px)`);
+      await readable('[data-test-more]', 'in the More sheet');
+      await noSideways('with More open');
+      await shot('more');
+      await page.keyboard.press('Escape');
+      await sleep(300);
+      const closed = await E(() => ![...document.querySelectorAll('input')].some((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length));
+      T.ok(closed, `${label}: and it closes again`);
+    }
+    const errs = errors.slice(0, 4);
+    T.ok(!errs.length, `${label}: no console or page errors${errs.length ? ': ' + errs.join(' | ').slice(0, 500) : ''}`);
+  } catch (e) {
+    T.ok(false, `${label}: the run finished (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`);
+  }
+  await browser.close().catch(() => {});
+}
+
 // ------------------------------------------------------------------------------------------------ on its side
 // Upright first, then turned (setViewportSize, as a phone rotating): the sheet was sized for a tall screen and used to
 // take the whole height (the timeline 0 px), the title went, the transport keys shrank to 30 x 34, Browser and Agent
@@ -1060,8 +1162,8 @@ const pw = findPlaywright();
 try {
   for (const run of RUNS) {
     const t0 = Date.now();
-    console.log(`\n${run.engine} ${run.device || run.w + 'x' + run.h}${run.turn ? ' on its side' : ''}`);
-    await (run.turn ? sideways : phone)(pw, srv.url, run);
+    console.log(`\n${run.engine} ${run.device || run.w + 'x' + run.h}${run.turn ? ' on its side' : ''}${run.simple ? ', the simple view' : ''}`);
+    await (run.turn ? sideways : run.simple ? simplePhone : phone)(pw, srv.url, run);
     T.note(`${((Date.now() - t0) / 1000).toFixed(1)} s`);
   }
 } finally {

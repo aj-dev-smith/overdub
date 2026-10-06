@@ -146,7 +146,7 @@ try {
   for (const n of ['get_project', 'apply_ops', 'define_device', 'render_and_measure', 'highlight', 'say', 'propose_variations', 'get_variation_result', 'undo']) t.ok(tools.some((x) => x.name === n), `tool ${n} is listed`);
   // no tab is open yet (the usual flow: claude mcp add, then start Claude Code): the list still has every tool the
   // studio's own agent has, including the ones page modules register at boot
-  const PAGE_TOOLS = ['arrange_around', 'compare_to_reference', 'transform', 'share_link', 'provenance_report'];
+  const PAGE_TOOLS = ['arrange_around', 'compare_to_reference', 'transform', 'share_link', 'provenance_report', 'workspace'];
   const { catalogSchemas } = await import('../app/src/agent/tools.js');
   const fullNames = (await catalogSchemas()).map((x) => x.name);
   t.ok(PAGE_TOOLS.every((n) => tools.some((x) => x.name === n)) && tools.length === fullNames.length && fullNames.length >= 25,

@@ -451,6 +451,8 @@ E |----------------|----------------|`;
 
   // ---- suggest_riff: the house writer's riffs as takes, on the Agent tab's card and the lane
   const sr = await run('suggest_riff', { section: 'Chorus', style: 'funk', takes: 3, reason: 'riffs for the chorus' });
+  // the pane draws the card on its next frame (a busy machine runs a few behind)
+  await page.waitForFunction((id) => document.querySelectorAll(`.ag-vars[data-id="${id}"] .ag-letter.num`).length >= 3, sr.id, { timeout: 5000 }).catch(() => {});
   const srs = await E((id) => {
     const o = window.overdub, r = o.tools.requests.get(id);
     // the letters each take goes by, on the lane and on the Agent tab's card, by label

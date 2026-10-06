@@ -12,7 +12,11 @@
 //
 // app.exporter = { encodeWav, encodeMidi, zipStore, provenance, newSong(), openDemo(), openFile(), loadText(text, name),
 //                  saveProject(), exportMix(), exportStems(), exportMidi(), exportLog(), exportDawproject(), openReport(), busy,
-//                  recent() -> [{ id, title, at, tracks }], openRecent(i), putAside(song, msg) (a song main.js replaced on the way in) }
+//                  recent() -> [{ id, title, at, tracks }], openRecent(i), putAside(song, msg) (a song main.js replaced on the way in),
+//                  openMenu(anchor?) (the menu, under anchor: More's Song row on a phone) }
+// The simple view (ui/workspace.js) puts the file rows away (data-feature="files": open a file, the imports, stems, MIDI,
+// DAWproject and the reports) and keeps New song, the demos, Save, Share a link, Export mix and Take one; on a phone the
+// Song key itself is More's first row, not the top bar's.
 // The printable provenance report is ui/provenance.js; the DAWproject writer is core/dawproject.js.
 
 import { h, css, icon, byline } from './dom.js';
@@ -445,16 +449,19 @@ export default function (app) {
   const openReport = () => openProvenanceReport(app);
 
   app.exporter = { encodeWav, encodeMidi, zipStore, crc32, provenance: () => provenance(app), newSong, openDemo, putAside, openFile, loadText, saveProject, exportMix, exportStems, exportMidi, exportLog, exportDawproject, openReport, get busy() { return busy; },
-    recent: () => recent().map(({ id, title, at, tracks }) => ({ id, title, at, tracks })), openRecent };
+    recent: () => recent().map(({ id, title, at, tracks }) => ({ id, title, at, tracks })), openRecent, openMenu: (anchor) => openMenu(anchor) };
 
   /* ---------------------------------------------------- the menu */
   // the width under which app.css hides the transport's loop and metronome group
   const narrow = () => typeof matchMedia === 'function' && matchMedia('(max-width: 460px)').matches;
-  function openMenu() {
+  function openMenu(anchor) {
     if (busy) return;
+    const at = anchor?.isConnected ? anchor : btn;
+    if (!at) return;
     const p = store.get(), bf = beforeFork();
     // a row of the menu is words (design/LINER-NOTES-KIT.md): what it does, what it makes in pencil, and its key
-    const item = (ic, label, sub, kb, run, cls = '') => h('button.sm-i' + cls, { onclick: () => { pop.close(); run(); } }, h('span', h('b', label), sub ? h('small', sub) : null), kb ? h('kbd', kb) : null);
+    // (feature: the workspace feature the row belongs to; the simple view puts its rows away, ui/workspace.js)
+    const item = (ic, label, sub, kb, run, cls = '', feature = null) => h('button.sm-i' + cls, { dataset: feature ? { feature } : {}, onclick: () => { pop.close(); run(); } }, h('span', h('b', label), sub ? h('small', sub) : null), kb ? h('kbd', kb) : null);
     const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
     // Anything that replaces the song asks first, the same way: one confirm under the row that was pressed (New song,
     // a demo), saying where the song on screen goes
@@ -499,37 +506,40 @@ export default function (app) {
       narrow() && app.engine ? item('metronome', `Metronome: ${app.engine.metronome ? 'on' : 'off'}`, app.engine.metronome ? 'turn the click off' : 'a click to play along to', null, () => {
         app.engine.metronome = !app.engine.metronome; ui.emit('transport-ui');
         ui.toast(app.engine.metronome ? 'The click is on.' : 'The click is off.');
-      }, '.sm-met') : null,
+      }, '.sm-met', 'song-settings') : null,
       // ... and so does the killswitch (Shift+Esc and the transport's button elsewhere)
-      narrow() && app.transport?.silence ? item('stop', 'All off', 'stop, and cut every note, tail and preview', '⇧Esc', () => app.transport.silence(), '.sm-kill') : null,
+      narrow() && app.transport?.silence ? item('stop', 'All off', 'stop, and cut every note, tail and preview', '⇧Esc', () => app.transport.silence(), '.sm-kill', 'meters') : null,
       h('button.sm-i.sm-demo', { onclick: (e) => ask(e.currentTarget, `Open the demo, “${DEMOS[0].title}”?`, `Open ${DEMOS[0].title}`, () => openDemo()) }, h('span', h('b', 'Open the demo'), h('small', `“${DEMOS[0].title}”`))),
       h('button.sm-i.sm-more', { 'aria-expanded': 'false', onclick: (e) => { demoList.hidden = !demoList.hidden; e.currentTarget.setAttribute('aria-expanded', String(!demoList.hidden)); } },
         h('span', h('b', 'Demos'), h('small', `${DEMOS.length} songs: ${DEMOS.slice(1, 4).map((d) => d.genre.toLowerCase()).join(', ')}${DEMOS.length > 4 ? ' and more' : ''}`)), icon('chevron', { size: 14 })),
       demoList,
-      item('down', 'Open a project file…', '.overdub.json', `${mod}O`, openFile),
-      app.importers ? item('keys', 'Import MIDI…', 'a .mid file: a track per part, one undo step', null, () => app.importers.pickMidi()) : null,
+      item('down', 'Open a project file…', '.overdub.json', `${mod}O`, openFile, '', 'files'),
+      app.importers ? item('keys', 'Import MIDI…', 'a .mid file: a track per part, one undo step', null, () => app.importers.pickMidi(), '', 'files') : null,
       // the way in for audio that doesn't need a drag (keyboard, a screen reader, a phone): onto the selected audio
       // track, or a new one under the selected track, from the playhead's bar
-      app.importers?.pickAudio ? item('wave', 'Import audio…', 'WAV, MP3, M4A or OGG, from the playhead’s bar', null, () => app.importers.pickAudio({ track: ui.state.selection?.track || null })) : null,
-      app.devicesIO ? item('knob', 'Import a device…', 'checked before it’s added', `${mod}⇧I`, () => app.devicesIO.pick()) : null,
+      app.importers?.pickAudio ? item('wave', 'Import audio…', 'WAV, MP3, M4A or OGG, from the playhead’s bar', null, () => app.importers.pickAudio({ track: ui.state.selection?.track || null }), '', 'files') : null,
+      app.devicesIO ? item('knob', 'Import a device…', 'checked before it’s added', `${mod}⇧I`, () => app.devicesIO.pick(), '', 'files') : null,
       item('check', 'Save the project file', 'the song, every note and device', `${mod}S`, saveProject),
-      app.share?.copy ? item('send', 'Share a link', 'copies it: the song, but not its audio clips', null, () => app.share.copy({ anchor: btn })) : null,
+      app.share?.copy ? item('send', 'Share a link', 'copies it: the song, but not its audio clips', null, () => app.share.copy({ anchor: at.isConnected ? at : btn })) : null,
+      // the full studio under 900 px keeps its view switch in the agent sheet's tab row: here too, one tap from the top bar
+      app.ui.workspace?.view?.() === 'full' && typeof matchMedia === 'function' && matchMedia('(max-width: 900px)').matches
+        ? item('panelRight', 'Simple view', 'hide what you’re not using; nothing is removed', null, () => app.ui.workspace.setView('simple')) : null,
       app.onboard?.start ? item('play', 'Take one', 'the two-minute tour, on this song', null, () => app.onboard.start({ force: true, restart: true })) : null,
       ...recentRows,
       h('div.sm-sep', 'Export'),
       item('wave', 'Mix', 'WAV, 24-bit, 48 kHz', `${mod}⇧E`, exportMix),
-      item('panelBottom', 'Stems', 'one WAV per track, zipped', null, exportStems),
-      item('keys', 'MIDI', 'Standard MIDI File, one track per part', null, exportMidi),
-      item('copy', 'DAWproject', '.dawproject: tracks, notes and audio for another DAW', null, exportDawproject),
-      item('person', 'Provenance report', 'who played what, printable as a PDF', null, openReport),
-      item('history', 'Attribution log', 'who did what, when (provenance)', null, exportLog),
+      item('panelBottom', 'Stems', 'one WAV per track, zipped', null, exportStems, '', 'files'),
+      item('keys', 'MIDI', 'Standard MIDI File, one track per part', null, exportMidi, '', 'files'),
+      item('copy', 'DAWproject', '.dawproject: tracks, notes and audio for another DAW', null, exportDawproject, '', 'files'),
+      item('person', 'Provenance report', 'who played what, printable as a PDF', null, openReport, '', 'files'),
+      item('history', 'Attribution log', 'who did what, when (provenance)', null, exportLog, '', 'files'),
       tot ? h('div.sm-prov', h('div.sm-bar', { 'aria-hidden': 'true' }, ['human', 'agent', 'house'].filter((k) => kinds[k]).map((k) => h('i', { style: { flex: String(kinds[k]), background: k === 'agent' ? 'var(--agent)' : k === 'human' ? 'var(--human)' : 'var(--text-3)' } }))),
         h('small', 'Who wrote the notes: ', ...Object.entries(share.notes.byAuthor).sort((a, b) => b[1] - a[1]).flatMap(([by, n], i) => {
           const pc = `${Math.round((n / tot) * 100)}%`;
           const who = authorKind(app, by) === 'house' ? h('span.sm-house', authorName(app, by)) : byline(by, { app });
           return [i ? ', ' : '', who, ' ', h('span.mono', pc)];
         }))) : null);
-    const pop = popover(btn, body, { align: 'end', label: 'Song' });
+    const pop = popover(at, body, { align: 'end', label: 'Song' });
     menuKeys(pop.el, '.sm-i, .sm-confirm button');
   }
 
@@ -586,5 +596,7 @@ const EXPORT_CSS = `
 .sm-house { color: var(--text-2); }
 .sm-bar { display: flex; gap: 0; height: 4px; border-radius: 0; overflow: hidden; }
 @media (max-width: 900px) { .sm-btn { padding: 0 10px; } }
+/* a phone in the simple view: the Song key is More's first row (ui/workspace.js), not the top bar's */
+@media (max-width: 640px) { .ws-simple .ew-shell .sm-btn:not(.busy) { display: none; } }   /* (exporting, it says so) */
 @media (prefers-reduced-motion: reduce) { .sm-more .ico { transition: none; } }
 `;

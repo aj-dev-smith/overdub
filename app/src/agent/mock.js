@@ -95,10 +95,18 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
     } finally { waits.delete(app); signal?.removeEventListener('abort', off); }
   };
   // takes on a card, and the pick; a question on a card, and the answer
-  const offer = async (input) => { const r = await tool('propose_variations', { ...input, wait_seconds: 0 }); return r.error || r.status !== 'pending' ? r : pick(r.id); };
+  // the track the takes are for stays lit while they're on the card, so the takes connect to the song
+  const offer = async (input) => {
+    const r = await tool('propose_variations', { ...input, wait_seconds: 0 });
+    if (!r.error && input.target?.track) { try { app.presence?.highlight?.({ track: input.target.track }, 'the takes are for this track', 'claude', 15000); } catch (e) { /* a nicety */ } }
+    return r.error || r.status !== 'pending' ? r : pick(r.id);
+  };
   const ask = async (input) => { const r = await tool('ask_human', { ...input, wait_seconds: 0 }, { status: 'Waiting for your answer…' }); return r.error || r.status !== 'pending' ? r : pick(r.id, { question: true }); };
 
   const t = text.toLowerCase().replace(/[‘’]/g, "'");
+  // the studio's own asks first ("where is the mixer", "show me everything"): they're about the screen, not the song
+  const studio = studioAsk(app, t);
+  if (studio) { await sceneStudio(app, { say, tool, emit, turn }, studio); setStatus(''); emit('end', { turn }); return; }
   const { scene, rest, clauses } = route(t);
   const ctx = { say, fine, tool, think, st, t, emit, turn, clauses, offer, ask, pick };
   // a prompt that asked for more than the script knows: say so first, with the closest thing it can do, then the part
@@ -124,6 +132,78 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
 
   setStatus('');
   emit('end', { turn });
+}
+
+/* ------------------------------------------------------------------ the studio's own asks */
+// "Where is the mixer?", "show me the piano roll", "open notes", "add the loop": the feature by its title or one of
+// its search words (app.ui.workspace's registry; never imported here), brought in with the workspace tool and said
+// where it is in one line. "Show me everything" / "full studio" and "simple view" / "less on screen" switch the view
+// (asked, so the tool lets it). "What can you do?" in the simple view: what the demo does, and the first door lit.
+// The thing named has to be the whole rest of the ask, so "show me a lick into the D7 at bar 2" or "open the bass
+// filter" never reads as a feature. "add" takes a title or a screen word only: "add drums" is a part, not the Beat grid.
+const STUDIO_VERB = /^(?:(?:hey|ok|okay|so|please|claude|can you|could you|would you)[\s,]+)*(where(?:'s| is| are| do i find| can i find)|show me|open|open up|add|bring (?:in|back|up)|put in)\s+(.+)$/;
+const STUDIO_TAIL = /(?:\s+(?:please|for me|too|again|here|now|panel|tab|window|view|button|control|controls|thing|gone|went|hiding))+$/;
+const NOT_A_SCREEN = new Set(['drums', 'melody', 'midi', 'loops', 'patterns', 'tab', 'guitar', 'amp', 'jam', 'effects', 'reverb', 'delay', 'synth', 'rigs', 'fretboard', 'steps', 'genre', 'sections', 'colour', 'beat', 'bar', 'meter', 'click', 'metronome', 'arm', 'layer', 'timing', 'count-in', 'mix', 'levels', 'volume', 'pan', 'loudness', 'changes', 'log', 'export', 'import', 'stems', 'loop', 'cycle', 'repeat', 'panic', 'loud', 'knobs', 'preset', 'devices', 'rack', 'sound', 'model', 'connect', 'match', 'reference']);
+const EVERYTHING = /^(?:(?:please|can you|could you)\s+)?(?:show me everything|show (?:me )?(?:the )?full studio|(?:the |go to (?:the )?|open (?:the )?|switch to (?:the )?)?full studio|everything on screen|show (?:me )?all (?:the )?(?:panels|controls|tools))[\s?.!]*$/;
+const SIMPLER = /^(?:(?:please|can you|could you)\s+)?(?:(?:go back to |switch to |back to )?(?:the )?simple view|(?:make (?:it|this|the studio|the screen) )?simpler (?:view|studio|screen)|less on (?:the )?screen|(?:fewer|less) (?:buttons|controls|panels|clutter)|hide (?:the )?(?:extra )?(?:stuff|panels|controls))[\s?.!]*$/;
+const WHAT_IS = /^(?:so\s+)?(?:what can you do|what do you do|what is this|what's this|what does this do)[\s?.!]*$/;
+// -> { kind: 'feature', id, verb } | { kind: 'view', view } | { kind: 'intro' } | null
+export function studioAsk(app, t) {
+  const ws = app?.ui?.workspace;
+  if (!ws) return null;
+  t = String(t).toLowerCase().replace(/[‘’]/g, "'").trim();
+  if (EVERYTHING.test(t)) return { kind: 'view', view: 'full' };
+  if (SIMPLER.test(t)) return { kind: 'view', view: 'simple' };
+  if (WHAT_IS.test(t) && ws.view() === 'simple') return { kind: 'intro' };
+  const m = STUDIO_VERB.exec(t.replace(/[\s?.!]+$/, ''));
+  if (!m) return null;
+  const verb = m[1].startsWith('where') ? 'where' : m[1] === 'add' || /^(bring|put)/.test(m[1]) ? 'add' : 'open';
+  const x = m[2].replace(STUDIO_TAIL, '').replace(/^(?:the|a|an|my|your|me|to|some)\s+/, '').replace(/^(?:the|a|an|my|your)\s+/, '').trim();
+  if (!x) return null;
+  for (const f of ws.FEATURES) {
+    const title = f.title.toLowerCase();
+    if (x === title || x === f.id) return { kind: 'feature', id: f.id, verb };
+  }
+  for (const f of ws.FEATURES) {
+    if (f.aliases.some((a) => a.toLowerCase() === x) && !(verb === 'add' && NOT_A_SCREEN.has(x))) return { kind: 'feature', id: f.id, verb };
+  }
+  return null;
+}
+const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+async function sceneStudio(app, { say, tool }, ask) {
+  const ws = app.ui.workspace;
+  if (ask.kind === 'view') {
+    if (ws.view() === ask.view) { await say(ask.view === 'full' ? 'This is the full studio already: everything is on screen.' : 'This is the simple view already. Anything put away is in More.'); return; }
+    const r = await tool('workspace', { action: 'view', view: ask.view, asked: true, reason: 'they asked' });
+    if (r.error) { await say(r.error === 'the person is recording' ? 'After the take: the screen holds still while you record.' : `I couldn't switch it: ${r.error}.`); return; }
+    await say(ask.view === 'full' ? 'That’s the full studio. Simple view is top right.' : 'That’s the simple view. Full studio is top right, and More has everything put away.');
+    return;
+  }
+  if (ask.kind === 'intro') {
+    await say('Hum, tap or play an idea and I’ll play over it. Ask me for a bassline, or where anything is.');
+    pointAt(app, (b) => /^tap a beat$/i.test(b.textContent.trim()));
+    return;
+  }
+  const f = ws.FEATURES.find((x) => x.id === ask.id);
+  const name = `${f.the ? 'the ' : ''}${f.title}`;
+  const wasShown = ws.has(f.id);
+  const r = await tool('workspace', { action: 'open', feature: f.id, reason: ask.verb === 'where' ? `they asked where ${name} is` : `they asked for ${name}` });
+  if (r.error) { await say(r.error === 'the person is recording' ? `${cap1(name)} can wait until the take is in: the screen holds still while you record.` : `I couldn't bring ${name} in: ${r.error}.`); return; }
+  const where = r.where || ws.where?.(f.id) || 'on screen';
+  if (r.added?.length && !wasShown) await say(`Added ${name}: it’s ${where}. Put it away from More.`);
+  else await say(`${cap1(name)} is ${where}.`);
+}
+// a finger on something that isn't in the song (the blank sheet's first door): an outline in agent ink for a few
+// seconds, never focus (the person's cursor stays where it is). match(button) picks it.
+function pointAt(app, match, ms = 6000) {
+  try {
+    const doc = globalThis.document;
+    if (!doc) return;
+    const b = [...doc.querySelectorAll('.ar-empty button, .ew-region-center button')].find((x) => x.getClientRects().length && match(x));
+    if (!b) return;
+    b.classList.add('ag-pointed');
+    setTimeout(() => b.classList.remove('ag-pointed'), ms);
+  } catch (e) { /* a nicety */ }
 }
 
 /* ------------------------------------------------------------------ what the script knows */

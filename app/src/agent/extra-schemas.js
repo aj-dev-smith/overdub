@@ -271,7 +271,7 @@ export const TONE_SCHEMA = {
       rig: { type: 'string', description: 'a rig id (e.g. "blues", "gr-clucky", "hv-djent") or its exact name' },
       search: { type: 'string', description: 'words to find tones by; nothing changes' },
       track: { type: 'string', description: 'the track: its id or exact name (default both of the room\'s guitars)' },
-      reason: { type: 'string', description: 'why, in one sentence (History shows it)' },
+      reason: { type: 'string', description: 'why, in one plain line (the agent pane shows it after the step, never the note)' },
     },
     additionalProperties: false,
   },
@@ -359,8 +359,28 @@ export const SUGGEST_RIFF_SCHEMA = {
   },
 };
 
+// (the description is the spec's, word for word; the catalog-size checks in agent-test and mcp-e2e-test count it)
+export const WORKSPACE_SCHEMA = {
+  name: 'workspace',
+  annotations: { title: 'Change the studio layout', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },   // what's on screen, never the song; a second identical call changes nothing more
+  description: 'The person\'s studio layout: what\'s on screen. In the simple view most features are put away until someone adds them. list says what\'s shown and hidden. add / open bring features in (signed as yours); put_away puts back ones you added. Use it when they ask where something is or to see it, or when they need a hidden control to see or take over your change; otherwise offer in one line. Never while they record. Layout never changes the song.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['list', 'add', 'open', 'put_away', 'view'] },
+      features: { type: 'array', items: { type: 'string' }, description: 'add, put_away: ids from list' },
+      feature: { type: 'string', description: 'open: one id' },
+      view: { type: 'string', enum: ['simple', 'full'] },
+      reason: { type: 'string' },
+      asked: { type: 'boolean', description: 'they asked: needed to put away theirs, or to switch view' },
+    },
+    required: ['action'],
+    additionalProperties: false,
+  },
+};
+
 // in the order main.js loads the modules that register them
-export const EXTRA_SCHEMAS = [TRANSFORM_SCHEMA, ARRANGE_SCHEMA, ARRANGE_SONG_SCHEMA, COMPARE_SCHEMA, SHOW_DEVICE_SCHEMA, FIND_GROOVES_SCHEMA, USE_GROOVE_SCHEMA, DRUM_TRACK_SCHEMA, JAM_SCHEMA, JAM_TRACK_SCHEMA, TONE_SCHEMA, FRETBOARD_SCHEMA, TAB_FOR_SCHEMA, WRITE_TAB_SCHEMA, SUGGEST_RIFF_SCHEMA, SHARE_SCHEMA, PROVENANCE_SCHEMA];
+export const EXTRA_SCHEMAS = [TRANSFORM_SCHEMA, ARRANGE_SCHEMA, ARRANGE_SONG_SCHEMA, COMPARE_SCHEMA, SHOW_DEVICE_SCHEMA, FIND_GROOVES_SCHEMA, USE_GROOVE_SCHEMA, DRUM_TRACK_SCHEMA, JAM_SCHEMA, JAM_TRACK_SCHEMA, TONE_SCHEMA, FRETBOARD_SCHEMA, TAB_FOR_SCHEMA, WRITE_TAB_SCHEMA, SUGGEST_RIFF_SCHEMA, WORKSPACE_SCHEMA, SHARE_SCHEMA, PROVENANCE_SCHEMA];
 
 // Free text that came with a song (a share link, a device file, a MIDI file: names, device requests and blurbs,
 // markers) goes back to agents trimmed, so a long paste can't crowd out the rest of a result. It is the song's content,

@@ -5,7 +5,8 @@
 // the CSS the studio leans on is there, and the landing page's film plays (Range requests). The studio, the library and
 // the gallery run under their content security policies with no violation; every AudioWorklet module is a file on the
 // studio's origin; and markup can't run script there: an injected inline script and an <iframe srcdoc> with a data:
-// script don't run, and a worklet module from a data: or blob: URL is refused.
+// script don't run, and a worklet module from a data: or blob: URL is refused. And the simple view (?view=simple, clean
+// storage) boots in each with no errors, on a blank song, and its More opens and closes.
 //
 //   node tools/compat-test.js                        all four: chromium, webkit, firefox, chromium-phone
 //   node tools/compat-test.js webkit firefox         some of them (also BROWSERS=webkit,firefox)
@@ -81,7 +82,7 @@ async function launch(kind) {
     });
   } else throw new Error('unknown browser ' + kind);
   const context = await browser.newContext(ctxOpts);
-  return { browser, context, phone, engine };
+  return { browser, context, phone, engine, ctxOpts };
 }
 
 async function openPage(b, base, route) {
@@ -603,6 +604,40 @@ async function phoneLoop(b, base, tag) {
   await page.close();
 }
 
+// ------------------------------------------------------------------------------------------------ the simple view
+// A clean context (the passes above left a song and a layout in theirs), ?view=simple: it boots with no errors on a
+// blank song, More opens and closes, and the page never scrolls sideways.
+async function simple(b, base, tag) {
+  const context = await b.browser.newContext(b.ctxOpts);
+  const page = await context.newPage();
+  page.setDefaultTimeout(30000);
+  const errors = [], warns = [];
+  page.on('pageerror', (e) => errors.push('pageerror: ' + (e && (e.stack || e.message) || e)));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); else if (m.type() === 'warning' && /^overdub:/.test(m.text())) warns.push(m.text()); });
+  const E = (fn, arg) => page.evaluate(fn, arg);
+  try {
+    await page.goto(base + '/app/?view=simple', { waitUntil: 'load' });
+    let booted = true;
+    try { await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); } catch (e) { booted = false; }
+    T.ok(booted && !warns.length, `${tag}: the simple view boots, every module started (/app/?view=simple)${list(warns)}`);
+    if (!booted) return;
+    await page.waitForTimeout(500);
+    const st = await E(() => ({ view: window.overdub.ui.workspace?.view?.() || null, tracks: window.overdub.store.get().tracks.length, wide: document.documentElement.scrollWidth, vw: innerWidth }));
+    T.ok(st.view === 'simple' && st.tracks === 0 && st.wide <= st.vw, `${tag}: it opens simple, on a blank song, no sideways scroll (${st.view}, ${st.tracks} tracks, ${st.wide} px in ${st.vw})`);
+    const more = page.locator('.ew-ws button', { hasText: /^More$/ }).first();
+    const can = await more.isVisible().catch(() => false);
+    if (can) await more.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const opened = await E(() => [...document.querySelectorAll('input')].some((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    const closed = await E(() => ![...document.querySelectorAll('input')].some((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length));
+    T.ok(can && opened && closed, `${tag}: More opens and closes (button ${can}, opened ${opened}, closed ${closed})`);
+    await page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-simple.png`) }).catch(() => {});
+    T.ok(!real(errors).length, `${tag}: the simple view raises no errors${list(real(errors))}`);
+  } finally { await context.close().catch(() => {}); }
+}
+
 // ------------------------------------------------------------------------------------------------ the server
 {
   T.ok(JSON.stringify(byteRange('bytes=0-99', 1000)) === '[0,99]' && JSON.stringify(byteRange('bytes=900-', 1000)) === '[900,999]'
@@ -682,6 +717,7 @@ try {
       if (b.phone) await phoneLoop(b, srv.url, kind);
       else { await studio(b, srv.url, kind); await landing(b, srv.url, kind); await pages(b, srv.url, kind); }
     } catch (e) { T.ok(false, `${kind}: the run finished (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); }
+    try { await simple(b, srv.url, kind); } catch (e) { T.ok(false, `${kind}: the simple view's run finished (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); }
     T.note(`${kind}: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     await b.browser.close().catch(() => {});
   }

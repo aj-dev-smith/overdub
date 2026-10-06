@@ -216,7 +216,9 @@ export function createHum(app, input) {
     },
   };
   async function finishTake(s, samples) {
-      if (!s.segs.length) { app.ui?.toast?.('I didn’t hear a note in that one. Hum a bit louder, or closer to the mic.'); hum.take = { frames: s.frames, segs: [], result: null, opts: s.opts }; emit('take', hum.take); return null; }
+      // nothing heard: Sketch's take line says so ("Heard nothing."); a toast when Sketch isn't on screen, or while the
+      // song plays (the take line gives way to the following roll then, ui/sketch.js)
+      if (!s.segs.length) { if (!(app.ui?.visible ? app.ui.visible('sketch') : false) || app.engine?.playing) app.ui?.toast?.('Heard nothing. Hum a little louder, or closer to the mic.'); hum.take = { frames: s.frames, segs: [], result: null, opts: s.opts }; emit('take', hum.take); return null; }
       const opts = takeOpts(s);
       let result = transcribe(s.segs, { ...opts, key: effKey(opts) });
       if (!opts.key) { opts.heard = heardOf(result); if (opts.snapHeard && opts.heard) result = transcribe(s.segs, { ...opts, key: effKey(opts) }); }

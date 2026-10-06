@@ -173,12 +173,13 @@ function mountArranger(el, app) {
   const fitBtn = h('button.btn.btn-txt.ar-tool', { title: 'Fit the whole song in view', onclick: () => fitSong() }, 'Fit');
   const followBtn = h('button.tog.ar-tool.ar-follow', { title: 'Follow the playhead while playing', onclick: () => { follow = !follow; syncBar(); } }, 'Follow');
   const hint = h('div.ar-hint');
-  const bar = h('div.ar-bar', addBtn, h('div.ar-sep'), snapBtn, h('div.ar-zoom', zoomOut, zoomIn), fitBtn, followBtn, h('div.ar-flex'), hint);
+  // (the simple view puts the whole toolbar away, as Track tools: ui/workspace.js)
+  const bar = h('div.ar-bar', { dataset: { feature: 'tracks' } }, addBtn, h('div.ar-sep'), snapBtn, h('div.ar-zoom', zoomOut, zoomIn), fitBtn, followBtn, h('div.ar-flex'), hint);
 
-  const secAdd = h('button.ar-secadd', { title: 'Add a section (Verse, Chorus…) after the last one', onclick: () => addSection() }, icon('plus', { size: 12 }));
+  const secAdd = h('button.ar-secadd', { dataset: { feature: 'tracks' }, title: 'Add a section (Verse, Chorus…) after the last one', onclick: () => addSection() }, icon('plus', { size: 12 }));
   const corner = h('div.ar-corner',
     h('div.ar-corner-row.ar-c-sec', h('span', 'Sections'), secAdd),
-    h('div.ar-corner-row.ar-c-loop', h('span', 'Loop')),
+    h('div.ar-corner-row.ar-c-loop', h('span', { dataset: { feature: 'loop' } }, 'Loop')),
     h('div.ar-corner-row.ar-c-bar', h('span', 'Bars')));
   const ruler = canvas('ar-ruler');
   // the section strip is a Tab stop: arrows pick a section (keys below), so a keyboard reaches what a click on it does
@@ -206,7 +207,10 @@ function mountArranger(el, app) {
      there after a listen); the first take you keep or the first edit puts it away, as does another song. */
   (function welcome() {
     const KEY = 'overdub:welcomed';
+    // (never in the simple view: its first screen is the blank sheet, and Night Shift is one link on it. Marked as
+    // seen all the same: a song switched to the full studio later isn't introduced as if it were the demo)
     try { if (localStorage.getItem(KEY) === '1') return; localStorage.setItem(KEY, '1'); } catch (e) { return; }
+    if (app.ui.workspace?.view?.() === 'simple') return;
     const pr = app.store.get();
     if (!pr.tracks.length) return;
     const offs = [];
@@ -254,6 +258,8 @@ function mountArranger(el, app) {
     app.welcome = { el: card, close };
     // it introduces this song: when another song is loaded (or this one is cleared), it goes; so does your first move
     // (an edit, a kept take, an undo; the house setting itself up doesn't count)
+    // switched to the simple view: it goes (the simple view never shows it)
+    offs.push(app.ui.on?.('workspace', (w) => { if (w?.view === 'simple') close(); }));
     offs.push(app.store.on('change', (e) => {
       if (e.kind === 'load' || !app.store.get().tracks.length) return close();
       if ((e.kind === 'do' || e.kind === 'undo' || e.kind === 'redo') && e.by !== 'overdub') close();
@@ -859,6 +865,7 @@ function mountArranger(el, app) {
       const ak = authorKind(app, t.by);
       // (M and S are also the keys, for the selected track: ui/mixer.js)
       const flag = (k, label, title, key = null) => h(`button.ar-hb.ar-hb-${k}` + (t[k] ? '.on' : ''), {
+        ...(k === 'arm' ? { dataset: { feature: 'record-options' } } : {}),
         title: key ? `${title} (${key})` : title, 'aria-label': `${title}: ${t.name}`, 'aria-pressed': String(!!t[k]),
         onclick: (e) => {
           e.stopPropagation();
@@ -880,7 +887,9 @@ function mountArranger(el, app) {
       // a device that came through someone else's link says whose ("Tape Organ, by Sam via Jo"; in full on its title)
       const devVia = devDef?.via && devDef.via !== devBy && signer === devBy ? devDef.via : null;
       const devCredit = devBy && authorKind(app, devBy) !== 'house' ? `${dev}, made by ${devBy === 'you' ? 'you' : authorName(app, devBy)}${devVia ? `, via ${authorName(app, devVia)}’s link` : ''}` : '';
-      const swatch = h('button.ar-swatch', { title: 'Track colour', 'aria-label': `Colour of ${t.name}`, onclick: (e) => { e.stopPropagation(); colorMenu(e.currentTarget, t); } });
+      // (the simple view puts away the swatch (Track tools), R (Recording options) and the devices button (Sound): the
+      // header keeps the name, the byline, the device's name as plain words, M and S; ui/workspace.js)
+      const swatch = h('button.ar-swatch', { dataset: { feature: 'tracks' }, title: 'Track colour', 'aria-label': `Colour of ${t.name}`, onclick: (e) => { e.stopPropagation(); colorMenu(e.currentTarget, t); } });
       const tall = th() >= 46;
       const row = h('div.ar-head' + (ui.state.selection.track === t.id ? '.sel' : '') + (t.mute || (anySolo && !t.solo) ? '.quiet' : ''), {
         dataset: { track: t.id, author: ak }, style: { height: th() + 'px' },
@@ -892,9 +901,10 @@ function mountArranger(el, app) {
       h('div.ar-htap', { 'aria-hidden': 'true', onclick: () => {} }),
       h('span.ar-hnum.num', { 'aria-hidden': 'true' }, String(i + 1).padStart(2, '0')),
       h('div.ar-hmain',
-        h('div.ar-hrow', tall ? h('i.ar-hsw', { 'aria-hidden': 'true' }) : swatch, name),
+        h('div.ar-hrow', tall ? h('i.ar-hsw', { 'aria-hidden': 'true' }) : [h('i.ar-hsw.ar-hsw-off', { 'aria-hidden': 'true' }), swatch], name),
         tall ? h('div.ar-hsub', swatch,
-          h('button.ar-hdev', { title: (devCredit ? devCredit + '. ' : '') + (held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : 'Open its devices'), 'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`, onclick: (e) => { e.stopPropagation(); ui.select({ track: t.id }); if (ui.panels.has('rack')) ui.show('rack'); } }, dev || 'No device'),
+          h('span.ar-hdevname', dev || 'No device'),
+          h('button.ar-hdev', { dataset: { feature: 'devices' }, title: (devCredit ? devCredit + '. ' : '') + (held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : 'Open its devices'), 'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`, onclick: (e) => { e.stopPropagation(); ui.select({ track: t.id }); if (ui.panels.has('rack')) ui.show('rack'); } }, dev || 'No device'),
           held ? h('span.ar-hby.ar-hheld', ', kept off') : signer ? h('span.ar-hby', ', by ', byline(signer, { app }), ...(devVia ? [' via ', byline(devVia, { app })] : [])) : null) : null),
       h('div.ar-hbtns', flag('mute', 'M', 'Mute', 'M'), flag('solo', 'S', 'Solo', 'S'), flag('arm', 'R', `${t.kind === 'audio' ? 'Arm to record audio' : 'Arm to record what you play'} (a selected track is armed; ${MOD}click arms one more)`), autoKey(t)),
       h('div.ar-hmeter', meterFill),
@@ -938,7 +948,7 @@ function mountArranger(el, app) {
         h('button.btn.btn-txt.ar-lhide', { type: 'button', title: 'Hide the master\'s lanes (they still play)', onclick: (e) => { e.stopPropagation(); toggleLanes('master', false); } }, 'Hide')));
       laneHeads(mrow.t, L.n);
     }
-    const addRow = h('button.ar-addrow', { style: { height: Math.max(40, Math.min(56, th())) + 'px' }, onclick: (e) => addTrackMenu(e.currentTarget) }, h('span', 'Add a track'));
+    const addRow = h('button.ar-addrow', { dataset: { feature: 'tracks' }, style: { height: Math.max(40, Math.min(56, th())) + 'px' }, onclick: (e) => addTrackMenu(e.currentTarget) }, h('span', 'Add a track'));
     headsInner.replaceChildren(...all, addRow);
     laneValT = 0;
     presenceSig = '';
@@ -2047,7 +2057,7 @@ function mountArranger(el, app) {
         rulerDirty = true; dirty = true;
         return;
       }
-    } else if (y < LOOP_Y + LOOP_H) {
+    } else if (y < LOOP_Y + LOOP_H && loopShown()) {
       const l = p.loop;
       d = { kind: 'loop', zone: loopZone(x, e.pointerType === 'touch'), x0: x, start: l.start, end: l.end, beat0: beat, on: l.on };
     } else {
@@ -2061,6 +2071,9 @@ function mountArranger(el, app) {
     rulerDirty = true; dirty = true;
   });
   let rulerDrag = null;
+  // the loop strip is Loop's (ui/workspace.js): put away in the simple view, its row of the ruler is the bars' (a click
+  // there places the marker) and it's drawn only while a loop plays, to say what's going round (L brings it back)
+  const loopShown = () => app.ui.workspace?.has?.('loop') !== false;
   // The loop strip: its ends resize it (7 px either side, more to a finger), its middle (the grip, the thicker stretch
   // of the line) moves it, and a drag anywhere else draws a new loop there. A click without a drag turns it on or off.
   function loopGrip() {
@@ -2089,7 +2102,7 @@ function mountArranger(el, app) {
       const p = P();
       let cur = 'default';
       if (y < SEC_H) { const s = p.sections.find((s) => beat >= s.start && beat <= s.start + s.length); if (s) cur = (Math.abs(x - (s.start + s.length) * ppb()) < 6 || (Math.abs(x - s.start * ppb()) < 6 && s.start > 0)) ? 'ew-resize' : 'grab'; }
-      else if (y < LOOP_Y + LOOP_H) { const z = loopZone(x); cur = z === 'r' || z === 'l' ? 'ew-resize' : z === 'body' ? 'grab' : 'col-resize'; }
+      else if (y < LOOP_Y + LOOP_H && loopShown()) { const z = loopZone(x); cur = z === 'r' || z === 'l' ? 'ew-resize' : z === 'body' ? 'grab' : 'col-resize'; }
       else cur = 'pointer';
       rulerWrap.style.cursor = cur;
       return;
@@ -2383,7 +2396,7 @@ function mountArranger(el, app) {
     }, label: 'Show or hide the take lanes of the selected clip', group: 'Arrange' }),
     // L with bars selected loops them (L alone, or on the bars already looping, is the transport's: the loop on / off;
     // while the home row plays notes or pads, or a take runs, L is theirs)
-    ui.keys.add({ key: 'KeyL', when: () => !!loopableRange() && !app.input?.mode && !app.input?.qwerty?.on && !app.transport?.locked?.(), run: loopSelection, label: 'Loop the selected bars', group: 'Arrange' }),
+    ui.keys.add({ key: 'KeyL', when: () => !!loopableRange() && !app.input?.mode && !app.input?.qwerty?.on && !app.transport?.locked?.(), run: loopSelection, label: 'Loop the selected bars', group: 'Arrange', feature: 'loop' }),
     ui.keys.add({ key: 'Equal', mod: 'mod', when: mine, run: () => zoomBy(1.4), label: 'Zoom in', group: 'Arrange' }),
     ui.keys.add({ key: 'Minus', mod: 'mod', when: mine, run: () => zoomBy(1 / 1.4), label: 'Zoom out', group: 'Arrange' }),
   ];
@@ -2408,7 +2421,9 @@ function mountArranger(el, app) {
         h('button.btn', { type: 'button', onclick: sketch }, 'Hum it'),
         h('button.btn', { type: 'button', onclick: () => addTrack({ kind: 'instrument', name: 'Keys', instrument: { device: app.devices.getDevice('core.keys') ? 'core.keys' : 'core.poly', params: {} } }) }, 'Play it'),
         h('button.btn.ar-empty-agent', { type: 'button', onclick: () => { if (!showAgent(ui)) ui.toast('The agent panel is loading'); } }, icon('agent', { size: 15 }), 'Ask your agent')),
-      h('p.ar-empty-foot', 'Or ', h('button.ar-link', { type: 'button', onclick: (e) => addTrackMenu(e.currentTarget) }, 'add a track'), ' yourself, or ', h('button.ar-link', { type: 'button', onclick: async () => { if (app.exporter?.openDemo) { app.exporter.openDemo(); return; } const m = await import('../core/demo.js'); store.load(m.demoProject(), { by: 'overdub' }); } }, 'open the demo song'), '.')));
+      // the foot: a finished song to hear; "add a track" is Track tools, so the simple view reads "Or hear a finished
+      // one: Night Shift." and the full studio "Or add a track yourself, or hear a finished one: Night Shift."
+      h('p.ar-empty-foot', 'Or ', h('span', { dataset: { feature: 'tracks' } }, h('button.ar-link', { type: 'button', onclick: (e) => addTrackMenu(e.currentTarget) }, 'add a track'), ' yourself, or '), 'hear a finished one: ', h('button.ar-link.ar-empty-demo', { type: 'button', onclick: async () => { if (app.exporter?.openDemo) { app.exporter.openDemo(); return; } const m = await import('../core/demo.js'); store.load(m.demoProject(), { by: 'overdub' }); } }, 'Night Shift'), '.')));
   }
 
   /* ======================================================= drawing */
@@ -3055,7 +3070,7 @@ function mountArranger(el, app) {
       g.fillRect(lx0, ly, 2, 7); g.fillRect(lx1 - 2, ly, 2, 7);
       // the grip: the middle stretch, thicker (drag it to move the loop; elsewhere a drag draws a new one)
       if (lx1 - lx0 >= 48) { const mid = (lx0 + lx1) / 2, half = clamp((lx1 - lx0) / 6, 12, 40); g.fillRect(Math.round(mid - half), ly - 1, Math.round(half * 2), 5); }
-    } else {
+    } else if (loopShown()) {
       g.fillStyle = rgba(pal.accent2, 0.5);
       for (let x = lx0; x < lx1; x += 5) g.fillRect(x, ly + 1, 2, 1);
       g.fillRect(lx0, ly, 1, 6); g.fillRect(lx1 - 1, ly, 1, 6);
@@ -3123,6 +3138,8 @@ function mountArranger(el, app) {
   const offResize = ui.on('resize', () => { dirty = true; rulerDirty = true; layDirty = true; });
   const offSnap = ui.on('snap', () => syncBar());
   const offTr = engine.on?.('transport', () => { rulerDirty = true; }) || (() => {});
+  // the workspace changed (Loop added or put away): the ruler's loop row is drawn again
+  const offWs = ui.on?.('workspace', () => { rulerDirty = true; dirty = true; }) || (() => {});
   // the registry changed (a held device let play, a device defined, removed or put back): the headers name devices, and
   // a held one's clips say "kept off", so both redraw once it has all landed. Play it holds the set first and defines
   // the device after (main.js syncProjectDevices), so a redraw on the held event alone printed the device's id
@@ -3453,12 +3470,14 @@ function mountArranger(el, app) {
     update: onChange,
     frame,
     refresh() { dirty = true; rulerDirty = true; headSig = ''; buildHeads(); },
-    unmount() { offSel(); offPres(); offResize(); offSnap(); offTr(); offDevs(); offs.forEach((f) => f()); document.fonts?.removeEventListener?.('loadingdone', refont); },
+    unmount() { offSel(); offPres(); offResize(); offSnap(); offTr(); offWs(); offDevs(); offs.forEach((f) => f()); document.fonts?.removeEventListener?.('loadingdone', refont); },
   };
 }
 
 const CSS = `
 .ar { display: grid; grid-template-rows: 38px 1fr; height: 100%; min-height: 0; background: var(--bg); }
+/* the toolbar put away (the simple view: Track tools, ui/workspace.js): the song takes its row too */
+.ws-off-tracks .ar { grid-template-rows: minmax(0, 1fr); }
 /* the tools: words on the room, separated by a hairline from the sheet below */
 .ar-bar { display: flex; align-items: center; gap: 14px; padding: 0 14px 0 18px; border-bottom: var(--rule); background: var(--bg); min-width: 0; overflow: hidden; }
 .ar-bar .btn-txt { font-size: 12px; }
@@ -3511,6 +3530,12 @@ const CSS = `
 .ar-hsw { display: none; flex: none; margin: 0; }
 .ar-hdev { flex: none; min-width: 0; max-width: 100%; padding: 1px 0; border: 0; background: transparent; color: var(--text-3); font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .ar-hdev:hover { color: var(--text-2); }
+/* the simple view (ui/workspace.js): the devices button put away leaves the device's name as words; the swatch put
+   away leaves the track's colour as a plain square */
+.ar-hdevname { display: none; flex: 0 1 auto; min-width: 0; padding: 1px 0; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-off-devices .ar-hdevname { display: block; }
+.ar-hsw.ar-hsw-off { display: none; }
+.ws-off-tracks .ar-hsw.ar-hsw-off { display: block; }
 /* (the device's name is fitted first; the byline gives way to it, "Firefly, by Cla…", never "Fir…, by Claude") */
 .ar-hby { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* a held instrument: "kept off" always shows; its name gives way first */
@@ -3583,6 +3608,8 @@ const CSS = `
 .ar-empty-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ar-empty-agent svg { color: var(--agent); }
 .ar-empty-foot { margin: 14px 0 0; color: var(--text-3); font-size: 12px; }
+/* a phone in the simple view: the five doors stacked full width (the blank sheet is the whole first screen) */
+@media (max-width: 700px) { .ws-simple .ar-empty-actions { flex-direction: column; align-items: stretch; } .ws-simple .ar-empty-actions .btn { justify-content: center; } }
 /* the welcome: a printed insert slipped into the sleeve (.paper: cream, ink, square, the one shadow) */
 .ar-welcome { position: absolute; left: 16px; bottom: 16px; z-index: 8; width: min(408px, calc(100% - 32px)); padding: 15px 18px 13px; pointer-events: none;
   font-size: 13px; line-height: 1.45; animation: ar-in .16s .3s var(--ease, ease) both; }

@@ -59,7 +59,7 @@
  },
  {
   "name": "get_selection",
-  "description": "What the human is looking at right now: the selected track, clip (with its notes in the text format), the selected notes, the time range (beats and bars), the selected insert (with params), and the playhead. Act on THIS by default. Empty fields mean nothing of that kind is selected.",
+  "description": "What the human is looking at right now: the selected track, clip (with its notes in the text format), the selected notes, the time range (beats and bars), the selected insert (with params), and the playhead. Act on THIS by default. Empty fields mean nothing of that kind is selected. studio.hidden: features put away on their screen.",
   "input_schema": {
    "type": "object",
    "properties": {},
@@ -1517,7 +1517,7 @@
     },
     "reason": {
      "type": "string",
-     "description": "why, in one sentence (History shows it)"
+     "description": "why, in one plain line (the agent pane shows it after the step, never the note)"
     }
    },
    "additionalProperties": false
@@ -1742,6 +1742,61 @@
    "readOnlyHint": false,
    "destructiveHint": true,
    "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "name": "workspace",
+  "description": "The person's studio layout: what's on screen. In the simple view most features are put away until someone adds them. list says what's shown and hidden. add / open bring features in (signed as yours); put_away puts back ones you added. Use it when they ask where something is or to see it, or when they need a hidden control to see or take over your change; otherwise offer in one line. Never while they record. Layout never changes the song.",
+  "input_schema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "type": "string",
+     "enum": [
+      "list",
+      "add",
+      "open",
+      "put_away",
+      "view"
+     ]
+    },
+    "features": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "add, put_away: ids from list"
+    },
+    "feature": {
+     "type": "string",
+     "description": "open: one id"
+    },
+    "view": {
+     "type": "string",
+     "enum": [
+      "simple",
+      "full"
+     ]
+    },
+    "reason": {
+     "type": "string"
+    },
+    "asked": {
+     "type": "boolean",
+     "description": "they asked: needed to put away theirs, or to switch view"
+    }
+   },
+   "required": [
+    "action"
+   ],
+   "additionalProperties": false
+  },
+  "annotations": {
+   "title": "Change the studio layout",
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
    "openWorldHint": false
   }
  },

@@ -965,7 +965,8 @@ const LINK_HASH = (await S.encodeShare(heldSong(), { from: { name: 'Sam' } })).h
   // played, its track says who made it and whose link it came through
   await page.click('.sh-play').catch(() => {});
   await page.waitForTimeout(300);
-  const head = await page.evaluate(() => { const t = window.overdub.store.get().tracks.find((x) => x.name === 'Keys'), r = document.querySelector(`.ar-head[data-track="${t.id}"]`); return { sub: r?.querySelector('.ar-hsub')?.textContent || '', title: r?.querySelector('.ar-hdev')?.title || '' }; });
+  // (what's drawn: the simple view's plain device name sits beside the devices button, display:none in full)
+  const head = await page.evaluate(() => { const t = window.overdub.store.get().tracks.find((x) => x.name === 'Keys'), r = document.querySelector(`.ar-head[data-track="${t.id}"]`); return { sub: (() => { const e = r?.querySelector('.ar-hsub'); if (!e) return ''; const c = e.cloneNode(true), cs = [...c.querySelectorAll('*')]; [...e.querySelectorAll('*')].forEach((x, i) => { if (!x.getClientRects().length) cs[i].remove(); }); return c.textContent; })(), title: r?.querySelector('.ar-hdev')?.title || '' }; });
   T.ok(/^Tape Organ, by Sam via Jo$/.test(head.sub) && /^Tape Organ, made by Sam, via Jo’s link\. /.test(head.title) && !realErrors(errors).length, `and its track header credits it the same way ("${head.sub}"; "${head.title}")`);
   // ... as do the browser's row (Written in this song) and the device's About card in Devices ("Made by Sam via Jo")
   await page.waitForTimeout(300);

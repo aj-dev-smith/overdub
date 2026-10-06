@@ -512,11 +512,16 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
   const A = Object.fromEntries(cat.map((x) => [x.name, x.annotations || {}]));
   const reads = ['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'render_and_measure', 'get_capture', 'get_recording', 'get_variation_result', 'compare_to_reference', 'share_link', 'provenance_report'];
   const destroys = ['apply_ops', 'define_device', 'adjust', 'transform', 'arrange_song', 'propose_variations', 'undo', 'revert_my_changes'];
-  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around'];
+  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around', 'workspace'];
   const wrong = [...reads.filter((n) => !(A[n]?.readOnlyHint === true && A[n]?.destructiveHint === false)).map((n) => `${n} should read only`),
     ...destroys.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === true)).map((n) => `${n} can delete or overwrite`),
     ...neither.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === false)).map((n) => `${n} changes nothing in the song or only adds`),
     ...cat.filter((x) => x.annotations?.openWorldHint !== false).map((x) => `${x.name} reaches no network`)];
+  // the workspace tool (the person's studio layout, never the song) is in the catalog before any tab connects, and never
+  // waits on a take: it only refuses while they record (agent/workspace-tool.js)
+  t.ok(cat.some((x) => x.name === 'workspace') && extra.WORKSPACE_SCHEMA?.name === 'workspace' && extra.EXTRA_SCHEMAS?.includes(extra.WORKSPACE_SCHEMA)
+    && ['list', 'add', 'open', 'put_away', 'view'].every((a) => (extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).includes(a)) && /Never while they record/.test(extra.WORKSPACE_SCHEMA?.description || ''),
+    `node: workspace is in catalogSchemas() from extra-schemas.js, its actions list, add, open, put_away and view (${(extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).join(', ') || 'missing'})`);
   t.ok(!wrong.length, `node: read-only, destructive and neither, as each tool behaves: ${reads.length} read, ${destroys.length} can delete or overwrite, ${neither.length} neither; none reaches past the tab${wrong.length ? ' (' + wrong.join('; ') + ')' : ''}`);
   const titles = cat.map((x) => x.annotations?.title || '');
   t.ok(titles.every((s) => s.length >= 4 && s.length <= 40 && /^[A-Z]/.test(s) && !/[.:!]$/.test(s)) && new Set(titles).size === titles.length, `node: each title is a short, distinct name ("${titles.slice(0, 4).join('", "')}"…)`);
