@@ -8,7 +8,7 @@ export const REPORTS = {
   "core.bass": {"hash":"peb5rl","kind":"instrument","ok":true,"lufs":-18,"deltaLU":-4,"truePeak":-6,"cpu":0.5,"tail":0.1,"warnings":0},
   "core.keys": {"hash":"tzjmij","kind":"instrument","ok":true,"lufs":-16,"deltaLU":-2,"truePeak":-1.4,"cpu":0.6,"tail":0.3,"warnings":0},
   "core.pluck": {"hash":"zlyfy0","kind":"instrument","ok":true,"lufs":-17.7,"deltaLU":-3.7,"truePeak":-1.3,"cpu":0.8,"tail":0.4,"warnings":0},
-  "core.drums": {"hash":"1mllera","kind":"instrument","ok":true,"lufs":-16.1,"deltaLU":-2.1,"truePeak":-7.2,"cpu":3.1,"tail":2.9,"warnings":0},
+  "core.drums": {"hash":"ol15in","kind":"instrument","ok":true,"lufs":-16.1,"deltaLU":-2.1,"truePeak":-7.2,"cpu":3.1,"tail":2.9,"warnings":0},
   "core.pad": {"hash":"on4hb1","kind":"instrument","ok":true,"lufs":-17,"deltaLU":-3,"truePeak":-1.3,"cpu":1.1,"tail":2.9,"warnings":0},
   "core.piano": {"hash":"jk0q1n","kind":"instrument","ok":true,"lufs":-15.5,"deltaLU":-1.5,"truePeak":-1.1,"cpu":1.5,"tail":0.6,"warnings":0},
   "core.organ": {"hash":"g0nbr3","kind":"instrument","ok":true,"lufs":-15.6,"deltaLU":-1.6,"truePeak":-1.6,"cpu":1.5,"tail":0.6,"warnings":0},

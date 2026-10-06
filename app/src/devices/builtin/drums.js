@@ -35,6 +35,9 @@ export default defineDevice({
     { key: 'drive', label: 'DRIVE', min: 0, max: 1, def: 0.15, role: 'drive', desc: 'glue, then crunch' },
     { key: 'width', label: 'WIDTH', min: 0, max: 1, def: 0.6, role: 'width', desc: 'how far the hats, toms and cymbals spread' },
     { key: 'room', label: 'ROOM', min: 0, max: 1, def: 0.3, role: 'mix', desc: 'the room around the kit: dry booth to big live room' },
+    // appended (candidates for AJ's ears): 0 is each kit's own snare and clap, exactly as before
+    { key: 'snare_voice', label: 'SNARE', opts: ['KIT', 'MODAL', 'TWO HEADS', 'SNAPPY'], def: 0, role: 'shape', desc: "the snare: the kit's own, a struck head whose wires follow it, two heads with wires that buzz on the bottom one, or a tight tone-and-noise snare" },
+    { key: 'clap_voice', label: 'CLAP', opts: ['KIT', 'HANDS', 'CIRCUIT', 'ROOM'], def: 0, role: 'shape', desc: "the clap: the kit's own, a few people clapping close, the classic machine circuit, or hands in a small room" },
   ],
   presets: [
     { name: 'Studio kit', params: {} },
@@ -66,6 +69,29 @@ const KITMAP = [null, null, null,
   { [HAT]: HM }];
 Object.assign(LEVEL, { [K8]: 1.38, [S8]: 0.95, [CP8]: 0.9, [H8]: 0.6, [T8]: 0.67, [RM8]: 0.56, [CY8]: 0.55, [MA8]: 0.27, [K9]: 1.32, [S9]: 1.2, [CP9]: 0.83, [H9]: 0.6, [T9]: 0.67, [RM9]: 0.56, [HM]: 0.6 });
 const HAT909 = [317.2, 436.4, 551.6, 697.1, 873.3, 1104.5];
+// The snare and clap candidates (snare_voice, clap_voice 1-3; 0 leaves every kit exactly as it was), for AJ to pick by
+// ear. Each was tuned against real one-shots (public domain and CC0: the Open Source Drum Kit, VCSL) with the drum
+// audit's measurements. Times in s unless named ms. g: the level per kit (FIELD MACHINE DUST 808 909 ACOUSTIC+),
+// loudness-matched to that kit's own snare or clap at velocity 0.8. f0: the head's pitch per kit (Hz).
+const SNA = 25, SNB = 26, SNC = 27, CLA = 28, CLB = 29, CLC = 30;
+// MODAL: eight membrane modes struck by a stick (contact tc soft..hard: a shorter push reaches higher modes), the head
+// bending on a hard hit, and wires: band-passed noise whose level follows the head's motion (fa/fr: the follower's
+// attack and release) and rings on for wt60 after it
+const SN1 = {"f0":[200,215,190,185,175,205],"tc":[0.00203,0.00171],"t60":[0.42,0.3,0.26,0.24,0.2,0.18,0.16,0.14],"ts":0.297,"amp":[1,0.382,0.2525,0.1688,0.1287,0.0857,0.0647,0.0469],"glide":0.0207,"gt":0.018,"wb":[540,0.779],"wl":[6370,392],"fa":0.00294,"fr":0.0292,"wt60":0.267,"wg":5.67,"wv":0.47,"hg":0.826,"g":[4.029,3.508,3.847,3.236,3.127,3.801]};
+// TWO HEADS: the batter head (six modes) drives the snare-side head (four modes) through the air; the wires buzz while
+// the snare-side head swings past their rest point (noise gated by its motion over a threshold), and ring on after
+const SN2 = {"f0":[200,215,190,185,175,205],"tc":[0.000784,0.0015],"t60":0.0807,"amp":[1,0.6,0.45,0.35,0.28,0.2],"reso":1.8,"bt60":[0.25,0.18,0.14,0.12],"bamp":[1,0.5,0.35,0.25],"cp":0.0636,"gk":21,"thr":0.563,"sm":0.00118,"wt60":0.35,"wb":[1640,0.5],"wl":16000,"wg":0.134,"hg":0.353,"bg":2,"g":[0.3845,0.3467,0.4842,0.3199,0.309,0.4677]};
+// SNAPPY: a tone (two sines, a little pitch drop) and noise with a snap and a short tail, no saturation
+const SN3 = {"f0":[190,205,180,180,172,195],"r2":1.41,"a2":0.794,"bend":0.0797,"tt":0.00736,"tt2":0.008,"hp":558,"lp":[3070,300],"ns":0.00418,"snap":0.51,"nt":0.0512,"ng":0.1,"tg":0.111,"g":[36.72,33.49,37.16,31.99,31.62,35.07]};
+// HANDS: n people clapping a few ms apart (off, jittered by jit, ms), each a burst of noise through their hands' own
+// band (bf, spread by bs) that dies in ht ms, then a short tail (tl, tt) of the room
+const CL1 = {"n":5,"off":[0,5,10.5,16,31],"jit":1.37,"hl":[0.8,0.9,1,0.85,0.7],"ht":1.03,"atk":0.505,"bf":811,"bs":0.602,"bq":0.4,"tf":2090,"tq":2.54,"tl":0.162,"tt":0.0325,"g":[15.84,16.03,18.61,13.64,15.68,15.84]};
+// CIRCUIT: the analog machines' clap: one noise source band-passed, three or four quick sawtooth bursts, then a tail
+// through a wider band
+const CL2 = {"n":4,"sp":0.005,"bt":0.00112,"bf":1930,"bq":2.44,"tf":2120,"tq":2.07,"tl":0.272,"tt":0.0374,"hp":125,"g":[5.888,6.024,7.161,4.954,5.822,5.888]};
+// ROOM: HANDS' hands, dry, into a small room (a damped loop with three allpasses in it)
+const CL3 = {"ap":[9,13,10],"apg":0.3,"cd":31.3,"rt":0.089,"damp":6160,"hp":672,"wet":1.22,"dry":0.793,"g":[35.47,35.88,45.19,30.2,35.07,35.47]};
+Object.assign(LEVEL, { [SNA]: 1, [SNB]: 1, [SNC]: 1, [CLA]: 1, [CLB]: 1, [CLC]: 1 });
 // lib's svf() and onepole(), op for op, as classes: one shared tick() a call site can inline, where lib's closures are a
 // fresh function per voice (so every voice's filters would be a different callee to the same line)
 class SV {
@@ -208,6 +234,95 @@ return {
         const NS = new Uint32Array(1);   // the hit's noise (rnd)
         let pitchN = 36;
         let tone = 0, xa = 0.1, xb = 0.1, xk = 1, x2 = 0, acc = 1;
+        // the snare and clap candidates: the snare-side head's modes, the hands, the small room
+        const zc1 = new Float64Array(4), zc2 = new Float64Array(4), zg = new Float64Array(4), z1 = new Float64Array(4), z2 = new Float64Array(4);
+        const ho = new Float64Array(8), hk = new Float64Array(8), hl = new Float64Array(8), he = new Float64Array(8), HS = new Uint32Array(8);
+        const AP = new Float64Array(3 * 1024), apd = new Int32Array(3), CB = new Float64Array(3 * 2048), cbd = new Int32Array(3), cbg = new Float64Array(3), cba = new Float64Array(3);
+        let ntc = 2, nh = 0, wa = 0, wr = 0, wk = 0, e1 = 0, e2 = 0, e3 = 0, k1 = 0, k2 = 0, k3 = 0, pv = 0, apw = 0, cbw = 0, cbl = 0;
+        // the snare and clap candidates: set-up (only when snare_voice or clap_voice is set)
+        function hands(S) {
+          nh = Math.min(6, S.n);
+          for (let k = 0; k < nh; k++) {
+            ho[k] = k ? Math.max(1, Math.round((S.off[k] + S.jit * r()) * 0.001 * sr)) : 0;
+            hk[k] = Math.exp(-1 / (S.ht * (0.85 + 0.15 * (r() + 1)) * 0.001 * sr));
+            hl[k] = S.hl[k] * (0.85 + 0.15 * (r() + 1)); he[k] = 0;
+            HS[k] = ((NS[0] ^ Math.imul(k + 1, 0x9e3779b9)) >>> 0) || 1;
+            nb[k].set(S.bf * Math.pow(2, S.bs * r()) * tn, S.bq);
+          }
+          k1 = Math.max(1, S.atk * 0.001 * sr);
+          hb[0].set(S.tf * tn, S.tq); am = S.tl; wk = Math.exp(-1 / (S.tt * dec * sr)); e3 = 1; k3 = Math.exp(-1 / (0.004 * sr));
+        }
+        function setupN() {
+          const top = sr * 0.45;
+          switch (type) {
+            case SNA: {
+              const S = SN1, ts = S.ts * Math.sqrt(dec);
+              f0 = S.f0[kit] * tn * (1 + 0.008 * r());
+              ntc = Math.max(2, Math.round((S.tc[0] + (S.tc[1] - S.tc[0]) * vel) * sr));
+              for (let k = 0; k < 8; k++) {
+                const f = Math.min(f0 * MEMBRANE[k], top), w = TAU * f / sr, rr = Math.exp(-6.907755 / (S.t60[k] * ts * sr));
+                fr[k] = f0 * MEMBRANE[k]; dk[k] = rr; c2[k] = rr * rr; c1[k] = 2 * rr * Math.cos(w);
+                amp[k] = S.amp[k] * (0.9 + 0.1 * (r() + 1)) * Math.sin(w) * 2 / ntc; y1[k] = 0; y2[k] = 0;
+              }
+              nb[0].set(S.wb[0], S.wb[1]); nb[1].set(S.wl[0] + S.wl[1] * vel, 0.6);
+              wa = 1 - Math.exp(-1 / (S.fa * sr)); wr = Math.exp(-1 / (S.fr * sr)); wk = Math.exp(-6.907755 / (S.wt60 * dec * sr));
+              e1 = 0; e2 = 0; x2 = S.glide * vel * vel;
+              len = (Math.max(S.t60[0] * ts, S.wt60 * dec) * 1.4 + 0.03) * sr; g *= S.g[kit];
+              break;
+            }
+            case SNB: {
+              const S = SN2, sd = Math.sqrt(dec);
+              f0 = S.f0[kit] * tn * (1 + 0.008 * r());
+              ntc = Math.max(2, Math.round((S.tc[0] + (S.tc[1] - S.tc[0]) * vel) * sr));
+              for (let k = 0; k < 6; k++) {
+                const f = Math.min(f0 * MEMBRANE[k], top), w = TAU * f / sr, rr = Math.exp(-6.907755 / (S.t60 / (1 + 0.25 * k) * sd * sr));
+                c2[k] = rr * rr; c1[k] = 2 * rr * Math.cos(w);
+                amp[k] = S.amp[k] * (0.9 + 0.1 * (r() + 1)) * Math.sin(w) * 2 / ntc; y1[k] = 0; y2[k] = 0;
+              }
+              for (let k = 0; k < 4; k++) {
+                const f = Math.min(f0 * S.reso * MEMBRANE[k], top), w = TAU * f / sr, rr = Math.exp(-6.907755 / (S.bt60[k] * sd * sr));
+                zc2[k] = rr * rr; zc1[k] = 2 * rr * Math.cos(w); zg[k] = S.bamp[k] * Math.sin(w) * S.cp; z1[k] = 0; z2[k] = 0;
+              }
+              nb[0].set(S.wb[0], S.wb[1]); nb[1].set(S.wl * (0.55 + 0.45 * vel), 0.6);
+              wa = 1 - Math.exp(-1 / (S.sm * sr)); wk = Math.exp(-6.907755 / (S.wt60 * dec * sr));
+              e1 = 0; e2 = 0; pv = 0;
+              len = (Math.max(S.t60 * sd, S.wt60 * dec) * 1.4 + 0.03) * sr; g *= S.g[kit];
+              break;
+            }
+            case SNC: {
+              const S = SN3, sd = Math.sqrt(dec);
+              f0 = S.f0[kit] * tn * (1 + 0.008 * r()); p1 = 0; p2 = 0;
+              k1 = Math.exp(-1 / (S.tt * sd * sr)); k2 = Math.exp(-1 / (S.tt2 * sd * sr)); k3 = Math.exp(-1 / (S.ns * sr)); wk = Math.exp(-1 / (S.nt * dec * sr));
+              xk = Math.exp(-1 / (0.01 * sr)); x2 = 1; e1 = 1; e2 = 1; e3 = 1; am = 1;
+              nb[0].set(S.hp, 0.7); nb[1].set(S.lp[0] + S.lp[1] * vel, 0.7);
+              len = (Math.max(S.tt * sd, S.nt * dec) * 9.2 + 0.02) * sr; g *= S.g[kit];
+              break;
+            }
+            case CLA: case CLC: {
+              hands(CL1);
+              len = ho[nh - 1] + (CL1.tt * dec * 9.2 + 0.02) * sr;
+              if (type === CLC) {
+                const S = CL3;
+                for (let k = 0; k < 3; k++) apd[k] = clamp(Math.round(S.ap[k] * 0.001 * sr), 1, 1023);
+                const loop = clamp(Math.round(S.cd * 0.001 * sr), 1, 2047) + apd[0] + apd[1] + apd[2];
+                cbd[0] = clamp(Math.round(S.cd * 0.001 * sr), 1, 2047); cbg[0] = Math.pow(10, -3 * loop / (S.rt * dec * sr)); cba[0] = 0;
+                cbl = Math.exp(-TAU * S.damp / sr); hb[1].set(S.hp, 0.6); AP.fill(0); CB.fill(0); apw = 0; cbw = 0;
+                len = ho[nh - 1] + (S.rt * dec * 1.4 + 0.03) * sr; g *= S.g[kit];
+              } else g *= CL1.g[kit];
+              break;
+            }
+            case CLB: {
+              const S = CL2;
+              nh = Math.min(6, S.n);
+              for (let k = 0; k < nh; k++) ho[k] = Math.round(k * S.sp * (1 + 0.05 * r()) * sr);
+              k1 = Math.exp(-1 / (S.bt * sr)); e1 = 0;
+              nb[0].set(S.bf * tn, S.bq); nb[1].set(S.tf * tn, S.tq); nb[2].set(S.hp, 0.7);
+              am = 0; wk = Math.exp(-1 / (S.tt * dec * sr));
+              len = ho[nh - 1] + (S.tt * dec * 9.2 + 0.02) * sr; g *= S.g[kit];
+              break;
+            }
+          }
+        }
         // the appended kits' voices: set-up (kits 3-5; the first three never reach here)
         function setupX(p) {
           const tt = (tone + 1) / 2;
@@ -615,6 +730,105 @@ return {
             Y[i] = (x + nb[1].lp * Math.exp(-s / xa) * 0.9 + nb[2].bp * Math.exp(-s / 0.0012) * xk * 1.2) * Math.min(1, s / 0.0003) * (pedal ? 1.5 : open ? 1 : 1.8);
           }
         };
+        // ------------------------------------------------------------ the snare and clap candidates
+        const gSNA = (Y, end, t) => {
+          const S = SN1, gs = S.gt * sr, hg = S.hg, wg = S.wg * (S.wv + (1 - S.wv) * vel), top = sr * 0.45, late = 0.25 * sr;
+          let wf = e1, we = e2;
+          for (let i = 0; i < end; i++, t++) {
+            if ((t & 31) === 0 && x2 > 0 && t < late) {
+              const b = 1 + x2 * Math.exp(-t / gs);
+              for (let k = 0; k < 8; k++) { const f = fr[k] * b; c1[k] = 2 * dk[k] * Math.cos(TAU * (f < top ? f : top) / sr); }
+            }
+            const x = t < ntc ? 0.5 - 0.5 * Math.cos(TAU * (t + 0.5) / ntc) : 0;
+            let h = 0;
+            for (let k = 0; k < 8; k++) { const v = c1[k] * y1[k] - c2[k] * y2[k] + amp[k] * x; y2[k] = y1[k]; y1[k] = v; h += v; }
+            const m = h < 0 ? -h : h;
+            wf = m > wf ? wf + (m - wf) * wa : wf * wr;
+            const wd = we * wk; we = wd > wf ? wd : wf;
+            nb[0].tick(rnd(NS)); const w = nb[1].tick(nb[0].bp);
+            Y[i] = h * hg + w * we * wg;
+          }
+          e1 = wf; e2 = we;
+        };
+        const gSNB = (Y, end, t) => {
+          const S = SN2, hg = S.hg, bg = S.bg, wg = S.wg, gk = S.gk, thr = S.thr;
+          let gate = e1, ring = e2, prev = pv;
+          for (let i = 0; i < end; i++, t++) {
+            const x = t < ntc ? 0.5 - 0.5 * Math.cos(TAU * (t + 0.5) / ntc) : 0;
+            let b = 0;
+            for (let k = 0; k < 6; k++) { const v = c1[k] * y1[k] - c2[k] * y2[k] + amp[k] * x; y2[k] = y1[k]; y1[k] = v; b += v; }
+            let q = 0;
+            for (let k = 0; k < 4; k++) { const v = zc1[k] * z1[k] - zc2[k] * z2[k] + zg[k] * prev; z2[k] = z1[k]; z1[k] = v; q += v; }
+            prev = b;
+            const o = (q < 0 ? -q : q) * gk - thr, over = o > 0 ? o : 0;
+            gate += (over - gate) * wa;
+            const rd = ring * wk; ring = rd > gate ? rd : gate;
+            nb[0].tick(rnd(NS)); const w = nb[1].tick(nb[0].bp);
+            Y[i] = b * hg + q * bg + w * ring * wg;
+          }
+          e1 = gate; e2 = ring; pv = prev;
+        };
+        const gSNC = (Y, end, t) => {
+          const S = SN3, f1 = f0 / sr, f2 = f0 * S.r2 / sr, bd = S.bend, a2 = S.a2, snap = S.snap, ng = S.ng * (0.5 + 0.5 * vel), tg = S.tg, ka = 1 / (0.0004 * sr);
+          for (let i = 0; i < end; i++, t++) {
+            const b = 1 + bd * x2; x2 *= xk;
+            p1 += f1 * b; if (p1 >= 1) p1 -= 1; p2 += f2 * b; if (p2 >= 1) p2 -= 1;
+            const at = t * ka;
+            const tone = (sinT(p1) * e1 + a2 * sinT(p2) * e2) * (at < 1 ? at : 1); e1 *= k1; e2 *= k2;
+            nb[0].tick(rnd(NS)); const n = nb[1].tick(nb[0].hp);
+            const env = snap * e3 + am; e3 *= k3; am *= wk;
+            Y[i] = tone * tg + n * env * ng;
+          }
+        };
+        // the hands (HANDS and ROOM): each its own noise through its own band, from its own moment
+        const handsAt = (t) => {
+          let y = 0;
+          for (let k = 0; k < nh; k++) {
+            const d = t - ho[k];
+            if (d < 0) continue;
+            if (d === 0) he[k] = hl[k];
+            const e = he[k];
+            if (e < 1e-6) continue;
+            let u = HS[k]; u = (Math.imul(u, 1664525) + 1013904223) >>> 0; HS[k] = u;
+            const f = nb[k]; f.tick(u * 4.656612873077393e-10 - 1);
+            y += f.bp * e * (d < k1 ? d / k1 : 1); he[k] = e * hk[k];
+          }
+          return y;
+        };
+        const gCLA = (Y, end, t) => {
+          const tf = hb[0];
+          for (let i = 0; i < end; i++, t++) {
+            let y = handsAt(t);
+            tf.tick(rnd(NS)); y += tf.bp * am * (1 - e3); am *= wk; e3 *= k3;
+            Y[i] = y;
+          }
+        };
+        const gCLC = (Y, end, t) => {
+          const S = CL3, gA = S.apg, wet = S.wet, dry = S.dry, rf = hb[1];
+          for (let i = 0; i < end; i++, t++) {
+            const h = handsAt(t);
+            // a loop (a delay, damped) with three allpasses inside it: each trip round smears the hands further, so the
+            // room's modes are dense rather than a comb's evenly spaced teeth
+            const v = CB[(cbw - cbd[0]) & 2047], a = v + (cba[0] - v) * cbl; cba[0] = a;
+            let x = h + a * cbg[0];
+            for (let k = 0; k < 3; k++) { const o = k * 1024, u = AP[o + ((apw - apd[k]) & 1023)], w = x + gA * u; AP[o + apw] = w; x = u - gA * w; }
+            apw = (apw + 1) & 1023;
+            CB[cbw] = x; cbw = (cbw + 1) & 2047;
+            rf.tick(x);
+            Y[i] = h * dry + rf.hp * wet;
+          }
+        };
+        const gCLB = (Y, end, t) => {
+          const S = CL2, tl = S.tl, t0 = ho[nh - 1];
+          for (let i = 0; i < end; i++, t++) {
+            for (let k = 0; k < nh; k++) if (t === ho[k]) e1 = 1;
+            if (t === t0) am = tl;
+            const nz = rnd(NS); nb[0].tick(nz); nb[1].tick(nz);
+            const y = nb[0].bp * e1 + nb[1].bp * am; e1 *= k1; am *= wk;
+            nb[2].tick(y);
+            Y[i] = nb[2].hp;
+          }
+        };
         const me = {
           get open() { return open && !gone; },
           choke() { if (!choke) choke = coef(0.012, sr); },
@@ -634,11 +848,17 @@ return {
             else if (p === 54) type = TAMB;
             else type = RIM;
             if (kit >= 3 && KITMAP[kit] && KITMAP[kit][type] !== undefined) type = KITMAP[kit][type];
+            // the candidates replace the kit's own snare and clap (whatever kit) only when chosen
+            const sv = P.snare_voice | 0, cv = P.clap_voice | 0;
+            if (sv > 0 && (type === SNARE || type === S8 || type === S9)) type = SNA + Math.min(sv, 3) - 1;
+            else if (cv > 0 && (type === CLAP || type === CP8 || type === CP9)) type = CLA + Math.min(cv, 3) - 1;
             tone = P.tone;
             const bright = kit === 2 ? 0.55 : 1;
             g = LEVEL[type] * Math.pow(vel, 1.4);
             dark = (vel < 0.97 || kit === 2) && kit !== 3 && kit !== 4;
             vlp.set(Math.min(sr * 0.45, (1800 + 17000 * vel * vel) * bright)); vlp.reset();
+            // the candidates carry their own brightness with velocity: only DUST's sampler darkens them, by a fixed amount
+            if (type >= SNA) { dark = kit === 2; vlp.set(Math.min(sr * 0.45, 18800 * bright)); }
             const pw = P.width;
             pan = panLR((PAN[p] || 0) * pw * (kit === 2 ? 0.6 : 1));
             p1 = 0; p2 = 0; nModes = 0; nBands = 0;
@@ -694,7 +914,8 @@ return {
               nb[0].set(6000, 0.7); nModes = 4;
               for (let k = 0; k < 4; k++) { const f = (6200 + 900 * k + r() * 300) * tn, w = TAU * Math.min(f, sr * 0.45) / sr, rr = coef(0.18 * dec, sr); c1[k] = 2 * rr * Math.cos(w); c2[k] = rr * rr; y1[k] = 0; y2[k] = 0; amp[k] = 0.25; }
               len = 0.6 * dec * sr;
-            } else if (type >= K8) setupX(p);
+            } else if (type >= SNA) setupN();
+            else if (type >= K8) setupX(p);
           },
           release() {},
           stop() { gone = true; },
@@ -727,6 +948,12 @@ return {
               case CY8: gCY8(Y, end, t); break;
               case MA8: gMA8(Y, end, t); break;
               case HM: gHM(Y, end, t); break;
+              case SNA: gSNA(Y, end, t); break;
+              case SNB: gSNB(Y, end, t); break;
+              case SNC: gSNC(Y, end, t); break;
+              case CLA: gCLA(Y, end, t); break;
+              case CLB: gCLB(Y, end, t); break;
+              case CLC: gCLC(Y, end, t); break;
             }
             for (let i = 0; i < end; i++, t++) {
               let y = Y[i];

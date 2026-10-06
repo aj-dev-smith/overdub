@@ -271,6 +271,8 @@ track with one gets the drum grid.
 
 - **Gobo Kit** (`core.drums`): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
   ACOUSTIC+.
+  `snare_voice` and `clap_voice` swap in a candidate snare (MODAL, TWO HEADS, SNAPPY) or clap (HANDS, CIRCUIT, ROOM)
+  on any character; 0 (KIT) is each character's own, as before.
 - **Studio A** (`core.drumroom`): an acoustic kit in a big tracking room, miked like a recording. It has
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
