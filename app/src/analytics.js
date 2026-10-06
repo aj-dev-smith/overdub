@@ -7,7 +7,7 @@
 // The events, and their one enumerated field `p` (the landing page sends `view`: site/assets/analytics.js):
 //   open    the studio opened                     p: demo | new | saved | device | link (a #s= share link)   (+ r, the referrer's host)
 //   play    the transport started (first time this page load)
-//   agent   you sent the in-app agent a message    p: demo | byok
+//   agent   you sent the in-app agent a message    p: demo | local   (local: Claude Code or a server's key, on localhost)
 //           an outside agent's first tool call     p: mcp | claude.ai   (once per page load each)
 //   device  a device was defined (kernel written)  p: you | agent
 //   export  a file was downloaded                  p: wav | stems | midi | song | log | device | video | other
@@ -26,7 +26,7 @@ export const BEACON = '/app/e.gif';
 export const EVENTS = {
   open: ['demo', 'new', 'saved', 'device', 'link'],
   play: null,
-  agent: ['demo', 'byok', 'mcp', 'claude.ai'],
+  agent: ['demo', 'local', 'mcp', 'claude.ai'],
   device: ['you', 'agent'],
   export: ['wav', 'stems', 'midi', 'song', 'log', 'device', 'video', 'other'],
   share: ['link', 'agent', 'fork', 'embed', 'file', 'post', 'other'],
@@ -119,7 +119,7 @@ export default function (app) {
   engine?.on?.('transport', (t) => { if (t && t.playing) count('play'); });
 
   // agents: each message you send the in-app one; an outside agent's first tool call
-  app.agent?.on?.('user', () => count('agent', app.agent.provider === 'mock' ? 'demo' : 'byok'));
+  app.agent?.on?.('user', () => count('agent', app.agent.provider === 'mock' ? 'demo' : 'local'));
   const outside = new Set();
   ui?.on?.('agent:tool', (d) => {
     if (!d || d.phase !== 'start' || typeof d.by !== 'string') return;

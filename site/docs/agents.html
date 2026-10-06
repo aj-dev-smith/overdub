@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Overdub for agents (and their humans) · Overdub docs</title>
-<meta name="description" content="How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent with your own key, and the claude.ai connector to come), the rules of the room, every tool, the ops and the notes format.">
+<meta name="description" content="How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector through the Connect tab), the rules of the room, every tool, the ops and the notes format.">
 <meta name="theme-color" content="#141210">
 <link rel="icon" href="/site/assets/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Overdub Studio">
 <meta property="og:title" content="Overdub for agents (and their humans) · Overdub docs">
-<meta property="og:description" content="How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent with your own key, and the claude.ai connector to come), the rules of the room, every tool, the ops and the notes format.">
+<meta property="og:description" content="How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector through the Connect tab), the rules of the room, every tool, the ops and the notes format.">
 <meta property="og:image" content="/site/assets/og.png">
 <link rel="stylesheet" href="/app/style/tokens.css">
 <link rel="stylesheet" href="/site/assets/site.css">
@@ -44,7 +44,7 @@
     <details class="toc">
       <summary>On this page</summary>
       <nav aria-label="On this page"><ol>
-<li><a href="#connecting">Connecting</a><ol><li><a href="#claude-code-or-any-mcp-client">Claude Code (or any MCP client)</a></li><li><a href="#claudeai-and-the-claude-apps-a-custom-connector">claude.ai and the Claude apps (a custom connector)</a></li><li><a href="#the-in-app-agent-bring-your-own-key">The in-app agent (bring your own key)</a></li></ol></li>
+<li><a href="#connecting">Connecting</a><ol><li><a href="#claude-code-or-any-mcp-client">Claude Code (or any MCP client)</a></li><li><a href="#claudeai-and-the-claude-apps-a-custom-connector">claude.ai and the Claude apps (a custom connector)</a></li><li><a href="#the-in-app-agent">The in-app agent</a></li></ol></li>
 <li><a href="#the-rules-of-the-room">The rules of the room</a></li>
 <li><a href="#the-tools">The tools</a><ol><li><a href="#param-values">Param values</a></li><li><a href="#held-devices">Held devices</a></li><li><a href="#songs-from-a-link">Songs from a link</a></li></ol></li>
 <li><a href="#ops-for-apply_ops">Ops (for apply_ops)</a><ol><li><a href="#a-shape-in-time-scribble-strip-coreshaper">A shape in time: Scribble Strip (core.shaper)</a></li></ol></li>
@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub for agents (and their humans)</a></h1>
-    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 44 min to read</p>
+    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 45 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other: the human lays down a take, the agent
 plays over it, the human plays over that. This page is for both of you: the human who wants to plug an agent in, and
@@ -98,18 +98,29 @@ opened, or the tab reloaded), the next result starts with <code>studio_tab</code
 there; and when the song in the tab changed since an agent's last call (the person opened another song or a link
 there), the next result starts with <code>song_changed</code>, naming the song now open.</p>
 <h3 id="claudeai-and-the-claude-apps-a-custom-connector"><a class="h-link" href="#claudeai-and-the-claude-apps-a-custom-connector">claude.ai and the Claude apps (a custom connector)</a></h3>
-<p>Not live yet: the relay is built and tested, but the public one isn't switched on, so the studio's Connect tab stays
-hidden for now. When it is on: open the <strong>Connect</strong> tab in the studio, press <strong>Turn on</strong> and copy the connector URL
-(<code>https://overdub-relay.ajsmithhq.com/s/&lt;token&gt;/mcp</code>). In claude.ai, go to Settings → Connectors → Add custom
-connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed <code>claude.ai</code>.
-Anyone with the URL can drive the tab while Connect is on, and <strong>New link</strong> revokes the old one. How it works,
+<p>Open the <strong>Connect</strong> tab in the studio (on the public site or a local copy), press <strong>Turn on</strong> and copy the
+connector URL (<code>https://overdub-relay.ajsmithhq.com/s/&lt;token&gt;/mcp</code>). In claude.ai, go to Settings → Connectors →
+Add custom connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed
+<code>claude.ai</code>. claude.ai says the connector has no sign-in; that's expected, since the URL is the key. Anyone with the
+URL can drive the tab while Connect is on, and <strong>New link</strong> revokes the old one. How it works,
 limits and hosting: <a href="remote-mcp.html">REMOTE-MCP.md</a>.</p>
-<h3 id="the-in-app-agent-bring-your-own-key"><a class="h-link" href="#the-in-app-agent-bring-your-own-key">The in-app agent (bring your own key)</a></h3>
-<p>Open the Agent tab (press <code>A</code>; <code>⌘/</code> or <code>Ctrl+/</code> to type). Paste an Anthropic API key: it stays in that browser's
-localStorage and is sent only to <code>api.anthropic.com</code> (the browser calls the API directly; there is no Overdub server
-in the middle, and you pay Anthropic for what you use). Pick a model: Opus 5.5 (default), Sonnet 5.5 or Haiku 4.5.</p>
-<p>No key? Type anyway. A message sent with no agent on stays in the box, and under it the studio offers <strong>Ask the demo
-agent</strong> for it, beside <strong>Use your own Claude</strong> (the key, the models and Claude Code, opened only when asked for).
+<h3 id="the-in-app-agent"><a class="h-link" href="#the-in-app-agent">The in-app agent</a></h3>
+<p>Open the Agent tab (press <code>A</code>; <code>⌘/</code> or <code>Ctrl+/</code> to type). The studio keeps no API key: the page never holds one and
+never calls the Messages API itself. What answers in the tab's own box is one of these:</p>
+<ul>
+<li><strong>Claude Code on this computer</strong> (<strong>Use Claude Code here</strong>, on a studio served from your own copy): it runs on your
+Claude plan, with only the studio's tools (<code>server/local-claude.js</code>).</li>
+<li><strong>Your own API key, on your local server</strong> (self-hosting): start it with <code>OVERDUB_ANTHROPIC_KEY=sk-ant-… node server/serve.js</code>. The tab sends its Messages API request to <code>/local/messages</code>; the server adds the key and streams
+the answer back, so the key never reaches the browser and Anthropic bills you directly. It is its own variable, not
+<code>ANTHROPIC_API_KEY</code>, so a key that happens to be set in your shell is never spent unasked. The server binds to
+<code>127.0.0.1</code>; put it on a public address and anyone who reaches it spends your key.</li>
+<li><strong>The demo agent</strong>, free, below.</li>
+</ul>
+<p>Pick a model for the first two in the tab's settings: Opus 5.5 (default), Sonnet 5.5 or Haiku 4.5. An older version
+of the studio kept a pasted key in the browser (<code>overdub:anthropic-key</code>); the studio now deletes it on load and says
+so once in the Agent tab.</p>
+<p>Nothing on yet? Type anyway. A message sent with no agent on stays in the box, and under it the studio offers <strong>Ask the demo
+agent</strong> for it, beside <strong>Use your own Claude</strong> (the models and Claude Code, opened only when asked for).
 The demo agent is a scripted session (<code>?agent=mock</code> in the URL does the same; so does <strong>Try the demo agent</strong>, which
 sends what's in the box and never words you didn't type) that uses the real tools: takes over a part, a line over a
 part on its own track, Band's bass around a beat, a part doubled an octave, a word turned into a measured move, a
@@ -466,12 +477,13 @@ device. It shows up as a card in the Agent tab (&quot;Claude wants to delete Bas
 you keep it, after the device check).</li>
 </ul>
 <h2 id="privacy"><a class="h-link" href="#privacy">Privacy</a></h2>
-<p>Your song and your key stay in your browser. The in-app agent's conversation goes only to <code>api.anthropic.com</code>, and
+<p>Your song stays in your browser, and the studio keeps no API key. The in-app agent's conversation goes to Anthropic, and
+only there: through Claude Code on your computer, or through your own local server and the key you set on it; and
 what an outside agent does travels only between your tab and that agent (through the relay while Connect is on). On
 overdubstudio.com, and nowhere else, the pages also send a few anonymous counts: one GET of <code>e.gif</code> each, with
 an event name and at most one word from a fixed list. That is page views (with the linking site's host), and in the
 studio: opens (<code>demo</code>, <code>new</code>, <code>saved</code>, <code>device</code>, <code>link</code>, with the linking site's host), the first play, agent
-messages (<code>demo</code>, <code>byok</code>, <code>mcp</code>, <code>claude.ai</code>; outside agents once per page load), devices defined (<code>you</code>, <code>agent</code>),
+messages (<code>demo</code>, <code>local</code>, <code>mcp</code>, <code>claude.ai</code>; outside agents once per page load), devices defined (<code>you</code>, <code>agent</code>),
 exports (by file type), shares (<code>link</code>, <code>agent</code>, <code>fork</code>), hums and keeps (<code>idea</code>, <code>take</code>). No cookies, nothing stored, no ids, no third
 parties; never a title, a name, a note, a message or a key. Do Not Track or Global Privacy Control turns it off
 entirely. They land in CloudFront's access logs, which (like any web server's) also record each request's address
@@ -487,7 +499,7 @@ and browser, and which are deleted after 90 days. The code: <code>app/src/analyt
 <tr><td><code>app/src/ui/jam.js</code></td><td>the Jam room (<code>app.jam</code>) and <code>get_jam</code>, <code>make_jam_track</code>, <code>set_tone</code>, <code>show_on_fretboard</code>; its theory is <code>app/src/core/jam.js</code> (the chord timeline, jam tracks, tips, licks) and <code>app/src/core/fretboard.js</code> (tunings, positions, fingering, tab text)</td></tr>
 <tr><td><code>app/src/agent/tabs-tool.js</code> / <code>app/src/core/riff.js</code></td><td><code>tab_for</code>, <code>write_tab</code>, <code>suggest_riff</code>; the house riff writer. The room's tab lane is <code>app/src/ui/tabs.js</code> (<code>app.tabs</code>), its play-along judge <code>app/src/core/playalong.js</code></td></tr>
 <tr><td><code>app/src/agent/grooves-tool.js</code> / <code>app/src/core/grooves.js</code></td><td><code>find_grooves</code>, <code>use_groove</code>, <code>drum_track</code>; the groove library, tap-to-find and the song creator (style files in <code>core/grooves/</code>)</td></tr>
-<tr><td><code>app/src/agent/claude.js</code></td><td>the in-app agent: Messages API, streaming, tool loop, BYOK (<code>app.agent</code>)</td></tr>
+<tr><td><code>app/src/agent/claude.js</code></td><td>the in-app agent: Messages API through the local server's key, Claude Code on this computer, streaming, tool loop (<code>app.agent</code>)</td></tr>
 <tr><td><code>app/src/agent/mock.js</code></td><td>the scripted demo agent</td></tr>
 <tr><td><code>app/src/agent/prompt.js</code></td><td>the system prompt (etiquette, voice, the notes and drum-grid formats; the device guide, the full ops sheet and the lexicon are <code>get_guide</code> topics)</td></tr>
 <tr><td><code>app/src/agent/lexicon.js</code></td><td>the translator lexicon: words → axes → param moves, and <code>READINGS</code> for the words that get asked (editable data)</td></tr>

@@ -59,7 +59,7 @@
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Remote MCP: claude.ai plays in your studio</a></h1>
     <p class="doc-meta">From <code>docs/REMOTE-MCP.md</code> (<a href="/docs/REMOTE-MCP.md">the Markdown</a>), about 25 min to read</p>
-    <p class="doc-note">Status: The relay is written and tested. The public one isn’t switched on yet, so the studio’s Connect tab stays hidden for now.</p>
+    <p class="doc-note">Status: The relay is live: open the studio’s Connect tab, turn it on, and add the URL to claude.ai as a custom connector.</p>
     <article class="prose">
 <p>Claude Code reaches the studio through the <strong>local bridge</strong>: <code>server/mcp.js</code> (stdio) → <code>server/bridge.js</code> on
 localhost → the open tab. claude.ai on the web and the Claude apps can't do that. They connect to remote MCP servers
@@ -72,16 +72,17 @@ custom connector, and it hands each tool call to the studio tab the human has op
                                                                                ◀── POST /s/&lt;token&gt;/result ─────────  { id, result }
                                                     (every tab request carries x-overdub-tab-secret; the URL never does)</code></pre></div>
 <h2 id="for-the-human"><a class="h-link" href="#for-the-human">For the human</a></h2>
-<p><strong>On trial.</strong> The relay is deployed, and the live site shows Connect only to a browser that asks for it, until AJ
-decides to keep it: open <a href="https://overdubstudio.com/app/?connect=1">https://overdubstudio.com/app/?connect=1</a> once (the browser remembers; <code>?connect=0</code>
-hides it again). The switch reveals Connect for the hosted relay and nothing else (<code>relayPreview</code> in
-<code>app/src/agent/remote.js</code>; <code>?relay=</code> stays local-only). Making it public is <code>RELAY_LIVE = true</code> and a site deploy.</p>
+<p><strong>Live.</strong> The relay runs at <code>https://overdub-relay.ajsmithhq.com</code>, and every studio shows the Connect tab
+(<code>RELAY_LIVE = true</code> in <code>app/src/agent/remote.js</code>). Turning that off again hides the tab on the live site except for a
+browser that opened <code>/app/?connect=1</code> (<code>relayPreview</code>, the switch from the relay's trial; <code>?connect=0</code> undoes it). It
+reveals Connect for the hosted relay and nothing else; <code>?relay=</code> stays local-only.</p>
 <ol>
 <li>Open the studio, then the <strong>Connect</strong> tab in the right pane (next to Agent and History), and press <strong>Turn on</strong>.</li>
 <li>Copy the <strong>connector URL</strong>, <code>https://overdub-relay.ajsmithhq.com/s/&lt;token&gt;/mcp</code>.</li>
 <li>In claude.ai, open <strong>Settings → Connectors → Add custom connector</strong>, name it Overdub, paste the URL and add it.
 In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. On Team and Enterprise plans an
-Owner may have to add custom connectors.</li>
+Owner may have to add custom connectors. claude.ai warns that the connector has no sign-in: that's expected, the
+URL is the key (below).</li>
 </ol>
 <p>Keep the tab open: Claude plays in it. Its edits are signed <code>claude.ai</code>, drawn cool like every agent's, and undoable
 on their own. Its <code>say</code> messages land in the Agent panel, and its presence shows as a pill there.</p>
@@ -232,8 +233,8 @@ Sessions live for 24 hours idle.</p>
 <code>RELAY = 'https://overdub-relay.ajsmithhq.com'</code>. <code>?relay=http://localhost:&lt;port&gt;</code> overrides it for tests and local
 work, and only when the studio itself runs on localhost (<code>relayOverride</code>): on the live site it is ignored, so a
 crafted link can't show the Connect tab or point someone's tab at another relay. The studio's Content Security
-Policy allows the hosted relay's origin in <code>connect-src</code>, and loopback for local work; <code>RELAY_LIVE</code> keeps the
-Connect tab hidden on the live site until the relay is deployed.</p>
+Policy allows the hosted relay's origin in <code>connect-src</code>, and loopback for local work; <code>RELAY_LIVE</code> (on) shows the
+Connect tab on the live site.</p>
 <h2 id="limits"><a class="h-link" href="#limits">Limits</a></h2>
 <p>Every number is in <code>DEFAULTS</code> in <code>server/relay.js</code>, with why it is what it is. The relay runs on a t4g.nano (512 MB),
 systemd gives it 320 MB, and Node takes about 60 of that, so the byte caps keep the worst case near 200 MB: a flood
@@ -357,7 +358,8 @@ ceiling and waits inside its 240 s; rate limits (the MCP spec says servers &quot
 text marked as content; public docs; an icon.</p>
 <p><strong>What's missing</strong></p>
 <ol>
-<li>A deployed relay, run as a custom connector in claude.ai.</li>
+<li>~~A deployed relay, run as a custom connector in claude.ai.~~ Done: the relay is live and AJ has used it from
+claude.ai.</li>
 <li><strong>Descriptions that steer</strong>: the sentences in tool descriptions that tell Claude what to do rather than what the
 tool does are listed below, each with where it would go, for a pass with AJ.</li>
 <li>A <strong>privacy policy</strong> that says what the relay sees (calls pass through it, nothing is kept, counts are logged), a
@@ -371,7 +373,7 @@ passes for tools that act on someone's song, or they want OAuth.</li>
 <code>arrange_song</code>, <code>define_device</code>, <code>undo</code> and <code>revert_my_changes</code> ask the person on every call there. Making the common
 additive moves prompt-free would mean tools that only add (the directory's own advice is to split create, update and
 delete), which is a design call for AJ, not a hint to flip.</p>
-<p><strong>Recommended order</strong>: deploy, and use it from claude.ai and the Claude apps; the description pass (every MCP client
+<p><strong>Recommended order</strong>: deploy, and use it from claude.ai and the Claude apps (done); the description pass (every MCP client
 gains); write the privacy page, the contact and the Connect page; AJ asks mcp-review@anthropic.com the two questions;
 build OAuth with CIMD only if they ask for it; submit with a URL pattern.</p>
 <h3 id="descriptions-that-steer"><a class="h-link" href="#descriptions-that-steer">Descriptions that steer</a></h3>

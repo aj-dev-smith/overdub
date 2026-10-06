@@ -23,6 +23,7 @@ const FEED_MAX = 140;
 // Off localhost there is no bridge (bridge.js), so the card points at the guide instead of offering a command.
 const MCP_CMD = (root) => `claude mcp add overdub -- node ${root || '<path-to-your-overdub-checkout>'}/server/mcp.js`;
 const GUIDE_CLAUDE_CODE = '/site/docs/guide.html#bring-claude-code';
+const GUIDE_SERVER_KEY = '/site/docs/guide.html#your-own-api-key-on-your-own-server';
 let tapPreview = 0;     // the timer that lets go of a tapped take's two-second listen ("Hold to hear")
 
 export default function (app) {
@@ -57,7 +58,7 @@ function mountPanel(el, app) {
   // an underlined field at the foot.
   const who = h('div.ag-who');
   const btnNew = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Start a new conversation', 'aria-label': 'New conversation', onclick: () => { agent.reset(); feed = []; saveFeed(); renderAll(); } }, 'New');
-  const btnKey = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Agent settings: key, model, Claude Code', 'aria-label': 'Agent settings', onclick: () => { showKey = !showKey; renderAll(); } }, 'Settings');
+  const btnKey = h('button.btn.btn-txt.ag-hbtn', { type: 'button', title: 'Agent settings: model, Claude Code, the demo agent', 'aria-label': 'Agent settings', onclick: () => { showKey = !showKey; renderAll(); } }, 'Settings');
   const head = h('div.ag-head', who, h('div.ag-hbtns', btnNew, btnKey));
   const feedEl = h('div.ag-feed', { role: 'log', 'aria-live': 'polite', 'aria-label': 'Conversation with your agents' });
   const statusEl = h('div.ag-status', { 'aria-live': 'polite' });
@@ -76,13 +77,18 @@ function mountPanel(el, app) {
 
   /* ---------------------------------------------------------------- feed persistence */
   function loadFeed() {
-    try { const s = ls.get(FEED_KEY + pid); return s ? JSON.parse(s).filter((e) => e && e.k) : []; } catch (e) { return []; }
+    let list = [];
+    try { const s = ls.get(FEED_KEY + pid); list = s ? JSON.parse(s).filter((e) => e && e.k && e.action !== 'retired') : []; } catch (e) { list = []; }
+    // the retired-key note is never saved with a song: it rides at the end of whichever song is open until it is
+    // dismissed, so opening another song first doesn't lose it
+    if (agent.keyRetired) list.push({ k: 'note', kind: 'ok', action: 'retired', at: Date.now() });
+    return list;
   }
   let saveT = 0;
   function saveFeed() {
     clearTimeout(saveT);
     saveT = setTimeout(() => {
-      const list = feed.slice(-FEED_MAX).map((e) => (e.k === 'request' ? { ...e, live: false } : e));
+      const list = feed.filter((e) => e.action !== 'retired').slice(-FEED_MAX).map((e) => (e.k === 'request' ? { ...e, live: false } : e));
       ls.set(FEED_KEY + pid, JSON.stringify(list));
     }, 300);
   }
@@ -167,7 +173,12 @@ function mountPanel(el, app) {
       case 'activity': return h('div.ag-msg.ag-activity', { dataset: { k: 'activity', by: e.by } },
         speaker(e.by, e.at, /^mcp:|^claude\.ai$/.test(e.by || '') ? 'over MCP' : ''),
         h('div.ag-body', stepsEl(e.chips || [])));
-      case 'note': return h(`div.ag-note.ag-note-${e.kind || 'info'}`, h('div.ag-spk'), h('div.ag-body', h('p', e.text), e.action === 'key' ? h('button.btn', { type: 'button', onclick: () => { showKey = true; renderAll(); } }, 'Open settings') : null));
+      case 'note': return h(`div.ag-note.ag-note-${e.kind || 'info'}`, { dataset: e.action ? { action: e.action } : {} }, h('div.ag-spk'), h('div.ag-body', h('p', e.action === 'retired' ? retiredText() : e.text),
+        e.action === 'key' ? h('button.btn', { type: 'button', onclick: () => { showKey = true; renderAll(); } }, 'Open settings') : null,
+        e.action === 'retired' ? h('div.ag-kc-acts',
+          app.remote ? h('button.btn', { type: 'button', onclick: () => ui.show('connect') }, 'Open Connect') : null,
+          h('button.btn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
+          h('button.btn.btn-txt.ag-link.ag-note-x', { type: 'button', onclick: () => { agent.retiredSeen(); feed.splice(feed.indexOf(e), 1); mark(e); saveFeed(); flush(); input.focus(); } }, 'Dismiss')) : null));
       case 'request': return requestCard(e);
       default: return null;
     }
@@ -175,7 +186,7 @@ function mountPanel(el, app) {
 
   const seenChips = new WeakSet();
   // the demo agent's real moves, offered when an ask was past its script: each one sends itself; "Use a live agent"
-  // opens the key card (a key, or Claude Code over MCP)
+  // opens the setup sheet (Claude Code, here or over MCP)
   function movesEl(p) {
     return h('div.ag-moves', { role: 'group', 'aria-label': p.live ? 'What the demo agent can do' : 'What the agent offers' },
       p.live ? h('span.t3', 'Try ') : null,
@@ -410,20 +421,18 @@ function mountPanel(el, app) {
     return `${plainTitle(req.title)}: you kept ${c ? letterOf(req, c) + ', ' : ''}${r.picked}${r.error ? ` (it couldn't be applied: ${r.error})` : ''}${r.learned && req.lexicon ? `. Kept as your “${req.lexicon.word}”.` : ''}`;
   }
 
-  // Bring your own key: a plain sheet. A head on a rule, what happens to the key, the field, the models as a short
-  // list (a lamp on the one in use), your words, then the two ways in without a key: the demo agent and Claude Code.
-  // The first look (no key, no demo agent yet, settings not asked for) puts the demo agent first, as the region's one
-  // primary: a newcomer tries the agent before deciding about a key. With an agent connected over MCP, that agent
-  // leads instead and the demo agent is a plain button under it (FRESH-EYES-6 agent builder: Claude Code was here and
-  // the tab still led with "Try the demo agent").
+  // Bring your own Claude: a plain sheet. A head on a rule, how your own Claude gets in (the studio keeps no API key),
+  // the models as a short list (a lamp on the one in use) when something here uses them, your words, then the ways in:
+  // the demo agent, Claude Code, and on a local server a self-hoster's own key, held by the server.
+  // The first look (no agent on yet, settings not asked for) puts the demo agent first, as the region's one primary: a
+  // newcomer tries the agent before setting anything up. With an agent connected over MCP, that agent leads instead
+  // and the demo agent is a plain button under it (FRESH-EYES-6 agent builder: Claude Code was here and the tab still
+  // led with "Try the demo agent"). (The class keeps its old name, .ag-keycard: the checks and the styles find it so.)
   function keyCard() {
     const first = !agent.provider && !showKey;
     const live = bridge.agents.filter((a) => a.connected);
-    const cc = agent.local?.available;
+    const cc = agent.local?.available, serverKey = !!agent.local?.key;
     const lead = first && live.length > 0, firstDemo = first && !lead && !cc;
-    const keyIn = h('input.ew-input.ag-keyin', { type: 'password', placeholder: agent.hasKey() ? `saved: ${agent.keyHint()}` : 'sk-ant-…', autocomplete: 'off', 'aria-label': 'Anthropic API key', id: 'ag-keyin' });
-    const save = h(first ? 'button.btn' : 'button.btn.btn-go', { type: 'button', onclick: () => { if (agent.setKey(keyIn.value)) { showKey = false; held = false; push({ k: 'note', text: `Key saved in this browser. ${modelName(agent.model)} is ready.${input.value.trim() ? ' Your message is still in the box: Enter sends it.' : ''}`, kind: 'ok' }); renderAll(); input.focus(); } } }, 'Save key');
-    keyIn.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save.click(); });
     const models = h('div.ag-models', { role: 'radiogroup', 'aria-label': 'Model' }, MODELS.map((m) => h(`button.ag-model${agent.model === m.id ? '.on' : ''}`, { type: 'button', role: 'radio', 'aria-checked': String(agent.model === m.id), onclick: () => { agent.setModel(m.id); renderAll(); } }, h('b', m.name), h('span', m.blurb))));
     const cmd = MCP_CMD(root);
     const copy = h('button.btn', { type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(cmd); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1500); } catch (e) { ui.toast('Select the command and copy it (the clipboard is blocked here)'); } } }, 'Copy');
@@ -432,17 +441,17 @@ function mountPanel(el, app) {
     // (an agent already connected over MCP leads instead: it's the one in the room)
     const ccLead = first && cc && !lead ? h('div.ag-kc-first.ag-kc-cc',
       h('header.sheet-head', h('h3', 'Claude Code is on this computer')),
-      h('p.ag-kc-p', 'Talk to it here, in this panel: it runs on this computer, signed in with your Claude plan, so there is no API key and no API bill. It uses only the studio’s tools, and every move is signed in History and undoable.'),
+      h('p.ag-kc-p', 'Talk to it here, in this panel: it runs on this computer, signed in with your Claude plan, so there is nothing to pay Overdub and no key to paste. It uses only the studio’s tools, and every move is signed in History and undoable.'),
       h('div.ag-kc-acts', ccBtn)) : null;
-    const demo = h(firstDemo ? 'button.btn.btn-go.ag-demo' : 'button.btn.ag-demo', { type: 'button', onclick: () => useDemo() }, icon('agent', { size: 14 }), agent.provider === 'mock' ? 'Demo agent is on' : 'Try the demo agent (no key)');
+    const demo = h(firstDemo ? 'button.btn.btn-go.ag-demo' : 'button.btn.ag-demo', { type: 'button', onclick: () => useDemo() }, icon('agent', { size: 14 }), agent.provider === 'mock' ? 'Demo agent is on' : 'Try the demo agent (free)');
     const demoSec = firstDemo
       ? h('div.ag-kc-first',
         h('header.sheet-head', h('h3', 'Try the agent')),
-        h('p.ag-kc-p', 'No key needed: the demo agent is a scripted session that plays over this song with the real tools. Everything it does is real, signed in History, and undoable.'),
+        h('p.ag-kc-p', 'Nothing to set up: the demo agent is a scripted session that plays over this song with the real tools. Everything it does is real, signed in History, and undoable.'),
         h('div.ag-kc-acts', demo))
       : h('div.ag-kc-sec',
-        h('p.head', 'No key'),
-        h('p.ag-kc-small', 'The demo agent is a scripted session that uses the real tools on this song. Everything it does is real and undoable.'),
+        h('p.head', 'Demo agent'),
+        h('p.ag-kc-small', 'A scripted session that uses the real tools on this song. Everything it does is real and undoable.'),
         h('div.ag-kc-acts', demo,
           agent.provider === 'mock' ? h('button.btn.btn-txt.ag-link', { type: 'button', onclick: () => { agent.useMock(false); renderAll(); } }, 'Turn the demo agent off') : null));
     // a connected agent first: who is here, and where to talk to it
@@ -451,29 +460,39 @@ function mountPanel(el, app) {
     const mcpLead = lead ? h('div.ag-kc-first.ag-kc-mcp',
       h('header.sheet-head', h('h3', ...names, one ? ' is connected' : ' are connected')),
       h('p.ag-kc-p', `${one ? 'It works' : 'They work'} in this tab over MCP: talk to ${one ? 'it' : 'them'} where you run ${one ? 'it' : 'them'}. What ${one ? 'it does' : 'they do'} shows up here and in History, signed with ${one ? 'its name' : 'their names'}.`)) : null;
-    // the first look is the demo agent alone (or a connected agent, then the demo agent); the key, the models and
-    // Claude Code fold behind one link (Settings and the link open the whole card)
+    // the first look is the demo agent alone (or a connected agent, then the demo agent); the models and Claude Code
+    // fold behind one link (Settings and the link open the whole card)
     if (first) {
       return h('div.ag-keycard.ag-kc-firstlook', ccLead, mcpLead, demoSec,
         h('div.ag-kc-own',
-          h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', onclick: () => { showKey = true; renderAll(); feedEl.querySelector('#ag-keyin')?.focus(); } }, 'Use your own Claude'),
-          h('p.ag-kc-small', 'A live model that reads every word: your own Anthropic key, or Claude Code.')));
+          h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
+          h('p.ag-kc-small', `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)));
     }
+    // a self-hoster's own API key lives on the local server, never on this page (server/local-claude.js)
+    const keySec = isLocalHost() ? h('div.ag-kc-sec.ag-kc-server',
+      h('p.head', 'Your own API key'),
+      h('p.ag-kc-small', serverKey
+        ? (agent.provider === 'claude'
+          ? 'On: this panel uses the API key set on your local server (OVERDUB_ANTHROPIC_KEY). The page never sees it, and Anthropic bills you for what you use. The model above is the one it uses.'
+          : 'Your local server holds an API key (OVERDUB_ANTHROPIC_KEY). This panel uses it when Claude Code and the demo agent are off.')
+        : ['Self-hosting with an API key? Start the server with OVERDUB_ANTHROPIC_KEY set and this panel uses it. The key stays on the server, never in the page. ', h('a', { href: GUIDE_SERVER_KEY, target: '_blank', rel: 'noopener' }, 'Your own API key'), ', in the guide, says how.'])) : null;
     return h('div.ag-keycard',
-      h('header.sheet-head', h('h3', 'Bring your own Claude')),
-      h('p.ag-kc-p', 'Your Anthropic API key stays in this browser (localStorage) and is sent only to api.anthropic.com: there is no Overdub server in the middle, and you pay Anthropic directly for what you use.'),
-      h('label.ag-kc-label', { for: 'ag-keyin' }, 'API key'),
-      h('div.ag-kc-row', keyIn, save),
-      agent.hasKey() ? h('button.btn.btn-txt.ag-link.ag-kc-forget', { type: 'button', onclick: () => { agent.clearKey(); renderAll(); } }, 'Forget the saved key') : null,
-      h('div.ag-kc-label', 'Model'), models,
+      h('header.sheet-head', h('h3', { tabindex: '-1' }, 'Bring your own Claude')),
+      h('p.ag-kc-p', `Your own Claude works the studio from outside this page, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code on your computer. The studio keeps no API key.`),
+      cc || serverKey ? [h('div.ag-kc-label', 'Model'), models] : null,
       wordsList(),
       demoSec,
+      // claude.ai (the web and the Claude apps) through the hosted relay: the Connect tab has the link and the steps
+      app.remote ? h('div.ag-kc-sec.ag-kc-remote',
+        h('p.head', 'claude.ai'),
+        h('p.ag-kc-small', 'Add this studio to claude.ai as a custom connector; Claude then plays in this tab. The Connect tab has the link and the three steps.'),
+        h('div.ag-kc-acts', h('button.btn', { type: 'button', onclick: () => ui.show('connect') }, 'Open Connect'))) : null,
       h('div.ag-kc-sec',
         h('p.head', 'Claude Code'),
         ...(cc ? [
           h('p.ag-kc-small', agent.provider === 'local'
-            ? `On: this panel talks to Claude Code ${agent.local.version ? `${agent.local.version} ` : ''}on this computer, on your Claude plan (no API key). The model above is the one it uses.${agent.plan ? ` ${planWindows(agent.plan).title}` : ''}`
-            : 'Talk to Claude Code from this panel: it runs on this computer, signed in with your Claude plan, with only the studio’s tools. No API key.'),
+            ? `On: this panel talks to Claude Code ${agent.local.version ? `${agent.local.version} ` : ''}on this computer, on your Claude plan. The model above is the one it uses.${agent.plan ? ` ${planWindows(agent.plan).title}` : ''}`
+            : 'Talk to Claude Code from this panel: it runs on this computer, signed in with your Claude plan, with only the studio’s tools.'),
           h('div.ag-kc-acts', ccBtn),
         ] : []),
         ...(isLocalHost() ? [
@@ -483,12 +502,13 @@ function mountPanel(el, app) {
         ] : [
           h('p.ag-kc-small.ag-cc-off', 'Claude Code drives a local copy of the studio, not this page. ', h('a', { href: GUIDE_CLAUDE_CODE, target: '_blank', rel: 'noopener' }, 'Bring Claude Code'), ', in the guide, says how.'),
         ])),
+      keySec,
     );
   }
   const modelName = (id) => MODELS.find((m) => m.id === id)?.name || id;
 
   // Your words: what this person means by warm, fat, tight (agent/lexicon-personal.js), learned from their A/B picks.
-  // Shown in settings; on the no-key empty state only once there is something in it.
+  // Shown in settings; on the no-agent empty state only once there is something in it.
   function wordsList() {
     const words = personal.list();
     if (!words.length && !showKey) return null;
@@ -517,13 +537,13 @@ function mountPanel(el, app) {
 
   /* ---------------------------------------------------------------- head, composer */
   // The presence line: who is in the room, each signed in their ink with what they're doing in words. A still dot means
-  // connected (cool for an agent that's here, pencil for no key); nothing pulses.
+  // connected (cool for an agent that's here, pencil for none yet); nothing pulses.
   function renderHead() {
     const pills = [];
     const p = agent.provider;
-    const how = p === 'mock' ? 'demo agent' : p === 'local' ? `${modelName(agent.model)} in Claude Code` : p ? modelName(agent.model) : 'no key yet';
+    const how = p === 'mock' ? 'demo agent' : p === 'local' ? `${modelName(agent.model)} in Claude Code` : p ? modelName(agent.model) : 'no agent yet';
     const st = agent.busy ? `${how}, ${app.presence?.waiting?.('claude') ? 'waiting for you' : 'working'}` : how;
-    pills.push(h(`button.ag-pill${agent.busy ? '.busy' : ''}${p ? '' : '.off'}`, { type: 'button', title: p ? `Claude in this tab (${p === 'mock' ? 'scripted demo' : modelName(agent.model)}): settings` : 'Add a key to talk to Claude here', onclick: () => { showKey = !showKey; renderAll(); } }, h('span.ag-pill-dot'), byline('claude', { cap: true }), h('span', st)));
+    pills.push(h(`button.ag-pill${agent.busy ? '.busy' : ''}${p ? '' : '.off'}`, { type: 'button', title: p ? `Claude in this tab (${p === 'mock' ? 'scripted demo' : modelName(agent.model)}): settings` : 'Choose an agent to talk to here', onclick: () => { showKey = !showKey; renderAll(); } }, h('span.ag-pill-dot'), byline('claude', { cap: true }), h('span', st)));
     if (p === 'local' && agent.plan) pills.push(planLine(agent.plan));
     for (const a of bridge.agents.filter((x) => x.connected)) pills.push(h(`span.ag-pill.mcp${a.status ? '.busy' : ''}`, { title: `${a.name} over MCP${a.status ? ': ' + a.status : ''}` }, h('span.ag-pill-dot'), byline(a.by || 'mcp:' + a.name, { app, name: a.name }), h('span', a.status ? (app.presence?.waiting?.(a.by) ? 'waiting for you' : 'working') : 'over MCP')));
     if (bridge.state !== 'off' && !bridge.agents.some((x) => x.connected)) pills.push(h(`span.ag-bridge.${bridge.state}`, { title: bridge.state === 'on' ? 'The MCP bridge is listening: connect Claude Code (settings)' : 'Reconnecting to the MCP bridge…' }, bridge.state === 'on' ? 'MCP ready' : 'MCP reconnecting'));
@@ -603,7 +623,7 @@ function mountPanel(el, app) {
       h('div.ag-held-acts',
         h('button.btn.ag-held-demo', { type: 'button', onclick: () => useDemo() }, icon('agent', { size: 12 }), 'Ask the demo agent'),
         h('button.btn.btn-txt.ag-link.ag-held-own', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude')),
-      h('p.ag-kc-small', 'The demo agent is a script: it answers what it can, with the real tools. Your own Claude (an API key, or Claude Code) reads every word.'),
+      h('p.ag-kc-small', `The demo agent is a script: it answers what it can, with the real tools. Your own Claude (${app.remote ? 'claude.ai through Connect, or ' : ''}Claude Code, on your Claude plan) reads every word.`),
     ] : []));
   }
   // the demo agent on, and what's in the box goes to it as typed; an empty box sends nothing
@@ -617,12 +637,12 @@ function mountPanel(el, app) {
   // Claude Code on (or off); what's in the box goes to it as typed
   function useLocal(on) {
     agent.useLocal(on); showKey = false; held = false;
-    push({ k: 'note', kind: on ? 'agent' : 'ok', text: on ? `Claude Code is on: ${modelName(agent.model)}, on this computer, on your Claude plan.${input.value.trim() ? '' : ' Ask it something.'}` : `Claude Code is off.${agent.provider === 'claude' ? ` Your key is back: ${modelName(agent.model)}.` : ''}` });
+    push({ k: 'note', kind: on ? 'agent' : 'ok', text: on ? `Claude Code is on: ${modelName(agent.model)}, on this computer, on your Claude plan.${input.value.trim() ? '' : ' Ask it something.'}` : `Claude Code is off.${agent.provider === 'claude' ? ` Your server’s API key is back: ${modelName(agent.model)}.` : ''}` });
     renderAll(); input.focus();
     if (on && input.value.trim() && !agent.busy) send();
   }
-  // the key and model setup (and Claude Code), opened on request; the words stay in the box
-  function openOwn() { showKey = true; renderAll(); feedEl.querySelector('#ag-keyin')?.focus(); }
+  // the model setup and Claude Code, opened on request; the words stay in the box
+  function openOwn() { showKey = true; renderAll(); feedEl.querySelector('.ag-keycard h3')?.focus(); }
 
   async function send(text) {
     text = (text ?? input.value).trim();
@@ -675,8 +695,20 @@ function mountPanel(el, app) {
   });
   input.addEventListener('input', () => { grow(); renderHeld(); });
 
+  // The in-browser API key is gone: agent/claude.js deleted one this browser had saved. loadFeed() adds the note to the
+  // open song's feed until it is dismissed; its text is built when it draws, so the Connect tab (app.remote, set up after
+  // this panel mounts) is named once it exists.
+  function retiredText() {
+    const guide = (href, label) => h('a', { href, target: '_blank', rel: 'noopener' }, label);
+    const cc = isLocalHost()
+      ? ['Claude Code on this computer, on your Claude plan, in this panel or over MCP; your own API key, set on this server as OVERDUB_ANTHROPIC_KEY (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')']
+      : ['Claude Code on this computer, on your Claude plan, with a local copy of the studio (', guide(GUIDE_CLAUDE_CODE, 'Bring Claude Code'), '); your own API key on your own local server (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')'];
+    return ['Your saved API key is deleted from this browser: the studio no longer keeps a key on the page, so nothing on it can read one. You may want to revoke it in the Anthropic Console. Ways to keep an agent with no key on this page: ',
+      app.remote ? 'claude.ai, through the Connect tab (on your Claude plan); ' : '', ...cc, '; or the demo agent, which is free.'];
+  }
   /* ---------------------------------------------------------------- agent events (in-app) */
   const offs = [];
+  offs.push(ui.on?.('remote:state', () => { const n = feed.find((x) => x.action === 'retired'); if (n) { mark(n); flush(); } }));
   offs.push(personal.onChange(() => { if (showKey || !agent.provider) renderAll(); }));
   offs.push(agent.on('user', ({ text, context, scope }) => { push({ k: 'user', by: 'you', text, context: context ? scope || '' : '' }); }));
   // the in-app turn: one agent entry, split in two around a card (variations, a question) so the story stays in order
@@ -707,7 +739,7 @@ function mountPanel(el, app) {
   }));
   offs.push(agent.on('error', ({ message, retrying, code }) => {
     if (retrying) return;
-    push({ k: 'note', text: message, kind: 'bad', action: code === 'nokey' || code === 'badkey' ? 'key' : null });
+    push({ k: 'note', text: message, kind: 'bad', action: code === 'noagent' || code === 'badkey' ? 'key' : null });
   }));
   offs.push(agent.on('status', () => renderComposer()));
   offs.push(agent.on('busy', () => { renderComposer(); renderHead(); }));
@@ -998,8 +1030,6 @@ const CSS = `
 .ag-keycard .sheet-head > h3 { font-size: 19px; }
 .ag-kc-p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
 .ag-kc-label { display: block; margin-top: 4px; font-size: 11px; color: var(--text-3); }
-.ag-kc-row { display: flex; gap: 6px; } .ag-keyin { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12px; }
-.ag-kc-forget { align-self: flex-start; margin-left: 0; }
 .ag-models { display: flex; flex-direction: column; border-top: var(--rule); }
 .ag-model { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border: 0; border-bottom: var(--rule); background: none; color: var(--text-2); text-align: left; cursor: pointer; font: 12.5px var(--font-ui); }
 .ag-model::before { content: ''; flex: none; width: 6px; height: 6px; background: var(--line-2); align-self: center; }

@@ -317,6 +317,13 @@ for (const width of [1440, 390]) {
     const h = hits(re);
     t.ok(!h.length, `retired claim gone (${why})${say(h)}`);
   }
+  // The in-browser API key is gone (agent/claude.js): no public copy offers to keep one in the browser. (The private
+  // launch drafts change with the release that ships this.)
+  {
+    const pub = COPY.filter((f) => !PRIVATE.includes(f));
+    const byok = hits(/paste (an |your )?(Anthropic )?API key|bring[- ]your[- ]own[- ]key|\bBYOK\b|own (Claude|Anthropic) (API )?key|key (stays|is kept|kept) in (this|that|your) browser|keyless demo/gi, pub);
+    t.ok(!byok.length, `no public copy offers an API key kept in the browser (the studio keeps none; a self-hoster's stays on their server)${say(byok)}`);
+  }
 
   // The tap lane names the keys input/tap.js actually listens to.
   const { ROWS } = await import('../app/src/input/tap.js');
@@ -391,7 +398,7 @@ for (const width of [1440, 390]) {
   const unshipped = DOCS.filter((d) => d.raw && !new RegExp(`for f in [^;]*\\b${path.basename(d.src, '.md')}\\b`).test(deploy));
   t.ok(!unshipped.length, `the deploy ships every doc's Markdown that the docs link to${unshipped.length ? ' (missing ' + unshipped.map((d) => d.src).join(', ') + ')' : ''}`);
   // labels the guide names, as the studio spells them
-  const LABELS = ['Try the demo agent (no key)', 'Hold to hear', 'Keep as a clip', 'Make it yours', 'Share a link', 'Export device', 'Import a device…',
+  const LABELS = ['Try the demo agent (free)', 'Hold to hear', 'Keep as a clip', 'Make it yours', 'Share a link', 'Export device', 'Import a device…',
     'Provenance report', 'Attribution log', 'DAWproject', 'Stems', 'Save the project file', 'Takes', "Revert all ${store.author(by).name}'s changes (keep mine)",
     'Import MIDI…', 'Import audio…', 'Measure the mix', 'Your words'];
   const missing = LABELS.filter((l) => !src.includes(`'${l}'`) && !src.includes(`\`${l}\``) && !src.includes(`"${l}"`))

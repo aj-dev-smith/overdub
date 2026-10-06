@@ -118,7 +118,7 @@ pedalboard is Overdub's first instrument library, and its proof that "devices ar
 ## Roadmap
 
 **1. The proof of concept (now).** The studio: arranger, piano roll, drum grid, mixer, device rack with generated
-faces, the Guitar Studio's pedals and amps, hum and tap capture, the in-app agent (bring your own key), the MCP bridge,
+faces, the Guitar Studio's pedals and amps, hum and tap capture, the in-app agent (bring your own Claude), the MCP bridge,
 kernels with a device check, render and measure, signed history with per-author undo. The landing page and brand.
 
 **2. The device marketplace.** Devices are already portable data (a kernel, params, a look). Next: versioned,

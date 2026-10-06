@@ -602,11 +602,11 @@ try {
     await pub.goto(`${PUB}/app/?demo&relay=${encodeURIComponent(base)}`, { waitUntil: 'load' });
     await pub.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
     await sleep(1500);
-    const live = await pub.evaluate(() => ({ remote: !!window.overdub.remote, tab: !!document.querySelector('.ew-tab[title="Connect"]') }));
-    t.ok(!live.remote && !live.tab && !sent.length, `on the live site a link's ?relay= is ignored: no Connect tab (${live.tab ? 'shown' : 'none'}), and with Connect on nothing goes to that port (${sent.length} requests)`);
+    const live = await pub.evaluate(() => ({ relay: window.overdub.remote?.relay || null }));
+    t.ok(live.relay === 'https://overdub-relay.ajsmithhq.com' && !sent.length, `on the live site a link's ?relay= is ignored: Connect points at the hosted relay (${live.relay}), and with Connect on nothing goes to that port (${sent.length} requests)`);
     await ctx.close();
-    // the trial: ?connect=1 shows Connect on the live site for this browser (remembered), pointed at the hosted relay
-    // only, and ?connect=0 hides it again; nothing connects until Turn on
+    // the relay is live (RELAY_LIVE): the live site shows Connect to everyone, pointed at the hosted relay, and the trial's
+    // ?connect=0 no longer hides it; nothing connects until Turn on
     const ctx2 = await s.browser.newContext();
     await ctx2.route('**/*', async (rt) => {
       const u = new URL(rt.request().url());
@@ -622,9 +622,9 @@ try {
       await sleep(800);
       return pv.evaluate(() => ({ tab: !!document.querySelector('.ew-tab[title="Connect"]'), relay: window.overdub.remote?.relay || null, state: window.overdub.remote?.state || null }));
     };
-    const on = await look('&connect=1'), kept = await look(''), off = await look('&connect=0'), after = await look('');
-    t.ok(on.tab && on.relay === 'https://overdub-relay.ajsmithhq.com' && on.state === 'off' && kept.tab && !off.tab && !after.tab && !out.length,
-      `on the live site ?connect=1 shows Connect for this browser, for the hosted relay only (${on.relay}), until ?connect=0 (shown ${on.tab}, remembered ${kept.tab}, hidden ${!off.tab && !after.tab}; ${out.length} requests to the relay before Turn on)`);
+    const plain = await look(''), off = await look('&connect=0');
+    t.ok(plain.tab && plain.relay === 'https://overdub-relay.ajsmithhq.com' && plain.state === 'off' && off.tab && !out.length,
+      `on the live site Connect shows for everyone, for the hosted relay only (${plain.relay}), off until Turn on (shown ${plain.tab}, still shown with ?connect=0 ${off.tab}; ${out.length} requests to the relay before Turn on)`);
     await ctx2.close();
     await s.close(); studio = null;
   }

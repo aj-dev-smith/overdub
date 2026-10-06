@@ -4,8 +4,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-w2WsJYGaMjVczwKbdcAAq4Ks85Q19SqLSAFCCdNqTP4=' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta charset="utf-8">
 <!-- The studio's policy (index.html says why each part is there) less what this page doesn't use (the API, a relay),
-     and its one inline script allowed by its hash. The page shares the studio's origin, and so its localStorage and the
-     API key in it. Editing the script below changes its hash: tools/compat-test.js checks it and prints the new one. -->
+     and its one inline script allowed by its hash. The page shares the studio's origin, and so its localStorage (songs,
+     devices, settings). Editing the script below changes its hash: tools/compat-test.js checks it and prints the new one. -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Device library · Overdub Studio</title>
 <meta name="description" content="Every instrument and effect that ships with Overdub Studio, the house's own and the ones Claude built from one request each. Each passed the device check. Hear any of them in the page.">

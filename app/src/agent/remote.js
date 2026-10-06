@@ -27,11 +27,11 @@ import { installPresence } from './presence.js';
 import { installTools } from './tools.js';
 
 export const RELAY = 'https://overdub-relay.ajsmithhq.com';
-// The hosted relay is built and tested (tools/relay-test.js) but not deployed yet: standing up an internet-facing
-// endpoint that drives people's studio tabs is AJ's call (deploy/relay/setup.sh, ~$7.40/month, docs/REMOTE-MCP.md).
-// Until then the Connect tab only appears on a local studio with ?relay=<a local relay> (node server/relay.js). Flip
-// this after deploying (the page's policy already allows RELAY in connect-src: app/index.html).
-export const RELAY_LIVE = false;
+// The hosted relay is live (deploy/relay/setup.sh, docs/REMOTE-MCP.md; tools/relay-test.js), so every studio shows the
+// Connect tab. Setting this false hides it again everywhere but a local studio with ?relay=<a local relay> (node
+// server/relay.js) or a browser that opened /app/?connect=1 (relayPreview). The page's policy allows RELAY in
+// connect-src (app/index.html).
+export const RELAY_LIVE = true;
 export const BY = 'claude.ai';
 export const SECRET_HEADER = 'x-overdub-tab-secret';
 export const TOKEN_PREFIX = 'overdub-relay-token/v1:';   // the relay's too (server/relay.js tokenFor)
@@ -56,9 +56,10 @@ export function relayOverride(search = location.search, host = location.hostname
   } catch (e) { return null; /* not a URL */ }
 }
 const relayBase = () => relayOverride() || RELAY;
-// While the hosted relay is on trial (deployed, and AJ hasn't yet decided to keep it), the live site shows Connect only
-// to a browser that asks: /app/?connect=1 turns the preview on here (remembered), ?connect=0 turns it off. It reveals
-// the Connect tab for RELAY above and nothing else: it can't point the tab anywhere (that's ?relay=, local only).
+// The preview switch from the relay's trial, which matters only if RELAY_LIVE is ever turned off again: then the live
+// site shows Connect only to a browser that asks: /app/?connect=1 turns the preview on here (remembered), ?connect=0
+// turns it off. It reveals the Connect tab for RELAY above and nothing else: it can't point the tab anywhere (that's
+// ?relay=, local only).
 const PREVIEW_KEY = 'overdub:remote-preview';
 export function relayPreview(search = location.search) {
   const q = new URLSearchParams(search).get('connect');
@@ -313,13 +314,13 @@ const CSS = `
 .rc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); flex: none; }
 .rc-state.busy .rc-dot { background: var(--warn); } .rc-state.ready .rc-dot { background: var(--ok); }
 .rc-state.live { color: var(--agent); } .rc-state.live .rc-dot { background: var(--agent); box-shadow: 0 0 8px var(--agent); }
-.rc-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); margin-top: 2px; }
+.rc-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); margin-top: 2px; }
 .rc-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
 .rc-steps b { color: var(--text); font-weight: 600; }
-.rc-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 9px 10px; border-radius: var(--r-2); background: var(--bg-3); font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.rc-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 9px 10px; border-radius: var(--r-2); background: var(--bg-3); font-size: 12px; line-height: 1.45; color: var(--text-2); }
 .rc-note .ico { color: var(--warn); margin-top: 2px; flex: none; } .rc-note b { color: var(--text); font-weight: 600; }
 .rc-foot { justify-content: space-between; }
 .rc-rotate { background: none; border: 0; padding: 0; color: var(--text-2); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px; }
 .rc-rotate:hover { color: var(--text); }
-.rc-small { font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-small { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `;

@@ -26,7 +26,7 @@ export const DOCS = [
   { slug: 'guide', src: 'docs/GUIDE.md', raw: '/docs/GUIDE.md', label: 'Guide',
     blurb: 'Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.' },
   { slug: 'agents', src: 'docs/AGENTS.md', raw: '/docs/AGENTS.md', label: 'For agents',
-    blurb: 'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent with your own key, and the claude.ai connector to come), the rules of the room, every tool, the ops and the notes format.' },
+    blurb: 'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector through the Connect tab), the rules of the room, every tool, the ops and the notes format.' },
   { slug: 'integrations', src: 'integrations/README.md', raw: null, label: 'Connect an agent',
     blurb: 'Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.' },
   { slug: 'devices', src: 'docs/DEVICES.md', raw: '/docs/DEVICES.md', label: 'Writing devices',
@@ -35,7 +35,7 @@ export const DOCS = [
     blurb: 'Fifteen jobs a musician would ask an agent for (mix, write, edit, build a device), each scored 0 to 1 by measurement with the canonical renderer, never by a judge: the tasks, the scoring and how to run an agent.' },
   { slug: 'remote-mcp', src: 'docs/REMOTE-MCP.md', raw: '/docs/REMOTE-MCP.md', label: 'Remote MCP',
     blurb: 'The relay that lets claude.ai drive a studio tab: pairing by URL, the protocol edges, limits, hosting, cost and the known gap.',
-    note: 'The relay is written and tested. The public one isn’t switched on yet, so the studio’s Connect tab stays hidden for now.' },
+    note: 'The relay is live: open the studio’s Connect tab, turn it on, and add the URL to claude.ai as a custom connector.' },
   { slug: 'architecture', src: 'docs/ARCHITECTURE.md', raw: '/docs/ARCHITECTURE.md', label: 'Architecture',
     blurb: 'The contract every module is built against: the song document, ops and the store, devices and kernels, the engine, the measurements, the UI and the agent layer.' },
 ];

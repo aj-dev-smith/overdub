@@ -587,20 +587,20 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
   const E = (fn, arg) => page.evaluate(fn, arg);
   await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 });
   await sleep(600);
-  // no key: the Agent column opens on "Try the demo agent", the key form under it
+  // no agent yet: the Agent column opens on "Try the demo agent", the rest folded behind a link
   const fl = await E(() => {
-    const k = document.querySelector('.ag-keycard'), demo = k?.querySelector('.ag-demo'), keyIn = k?.querySelector('#ag-keyin');
+    const k = document.querySelector('.ag-keycard'), demo = k?.querySelector('.ag-demo'), keyIn = k?.querySelector('.ag-kc-ownbtn');
     const first = k ? [...k.querySelectorAll('button, input')][0] : null;
     const r = demo?.getBoundingClientRect();
-    return { first: !!k?.classList.contains('ag-kc-firstlook'), order: !!(demo && (!keyIn || (demo.compareDocumentPosition(keyIn) & Node.DOCUMENT_POSITION_FOLLOWING))),   // (the key form under it, or folded away behind a link)
- firstCtl: first?.textContent || first?.id, go: demo?.classList.contains('btn-go'), saveGo: !!k?.querySelector('.ag-kc-row .btn-go'), onScreen: !!r && r.top >= 0 && r.bottom <= innerHeight && r.width > 0, head: k?.querySelector('.sheet-head')?.textContent };
+    return { first: !!k?.classList.contains('ag-kc-firstlook'), order: !!(demo && (!keyIn || (demo.compareDocumentPosition(keyIn) & Node.DOCUMENT_POSITION_FOLLOWING))),   // (your own Claude folded away behind a link under it)
+ firstCtl: first?.textContent || first?.id, go: demo?.classList.contains('btn-go'), saveGo: !!k?.querySelector('input'), onScreen: !!r && r.top >= 0 && r.bottom <= innerHeight && r.width > 0, head: k?.querySelector('.sheet-head')?.textContent };
   });
-  T.ok(fl.first && fl.order && /Try the demo agent/.test(fl.firstCtl || '') && fl.go && !fl.saveGo && fl.onScreen, `no key: the Agent column opens on "Try the demo agent" (the one primary, on screen), the key form under it or folded away (${JSON.stringify(fl)})`);
-  // asking for settings still opens the key card as it was
+  T.ok(fl.first && fl.order && /Try the demo agent/.test(fl.firstCtl || '') && fl.go && !fl.saveGo && fl.onScreen, `no agent yet: the Agent column opens on "Try the demo agent" (the one primary, on screen), your own Claude folded under it, no key field (${JSON.stringify(fl)})`);
+  // asking for settings opens the whole setup: no key field anywhere (the studio keeps no API key)
   await E(() => document.querySelector('.ag-hbtns .ag-hbtn:last-child')?.click());
   await sleep(150);
-  const st = await E(() => ({ first: !!document.querySelector('.ag-kc-firstlook'), head: document.querySelector('.ag-keycard .sheet-head')?.textContent, save: !!document.querySelector('.ag-keycard .ag-kc-row .btn-go') }));
-  T.ok(!st.first && st.head === 'Bring your own Claude' && st.save, `Settings opens the key card with the key first (${JSON.stringify(st)})`);
+  const st = await E(() => ({ first: !!document.querySelector('.ag-kc-firstlook'), head: document.querySelector('.ag-keycard .sheet-head')?.textContent, save: !!document.querySelector('.ag-keycard input'), says: /keeps no API key/.test(document.querySelector('.ag-keycard')?.textContent || '') }));
+  T.ok(!st.first && st.head === 'Bring your own Claude' && !st.save && st.says, `Settings opens the whole setup, which keeps no key (${JSON.stringify(st)})`);
 
   // the demo agent works on what plays: a muted part is said to be muted, not played over
   const said = (prompt) => E(async (prompt) => {

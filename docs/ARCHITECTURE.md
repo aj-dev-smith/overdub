@@ -30,7 +30,7 @@ overdub/
   server/bridge.js       agent bridge routes (/bridge/*): MCP <-> the open studio tab, localhost only  [agent layer]
   server/mcp.js          MCP stdio server: Claude Code / Desktop / any MCP client drive the studio    [agent layer]
   server/local-claude.js Claude Code behind the Agent panel (/local/*): `claude -p` per turn, localhost [agent layer]
-  server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; built, not switched on)       [agent layer]
+  server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; live)                         [agent layer]
                          relay-catalog.json: the tools it lists, generated (tools/relay-catalog.js)
   site/                  landing page, press/, docs/ (built by tools/docs-build.js), llms.txt         [brand]
   app/index.html         the studio page; app/library.html the device shelf; app/gallery.html          [core]
@@ -85,7 +85,7 @@ overdub/
   app/src/agent/         tools.js (the tool catalog), extra-schemas.js, transforms-tool.js, arrange-tool.js,
                          arrangement-tool.js, grooves-tool.js (find_grooves, use_groove, drum_track), tabs-tool.js
                          (tab_for, write_tab, suggest_riff), claude.js
-                         (Messages API, BYOK), prompt.js, mock.js (the demo agent),
+                         (Messages API via the local server's key), prompt.js, mock.js (the demo agent),
                          lexicon.js + lexicon-personal.js, panel.js (chat UI), history.js, presence.js, diff.js,
                          keep.js (a song from a link: what waits for Keep), bridge.js (page side of MCP),
                          remote.js (page side of the relay)                                             [agent layer]
@@ -493,7 +493,7 @@ checks), gets `dsp` (the stdlib, `kernel/dsp.js`) and nothing else: no DOM, no f
 **Kernel code is evaluated only in the worklet** (and the Node renderer), never on the page. A kernel can arrive from a
 share link, a device file or any agent, and the shadowed names are not a boundary: `[].constructor.constructor` still
 reaches the realm's `Function`. What makes it safe is where it runs: the AudioWorkletGlobalScope has no DOM, no
-localStorage (where the API key lives), no cookies and no network. On the main thread, `host.compileKernel(src)` is a
+localStorage (the person's songs and settings), no cookies and no network. On the main thread, `host.compileKernel(src)` is a
 parse only (`new Function` is built and never called) for a fast syntax error with its line; every other refusal
 (no `create()`, a bad `poly`, `Math.random` at compile time) comes back from the worklet as a compile-stage error.
 Never call `kernelCompiler(...).compile()` on the page. The Node renderer (`tools/render.js`) has no such scope: a
@@ -739,7 +739,7 @@ top     transport bar and the Song menu
 left    Browser, Inspector (tabs)
 center  Arrange, Jam (tabs; ui/jam.js puts them in the arranger's toolbar row, so they cost the song no height)
 bottom  detail (tabs: Sketch, Notes, Beat, Grooves, Devices, Mixer, Reference)
-right   Agent, Connect (hidden until the relay is live), History (tabs)
+right   Agent, Connect, History (tabs)
 ```
 
 ```js
@@ -1235,7 +1235,8 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
 ## The agent layer
 
 `agent/tools.js` exports `TOOLS = [{ name, annotations, description, input_schema, run(input, ctx) → result }]`, one
-catalog for the in-app agent (`agent/claude.js`, BYOK Messages API with tool use and streaming; `agent/mock.js` is the
+catalog for the in-app agent (`agent/claude.js`, the Messages API with tool use and streaming, through a self-hoster's key on the local server, or
+Claude Code on this computer; `agent/mock.js` is the
 scripted demo agent) and outside agents (MCP via `server/mcp.js` → `server/bridge.js` → the page's `agent/bridge.js`,
 or claude.ai via `server/relay.js` → `agent/remote.js`). `app.tools.run(name, input, { by })` never throws: errors
 come back as `{ error, hint }`. Results are JSON; a tool may also return `{ image: dataURL }`. Every call emits ui
@@ -1294,7 +1295,7 @@ AGENTS.md documents each tool in the catalog; by job:
   catalog's. The in-app agent gets `IN_APP_DESCRIPTIONS` (`agent/tools.js`) in place of a few catalog descriptions
   that would repeat its prompt. The system prompt is frozen per conversation (prompt caching); the live context
   travels in each user message.
-- **Plumbing.** `app.agent` (the in-app client: `send`, `stop`, `setKey`, `useMock`, `on`), `app.bridge` (MCP connection
+- **Plumbing.** `app.agent` (the in-app client: `send`, `stop`, `useMock`, `useLocal`, `setModel`, `on`), `app.bridge` (MCP connection
   state), `app.remote` (the Connect tab); ui events `agent:compose { text, attach, send? }`, `agent:tool`, `agent:say`,
   `agent:request`, `agent:tools`, `edit-clip { track, clip }`, `focus`, `presence`, `presence:status`, `bridge:state`,
   `remote:state`.
@@ -1369,16 +1370,20 @@ session? }` runs `claude -p` once per turn and streams its stream-json events ba
 the token and the page id on each `/bridge/call`; the bridge sends it to that tab only, and the tab
 (`agent/bridge.js` → `app.agent.localCall`) runs it signed `claude` only while that token is its running turn's.
 `agent/claude.js` is the page side (provider `'local'`): Stop closes the request and the process goes with it, and
-the session id is kept per song (`overdub:agent:local-session:<id>`) and resumed. The public site has no `/local/`.
+the session id is kept per song (`overdub:agent:local-session:<id>`) and resumed. `POST /local/messages` is a
+self-hoster's own API key (provider `'claude'`): the server holds `OVERDUB_ANTHROPIC_KEY` (never `ANTHROPIC_API_KEY`
+from the shell), adds it and the API version to the page's Messages API request, and streams the answer back;
+`/local/status` says `key: true` when one is set, never the key. The page keeps no key: `overdub:anthropic-key`, the
+old in-browser key, is deleted on load and noted once (`overdub:agent:key-retired`). The public site has no `/local/`.
 
 **Remote MCP** ([REMOTE-MCP.md](REMOTE-MCP.md)): `server/relay.js` is the hosted relay for
 overdub-relay.ajsmithhq.com. It serves MCP Streamable HTTP at `/s/<token>/mcp` to claude.ai and hands calls to the tab
 over `/s/<token>/{hello,events,result}`. The tab side takes the tab's secret in a header (the token in the URL is a
 one-way hash of it, so the connector URL alone can't pose as the tab), and `tools/list` is the relay's own catalog
 (`server/relay-catalog.json`), never the tab's. `agent/remote.js` (`app.remote`, the right-region "Connect" tab) is
-the page side; its calls run with `by: 'claude.ai'` (`kind: 'agent'`, added with `store.addAuthor`). It is built and
-tested (`tools/relay-test.js`) but not deployed, so `RELAY_LIVE` in `agent/remote.js` is off and the Connect tab is
-hidden.
+the page side; its calls run with `by: 'claude.ai'` (`kind: 'agent'`, added with `store.addAuthor`). It is live at
+overdub-relay.ajsmithhq.com and tested by `tools/relay-test.js`; `RELAY_LIVE` in `agent/remote.js` is on, so every
+studio shows the Connect tab (off, it shows only on a local studio with `?relay=` or after `?connect=1`).
 
 ## Songs in and out
 

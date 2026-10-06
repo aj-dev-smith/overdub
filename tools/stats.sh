@@ -36,7 +36,7 @@ run "SELECT \"date\",
   count_if(e = 'share') AS shares, count_if(e = 'hum') AS hums, count_if(e = 'keep') AS keeps
 FROM overdub.events WHERE \"date\" >= ${SINCE} GROUP BY 1 ORDER BY 1 DESC"
 
-echo; echo "== by kind: agent (demo, byok = each message; mcp, claude.ai = once per studio load), devices (who), exports (file), shares, keeps, opens (how)"
+echo; echo "== by kind: agent (demo, local = each message; byok in older rows; mcp, claude.ai = once per studio load), devices (who), exports (file), shares, keeps, opens (how)"
 run "SELECT e AS event, p AS kind, count(*) AS n FROM overdub.events
 WHERE \"date\" >= ${SINCE} AND e IN ('agent', 'device', 'export', 'share', 'keep', 'open') GROUP BY 1, 2 ORDER BY 1, 3 DESC"
 

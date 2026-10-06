@@ -3,7 +3,7 @@
 // headless with only the studio's tools (server/mcp.js, pointed back at this server's bridge) and streams its events
 // back. The tools still run in the tab, through the bridge, signed 'claude' like the in-app agent's own calls.
 //
-//   GET  /local/status -> { available, version }        is `claude` on this machine's PATH?
+//   GET  /local/status -> { available, version, key }   is `claude` on this machine's PATH? is a key set (below)?
 //   POST /local/turn { page, text, model, system, session? }   -> NDJSON: { type: 'turn', token } first, then Claude
 //        Code's stream-json events as they come, then { type: 'exit', code, stderr? }. Closing the request (Stop in
 //        the panel) kills the process.
@@ -13,6 +13,14 @@
 // and only the overdub MCP server is loaded: the song's text reaches the model, and the model reaches only the studio.
 // ANTHROPIC_API_KEY is dropped from the child's environment so it uses the plan login, never a key that happens to be
 // set in the shell.
+//
+// A self-hoster's own API key, on the server: start it with OVERDUB_ANTHROPIC_KEY=sk-ant-… and the panel's in-app
+// agent posts its Messages API requests here, and this adds the key and passes them on. The key never reaches the
+// page (the studio keeps no key of its own: docs/SECURITY.md). It is its own variable, not ANTHROPIC_API_KEY, so a key
+// that happens to be set in the shell is never spent unasked. The server binds to 127.0.0.1; put it on a public
+// address and anyone who reaches it spends your key.
+//
+//   POST /local/messages { …a Messages API body }  -> the API's answer, streamed through as it comes
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -28,6 +36,11 @@ const claude = () => process.env.OVERDUB_CLAUDE || 'claude';   // read late, so 
 const CWD = path.join(os.tmpdir(), 'overdub-claude-code');
 const MODEL = /^claude-[a-z0-9.-]{1,60}$/;
 const SESSION = /^[0-9a-f-]{36}$/i;
+
+// read late, like claude(), so a test can set them after importing
+const apiKey = () => String(process.env.OVERDUB_ANTHROPIC_KEY || '').trim();
+const apiUrl = () => process.env.OVERDUB_ANTHROPIC_URL || 'https://api.anthropic.com/v1/messages';
+const BETA = /^[a-z0-9-]+(,[a-z0-9-]+)*$/;
 
 let probe = null;
 export function claudeStatus() {
@@ -67,7 +80,8 @@ export function register({ addRoute }) {
   addRoute('/local/', async (req, res, url) => {
     if (foreignHost(req) || foreignOrigin(req) || foreignSite(req)) return json(res, 403, { error: 'Claude Code only answers the studio on this machine' });
     const route = url.pathname.slice('/local/'.length);
-    if (route === 'status' && req.method === 'GET') return json(res, 200, claudeStatus());
+    if (route === 'status' && req.method === 'GET') return json(res, 200, { ...claudeStatus(), key: !!apiKey() });
+    if (route === 'messages' && req.method === 'POST') return messages(req, res);
     if (route !== 'turn' || req.method !== 'POST') return json(res, 404, { error: `no route ${req.method} /local/${route}` });
 
     let b;
@@ -87,6 +101,8 @@ export function register({ addRoute }) {
       env: { OVERDUB_URL: `http://localhost:${port}`, OVERDUB_TURN: token, OVERDUB_PAGE: page, OVERDUB_NO_OPEN: '1' } } } });
     const env = { ...process.env, MCP_TOOL_TIMEOUT: String(15 * 60 * 1000) };
     delete env.ANTHROPIC_API_KEY;
+    delete env.OVERDUB_ANTHROPIC_KEY;   // the self-hoster's key is for /local/messages only; Claude Code runs on the plan login
+    delete env.OVERDUB_ANTHROPIC_URL;
     fs.mkdirSync(CWD, { recursive: true });
 
     let child;
@@ -121,4 +137,31 @@ export function register({ addRoute }) {
     child.stdin.end(text);
     return true;
   });
+}
+
+// The in-app agent's request, with the server's key added (see the top). Only the API's own headers go on; the answer
+// streams back as it comes, and closing the request (Stop in the panel) aborts it.
+async function messages(req, res) {
+  const key = apiKey();
+  if (!key) return json(res, 503, { error: { type: 'no_key', message: 'No API key on this server: start it with OVERDUB_ANTHROPIC_KEY set (the guide says how).' } });
+  let b;
+  try { b = await readBody(req, 24 * 1024 * 1024); } catch (e) { return json(res, 400, { error: { type: 'invalid_request_error', message: e.message } }); }
+  if (!MODEL.test(String(b.model || ''))) return json(res, 400, { error: { type: 'invalid_request_error', message: 'model is required' } });
+  const headers = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
+  const beta = String(req.headers['anthropic-beta'] || '');
+  if (beta && BETA.test(beta)) headers['anthropic-beta'] = beta;
+  const ac = new AbortController();
+  res.on('close', () => ac.abort());
+  let up;
+  try { up = await fetch(apiUrl(), { method: 'POST', headers, body: JSON.stringify(b), signal: ac.signal }); } catch (e) {
+    if (ac.signal.aborted) return true;
+    return json(res, 502, { error: { type: 'api_error', message: 'Could not reach the Messages API from this server: ' + e.message } });
+  }
+  const head = { 'content-type': up.headers.get('content-type') || 'application/json', 'cache-control': 'no-store', 'x-accel-buffering': 'no' };
+  const ra = up.headers.get('retry-after');
+  if (ra) head['retry-after'] = ra;
+  res.writeHead(up.status, head);
+  try { if (up.body) for await (const c of up.body) res.write(c); } catch (e) { /* stopped, or the API went away mid-stream */ }
+  res.end();
+  return true;
 }

@@ -1,6 +1,6 @@
 // The demo agent: a scripted, realistic session played against the REAL tools (so everything it does is real: ops in
 // the store, attributed to 'claude', in History, undoable; real renders and measurements; real A/B cards). Used by
-// ?agent=mock, by "Try the demo agent" when there's no API key, and by tools/agent-test.js.
+// ?agent=mock, by "Try the demo agent" when no other agent is on, and by tools/agent-test.js.
 //
 //   await runMock(app, text, { signal, emit, setStatus, context, fast })
 //
@@ -249,9 +249,9 @@ function movesFor(app, first = []) {
   try { if (app.input?.capture?.latest?.()) moves.unshift('Place my take'); } catch (e) { /* no captures */ }
   return [...new Set([...first, ...moves])].slice(0, 4);
 }
-// how to get a live model, in plain words first; the how (an API key, Claude Code over MCP) on the quieter line
+// how to get a live model, in plain words first; the how (Claude Code, in the panel or over MCP) on the quieter line
 const LIVE = 'Want me to do anything you type? Use your own Claude (Use a live agent, below): then a live model reads every word.';
-const LIVE_FINE = 'A live agent: an Anthropic API key (the Claude pill at the top of this panel), or Claude Code connected over MCP.';
+const LIVE_FINE = 'A live agent: Claude Code on your computer, on your Claude plan, in this panel or connected over MCP (Use a live agent says how).';
 const quote = (c, n = 50) => `“${c.length > n ? c.slice(0, n - 3).trimEnd() + '…' : c}”`;
 const CAN_DO = 'What I can do here, on the real tools: play takes over a part, play a line over one on its own track, turn a word like darker or more space into a measured move, build a small effect, or place a take you hummed or tapped.';
 const CAN_DO_JAM = 'What I can do in the Jam room, on the real tools: show the scale that fits on the neck, a lick into the next chord, tones that match the song’s style, riffs for a section, or a jam track to play over.';

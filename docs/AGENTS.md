@@ -44,21 +44,33 @@ there), the next result starts with `song_changed`, naming the song now open.
 
 ### claude.ai and the Claude apps (a custom connector)
 
-Not live yet: the relay is built and tested, but the public one isn't switched on, so the studio's Connect tab stays
-hidden for now. When it is on: open the **Connect** tab in the studio, press **Turn on** and copy the connector URL
-(`https://overdub-relay.ajsmithhq.com/s/<token>/mcp`). In claude.ai, go to Settings → Connectors → Add custom
-connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed `claude.ai`.
-Anyone with the URL can drive the tab while Connect is on, and **New link** revokes the old one. How it works,
+Open the **Connect** tab in the studio (on the public site or a local copy), press **Turn on** and copy the
+connector URL (`https://overdub-relay.ajsmithhq.com/s/<token>/mcp`). In claude.ai, go to Settings → Connectors →
+Add custom connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed
+`claude.ai`. claude.ai says the connector has no sign-in; that's expected, since the URL is the key. Anyone with the
+URL can drive the tab while Connect is on, and **New link** revokes the old one. How it works,
 limits and hosting: [REMOTE-MCP.md](REMOTE-MCP.md).
 
-### The in-app agent (bring your own key)
+### The in-app agent
 
-Open the Agent tab (press `A`; `⌘/` or `Ctrl+/` to type). Paste an Anthropic API key: it stays in that browser's
-localStorage and is sent only to `api.anthropic.com` (the browser calls the API directly; there is no Overdub server
-in the middle, and you pay Anthropic for what you use). Pick a model: Opus 5.5 (default), Sonnet 5.5 or Haiku 4.5.
+Open the Agent tab (press `A`; `⌘/` or `Ctrl+/` to type). The studio keeps no API key: the page never holds one and
+never calls the Messages API itself. What answers in the tab's own box is one of these:
 
-No key? Type anyway. A message sent with no agent on stays in the box, and under it the studio offers **Ask the demo
-agent** for it, beside **Use your own Claude** (the key, the models and Claude Code, opened only when asked for).
+- **Claude Code on this computer** (**Use Claude Code here**, on a studio served from your own copy): it runs on your
+  Claude plan, with only the studio's tools (`server/local-claude.js`).
+- **Your own API key, on your local server** (self-hosting): start it with `OVERDUB_ANTHROPIC_KEY=sk-ant-… node
+  server/serve.js`. The tab sends its Messages API request to `/local/messages`; the server adds the key and streams
+  the answer back, so the key never reaches the browser and Anthropic bills you directly. It is its own variable, not
+  `ANTHROPIC_API_KEY`, so a key that happens to be set in your shell is never spent unasked. The server binds to
+  `127.0.0.1`; put it on a public address and anyone who reaches it spends your key.
+- **The demo agent**, free, below.
+
+Pick a model for the first two in the tab's settings: Opus 5.5 (default), Sonnet 5.5 or Haiku 4.5. An older version
+of the studio kept a pasted key in the browser (`overdub:anthropic-key`); the studio now deletes it on load and says
+so once in the Agent tab.
+
+Nothing on yet? Type anyway. A message sent with no agent on stays in the box, and under it the studio offers **Ask the demo
+agent** for it, beside **Use your own Claude** (the models and Claude Code, opened only when asked for).
 The demo agent is a scripted session (`?agent=mock` in the URL does the same; so does **Try the demo agent**, which
 sends what's in the box and never words you didn't type) that uses the real tools: takes over a part, a line over a
 part on its own track, Band's bass around a beat, a part doubled an octave, a word turned into a measured move, a
@@ -483,12 +495,13 @@ what it flags.
 
 ## Privacy
 
-Your song and your key stay in your browser. The in-app agent's conversation goes only to `api.anthropic.com`, and
+Your song stays in your browser, and the studio keeps no API key. The in-app agent's conversation goes to Anthropic, and
+only there: through Claude Code on your computer, or through your own local server and the key you set on it; and
 what an outside agent does travels only between your tab and that agent (through the relay while Connect is on). On
 overdubstudio.com, and nowhere else, the pages also send a few anonymous counts: one GET of `e.gif` each, with
 an event name and at most one word from a fixed list. That is page views (with the linking site's host), and in the
 studio: opens (`demo`, `new`, `saved`, `device`, `link`, with the linking site's host), the first play, agent
-messages (`demo`, `byok`, `mcp`, `claude.ai`; outside agents once per page load), devices defined (`you`, `agent`),
+messages (`demo`, `local`, `mcp`, `claude.ai`; outside agents once per page load), devices defined (`you`, `agent`),
 exports (by file type), shares (`link`, `agent`, `fork`), hums and keeps (`idea`, `take`). No cookies, nothing stored, no ids, no third
 parties; never a title, a name, a note, a message or a key. Do Not Track or Global Privacy Control turns it off
 entirely. They land in CloudFront's access logs, which (like any web server's) also record each request's address
@@ -505,7 +518,7 @@ and browser, and which are deleted after 90 days. The code: `app/src/analytics.j
 | `app/src/ui/jam.js` | the Jam room (`app.jam`) and `get_jam`, `make_jam_track`, `set_tone`, `show_on_fretboard`; its theory is `app/src/core/jam.js` (the chord timeline, jam tracks, tips, licks) and `app/src/core/fretboard.js` (tunings, positions, fingering, tab text) |
 | `app/src/agent/tabs-tool.js` / `app/src/core/riff.js` | `tab_for`, `write_tab`, `suggest_riff`; the house riff writer. The room's tab lane is `app/src/ui/tabs.js` (`app.tabs`), its play-along judge `app/src/core/playalong.js` |
 | `app/src/agent/grooves-tool.js` / `app/src/core/grooves.js` | `find_grooves`, `use_groove`, `drum_track`; the groove library, tap-to-find and the song creator (style files in `core/grooves/`) |
-| `app/src/agent/claude.js` | the in-app agent: Messages API, streaming, tool loop, BYOK (`app.agent`) |
+| `app/src/agent/claude.js` | the in-app agent: Messages API through the local server's key, Claude Code on this computer, streaming, tool loop (`app.agent`) |
 | `app/src/agent/mock.js` | the scripted demo agent |
 | `app/src/agent/prompt.js` | the system prompt (etiquette, voice, the notes and drum-grid formats; the device guide, the full ops sheet and the lexicon are `get_guide` topics) |
 | `app/src/agent/lexicon.js` | the translator lexicon: words → axes → param moves, and `READINGS` for the words that get asked (editable data) |

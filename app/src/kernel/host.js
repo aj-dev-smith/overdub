@@ -10,8 +10,8 @@
 //                                     the worklet, as a compile-stage error that rejects `ready`.
 //
 // Kernel code is evaluated only inside the AudioWorklet (and the Node renderer), never on the page: a kernel can
-// arrive from a share link, a device file or an agent, and the worklet scope has no DOM, no localStorage (where the
-// API key lives) and no network. The shadowed names in worklet.js are not a boundary; that scope is.
+// arrive from a share link, a device file or an agent, and the worklet scope has no DOM, no localStorage (the
+// person's songs and settings) and no network. The shadowed names in worklet.js are not a boundary; that scope is.
 //
 // Instance extras beyond the contract: errors (every error the worklet reported), faulted, version,
 // on('error' | 'log' | 'ready' | 'stuck', fn) -> off, stats() -> Promise<{ voices, held, maxVoices, steals, notes, stuck }>,

@@ -17,8 +17,8 @@ everything else.
 **The bridge between an outside agent and the studio only runs on your machine.**
 
 - **[overdubstudio.com/app/](https://overdubstudio.com/app/)** (the public studio) works with the agents that
-  live inside the page: the **Agent tab** with your own Anthropic API key (kept in that browser, sent only to
-  Anthropic), and the **demo agent**, a scripted session that needs no key. Claude Code, Claude Desktop and Cursor
+  live inside the page: the **demo agent** in the Agent tab, a scripted session on the real tools, free. The studio
+  keeps no API key. Claude Code, Claude Desktop and Cursor
   **can't** connect to a tab on the public site. The page doesn't even try: the bridge stays quiet off localhost.
 - **[localhost:3279/app/](http://localhost:3279/app/)** (the studio served by your clone) is the one outside agents
   drive. You don't have to start it: `server/mcp.js` starts the local server itself if nothing is listening, and on
@@ -234,10 +234,11 @@ claude plugin validate integrations/claude-code                    # the --plugi
 
 `claude plugin validate integrations/claude-code` warns that `version` is unset. That's on purpose.
 
-### Not switched on yet
+### claude.ai, through the hosted relay
 
 Our landscape research noted that a browser-hosted MCP that works
 from claude.ai would be an advantage no local-socket desktop bridge can match. The local bridge stays local by design.
-A hosted relay for claude.ai is written and tested (`server/relay.js`, `tools/relay-test.js`; the design, limits and
-hosting are in [REMOTE-MCP.md](../docs/REMOTE-MCP.md)), but it isn't deployed, so the studio's Connect tab stays
-hidden on the public site. Until it is, claude.ai can't drive a studio.
+A hosted relay for claude.ai is live (`server/relay.js`, `tools/relay-test.js`; the design, limits and hosting are in
+[REMOTE-MCP.md](../docs/REMOTE-MCP.md)). Open the studio's **Connect** tab, press **Turn on**, and add the connector
+URL in claude.ai under Settings → Connectors → Add custom connector. claude.ai says it has no sign-in; that's
+expected, the URL is the key.
