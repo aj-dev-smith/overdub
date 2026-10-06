@@ -237,6 +237,8 @@ export function mount(el, ctx) {
     side.append(sec);
   }
   panel('kit', `${def.name}, the whole kit`, [['tune', 'TUNE', `${def.name} tune, every piece`], ['decay', 'DECAY', `${def.name} decay, every piece`], ['humanize', 'HUMAN', `${def.name} humanize`], ['velocity', 'VEL', `${def.name} velocity curve`]], []);
+  // the cymbal model, with the whole kit (CLASSIC is the kit's own cymbals; FDN and MODAL the new ones)
+  panels.kit.append(h('div.dr-kit.dr-cym', h('span.dr-lbl', 'Cymbals'), ctx.control('cym_model', { label: false })));
   for (const piece of PIECES) {
     if (PERC.includes(piece)) continue;
     const nm = NAME[piece];
@@ -1032,6 +1034,7 @@ const CSS = `
 .dr-kit { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 10px; }
 .dr-lbl { font: 600 12px/1.2 var(--font-ui); color: var(--text-2); }
 .dr-kit .pk-seg { justify-self: start; }
+.dr-cym { margin-top: 14px; }
 .dr-kitline { grid-column: 1 / -1; margin: 0; min-height: 2.9em; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
 .dr-kitline.dr-preview { color: var(--text-3); }
 .dr-sel { min-width: 0; }
