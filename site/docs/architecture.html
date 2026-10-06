@@ -47,7 +47,7 @@
 <li><a href="#layout-and-ownership">Layout and ownership</a></li>
 <li><a href="#the-project-document">The project document</a><ol><li><a href="#automation-lanes-coreautomationjs">Automation lanes (core/automation.js)</a></li><li><a href="#the-notes-text-format-for-agents-and-the-console">The notes text format (for agents and the console)</a></li></ol></li>
 <li><a href="#ops-and-the-store">Ops and the store</a></li>
-<li><a href="#devices">Devices</a><ol><li><a href="#who-runs-a-songs-code-devicestrustjs">Who runs a song's code (devices/trust.js)</a></li><li><a href="#instance">Instance</a></li><li><a href="#kernels-the-format-agents-write">Kernels (the format agents write)</a></li></ol></li>
+<li><a href="#devices">Devices</a><ol><li><a href="#who-runs-a-songs-code-devicestrustjs">Who runs a song's code (devices/trust.js)</a></li><li><a href="#the-community-shelf-uicommunityjs-devicescommunityjs">The community shelf (ui/community.js, devices/community.js)</a></li><li><a href="#instance">Instance</a></li><li><a href="#kernels-the-format-agents-write">Kernels (the format agents write)</a></li></ol></li>
 <li><a href="#the-engine">The engine</a><ol><li><a href="#the-canonical-render-and-the-preview">The canonical render and the preview</a></li></ol></li>
 <li><a href="#the-ears-audiomeasurejs">The ears (audio/measure.js)</a></li>
 <li><a href="#the-ui">The UI</a><ol><li><a href="#device-windows-uipluginjs-appplugin">Device windows (ui/plugin.js, app.plugin)</a></li><li><a href="#the-jam-room-uijamjs-appjam">The Jam room (ui/jam.js, app.jam)</a></li><li><a href="#the-transport-uitransportjs-apptransport">The transport (ui/transport.js, app.transport)</a></li><li><a href="#lanes-in-the-arranger-uilanesjs-apparranger">Lanes in the arranger (ui/lanes.js, app.arranger)</a></li><li><a href="#tokens-appstyletokenscss-names-fixed-values-are-the-brands">Tokens (app/style/tokens.css; names fixed, values are the brand's)</a></li></ol></li>
@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub architecture (v0.1 contracts)</a></h1>
-    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 96 min to read</p>
+    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 108 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other. This document is the contract every
 module is built against. If code and this document disagree, fix one of them in the same change.</p>
@@ -93,6 +93,9 @@ are covered by <code>tools/compat-test.js</code>.</li>
   server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; live)                         [agent layer]
                          relay-catalog.json: the tools it lists, generated (tools/relay-catalog.js)
   site/                  landing page, press/, docs/ (built by tools/docs-build.js), llms.txt         [brand]
+                         community/ (the community shelf's gallery; held back from deploy, unlinked)
+  app/community/         the community shelf's bundled snapshot: gitignored, built by overdub-devices'
+                         tools/index.js --out (docs/COMMUNITY-SHELF.md)                              [shelf]
   app/index.html         the studio page; app/library.html the device shelf; app/gallery.html          [core]
   app/style/tokens.css   brand tokens (CSS custom properties; names below are fixed)                   [brand owns values]
   app/style/fonts.css    the faces, from the site (fonts/&lt;family&gt;/: each woff2 and its licence)         [brand]
@@ -111,8 +114,9 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          jam.js (chords read from notes, jam tracks, tips, licks), fretboard.js (tunings, positions,
                          fingering in one hand position, tab text in and out), riff.js (the house riff writer),
                          playalong.js (judging what you play against a part)                           [jam]
+                         sounds.js (newPartFor: the track a new idea makes; the rest is ux-instruments')   [core]
   app/src/engine/        engine.js (context, transport, scheduler, tracks, mixer), strip.js (channel strips),
-                         schedule.js (what plays when), render.js (offline, in the browser), node/render.js (the
+                         schedule.js (what plays when), click.js (the click's sound), render.js (offline, in the browser), node/render.js (the
                          canonical Node renderer), node/check.js + check-render.js (the device check in Node, the
                          kernel in a child process), fallback.js, assets.js (audio in IndexedDB), clock.js   [engine]
   app/src/audio/         measure.js (the ears: LUFS, true peak, spectrum...), testsignals.js            [dsp]
@@ -122,16 +126,19 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          builtin/ (Overdub's own kernels: synths, drums, pluck, bass, eq, comp, verb...;
                          wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
+                         community.js (the one reader of a community shelf index: allow-list, types, URL policy) [shelf]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
                          worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
                          odk.js + data.js (kernel data: the .odk container; fetched once, checked, kept in IndexedDB)  [dsp]
   app/kits/              kernel data files, &lt;sha256&gt;.odk (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
+                         timing.js (forgiving time: the gentle grid, a take's steady lean, the pulse in free playing),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
-  app/src/ui/            shell.js + dom.js (fixed frame), transport.js, arranger.js, lanes.js (automation lanes),
+  app/src/ui/            shell.js + dom.js (fixed frame), workspace.js + workspace-view.js (Find anything), 
+                         transport.js, arranger.js, lanes.js (automation lanes),
                          arrange-kit.js, pianoroll.js, drumgrid.js, grooves.js (the Grooves tab)        [ui-arrange]
                          mixer.js, rack.js, faces.js*, browser.js, inspector.js                         [ui-mix] (*faces: guitar)
                          touch.js (a finger on a knob, a slider or a fader: a drag scrolls, a hold moves it)  [ui-mix]
@@ -141,6 +148,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          sketch.js (capture UI), spiral.js (pitch spiral)                               [input]
                          export.js (the Song menu, files out), provenance.js, share.js, onboard.js, reference.js,
                          devices-io.js                                                                  [core / ui]
+                         community.js (From the community in the Browser: previews, Try and its prompt; off
+                         unless on localhost, COMMUNITY_LIVE)                                           [shelf]
                          jam.js (the Jam room beside Arrange: chords, the neck, the rig, practice, ideas),
                          tabs.js (the room's tab lane: riffs, practice, play-along), tabstaff.js (drawing tab;
                          the Notes panel's Tab view)                                                    [jam]
@@ -151,7 +160,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          lexicon.js + lexicon-personal.js, panel.js (chat UI), history.js, presence.js, diff.js,
                          keep.js (a song from a link: what waits for Keep), bridge.js (page side of MCP),
                          remote.js (page side of the relay), cloud.js, cloud-kind.js, cloud-panel.js (Claude
-                         on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
+                         on Overdub credits; off unless app/site-config.json names it),
+                         community-tool.js (find_community_device)                                     [agent layer]
   tools/                 pw.js (browser harness, fixed), &lt;area&gt;-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
   deploy/                setup.sh (one time), deploy.sh (ships the committed tree; --next REF ships it to the preview,
@@ -250,8 +260,10 @@ printing the old names. <code>music.parseGrid(grid)</code> → notes.</p>
 <div class="code" data-lang="js"><pre><code>import { createStore } from './core/store.js';
 const store = createStore(project?, { getDevice });
 store.get()                       <span class="c">// the project (live object: read it, never mutate it outside an op)</span>
-store.dispatch(ops, { by = 'you', label, reason, coalesce, audition, silent, kept, as })   <span class="c">// op or [ops]: atomic, one undo step</span>
+store.dispatch(ops, { by = 'you', label, reason, coalesce, audition, silent, kept, as, join })   <span class="c">// op or [ops]: atomic, one undo step</span>
    → { ok: true, txn, created: { [refOrKind]: newId } } | { ok: false, error, index } | { ok: false, held: true, error, hold }
+   <span class="c">// join: a txn id; when it is still the newest (nothing done after it, nothing undone) and by the same author, the</span>
+   <span class="c">// change goes into it (one undo step for both: a take and the track made for it at its count-in)</span>
 store.guard = (ops, { by, label, reason, as }) → null | { error, hold }   <span class="c">// set by the agent layer (agent/keep.js)</span>
 store.preview(ops, { by }) → { release() }   <span class="c">// hold-to-hear: applied silently, never in the history</span>
 store.undo({ by?, id?, redo? }?) → { ok, txn, forward } / store.redo() / store.canUndo(by?) / store.canRedo()
@@ -374,6 +386,10 @@ hold a clip to its notes; and the store checks the song's size after every op of
 <code>sizeError</code>), refusing one that grows it past a limit. A song already past one (an old file) opens and can be edited,
 just not grown, and undo, redo and reverts aren't held to them. A share link past a limit is refused as it comes in
 (<code>decodeShare</code>): it is someone else's song, and a few hundred KB of one can hold more than the tab keeps up with.</p>
+<p><strong>A device's <code>credit</code></strong> (optional, newer songs only): a device the community shelf put in a song carries
+<code>credit: { author, alias, agent, license, sha256, source }</code>, from the shelf's index: the person who asked for it (a
+handle), the agent that wrote it, its licence, its kernel's SHA-256 and where its source lives. It's display data, read
+by nobody that decides anything; an older reader skips it. The device itself is <code>by: 'you'</code>: the person brought it in.</p>
 <p><strong><code>device.define</code> guards.</strong> A song's devices add to the studio and never take over one it ships: ids in the built-in
 namespaces (<code>core.</code>, <code>pedal.</code>, <code>amp.</code>, <code>cab.</code>, <code>overdub.</code>) or on the house shelf are refused (undo and redo still put
 back what was there), and a kernel can be up to 256 KB. A song's device is data, a kernel and its params: <code>build</code> and
@@ -443,10 +459,10 @@ key, too weak to trust code by, since a kernel matching Night Shift's could be m
 every device in a song the studio ships (each <code>DEMOS</code> entry's devices: Night Shift's three), worked out when first
 needed and never stored; and kernels this browser takes in: <code>define_device</code> (the person's own agents, in the page
 or over MCP: the tool trusts the kernel once its check passes), a device file the person imports (<code>ui/devices-io.js</code>),
-and any <code>device.define</code> op a <code>do</code> dispatch applies in this page (<code>main.js</code>; not an undo, a redo or a load, and never
-a kernel that is held). Once, on the first run of this version (the key isn't there), <code>main.js</code> trusts every kernel
-in the songs this browser kept (<code>overdub:project</code>, <code>overdub:previous</code>, <code>overdub:before-fork</code>, <code>overdub:recent</code>):
-they were already running. For the same reason a link this browser made before <code>since</code> opens as yours with its
+and any <code>device.define</code> op a <code>do</code> dispatch applies in this page (<code>main.js</code>; not an undo, a redo or a load, never
+a kernel that is held, and never one allowed for this page load only, below). Once, on the first run of this
+version (the key isn't there), <code>main.js</code> trusts every kernel in the songs this browser kept (<code>overdub:project</code>,
+<code>overdub:previous</code>, <code>overdub:before-fork</code>, <code>overdub:recent</code>): they were already running. For the same reason a link this browser made before <code>since</code> opens as yours with its
 devices trusted (<code>trustOwnLink</code>; the link's moment is sealed into its mark, so it can't be moved); an own link made
 since gets no pass, or sharing a song to yourself would let held code play.</li>
 <li><strong>Held</strong> (<code>trust.heldIn(song, isTrusted)</code> → <code>registry.holdDevices</code>): a song device whose kernel isn't trusted is
@@ -458,7 +474,9 @@ device plays as held. <code>main.js</code> <code>syncProjectDevices</code> recom
 trust change (another tab's too: the <code>storage</code> event); listeners get <code>{ type: 'held' }</code>.</li>
 <li><strong>Where it's checked.</strong> <code>syncProjectDevices</code> (registration), <code>strip.js</code> (live and offline renders: the mix and
 stems, <code>render_and_measure</code>, <code>adjust</code>, <code>compare_to_reference</code>, <code>arrange_around</code>), <code>ui/provenance.js</code> (never checks a
-held device for the report), <code>agent/tools.js</code> (<code>define_device</code> refuses a held kernel under any id). Exports and the
+held device for the report), <code>agent/tools.js</code> (<code>define_device</code> refuses a held kernel under any id, and a community
+shelf device's kernel, as it is or with its names, comments or spacing changed: so its credit isn't passed off as the
+agent's; not a boundary, since a program changed any other way isn't matched). Exports and the
 report say what they left out.</li>
 <li><strong>The ask</strong> (<code>ui/share.js</code>): a song that opens with held devices asks, under the share banner for a link, or in the
 same strip in the banner's place for any other song (a file opened from disk or dropped, the saved song, Recent
@@ -476,8 +494,29 @@ it's open and one line once it's answered, so the lanes stay in view.</li>
 <li><strong>Agents</strong> see held devices (<code>get_project</code> <code>held</code>, <code>get_device</code> <code>held: true</code>, <code>list_devices</code>, <code>render_and_measure</code>
 and <code>provenance_report</code> say what they left out) and can't run or allow them: no tool reaches <code>app.trust.play</code>, and
 etiquette rule 8 says only the person lets held code play.</li>
-<li><code>app.trust = { key, held(), hash(source), trusts(source), size(), since(), play(ids?), allow(sources), ownLink(res) }</code>. The Node renderer
+<li><strong>For this page load only</strong> (<code>trust.allowForNow</code>): the community shelf's Try, with <em>Run it in any song from now on</em>
+unticked. The hash is trusted until the page reloads and is never stored, so the song's device is held again after a
+reload. <code>trust.forNow(hash)</code> says whether a hash is trusted that way; <code>main.js</code> skips such a kernel when it trusts a
+dispatched <code>device.define</code>, so it isn't stored behind the person's back. <code>trust.forget(hashes)</code> takes hashes back
+(stored and this page load's; a shipped kernel can't be forgotten): the shelf's deny list (the studio's own copy of
+the index only) and a Try whose dispatch failed after its allow.</li>
+<li><code>app.trust = { key, held(), hash(source), trusts(source), has(hash), size(), since(), play(ids?), allow(sources), allowForNow(sources), forNow(source), forget(sources), ownLink(res) }</code>. The Node renderer
 (<code>tools/render.js</code>) has no trust set: it renders what it's given (CLAUDE.md: render only what you trust with it).</li>
+</ul>
+<h3 id="the-community-shelf-uicommunityjs-devicescommunityjs"><a class="h-link" href="#the-community-shelf-uicommunityjs-devicescommunityjs">The community shelf (<code>ui/community.js</code>, <code>devices/community.js</code>)</a></h3>
+<p>Instruments and effects people asked their agents for, from the community repo (<code>overdub-devices</code>), in the Browser
+under <strong>From the community</strong>. Nothing is sold, priced or rated. The spec is COMMUNITY-SHELF.md;
+SECURITY.md says what runs when. Off on the live site (<code>COMMUNITY_LIVE</code>); Try is held (<code>TRY_ON</code>) until the worklet's
+prototypes are frozen, and a developer on localhost turns it on with localStorage <code>overdub:community-try</code> = <code>1</code>.</p>
+<ul>
+<li><code>devices/community.js</code> is the one reader of an index (<code>overdub-community-index/1</code>): the studio, the agent tool and the
+site gallery all read through it. <code>ASKED_MAX</code> is how long a requester line can be and still be drawn.</li>
+<li><code>app.community = { on(), ready(), state(), section(opts), reach(id?, by), offer(entry, opts), targetFor(entry, track), tryEntry(entry, opts), matchKernel(source), heldLines(held), stop(), nowPlaying() }</code>. <code>targetFor</code> says where a Try
+lands (<code>already: true</code> when it's on that track now: Try doesn't stack a second copy). On a new track a Try brings a
+two-bar part to hear the device on, in the same step.</li>
+<li>Events: <code>community:ready</code> (<code>ui.emit</code>, after each read of the index: <code>ui/share.js</code> draws the held strip's shelf lines
+again) and <code>workspace:go</code> (<code>ui/workspace.js</code>, Find's Go to, with the query: a shelf word opens the Browser on the
+shelf).</li>
 </ul>
 <h3 id="instance"><a class="h-link" href="#instance">Instance</a></h3>
 <p>What <code>instantiate(c, id, opts)</code> returns, for both flavours:</p>
@@ -504,7 +543,8 @@ checks), gets <code>dsp</code> (the stdlib, <code>kernel/dsp.js</code>) and noth
 <p><strong>Kernel code is evaluated only in the worklet</strong> (and the Node renderer), never on the page. A kernel can arrive from a
 share link, a device file or any agent, and the shadowed names are not a boundary: <code>[].constructor.constructor</code> still
 reaches the realm's <code>Function</code>. What makes it safe is where it runs: the AudioWorkletGlobalScope has no DOM, no
-localStorage (the person's songs and settings), no cookies and no network. On the main thread, <code>host.compileKernel(src)</code> is a
+localStorage (the person's songs and settings), no cookies and no network. It isn't isolated: a kernel shares the realm
+with every other device (SECURITY.md, &quot;Still open&quot;). On the main thread, <code>host.compileKernel(src)</code> is a
 parse only (<code>new Function</code> is built and never called) for a fast syntax error with its line; every other refusal
 (no <code>create()</code>, a bad <code>poly</code>, <code>Math.random</code> at compile time) comes back from the worklet as a compile-stage error.
 Never call <code>kernelCompiler(...).compile()</code> on the page. The Node renderer (<code>tools/render.js</code>) has no such scope: a
@@ -714,15 +754,16 @@ spectrogram(buffer, { width, height, from?, to?, floor? }) → Promise&lt;string
 go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, the canonical render) and the browser.</p>
 <h2 id="the-ui"><a class="h-link" href="#the-ui">The UI</a></h2>
 <p><code>app/src/ui/shell.js</code> lays out regions and owns the one animation loop and the key handler:</p>
-<div class="code"><pre><code>top     transport bar and the Song menu
+<div class="code"><pre><code>top     transport bar and the Song menu; then the workspace's note and Find anything (div.ew-ws; with the agent
+        pane open on a wide screen, and on a phone, Find sits at the end of the agent's tab row, ui.wsSide)
 left    Browser, Inspector (tabs)
 center  Arrange, Jam (tabs; ui/jam.js puts them in the arranger's toolbar row, so they cost the song no height)
 bottom  detail (tabs: Sketch, Notes, Beat, Grooves, Devices, Mixer, Reference)
 right   Agent, Connect, History (tabs)</code></pre></div>
 <div class="code" data-lang="js"><pre><code>ui.panel({ id, region, title, icon?, order?, mount(el, ctx) { return { update(evt), frame(now), unmount() } } })
-ui.show(panelId) ; ui.state ; ui.select(sel) ; ui.on(type, fn) ; ui.emit(type, detail) ; ui.toast(text, { kind, action })
+ui.show(panelId, { save?, by? }) ; ui.state ; ui.select(sel) ; ui.on(type, fn) ; ui.emit(type, detail) ; ui.toast(text, { kind, action })
 ui.announce(text)                 <span class="c">// a screen-reader-only status line (agent edits and messages while the Agent tab is hidden)</span>
-ui.keys.add({ key: 'Space' | 'KeyZ' | ..., mod: 'mod' | 'shift' | 'alt' | 'mod+shift' | null, run(e), when?(), label, group, global? })
+ui.keys.add({ key: 'Space' | 'KeyZ' | ..., mod: 'mod' | 'shift' | 'alt' | 'mod+shift' | null, run(e), when?(), label, group, global?, feature? })
 ui.state = { selection: { track, clip, notes: Set&lt;noteId&gt;, range: { from, to } | null, insert }, zoom: { pxPerBeat, trackH },
              scrollX, scrollY, focus: panelId, presence }
 ctx = the app object (window.overdub)</code></pre></div>
@@ -758,10 +799,57 @@ whatever it sits in (by hand: the control's <code>touch-action</code> is none) a
 the finger is, so a slider or a fader moves from where it sits and never jumps to the finger; held on, its menu opens.
 A mouse and a pen are left alone. Toasts: the same words again while they're up count on the note there (&quot;×3&quot;) instead
 of stacking, a phone shows two at most, and an open device window is never under one (<code>ui.dockToasts</code>, below).</p>
+<p><strong>The workspace seam</strong> (<code>ui/workspace.js</code>, <code>ui.workspace</code>, <code>app.find</code>): what's on screen, kept apart from the song.
+There is one studio, one set of panels and one undo, and nothing in it is put away. <code>FEATURES</code> is the registry and
+Find's index: each feature has a permanent id (<code>notes</code>, <code>mixer</code>, <code>loop</code>, <code>agent-setup</code>, …), a group, a title, a
+one-line purpose, where it is (a line an agent can say), its panels (mapped centrally, so panel files don't tag
+themselves) and search aliases. Parts outside a panel are tagged in place, <code>data-feature=&quot;&lt;id&gt;&quot;</code> (space-separated for
+more than one), so Go to can point at them. <strong>Find anything</strong> (<code>⌘K</code>, <code>app.find.open({ query })</code>) ranks every source
+with <code>rank()</code>: Go to (<code>FEATURES</code>: <code>ui.show</code> its panel, or a two-second pencil outline on its tagged part, in agent ink
+when an agent asked), Do (every <code>ui.keys</code> declaration with a <code>label</code>, run as the key would be), Sound (devices and
+presets: an instrument tries on the selected track through <code>app.sounds.try</code>, never an overwrite; else the Browser
+searches it), Help (the guide page's <code>h2[id]</code>/<code>h3[id]</code> headings, read once) and, last, Ask (<code>ui.emit('agent:compose', { text, send: true })</code>). Local search spends no tokens. The layout is per browser and is <strong>never an op</strong>: not in the
+store, not undoable, never in a share link or a song file. Which view a load opens in is <code>decideView</code>
+(<code>ui/workspace-view.js</code>, pure): <code>full</code> for everyone, nothing written down; a saved <code>view: 'simple'</code> is read as full
+(<code>from: 'merged'</code>: the studio says so once, on <code>overdub:start.merged</code>). <code>?view=simple</code> opens the earlier simple view
+for that load, for one release: the root carries <code>ws-simple</code> and a <code>ws-off-&lt;id&gt;</code> per feature put away, one generated
+stylesheet (<code>.ws-off-&lt;id&gt; [data-feature~=&quot;&lt;id&gt;&quot;] { display: none !important }</code>) hides their parts, and reaching for
+one (<code>ui.show</code>, a key declared with <code>feature</code>, Find) brings it back, signed, with a note; <code>localStorage ['overdub:workspace'] = { v: 1, view, added: { [id]: by } }</code> keeps what was added. <code>?view=round</code> draws the Round
+prototype (<code>ui/round.js</code>) over it. Other modules never import <code>workspace.js</code>: they tag parts and call
+<code>app.ui.workspace?.…</code>. Changes emit <code>ui.emit('workspace', { view, hidden })</code>. There is no agent tool for the layout;
+<code>get_selection</code> carries <code>studio: { view, hidden }</code> only under <code>?view=simple</code>.</p>
+<div class="code" data-lang="js"><pre><code>ui.workspace = { FEATURES, view(), setView(view, { by }), has(id), panelShown(panelId), featureOfPanel(panelId),
+                 go(id, { by, query }), add(ids, { by, note }), putAway(ids, { by }), reach(id, by), list(), where(id),
+                 openFind({ query }), closeFind(), search(q), openMore (an alias) }
+app.find = { open({ query }), close(), search(q) }</code></pre></div>
+<p><strong>Picking a sound</strong> (<code>ui/sounds.js</code>, <code>app.sounds</code>; the sets in <code>core/sounds.js</code>; docs/INSTRUMENTS-UX.md): a new idea
+is a new track, and its sound is picked by ear on the <strong>sound card</strong> (&quot;What should this sound like?&quot;). After the first
+take onto a track that had no clips the card offers the track's current sound and up to four others that suit the
+take (<code>soundsFor(kindOfTake(take))</code>: a hum, a played line, chords, a bass line or a beat each have a set of real
+device ids and presets, <code>SOUND_SETS</code>); it opens from the take's note or the header's <strong>Sounds</strong> (under <code>?view=simple</code>
+by itself, with the take playing). Trying a sound is a <strong>preview</strong>: <code>store.preview({ type: 'instrument.set', … })</code>, never in History; one track at a time, the next trial releasing the last. <strong>Keep</strong> releases it
+and dispatches one <code>instrument.set</code> by you in the same task (one undo step; a track still named after its old
+instrument is renamed with it; an agent's suggestion keeps <code>reason: 'suggested by …'</code>); <strong>Back</strong> releases it. A trial
+ends by itself, said in the card's status line or a toast with <strong>Keep it</strong>: R on that track and touching the tried
+device's controls keep it first; an undo or redo that touches the track, an agent tool that reads or changes the song
+(not <code>suggest_sounds</code>, <code>get_selection</code>, <code>get_variation_result</code>, <code>say</code>, <code>ask_human</code>, <code>get_recording</code>, <code>highlight</code>), another track
+selected, the browser's pane closed, the track removed or another song go back first. On an uncommitted Sketch take
+the card previews the track the Keep would make (<code>track.add</code>), and the take's own Keep makes track, clip and sound in
+one step. While a preview is applied <code>localStorage['overdub:sound-trying'] = { song, track, instrument, newTrack?, at }</code> holds what the track really plays, and the next boot puts it back (a preview by the house, nothing in History). The
+browser follows the same rule: a click on an instrument tries it on the selected track (Keep, Back in its target
+line); a melodic instrument on a drum track, or a kit on a pitched track with notes (<code>rack.isMismatch</code>), asks first
+(<strong>New track with …</strong>); Shift-click and a drop onto empty space make a new track, a drop onto a lane keeps at once.
+<code>suggest_sounds</code> (<code>agent/sounds-tool.js</code>) puts an agent's rows on the card, signed by it.</p>
+<div class="code" data-lang="js"><pre><code>app.sounds = { setHost(fn), offer({ track, from, anchor?, take? }), try(track, { device, preset? }, { play }),
+               tryNew(take, { device, preset? }), keep({ reason? }), back({ why? }), keepIfTrying(track),
+               trying() → { track, device, preset?, was, newTrack? } | null, pending(track), toastLine(made),
+               suggest(track, rows, { by, id, reason, done }) → { id }, close(), current → { track, rows, from } | null,
+               setsFor(track) }</code></pre></div>
 <p><strong>Take one</strong> (<code>ui/onboard.js</code>, <code>app.onboard</code>): the first-run coach (hear it, take one, keep it, ask the agent, keep
 its take). Each step advances on the real event (transport, capture <code>add</code>, a kept clip by you, an agent's request or
 notes). State in <code>overdub:onboard</code>; never starts under <code>navigator.webdriver</code> unless <code>?coach</code> or <code>start({ force })</code>.
-The Song menu's <strong>Take one</strong> restarts it. <code>app.onboard = { start({ force?, restart? }), stop(), skip(), done(), ask(), firstMinute(kind = 'tap'), keysOver(), step, index, steps, active, state, take }</code>; ui event <code>'onboard'</code>.
+Never starts by itself in the simple view: there it comes from <strong>Tap a beat</strong>
+(<code>firstMinute</code>), the Song menu's <strong>Take one</strong> or <code>?coach</code>. The Song menu's <strong>Take one</strong> restarts it. <code>app.onboard = { start({ force?, restart? }), stop(), skip(), done(), ask(), firstMinute(kind = 'tap'), keysOver(), step, index, steps, active, state, take }</code>; ui event <code>'onboard'</code>.
 <code>firstMinute()</code> is the first minute (<code>docs/research/RECORDING-UX.md</code> 3.3; <strong>Tap a beat</strong> on the card and on a new
 song's blank sheet): a Drums track if the song has none, selected, a 2-bar loop at the marker, the click, Sketch on
 Tap, and the loop playing, so the ball is moving before a sound is made; R records and each pass layers.
@@ -994,7 +1082,9 @@ click sounds.</li>
 square that travels between them on a shallow arc, lowest exactly on the beat, drawn from <code>engine.beat</code> (the audible
 beat) in <code>frame()</code>; red while a take counts in or records; with reduced motion it steps with no arc.</li>
 <li><strong>The count-in</strong> (<code>countdown()</code>): from the moment R is pressed the position reads <code>−bar.beat</code> in record ink, and the
-arranger draws the one big numeral (4 3 2 1) over the lane being recorded onto. R while the song plays counts the
+arranger draws the one big numeral (4 3 2 1) over the lane being recorded onto, unless Sketch's beat band is on
+screen (<code>app.sketch.bandShown()</code>, Tap it and Hum it), whose numerals count the bar in instead, up with its lamps (1 2
+3 4, the beats waited out before the count-in's bar dimmer): one count in view. R while the song plays counts the
 beats left in this bar (<code>live().counting</code>).</li>
 <li><strong>The record key</strong> shows the recorder's state: a ring (nothing to record onto), the ring in record ink (a target),
 its dot lit on each beat of the count, a filled lamp with REC beside the position (recording), dimmed while the take
@@ -1005,6 +1095,14 @@ goes in.</li>
 back in one <code>auto.set</code> dispatch.</li>
 </ul>
 <h3 id="lanes-in-the-arranger-uilanesjs-apparranger"><a class="h-link" href="#lanes-in-the-arranger-uilanesjs-apparranger">Lanes in the arranger (<code>ui/lanes.js</code>, <code>app.arranger</code>)</a></h3>
+<p><strong>A track's header</strong> shows its instrument as a button, <code>.ar-hinst</code> (its swatch, its name and an open glyph, in both
+views): a click on the name selects the track and opens the instrument big (<code>app.plugin.open({ track, slot: 'instrument' })</code>, placed so it doesn't cover the track's lane); a held instrument opens the Devices tab instead. The
+full studio keeps the devices button <code>.ar-hdev</code> beside it. <strong>Sounds</strong> (<code>.ar-hsounds</code>) opens the sound card for that
+track: on the selected track, on a hovered or focused header (by CSS, its space always reserved), and <em>pending</em> on a
+new track until the card has been opened on it once. During a trial the header names the sound being tried (&quot;Light
+Table, trying&quot;). <strong>Where R goes</strong> is drawn in both views: the aimed track's R is lit (the simple view's is a lamp, not a
+button), and while the aim is a new track (Sketch open, a count-in or a take, or the card previewing a new track) a
+<strong>ghost lane</strong> at the foot reads &quot;A new track, Lamp Tines&quot;: one row, no clips, a dashed hairline, nothing to select.</p>
 <p>A track's open lanes are rows under it (40 px, 48 on phones), one per param, in one layout (<code>rows()</code>) that drawing,
 hit-testing, the headers, <code>locate()</code> and presence read. Which lanes show is session state (<code>ui.state.lanes</code>); the
 lanes themselves are the song's, and they play shown or hidden. E (or a header's A key) toggles the selected track's
@@ -1052,23 +1150,40 @@ shared classes built on them (<code>.btn</code>, <code>.tog</code>, <code>.ledge
 <code>recorder.toggle()</code>: idle → <code>record()</code>, count → <code>cancel()</code>, rec → punch out (<code>stop({ keepPlaying: true })</code>); Space
 while recording stops and keeps the take, and so do the killswitch, a seek, a tempo/meter/loop change and a hidden
 tab. <code>record()</code> plays from the playhead with the engine's count-in (<code>engine.play(from, { countIn: { beats, preroll: true } })</code>, <code>recorder.countIn</code> bars, default 1, <code>localStorage overdub:record</code>) and sets <code>engine.recording</code>; R while
-playing is a quantized launch: recording starts at the next bar line (the loop's start when that is its end), the
-rest of this bar counted as <code>'count'</code> (<code>record({ quantize: false })</code> punches in now). Every event is placed on the engine's unwrapped grid (<code>engine.gridBeat</code>,
+playing is a quantized launch: recording starts at the first bar line with the count-in's bars to come in on (a
+whole bar less a sixteenth for 1; the loop's start after its end; in a loop of 2 bars or less, its top, so a 2-bar
+beat lands as played, not its second bar then its first), the wait counted as <code>'count'</code> (the bright numerals count
+only its last bar; <code>record({ quantize: false })</code> punches in now). A take onto the blank sheet says so there
+(&quot;Counting in.&quot;, &quot;Recording.&quot;) in place of its ways in. Every event is placed on the engine's unwrapped grid (<code>engine.gridBeat</code>,
 moved to the event's <code>timeStamp</code> with <code>engine.beatAt</code>), so loop passes never lose or reorder a note; a note in the
 count-in's last eighth is the downbeat, earlier ones and notes before the loop stay in capture only (the loop is
 the punch range). <code>capture.passOf(grid, span)</code> maps the grid to (pass, song beat).</p>
 <ul>
-<li><strong>Targets</strong> (<code>recorder.targetFor(kind)</code>, also <code>input.target()</code>): keys and MIDI → an armed pitched track, an
-armed drum track (armed on purpose), the selected track (a drum track too: the one R names), the first pitched
-one: never keys onto drums by accident. A hum (<code>'hum'</code>) is the same but goes onto drums only when they're armed.
-Pads and beatbox → an armed drum track, the selected one, the first (a new Drums track at commit if none). The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
+<li><strong>The aim</strong> (<code>recorder.aim(kind)</code> → <code>{ track | null, why }</code>, <code>recorder.setAim(kind, id | 'new' | null)</code>,
+<code>recorder.on('aim')</code>; docs/INSTRUMENTS-UX.md 1.1): each kind of take (<code>hum</code>, <code>keys</code>, <code>pads</code>, <code>audio</code>) has a track
+it goes onto, or a new track. Session state, never the song: the person's pick in <strong>Onto</strong> (<code>'new'</code> is one-shot:
+its commit spends it, and the next take of that kind follows the track it made as the last take's), the last take of that kind, and the
+selection when it is newer than that take. <strong>Targets</strong> (<code>recorder.targetFor(kind)</code>, also <code>input.target()</code>) read
+it. In the simple view: the pick, the selected track if newer and it fits, the last take's track, for pads the
+song's only drum track, else a new track. In the full studio the armed track still comes first (the pick, then an
+armed track that fits, then the selected one that fits, else a new track; arming by hand clears the pick, and
+&quot;A new track&quot; in Onto disarms), and nothing falls back to the first pitched track. A hum never goes onto an unarmed
+drum track. A new track's name and first instrument are <code>core/sounds.js</code> <code>newPartFor(kind)</code> (Melody, Keys, Drums;
+Lamp Tines or Gobo Kit); the track a take went onto is selected at commit, and the keys' new track is made when the
+keys start, so they're heard where they'll be recorded; Tap it makes its Drums at R (the pads sound on it), and the
+take joins that track's adding in one undo step (<code>store.dispatch(ops, { join: txnId })</code>; the first minute's own
+Drums, an empty track added just before, joins too). The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
 the UI may draw it armed without setting <code>track.arm</code>); the ● button (<code>track.arm</code>) arms on purpose, ⌘ for more.
 <code>recorder.target</code> (the armed track, else the one last selected) is the arranger's lit R; where the take really
 lands is <code>recorder.lands()</code>: the target, except when R records a hum (<code>recorder.humming()</code>: Hum it open or a hum
 going, no audio target), which lands where a hum goes (null: a new track). The top bar's <strong>Onto</strong>, the record
 key's title, the count-in's numeral and <code>live().track</code> say <code>lands()</code>, and Onto's menu offers <code>recorder.onto()</code>.</li>
 <li><strong>Sources</strong> are adapters over the existing modules: <code>input.noteOn/noteOff</code> (MIDI, musical typing), <code>tap.hit</code>
-(quantized on input to <code>input.options.grid</code>, raw time kept), <code>tap.startBeatbox</code> and <code>hum.start({ rec: true })</code>
+(quantized on input, forgivingly: <code>input/timing.js</code> <code>snapGentle</code>, the nearest eighth when within 0.35 of one,
+else the <code>input.options.grid</code> cell; raw time kept; with the take's <strong>lean</strong> out: <code>leanOf</code>, the one steady offset
+the take shares, its circular mean against the beat on the drums that keep one place in it (kick most, then snare),
+else against the eighth, steadied by the median, none under 0.08 beat; from the fourth hit on, the hits already in
+move with it, previews too), <code>tap.startBeatbox</code> and <code>hum.start({ rec: true })</code>
 (H while recording; they hand their notes in at their stop, on the grid), and the mic (<code>audio.openFor(track)</code>:
 the track's Input from the Inspector, else Sketch's picker; one asset per take, each pass a clip at its offset,
 the measured round trip taken off).</li>
@@ -1076,7 +1191,9 @@ the measured round trip taken off).</li>
 Layer (drum tracks; <code>recorder.setMode(track, 'layer' | 'take')</code> changes it, Sketch's <strong>Each pass</strong>) adds every
 pass's notes into the clip under them (<code>notes.add</code>; a hit on one already there is merged, and the summary says
 how many were) and makes clips only where there are none; while it records, each hit is previewed
-(<code>store.preview</code>) so the next pass plays it. New take (pitched tracks, hum, audio always) puts the passes in one
+(<code>store.preview</code>) so the next pass plays it. A miss is replaced, not added: when a pass closes, a hit an earlier
+pass played on the same drum within a third of a beat (as played) of one of this pass's, in another cell, that
+this pass didn't play again, goes, its preview too (<code>settleMisses</code>; <code>live().passes[].replaced</code> counts them). New take (pitched tracks, hum, audio always) puts the passes in one
 <strong>take folder</strong> over the beats they recorded (<code>core/arrangement.js</code> <code>planTakeFolder</code>). A pass's beats are
 <code>passRange(rec, pass, bpb)</code>: from the bar the take began in (the loop's start after a wrap) to the loop's end when
 it ran round, else to where you stopped (the bar line before the stop, or further when a note was played or still
@@ -1111,8 +1228,27 @@ the part before keeps the folder, the part after is a folder of its own, a part 
 clip; so every folder is still one range with one take playing in each stretch. A take folder moves whole (a drag
 of any of its clips takes every take along); on a comped folder a drag across the body selects bars (a piece of a
 comp isn't a clip of its own) and its label line moves the folder.</li>
+<li><strong>The lean at the stop</strong> (<code>relean</code>, <code>input/timing.js</code> <code>placeTake</code>): every note the forgiving grid placed (pads,
+beatbox, a hum against the click) is placed again with the whole take's lean out, and a drum's nervous first hits
+(in its first two beats, before any lands on a beat, 0.25 to 0.5 beat late, on a drum otherwise on the beat) go
+on their beats. The commit says it (<code>leanWords</code>: &quot;You played about 150 ms behind the click, so your hits are on
+their beats; As played puts them back.&quot;) and returns <code>res.lean</code> ({ beats, ms, by, moved, opening, words });
+<code>retime('loose')</code> blends from where each was played less the lean.</li>
+<li><strong>Capture takes</strong> (Sketch on Tap it or Hum it): Hum it's big button is R (the strip's Record button stands down
+in Hum it: one record button). The click a take hears is the
+transport's click for takes (<code>recorder.captureClick</code>, <code>setCaptureClick</code>; Sketch's beat band shows it as a lamp).
+With it off altogether, over a song with nothing in it and nothing playing (<code>recorder.wouldBeFree()</code>), a take is
+<strong>free</strong> (<code>recorder.free</code>): no transport and no count; the pads keep their own take (each hit's time) and the hum
+its own (<code>hum.start({ free: true })</code>); at the stop the pulse is found in what was played (<code>input/timing.js</code>
+<code>fitHits</code>, <code>fitSegs</code>: the tatum whose lattice fits every onset, counted with the tempo followed as it drifts, the
+first onset the downbeat; a hum's count is the best of a few readings, the one whose notes sit nearest where they
+were sung with a sixteenth costing 40 ms, since 60 ms of slop on an eighth pair reads as 75 BPM in sixteenths) and the take goes in on its own track by <code>capture.keep(id, { tempo, join })</code>, the song
+taking the tempo played when it had nothing in it: one undo step. Every take from there keeps its timing
+(<code>recorder.timing</code>, <code>recorder.retime('tight' | 'loose' | 'played')</code>: a <code>notes.set</code> by you, one undo step each).</li>
 <li><strong>Hum into the take.</strong> In Hum it (Sketch on its Hum mode), <code>record()</code> also starts the mic as a hum
-(<code>hum.start({ rec: true })</code>, count-in and all); a hum already going when R starts (H, then R) joins the take
+(<code>hum.start({ rec: true })</code>, count-in and all), its notes placed gently (<code>transcribe(..., { gentle: true })</code>) and
+each one's as-sung beat kept (<code>tr</code>); one sung in the count-in keeps its place before the take (<code>clampStart: false</code>)
+and stays in capture, never on beat 1; a hum already going when R starts (H, then R) joins the take
 (<code>hum.join()</code>). A blocked mic says so and the take records keys and pads without it. A hummed note moved into the
 song's key reaches the take with what it was sung as (<code>addNotes</code>' <code>was</code>); the commit finds those notes in the song
 (<code>res.sung</code>: how many, and the <code>notes.set</code> ops that put them back), and <code>hum.js</code> says it as it does for a hum on
@@ -1140,7 +1276,8 @@ timeline are refused with <code>{ error: 'recording' }</code> (<code>agent/tools
 phrases by silence, and every hum, tap, beatbox and audio take lands there too (in memory and IndexedDB
 <code>overdub-capture</code>). <code>capture.keep(id)</code> turns one into a clip by <code>'you'</code>; the agent's <code>get_capture</code> reads <code>latest()</code>.</p></li>
 <li><p><strong>Hum</strong> (<code>input/hum.js</code>, <code>input/pitch.js</code>): pYIN frames and a Viterbi path, then the note tracker; <code>transcribe</code>
-snaps to the grid and the key and reports what it moved. <code>tools/hum-bench.js</code> scores it on synthesized phrases whose
+snaps to the grid and the key and reports what it moved. A hum with nothing playing is counted on its own pulse
+(<code>fitSegs</code>), its tempo the hummer's; <code>hum.live()</code> is the notes so far on the take's grid (Sketch draws them as sung). <code>tools/hum-bench.js</code> scores it on synthesized phrases whose
 notes are known.</p></li>
 <li><p><strong>Musical typing and the touch keys</strong> (<code>input/qwerty.js</code>, Sketch's Play it on a touch screen): two helpers, on until
 turned off and kept in this browser (<code>localStorage overdub:qwerty</code>): the grid (<code>qwerty.quantize</code>, onto
@@ -1185,7 +1322,7 @@ come back as <code>{ error, hint }</code>. Results are JSON; a tool may also ret
 <tr><td>read</td><td><code>get_project</code>, <code>get_guide</code>, <code>get_selection</code>, <code>get_history</code>, <code>list_devices</code>, <code>get_device</code>, <code>get_capture</code>, <code>get_recording</code>, <code>provenance_report</code>, <code>find_grooves</code>, <code>get_jam</code>, <code>tab_for</code></td></tr>
 <tr><td>change</td><td><code>apply_ops</code>, <code>define_device</code>, <code>adjust</code>, <code>transform</code>, <code>arrange_around</code>, <code>arrange_song</code>, <code>use_groove</code>, <code>drum_track</code>, <code>make_jam_track</code>, <code>set_tone</code>, <code>write_tab</code>, <code>suggest_riff</code></td></tr>
 <tr><td>listen</td><td><code>render_and_measure</code>, <code>compare_to_reference</code>, <code>play</code>, <code>stop</code></td></tr>
-<tr><td>talk and point</td><td><code>highlight</code>, <code>show_device</code>, <code>show_on_fretboard</code>, <code>say</code>, <code>ask_human</code>, <code>propose_variations</code>, <code>get_variation_result</code>, <code>share_link</code></td></tr>
+<tr><td>talk and point</td><td><code>highlight</code>, <code>show_device</code>, <code>show_on_fretboard</code>, <code>say</code>, <code>ask_human</code>, <code>propose_variations</code>, <code>suggest_sounds</code>, <code>get_variation_result</code>, <code>share_link</code>, <code>find_community_device</code> (searches the community shelf; <code>put_on</code> raises a card, never a change)</td></tr>
 <tr><td>take back</td><td><code>undo</code>, <code>revert_my_changes</code></td></tr>
 </tbody></table></div>
 <ul>
@@ -1194,7 +1331,8 @@ come back as <code>{ error, hint }</code>. Results are JSON; a tool may also ret
 (<code>agent/arrangement-tool.js</code>), <code>compare_to_reference</code> (<code>ui/reference.js</code>), <code>show_device</code> (<code>ui/plugin.js</code>),
 <code>find_grooves</code>, <code>use_groove</code> and <code>drum_track</code> (<code>agent/grooves-tool.js</code>, installed by <code>ui/grooves.js</code>), <code>get_jam</code>,
 <code>make_jam_track</code>, <code>set_tone</code> and <code>show_on_fretboard</code> (<code>ui/jam.js</code>), <code>tab_for</code>, <code>write_tab</code> and <code>suggest_riff</code>
-(<code>agent/tabs-tool.js</code>, installed by <code>ui/tabs.js</code>), <code>share_link</code> (<code>ui/share.js</code>) and
+(<code>agent/tabs-tool.js</code>, installed by <code>ui/tabs.js</code>), <code>suggest_sounds</code> (<code>agent/sounds-tool.js</code>), <code>share_link</code>
+(<code>ui/share.js</code>), <code>find_community_device</code> (<code>agent/community-tool.js</code>, installed by <code>ui/community.js</code>) and
 <code>provenance_report</code> (<code>ui/provenance.js</code>). Their schemas live in <code>agent/extra-schemas.js</code> (no DOM), and
 <code>catalogSchemas()</code> lists them with the static ones, so <code>server/mcp.js</code> and <code>server/bridge.js</code> list them all before a
 studio tab connects. <code>tools/relay-catalog.js</code> writes the same list to <code>server/relay-catalog.json</code>, which is all the
@@ -1395,12 +1533,14 @@ of this version trusts the kept songs' devices, once), decodes a share link if t
 (the link's song, <code>?new</code>, <code>?demo</code>, the saved song, or the demo), the engine (a silent stand-in if it fails), the
 shell, then starts each module in <code>MODULES</code> (each <code>export default function (app)</code>) in order; one failing never stops
 the rest. Audio starts on the first gesture. URL switches: <code>?new</code>, <code>?demo=&lt;id&gt;</code>, <code>?device=&lt;id&gt;</code>, <code>?agent=mock</code>,
-<code>?coach</code>, <code>?autostart</code>, <code>#s=…</code>.</p>
+<code>?coach</code>, <code>?autostart</code>, <code>?view=simple|full</code>, <code>#s=…</code>. Straight after the shell,
+<code>installWorkspace(ui, app)</code> gives it <code>ui.workspace</code>, before any module mounts a panel.</p>
 <p>The app object (<code>window.overdub</code>): <code>{ store, engine, ui, devices, music, summarize, version, opened, trust, agent, tools, input, presence, bridge, remote, share, onboard, devicesIO, importers, reference, band, provenance, exporter, analytics, plugin, jam, site }</code> plus the panels that publish an API (<code>arranger</code>, <code>pianoroll</code>, <code>drumgrid</code>, <code>rack</code>, <code>mixer</code>,
 <code>browser</code>, <code>transport</code>). <code>app.site</code> is which site this is (<code>ui/preview.js</code> reads <code>app/site-config.json</code>; deploy/README.md).</p>
 <h2 id="testing"><a class="h-link" href="#testing">Testing</a></h2>
 <p><code>tools/pw.js</code> opens the studio in Chromium (WebKit and Firefox too, for <code>compat-test</code> and <code>phone-test</code>) on its own
-server on a free port (<code>open('/app/')</code>), with fake media and autoplay allowed, so suites run in parallel. Each area
+server on a free port (<code>open('/app/')</code>), with fake media and autoplay allowed, so suites run in parallel. The fake mic plays a file
+(<code>open(…, { fakeAudio })</code>): <code>tools/fake-wav.js</code> writes the ones the checks use (a hummed line, a beatbox). Each area
 adds <code>tools/&lt;area&gt;-test.js</code> that prints <code>ok</code>/<code>FAIL</code> lines and exits 1 on failure; fail on page errors (<code>errors</code> from
 <code>open</code>). Screenshots go to <code>tools/.out/</code>. <code>node tools/run-all.js</code> runs every suite (<code>PAR=3</code> at a time by default) and
 leaves its totals in <code>tools/.out/run-all.json</code>, which <code>tools/pages-test.js</code> holds the public check count to.

@@ -46,7 +46,7 @@
       <nav aria-label="On this page"><ol>
 <li><a href="#connecting">Connecting</a><ol><li><a href="#claude-code-or-any-mcp-client">Claude Code (or any MCP client)</a></li><li><a href="#claudeai-and-the-claude-apps-a-custom-connector">claude.ai and the Claude apps (a custom connector)</a></li><li><a href="#the-in-app-agent">The in-app agent</a></li></ol></li>
 <li><a href="#the-rules-of-the-room">The rules of the room</a></li>
-<li><a href="#the-tools">The tools</a><ol><li><a href="#param-values">Param values</a></li><li><a href="#held-devices">Held devices</a></li><li><a href="#songs-from-a-link">Songs from a link</a></li></ol></li>
+<li><a href="#the-tools">The tools</a><ol><li><a href="#param-values">Param values</a></li><li><a href="#held-devices">Held devices</a></li><li><a href="#songs-from-a-link">Songs from a link</a></li><li><a href="#the-studio-layout">The studio layout</a></li><li><a href="#suggesting-sounds">Suggesting sounds</a></li></ol></li>
 <li><a href="#ops-for-apply_ops">Ops (for apply_ops)</a><ol><li><a href="#a-shape-in-time-scribble-strip-coreshaper">A shape in time: Scribble Strip (core.shaper)</a></li></ol></li>
 <li><a href="#notes-and-grids">Notes and grids</a></li>
 <li><a href="#tab">Tab</a></li>
@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub for agents (and their humans)</a></h1>
-    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 45 min to read</p>
+    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 50 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other: the human lays down a take, the agent
 plays over it, the human plays over that. This page is for both of you: the human who wants to plug an agent in, and
@@ -130,6 +130,8 @@ a card; one loads only when picked) and a slow blues to play over (a jam track r
 first). Asked for anything past its script (a counter-melody, a new part, a question), it says so first, then offers
 the nearest thing it can, on what the ask named (its track, by name or by what it is, &quot;the bass line&quot;; its bars or
 section) before what happens to be selected. Everything it does is real and undoable.</p>
+<p>Ask it &quot;where is the mixer&quot; and it shows the Mixer and says where it is, in one line (see
+<a href="#the-studio-layout">The studio layout</a>).</p>
 <h2 id="the-rules-of-the-room"><a class="h-link" href="#the-rules-of-the-room">The rules of the room</a></h2>
 <p>These are the studio's etiquette, the eight rules the in-app agent's system prompt carries and outside agents read
 with <code>get_guide &quot;etiquette&quot;</code>, word for word (<code>app/src/agent/prompt.js</code>, <code>ETIQUETTE</code>; <code>tools/agent-test.js</code> holds the
@@ -142,9 +144,12 @@ gives its length), never the selected clip's or the playhead's.</li>
 <li><strong>Small, reversible moves they asked for</strong> (a param nudge, a mix move, a new clip or track, a new insert) you just
 make, then say what changed and why. What nobody asked for (an effect after a take is kept, a fade, a new part) you
 offer in one line (&quot;Want it warmer? I can build an effect&quot;), never make; and never move their panels or selection.
-Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
-structure, or would take long to audition: <code>propose_variations</code> (2-4 takes, each labelled by what differs). Never
-make the whole song unasked, and never replace it unasked: <code>make_jam_track</code> replaces the song on screen, so make one
+Everything in their studio is on screen: when they ask where something is, say where in one line (&quot;The Mixer tab,
+under the song.&quot;), and that Find (⌘K) gets them to any panel, action or sound. Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
+structure, or would take long to audition: <code>propose_variations</code> (2-4 takes, each labelled by what differs). A
+track's sound is the person's to pick by ear: when they ask what something should sound like, or for other sounds,
+use <code>suggest_sounds</code> (2-4, each with why) rather than <code>instrument.set</code>. When they name the instrument (&quot;make it a
+choir&quot;), set it, and say what it was. Never make the whole song unasked, and never replace it unasked: <code>make_jam_track</code> replaces the song on screen, so make one
 only when they ask for something to jam over.</li>
 <li><strong>Words steer, they don't specify.</strong> For melody or harmony, ask the human to hum, tap or play it (<code>get_capture</code>
 reads what they did) instead of guessing from words. For &quot;warm&quot;, &quot;fat&quot;, &quot;tight&quot; (low agreement or two meanings)
@@ -172,7 +177,8 @@ you define goes to them as a card to Keep first. A song opened from someone else
 they press Make it yours (<code>get_project</code> says so: <code>from_link</code>): until then, a call that would delete something,
 rewrite notes or a lane that's there, or bring a new device changes nothing and comes back <code>offered: true</code>, a card
 they Keep (<code>get_variation_result</code> with its id says what they chose). Tell them it's waiting for them; adds and mix
-moves go straight through.</li>
+moves go straight through. A community device is code someone else wrote: suggest it with <code>find_community_device</code>
+<code>put_on</code>, never define its code as your own.</li>
 </ol>
 <p><a href="#held-devices">Held devices</a> and <a href="#songs-from-a-link">Songs from a link</a> below say what rule 8 means in practice. The
 in-app agent's prompt adds how to talk: the engineer behind the glass, what was recorded, what changed, the number
@@ -211,7 +217,7 @@ the device's presets.</p>
 <tbody>
 <tr><td><code>get_project</code></td><td>the song: title, tempo, key, meter, sections, tracks with instrument, inserts (with params) and clips, the selection and the last few history entries. <code>detail: &quot;full&quot;</code> (optionally with <code>track</code>) includes every note. A device with over 40 params is shown as its preset and what differs from it (<code>preset &quot;Bokeh&quot; + {&quot;flt_cutoff&quot;:900}</code>), or what differs from its defaults. Automation lanes are listed under their track (<code>auto: Keyhole cutoff (fx_k) 31:600 32:4500 48:600, by claude</code>, held ones marked). <code>held</code> lists the song's devices kept off on this computer (see below); <code>from_link</code>, first, says the song came from someone's link and isn't the person's yet; <code>key_note</code> says when the key is a new song's default nobody chose (C minor, as Sketch treats it).</td></tr>
 <tr><td><code>get_guide</code></td><td>the studio's guides: <code>etiquette</code>, <code>devices</code> (kernel writing), <code>ops</code>, <code>lexicon</code>, <code>transforms</code> (every transform's params and defaults). Outside agents: read first. <code>lexicon</code> also returns <code>personal</code>: what this human means by warm, fat and tight, learned from their A/B picks. Follow it.</td></tr>
-<tr><td><code>get_selection</code></td><td>what the human is looking at: track, clip (with notes, and a grid for drums), selected notes, range (beats and bars), insert (with params), playhead, and the key (marked when nobody chose it yet); <code>from_link</code> as <code>get_project</code> has it.</td></tr>
+<tr><td><code>get_selection</code></td><td>what the human is looking at: track, clip (with notes, and a grid for drums), selected notes, range (beats and bars), insert (with params), playhead, and the key (marked when nobody chose it yet); <code>from_link</code> as <code>get_project</code> has it; <code>trying</code>: <code>{ track, device }</code> while the person is hearing a sound on a track before keeping it (the song still has the old one, and <code>track.instrument</code> says that one; your next call that reads or changes the song puts it back first), else <code>null</code>.</td></tr>
 <tr><td><code>get_history</code></td><td>recent changes, newest first: who, label, reason, summary. Check it before redoing something.</td></tr>
 <tr><td><code>apply_ops</code></td><td>change the song: a list of ops, one undo step, signed by you, with <code>label</code> and <code>reason</code>. All or nothing. Everything it adds is signed by you: any <code>by</code> in the ops is dropped, and so are internal fields (names starting with <code>_</code>). Devices go through <code>define_device</code>, not <code>device.define</code>. Params are checked against each device first (see <a href="#param-values">Param values</a>), and <code>preset: &quot;&lt;name&gt;&quot;</code> sets a named sound. Returns created ids (two creating ops of one kind with no ref come back as <code>section1</code>, <code>section2</code>, …), a compact diff (a device's line names a dozen param changes and how many more), the presets it set, or an error naming the failing op. Takes the automation ops (<code>auto.write</code>, <code>auto.clear</code>, <code>auto.set</code>) and says, in <code>lanes</code>, when a static set lands on a param whose lane plays (it only changes the value the lane holds at). Its description names each op and its fields; <code>get_guide &quot;ops&quot;</code> has the rest.</td></tr>
 <tr><td><code>list_devices</code></td><td>instruments and effects (<code>kind</code>, <code>cat</code>, <code>query</code>): built-ins, the Guitar Studio's pedals and amps, and devices written in this song. Each device's params (range, unit, curve, role and meaning) while the list stays under about 8,000 characters, and always for a single device; past that, names, param keys and presets, and <code>get_device</code> for the one wanted (<code>detail</code> <code>&quot;params&quot;</code> or <code>&quot;brief&quot;</code> chooses). A <code>cat</code> nothing is filed under (&quot;guitar&quot;) lists the devices that mention the word, and the categories.</td></tr>
@@ -224,7 +230,7 @@ the device's presets.</p>
 <tr><td><code>highlight</code></td><td>point at a track, clip, notes, bars or insert with a short note: it glows in your colour.</td></tr>
 <tr><td><code>show_device</code></td><td>open a device's window for the human: one instrument or effect shown big, every control with its value, its presets, A/B, a scope of its output and, for an instrument, a keyboard (<code>track</code>, <code>slot</code>: <code>&quot;instrument&quot;</code> or an insert id; <code>close: true</code> closes it). It changes nothing in the song; while it's open each control you change flashes there in your colour and the window says what moved. One window at a time; refused while the human records. Returns what it shows and, for the generic window, its sections (the names the human sees, with their param keys).</td></tr>
 <tr><td><code>propose_variations</code></td><td>2-4 op sets as A/B cards; the human holds a card to hear it (a preview, never in History) and keeps one. Waits (default 90 s) and returns the pick, or <code>{ status: &quot;pending&quot;, id }</code>; <code>index</code> is the pick's place in your list (-1 = the original), not its letter on screen. <code>measure: true</code> measures each take against the original first. If you carry on while they're listening, your next call that reads or changes the song lets go of the card first.</td></tr>
-<tr><td><code>get_variation_result</code></td><td>poll a pending pick or question by its id, or a call that came back <code>offered: true</code> (a card to Keep): <code>kept: true</code> once it landed, <code>kept: false</code> if nothing changed. A card that waits because the song came from a link says so when the person has made the song theirs since (it still waits for their Keep).</td></tr>
+<tr><td><code>get_variation_result</code></td><td>poll a pending pick or question by its id, or a call that came back <code>offered: true</code> (a card to Keep): <code>kept: true</code> once it landed, <code>kept: false</code> if nothing changed. For <code>suggest_sounds</code>: <code>{ picked: { device, preset?, name } | null, kept }</code>. A card that waits because the song came from a link says so when the person has made the song theirs since (it still waits for their Keep).</td></tr>
 <tr><td><code>get_capture</code></td><td>the human's latest (or recent) hummed, tapped or played phrase, as notes text, with its kind, tempo, key and confidence.</td></tr>
 <tr><td><code>get_recording</code></td><td>whether the human is recording (<code>idle</code>, <code>count</code> for the count-in, <code>rec</code>): the tracks the take goes onto, each with its mode (<code>layer</code>: every loop pass adds into one clip; <code>take</code>: every pass a new take, the earlier ones muted), where it started, the loop and pass, and the notes in so far; <code>wait_seconds</code> waits for the take to end. While one records, edits to its tracks or to the timeline (tempo, meter, loop, sections, bars) come back <code>{ error: &quot;recording&quot; }</code>; other tracks are fine.</td></tr>
 <tr><td><code>ask_human</code></td><td>one short question, 2-4 options, shown at a natural pause (never while they record); returns the answer (or pending).</td></tr>
@@ -247,6 +253,8 @@ the device's presets.</p>
 <tr><td><code>suggest_riff</code></td><td>the house riff writer's riffs for a section (<code>section</code>, or <code>bars</code>; default the section at the playhead), offered as 2-4 takes on a card and in the Jam room's tab lane: each a 1-4 bar riff as tab on the section's chords, in a <code>style</code> (<code>rock</code>, <code>blues</code>, <code>funk</code>, <code>indie</code>, <code>metal</code>; default the song's) and a <code>difficulty</code> (<code>easy</code>, <code>medium</code>, <code>hard</code>). The writer (<code>app/src/core/riff.js</code>) is a deterministic program, seeded: a motif repeated and answered, chord tones on the strong beats, scale or pentatonic notes between, one hand position. The same <code>seed</code> gives the same riffs; <code>next_seed</code> gives new ones. The person holds a take to hear it and keeps one; <code>get_variation_result</code> says which. Refused while the person records on the Guitar track.</td></tr>
 <tr><td><code>share_link</code></td><td>a link to the song as it is now, for the human to send: the whole song (notes, devices including their kernels, the mix, sections; not audio clips) compressed into the link itself, with no Overdub server in between. Returns <code>{ url, size, dropped }</code>, or an error if the song is too big for a link.</td></tr>
 <tr><td><code>provenance_report</code></td><td>who wrote what, in numbers: each author's share of the notes, recorded audio by author, the devices agents wrote with their requests and check reports, this session's edits as runs by author, and where the song was forked from. Read-only; a record, not a legal opinion. Held devices are listed (<code>held</code>), never checked.</td></tr>
+<tr><td><code>find_community_device</code></td><td>searches the community shelf: instruments and effects people asked their agents for, free to use (<code>query</code>, <code>kind</code>, <code>cat</code>, <code>limit</code>). Each result has its id, name, kind, category, blurb, author (a person, warm), agent (what wrote it, cool), licence, measured levels and the preview clips' URLs; <code>vouched</code> is true only when the studio's own copy of the shelf lists it and its measured check passed. Results never carry code; the author's request comes back only with <code>detail: true</code>, under <code>untrusted_text</code>. <code>put_on: { id, track }</code> changes nothing: it raises a card for the person with the preview, and only they decide whether to run code someone else wrote (the trust prompt, then the device check). Returns <code>offered: true</code> and an id for <code>get_variation_result</code>. One card per song; after three No thanks it raises no more. <code>define_device</code> refuses a shelf device's code, as it is or with its names, comments or spacing changed, so its credit isn't passed off as yours; it's a guard against that, not a security boundary (a program changed in any other way isn't matched). Off unless the studio is on localhost (the shelf isn't on the live site yet): then it answers that the shelf isn't on.</td></tr>
+<tr><td><code>suggest_sounds</code></td><td>an instrument for one track, picked by ear: puts 1-4 <code>sounds</code> (<code>{ device, preset?, why }</code>, the why 60 characters at most, &quot;breathy, sits behind the hum&quot;) on the person's sound card for <code>track</code> (an id or exact name; default the selected track, else the newest track a take made), under what it plays now. Each row says <em>suggested by</em> you, with its why; the person hears their take through each and keeps one, or none. Nothing in the song changes until they Keep, and the Keep is theirs (signed by them; History's reason line says you suggested it). Returns <code>{ offered: true, id, track, sounds }</code>, or with <code>wait_seconds</code> (up to 120) their pick; <code>get_variation_result</code> with the id says what they kept. Refused before anything shows: a device that isn't an instrument here (<code>list_devices</code> kind <code>&quot;instrument&quot;</code>), a preset it hasn't got, an audio track, no track, and while the person records. When they name the instrument, use <code>apply_ops</code> <code>instrument.set</code> instead. See <a href="#suggesting-sounds">Suggesting sounds</a>.</td></tr>
 </tbody></table></div>
 <h3 id="held-devices"><a class="h-link" href="#held-devices">Held devices</a></h3>
 <p>A song's devices are code from whoever made the song. In the person's browser, a device whose code that browser
@@ -283,6 +291,42 @@ it all works directly again.</p>
 <code>get_selection</code> lead with <code>from_link</code> (whose link it was, and what waits for a Keep). A card still pending after the
 person pressed Make it yours says so when <code>get_variation_result</code> reads it: it still waits for their choice, and a call
 like it now applies directly.</p>
+<h3 id="the-studio-layout"><a class="h-link" href="#the-studio-layout">The studio layout</a></h3>
+<p>There is one studio, and everything in it is on screen: no panel or control is put away. The person gets anywhere
+with <strong>Find anything</strong> (<code>⌘K</code>): it finds a panel or control by name (Go to), anything a key does (Do), a sound to try
+(Sound), a heading of the guide (Help), and, last, sends what they typed to you (Ask Claude). There is no layout tool:
+when they ask where something is, say where in one line (&quot;The Mixer tab, under the song.&quot;) and mention Find. The
+studio's parts, by what they're for:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>group</th><th>parts</th></tr></thead>
+<tbody>
+<tr><td>Make</td><td>Notes (the piano roll), the Beat grid, Grooves, Guitar (the Jam room)</td></tr>
+<tr><td>Sound</td><td>Sound (the Devices tab: a track's instrument and effects), Instruments and effects (the Browser)</td></tr>
+<tr><td>Balance</td><td>the Mixer, Compare (the Reference tab), the Level meter and All off</td></tr>
+<tr><td>Song</td><td>Loop, Where you are (the counter and the beat lights), Song settings (meter, tap tempo, the click), Track tools, Redo</td></tr>
+<tr><td>Recording</td><td>Recording options (track arm, count-in, layering, timing, Onto)</td></tr>
+<tr><td>Agent</td><td>History, Details (the Inspector), Connect your own agent</td></tr>
+<tr><td>Files</td><td>Files and reports (import, export, stems, DAWproject, reports)</td></tr>
+<tr><td>Layout</td><td>the pane buttons</td></tr>
+</tbody></table></div>
+<p>Layout is kept per browser (<code>overdub:layout</code>), never in the song: it isn't an op, <code>undo</code> doesn't reach it, and a
+share link doesn't carry it. (<code>?view=simple</code> still opens the earlier simple view, with most of it put away, for one
+release; nobody opens in it by default.)</p>
+<h3 id="suggesting-sounds"><a class="h-link" href="#suggesting-sounds">Suggesting sounds</a></h3>
+<p>A new idea is a new track, and its sound is picked by ear. After the first take onto a track, the person's <strong>sound
+card</strong> asks &quot;What should this sound like?&quot;: their take plays through each of a few instruments that suit it (a hum, a
+played line, chords, a bass line or a beat each get their own set), they step through them with ↓ and keep one. It's
+the track header's <strong>Sounds</strong> (and the take's note).
+Nothing is kept until they press Keep: trying a sound is a preview, never in History.</p>
+<p><code>suggest_sounds</code> puts your rows on that card, at the bottom, so it never shows more than what the track plays now and
+four others. Use it when they ask what a track should sound like, or for other sounds; when they name the instrument,
+set it with <code>instrument.set</code> and say what it was. Your rows go away when they keep a sound or close the card.</p>
+<div class="code" data-lang="json"><pre><code>{ &quot;track&quot;: &quot;Melody&quot;, &quot;sounds&quot;: [{ &quot;device&quot;: &quot;core.brass&quot;, &quot;why&quot;: &quot;bright, cuts through the beat&quot; }, { &quot;device&quot;: &quot;core.drums&quot;, &quot;preset&quot;: &quot;Trap&quot;, &quot;why&quot;: &quot;hard hats&quot; }] }
+→ { &quot;offered&quot;: true, &quot;id&quot;: &quot;s1x2&quot;, &quot;track&quot;: { &quot;id&quot;: &quot;t_…&quot;, &quot;name&quot;: &quot;Melody&quot; }, &quot;sounds&quot;: [{ &quot;device&quot;: &quot;core.brass&quot;, &quot;name&quot;: &quot;Brass Rail&quot; }, …] }
+get_variation_result { &quot;id&quot;: &quot;s1x2&quot; } → { &quot;picked&quot;: { &quot;device&quot;: &quot;core.brass&quot;, &quot;name&quot;: &quot;Brass Rail&quot; }, &quot;kept&quot;: true }</code></pre></div>
+<p>While they're hearing a sound before keeping it, <code>get_selection</code> says so (<code>trying</code>), and any call of yours that reads
+or changes the song puts the old sound back first (the card says why). <code>suggest_sounds</code>, <code>get_selection</code>,
+<code>get_variation_result</code>, <code>say</code>, <code>ask_human</code>, <code>get_recording</code> and <code>highlight</code> don't.</p>
 <h2 id="ops-for-apply_ops"><a class="h-link" href="#ops-for-apply_ops">Ops (for <code>apply_ops</code>)</a></h2>
 <p>Tracks may be named by id or exact name; <code>'master'</code> takes inserts. All times are in <strong>beats</strong> (quarter notes).</p>
 <div class="code" data-lang="js"><pre><code>{ type: 'project.set', patch: { title?, tempo?, meter?: [4, 4], key?: { root: 'A', scale: 'minor' } | null, loop?: { on, start, end } } }
@@ -506,6 +550,8 @@ and browser, and which are deleted after 90 days. The code: <code>app/src/analyt
 <tr><td><code>app/src/agent/prompt.js</code></td><td>the system prompt (etiquette, voice, the notes and drum-grid formats; the device guide, the full ops sheet and the lexicon are <code>get_guide</code> topics)</td></tr>
 <tr><td><code>app/src/agent/lexicon.js</code></td><td>the translator lexicon: words → axes → param moves, and <code>READINGS</code> for the words that get asked (editable data)</td></tr>
 <tr><td><code>app/src/agent/lexicon-personal.js</code></td><td>the human's own meanings (localStorage <code>overdub:lexicon-personal</code>, with counts); Agent settings › Your words</td></tr>
+<tr><td><code>app/src/ui/workspace.js</code> / <code>app/src/ui/workspace-view.js</code></td><td>the feature registry and Find anything (<code>ui.workspace</code>, <code>app.find</code>); which view a load opens in</td></tr>
+<tr><td><code>app/src/agent/sounds-tool.js</code> / <code>app/src/ui/sounds.js</code> / <code>app/src/core/sounds.js</code></td><td><code>suggest_sounds</code>; the sound card and trying a sound (<code>app.sounds</code>); the sets it offers and a new track's name and first instrument</td></tr>
 <tr><td><code>app/src/agent/panel.js</code> / <code>history.js</code> / <code>presence.js</code></td><td>the Agent tab, the History tab, <code>app.presence</code></td></tr>
 <tr><td><code>app/src/agent/keep.js</code></td><td>a song from a link: what an agent's change would take away, and the store's guard that holds it for the person's Keep; a song with held devices: new code waits for Keep too, and a held kernel is known with its names changed (<code>kernelPrint</code>)</td></tr>
 <tr><td><code>app/src/agent/bridge.js</code> / <code>remote.js</code></td><td>the page side of the local MCP bridge (<code>app.bridge</code>) and of the claude.ai relay (<code>app.remote</code>)</td></tr>

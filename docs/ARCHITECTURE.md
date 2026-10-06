@@ -77,7 +77,7 @@ overdub/
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
-  app/src/ui/            shell.js + dom.js (fixed frame), workspace.js + workspace-view.js (the simple view),
+  app/src/ui/            shell.js + dom.js (fixed frame), workspace.js + workspace-view.js (Find anything), 
                          transport.js, arranger.js, lanes.js (automation lanes),
                          arrange-kit.js, pianoroll.js, drumgrid.js, grooves.js (the Grooves tab)        [ui-arrange]
                          mixer.js, rack.js, faces.js*, browser.js, inspector.js                         [ui-mix] (*faces: guitar)
@@ -503,7 +503,8 @@ prototypes are frozen, and a developer on localhost turns it on with localStorag
   lands (`already: true` when it's on that track now: Try doesn't stack a second copy). On a new track a Try brings a
   two-bar part to hear the device on, in the same step.
 - Events: `community:ready` (`ui.emit`, after each read of the index: `ui/share.js` draws the held strip's shelf lines
-  again) and `workspace:add` (`ui/workspace.js`, More's Add, with the query: a shelf word opens the Browser on the shelf).
+  again) and `workspace:go` (`ui/workspace.js`, Find's Go to, with the query: a shelf word opens the Browser on the
+  shelf).
 
 ### Instance
 
@@ -782,9 +783,8 @@ go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, t
 `app/src/ui/shell.js` lays out regions and owns the one animation loop and the key handler:
 
 ```
-top     transport bar and the Song menu; then the workspace's note, More and Full studio / Simple view (div.ew-ws;
-        in full, with the agent pane open on a wide screen, More and Simple view sit at the end of its tab row,
-        ui.wsSide)
+top     transport bar and the Song menu; then the workspace's note and Find anything (div.ew-ws; with the agent
+        pane open on a wide screen, and on a phone, Find sits at the end of the agent's tab row, ui.wsSide)
 left    Browser, Inspector (tabs)
 center  Arrange, Jam (tabs; ui/jam.js puts them in the arranger's toolbar row, so they cost the song no height)
 bottom  detail (tabs: Sketch, Notes, Beat, Grooves, Devices, Mixer, Reference)
@@ -836,39 +836,41 @@ the finger is, so a slider or a fader moves from where it sits and never jumps t
 A mouse and a pen are left alone. Toasts: the same words again while they're up count on the note there ("×3") instead
 of stacking, a phone shows two at most, and an open device window is never under one (`ui.dockToasts`, below).
 
-**The workspace seam** (`ui/workspace.js`, `ui.workspace`): what's on screen, kept apart from the song. There is one
-studio, one set of panels and one undo; the **simple view** is that studio with the features nobody has added yet put
-away. `FEATURES` is the registry: each feature has a permanent id (`notes`, `mixer`, `loop`, `agent-setup`, …), a
-group, a title and a one-line purpose for More, its panels (mapped centrally, so panel files don't tag themselves)
-and search aliases. Parts outside a panel are tagged in place, `data-feature="<id>"` (space-separated for more than
-one); an untagged part always shows. A hidden feature puts `ws-off-<id>` on the root, and one generated rule
-(`.ws-off-<id> [data-feature~="<id>"] { display: none !important }`) takes its parts out of the layout, the tab order
-and the accessibility tree; the root also carries `ws-simple` or `ws-full`. The shell skips a hidden panel's tab,
-never makes it a region's active panel, and recomputes `.ew-single` in `retab(region)`. Reaching for a feature adds
-it: `ui.show(id, { save, by })` on a hidden panel (unless `save: false`), a key declared with `feature`
-(`ui.keys.add({ …, feature })`: the key runs, then `ui.workspace.reach(feature)`), or opening a region whose panels
-are all hidden. Every add is signed: `by` is `'you'` or an agent's id, and while a tool runs `tools.run` sets
-`ui.state.actor`, so a panel an agent's tool shows is the agent's add; a one-line note by More says who added what,
-with Put away. The layout is per browser, `localStorage['overdub:workspace'] = { v: 1, view, added: { [id]: by } }`,
-and is **never an op**: not in the store, not undoable, never in a share link or a song file. Which view a load opens
-in is `decideView` (`ui/workspace-view.js`, pure): `?view=` for that load only, then the saved view, then `full`
-under `navigator.webdriver` (so the suites see today's studio), then `full` for anyone with an `overdub:layout`,
-`overdub:welcomed` or saved song, else `simple`; a first visit in simple opens a blank song. Other modules never
-import `workspace.js`: they tag parts and call `app.ui.workspace?.…`. Changes emit `ui.emit('workspace', { view,
-hidden })`; agents read and change it with the `workspace` tool (`agent/workspace-tool.js`; `get_selection` carries
-`studio: { view, hidden }`).
+**The workspace seam** (`ui/workspace.js`, `ui.workspace`, `app.find`): what's on screen, kept apart from the song.
+There is one studio, one set of panels and one undo, and nothing in it is put away. `FEATURES` is the registry and
+Find's index: each feature has a permanent id (`notes`, `mixer`, `loop`, `agent-setup`, …), a group, a title, a
+one-line purpose, where it is (a line an agent can say), its panels (mapped centrally, so panel files don't tag
+themselves) and search aliases. Parts outside a panel are tagged in place, `data-feature="<id>"` (space-separated for
+more than one), so Go to can point at them. **Find anything** (`⌘K`, `app.find.open({ query })`) ranks every source
+with `rank()`: Go to (`FEATURES`: `ui.show` its panel, or a two-second pencil outline on its tagged part, in agent ink
+when an agent asked), Do (every `ui.keys` declaration with a `label`, run as the key would be), Sound (devices and
+presets: an instrument tries on the selected track through `app.sounds.try`, never an overwrite; else the Browser
+searches it), Help (the guide page's `h2[id]`/`h3[id]` headings, read once) and, last, Ask (`ui.emit('agent:compose',
+{ text, send: true })`). Local search spends no tokens. The layout is per browser and is **never an op**: not in the
+store, not undoable, never in a share link or a song file. Which view a load opens in is `decideView`
+(`ui/workspace-view.js`, pure): `full` for everyone, nothing written down; a saved `view: 'simple'` is read as full
+(`from: 'merged'`: the studio says so once, on `overdub:start.merged`). `?view=simple` opens the earlier simple view
+for that load, for one release: the root carries `ws-simple` and a `ws-off-<id>` per feature put away, one generated
+stylesheet (`.ws-off-<id> [data-feature~="<id>"] { display: none !important }`) hides their parts, and reaching for
+one (`ui.show`, a key declared with `feature`, Find) brings it back, signed, with a note; `localStorage
+['overdub:workspace'] = { v: 1, view, added: { [id]: by } }` keeps what was added. `?view=round` draws the Round
+prototype (`ui/round.js`) over it. Other modules never import `workspace.js`: they tag parts and call
+`app.ui.workspace?.…`. Changes emit `ui.emit('workspace', { view, hidden })`. There is no agent tool for the layout;
+`get_selection` carries `studio: { view, hidden }` only under `?view=simple`.
 
 ```js
 ui.workspace = { FEATURES, view(), setView(view, { by }), has(id), panelShown(panelId), featureOfPanel(panelId),
-                 add(ids, { by, note }), putAway(ids, { by }), reach(id, by), list(), openMore({ query }) }
+                 go(id, { by, query }), add(ids, { by, note }), putAway(ids, { by }), reach(id, by), list(), where(id),
+                 openFind({ query }), closeFind(), search(q), openMore (an alias) }
+app.find = { open({ query }), close(), search(q) }
 ```
 
 **Picking a sound** (`ui/sounds.js`, `app.sounds`; the sets in `core/sounds.js`; docs/INSTRUMENTS-UX.md): a new idea
 is a new track, and its sound is picked by ear on the **sound card** ("What should this sound like?"). After the first
 take onto a track that had no clips the card offers the track's current sound and up to four others that suit the
 take (`soundsFor(kindOfTake(take))`: a hum, a played line, chords, a bass line or a beat each have a set of real
-device ids and presets, `SOUND_SETS`); in the simple view it opens by itself with the take playing, in the full studio
-from the take's toast or the header's **Sounds**. Trying a sound is a **preview**: `store.preview({ type:
+device ids and presets, `SOUND_SETS`); it opens from the take's note or the header's **Sounds** (under `?view=simple`
+by itself, with the take playing). Trying a sound is a **preview**: `store.preview({ type:
 'instrument.set', … })`, never in History; one track at a time, the next trial releasing the last. **Keep** releases it
 and dispatches one `instrument.set` by you in the same task (one undo step; a track still named after its old
 instrument is renamed with it; an agent's suggestion keeps `reason: 'suggested by …'`); **Back** releases it. A trial
@@ -1406,7 +1408,7 @@ AGENTS.md documents each tool in the catalog; by job:
 | read | `get_project`, `get_guide`, `get_selection`, `get_history`, `list_devices`, `get_device`, `get_capture`, `get_recording`, `provenance_report`, `find_grooves`, `get_jam`, `tab_for` |
 | change | `apply_ops`, `define_device`, `adjust`, `transform`, `arrange_around`, `arrange_song`, `use_groove`, `drum_track`, `make_jam_track`, `set_tone`, `write_tab`, `suggest_riff` |
 | listen | `render_and_measure`, `compare_to_reference`, `play`, `stop` |
-| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `suggest_sounds`, `get_variation_result`, `share_link`, `workspace`, `find_community_device` (searches the community shelf; `put_on` raises a card, never a change) |
+| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `suggest_sounds`, `get_variation_result`, `share_link`, `find_community_device` (searches the community shelf; `put_on` raises a card, never a change) |
 | take back | `undo`, `revert_my_changes` |
 
 - **The catalog without a tab.** Some tools are registered by page modules at boot (`installTools(app).register(def)`):
@@ -1414,9 +1416,9 @@ AGENTS.md documents each tool in the catalog; by job:
   (`agent/arrangement-tool.js`), `compare_to_reference` (`ui/reference.js`), `show_device` (`ui/plugin.js`),
   `find_grooves`, `use_groove` and `drum_track` (`agent/grooves-tool.js`, installed by `ui/grooves.js`), `get_jam`,
   `make_jam_track`, `set_tone` and `show_on_fretboard` (`ui/jam.js`), `tab_for`, `write_tab` and `suggest_riff`
-  (`agent/tabs-tool.js`, installed by `ui/tabs.js`), `workspace` (`agent/workspace-tool.js`), `suggest_sounds`
-  (`agent/sounds-tool.js`), `share_link` (`ui/share.js`), `find_community_device`
-  (`agent/community-tool.js`, installed by `ui/community.js`) and `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
+  (`agent/tabs-tool.js`, installed by `ui/tabs.js`), `suggest_sounds` (`agent/sounds-tool.js`), `share_link`
+  (`ui/share.js`), `find_community_device` (`agent/community-tool.js`, installed by `ui/community.js`) and
+  `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
   `catalogSchemas()` lists them with the static ones, so `server/mcp.js` and `server/bridge.js` list them all before a
   studio tab connects. `tools/relay-catalog.js` writes the same list to `server/relay-catalog.json`, which is all the
   relay ever lists, tab or no tab (`relay-test` checks it is current). `register()` emits ui `agent:tools` and the

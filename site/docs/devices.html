@@ -332,6 +332,14 @@ same file twice changes nothing. Until kernels run as WASM, a device file is cod
 from people you trust. Importing one trusts its code in this browser (you chose the file), as <code>define_device</code> trusts
 what your agent writes. A share link (<code>#s=</code>) or a song file carries the song's devices, kernels included; the ones
 this browser hasn't trusted are held, and the studio asks before they run.</p>
+<p><strong>Trying a community device</strong> (a local studio only, and Try is held until the worklet's prototypes are frozen:
+docs/COMMUNITY-SHELF.md). The Browser's <strong>From the
+community</strong> lists the shelf's devices with their author and the agent that wrote them. ▶ plays the clip rendered for
+the shelf. <strong>Try</strong> fetches the device file, refuses it unless its kernel matches the shelf's fingerprint, asks whether
+to run code someone else wrote, runs the device check, and puts it on the selected track (or a new one, with two bars to
+hear it on) as one step you can undo. The song gets the shelf's name and request for it and a <code>credit</code> (who asked for
+it, the agent, the licence, the kernel's hash); the device is yours (<code>by: 'you'</code>), as an imported file is. Unticked,
+<strong>Run it in any song from now on</strong> trusts the code until you reload; after that the song holds it and asks again.</p>
 <h2 id="drum-kits-and-the-note-map"><a class="h-link" href="#drum-kits-and-the-note-map">Drum kits and the note map</a></h2>
 <p>Three built-in kits sit on the drums shelf (<code>cat: 'drums'</code>). Every kit plays the drum phrase in the device check, and
 a track with one gets the drum grid.</p>

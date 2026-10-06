@@ -81,9 +81,8 @@ first). Asked for anything past its script (a counter-melody, a new part, a ques
 the nearest thing it can, on what the ask named (its track, by name or by what it is, "the bass line"; its bars or
 section) before what happens to be selected. Everything it does is real and undoable.
 
-In the simple view (a newcomer's first screen; see [The studio layout](#the-studio-layout)) the demo agent is on from
-the start when there's no key and no MCP client, and the key, Claude Code and MCP are put away under More › **Connect
-your own agent**. Ask it "where is the mixer" and it brings the Mixer in, signed as its own.
+Ask it "where is the mixer" and it shows the Mixer and says where it is, in one line (see
+[The studio layout](#the-studio-layout)).
 
 ## The rules of the room
 
@@ -97,11 +96,9 @@ two together):
    gives its length), never the selected clip's or the playhead's.
 2. **Small, reversible moves they asked for** (a param nudge, a mix move, a new clip or track, a new insert) you just
    make, then say what changed and why. What nobody asked for (an effect after a take is kept, a fade, a new part) you
-   offer in one line ("Want it warmer? I can build an effect"), never make. Never move their selection. Their studio
-   may be in the simple view, with features put away (`get_selection` says which): when they ask where something is or
-   to see it, or when they need a hidden control to see or take over your change, bring it in with `workspace` (add or
-   open) and say where it is in one line; otherwise offer it in one line ("That's in the Mixer. Add it?"). Only put
-   away what you added, and never switch their view, unless they ask. Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
+   offer in one line ("Want it warmer? I can build an effect"), never make; and never move their panels or selection.
+   Everything in their studio is on screen: when they ask where something is, say where in one line ("The Mixer tab,
+   under the song."), and that Find (⌘K) gets them to any panel, action or sound. Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
    structure, or would take long to audition: `propose_variations` (2-4 takes, each labelled by what differs). A
    track's sound is the person's to pick by ear: when they ask what something should sound like, or for other sounds,
    use `suggest_sounds` (2-4, each with why) rather than `instrument.set`. When they name the instrument ("make it a
@@ -215,7 +212,6 @@ the device's presets.
 | `share_link` | a link to the song as it is now, for the human to send: the whole song (notes, devices including their kernels, the mix, sections; not audio clips) compressed into the link itself, with no Overdub server in between. Returns `{ url, size, dropped }`, or an error if the song is too big for a link. |
 | `provenance_report` | who wrote what, in numbers: each author's share of the notes, recorded audio by author, the devices agents wrote with their requests and check reports, this session's edits as runs by author, and where the song was forked from. Read-only; a record, not a legal opinion. Held devices are listed (`held`), never checked. |
 | `find_community_device` | searches the community shelf: instruments and effects people asked their agents for, free to use (`query`, `kind`, `cat`, `limit`). Each result has its id, name, kind, category, blurb, author (a person, warm), agent (what wrote it, cool), licence, measured levels and the preview clips' URLs; `vouched` is true only when the studio's own copy of the shelf lists it and its measured check passed. Results never carry code; the author's request comes back only with `detail: true`, under `untrusted_text`. `put_on: { id, track }` changes nothing: it raises a card for the person with the preview, and only they decide whether to run code someone else wrote (the trust prompt, then the device check). Returns `offered: true` and an id for `get_variation_result`. One card per song; after three No thanks it raises no more. `define_device` refuses a shelf device's code, as it is or with its names, comments or spacing changed, so its credit isn't passed off as yours; it's a guard against that, not a security boundary (a program changed in any other way isn't matched). Off unless the studio is on localhost (the shelf isn't on the live site yet): then it answers that the shelf isn't on. |
-| `workspace` | the person's studio layout: what's on screen. In the simple view most features are put away until someone adds them. `action` is `list` (the view, and each feature with its id, title, purpose, group, whether it's shown and who added it), `add` or `put_away` (`features`: ids from the list), `open` (one `feature`: added if it was put away, then its panel shown or its part scrolled into view) or `view` (`simple` or `full`). Adds are signed by you, in a one-line note by the More button and in More itself. You put away only what you added; something the person added, or a change of view, needs `asked: true`, and only when they asked. Refused while the person records (except `list`); in the full view everything is already on screen, so nothing changes. Layout is never part of the song: `undo` doesn't reach it, and a share link never carries it. See [The studio layout](#the-studio-layout). |
 | `suggest_sounds` | an instrument for one track, picked by ear: puts 1-4 `sounds` (`{ device, preset?, why }`, the why 60 characters at most, "breathy, sits behind the hum") on the person's sound card for `track` (an id or exact name; default the selected track, else the newest track a take made), under what it plays now. Each row says *suggested by* you, with its why; the person hears their take through each and keeps one, or none. Nothing in the song changes until they Keep, and the Keep is theirs (signed by them; History's reason line says you suggested it). Returns `{ offered: true, id, track, sounds }`, or with `wait_seconds` (up to 120) their pick; `get_variation_result` with the id says what they kept. Refused before anything shows: a device that isn't an instrument here (`list_devices` kind `"instrument"`), a preset it hasn't got, an audio track, no track, and while the person records. When they name the instrument, use `apply_ops` `instrument.set` instead. See [Suggesting sounds](#suggesting-sounds). |
 
 ### Held devices
@@ -264,50 +260,33 @@ like it now applies directly.
 
 ### The studio layout
 
-A newcomer's studio opens in the **simple view**: the same studio with most of it put away, so the first screen is a
-blank song, the transport and the Agent tab. The person brings things back from **More** (each with **Add** and
-**Put away**), or by reaching for them: a key, a double-click on a clip, a link. **Full studio** shows everything.
-Existing users, and browsers driven by a test (`navigator.webdriver`), open in the full view.
+There is one studio, and everything in it is on screen: no panel or control is put away. The person gets anywhere
+with **Find anything** (`⌘K`): it finds a panel or control by name (Go to), anything a key does (Do), a sound to try
+(Sound), a heading of the guide (Help), and, last, sends what they typed to you (Ask Claude). There is no layout tool:
+when they ask where something is, say where in one line ("The Mixer tab, under the song.") and mention Find. The
+studio's parts, by what they're for:
 
-`workspace` is how an agent sees and changes that layout. Features have fixed ids, grouped by what they're for:
-
-| group | ids |
+| group | parts |
 |---|---|
-| Make | `notes` (the piano roll), `beat` (the Beat grid), `grooves`, `jam` (the Jam room) |
-| Sound | `devices` (a track's instrument and effects), `browser` (instruments and effects to try or add) |
-| Balance | `mixer`, `compare` (the Reference tab), `meters` (the level meter and All off) |
-| Song | `loop`, `position` (the counter and the beat lights), `song-settings` (meter, tap tempo, the click), `tracks` (Add a track, snap, zoom, colours), `redo` |
-| Recording | `record-options` (track arm, count-in, layering, timing, the top bar's Onto; Sketch's Onto is always shown) |
-| Agent | `history`, `details` (the Inspector), `agent-setup` (your own key, Claude Code, MCP) |
-| Files | `files` (import, export, stems, DAWproject, reports) |
-| Layout | `panes` (the buttons that show and hide the panes) |
+| Make | Notes (the piano roll), the Beat grid, Grooves, Guitar (the Jam room) |
+| Sound | Sound (the Devices tab: a track's instrument and effects), Instruments and effects (the Browser) |
+| Balance | the Mixer, Compare (the Reference tab), the Level meter and All off |
+| Song | Loop, Where you are (the counter and the beat lights), Song settings (meter, tap tempo, the click), Track tools, Redo |
+| Recording | Recording options (track arm, count-in, layering, timing, Onto) |
+| Agent | History, Details (the Inspector), Connect your own agent |
+| Files | Files and reports (import, export, stems, DAWproject, reports) |
+| Layout | the pane buttons |
 
-Undo, Stop, Play and Record, the bylines, track mute and solo, Arrange, Sketch and Agent, and the Song menu's New
-song, Open the demo, Demos, Save, Share a link, Export mix and Take one are never put away.
-
-When to use it: when the person asks where something is or asks to see it, or when they need a hidden control to see
-or take over your change (you changed the mix and they'll want the faders). Otherwise say where it is in one line and
-offer ("That's in the Mixer. Add it?"). `get_selection`'s `studio` says what's hidden, so check it before telling
-someone to drag a fader. A tool that shows a panel by itself (opening a clip in the Beat grid, say) adds that feature
-too, signed by you.
-
-```json
-{ "action": "open", "feature": "mixer", "reason": "they asked where the faders are" }
-→ { "view": "simple", "added": ["mixer"], "already": [], "where": "the Mixer tab, under the song" }
-```
-
-The note by More reads "Claude added the Mixer." with **Put away**, and More marks the row *added by Claude*. Errors
-come back as `{ error, hint }`: an unknown id (the hint lists the ids), `the person is recording` (wait with
-`get_recording`'s `wait_seconds`), and putting away what the person added, or switching their view, without
-`asked: true` (`they added that`, `that's their choice`: offer it in one line instead). Layout is kept per browser
-(`overdub:workspace`), never in the song: it isn't an op, `undo` doesn't reach it, and a share link doesn't carry it.
+Layout is kept per browser (`overdub:layout`), never in the song: it isn't an op, `undo` doesn't reach it, and a
+share link doesn't carry it. (`?view=simple` still opens the earlier simple view, with most of it put away, for one
+release; nobody opens in it by default.)
 
 ### Suggesting sounds
 
 A new idea is a new track, and its sound is picked by ear. After the first take onto a track, the person's **sound
 card** asks "What should this sound like?": their take plays through each of a few instruments that suit it (a hum, a
-played line, chords, a bass line or a beat each get their own set), they step through them with ↓ and keep one. In the
-simple view the card opens by itself; in the full studio it's the track header's **Sounds** (and the take's toast).
+played line, chords, a bass line or a beat each get their own set), they step through them with ↓ and keep one. It's
+the track header's **Sounds** (and the take's note).
 Nothing is kept until they press Keep: trying a sound is a preview, never in History.
 
 `suggest_sounds` puts your rows on that card, at the bottom, so it never shows more than what the track plays now and
@@ -600,7 +579,7 @@ and browser, and which are deleted after 90 days. The code: `app/src/analytics.j
 | `app/src/agent/prompt.js` | the system prompt (etiquette, voice, the notes and drum-grid formats; the device guide, the full ops sheet and the lexicon are `get_guide` topics) |
 | `app/src/agent/lexicon.js` | the translator lexicon: words → axes → param moves, and `READINGS` for the words that get asked (editable data) |
 | `app/src/agent/lexicon-personal.js` | the human's own meanings (localStorage `overdub:lexicon-personal`, with counts); Agent settings › Your words |
-| `app/src/agent/workspace-tool.js` / `app/src/ui/workspace.js` | `workspace`; the feature registry, More and the simple view (`ui.workspace`) |
+| `app/src/ui/workspace.js` / `app/src/ui/workspace-view.js` | the feature registry and Find anything (`ui.workspace`, `app.find`); which view a load opens in |
 | `app/src/agent/sounds-tool.js` / `app/src/ui/sounds.js` / `app/src/core/sounds.js` | `suggest_sounds`; the sound card and trying a sound (`app.sounds`); the sets it offers and a new track's name and first instrument |
 | `app/src/agent/panel.js` / `history.js` / `presence.js` | the Agent tab, the History tab, `app.presence` |
 | `app/src/agent/keep.js` | a song from a link: what an agent's change would take away, and the store's guard that holds it for the person's Keep; a song with held devices: new code waits for Keep too, and a held kernel is known with its names changed (`kernelPrint`) |
