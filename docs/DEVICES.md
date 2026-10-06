@@ -22,6 +22,7 @@ Where things live:
 | `app/src/kernel/processor.js` | the worklet's module: registers that processor in each audio context |
 | `app/src/kernel/host.js` | `kernelInstance(c, def, opts)`, `ensureKernelWorklet(c)`, `compileKernel(source)` |
 | `app/src/kernel/check.js` | `checkDevice(def, { quick })`, `summarize(report)` |
+| `app/src/engine/node/check.js` | `checkDeviceNode(def, { quick })`: the same check in Node, the kernel in a child process |
 | `app/src/kernel/expr.js` | expression: `noteExpr(note, spb)`, `normCurve`, `chanExpr` (pitch bend, mod wheel, sustain) |
 | `app/src/kernel/guide.js` | `KERNEL_GUIDE` (the agent's version of this page), `GUIDE_EFFECT`, `GUIDE_INSTRUMENT` |
 | `app/src/kernel/examples.js` | `core.testsynth` and `core.testfilter`, the reference kernels (registered on import) |
@@ -59,10 +60,21 @@ reports:
 | `timedOut` | `'process'`: a render didn't finish by the deadline (60 s); `'create'`: `create()` didn't return; `'busy'`: the audio thread is still held by an earlier render that didn't; else `false` | same |
 
 `ok` is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
-(a raw peak over +24 dBFS), or a stuck note. Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
+(a raw peak over +24 dBFS), a stuck note, or no sound at all at default settings (under -60 LUFS). Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
 a boost the player chose, not a bug). Level, tail, cpu, latency and determinism problems are warnings too.
 Drum kits (`cat: 'drums'`) are played the General MIDI drum phrase instead of the melodic one. Every message says what to change. `quick: true` skips
 the per-param extremes and shortens the renders (a few hundred ms instead of about a second).
+
+Level, peaks, NaN, tails, determinism and CPU are measured by the checker from the samples a render hands back. Poly,
+declared latency and voice counts are what the render's side says about itself, kept only in range; an error it
+reports makes the device fail. A kernel that hides its own fault is left with the silence a fault makes, which fails
+the level check, so an effect that is meant to be silent at its defaults (a gate set above the test signals, a mute)
+fails too: give it defaults that let sound through. In Node, `checkDeviceNode` (`app/src/engine/node/check.js`) runs
+the kernel in a child process that can read `app/src`, writes no files and starts no processes (the network is still
+open), and the parent, which never runs kernel code, measures what comes back. A child that sends anything but the
+frames asked for, or ends early, fails the check. That keeps a kernel from rewriting the report, not from shaping its
+own samples: everything the child sends is the kernel's, so a kernel written to fool the check can. Passing means the
+device behaved in the measured ways while it was checked; it doesn't say the code is harmless. Read it.
 
 ## How a device gets its face
 
@@ -532,7 +544,7 @@ damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp)
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
 latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
-extreme setting, or a stuck note. Effects are
+extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes
 and soft to hard velocities. Fix every error; act on warnings unless you mean them.
 

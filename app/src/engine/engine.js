@@ -474,7 +474,8 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (looping && s + len >= lp.end - 1e-9) { len = lp.end - s; wrap = true; }
       const fresh = seg.fresh && Math.abs(T.schedU - seg.u0) < 1e-9;
       scheduleRange(s, s + len, T.schedU, segIndex, { fresh, chase: fresh, cut, click: true, song: !seg.quiet }, events);
-      T.schedU += len;
+      // (a wrap lands exactly where the pass began plus its length: summing the lookahead's slices drifts, 16 → 15.999999999999998)
+      T.schedU = wrap ? seg.u0 + (lp.end - seg.s0) : T.schedU + len;
       if (wrap) {
         const i = Math.max(...T.segs.map((g) => g.i)) + 1;
         T.segs.push({ u0: T.schedU, s0: lp.start, fresh: true, i });

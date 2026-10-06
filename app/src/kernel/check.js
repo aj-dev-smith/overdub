@@ -2,11 +2,14 @@
 // OfflineAudioContexts (the same worklet the studio runs) and measures what comes out, because nobody writing a
 // kernel - human or agent - can be trusted to have listened.
 //
-//   const report = await checkDevice(def, { quick = false, signal = null, timeout = 60000 })
+//   const report = await checkDevice(def, { quick = false, signal = null, timeout = 60000, renderer = null })
 //   report = {
 //     ok,                       false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a
-//                               raw peak over +24 dBFS at an extreme setting (a runaway), a stuck note, or a check
-//                               that ran out of time (timedOut)
+//                               raw peak over +24 dBFS at an extreme setting (a runaway), a stuck note, no sound at
+//                               default settings (under -60 LUFS: instruments on the phrase, effects on both the DI
+//                               strum and the drum loop), an error the kernel's side reported, stealing that let
+//                               more than poly + 2 voices run (or, from a renderer, no voice counts back), a render
+//                               that came back malformed ('render: ...'), or a check that ran out of time (timedOut)
 //     errors: [string], warnings: [string],                       each one says what to change; what a kernel threw
 //                                                                 is quoted trimmed to 200 characters
 //     timedOut,                 false, or where the time ran out: 'process' (a render never finished: process() may
@@ -30,6 +33,25 @@
 //     voices?: { poly, maxVoices, steals },  instruments: poly + 4 notes held at once
 //     stuck?: false | string,  instruments
 //   }
+//
+// The verdict is measured here, from samples. A render (on this page's audio thread, or in `renderer`'s process)
+// hands back stereo Float32Arrays and a few things the render's side says about itself: the errors it hit, its
+// latency, poly and voice counts. accept() keeps only samples of exactly the length asked for and claims in range.
+// Level, peaks, NaN, tails, determinism and cpu (wall time timed on this side) are measured from those samples by this
+// module and audio/measure.js; poly, declared latency and voice counts are the render's side's own word, bounded. An
+// error it reports adds to the verdict, and voice counts another process doesn't send back fail the check, so going
+// quiet removes nothing: a kernel that hides its own fault is left with the silence a fault makes, which the
+// level checks see. Anything malformed coming back ends the check as a failure ('render: ...').
+//
+// Whose samples they are depends on where the render ran. In the browser the worklet core (not the kernel) reports
+// errors and voice counts, and the samples are what the device played. With a renderer that runs the kernel in its own
+// process (engine/node/check.js), everything that process sends is the kernel's to shape, samples included: a kernel
+// written to fool the check can. Either way, a kernel can tell it's being checked and behave differently elsewhere.
+//
+// renderer (optional; Node's is engine/node/check.js): { render(def, job, { created }) -> Promise<{ channels: [L, R],
+// ms, errors, stats, latency, poly } | { compileError, line }> }, where job = { secs, sr, bpm, seed, params, input,
+// notes, allOffAt, stats }, created() is called once create() has returned, and ms is the render's wall time timed
+// on the caller's side. Renders through a renderer don't use this page's audio thread, so they are never 'busy'.
 //
 // A kernel whose process() never returns would hold the check forever, and its caller with it (define_device, and the
 // agent's turn behind it). So every wait on the audio thread races `timeout` and `signal`: past the deadline the
@@ -131,10 +153,48 @@ function pad(chans, secs) {
   return chans.map((x) => { const y = new Float32Array(n); y.set(x.subarray(0, Math.min(n, x.length))); return y; });
 }
 
-// One offline render of `def` with `params`. Effects get `input` (stereo Float32Arrays); instruments get `notes`
-// ([{ p, t, d, v }] in seconds) and optionally `allOffAt` (seconds). Every wait goes through the check's watch `w`;
-// when it trips, what was being waited on is held until it ends, and the instance is let go.
-async function renderOnce(def, { secs, params = {}, input = null, notes = null, allOffAt = null, seed = 1, stats = false }, w) {
+// One render of `def` with `params`, as checked samples: { buffer, ms, errors, stats, latency, poly } or { compileError,
+// line }. Effects get `input` (stereo Float32Arrays); instruments get `notes` ([{ p, t, d, v }] in seconds) and
+// optionally `allOffAt` (seconds). With a renderer it renders there; otherwise in an OfflineAudioContext on this page.
+async function renderOnce(def, job, w, renderer) {
+  const raw = renderer ? await renderOutside(def, job, w, renderer) : await renderInPage(def, job, w);
+  return accept(raw, Math.round(job.secs * SR));
+}
+
+// What came back from the kernel's side, kept only as far as it's what was asked for (the header says why).
+const RENDER_FAULT = 'RenderFault';
+const fault = (m) => Object.assign(new Error(said(m, 300)), { name: RENDER_FAULT });
+const count = (x) => (Number.isFinite(x) && x >= 0 && x <= 1e6 ? Math.floor(x) : null);
+function accept(raw, frames) {
+  if (!raw || typeof raw !== 'object') throw fault('the render came back empty');
+  if (raw.compileError != null) return { compileError: said(raw.compileError), line: Number.isInteger(raw.line) && raw.line > 0 ? raw.line : null };
+  const ch = raw.channels;
+  if (!Array.isArray(ch) || ch.length !== 2 || !ch.every((x) => x instanceof Float32Array && x.length === frames)) {
+    throw fault(`the render came back as something other than ${frames} frames of stereo audio`);
+  }
+  const channels = [ch[0].slice(), ch[1].slice()]; // (ours from here: nothing on the other side can change them)
+  const buffer = { numberOfChannels: 2, length: frames, sampleRate: SR, duration: frames / SR, getChannelData: (c) => channels[c] };
+  const errors = (Array.isArray(raw.errors) ? raw.errors.slice(0, 50) : []).filter((e) => e && typeof e === 'object')
+    .map((e) => ({ stage: e.stage === 'compile' ? 'compile' : 'process', message: said(e.message, 500), line: Number.isInteger(e.line) && e.line > 0 ? e.line : null }));
+  const st = raw.stats && typeof raw.stats === 'object' ? { maxVoices: count(raw.stats.maxVoices), steals: count(raw.stats.steals) } : null;
+  const latency = Number.isFinite(raw.latency) && raw.latency >= 0 && raw.latency <= 10 ? raw.latency : 0;
+  const poly = Number.isInteger(raw.poly) && raw.poly >= 1 && raw.poly <= 64 ? raw.poly : 0;
+  const ms = Number.isFinite(raw.ms) && raw.ms >= 0 ? raw.ms : 0;
+  return { buffer, ms, errors, stats: st, latency, poly };
+}
+
+// A render in another process (or anywhere the renderer puts it). Its deadline is the check's; the renderer that
+// started it ends it (engine/node/check.js kills its process when the check is over).
+async function renderOutside(def, job, w, renderer) {
+  w.check();
+  w.loaded = true;
+  const { secs, params = {}, input = null, notes = null, allOffAt = null, seed = 1, stats = false } = job;
+  return w.wait(renderer.render(def, { secs, sr: SR, bpm: PHRASE_BPM, seed, params, input, notes, allOffAt, stats }, { created: () => { w.created = true; } }));
+}
+
+// One offline render on this page's audio thread. Every wait goes through the check's watch `w`; when it trips, what
+// was being waited on is held until it ends, and the instance is let go.
+async function renderInPage(def, { secs, params = {}, input = null, notes = null, allOffAt = null, seed = 1, stats = false }, w) {
   w.check();
   const c = new OfflineAudioContext(2, Math.round(secs * SR), SR);
   const made = kernelInstance(c, def, { seed, params, bpm: PHRASE_BPM }); // (loads the worklet on `c` first)
@@ -142,7 +202,7 @@ async function renderOnce(def, { secs, params = {}, input = null, notes = null, 
   try { inst = await w.wait(made); } catch (e) { if (e === w.reason) { hold(made); made.then((i) => i.dispose(), () => {}); } throw e; }
   w.loaded = true;
   try { await w.wait(inst.ready); } catch (e) {
-    if (e !== w.reason) { inst.dispose(); return { compileError: said(e.message), line: e.line || null }; }
+    if (e !== w.reason) { inst.dispose(); return { compileError: e.message, line: e.line || null }; }
     // create() is still running: ready settles when it returns (disposing now would close the port it answers on)
     hold(inst.ready); inst.ready.then(() => inst.dispose(), () => inst.dispose());
     throw e;
@@ -166,7 +226,7 @@ async function renderOnce(def, { secs, params = {}, input = null, notes = null, 
   const errors = inst.errors.slice();
   const latency = inst.latency;
   inst.dispose();
-  return { buffer, ms, errors, stats: st, latency, poly: inst.poly || 0 };
+  return { channels: [buffer.getChannelData(0), buffer.getChannelData(1)], ms, errors, stats: st, latency, poly: inst.poly || 0 };
 }
 
 function paramCases(params, quick) {
@@ -220,7 +280,7 @@ export function levelWarnings(level, warnings) {
   }
 }
 
-export async function checkDevice(def, { quick = false, signal = null, timeout = TIMEOUT } = {}) {
+export async function checkDevice(def, { quick = false, signal = null, timeout = TIMEOUT, renderer = null } = {}) {
   const T0 = performance.now();
   const errors = [], warnings = [];
   const kind = def && def.kind === 'instrument' ? 'instrument' : 'effect';
@@ -275,9 +335,9 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
 
   // 2. renders on the audio thread, every wait bounded by the watch (the header says why); none while one this module
   // gave up on still holds the thread, since loading the worklet behind it would block the page
-  if (held.size) { report.timedOut = 'busy'; errors.push(BUSY); return finish(); }
+  if (held.size && !renderer) { report.timedOut = 'busy'; errors.push(BUSY); return finish(); }
   const w = watch(timeout, signal);
-  const render = (d, o) => renderOnce(d, o, w);
+  const render = (d, o) => renderOnce(d, o, w, renderer);
   try {
     if (kind === 'effect') {
       const strum = stereoOf(diStrum(4, SR));
@@ -293,7 +353,8 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const tp = Math.max(measureTruePeak(main.buffer), dr.buffer ? measureTruePeak(dr.buffer) : -120);
       report.truePeak = round(tp); report.peak = round(dBFS(Math.max(s1.peak, s2.peak)));
       peakError(tp, 'at default settings');
-      levelWarnings(report.level, warnings);
+      if (outL < -60 && (!dr.buffer || outD < -60)) errors.push(`level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent). A gate, a mute or a triggered effect should let the test signals through at its defaults`);
+      else levelWarnings(report.level, warnings);
       report.cpu = { pct: round((main.ms / 4000) * 100), ms: Math.round(main.ms), secs: 4 };
       if (report.cpu.pct > 25) warnings.push(`cpu: a 4 s render took ${report.cpu.ms} ms (${report.cpu.pct}% of real time) for one instance: look for per-sample trig/pow/exp you could move to per-block`);
 
@@ -399,6 +460,13 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       if (note(st, `${poly + 4} notes at once (poly ${poly})`) && st.buffer) {
         const v = st.stats || {};
         report.voices = { poly, maxVoices: v.maxVoices ?? null, steals: v.steals ?? null };
+        // Another process's render always answers with both (its worklet core counts them), so none back there means
+        // its side kept them back, and the check fails rather than skip the stealing error. On this page they come from
+        // the worklet core over its port, and only a reply that's late (1 s) is missing: a warning.
+        if (v.maxVoices == null || v.steals == null) {
+          const m = `voices: the voice counts didn't come back from ${poly + 4} notes held at once, so voice stealing wasn't checked`;
+          if (renderer) errors.push(m); else warnings.push(m);
+        }
         if (v.maxVoices != null && v.maxVoices > poly + 2) errors.push(`voices: ${v.maxVoices} voices ran at once with poly ${poly} (stealing failed)`);
         if (v.steals != null && v.steals < 4 && v.maxVoices >= poly) warnings.push(`voices: ${poly + 4} held notes caused ${v.steals} steals (expected 4)`);
         const stp = measureTruePeak(st.buffer);
@@ -419,6 +487,7 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       worst = summariseExtremes(res, report, errors);
     }
   } catch (e) {
+    if (e && e.name === RENDER_FAULT && e !== w.reason) { errors.push(`render: ${e.message}`); return finish(); }
     if (e !== w.reason || e.name === 'AbortError') throw e;
     report.timedOut = !w.loaded ? 'busy' : !w.created ? 'create' : 'process';
     const s = Math.round(timeout / 100) / 10;

@@ -37,9 +37,9 @@ The browser checks use `tools/pw.js` (playwright-core + a cached Chromium; overr
 - **Levels are measured, not guessed.** Nobody building this can listen. Render offline (`engine.render`) and measure
   (`app/src/audio/measure.js`) after any sound change; devices pass `checkDevice` (`app/src/kernel/check.js`).
 - **Kernels are code from whoever wrote them.** Share links, song files and device files carry them. They are
-  evaluated only in the AudioWorklet (and the Node renderer), never on the page, where the API key lives: the main
-  thread only parses kernel source. The worklet scope is a rule for determinism, not a security boundary; never call
-  kernels "sandboxed" or "secure" in copy.
+  evaluated only in the AudioWorklet (and, in Node, the renderer and the device check's child process), never on the
+  page, where the API key lives: the main thread only parses kernel source. The worklet scope is a rule for
+  determinism, not a security boundary; never call kernels "sandboxed" or "secure" in copy.
 - **Renders are deterministic.** No `Math.random` in anything that makes sound; seed it (`dsp.rng(seed)`,
   `kit.rng(seed)`). Kernels can't call it at all and render bit-exact. Graph devices built on native nodes are held to
   −80 dB: a few vendored pedals (seasick and other pre-clock ones) move their LFOs from main-thread timers, so under

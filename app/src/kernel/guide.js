@@ -231,7 +231,7 @@ damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp)
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
 latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
-extreme setting, or a stuck note. Effects are
+extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes
 and soft to hard velocities. Fix every error; act on warnings unless you mean them.
 

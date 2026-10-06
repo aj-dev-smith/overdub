@@ -43,6 +43,70 @@ const T = tally('kernel');
   T.ok(!fine.length && mild.length === 1 && /DI strum/.test(mild[0]) && /drum loop/.test(mild[0]) && strumOnly.length === 1 && /DI strum/.test(strumOnly[0]), `within 3 LU: nothing; a mild offset names both signals ("${mild[0]}")`);
 }
 
+// ------------------------------------------------------------------ the Node check measures what a child renders (Node)
+// In Node a kernel shares the process it runs in, and could rewrite the report or print its own. checkDeviceNode runs
+// it in a child process that sends back samples only, and measures them here. Each kernel below fails the check on
+// its sound (too loud, NaN, silent) and also tries to make the report say it passed; none may.
+{
+  console.log('node check');
+  const { checkDeviceNode } = await import('../app/src/engine/node/check.js');
+  const { getDevice } = await import('../app/src/devices/registry.js');
+  await import('../app/src/devices/builtin/index.js');
+  await import('../app/src/devices/library/index.js');
+  const { REPORTS } = await import('../app/src/devices/library/reports.js');
+  const os = await import('node:os'), fsm = await import('node:fs'), pathm = await import('node:path');
+
+  // honest devices measure as they do in the browser (the shelf's reports)
+  for (const id of ['core.delay', 'claude.biscuit-tin']) {
+    const r = await checkDeviceNode(getDevice(id)), b = REPORTS[id];
+    const d = r.kind === 'effect' ? Math.abs(b.deltaLU - r.level.deltaLU) : Math.abs(b.lufs - r.level.lufs);
+    T.ok(r.ok && d <= 0.2 && Math.abs(b.truePeak - r.truePeak) <= 0.2 && r.deterministic && r.cpu.ms > 0, `${id} in a child process measures as in the browser (${r.kind === 'effect' ? r.level.deltaLU + ' LU' : r.level.lufs + ' LUFS'}, ${r.truePeak} dBTP; browser ${r.kind === 'effect' ? b.deltaLU + ' LU' : b.lufs + ' LUFS'}, ${b.truePeak} dBTP)`);
+  }
+
+  // `pre` runs in create() with the realm's own globals; then process() multiplies by 10 (about +20 dB: over +6 dBTP)
+  const loud = (pre, body = 'for (let i = 0; i < n; i++) { L[i] *= 10; R[i] *= 10; }') => ({ id: 'x.tamper', kind: 'effect', params: [{ key: 'g', min: 0, max: 1, def: 0.5 }],
+    kernel: `({ create({ dsp }) { const G = [].constructor.constructor; const P = G('return process')(); ${pre}; return { process(L, R, n, p) { ${body} } }; } })` });
+  const forged = JSON.stringify({ ok: true, errors: [], warnings: [], level: { lufs: -14, deltaLU: 0 }, truePeak: -1, summary: 'ok' });
+  const cases = [
+    ['prints a passing report and exits', loud(`P.stdout.write(${JSON.stringify(forged)}); P.exit(0)`)],
+    ['patches JSON, Math, Array and Float32Array in its process', loud(`const M = G('return Math')(), J = G('return JSON')(), A = G('return Array')(), F = G('return Float32Array')();
+      const st = J.stringify; J.stringify = (o, ...a) => st(o && o.type === 'done' ? { ...o, errors: [], latency: 0 } : o, ...a);
+      M.max = () => -120; M.log10 = () => -6; A.prototype.push = function () { return this.length; }; F.prototype.slice = function () { return new F(this.length); }`)],
+    ['writes a frame of its own out of turn', loud(`const B = P.getBuiltinModule('buffer').Buffer, h = B.from(JSON.stringify({ type: 'done', id: 1, errors: [] })), f = B.alloc(8 + h.length + 16); f.writeUInt32BE(h.length, 0); f.writeUInt32BE(16, 4); h.copy(f, 8); P.stdout.write(f)`)],
+    ['exits in the middle of a render', loud('', 'P.exit(0)')],
+    ['hides its NaN fault and the errors it reports', loud(`G('return Array')().prototype.push = function () { return this.length; }`, 'for (let i = 0; i < n; i++) { L[i] = 0 / 0; R[i] = 0 / 0; }')],
+  ];
+  const outside = pathm.join(os.tmpdir(), `overdub-check-${process.pid}.txt`);
+  fsm.writeFileSync(outside, 'x');
+  // passes only if it read a file outside app/src and wrote one: quiet then, loud when it can't
+  cases.push(['reads and writes outside app/src to choose its sound', loud(`let quiet = false; try { const fs = P.getBuiltinModule('fs'); fs.readFileSync(${JSON.stringify(outside)}); fs.writeFileSync(${JSON.stringify(outside + '.w')}, 'x'); quiet = true; } catch (e) {}`,
+    'if (quiet) return; for (let i = 0; i < n; i++) { L[i] *= 10; R[i] *= 10; }')]);
+  for (const [what, def] of cases) {
+    const r = await checkDeviceNode(def, { quick: true, timeout: 15000 });
+    T.ok(!r.ok && r.errors.length > 0, `a loud kernel that ${what} still fails: ${r.errors[0]}`);
+  }
+  T.ok(!fsm.existsSync(outside + '.w'), 'the render process wrote nothing outside');
+  fsm.rmSync(outside, { force: true }); fsm.rmSync(outside + '.w', { force: true });
+  // an instrument that claims absurd numbers about itself (poly, latency, voices) while making no sound
+  const claims = { id: 'x.claims', kind: 'instrument', params: [], kernel: `({ create({ dsp }) { const G = [].constructor.constructor; const J = G('return JSON')(), st = J.stringify;
+    J.stringify = (o, ...a) => st(o && o.type === 'done' ? { ...o, errors: [], poly: 1e9, latency: 1e12, stats: { maxVoices: -5, steals: 1e300 } } : o, ...a);
+    return { voice() { return { start() {}, release() {}, render() { return false; } }; } }; } })` };
+  const t0 = Date.now(), rc = await checkDeviceNode(claims, { quick: true, timeout: 15000 });
+  T.ok(!rc.ok && rc.voices && rc.voices.poly === 8 && rc.voices.maxVoices === null && rc.voices.steals === null && rc.latency.declared === 0 && Date.now() - t0 < 15000, `its claims are bounded (poly ${rc.voices && rc.voices.poly}, latency ${rc.latency && rc.latency.declared}) and the silence fails it: ${rc.errors[0]}`);
+  T.ok(rc.errors.some((e) => /voice counts didn't come back/.test(e)), 'voice counts it kept back fail the check instead of skipping the stealing error');
+  // cpu is timed from the job going out: a heavy kernel that holds its 'ready' frame back until its samples go still
+  // measures its whole render
+  const heavy = (pre) => ({ id: 'x.heavy', kind: 'effect', params: [], kernel: `({ create() { const G = [].constructor.constructor; const P = G('return process')(); ${pre};
+    return { process(L, R, n) { let s = 0; for (let k = 0; k < 20000; k++) s += Math.sin(k); for (let i = 0; i < n; i++) { L[i] *= 0.5 + s * 1e-12; R[i] *= 0.5; } } }; } })` });
+  const hc = await checkDeviceNode(heavy(''), { quick: true });
+  const sc = await checkDeviceNode(heavy(`const o = P.stdout, w = o.write.bind(o); let held = null;
+    o.write = (b, ...a) => { const s = b.toString('latin1', 8, 80); if (s.includes('"type":"ready"')) { held = b; return true; } if (held && s.includes('"type":"done"')) { w(held); held = null; } return w(b, ...a); }`), { quick: true });
+  T.ok(hc.cpu.ms > 50 && sc.cpu.ms > hc.cpu.ms * 0.5, `holding back its 'ready' frame doesn't shrink its cpu (${hc.cpu.ms} ms honest, ${sc.cpu.ms} ms holding back)`);
+  // a process() that never returns: refused at the deadline, and its process killed
+  const t1 = Date.now(), rh = await checkDeviceNode({ id: 'x.hang', kind: 'effect', params: [], kernel: '({ create() { return { process() { for (;;) {} } }; } })' }, { quick: true, timeout: 2000 });
+  T.ok(!rh.ok && rh.timedOut === 'process' && Date.now() - t1 < 4000, `a process() that never returns is refused at the deadline (${Date.now() - t1} ms): ${rh.errors[0]}`);
+}
+
 const { page, close, errors } = await open('/tools/kernel-test.html');
 try {
   await page.waitForFunction(() => window.K && window.K.ready, null, { timeout: 20000 });
