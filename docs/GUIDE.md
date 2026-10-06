@@ -29,8 +29,8 @@ then shows where everything else lives. In the studio, `?` shows every key.
    by you. **Band** on a kept take (or `⇧B` on a selected clip) builds chords, bass and drums around it in a style
    you pick, on new tracks; your notes stay as they are, and one undo takes the band back.
 5. **Ask the agent for a take.** Open the **Agent** tab (`A`; `⌘/` or `Ctrl+/` to type) and ask for something over
-   it: *"Give me a bassline under this."* No key? Press **Try the demo agent (no key)**, or just type: what you
-   type stays in the box, and **Ask the demo agent** sends it. The demo agent is a scripted session, not a live
+   it: *"Give me a bassline under this."* No agent on yet? Press **Try the demo agent (free)**, or just type: what
+   you type stays in the box, and **Ask the demo agent** sends it. The demo agent is a scripted session, not a live
    model, but it uses the real tools, so everything it does is signed and undoable. It answers what it can, and when
    something is past its script it says so first, then offers the nearest thing it can on the part and bars you named.
 6. **Keep one.** Its takes arrive as cards. **Hold to hear** plays one over yours; let go to go back. Keep the one
@@ -377,11 +377,13 @@ tap on it plays that note; the tab scrolls sideways with the playhead.
 
 ## Bring your own Claude
 
-The demo agent is a script. For the real thing, open the **Agent** tab, paste an Anthropic API key and pick a model:
+The demo agent is a script. For the real thing, bring your own Claude: **Claude Code** on your computer, on your
+Claude plan (next section), in the Agent tab's own box or over MCP. Pick its model in the Agent tab's settings:
 Opus 5.5 (the default), Sonnet 5.5 or Haiku 4.5.
 
-The key stays in that browser and goes only to `api.anthropic.com`. The page calls the API directly, with no Overdub
-server in the middle, and you pay Anthropic for what you use.
+The studio keeps no API key. It used to take one in the Agent tab and keep it in the browser; that field is gone, and
+a key saved there is deleted the next time the studio opens, with a note saying so. If you saved one, you may want to
+revoke it in the Anthropic Console.
 
 Ask it the way you'd ask a session player: *"darker"*, *"half-time in the bridge"*, *"two takes on the hats"*. It
 acts on what you've selected, says what it changed and the number, and asks which one you mean when a word like
@@ -422,6 +424,20 @@ conversation; **New** starts it over.
 Songs are kept per site, so a song on the public studio and one on `localhost` are separate. Move one across with
 the Song menu: **Save the project file** (`⌘S`) on one, open it (`⌘O`) on the other. More, for Claude Desktop,
 Cursor, VS Code and Codex too: [Connect an agent](../integrations/README.md).
+
+### Your own API key, on your own server
+
+Self-hosting, with an Anthropic API key rather than a Claude plan? Give the key to the server, not the page:
+
+```sh
+OVERDUB_ANTHROPIC_KEY=sk-ant-… node server/serve.js
+```
+
+The Agent tab's box then talks to Claude through that server: the page sends its request to the server, the server
+adds the key and passes it to the Messages API, and the key never reaches the browser. Anthropic bills you for what
+you use. It is its own variable, not `ANTHROPIC_API_KEY`, so a key that happens to be set in your shell is never
+spent unasked. When Claude Code is on (or the demo agent), that answers instead. The server listens on `127.0.0.1`
+only: put it on a public address and anyone who reaches it spends your key.
 
 ## Build a device
 

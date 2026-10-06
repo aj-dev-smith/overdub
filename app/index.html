@@ -1,11 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.anthropic.com https://overdub-relay.ajsmithhq.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://overdub-relay.ajsmithhq.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta charset="utf-8">
-  <!-- The policy comes first, so it covers everything the page loads. This page keeps the person's Anthropic API key
-       in localStorage, so a script that isn't ours is the worst case: scripts load from this origin only, and the page
-       talks to this origin and the Messages API. Worklet modules are scripts too, and every one is a file here
+  <!-- The policy comes first, so it covers everything the page loads. The page keeps no API key (a self-hoster's key
+       stays on their local server: server/local-claude.js), but it holds the person's songs and devices and drives
+       their agents, so a script that isn't ours is still the worst case: scripts load from this origin only, and the
+       page talks to this origin and the relay. Worklet modules are scripts too, and every one is a file here
        (src/kernel/processor.js, src/devices/worklets/, vendor/clawd/worklets/, src/input/cap-worklet.js), so
        script-src needs neither data: nor blob: (with data:, markup slipped into the page could run script on this
        origin through an <iframe srcdoc>; tools/compat-test.js tries it in each browser). Stylesheets and fonts are files

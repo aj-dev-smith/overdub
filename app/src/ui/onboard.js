@@ -1,6 +1,6 @@
 // "Take one": the first-run coach. It gets a newcomer from the door to a real overdub in about two minutes:
 //   hear it (Space) -> make take one (hum it, tap a beat, or play the computer keys) -> keep it -> ask the agent for a
-//   take over it (the demo agent when there's no key) -> keep one of its takes -> "That's an overdub."
+//   take over it (the demo agent when no agent is on) -> keep one of its takes -> "That's an overdub."
 // Every step waits for the real thing (the transport, the capture log, the store, the agent), not a Next button.
 // The first minute (docs/research/RECORDING-UX.md 3.3) is the "take one" step's first door, Tap a beat (and the first
 // door of a New song's blank sheet, app.onboard.firstMinute()): the song gets a Drums track if it has none, a 2-bar
@@ -202,7 +202,7 @@ export default function (app) {
       offs.push(rec.on('pass', () => { if (fm && (step() === 'take' || step() === 'ask')) paint(); }));
     }
     if (app.agent?.on) offs.push(app.agent.on('user', () => { if (step() === 'ask') { note = 'It’s listening to your part. Its takes show up in the Agent tab.'; paintNote(); } }));
-    if (app.agent?.on) offs.push(app.agent.on('error', (e) => { if (step() === 'ask' && e?.code === 'nokey') { note = 'No key here yet: press the button to use the demo agent.'; paintNote(); } }));
+    if (app.agent?.on) offs.push(app.agent.on('error', (e) => { if (step() === 'ask' && e?.code === 'noagent') { note = 'No agent is on yet: press the button to use the demo agent.'; paintNote(); } }));
   }
   function keptClip(e) {
     const ids = new Set(Object.values(e.created || {}));
@@ -640,7 +640,7 @@ export default function (app) {
 
   app.onboard = {
     start, stop: () => stop('dismissed'), skip: () => { if (idx >= 0) go(idx + 1); }, done: () => stop('done'),
-    // the 'ask' step's button (the demo agent when there's no key): Sketch's "Hand it to the agent" uses it mid-tour
+    // the 'ask' step's button (the demo agent when no agent is on): Sketch's "Hand it to the agent" uses it mid-tour
     ask: () => askAgent(),
     // the first minute (Tap a beat: a New song's first door too) and keys over it
     firstMinute: (kind) => firstMinute(kind), keysOver: () => keysOver(), ownSong: () => ownSong(), played: () => played(),

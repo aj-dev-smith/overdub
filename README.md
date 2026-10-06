@@ -61,9 +61,10 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   [integrations/README.md](integrations/README.md)), open the studio, and ask. The agent's edits appear live, signed
   with its name. MCP drives a studio served from your own copy, not the public site.
 - **Claude Code in the studio:** run your own copy with Claude Code installed and signed in, and the Agent tab offers
-  **Use Claude Code here**: the studio's own chat box, on your Claude plan instead of an API key.
-- **In the studio:** the Agent tab talks to Claude with your own API key, which is kept in this browser and sent only
-  to Anthropic. There is also a scripted demo agent that runs without a key.
+  **Use Claude Code here**: the studio's own chat box, on your Claude plan.
+- **In the studio:** a scripted demo agent, free, on the real tools. The studio keeps no API key; self-hosting with
+  one, set `OVERDUB_ANTHROPIC_KEY` on your local server and the page never sees it
+  ([GUIDE.md](docs/GUIDE.md#your-own-api-key-on-your-own-server)).
 - **claude.ai:** a hosted relay is built and tested ([docs/REMOTE-MCP.md](docs/REMOTE-MCP.md)) but not switched on.
 
 [`docs/AGENTS.md`](docs/AGENTS.md) covers all 38 tools, the op format and the etiquette.

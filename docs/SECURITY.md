@@ -9,10 +9,18 @@ the agent asking before it takes anything out of a song from a link.
 
 ## What it protects, and from whom
 
-- **The person's Anthropic API key**, kept in `localStorage` (`overdub:anthropic-key`) on overdubstudio.com. It
-  leaves the browser only in the `x-api-key` header of requests to api.anthropic.com. The review checked it with a
-  placeholder key: it isn't in a share link, a song file, History, the agent's messages, analytics, toasts, logs, the
-  MCP server or the relay, and no song or link can make it go anywhere else.
+- **No API key on the page.** The studio used to keep a pasted Anthropic key in `localStorage`
+  (`overdub:anthropic-key`) and send it from the browser; any script that got onto the page could have read it. That
+  option is gone: the page holds no key and never calls the Messages API itself (`connect-src` doesn't name it), and a
+  key an older version saved is deleted on load, with a note saying so. The other ways in hold no key either: Claude Code
+  runs on the person's own Claude plan, and the claude.ai connector (built, not switched on yet) would run on their
+  claude.ai account.
+- **A self-hoster's API key, on their own server.** `OVERDUB_ANTHROPIC_KEY`, read by the local server
+  (`server/local-claude.js`, `/local/messages`), which adds it to the in-app agent's requests: the page never sees it,
+  and `/local/status` says only whether one is set. The route refuses another site's page and any name but an
+  address, like the bridge, and the server binds to 127.0.0.1; on a public address anyone who reaches it spends the
+  key. A key that happens to be in the shell (`ANTHROPIC_API_KEY`) is never used, and is dropped from Claude Code's
+  environment.
 - **Their songs.** A song lives in the browser; a share link carries it in the URL hash, which never reaches a server.
 - **Their machine**, when they run the local server, the MCP server or the Node renderer.
 - **Who made what**: bylines, History and the provenance report.
@@ -23,7 +31,7 @@ runs; and text in a song written to steer an agent.
 ## How the studio takes a stranger's song
 
 - **Code.** A song's devices are kernels: source text, evaluated only in the AudioWorklet (and, in Node, the renderer and the device check's child process),
-  never on the page that holds the key. The page only parses kernel source. A song's device brings nothing else that
+  never on the page. The page only parses kernel source. A song's device brings nothing else that
   runs: `build` and `worklets` (module source the graph path loads into the audio thread) are dropped by a song file,
   a link and the registry. The worklet scope is a rule for determinism, not a security boundary.
 - **Asked first.** A song's device runs only once this browser trusts its code (`devices/trust.js`; ARCHITECTURE.md,
@@ -47,10 +55,10 @@ runs; and text in a song written to steer an agent.
   in the head; `app/index.html` says why each allowance is there). Scripts come from the site itself, worklet modules
   included: each is a file there (`kernel/processor.js`, `devices/worklets/`, `vendor/clawd/worklets/`,
   `input/cap-worklet.js`), so no script comes from a `data:` or `blob:` URL (`blob:` stays in `worker-src` for the
-  engine's timer Worker). Connections go to the site, api.anthropic.com and the relay (and loopback, for local work),
+  engine's timer Worker). Connections go to the site and the relay (and loopback, for local work),
   images to the site, `data:` and `blob:`, media to the site and `blob:`, and fonts and stylesheets to the site alone:
   the faces are files there (`app/style/fonts.css`, each family beside its licence), so no other host's CSS is on the
-  page that keeps the key and no visitor's address goes to a font host, from any page. Inline scripts (but the
+  studio's pages and no visitor's address goes to a font host, from any page. Inline scripts (but the
   library's and gallery's own, by hash), inline event handlers, plugins, `<base>` and forms are refused. CloudFront's
   managed policy adds HSTS, `X-Frame-Options: SAMEORIGIN`, `nosniff` and a referrer policy.
 - **Authorship.** A link signs every part that isn't an agent's, an earlier guest's or the house's as the guest who
@@ -80,6 +88,7 @@ runs; and text in a song written to steer an agent.
 | A song's colour could be a `url()`, so opening a link made the browser call the sender's server | Medium | Fixed at the door, in the ops and in every view (`2e39267`, `e53e3a9`, `4f0b621`) |
 | A link could credit the receiver with the sender's unsigned parts, and relabel agents and guests | Medium | Fixed (`2e39267`) |
 | No Content Security Policy, with the key in origin-wide storage | Medium | The studio, library and gallery have one (`e53e3a9`), with no `data:` or `blob:` scripts (`de084c1`) |
+| The person's API key lived in `localStorage` on the origin that runs agent-written code, readable by any script that got onto the page, and was sent from the browser with `anthropic-dangerous-direct-browser-access` | Medium | Fixed: the in-browser key is gone; an old one is deleted on load; a self-hoster's key stays on their local server (`OVERDUB_ANTHROPIC_KEY`) |
 | The policy allowed `data:` scripts (for worklets): markup that got into the page could run script on the key's origin through an `<iframe srcdoc>` (Chromium, WebKit, Firefox) | Low (no injection point known: the backstop) | Fixed (`de084c1`) |
 | A shared song's text can steer the in-app agent, whose tools act without the person | Medium | Names escaped, quoted and capped (`e53e3a9`, `2e39267`); on a song from a link its deletions, rewrites and new devices wait for the person's Keep; a budget per turn is AJ's call |
 | A shared song's text reaches outside agents with stronger tools (Claude Code has a shell) | Medium | Results carry the `about` note and rule 8 says so (`62f4c8a`); in the studio their deletions, rewrites and new devices on a song from a link wait for the person's Keep too; what a shell does outside the studio is the agent's own |
@@ -96,7 +105,7 @@ runs; and text in a song written to steer an agent.
 | Google Fonts on every page: each visitor's IP goes to Google, and CSS can read attribute values on the key's page | Low | Fixed: the fonts are files on the site (`app/style/fonts.css`), no page asks Google for anything, and the policies name no font or style host (`font-src 'self'`); the provenance report takes the same files, inside it when it is saved |
 | The relay's memory and capacity limits; its origin secret travels in SSM command parameters | Low, before it ships | Fixed: caps on bodies, held and unread bytes, sessions, streams and calls in flight, a rate limit per address (an IPv6 /64), `429`/`503` with `Retry-After` (calls in flight: a tool error saying when); the instance reads the secret from Parameter Store |
 | Analytics: only words from a fixed list are sent, but CloudFront's logs keep IP, browser and referrer for 90 days | Info | Disclosed; AJ's call |
-| The audio thread shares the page's renderer process, where the key is | Info | Long term (WASM kernels, or the engine on its own origin) |
+| The audio thread shares the page's renderer process, where the songs and the agents' tools are (the key was, until it was removed) | Info | Long term (WASM kernels, or the engine on its own origin) |
 
 ## Checked and sound
 

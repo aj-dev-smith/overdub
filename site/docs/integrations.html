@@ -76,8 +76,8 @@ everything else.</p>
 <p><strong>The bridge between an outside agent and the studio only runs on your machine.</strong></p>
 <ul>
 <li><strong><a href="https://overdubstudio.com/app/">overdubstudio.com/app/</a></strong> (the public studio) works with the agents that
-live inside the page: the <strong>Agent tab</strong> with your own Anthropic API key (kept in that browser, sent only to
-Anthropic), and the <strong>demo agent</strong>, a scripted session that needs no key. Claude Code, Claude Desktop and Cursor
+live inside the page: the <strong>demo agent</strong> in the Agent tab, a scripted session on the real tools, free. The studio
+keeps no API key. Claude Code, Claude Desktop and Cursor
 <strong>can't</strong> connect to a tab on the public site. The page doesn't even try: the bridge stays quiet off localhost.</li>
 <li><strong><a href="http://localhost:3279/app/" rel="noopener">localhost:3279/app/</a></strong> (the studio served by your clone) is the one outside agents
 drive. You don't have to start it: <code>server/mcp.js</code> starts the local server itself if nothing is listening, and on

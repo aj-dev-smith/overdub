@@ -1,4 +1,4 @@
-// The in-app agent: Claude on the Messages API, bring-your-own-key, streaming, with the tool loop over agent/tools.js.
+// The in-app agent: Claude on the Messages API, streaming, with the tool loop over agent/tools.js.
 // Also a scripted MOCK provider (?agent=mock, or "Try the demo agent") that plays a realistic session against the
 // real tools, for demos and tests.
 //
@@ -6,8 +6,11 @@
 //   agent.send(text, { context })            -> Promise (resolves when the turn, tool calls included, is over)
 //   agent.stop()                             aborts instantly: the stream, waiting tools, retries
 //   agent.busy / agent.provider ('claude' | 'local' | 'mock' | null) / agent.model / agent.status
-//   agent.setKey(key) / clearKey() / hasKey() / setModel(id) / useMock(on) / useLocal(on)
-//   agent.local -> { available, version } | null   (is Claude Code on this computer? probed once, on a local server)
+//   agent.setModel(id) / useMock(on) / useLocal(on)
+//   agent.local -> { available, version, key } | null   (is Claude Code on this computer? does its server hold an API
+//                  key? probed once, on a local server)
+//   agent.keyRetired / retiredSeen()   a key this browser kept before the in-browser key was removed was just deleted:
+//                  the panel says so once
 //   agent.plan  -> { five_hour: { used, resetsAt }, seven_day: { used, resetsAt }, limited, at } | null   the person's
 //                  Claude plan as Claude Code last reported it (used 0..1, resetsAt in ms); emits 'plan'
 //   agent.reset()                            a fresh conversation for this song
@@ -18,8 +21,10 @@
 // back; its tool calls come back through the bridge (agent/bridge.js -> localCall) and run here, signed 'claude'. The
 // conversation is Claude Code's session, resumed per song.
 //
-// BYOK: the key lives only in this browser's localStorage and is sent only to api.anthropic.com (the browser talks to
-// the API directly; that is what the anthropic-dangerous-direct-browser-access header acknowledges).
+// Server key ('claude'): a self-hoster's own API key, set on the local server (OVERDUB_ANTHROPIC_KEY) and never sent to
+// the page. The request goes to server/local-claude.js (/local/messages), which adds the key and streams the answer
+// back. The page keeps no key: the in-browser key field is gone, and a key saved by an older version is deleted on
+// load (RETIRED_KEY below).
 //
 // API notes (from the claude-api skill): adaptive thinking (Opus/Sonnet 5.5 can't disable it), effort set explicitly,
 // progress updates between tool calls via thinking display "updates", server-side refusal fallbacks ("default"),
@@ -37,8 +42,11 @@ export const MODELS = [
   { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', blurb: 'quick and very capable' },
   { id: 'claude-haiku-4-5', name: 'Haiku 4.5', blurb: 'the quickest, for small moves' },
 ];
-const API = 'https://api.anthropic.com/v1/messages';
-const KEY_KEY = 'overdub:anthropic-key';
+const API = '/local/messages';   // the local server, which holds the key (server/local-claude.js)
+// The in-browser key's old home. Deleted on load and noted once (RETIRED_NOTE) so the panel can say so; keep this shim
+// for two releases after the removal, then delete it (and RETIRED_NOTE with it).
+const RETIRED_KEY = 'overdub:anthropic-key';
+const RETIRED_NOTE = 'overdub:agent:key-retired';
 const MODEL_KEY = 'overdub:agent-model';
 const CONV_KEY = 'overdub:agent:conv:';
 const LOCAL_KEY = 'overdub:agent-local';
@@ -88,10 +96,12 @@ export function createAgent(app) {
   let status = '';
   const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
+  if (ls.get(RETIRED_KEY) != null) { ls.set(RETIRED_KEY, null); ls.set(RETIRED_NOTE, '1'); }
+
   function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
   function decide() {
     const prev = provider;
-    provider = mockOn ? 'mock' : localOn && local?.available ? 'local' : ls.get(KEY_KEY) ? 'claude' : null;
+    provider = mockOn ? 'mock' : localOn && local?.available ? 'local' : local?.key ? 'claude' : null;
     if (prev !== provider) emit('provider', provider);
   }
   function setStatus(text) { status = text || ''; emit('status', status); app.presence?.status(status, 'claude'); }
@@ -126,7 +136,7 @@ export function createAgent(app) {
   if (isLocalHost()) {
     fetch('/local/status').then((r) => (r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : { available: false }))
       .catch(() => ({ available: false }))
-      .then((j) => { local = { available: !!j.available, version: j.version || '' }; const was = provider; decide(); if (was === provider) emit('provider', provider); });
+      .then((j) => { local = { available: !!j.available, version: j.version || '', key: !!j.key }; const was = provider; decide(); if (was === provider) emit('provider', provider); });
   }
 
   /* ------------------------------------------------------------------ the request */
@@ -146,8 +156,9 @@ export function createAgent(app) {
     }
     return b;
   }
-  function headers(key) {
-    const h = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
+  // no key and no version here: the local server adds both (server/local-claude.js)
+  function headers() {
+    const h = { 'content-type': 'application/json' };
     if (isFive() && !lite) h['anthropic-beta'] = 'server-side-fallback-2026-07-01,thinking-display-updates-2026-08-18';
     return h;
   }
@@ -161,12 +172,10 @@ export function createAgent(app) {
 
   // One streamed request -> the assistant message { content, stop_reason, stop_details }.
   async function stream(signal, turn) {
-    const key = ls.get(KEY_KEY);
-    if (!key) throw Object.assign(new Error('No API key yet'), { code: 'nokey' });
     let res;
-    try { res = await fetch(API, { method: 'POST', headers: headers(key), body: JSON.stringify(body(toolDefs())), signal }); } catch (e) {
+    try { res = await fetch(API, { method: 'POST', headers: headers(), body: JSON.stringify(body(toolDefs())), signal }); } catch (e) {
       if (e.name === 'AbortError') throw e;
-      throw Object.assign(new Error('Could not reach api.anthropic.com (offline, or blocked by an extension?)'), { retry: true });
+      throw Object.assign(new Error('Could not reach the local server (is node server/serve.js still running?)'), { retry: true });
     }
     if (!res.ok) {
       let detail = '';
@@ -377,7 +386,7 @@ export function createAgent(app) {
     text = String(text || '').trim();
     if (!text || busy) return false;
     decide();
-    if (!provider) { emit('error', { message: 'Add an API key or try the demo agent first.', code: 'nokey' }); return false; }
+    if (!provider) { emit('error', { message: 'No agent is on yet: try the demo agent, or use your own Claude.', code: 'noagent' }); return false; }
     controller = new AbortController();
     const signal = controller.signal;
     setBusy(true);
@@ -393,7 +402,7 @@ export function createAgent(app) {
         emit('end', { stopped: true });
       } else {
         repair();
-        const nice = e.code === 'nokey' ? 'Add an API key first.' : e.status === 401 ? 'That API key was rejected (401). Check it, or paste a new one.' : e.status === 403 ? 'This key cannot use that model (403).' : e.status === 404 ? `The model ${model} is not available to this key (404): try another model.` : e.status === 400 ? `The API refused the request: ${e.message}` : e.message;
+        const nice = e.status === 401 ? 'The API key on your local server was rejected (401). Check OVERDUB_ANTHROPIC_KEY and restart the server.' : e.status === 403 ? 'The server’s key cannot use that model (403).' : e.status === 404 ? `The model ${model} is not available to the server’s key (404): try another model.` : e.status === 400 ? `The API refused the request: ${e.message}` : e.message;
         emit('error', { message: nice, status: e.status, code: e.code || (e.status === 401 ? 'badkey' : null) });
         emit('end', { error: true });
       }
@@ -443,10 +452,8 @@ export function createAgent(app) {
     get plan() { return plan && plan.at ? plan : null; },
     localCall,
     useLocal(on = true) { localOn = !!on; ls.set(LOCAL_KEY, on ? '1' : null); if (on) { mockOn = false; try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } } system = null; decide(); emit('provider', provider); },
-    hasKey: () => !!ls.get(KEY_KEY),
-    keyHint: () => { const k = ls.get(KEY_KEY); return k ? `${k.slice(0, 7)}…${k.slice(-4)}` : ''; },
-    setKey(k) { k = String(k || '').trim(); if (!k) return false; ls.set(KEY_KEY, k); mockOn = false; localOn = false; ls.set(LOCAL_KEY, null); try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } decide(); return true; },
-    clearKey() { ls.set(KEY_KEY, null); decide(); },
+    get keyRetired() { return ls.get(RETIRED_NOTE) === '1'; },
+    retiredSeen() { ls.set(RETIRED_NOTE, null); },
     setModel(id) { if (!MODELS.some((m) => m.id === id)) return false; model = id; ls.set(MODEL_KEY, id); lite = false; emit('provider', provider); return true; },
     useMock(on = true) { mockOn = !!on; try { if (on) sessionStorage.setItem('overdub:agent-mock', '1'); else sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } decide(); },
     // for the panel: what the in-app agent is doing, as a phrase

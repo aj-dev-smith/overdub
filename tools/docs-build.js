@@ -26,7 +26,7 @@ export const DOCS = [
   { slug: 'guide', src: 'docs/GUIDE.md', raw: '/docs/GUIDE.md', label: 'Guide',
     blurb: 'Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.' },
   { slug: 'agents', src: 'docs/AGENTS.md', raw: '/docs/AGENTS.md', label: 'For agents',
-    blurb: 'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent with your own key, and the claude.ai connector to come), the rules of the room, every tool, the ops and the notes format.' },
+    blurb: 'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector to come), the rules of the room, every tool, the ops and the notes format.' },
   { slug: 'integrations', src: 'integrations/README.md', raw: null, label: 'Connect an agent',
     blurb: 'Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.' },
   { slug: 'devices', src: 'docs/DEVICES.md', raw: '/docs/DEVICES.md', label: 'Writing devices',

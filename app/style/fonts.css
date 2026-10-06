@@ -1,5 +1,5 @@
 /* Overdub's type, served from the site itself: no page asks Google (or anyone else) for a font, so a visitor's address
-   goes nowhere but here, and no stylesheet from another host sits on the page that keeps the API key (docs/SECURITY.md).
+   goes nowhere but here, and no stylesheet from another host sits on the studio's pages (docs/SECURITY.md).
    app/style/tokens.css imports this file, so every page that carries the tokens carries the faces.
 
    The rules are the ones Google Fonts served for the request the pages used to make (Archivo ital,wdth,wght
