@@ -87,6 +87,8 @@ export default function (app) {
   });
   // the held set changed (Play them, Play it in the Devices tab, another tab, a device the song lost): say so
   app.devices.onDevices?.((e) => { if (e.type === 'held') paintBanner(); });
+  // the community shelf read its index after the strip was drawn: its line on a held device (heldLines) draws now
+  ui.on('community:ready', () => { if (heldNow().length) paintBanner(); });
   // a song opened from a file says so (ui/export.js), so the ask can say "This file"
   ui.on('song:opened', (d) => { if (ask && d?.from) { ask.from = d.from; paintBanner(); } });
 
@@ -316,6 +318,9 @@ export default function (app) {
       // Play them is the region's one primary while the question is open (Make it yours steps back until it's answered)
       return h('div.sh-held', { role: 'group', 'aria-label': 'Code in this song' },
         h('p.sh-held-text', askWords(list, ask.from)),
+        // what the studio's own copy of the community shelf says of this code, by its hash (ui/community.js): never
+        // from the song or another shelf, so neither can borrow a shelf author's name
+        ...(app.community?.heldLines?.(list) || []).map((t) => h('p.sh-held-text.sh-held-shelf', t)),
         h('div.sh-held-acts',
           h('button.ew-btn.ew-btn-primary.ew-btn-small.sh-play', { onclick: () => play(), title: 'Trust this code in this browser, from now on, and play it' }, one ? 'Play it' : 'Play them'),
           h('button.ew-btn.ew-btn-small.sh-off', { onclick: () => keepOff(), title: 'Leave it off: the song plays without it, and asks again next time' }, one ? 'Keep it off' : 'Keep them off')));

@@ -33,6 +33,9 @@ overdub/
   server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; live)                         [agent layer]
                          relay-catalog.json: the tools it lists, generated (tools/relay-catalog.js)
   site/                  landing page, press/, docs/ (built by tools/docs-build.js), llms.txt         [brand]
+                         community/ (the community shelf's gallery; held back from deploy, unlinked)
+  app/community/         the community shelf's bundled snapshot: gitignored, built by overdub-devices'
+                         tools/index.js --out (docs/COMMUNITY-SHELF.md)                              [shelf]
   app/index.html         the studio page; app/library.html the device shelf; app/gallery.html          [core]
   app/style/tokens.css   brand tokens (CSS custom properties; names below are fixed)                   [brand owns values]
   app/style/fonts.css    the faces, from the site (fonts/<family>/: each woff2 and its licence)         [brand]
@@ -63,6 +66,7 @@ overdub/
                          builtin/ (Overdub's own kernels: synths, drums, pluck, bass, eq, comp, verb...;
                          wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
+                         community.js (the one reader of a community shelf index: allow-list, types, URL policy) [shelf]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
                          worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
                          odk.js + data.js (kernel data: the .odk container; fetched once, checked, kept in IndexedDB)  [dsp]
@@ -84,6 +88,8 @@ overdub/
                          sketch.js (capture UI), spiral.js (pitch spiral)                               [input]
                          export.js (the Song menu, files out), provenance.js, share.js, onboard.js, reference.js,
                          devices-io.js                                                                  [core / ui]
+                         community.js (From the community in the Browser: previews, Try and its prompt; off
+                         unless on localhost, COMMUNITY_LIVE)                                           [shelf]
                          jam.js (the Jam room beside Arrange: chords, the neck, the rig, practice, ideas),
                          tabs.js (the room's tab lane: riffs, practice, play-along), tabstaff.js (drawing tab;
                          the Notes panel's Tab view)                                                    [jam]
@@ -94,7 +100,8 @@ overdub/
                          lexicon.js + lexicon-personal.js, panel.js (chat UI), history.js, presence.js, diff.js,
                          keep.js (a song from a link: what waits for Keep), bridge.js (page side of MCP),
                          remote.js (page side of the relay), cloud.js, cloud-kind.js, cloud-panel.js (Claude
-                         on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
+                         on Overdub credits; off unless app/site-config.json names it),
+                         community-tool.js (find_community_device)                                     [agent layer]
   tools/                 pw.js (browser harness, fixed), <area>-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
   deploy/                setup.sh (one time), deploy.sh (ships the committed tree; --next REF ships it to the preview,
@@ -348,6 +355,11 @@ hold a clip to its notes; and the store checks the song's size after every op of
 just not grown, and undo, redo and reverts aren't held to them. A share link past a limit is refused as it comes in
 (`decodeShare`): it is someone else's song, and a few hundred KB of one can hold more than the tab keeps up with.
 
+**A device's `credit`** (optional, newer songs only): a device the community shelf put in a song carries
+`credit: { author, alias, agent, license, sha256, source }`, from the shelf's index: the person who asked for it (a
+handle), the agent that wrote it, its licence, its kernel's SHA-256 and where its source lives. It's display data, read
+by nobody that decides anything; an older reader skips it. The device itself is `by: 'you'`: the person brought it in.
+
 **`device.define` guards.** A song's devices add to the studio and never take over one it ships: ids in the built-in
 namespaces (`core.`, `pedal.`, `amp.`, `cab.`, `overdub.`) or on the house shelf are refused (undo and redo still put
 back what was there), and a kernel can be up to 256 KB. A song's device is data, a kernel and its params: `build` and
@@ -433,10 +445,10 @@ until the person allows it.
   every device in a song the studio ships (each `DEMOS` entry's devices: Night Shift's three), worked out when first
   needed and never stored; and kernels this browser takes in: `define_device` (the person's own agents, in the page
   or over MCP: the tool trusts the kernel once its check passes), a device file the person imports (`ui/devices-io.js`),
-  and any `device.define` op a `do` dispatch applies in this page (`main.js`; not an undo, a redo or a load, and never
-  a kernel that is held). Once, on the first run of this version (the key isn't there), `main.js` trusts every kernel
-  in the songs this browser kept (`overdub:project`, `overdub:previous`, `overdub:before-fork`, `overdub:recent`):
-  they were already running. For the same reason a link this browser made before `since` opens as yours with its
+  and any `device.define` op a `do` dispatch applies in this page (`main.js`; not an undo, a redo or a load, never
+  a kernel that is held, and never one allowed for this page load only, below). Once, on the first run of this
+  version (the key isn't there), `main.js` trusts every kernel in the songs this browser kept (`overdub:project`,
+  `overdub:previous`, `overdub:before-fork`, `overdub:recent`): they were already running. For the same reason a link this browser made before `since` opens as yours with its
   devices trusted (`trustOwnLink`; the link's moment is sealed into its mark, so it can't be moved); an own link made
   since gets no pass, or sharing a song to yourself would let held code play.
 - **Held** (`trust.heldIn(song, isTrusted)` → `registry.holdDevices`): a song device whose kernel isn't trusted is
@@ -448,7 +460,9 @@ until the person allows it.
   trust change (another tab's too: the `storage` event); listeners get `{ type: 'held' }`.
 - **Where it's checked.** `syncProjectDevices` (registration), `strip.js` (live and offline renders: the mix and
   stems, `render_and_measure`, `adjust`, `compare_to_reference`, `arrange_around`), `ui/provenance.js` (never checks a
-  held device for the report), `agent/tools.js` (`define_device` refuses a held kernel under any id). Exports and the
+  held device for the report), `agent/tools.js` (`define_device` refuses a held kernel under any id, and a community
+  shelf device's kernel, as it is or with its names, comments or spacing changed: so its credit isn't passed off as the
+  agent's; not a boundary, since a program changed any other way isn't matched). Exports and the
   report say what they left out.
 - **The ask** (`ui/share.js`): a song that opens with held devices asks, under the share banner for a link, or in the
   same strip in the banner's place for any other song (a file opened from disk or dropped, the saved song, Recent
@@ -466,8 +480,30 @@ until the person allows it.
 - **Agents** see held devices (`get_project` `held`, `get_device` `held: true`, `list_devices`, `render_and_measure`
   and `provenance_report` say what they left out) and can't run or allow them: no tool reaches `app.trust.play`, and
   etiquette rule 8 says only the person lets held code play.
-- `app.trust = { key, held(), hash(source), trusts(source), size(), since(), play(ids?), allow(sources), ownLink(res) }`. The Node renderer
+- **For this page load only** (`trust.allowForNow`): the community shelf's Try, with *Run it in any song from now on*
+  unticked. The hash is trusted until the page reloads and is never stored, so the song's device is held again after a
+  reload. `trust.forNow(hash)` says whether a hash is trusted that way; `main.js` skips such a kernel when it trusts a
+  dispatched `device.define`, so it isn't stored behind the person's back. `trust.forget(hashes)` takes hashes back
+  (stored and this page load's; a shipped kernel can't be forgotten): the shelf's deny list (the studio's own copy of
+  the index only) and a Try whose dispatch failed after its allow.
+- `app.trust = { key, held(), hash(source), trusts(source), has(hash), size(), since(), play(ids?), allow(sources), allowForNow(sources), forNow(source), forget(sources), ownLink(res) }`. The Node renderer
   (`tools/render.js`) has no trust set: it renders what it's given (CLAUDE.md: render only what you trust with it).
+
+### The community shelf (`ui/community.js`, `devices/community.js`)
+
+Instruments and effects people asked their agents for, from the community repo (`overdub-devices`), in the Browser
+under **From the community**. Nothing is sold, priced or rated. The spec is [COMMUNITY-SHELF.md](COMMUNITY-SHELF.md);
+SECURITY.md says what runs when. Off on the live site (`COMMUNITY_LIVE`); Try is held (`TRY_ON`) until the worklet's
+prototypes are frozen, and a developer on localhost turns it on with localStorage `overdub:community-try` = `1`.
+
+- `devices/community.js` is the one reader of an index (`overdub-community-index/1`): the studio, the agent tool and the
+  site gallery all read through it. `ASKED_MAX` is how long a requester line can be and still be drawn.
+- `app.community = { on(), ready(), state(), section(opts), reach(id?, by), offer(entry, opts), targetFor(entry, track),
+  tryEntry(entry, opts), matchKernel(source), heldLines(held), stop(), nowPlaying() }`. `targetFor` says where a Try
+  lands (`already: true` when it's on that track now: Try doesn't stack a second copy). On a new track a Try brings a
+  two-bar part to hear the device on, in the same step.
+- Events: `community:ready` (`ui.emit`, after each read of the index: `ui/share.js` draws the held strip's shelf lines
+  again) and `workspace:add` (`ui/workspace.js`, More's Add, with the query: a shelf word opens the Browser on the shelf).
 
 ### Instance
 
@@ -503,7 +539,8 @@ checks), gets `dsp` (the stdlib, `kernel/dsp.js`) and nothing else: no DOM, no f
 **Kernel code is evaluated only in the worklet** (and the Node renderer), never on the page. A kernel can arrive from a
 share link, a device file or any agent, and the shadowed names are not a boundary: `[].constructor.constructor` still
 reaches the realm's `Function`. What makes it safe is where it runs: the AudioWorkletGlobalScope has no DOM, no
-localStorage (the person's songs and settings), no cookies and no network. On the main thread, `host.compileKernel(src)` is a
+localStorage (the person's songs and settings), no cookies and no network. It isn't isolated: a kernel shares the realm
+with every other device (SECURITY.md, "Still open"). On the main thread, `host.compileKernel(src)` is a
 parse only (`new Function` is built and never called) for a fast syntax error with its line; every other refusal
 (no `create()`, a bad `poly`, `Math.random` at compile time) comes back from the worklet as a compile-stage error.
 Never call `kernelCompiler(...).compile()` on the page. The Node renderer (`tools/render.js`) has no such scope: a
@@ -1369,7 +1406,7 @@ AGENTS.md documents each tool in the catalog; by job:
 | read | `get_project`, `get_guide`, `get_selection`, `get_history`, `list_devices`, `get_device`, `get_capture`, `get_recording`, `provenance_report`, `find_grooves`, `get_jam`, `tab_for` |
 | change | `apply_ops`, `define_device`, `adjust`, `transform`, `arrange_around`, `arrange_song`, `use_groove`, `drum_track`, `make_jam_track`, `set_tone`, `write_tab`, `suggest_riff` |
 | listen | `render_and_measure`, `compare_to_reference`, `play`, `stop` |
-| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `suggest_sounds`, `get_variation_result`, `share_link`, `workspace` |
+| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `suggest_sounds`, `get_variation_result`, `share_link`, `workspace`, `find_community_device` (searches the community shelf; `put_on` raises a card, never a change) |
 | take back | `undo`, `revert_my_changes` |
 
 - **The catalog without a tab.** Some tools are registered by page modules at boot (`installTools(app).register(def)`):
@@ -1378,7 +1415,8 @@ AGENTS.md documents each tool in the catalog; by job:
   `find_grooves`, `use_groove` and `drum_track` (`agent/grooves-tool.js`, installed by `ui/grooves.js`), `get_jam`,
   `make_jam_track`, `set_tone` and `show_on_fretboard` (`ui/jam.js`), `tab_for`, `write_tab` and `suggest_riff`
   (`agent/tabs-tool.js`, installed by `ui/tabs.js`), `workspace` (`agent/workspace-tool.js`), `suggest_sounds`
-  (`agent/sounds-tool.js`), `share_link` (`ui/share.js`) and `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
+  (`agent/sounds-tool.js`), `share_link` (`ui/share.js`), `find_community_device`
+  (`agent/community-tool.js`, installed by `ui/community.js`) and `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
   `catalogSchemas()` lists them with the static ones, so `server/mcp.js` and `server/bridge.js` list them all before a
   studio tab connects. `tools/relay-catalog.js` writes the same list to `server/relay-catalog.json`, which is all the
   relay ever lists, tab or no tab (`relay-test` checks it is current). `register()` emits ui `agent:tools` and the

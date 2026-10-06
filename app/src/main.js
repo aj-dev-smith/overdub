@@ -31,6 +31,7 @@ const MODULES = [
   './ui/sounds.js', // the sound card (app.sounds: trying an instrument by ear, Keep and Back); after plugin.js and input/index.js
   './ui/grooves.js', // the Grooves tab (core/grooves.js) and the find_grooves, use_groove and drum_track tools; before the bridges too
   './ui/jam.js', // the Jam room beside Arrange, and its tools (get_jam, make_jam_track, set_tone, show_on_fretboard)
+  './ui/community.js', // the community shelf (From the community, in the Browser) and find_community_device; off unless on a local host
   './agent/workspace-tool.js', // the workspace tool (what's on screen in the simple view); before the panel and the bridges
   './agent/sounds-tool.js', // suggest_sounds (sounds on the card, app.sounds.suggest); before the panel and the bridges
   './agent/panel.js', './agent/history.js', './agent/presence.js', './agent/bridge.js',
@@ -186,7 +187,8 @@ async function boot() {
       for (const o of e.ops || []) {
         if (o?.type !== 'device.define' || typeof o.device?.kernel !== 'string') continue;
         const h = kernelHash(o.device.kernel);
-        if (!devices.heldDevices().some((d) => d.hash === h)) trust.allow(h);
+        // (one the person allowed for this page load only, from the community shelf, stays that way: not stored)
+        if (!devices.heldDevices().some((d) => d.hash === h) && !trust.forNow(h)) trust.allow(h);
       }
     }
     if (e.kind === 'load' || e.reverted || e.ops.some((o) => o.type?.startsWith('device.'))) syncProjectDevices(store);
@@ -206,6 +208,7 @@ async function boot() {
     held: () => devices.heldDevices(),
     hash: kernelHash,
     trusts: (source) => trust.trusts(source),
+    has: (hash) => trust.has(hash),
     size: () => trust.size,
     // Play them: trust the held devices' code (all of them, or these ids) and start them, no reload. -> { ok, played }
     play(ids = null) {
@@ -218,6 +221,11 @@ async function boot() {
     },
     // kernels this browser takes in (an imported device file, an agent's define_device): trusted from now on
     allow(sources) { const n = trust.allow(sources); syncProjectDevices(store); return n; },
+    // the community shelf's Try (ui/community.js): for this page load only (a reload holds it again), and taking a
+    // hash back (a Try whose dispatch failed after its allow, or one taken off the shelf). -> n
+    allowForNow(sources) { const n = trust.allowForNow(sources); syncProjectDevices(store); return n; },
+    forget(sources) { const n = trust.forget(sources); syncProjectDevices(store); return n; },
+    forNow: (source) => trust.forNow(kernelHash(source)),
     // a link opened in this tab (ui/share.js): one this browser made before its trusted set began opens as yours
     ownLink: (res) => trustOwnLink(res),
     since: () => trust.since,

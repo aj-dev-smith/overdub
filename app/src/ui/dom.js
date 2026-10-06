@@ -160,6 +160,10 @@ export function authorColor(app, by) { return app && app.store && app.store.isAg
 // 'guest:<name>-<browser>'). Nobody (null) is the house.
 export function authorOf(by, app = null) {
   if (by == null || by === '' || by === 'overdub' || by === 'house') return { kind: 'house', name: 'the house' };
+  // display only (the community shelf's credit: ui/community.js), never an op's by: 'author:<handle>' is a person,
+  // 'agent:<name>' the agent that wrote it
+  if (typeof by === 'string' && /^author:./.test(by)) return { kind: 'human', name: by.slice(7) };
+  if (typeof by === 'string' && /^agent:./.test(by)) return { kind: 'agent', name: by.slice(6) };
   let a = null;
   try { a = app && app.store && app.store.author ? app.store.author(by) : null; } catch (e) { a = null; }
   if (a && a.kind) return { kind: a.kind === 'agent' ? 'agent' : a.kind === 'house' ? 'house' : 'human', name: a.kind === 'house' ? 'the house' : a.name || String(by) };

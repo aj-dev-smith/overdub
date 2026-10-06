@@ -21,3 +21,6 @@ deploy/site-config.json
 
 # Sampled kits (kernel data): built by node tools/fetch-kits.js, uploaded by deploy/deploy.sh, never committed
 app/kits/
+
+# The community shelf's bundled snapshot (overdub-devices: node tools/index.js --out ../overdub/app/community)
+app/community/

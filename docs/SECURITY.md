@@ -60,6 +60,19 @@ runs; and text in a song written to steer an agent.
   see held devices but no tool lets them play, and `define_device` refuses a held kernel under any id. `share-test`,
   `demos-test`, `agent-test`, `library-test` and `provenance-test` check it, with every kernel that reaches the audio
   thread written down.
+- **The community shelf** (`ui/community.js`, `devices/community.js`; docs/COMMUNITY-SHELF.md). Off on the live site:
+  `COMMUNITY_LIVE` is false, and until it's true the shelf does nothing unless the page is on localhost or 127.0.0.1.
+  Its index is JSON, read by one reader that copies only the fields it knows, checks each and caps text; it never
+  carries code, and clip and device URLs stay inside the index's own folder on its own origin. ▶ plays a recording
+  from a `blob:` URL; no device code is fetched to hear one. **Try** fetches the device file (300 KB at most), refuses
+  it unless its kernel's SHA-256, id and kind match the index, asks (the same trust prompt for the person's Try and
+  an agent's card, focus on Not now, Play it held 600 ms), runs the device check, and only then trusts the hash (for
+  this page load, or from now on if the person ticks the box) and puts it on as one step. The song gets the entry's
+  name, blurb and request, never the file's. Only the studio's own copy of the index can take a hash back (its deny
+  list). Try itself is held (`TRY_ON`) until item 3 below is done. No agent tool reaches trust: `find_community_device`
+  raises a card and the person presses Try. `define_device` refuses a shelf kernel as it is or with its names,
+  comments or spacing changed; that keeps a shelf device's credit from being passed off as an agent's, and is not a
+  boundary (code an agent defines is trusted here, changed or not). `community-test` checks it.
 - **Data.** `h()` (`ui/dom.js`) never turns data into markup, and the review found no way in for script across every
   panel. Names are plain text up to 100 characters, without control characters or bidi overrides. Colours are a
   palette token or hex where a song comes in, in the ops, and again in every view that draws one. A link is held to
@@ -136,7 +149,8 @@ Code, no decision needed:
    the only way out. A heartbeat could rebuild the audio context without the newest song device and name it. (A
    link's or a file's kernel now hangs only after the person has let it play, and its code stays trusted after that.)
 2. **Song renders** (`render_and_measure` on a song with a hanging kernel) have no deadline yet.
-3. **Freeze the worklet's built-in prototypes** before any kernel runs.
+3. **Freeze the worklet's built-in prototypes** before any kernel runs. The community shelf's Try waits on it
+   (`TRY_ON` in `ui/community.js`).
 4. **Self-host the fonts: done.** The five families the pages draw in (Archivo, Atkinson Hyperlegible Next and Mono,
    and the device faces' Rubik Dirt and Silkscreen) are woff2 files on the site, each folder in `app/style/fonts/`
    with its licence (the SIL OFL 1.1), declared in `app/style/fonts.css` with the weights, widths and ranges Google

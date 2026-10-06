@@ -342,13 +342,16 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     const isAdded = by != null;
     const b = h('button.btn.ws-row-b', { type: 'button', dataset: { ws: f.id }, 'aria-label': `${isAdded ? T.put : T.add}: ${f.title}`, onclick: () => {
       if (added[f.id] != null) { putAway([f.id], { by: 'you' }); return; }
+      const query = moreOpen?.find.value.trim() || '';
       add([f.id], { by: 'you' });
-      // a feature with a panel opens on it, so the add is seen
-      if (f.panels[0] && ui.panels?.has(f.panels[0])) ui.show(f.panels[0], { by: 'you' });
+      // a feature with a panel opens on it, so the add is seen, and More steps out of its way
+      if (f.panels[0] && ui.panels?.has(f.panels[0])) { closeMore({ refocus: false }); ui.show(f.panels[0], { by: 'you' }); }
+      // (what was searched for goes with it: the community shelf opens the Browser on itself for its own words)
+      ui.emit('workspace:add', { id: f.id, query, by: 'you' });
     } }, isAdded ? T.put : T.add);
     // in the full studio everything is on screen: the rows say what each thing is, with nothing to add or put away
     return h('div.ws-row', { dataset: { ws: f.id } },
-      h('div.ws-row-w', h('b.ws-row-t', f.title), agentAdded ? h('small.ws-row-by', 'added by ', byline(by, { app })) : null, h('span.ws-row-p', f.purpose)),
+      h('div.ws-row-w', h('b.ws-row-t', f.title), agentAdded ? h('small.ws-row-by', 'added by ', byline(by, { app })) : null, h('span.ws-row-p', f.purpose), f.note ? h('span.ws-row-p.ws-row-note', f.note) : null),
       view === 'full' ? null : b);
   }
   function renderMore() {

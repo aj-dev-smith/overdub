@@ -270,6 +270,8 @@ function mountPanel(el, app) {
         h('div.ag-body', h('span', text),
           r && r.txn && store.history.some((t) => t.id === r.txn) ? h('button.btn.btn-txt.ag-link', { type: 'button', onclick: () => { const u = store.undo({ by: req.by }); ui.toast(u.ok ? `Undid "${u.txn.label}"` : u.error); } }, 'Undo') : null));
     }
+    // a card another module draws (the community shelf's suggestion: ui/community.js); its words and buttons are its own
+    if (typeof req.render === 'function') { try { return req.render({ speaker }); } catch (err) { console.error('overdub: a card failed to draw', err); } }
     if (req.kind === 'question') {
       const waiting = isRecording(app);
       return h('div.ag-card.ag-q', { dataset: { k: 'request', id: req.id } },
@@ -448,6 +450,7 @@ function mountPanel(el, app) {
   }
   function summarize(req) {
     const r = req.result || {};
+    if (typeof req.summarize === 'function') { try { return req.summarize(req); } catch (err) { return 'Closed'; } }
     if (req.kind === 'question') return r.answer ? `${req.question} You said “${r.answer}”.` : `${req.question} Skipped.`;
     if (req.keep) {
       const who = nameOf(req.by), items = req.keep.items;
@@ -882,7 +885,7 @@ function mountPanel(el, app) {
     if (!e) { if (req.by === 'claude' && turnLive) closeCur(); e = push({ k: 'request', id, kind: req.kind, by: req.by }); }
     if (req.status !== 'pending') { e.summary = summarize(req); saveFeed(); }
     mark(e);
-    if (req.status === 'pending' && !req.checking && !ui.visible?.('agent')) ui.toast(`${store.author(req.by).name} ${req.kind === 'question' ? 'has a question' : req.keep ? `wants to ${req.keep.words}` : 'offers a few takes'}`, { kind: 'agent', action: { label: 'Show', run: () => ui.show('agent') } });
+    if (req.status === 'pending' && !req.checking && !ui.visible?.('agent')) ui.toast(`${store.author(req.by).name} ${req.kind === 'question' ? 'has a question' : req.kind === 'shelf' ? 'suggests a device from the community shelf' : req.keep ? `wants to ${req.keep.words}` : 'offers a few takes'}`, { kind: 'agent', action: { label: 'Show', run: () => ui.show('agent') } });
   }));
   // a hold that ended without a let-go (an agent started working on the song, the song was replaced): unlight the card
   offs.push(ui.on('agent:audition', ({ id, index, on } = {}) => {

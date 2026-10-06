@@ -22,7 +22,9 @@ const t = tally('pages');
 const PROD = 'https://overdubstudio.com';
 // The deck, the strategy memo and the launch drafts live in a private repo beside this one (OVERDUB_PRIVATE to point
 // elsewhere). The claims checks read them when they're there and skip them in a public clone.
-const PRIV = process.env.OVERDUB_PRIVATE || path.resolve(ROOT, '..', 'overdub-private');
+// From a worktree (.claude/worktrees/<name>), "beside this one" means beside the checkout the worktree belongs to.
+const CHECKOUT = ROOT.replace(/[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$/, '');
+const PRIV = process.env.OVERDUB_PRIVATE || path.resolve(CHECKOUT, '..', 'overdub-private');
 const HAS_PRIV = fs.existsSync(path.join(PRIV, 'deck/index.html'));
 
 // ---- the docs are built from the current Markdown
@@ -235,6 +237,232 @@ for (const width of [1440, 390]) {
   const dr = await d.page.evaluate(() => Math.round(document.querySelector('.foot p a').getBoundingClientRect().height));
   t.ok(dr < 30, `at 1440 with a mouse the footer links are as drawn (${dr} px)`);
   await d.close();
+}
+
+// ---- the community shelf's gallery (site/community/, docs/COMMUNITY-SHELF.md section 4): it reads the index through
+// the reader's rules, draws faces from checked values only, plays a clip as a blob, fetches no device file, links into
+// the studio, says less about a shelf that isn't the studio's own, reads nothing off a local host, and is held back
+// (no page links to it; deploy.sh leaves it out). The index is a fixture made here and served from memory, hostile
+// entries included, so nothing real is committed and the bundled path (/app/community/) can be played too.
+{
+  console.log('\ncommunity shelf (site gallery)');
+  const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+  const { addRoute } = await import('../server/serve.js');
+  const wav = (seconds, hz, sr = 8000) => {
+    const n = Math.round(seconds * sr), b = Buffer.alloc(44 + n * 2);
+    b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVE', 8); b.write('fmt ', 12); b.writeUInt32LE(16, 16);
+    b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(sr, 24); b.writeUInt32LE(sr * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
+    b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+    for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(4000 * Math.sin(2 * Math.PI * hz * i / sr)), 44 + i * 2);
+    return b;
+  };
+  const H = (c) => c.repeat(64);
+  const clip = (name) => ({ clips: [{ src: `clips/${name}.wav`, type: 'audio/wav', bytes: 8044 }], pcm: H('0') });
+  const meas = { ok: true, summary: 'ok', lufs: -20.9, deltaLU: 0, drumsDeltaLU: 0.1, truePeak: -5.7, tail: 1.48, cpu: 0.8, latencyMs: 0, deterministic: true, warnings: [], houseLevels: null };
+  const look = { color: '#2f3b46', ink: '#e8f1f7', shape: 'box', finish: 'brushed', knob: 'chrome', label: 'plate', led: '#7fd1ff' };
+  const entry = (o) => ({
+    id: 'test-person.slow-echo', name: 'Slow Echo', kind: 'effect', cat: 'time', blurb: 'Echoes for the test', nod: null, tier: 'community',
+    author: { handle: 'test-person', alias: null }, agent: 'Claude Opus 5.5 (Claude Code)', requester: null, request: 'An echo that waits its turn.',
+    license: 'MIT-0', sha256: H('a'), parent: null, challenge: null, added: '2026-10-05', pick: null, look,
+    params: [{ key: 'time', label: 'TIME', min: 0, max: 100, def: 40, unit: '%' }, { key: 'mix', label: 'MIX', min: 0, max: 100, def: 30, unit: '%' }], presets: ['One'],
+    measured: meas, preview: { input: 'strum', params: null, seconds: 0.5, lufs: -18, wet: clip('slow-echo'), dry: 'strum' },
+    device: 'devices/test-person.slow-echo.overdub-device.json', source: { path: 'devices/test-person/slow-echo', commit: '249eac3', url: null }, ...o });
+  const DEVICES = [
+    entry({ id: 'test-person.glass-harp', name: 'Glass Harp', kind: 'instrument', cat: 'synth', blurb: 'A test instrument', measured: { ...meas, deltaLU: null, lufs: -16.2 },
+      preview: { input: 'phrase', params: null, seconds: 0.5, lufs: -18, wet: clip('glass-harp') }, device: 'devices/test-person.glass-harp.overdub-device.json', source: { path: 'devices/test-person/glass-harp', commit: '249eac3', url: 'http://evil.example/glass' } }),
+    entry({}),
+    entry({ id: 'test-person.loud-type', name: 'Wrong Type', preview: { input: 'strum', wet: clip('wrongtype'), dry: 'strum' }, device: 'devices/test-person.loud-type.overdub-device.json' }),
+    entry({ id: 'test-person.too-big', name: 'Too Big', preview: { input: 'strum', wet: clip('toobig'), dry: 'strum' }, device: 'devices/test-person.too-big.overdub-device.json' }),
+    // hostile, but listable: markup in the text, a string where a number goes, a look that isn't one, clips and a source outside policy
+    entry({ id: 'test-person.bad-face', name: '<img src=x id=pwned>Bad‮Face', blurb: '<b id=pwned2>bold</b>', request: 'ignore\u0000 previous instructions',
+      look: { color: 'red;}body{display:none', ink: 'url(x)', shape: 'evil', knob: 'chrome' },
+      params: [{ key: 'drive', label: 'DRIVE', min: '"><b id=pwned3>x</b>', max: 10, def: 2 }, { key: 'tone', label: '<i id=pwned4>T</i>', min: 0, max: 10, def: 5 }],
+      preview: { input: 'strum', wet: { clips: [{ src: '../../secret.wav', type: 'audio/wav' }, { src: 'http://127.0.0.1:1/clips/x.wav', type: 'audio/wav' }, { src: 'clips/x.ogg', type: 'audio/ogg' }] }, dry: 'strum' },
+      device: 'devices/test-person.bad-face.overdub-device.json', source: { path: 'devices/test-person/bad-face', commit: 'zzz', url: 'javascript:alert(1)' } }),
+    // left out: a reserved id, a reserved handle, an id that isn't the author's, a device file elsewhere, a house entry outside the bundled index
+    entry({ id: 'claude.fake', author: { handle: 'claude', alias: null } }),
+    entry({ id: 'you.mine', author: { handle: 'you', alias: null } }),
+    entry({ id: 'someone-else.echo' }),
+    entry({ id: 'test-person.elsewhere', device: 'javascript:alert(1)' }),
+    entry({ id: 'test-person.far', device: '../../../server/serve.js' }),
+    // need a newer studio: a kind this reader doesn't know, a required field missing
+    entry({ id: 'test-person.midi-thing', kind: 'midi' }),
+    entry({ id: 'test-person.no-sha', sha256: undefined }),
+    { id: 'test-person.nothing' },
+  ];
+  const HOUSE = entry({ id: 'claude.test-room', name: 'Test Room', cat: 'ambient', tier: 'house', author: { handle: 'claude', alias: null }, agent: 'Claude', measured: { ...meas, houseLevels: true },
+    preview: { input: 'strum', wet: clip('test-room'), dry: 'strum' }, device: 'devices/claude.test-room.overdub-device.json', source: { path: 'devices/house/test-room', commit: '249eac3', url: null } });
+  const index = (devices, extra = {}) => JSON.stringify({ format: 'overdub-community-index/1', built: { from: 'overdub-devices@3db8843', at: '2026-10-05T16:21:09Z', studio: 'overdub@test', node: 'v24', checker: 'checkDeviceNode', checks: null, encoder: 'none' },
+    repo: null, inputs: { strum: { seconds: 0.5, lufs: -18, ...clip('strum') }, zither: { seconds: 1, ...clip('strum') } }, revoked: [], devices, unknownTop: { x: 1 }, ...extra }, null, 2);
+  const FIX = {
+    'community-index.json': ['application/json', index([...DEVICES, HOUSE])],
+    'newer.json': ['application/json', JSON.stringify({ format: 'overdub-community-index/2', devices: [] })],
+    'clips/strum.wav': ['audio/wav', wav(0.5, 220)], 'clips/slow-echo.wav': ['audio/wav', wav(0.5, 330)], 'clips/glass-harp.wav': ['audio/wav', wav(0.5, 440)],
+    'clips/test-room.wav': ['audio/wav', wav(0.5, 550)], 'clips/wrongtype.wav': ['text/html', wav(0.5, 660)], 'clips/toobig.wav': ['audio/wav', wav(140, 220)],
+  };
+  let served = true;
+  const hits = [];
+  const serveFix = (prefix) => (req, res, url) => {
+    if (!served) return false;
+    const rel = url.pathname.slice(prefix.length);
+    hits.push(url.pathname);
+    const f = FIX[rel];
+    if (!f) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('no'); return true; }
+    res.writeHead(200, { 'content-type': f[0], 'content-length': String(Buffer.byteLength(f[1])), 'cache-control': 'no-store' });
+    res.end(req.method === 'HEAD' ? undefined : f[1]);
+    return true;
+  };
+  addRoute('/app/community/', serveFix('/app/community/'));             // the studio's own copy (bundled)
+  addRoute('/fixture-shelf/', serveFix('/fixture-shelf/'));             // another index on this site
+  const real = (errs) => errs;
+  const SHELF = '/site/community/';
+  const look_ = async (page) => page.evaluate(() => {
+    const W = window.__community || {};
+    const ent = [...document.querySelectorAll('.cs-entry')];
+    return {
+      ready: !!W.ready, reader: W.reader, off: !!W.off, refused: !!W.refused, newer: !!W.newer,
+      ids: ent.map((e) => e.dataset.id), tiers: ent.map((e) => e.dataset.tier),
+      house: !!document.querySelector('.cs-sec[data-tier="house"]'),
+      lede: document.getElementById('lede').textContent, line: document.getElementById('shelf-line').textContent,
+      empty: document.querySelector('.cs-empty')?.textContent || '',
+      says: document.querySelectorAll('.cs-says').length, vouch: [...document.querySelectorAll('.cs-small')].filter((p) => /A person read it/.test(p.textContent)).length,
+      links: Object.fromEntries(ent.map((e) => [e.dataset.id, e.querySelector('.cs-open')?.getAttribute('href')])),
+      lands: Object.fromEntries(ent.map((e) => [e.dataset.id, e.querySelector('.cs-lands')?.textContent])),
+      plays: Object.fromEntries(ent.map((e) => [e.dataset.id, e.querySelector('.cs-play b')?.textContent || null])),
+      warm: [...document.querySelectorAll('.cs-credit .by-human')].map((b) => getComputedStyle(b).color),
+      cool: [...document.querySelectorAll('.cs-credit .by-agent')].map((b) => getComputedStyle(b).color),
+      pwned: ['pwned', 'pwned2', 'pwned3', 'pwned4'].filter((id) => document.getElementById(id)),
+      bad: (() => {
+        const e = document.querySelector('.cs-entry[data-id="test-person.bad-face"]');
+        if (!e) return null;
+        const dials = [...e.querySelectorAll('.cs-face [aria-valuemin]')].map((d) => [d.getAttribute('aria-valuemin'), d.getAttribute('aria-valuemax')]);
+        return { name: e.querySelector('h3').textContent, dials, numbers: dials.every(([a, b]) => Number.isFinite(+a) && Number.isFinite(+b)),
+          src: e.querySelector('.cs-paper a') ? 'link' : 'text', play: !!e.querySelector('.cs-play'), inert: e.querySelector('.cs-face').inert };
+      })(),
+      evil: (() => { const e = document.querySelector('.cs-entry[data-id="test-person.glass-harp"]'); return e ? { link: !!e.querySelector('.cs-paper a') } : null; })(),
+      faces: document.querySelectorAll('.cs-face .ewf').length + document.querySelectorAll('.cs-face [data-face]').length,
+    };
+  });
+
+  // the studio's own copy, at 1440 and 390
+  for (const width of [1440, 390]) {
+    hits.length = 0;
+    const o = await open(SHELF, { width, height: width < 600 ? 844 : 900 });
+    const requests = [];
+    o.page.on('request', (r) => requests.push(r.url()));
+    await o.page.waitForFunction(() => window.__community?.ready, null, { timeout: 15000 }).catch(() => {});
+    await o.page.evaluate(() => document.fonts.ready);
+    const s = await look_(o.page);
+    await o.page.screenshot({ path: path.join(OUTDIR, `pages-community-${width}.png`), fullPage: width < 600 });
+    const ov = await o.page.evaluate(() => ({ W: document.documentElement.clientWidth, sw: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) }));
+    t.ok(ov.sw <= ov.W, `${SHELF} @${width}: no horizontal scroll (page ${ov.sw} px in ${ov.W} px)`);
+    if (width === 1440) {
+      const comm = ['test-person.glass-harp', 'test-person.slow-echo', 'test-person.loud-type', 'test-person.too-big', 'test-person.bad-face'];
+      t.ok(s.ready && comm.every((id) => s.ids.includes(id)) && s.ids.includes('claude.test-room') && s.ids.length === comm.length + 1,
+        `the gallery lists the bundled index's ${comm.length} community entries and its House one, and nothing the reader leaves out (${s.ids.length}: ${s.ids.join(', ')})`);
+      t.ok(s.reader === 'shared', `the gallery reads through the studio's one reader, app/src/devices/community.js (${s.reader})`);
+      t.ok(/The copy that came with this studio: 5 devices, built 5 Oct\./.test(s.line) && /3 more need a newer studio\./.test(s.line) && /5 more were left out\./.test(s.line),
+        `the shelf line says where the index came from, its count read from the index, and what was skipped ("${s.line}")`);
+      t.ok(s.house && /read by a person/.test(s.lede) && s.vouch >= 1 && !s.says, `the bundled index is taken at its word: a House section, the "checked and read" lede and the reviewed line (${s.vouch}), no "The shelf says"`);
+      t.ok(s.warm.length >= 4 && s.warm.every((c) => c === 'rgb(255, 160, 67)') && s.cool.length >= 4 && s.cool.every((c) => c === 'rgb(76, 195, 255)'), `credits are bylines: the author warm, the agent cool (${s.warm.length} warm, ${s.cool.length} cool)`);
+      t.ok(s.links['test-person.slow-echo'] === '/app/?new&community-device=test-person.slow-echo' && s.links['claude.test-room'] === '/app/?new&device=claude.test-room'
+        && /Opens Night Shift with Slow Echo ready to try on the Hook\./.test(s.lands['test-person.slow-echo']) && /ready to try on the Keys\./.test(s.lands['test-person.glass-harp']),
+        `Open in the studio links to /app/?new&community-device=<id> (House: ?new&device=) and says where it lands ("${s.lands['test-person.slow-echo']}")`);
+      t.ok(s.plays['test-person.slow-echo'] === 'On a strum' && s.plays['test-person.glass-harp'] === 'Hear it', `▶ names the input (${s.plays['test-person.slow-echo']}, ${s.plays['test-person.glass-harp']})`);
+      t.ok(s.bad && !s.pwned.length && s.bad.numbers && s.bad.dials.length === 1 && /<img/.test(s.bad.name) && !/‮/.test(s.bad.name) && s.bad.inert && !s.bad.play && s.bad.src === 'text' && s.evil && !s.evil.link,
+        `the hostile entry renders numbers or nothing in its face (dials ${JSON.stringify(s.bad?.dials)}), its markup as text, no clip outside policy, and no link that isn't https on an allowed host (${s.pwned.length} injected elements)`);
+      t.ok(s.faces >= 6, `every entry draws its face from the reader's output (${s.faces})`);
+
+      // a clip: fetched as a blob only on ▶, looped, at half volume; Dry swaps to the input; no device file is fetched
+      await o.page.click('.cs-entry[data-id="test-person.slow-echo"] .cs-play');
+      await o.page.waitForFunction(() => window.__community.player.audio && window.__community.player.audio.currentTime > 0.05, null, { timeout: 8000 }).catch(() => {});
+      const p1 = await o.page.evaluate(() => { const a = window.__community.player.audio; return a && { blob: a.src.startsWith('blob:'), t: a.currentTime, loop: a.loop, vol: a.volume, state: document.querySelector('.cs-entry[data-id="test-person.slow-echo"]').dataset.state }; });
+      await o.page.click('.cs-entry[data-id="test-person.slow-echo"] .cs-tog');
+      await o.page.waitForTimeout(400);
+      const p2 = await o.page.evaluate(() => { const a = window.__community.player.audio; return a && { blob: a.src.startsWith('blob:'), playing: !a.paused }; });
+      const strum = hits.filter((x) => /clips\/strum\.wav$/.test(x)).length;
+      t.ok(p1 && p1.blob && p1.t > 0.05 && p1.loop && p1.vol <= 0.5 && p1.state === 'playing' && p2?.playing && strum >= 1, `▶ plays the clip from a blob: URL, looped, at half volume or less (${p1 ? p1.vol.toFixed(2) : 'no audio'}); Dry swaps to the input clip and keeps playing`);
+      await o.page.click('.cs-entry[data-id="test-person.slow-echo"] .cs-play');
+      for (const id of ['test-person.loud-type', 'test-person.too-big']) await o.page.click(`.cs-entry[data-id="${id}"] .cs-play`);
+      await o.page.waitForTimeout(600);
+      const refusedClips = await o.page.evaluate(() => ['test-person.loud-type', 'test-person.too-big'].map((id) => { const e = document.querySelector(`.cs-entry[data-id="${id}"]`); return [e.dataset.state, e.querySelector('.cs-hint').textContent]; }));
+      t.ok(refusedClips.every(([st, hint]) => st !== 'playing' && /Couldn’t play it/.test(hint)), `a clip served as something other than audio, or over 2 MB, isn't played (${refusedClips.map(([, h]) => h).join(' / ')})`);
+      const deviceFiles = requests.filter((u) => /\/(app\/community|fixture-shelf)\/devices\//.test(u) || /overdub-device\.json/.test(u));
+      t.ok(!deviceFiles.length, `the gallery fetches no device file, before or after ▶ (${deviceFiles.length})`);
+      // search: words in the name, blurb or category
+      await o.page.fill('#q', 'delay');
+      const q = await o.page.evaluate(() => [...document.querySelectorAll('.cs-entry')].filter((e) => !e.hidden).map((e) => e.dataset.id));
+      await o.page.fill('#q', '');
+      await o.page.click('#kind button[data-v="instrument"]');
+      const k = await o.page.evaluate(() => [...document.querySelectorAll('.cs-entry')].filter((e) => !e.hidden).map((e) => e.dataset.id));
+      t.ok(q.length >= 4 && !q.includes('test-person.glass-harp') && k.length === 1 && k[0] === 'test-person.glass-harp' && /[?&]kind=instrument/.test(o.page.url()), `search matches a category's name ("delay": ${q.length}), and the kind words filter (${k.join(', ')})`);
+    }
+    const errs = real(o.errors);
+    t.ok(!errs.length, `${SHELF} @${width}: no console or page errors${errs.length ? '\n       ' + errs.join('\n       ') : ''}`);
+    await o.close();
+  }
+
+  // another index (a path on this site): no House, no vouching, the source named, the link carries it
+  {
+    const o = await open(SHELF + '?community=/fixture-shelf/community-index.json', { width: 1440 });
+    await o.page.waitForFunction(() => window.__community?.ready, null, { timeout: 15000 }).catch(() => {});
+    const s = await look_(o.page);
+    t.ok(s.ready && !s.house && !s.tiers.includes('house') && !/read by a person|checked by the studio/.test(s.lede) && /that shelf’s word/.test(s.lede) && s.says >= 4 && !s.vouch
+      && /^From \/fixture-shelf\/community-index\.json: 5 devices/.test(s.line),
+      `an index that isn't the studio's own: no House section, the lede names it and drops "checked and read", numbers under "The shelf says" ("${s.line}")`);
+    t.ok(s.links['test-person.slow-echo'] === `/app/?new&community-device=test-person.slow-echo&community=${encodeURIComponent(o.base + '/fixture-shelf/community-index.json')}`, `Open in the studio carries &community= for another index (${s.links['test-person.slow-echo']})`);
+    t.ok(!real(o.errors).length, `?community=: no console or page errors${real(o.errors).length ? '\n       ' + real(o.errors).join('\n       ') : ''}`);
+    await o.close();
+  }
+  // a newer major, another site, and a page that isn't on localhost
+  {
+    const o = await open(SHELF + '?community=/fixture-shelf/newer.json', { width: 1440 });
+    await o.page.waitForFunction(() => window.__community?.ready, null, { timeout: 15000 }).catch(() => {});
+    const s = await look_(o.page);
+    await o.close();
+    const p = await open(SHELF + '?community=' + encodeURIComponent('https://example.com/community-index.json'), { width: 1440 });
+    const asked = [];
+    p.page.on('request', (r) => { if (/example\.com/.test(r.url())) asked.push(r.url()); });
+    await p.page.waitForFunction(() => window.__community?.ready, null, { timeout: 15000 }).catch(() => {});
+    const r = await look_(p.page);
+    // the same page as a visitor on another host would see it (proxied to this server): the shelf is off there
+    const port = new URL(p.base).port;
+    const ctx = await p.browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const askedOff = [];
+    await ctx.route('http://shelf.test/**', async (route) => {
+      const u = new URL(route.request().url());
+      if (/community|fixture-shelf/.test(u.pathname) && /\.json$/.test(u.pathname)) askedOff.push(u.pathname);
+      const res = await fetch(`http://localhost:${port}${u.pathname}${u.search}`);
+      route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body: Buffer.from(await res.arrayBuffer()) });
+    });
+    const pg = await ctx.newPage();
+    await pg.goto('http://shelf.test' + SHELF + '?community=/fixture-shelf/community-index.json', { waitUntil: 'load' });
+    await pg.waitForFunction(() => window.__community?.ready, null, { timeout: 15000 }).catch(() => {});
+    const off = await look_(pg);
+    await p.close();
+    t.ok(s.newer && /built for a newer studio/.test(s.empty) && !s.ids.length, `a major-2 index lists nothing and says it was built for a newer studio`);
+    t.ok(r.refused && !asked.length && /from this site or from localhost only/.test(r.empty), `?community= on another site is refused before any fetch (${asked.length} requests)`);
+    t.ok(off.off && !off.ids.length && !askedOff.length && /isn’t on here/.test(off.empty), `on a host that isn't localhost the shelf is off: no index read, whatever ?community= says (${askedOff.length} index requests)`);
+  }
+  served = false;
+
+  // held back: nothing links to it, the deploy leaves it out, the studio's snapshot is never committed, and the page's
+  // switch is the studio's
+  const sitePages = fs.readdirSync(path.join(ROOT, 'site'), { recursive: true }).filter((f) => /\.(html|txt|js|md)$/.test(f) && !f.startsWith('community')).map((f) => `site/${f}`);
+  const linking = [...sitePages, 'README.md', 'app/index.html', 'app/library.html'].filter((f) => /site\/community|\/community\/["'#?]/.test(read(f)));
+  t.ok(!linking.length, `no page links to the gallery while it's held back${linking.length ? ' (' + linking.join(', ') + ')' : ''}`);
+  const deploy = read('deploy/deploy.sh');
+  const held = (deploy.match(/^HELD_BACK=\(([^)]*)\)/m) || [])[1] || '';
+  t.ok(/\bsite\/community\b/.test(held) && /for p in "\$\{HELD_BACK\[@\]\}"[\s\S]*rm -rf "\$STAGE\/\$p"/.test(deploy), `deploy.sh holds site/community back (HELD_BACK: ${held.trim() || 'none'})`);
+  t.ok(/^\/?app\/community\/?$/m.test(read('.gitignore')), 'app/community/ (the studio\'s built snapshot) is in .gitignore');
+  const ui = path.join(ROOT, 'app/src/ui/community.js');
+  const pageLive = /export const COMMUNITY_LIVE = (true|false)/.exec(read('site/community/community.js'))?.[1];
+  const studioLive = fs.existsSync(ui) ? /COMMUNITY_LIVE\s*=\s*(true|false)/.exec(fs.readFileSync(ui, 'utf8'))?.[1] : null;
+  t.ok(pageLive === 'false' && (studioLive == null || studioLive === pageLive), `the gallery's COMMUNITY_LIVE is off${studioLive ? ` and matches the studio's (${studioLive})` : ' (the studio\'s switch isn\'t in this tree yet)'}`);
+  // its words: nothing sold, nothing called safe
+  const copy = (read('site/community/index.html') + [...read('site/community/community.js').matchAll(/(['`])((?:(?!\1).){12,})\1/g)].map((m) => m[2]).join('\n'));
+  const banned = [...copy.matchAll(/\b(safe|secure|sandboxed|verified|marketplace|buy|price[sd]?|free trial|checkout|rating)\b/gi)].map((m) => m[0]);
+  t.ok(!banned.length, `the gallery's copy says nothing about safety, verification or selling${banned.length ? ' (' + [...new Set(banned)].join(', ') + ')' : ''}`);
 }
 
 // ---- claims: what the public copy, the deck and the launch drafts say is still true of the product
@@ -463,13 +691,13 @@ for (const width of [1440, 390]) {
   console.log('\nliner notes');
   const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
   const styleOf = (f) => (/\.css$/.test(f) ? read(f) : [...read(f).matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n'));
-  const CSS = ['site/assets/site.css', 'site/docs/docs.css', 'site/press/press.css', 'app/library.html', 'app/gallery.html'];
+  const CSS = ['site/assets/site.css', 'site/docs/docs.css', 'site/press/press.css', 'site/community/community.css', 'app/library.html', 'app/gallery.html'];
   const hitsIn = (re) => CSS.flatMap((f) => styleOf(f).split('\n').filter((l) => re.test(l)).map((l) => `${f}: ${l.trim().slice(0, 100)}`));
   const stripes = hitsIn(/inset\s+-?\d+(\.\d+)?px\s+0\s+0|border-(left|right|top)(-color)?\s*:\s*[^;]*var\(--(human|agent|accent|accent-2|lane|bc)\)|border-(left|top):\s*[3-9]px solid/);
   t.ok(!stripes.length, `no coloured edge on a box in the site's or the library's CSS${stripes.length ? ':\n       ' + stripes.join('\n       ') : ''}`);
   const pills = hitsIn(/border-radius:\s*(99|999|9999)px/);
   t.ok(!pills.length, `no pill radii in the site's or the library's CSS${pills.length ? ':\n       ' + pills.join('\n       ') : ''}`);
-  const PAGES_ = ['site/index.html', 'site/press/index.html', ...fs.readdirSync(path.join(ROOT, 'site/docs')).filter((f) => f.endsWith('.html')).map((f) => `site/docs/${f}`)];
+  const PAGES_ = ['site/index.html', 'site/press/index.html', 'site/community/index.html', ...fs.readdirSync(path.join(ROOT, 'site/docs')).filter((f) => f.endsWith('.html')).map((f) => `site/docs/${f}`)];
   // the pages' own words and chrome (a doc's Markdown body is its author's: the docs' text has its own rules)
   const body = (f) => read(f).replace(/<head>[\s\S]*?<\/head>/, '').replace(/<article class="prose">[\s\S]*?<\/article>/, '').replace(/<details class="toc">[\s\S]*?<\/details>/, '').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<pre[\s\S]*?<\/pre>/g, '').replace(/<code[\s\S]*?<\/code>/g, '');
   const slates = PAGES_.filter((f) => /class="slate/.test(read(f)));

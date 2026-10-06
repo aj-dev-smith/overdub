@@ -219,6 +219,10 @@ export default async function (app) {
           if (!ds.length) kids.push(h('div.br-none', kind === 'instrument' ? 'The instruments are still loading…' : 'No effects loaded yet.'));
           out.push(section(pre, title, ds.length, kids, { open: searching }));
         }
+        // From the community (ui/community.js): code someone else wrote, so its rows behave differently on purpose (tap
+        // hears it; Try asks first). Its rows join the keyboard list here, in the order they're drawn.
+        const cs = app.community?.section?.({ q: s, searching, prefs, savePrefs, render });
+        if (cs) { out.push(cs.el); rows.push(...cs.rows); }
         if (g?.RIGS?.length) {
           const kids = [];
           let n = 0;
@@ -323,7 +327,7 @@ export default async function (app) {
       q.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowDown') { at = Math.min(rows.length - 1, at + 1); highlight(); }
         else if (e.key === 'ArrowUp') { at = Math.max(0, at - 1); highlight(); }
-        else if (e.key === 'Enter') { const r = rows[at]; if (!r) return; if (r.kind === 'rig') pickRig(r.item, r.el); else if (r.kind === 'held') askHeld(r.item); else pickDevice(r.item, e.shiftKey, r.el); }
+        else if (e.key === 'Enter') { const r = rows[at]; if (!r) return; if (r.kind === 'rig') pickRig(r.item, r.el); else if (r.kind === 'community') r.enter?.(); else if (r.kind === 'held') askHeld(r.item); else pickDevice(r.item, e.shiftKey, r.el); }
         else if (e.key === 'Escape') { if (S().trying()) backTrial('esc'); else if (q.value) { q.value = ''; render(); } else q.blur(); }
         else return;
         e.preventDefault();
@@ -363,7 +367,7 @@ export default async function (app) {
   });
 
   ui.keys.add({ key: 'Slash', run: () => { ui.show('browser'); if (!ui.isOpen('left')) ui.setOpen('left', true); setTimeout(() => view?.focus(), 0); }, label: 'Search sounds and effects', group: 'Browser' });
-  app.browser = { focus: () => { ui.show('browser'); view?.focus(); }, search(text) { ui.show('browser'); const inp = document.querySelector('.br-q'); if (inp) { inp.value = text; inp.dispatchEvent(new Event('input')); } } };
+  app.browser = { focus: () => { ui.show('browser'); view?.focus(); }, render: () => view?.render(), search(text) { ui.show('browser'); const inp = document.querySelector('.br-q'); if (inp) { inp.value = text; inp.dispatchEvent(new Event('input')); } } };
 }
 
 // The browser's own trials, for a studio without app.sounds (ui/sounds.js): the same calls, kept small. A trial is a

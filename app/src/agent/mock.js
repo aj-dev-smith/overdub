@@ -11,7 +11,8 @@
 // picked) and "make me a slow blues in E" (make_jam_track, which replaces the song: said first, asked on a card). A
 // guitar question is never a take tour. Then: the first-meeting tour (listen, point, three takes, then OFFER an effect),
 // "build me a pedal…", "give me a riff for the chorus" (the house riff writer's riffs as tab, said to be the house
-// writer's), perceptual words (warmer, brighter, lazier…), automation ("fade it in", "open the bass filter
+// writer's), "find me a delay someone made" (the community shelf's best match, offered on a card with
+// find_community_device put_on: only the person's Try lets its code run), perceptual words (warmer, brighter, lazier…), automation ("fade it in", "open the bass filter
 // over the chorus and fade the keys out over the last bar": one lane move per clause, on the track each clause names),
 // "hum me an idea", "undo", and the nearest things it has to a new part, offered as takes on their own track: a line
 // over a part (built from its notes), Band's bass (or chords, drums) around a part, a part doubled an octave up.
@@ -36,6 +37,7 @@ import { findRiffStyle, RIFF_STYLES } from '../core/riff.js';
 import { chordTimeline, makeLick, findJamStyle, JAM_STYLES } from '../core/jam.js';
 import { stringNumber } from '../core/fretboard.js';
 import { DEMOS } from '../core/demo.js';
+import { CAT_WORDS } from '../devices/community.js';
 
 const stopped = () => Object.assign(new Error('stopped'), { name: 'AbortError' });
 const sleep = (ms, signal) => new Promise((res, rej) => {
@@ -127,6 +129,7 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
   else if (scene === 'double') await sceneDouble(app, ctx);
   else if (scene === 'capture') await sceneCapture(app, ctx);
   else if (scene === 'auto') await sceneAuto(app, ctx);
+  else if (scene === 'shelf') await sceneShelf(app, ctx);
   else if (scene === 'device') await sceneDevice(app, ctx);
   else if (scene === 'word') await sceneWord(app, ctx);
   else if (scene === 'tour') { st.met = true; await sceneTour(app, ctx); }
@@ -322,7 +325,11 @@ const AUTO = /\b(fade[sd]?|fading|automat\w*|sweep\w*|swells?|open (up )?the fil
 const GROOVE_ASK = { test: (s) => /\b(beat|beats|groove|grooves|drums?|drum part|drum track|rhythm|pattern)\b/.test(s) && !/\b(around|under|over|behind)\b/.test(s) && !!styleIn(s) };
 // a riff ("give me a riff for the chorus", "a guitar riff over the verse", "tab for bars 5-8"): the house riff writer's
 const RIFF_ASK = /\briffs?\b|\bguitar (part|line|tabs?)\b|\btabs? (for|over)\b/;
+// a device someone else made ("find me a delay someone made", "one from the community", "an echo off the shelf"): the
+// community shelf's, offered on a card (find_community_device put_on), never a new one built from words
+const SHELF_ASK = /\b(community|(the|a|off the|from the|on the) shelf|some ?one else'?s|somebody else'?s|other people'?s|(some ?one|somebody|other people|people) (has |have )?(made|built|wrote|shared)|one that exists|already exists)\b/;
 const SCENES = [
+  ['shelf', SHELF_ASK],
   ['riff', RIFF_ASK],
   ['groove', GROOVE_ASK],
   ['undo', /\b(undo|revert|take (it|that) back|go back)\b/],
@@ -1038,6 +1045,24 @@ async function sceneTone(app, ctx) {
   const hear = audio ? 'You hear it through your guitar: open the input in Jam and turn Monitor on.' : tap ? 'Tap the neck to hear it.' : 'Play the keys or tap the neck to hear it.';
   await say(`\n\n${r.tone.name} is on ${r.track.name} now: ${lower(r.tone.for)}.${r.replaced ? ` It took the place of ${r.replaced} effect${r.replaced === 1 ? '' : 's'}; Undo puts ${r.replaced === 1 ? 'it' : 'them'} back.` : ''} ${hear} In Jam, ${tap ? 'the arrows beside its name' : '[ and ]'} flip through the rest.`);
   fine(`${r.tone.name} (${r.tone.bank}): ${(r.chain || []).join(' → ')}.`);
+}
+
+// "Find me a delay someone made": the community shelf, searched by the ask's own sound word, and the best match put on a
+// card for the selected track (find_community_device put_on). The card is the person's: ▶ plays its clip, Try asks them
+// before any of its code runs here. The demo never presses it.
+async function sceneShelf(app, { say, fine, tool, t: text }) {
+  const words = text.split(/[^a-z0-9]+/).filter(Boolean);
+  const query = words.find((w) => w.length > 2 && Object.values(CAT_WORDS).some((ws) => ws.includes(w))) || '';
+  const kind = /\b(instruments?|synths?|keys|piano|organ|drum ?kits?|plucks?)\b/.test(text) ? 'instrument' : /\b(effects?|pedals?|delays?|echo(es)?|reverbs?|drives?|fuzz|chorus|compressors?)\b/.test(text) ? 'effect' : null;
+  let found = await tool('find_community_device', { ...(query ? { query } : {}), ...(kind ? { kind } : {}), limit: 5 });
+  if (found.error) { await say(`${found.error} Ask me to build one instead and I'll write it for this song.`); return; }
+  if (!found.results?.length && query) found = await tool('find_community_device', { ...(kind ? { kind } : {}), limit: 5 });
+  const best = found.results?.[0];
+  if (!best) { await say('The community shelf has nothing like that yet. Ask me to build one and I\'ll write it for this song.'); return; }
+  const r = await tool('find_community_device', { put_on: { id: best.id } });
+  if (r.error) { await say(`I found ${best.name} on the community shelf, but couldn't put it on a card: ${r.error}.`); return; }
+  await say(`From the community shelf: ${best.name}, by ${best.author}. ${best.blurb ? `${cap(best.blurb)}. ` : ''}It's on a card for ${r.on}: ▶ plays what it sounded like when it was rendered for the shelf, and Try asks you before any of its code runs here. Nothing has changed yet.`);
+  fine(`${found.results.length} on the shelf${query ? ` for “${query}”` : ''}${best.measured?.in_words ? `; ${best.name}: ${best.measured.in_words}` : ''}`);
 }
 
 // "Make me a slow blues in E": the house band's jam track (make_jam_track) in the style, key and tempo the ask names (a

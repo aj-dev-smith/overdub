@@ -230,6 +230,7 @@ export function chipFor(app, name, input = {}, result = {}) {
     case 'write_tab': return { icon: '✎', text: 'wrote a riff as tab', target: result.targets };
     case 'suggest_riff': return { icon: '⇄', text: `offered ${(result.takes || []).length || ''} riffs`.replace('  ', ' ') };
     case 'share_link': return { icon: '🔗', text: 'made a share link' };
+    case 'find_community_device': return result.offered ? { icon: '⇄', text: `suggested ${result.on ? `a community device for ${result.on}` : 'a community device'}` } : { icon: '⌕', text: Array.isArray(result.results) ? `looked on the community shelf (${result.results.length})` : 'looked on the community shelf' };
     case 'provenance_report': return { icon: '📖', text: 'read who wrote what' };
     case 'workspace': {
       // the agent's one plain line of why, after what it did (never in the top bar's note)
@@ -1520,6 +1521,15 @@ async function defineDevice(app, by, device, input, signal = null) {
       kept = held.find((x) => { const src = P(app).devices?.[x.id]?.kernel; return typeof src === 'string' && kernelPrint(src) === mine; }) || null;
     }
     if (kept) return { refused: true, reason: `that code is ${String(kept.name).slice(0, 100)}'s, which is held`, error: `that kernel is the code of ${String(kept.name).slice(0, 100)} (${kept.id}), which came with the song and is kept off on this computer (as it is, or with its names, comments or spacing changed): its code hasn't been allowed to run here, and only the person can let it play`, hint: 'nothing was defined or run. Write your own kernel under your own id, or tell the human it is kept off (Play them, in the studio, is theirs to press)' };
+  }
+  // A community device's code (ui/community.js) is someone else's: it reaches a song through the person's Try, never as
+  // an agent's own device (it would launder the code and its credit through the agent, past the trust prompt). Known as
+  // it is or with its names, comments or spacing changed. This stops laundering; it doesn't stop an agent writing
+  // hostile code of its own.
+  {
+    let shelf = null;
+    try { shelf = await app.community?.matchKernel?.(d.kernel); } catch (e) { shelf = null; }
+    if (shelf) return { refused: true, reason: `that code is ${String(shelf.name).slice(0, 60)} from the community shelf`, error: `That's ${String(shelf.name).slice(0, 60)} from the community shelf. Suggest it with find_community_device put_on; the person allows it.`, hint: `nothing was defined or run. find_community_device { put_on: { id: "${shelf.id}" } } puts it on a card for the person` };
   }
   d.params = (d.params || []).map((p) => (Array.isArray(p) ? p : { ...p }));
   d.by = by; d.cat = d.cat || (d.kind === 'instrument' ? 'synth' : 'other');

@@ -623,6 +623,12 @@ an effect, or a mix move, goes straight through as usual, and after Make it your
   your mix's numbers beside it, and **A** and **B** switch between your mix and the reference, played at your mix's
   loudness. Ask the agent how yours compares and it measures both (`compare_to_reference`).
 
+- **A device from the community shelf** (a studio on your own computer only, for now). Open **Instruments and
+  effects** (in Simple view: More, then type *community*) and scroll to **From the community**. ▶ on a row plays a
+  recording of the device; nothing of it runs. Tap the row for what it does, who made it, and its code to read. **Try**
+  isn't open yet. When it is, **Try on Vocals** (or whichever track is selected) asks whether to run code someone else
+  wrote before anything plays; a new track comes with two bars to hear the device on, and Undo takes it all back.
+
 ## Take it elsewhere
 
 The Song menu's **Export** section:

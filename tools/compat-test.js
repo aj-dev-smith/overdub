@@ -2,8 +2,8 @@
 // a phone (Chromium at 390x844 with touch). Per browser: it boots without errors, every device instantiates and
 // renders, the demo renders offline and plays live, kernels compile, the guitar track and the faces work, the agent
 // panel and Sketch work (Web MIDI and fake mics differ: they degrade, never throw), a take records from the fake input,
-// the CSS the studio leans on is there, and the landing page's film plays (Range requests). The studio, the library and
-// the gallery run under their content security policies with no violation; every AudioWorklet module is a file on the
+// the CSS the studio leans on is there, and the landing page's film plays (Range requests). The studio, the library,
+// the gallery and the community shelf's gallery (a clip from a blob: URL) run under their content security policies with no violation; every AudioWorklet module is a file on the
 // studio's origin; and markup can't run script there: an injected inline script and an <iframe srcdoc> with a data:
 // script don't run, and a worklet module from a data: or blob: URL is refused. And the simple view (?view=simple, clean
 // storage) boots in each with no errors, on a blank song, and its More opens and closes.
@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
-import { startServer, ready, byteRange } from '../server/serve.js';
+import { startServer, ready, byteRange, addRoute } from '../server/serve.js';
 import { OUTDIR, tally, QUIET } from './pw.js';
 
 const require = createRequire(import.meta.url);
@@ -406,6 +406,53 @@ async function pages(b, base, tag) {
   }
 }
 
+// ------------------------------------------------------------------------------------------------ the community shelf's gallery
+// site/community/ is another page on the key's origin (docs/COMMUNITY-SHELF.md section 4): its policy is in force, its
+// faces draw from an index, and a clip plays from a blob: URL in each browser. The index is a one-entry fixture served
+// from memory as the studio's own copy (/app/community/), so nothing real is committed.
+const SHELF_FIX = (() => {
+  const sr = 8000, n = sr, wav = Buffer.alloc(44 + n * 2);
+  wav.write('RIFF', 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write('WAVE', 8); wav.write('fmt ', 12); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sr, 24); wav.writeUInt32LE(sr * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) wav.writeInt16LE(Math.round(3000 * Math.sin(2 * Math.PI * 330 * i / sr)), 44 + i * 2);
+  const index = JSON.stringify({ format: 'overdub-community-index/1', built: { from: 'overdub-devices@test', at: '2026-10-05T00:00:00Z' }, repo: null,
+    inputs: { strum: { seconds: 1, lufs: -18, clips: [{ src: 'clips/strum.wav', type: 'audio/wav' }] } }, revoked: [],
+    devices: [{ id: 'test-person.slow-echo', name: 'Slow Echo', kind: 'effect', cat: 'time', blurb: 'Echoes for the test', tier: 'community', author: { handle: 'test-person', alias: null },
+      agent: 'Claude', license: 'MIT-0', sha256: 'a'.repeat(64), added: '2026-10-05', look: { color: '#2f3b46', shape: 'box' },
+      params: [{ key: 'mix', label: 'MIX', min: 0, max: 100, def: 30, unit: '%' }], presets: [], measured: { ok: true, deltaLU: 0, truePeak: -6, tail: 1, cpu: 1 },
+      preview: { input: 'strum', seconds: 1, lufs: -18, wet: { clips: [{ src: 'clips/slow-echo.wav', type: 'audio/wav' }] }, dry: 'strum' },
+      device: 'devices/test-person.slow-echo.overdub-device.json', source: { path: 'devices/test-person/slow-echo', commit: '249eac3', url: null } }] });
+  return { 'community-index.json': ['application/json', index], 'clips/strum.wav': ['audio/wav', wav], 'clips/slow-echo.wav': ['audio/wav', wav] };
+})();
+addRoute('/app/community/', (req, res, url) => {
+  const f = SHELF_FIX[url.pathname.slice('/app/community/'.length)];
+  if (!f) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('no'); return true; }
+  res.writeHead(200, { 'content-type': f[0], 'content-length': String(Buffer.byteLength(f[1])) });
+  res.end(req.method === 'HEAD' ? undefined : f[1]);
+  return true;
+});
+async function shelf(b, base, tag) {
+  const { page, errors, offsite } = await openPage(b, base, '/site/community/');
+  const ok = await page.waitForFunction(() => window.__community?.ready, null, { timeout: 30000 }).then(() => true, () => false);
+  const faces = await page.evaluate(() => document.querySelectorAll('.cs-face [data-face]').length);
+  let played = null;
+  if (ok) {
+    await page.click('.cs-entry[data-id="test-person.slow-echo"] .cs-play').catch(() => {});
+    played = await page.waitForFunction(() => { const a = window.__community.player.audio; return a && a.currentTime > 0.05 && { blob: a.src.startsWith('blob:'), t: a.currentTime }; }, null, { timeout: 10000 }).then((h) => h.jsonValue(), () => null);
+    await page.evaluate(() => window.__community.stop());
+  }
+  // (the page probes for the shared reader, app/src/devices/community.js, until Work package 1 lands: Firefox reports
+  // the missing module as a disallowed MIME type)
+  const readerThere = fs.existsSync(new URL('../app/src/devices/community.js', import.meta.url));
+  const errs = real(errors).filter((e) => readerThere || !/devices\/community\.js[^]*MIME type/.test(e));
+  await page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-community.png`) });
+  const pol = await policy(page);
+  T.ok(ok && faces === 1 && played?.blob && !errs.length && !pol.seen.length && pol.first && !pol.ran && pol.refused && pol.srcdocLoaded && !pol.srcdoc && !pol.wdata && !pol.wblob,
+    `${tag}: the community gallery runs under its policy, draws its face, plays a clip from a blob: URL (${played ? played.t.toFixed(2) + ' s' : 'no'}) and refuses injected script; no violation or error${list([...pol.seen, ...errs], 5)}`);
+  T.ok(!offsite.length, `${tag}: the community gallery asked no host but the site for anything${offsite.length ? ' (asked ' + hostsOf(offsite) + ')' : ''}`);
+  await page.close();
+}
+
 // ------------------------------------------------------------------------------------------------ the landing page
 async function landing(b, base, tag) {
   const { page, errors, offsite } = await openPage(b, base, '/');
@@ -715,7 +762,7 @@ try {
     const t0 = Date.now();
     try {
       if (b.phone) await phoneLoop(b, srv.url, kind);
-      else { await studio(b, srv.url, kind); await landing(b, srv.url, kind); await pages(b, srv.url, kind); }
+      else { await studio(b, srv.url, kind); await landing(b, srv.url, kind); await pages(b, srv.url, kind); await shelf(b, srv.url, kind); }
     } catch (e) { T.ok(false, `${kind}: the run finished (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); }
     try { await simple(b, srv.url, kind); } catch (e) { T.ok(false, `${kind}: the simple view's run finished (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); }
     T.note(`${kind}: ${((Date.now() - t0) / 1000).toFixed(1)} s`);

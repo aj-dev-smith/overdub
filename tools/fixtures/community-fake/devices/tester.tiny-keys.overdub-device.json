@@ -1,0 +1,33 @@
+{
+  "format": "overdub-device/0",
+  "exported": "2026-10-05T00:00:00.000Z",
+  "device": {
+    "id": "tester.tiny-keys",
+    "name": "Tiny Keys",
+    "kind": "instrument",
+    "cat": "keys",
+    "blurb": "A test instrument: a sine with an envelope",
+    "by": "claude",
+    "look": {
+      "color": "#2f3b46",
+      "ink": "#e8f1f7",
+      "shape": "box",
+      "finish": "brushed",
+      "knob": "chrome",
+      "label": "plate",
+      "led": "#7fd1ff"
+    },
+    "params": [
+      {
+        "key": "release",
+        "label": "RELEASE",
+        "min": 0.01,
+        "max": 2,
+        "def": 0.2,
+        "unit": "s",
+        "role": "release"
+      }
+    ],
+    "kernel": "({\n  poly: 6,\n  create({ sr, seed, dsp }) {\n    return {\n      voice() {\n        const o = dsp.osc('sine'), env = dsp.adsr();\n        let vel = 0;\n        return {\n          start(pitch, v, p) { o.freq(dsp.mtof(pitch)); vel = v; env.gate(true); },\n          release(p) { env.gate(false); },\n          render(L, R, n, p) {\n            env.set(0.005, 0.2, 0.5, p.release);\n            const g = 0.25 * (0.3 + 0.7 * vel);\n            for (let i = 0; i < n; i++) { const y = o.next() * env.next() * g; L[i] += y; R[i] += y; }\n            return env.active();\n          },\n        };\n      },\n    };\n  },\n})"
+  }
+}

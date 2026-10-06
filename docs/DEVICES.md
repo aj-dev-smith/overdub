@@ -280,6 +280,15 @@ from people you trust. Importing one trusts its code in this browser (you chose 
 what your agent writes. A share link (`#s=`) or a song file carries the song's devices, kernels included; the ones
 this browser hasn't trusted are held, and the studio asks before they run.
 
+**Trying a community device** (a local studio only, and Try is held until the worklet's prototypes are frozen:
+docs/COMMUNITY-SHELF.md). The Browser's **From the
+community** lists the shelf's devices with their author and the agent that wrote them. ▶ plays the clip rendered for
+the shelf. **Try** fetches the device file, refuses it unless its kernel matches the shelf's fingerprint, asks whether
+to run code someone else wrote, runs the device check, and puts it on the selected track (or a new one, with two bars to
+hear it on) as one step you can undo. The song gets the shelf's name and request for it and a `credit` (who asked for
+it, the agent, the licence, the kernel's hash); the device is yours (`by: 'you'`), as an imported file is. Unticked,
+**Run it in any song from now on** trusts the code until you reload; after that the song holds it and asks again.
+
 ## Drum kits and the note map
 
 Three built-in kits sit on the drums shelf (`cat: 'drums'`). Every kit plays the drum phrase in the device check, and

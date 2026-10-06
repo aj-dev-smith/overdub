@@ -76,6 +76,9 @@ export function startServer({ port = Number(process.env.PORT) || 3279, host = '1
       for (const r of routes) if (url.pathname.startsWith(r.prefix) && (await r.handler(req, res, url))) return;
       if (url.pathname === '/app/site-config.json' && !fs.existsSync(path.join(ROOT, 'app/site-config.json'))) return siteConfig(res);
       const abs = resolvePath(url.pathname);
+      // the community shelf's bundled copy (gitignored; overdub-devices' tools/index.js writes it): when there isn't one,
+      // "no shelf here" is an empty answer, not a 404 every local page load would log (ui/community.js reads it)
+      if (url.pathname === '/app/community/community-index.json' && (!abs || !fs.existsSync(abs))) { res.writeHead(204, { 'cache-control': 'no-store' }); return res.end(); }
       if (!abs || !fs.existsSync(abs) || fs.statSync(abs).isDirectory()) {
         res.writeHead(404, { 'content-type': 'text/plain' });
         return res.end('not found: ' + url.pathname);

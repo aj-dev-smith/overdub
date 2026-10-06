@@ -24,6 +24,11 @@
 //     trust.migrate(songs) -> { ran, added }   the one-time migration: the first time (the key isn't there yet) every
 //                                              kernel in these songs is trusted and the key is written; after that,
 //                                              nothing
+//     trust.allowForNow(sources | hashes) -> n  trust them for this page load only (never stored: a reload holds them
+//                                              again); the community shelf's Try, unticked
+//     trust.forNow(hash)                       is it trusted for this page load only (not stored, not shipped)?
+//     trust.forget(sources | hashes) -> n      trust them no more (stored and this page load's); n: how many were
+//                                              stored. A shipped kernel can't be forgotten
 //     trust.reload()                           read the stored set again (another tab changed it)
 //     trust.size, trust.stored                 how many are stored; whether the store is there (storage can be blocked)
 //     trust.since                              when this browser's set began (ms; the migration's moment), or null: a
@@ -112,6 +117,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
   let present = false;        // the key was there when last read (the migration has run)
   let since = null;           // when the set began
   let ship = null;            // the studio's own: worked out once, never stored
+  const now1 = new Set();     // trusted for this page load only (allowForNow): never stored
   const read = () => {
     list = []; present = false; since = null;
     try {
@@ -151,7 +157,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
     key: TRUST_KEY,
     has(hash) {
       if (!hash) return false;
-      if (set.has(hash)) return true;
+      if (set.has(hash) || now1.has(hash)) return true;
       return shippedSet().has(hash);
     },
     trusts(source) { return trust.has(kernelHash(source)); },
@@ -165,6 +171,26 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
       }
       if (added) write();
       return added;
+    },
+    allowForNow(items) {
+      let added = 0;
+      for (const x of Array.isArray(items) ? items : [items]) {
+        const h = asHash(x);
+        if (!h || set.has(h) || now1.has(h) || shippedSet().has(h)) continue;
+        now1.add(h); added++;
+      }
+      return added;
+    },
+    forNow: (hash) => !!hash && now1.has(hash) && !set.has(hash),
+    forget(items) {
+      const gone = new Set();
+      for (const x of Array.isArray(items) ? items : [items]) { const h = asHash(x); if (h) { now1.delete(h); if (set.has(h)) gone.add(h); } }
+      if (!gone.size) return 0;
+      // (re-read first, so another tab's additions since aren't lost when this writes)
+      read();
+      list = list.filter((h) => !gone.has(h)); set = new Set(list);
+      try { if (storage) storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since: since ?? now() })); } catch (e) { /* blocked: this session only */ }
+      return gone.size;
     },
     migrate(songs) {
       if (present) return { ran: false, added: 0 };
