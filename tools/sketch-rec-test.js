@@ -25,6 +25,16 @@
 //      became and Keep on screen, nothing off the edge); Keep goes where Record's picker says (one picker); a 3-bar hum
 //      over a 2-bar beat is still offered "Make it 8 bars".
 //  15. the hum dial and musical typing spell the song's key: C minor's Eb, Ab and Bb, never D# G# A#.
+//  16. capture-timing (AJ, 2026-10-05: "it's just HARD to do in time"), each on a blank song in the simple view, played
+//      by a sloppy human (tools/sloppy.js): Tap a beat with the beat where the eyes are (the band: lamps in the head,
+//      lit on the beat, the count-in counting up with them, 1 2 3 4, the beat waited out dimmer), R late in a bar still
+//      counting a whole bar and starting at the 2-bar loop's top, two passes
+//      tapped late, early and rushed, a miss in the first replaced by the second, the take and the Drums it was made
+//      for one undo step, and Tight / Loose / As played after; Tap it with the click off: no count, taps in their own
+//      time and drifting, the song's tempo and beat built from them, one undo step; Hum it with the click off: a sloppy
+//      hum (the fake mic) comes back with the rhythm sung, at the tempo hummed, on a new Melody; Hum it with the click:
+//      a bar of count-in, the hum on a new Melody, nothing sung in the count stacked on beat 1. 16e: a beat played 130
+//      to 175 ms behind the click lands on its beats (the take's lean out) and says so; As played puts the lean back.
 //  0, 12, 12b, 13. fresh eyes 5: the keys snap by default, and the line over them says so ("Snapping to 1/16, in C
 //      minor"): its words for every state (Node), docked in Play it and in view while R records; each part a click that
 //      turns its helper off ("Your timing", "every note") and on, announced and kept across a reload, floating too, with
@@ -32,7 +42,9 @@
 //      keys, its parts 40 px to a finger, in view while a take records.
 //
 //   node tools/sketch-rec-test.js
-import { open, tally } from './pw.js';
+import { open, tally, OUTDIR } from './pw.js';
+import path from 'node:path';
+import { perform, sloppyHum, wav } from './sloppy.js';
 
 const t = tally('sketch-rec');
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
@@ -187,7 +199,7 @@ try {
   await page.waitForTimeout(120);
   const ro = await E(() => ({ r: window.overdub.sketch.ruler().readout, text: document.querySelector('.sk-pass')?.textContent || '', shown: !document.querySelector('.sk-pass')?.hidden }));
   const want = ms.reduce((a, m) => a + (m.raw - m.t) * spbMs, 0) / Math.max(1, ms.length);
-  const mm = /^Pass 1: 3 hits, (\d+) ms (late|early) on average$|^Pass 1: 3 hits, on the grid on average$/.exec(ro.text);
+  const mm = /^Pass 1: 3 hits, (?:(\d+) ms (late|early)|on the grid) on average(?:; (\d+) nudged into place, (\d+) ms at most)?$/.exec(ro.text);
   const said = mm ? (mm[1] ? (+mm[1]) * (mm[2] === 'late' ? 1 : -1) : 0) : NaN;
   t.ok(ro.shown && !!mm && ro.r?.hits === 3 && ro.r?.pass === 1, `after the pass, one line under the ruler: "${ro.text}"`);
   t.ok(near(said, want, 1) && near(ro.r?.ms, want, 0.15), `its number is the taps' mean distance from the grid: ${said} ms said, ${want.toFixed(1)} ms from where the keys went down`);
@@ -580,7 +592,8 @@ try {
     await P(() => { window.__on = []; const e = window.overdub.engine, on = e.liveNoteOn.bind(e); e.liveNoteOn = (t, p, v) => { window.__on.push(p); return on(t, p, v); }; });
     // a take with R: eight keys, a little off the beat
     await pg.keyboard.press('KeyR');
-    for (let i = 0; i < 60 && (await P(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await pg.waitForTimeout(50);
+    // (R while the loop plays counts in a whole bar, and waits for the loop's top when that is at most a bar more)
+    for (let i = 0; i < 160 && (await P(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await pg.waitForTimeout(50);
     // (a pass recorded with R is snapped as it records: the line stays in view, saying so, while it does)
     const rl = await seeLine('.ew-qw .ew-snap');
     t.ok(rl.st === 'rec' && rl.docked && rl.on && rl.line === 'Snapping to 1/16, in C minor', `while R records, the line stays in view over the keys: "${rl.line}" (${rl.st}, in view ${rl.on})`);
@@ -940,5 +953,213 @@ try {
   t.ok(false, 'threw: ' + (e && e.stack || e));
 } finally {
   await close();
+}
+
+/* ---- 16. capture-timing: forgiving capture, on a blank song in the simple view */
+async function blank({ fakeAudio = null } = {}) {
+  const s = await open('/app/', { query: 'view=simple&new', width: 1440, height: 900, fakeAudio });
+  await s.page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+  await s.page.evaluate(async () => { await window.overdub.engine.start(); });
+  const ev = (f, a) => s.page.evaluate(f, a);
+  const door = (label) => ev((l) => [...document.querySelectorAll('.ar-empty-actions button')].find((b) => b.textContent.trim() === l)?.click(), label);
+  const song = () => ev(() => { const a = window.overdub, p = a.store.get(); return { tempo: p.tempo, hist: a.store.history.length, labels: a.store.history.map((x) => x.label), tracks: p.tracks.map((t) => ({ name: t.name, device: t.instrument?.device, clips: t.clips.filter((c) => !c.mute).map((c) => ({ start: c.start, length: c.length, notes: c.notes.map((n) => ({ p: n.p, t: n.t, d: n.d })) })) })) }; });
+  return { ...s, ev, door, song };
+}
+const NAME = { 36: 'K', 38: 'S', 42: 'h' }, KEY = { 36: 'KeyF', 38: 'KeyJ', 42: 'KeyK' };
+const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().join(' ');
+
+// 16a. Tap a beat: the band, a whole count-in, sloppy passes, a miss replaced, one undo, Tight / Loose / As played
+{
+  const s = await blank();
+  const { page, ev, door, song } = s;
+  try {
+    const spbMs = await ev(() => 60000 / window.overdub.store.get().tempo);
+    const untilGrid = async (g) => { for (let i = 0; i < 4000; i++) { const x = await ev(() => window.overdub.engine.gridBeat ?? -1e9); if (x >= g - 0.006) return x; await page.waitForTimeout(Math.max(1, Math.min(120, (g - x) * spbMs - 14))); } return null; };
+    await door('Tap a beat');
+    await page.waitForTimeout(1200);
+    // the band: in the stage's head, four lamps (bar 1 wider) you can see from across the room, lit on the beat you hear
+    const lamps = [];
+    for (let i = 0; i < 6; i++) { lamps.push(await ev(() => { const b = document.querySelector('.sk-band .sk-beats'), e = window.overdub.engine, r = b?.querySelector('i:not(.one)')?.getBoundingClientRect(), one = b?.querySelector('i.one')?.getBoundingClientRect(); return { inHead: !!b?.closest('.sk-head'), lit: +b?.dataset.beat, want: ((Math.floor(e.beat + 1e-6) % 4) + 4) % 4, w: r?.width, h: r?.height, one: one?.width, n: b?.querySelectorAll('i.now').length }; })); await page.waitForTimeout(170); }
+    t.ok(lamps.every((x) => x.inHead && x.h >= 28 && x.w >= 30 && x.one > x.w && x.n === 1) && lamps.filter((x) => x.lit === x.want).length >= 5, `the beat where the eyes are: four lamps in Sketch's head, ${Math.round(lamps[0].w)}×${Math.round(lamps[0].h)} px (bar 1 ${Math.round(lamps[0].one)} wide; they were 18×12 at the window's foot), the lit one the beat you hear (${lamps.map((x) => `${x.lit}/${x.want}`).join(' ')})`);
+    // R late in bar 2 (3.7 beats in): a whole bar still counts in (it used to be 171 ms here), and the take starts at the
+    // 2-bar loop's top (what you play first is bar 1). The numerals count up with the lamps, 1 2 3 4, bright in the
+    // count-in's own bar; the beat waited out before it is counted dimmer (it used to show nothing, then 4 3 2 1)
+    const base = await ev(() => { const e = window.overdub.engine; return e.gridBeat - e.beat; });
+    let gR = base + 7.7; const g0n = await ev(() => window.overdub.engine.gridBeat); while (gR < g0n + 0.4) gR += 8;
+    await untilGrid(gR);
+    await page.keyboard.press('KeyR');
+    await page.waitForTimeout(30);
+    const c0 = await ev(() => { const L = window.overdub.input.recorder.live(), n = document.querySelector('.sk-band .sk-counting'); return { st: L.state, left: L.counting?.beats, from: L.from, num: n?.textContent, wait: !!n?.classList.contains('wait'), click: window.overdub.engine.click.on, line: document.querySelector('.sk-band .sk-where')?.textContent }; });
+    const g0 = (await ev(() => window.overdub.engine.gridBeat)) + c0.left;
+    const nums = [];
+    let lastLine = '';
+    for (let g = g0 - 3.75; g < g0 - 0.2; g += 0.5) { await untilGrid(g); nums.push(await ev(() => { const n = document.querySelector('.sk-band .sk-counting'); return (n?.textContent || '-') + (n?.classList.contains('wait') ? '·' : ''); })); }
+    lastLine = await ev(() => document.querySelector('.sk-band .sk-where')?.textContent || '');
+    t.ok(c0.st === 'count' && c0.left >= 3.75 && c0.click && c0.from === 0 && c0.num === '4' && c0.wait && /loop’s top/.test(c0.line) && nums.join('') === '11223344' && /come in right after the 4/.test(lastLine),
+      `R late in bar 2 counts a whole bar with the click (${c0.left.toFixed(2)} beats to the downbeat), from the loop's top (bar ${c0.from / 4 + 1}); the beat waited out is a dim ${c0.num} ("${c0.line}"), then the count goes up with the lamps (${nums.join(' ')}): "${lastLine}"`);
+    // two passes, played sloppily: kick 1 3, snare 2 4 (two bars), each hit off by up to ±35 ms and the snares rushed 30 ms;
+    // in the first time round the snare on beat 2 is 160 ms late (past what the grid forgives: it lands a sixteenth on), and pass 2 plays it again in time
+    const pat = [[0, 36], [1, 38], [2, 36], [3, 38], [4, 36], [5, 38], [6, 36], [7, 38]];
+    const passes = [perform(pat, { bpm: 120, bars: 1, bpb: 8, jitter: 0.02, rush: { 38: 0.03 }, start: 0, seed: 3 }), perform(pat, { bpm: 120, bars: 1, bpb: 8, jitter: 0.02, rush: { 38: 0.03 }, start: 0, seed: 4 })];
+    passes[0].find((h) => h.want === 1).t += 0.16;
+    const plan = [];
+    passes.forEach((ps, k) => ps.forEach((h) => plan.push({ g: g0 + k * 8 + h.t / (spbMs / 1000), code: KEY[h.p] })));
+    plan.sort((a, b) => a.g - b.g);
+    await ev(() => { window.__kd = []; window.addEventListener('keydown', (e) => { const en = window.overdub.engine; if (!e.repeat) window.__kd.push(en.gridBeat + (en.beatAt(e.timeStamp) - en.beat)); }, true); });
+    for (const x of plan) { await untilGrid(x.g); await page.keyboard.down(x.code); await page.waitForTimeout(20); await page.keyboard.up(x.code); }
+    const kd = await ev(() => window.__kd);
+    await untilGrid(g0 + 16.2);
+    const ro = await ev(() => window.overdub.sketch.ruler().readouts.map((r) => r.text));
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(900);
+    const a1 = await song();
+    const offs = kd.map((g, i) => Math.round((g - Math.round(g * 2) / 2) * spbMs));
+    t.ok(a1.tracks.length === 1 && a1.tracks[0].name === 'Drums' && a1.tracks[0].clips.length === 1 && notesText(a1.tracks[0].clips[0].notes) === notesText(pat.map(([b, p]) => ({ p, t: b }))),
+      `what was meant comes out: K S K S on the beats of bars 1–2 (${notesText(a1.tracks[0]?.clips[0]?.notes || [])}), from 16 taps up to ${Math.max(...offs.map(Math.abs))} ms off (${offs.join(' ')} ms), the late one replaced by its second go`);
+    t.ok(ro.some((x) => /replaced a miss/.test(x)) && ro.every((x) => /^Pass \d: \d+ hits, /.test(x)), `and the pass line says so, measured from where each hit went in (${ro.join(' | ')})`);
+    t.ok(a1.hist === 2, `the take and the Drums it was made for are one undo step (History: the loop, then the take: ${a1.hist})`);
+    // Tight / Loose / As played
+    const tl = await ev(async () => {
+      const a = window.overdub, at = () => a.store.get().tracks[0].clips[0].notes.map((n) => n.t);
+      const b = document.querySelector('.sk-band .sk-timing'), btn = (l) => [...b.querySelectorAll('button')].find((x) => x.textContent === l);
+      const out = { shown: !!b && !!btn('Tight'), tight: at() };
+      btn('As played').click(); await new Promise((r) => setTimeout(r, 60)); out.played = at();
+      btn('Loose').click(); await new Promise((r) => setTimeout(r, 60)); out.loose = at();
+      btn('Tight').click(); await new Promise((r) => setTimeout(r, 60)); out.back = at();
+      out.hist = a.store.history.slice(-3).map((x) => x.label);
+      return out;
+    });
+    const dev = (xs) => Math.max(...xs.map((x, i) => Math.abs(x - tl.tight[i])));
+    t.ok(tl.shown && dev(tl.played) > 0.03 && Math.abs(dev(tl.loose) - dev(tl.played) / 2) < 0.02 && dev(tl.back) < 1e-6 && tl.hist.join() === 'timing: as played,timing: loose,timing: tight', `after the take, its timing: As played puts the hits back where they fell (up to ${dev(tl.played).toFixed(2)} beats off), Loose half way, Tight on the grid again, each an undo step (${tl.hist.join(', ')})`);
+    for (let i = 0; i < 4; i++) await ev(() => window.overdub.store.undo());
+    const u = await song();
+    t.ok(u.tracks.length === 0 && u.hist === 1, `one undo after the timing steps takes the take and its Drums out together (${u.tracks.length} tracks; ${u.hist} left in History, the loop)`);
+    t.ok(!s.errors.length, `16a: no page errors${s.errors.length ? ': ' + s.errors.slice(0, 2).join(' | ') : ''}`);
+  } catch (e) { t.ok(false, '16a threw: ' + (e && e.stack || e)); }
+  finally { await s.close(); }
+}
+
+// 16e. the player who waits to hear the click (the capture review: 85 to 180 ms late, every hit on an "and"): a take of
+// kick and snare, each hit 150 ms behind the click (with 25 ms of slop), lands on the beats, and the take says so; As
+// played puts the lean back, Loose keeps the feel without it. Hits are handed in on the take's grid (recorder.hit with g),
+// so the check doesn't hang on the page's timers.
+{
+  const s = await blank();
+  const { page, ev, door, song } = s;
+  try {
+    await door('Tap a beat');
+    await page.waitForTimeout(1000);
+    await page.keyboard.press('KeyR');
+    for (let i = 0; i < 120 && (await ev(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await page.waitForTimeout(50);
+    const offs = [0.31, 0.26, 0.33, 0.27, 0.3, 0.35, 0.28, 0.3];   // (beats at 120: 130 to 175 ms late)
+    const r = await ev(async (offs) => {
+      const a = window.overdub, rec = a.input.recorder, e = a.engine, L = rec.live(), g0 = e.gridBeat - (L.now - L.from);
+      offs.forEach((o, b) => rec.hit(b % 2 ? 'snare' : 'kick', 0.8, { g: g0 + b + o }));
+      const res = await rec.stop();
+      const at = () => a.store.get().tracks.find((t) => /Drums/.test(t.name)).clips.filter((c) => !c.mute).flatMap((c) => c.notes.map((n) => ({ p: n.p, t: +(c.start + n.t).toFixed(3) })));
+      const out = { tight: at(), summary: res?.summary || '', lean: res?.lean || null, status: '' };
+      await new Promise((ok) => setTimeout(ok, 300));
+      out.status = document.querySelector('.sk-status')?.textContent || '';
+      out.readout = a.sketch.ruler().readout?.text || '';
+      out.played = (rec.retime('played'), at()); out.loose = (rec.retime('loose'), at()); rec.retime('tight');
+      return out;
+    }, offs);
+    const txt = (ns) => ns.map((n) => `${n.p === 36 ? 'K' : 'S'}@${n.t}`).sort().join(' ');
+    t.ok(txt(r.tight) === 'K@0 K@2 K@4 K@6 S@1 S@3 S@5 S@7' && r.lean && r.lean.ms >= 130 && r.lean.ms <= 170, `a beat played 130 to 175 ms behind the click lands on its beats (${txt(r.tight)}; it used to land every hit on an "and"), the lean found: ${r.lean?.ms} ms`);
+    t.ok(/You played about 1[3-7]0 ms behind the click, so your hits are on their beats; As played puts them back\./.test(r.summary) && /behind the click/.test(r.status) && /behind the click/.test(r.readout), `and says so, with the number, in the toast ("${r.summary}"), under the pads ("${r.status}") and on the pass line ("${r.readout}")`);
+    const late = r.played.every((n) => n.t % 1 > 0.2 && n.t % 1 < 0.4), loose = r.loose.every((n) => Math.abs(n.t - Math.round(n.t)) < 0.05);
+    t.ok(late && loose, `As played puts every hit back where it was played (${r.played.map((n) => n.t).join(' ')}); Loose keeps each one's feel but not the lean (${r.loose.map((n) => n.t).join(' ')})`);
+    t.ok(!s.errors.length, `16e: no page errors${s.errors.length ? ': ' + s.errors.slice(0, 2).join(' | ') : ''}`);
+  } catch (e) { t.ok(false, '16e threw: ' + (e && e.stack || e)); }
+  finally { await s.close(); }
+}
+
+// 16b. Tap it, the click off: in your own time, the grid follows you
+{
+  const s = await blank();
+  const { page, ev, song } = s;
+  try {
+    await page.keyboard.press('KeyT');
+    await page.waitForTimeout(300);
+    await page.click('.sk-band .sk-bclick');
+    await page.waitForTimeout(100);
+    const b0 = await ev(() => ({ cc: window.overdub.input.recorder.captureClick, free: window.overdub.input.recorder.wouldBeFree(), line: document.querySelector('.sk-band')?.title }));
+    await page.keyboard.press('KeyR');
+    await page.waitForTimeout(150);
+    const r0 = await ev(() => ({ st: window.overdub.input.recorder.state, free: window.overdub.input.recorder.free, playing: window.overdub.engine.playing, tracks: window.overdub.store.get().tracks.map((x) => x.name) }));
+    // a beat at 92 BPM, slowing 6% as it goes, 25 ms of slop: kick, snare and eighth hats, a kick on 3-and
+    const pat = [[0, 36], [0, 42], [0.5, 42], [1, 38], [1, 42], [1.5, 42], [2, 36], [2, 42], [2.5, 36], [2.5, 42], [3, 38], [3, 42], [3.5, 42]];
+    const hits = perform(pat, { bpm: 92, bars: 2, jitter: 0.025, drift: -0.06, start: 0.3, seed: 21 });
+    const t0 = Date.now();
+    for (const h of hits) { const w = t0 + h.t * 1000 - Date.now(); if (w > 0) await page.waitForTimeout(w); await page.keyboard.down(KEY[h.p]); await page.keyboard.up(KEY[h.p]); }
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(800);
+    const a = await song(), last = await ev(() => { const l = window.overdub.input.recorder.last; return { summary: l?.summary, bpm: l?.bpm }; });
+    const want = notesText(hits.map((h) => ({ p: h.p, t: h.want })).filter((x, i, xs) => xs.findIndex((y) => y.p === x.p && y.t === x.t) === i));
+    t.ok(!b0.cc && b0.free && /your own time/.test(b0.line) && r0.st === 'rec' && r0.free && !r0.playing && r0.tracks.join() === 'Drums', `the click off, over a blank song: R records at once in your own time, no count and nothing playing ("${b0.line}"; ${r0.st}, free ${r0.free})`);
+    t.ok(a.tracks.length === 1 && a.tracks[0].clips[0] && notesText(a.tracks[0].clips[0].notes) === want, `the beat they meant comes out on the song's own bars (${notesText(a.tracks[0]?.clips[0]?.notes || [])})`);
+    t.ok(Math.abs(a.tempo - 89) <= 3 && /The song is at \d+ BPM now, the tempo you played\./.test(last.summary), `and the song's tempo is the one they played, ${a.tempo} BPM (92 slowing to 86), said so: "${last.summary}"`);
+    await ev(() => window.overdub.store.undo());
+    const u = await song();
+    t.ok(u.tracks.length === 0 && u.tempo === 120 && u.hist === 0, `one undo: the beat, its Drums and the tempo all go (${u.tracks.length} tracks, ${u.tempo} BPM)`);
+    t.ok(!s.errors.length, `16b: no page errors${s.errors.length ? ': ' + s.errors.slice(0, 2).join(' | ') : ''}`);
+  } catch (e) { t.ok(false, '16b threw: ' + (e && e.stack || e)); }
+  finally { await s.close(); }
+}
+
+// 16c and 16d. Hum it, with the fake mic: a sloppy hum (onsets up to 60 ms off, notes let go early) at 100 BPM
+{
+  const MEL = [[60, 1], [64, 1], [67, 0.5], [69, 0.5, 1], [67, 1], [64, 0.5], [62, 0.5], [60, 2]];
+  const h = sloppyHum(MEL, { tempo: 100, sloppy: 0.06, seed: 3 });
+  const file = path.join(OUTDIR, 'sketch-sloppy-hum.wav');
+  const secs = wav(h.x, h.sr, file, { lead: 0.6, tail: 1.6 });
+  // 16c. the click off: hum in your own time
+  {
+    const s = await blank({ fakeAudio: file });
+    const { page, ev, door, song } = s;
+    try {
+      await door('Hum it');
+      await page.waitForTimeout(400);
+      await page.click('.sk-band .sk-bclick');
+      await page.click('.sk-hum');
+      await page.waitForTimeout(secs * 1000 - 600);
+      await page.click('.sk-hum');
+      await page.waitForTimeout(1200);
+      const a = await song(), last = await ev(() => window.overdub.input.recorder.last?.summary || '');
+      const mel = a.tracks[0]?.clips[0]?.notes || [];
+      const got = mel.map((n) => `${n.p}@${n.t}`).join(' '), want = h.want.map((w) => `${w.m}@${w.beat}`).join(' ');
+      t.ok(a.tracks.length === 1 && a.tracks[0].name === 'Melody' && a.tracks[0].device === 'core.keys' && got === want, `a hum in your own time comes back with the rhythm sung, on a new Melody (${got}; sung ${want})`);
+      t.ok(Math.abs(a.tempo - 100) <= 4 && /Your hum is in: 8 notes on Melody/.test(last), `at the tempo hummed: ${a.tempo} BPM ("${last}")`);
+      await ev(() => window.overdub.store.undo());
+      const u = await song();
+      t.ok(u.tracks.length === 0 && u.tempo === 120, `one undo takes the hum, its track and the tempo (${u.tracks.length} tracks, ${u.tempo} BPM)`);
+      t.ok(!s.errors.length, `16c: no page errors${s.errors.length ? ': ' + s.errors.slice(0, 2).join(' | ') : ''}`);
+    } catch (e) { t.ok(false, '16c threw: ' + (e && e.stack || e)); }
+    finally { await s.close(); }
+  }
+  // 16d. with the click: a bar of count-in, then the hum; it lands on its own new track by itself
+  {
+    const s = await blank({ fakeAudio: file });
+    const { page, ev, door, song } = s;
+    try {
+      await door('Hum it');
+      await page.waitForTimeout(400);
+      await page.click('.sk-hum');
+      await page.waitForTimeout(120);
+      const c = await ev(() => ({ st: window.overdub.input.recorder.state, click: window.overdub.engine.click.on, label: document.querySelector('.sk-hum .sk-big-l')?.textContent, line: document.querySelector('.sk-band')?.title }));
+      await page.waitForTimeout(secs * 1000 + 1200);
+      await page.click('.sk-hum');
+      await page.waitForTimeout(1500);
+      const a = await song(), last = await ev(() => ({ summary: window.overdub.input.recorder.last?.summary || '', status: document.querySelector('.sk-status')?.textContent || '' }));
+      const mel = a.tracks[0]?.clips || [];
+      const at0 = mel.flatMap((cl) => cl.notes.filter((n) => cl.start + n.t === 0)).length;
+      t.ok(c.st === 'count' && c.click && c.label === 'Cancel' && /Count-in/.test(c.line), `Hum it counts in a bar with the click (${c.st}, click ${c.click}, "${c.label}", "${c.line}")`);
+      t.ok(a.tracks.length === 1 && a.tracks[0].name === 'Melody' && mel.length >= 1 && mel[0].start === 0 && at0 <= 1 && a.hist - (/heard in your hum/.test(a.labels[1] || '') ? 1 : 0) === 1 && /Take 1 is in on Melody/.test(last.summary) && /Take 1 is in on Melody/.test(last.status),
+        `then the hum goes into the song by itself, on a new Melody from bar 1, one undo step (the key heard in it is its own, after it), nothing sung in the count stacked on beat 1 (${at0} there; ${mel.map((cl) => cl.notes.length).join('+')} notes; ${a.labels.join(' / ')}; "${last.status}")`);
+      t.ok(!s.errors.length, `16d: no page errors${s.errors.length ? ': ' + s.errors.slice(0, 2).join(' | ') : ''}`);
+    } catch (e) { t.ok(false, '16d threw: ' + (e && e.stack || e)); }
+    finally { await s.close(); }
+  }
 }
 t.done();

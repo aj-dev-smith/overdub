@@ -51,7 +51,9 @@ import initInput from '../input/index.js';
 import { ROWS } from '../input/tap.js';
 import { transcribe, keyChosen } from '../input/hum.js';
 import { spellNote, keyLabel, scalePcs, parsePc, beatsPerBar, DRUM_MAP } from '../core/music.js';
-import { barsOf, isDrumTrack as isDrumT } from '../input/recorder.js';
+import { barsOf, isDrumTrack as isDrumT, leanWords } from '../input/recorder.js';
+import { snapGentle } from '../input/timing.js';
+import { newPartFor } from '../core/sounds.js';
 
 const MODES = [
   { id: 'hum', label: 'Hum it', icon: 'hum', kbd: 'H', title: 'Hum it.', blurb: 'Sing or hum the idea. It comes back as notes, with every fix shown.' },
@@ -455,7 +457,8 @@ function mount(el, app) {
   const spbNow = () => 60 / (+store.get().tempo || 120);
   const gridQ = () => input.options.grid || 0.25;
   const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
-  const following = () => !!(eng && eng.playing) || rec.state !== 'idle';
+  // (a free take, no click and nothing playing, has no song to follow: the tap grid and the hum's roll draw it)
+  const following = () => !!(eng && eng.playing) || (rec.state !== 'idle' && !rec.free);
   const along = { marks: [], pass: 0, last: null, anchor: null, playing: false, open: new Map() };
   let recLive = null;           // the recorder's live() as of the last frame (a take in progress)
   let readout = null;           // the last pass's line: { pass, hits, ms, text }
@@ -472,10 +475,12 @@ function mount(el, app) {
   const rowOfP = (p) => (ROWS.find((r) => r.p === p || DRUM_MAP[r.id] === p) || null)?.id || null;
   // (a tap snaps to the grid; so does a note from musical typing or the touch keys while On the grid is on)
   const keysSnap = (src) => (src === 'qwerty' || /^touch/.test(src || '')) && !!input.qwerty?.quantize;
-  function mark(m) { const q = gridQ(); return { pass: along.pass, d: q, v: 0.8, held: false, ...m, t: m.kind === 'drums' || m.snap ? Math.round(m.raw / q) * q : m.raw }; }
+  // (a tap lands where the recorder would put it: an eighth when it's near one, else the grid's cell: input/timing.js)
+  function mark(m) { const q = gridQ(); return { pass: along.pass, d: q, v: 0.8, held: false, ...m, t: m.kind === 'drums' ? snapGentle(m.raw, { coarse: Math.max(q, 0.5), fine: q }) : m.snap ? Math.round(m.raw / q) * q : m.raw }; }
   // the marks to draw: the take's passes (and held keys), or what was played along since the song started
   function marksOf(L) {
     const out = [];
+    replacedIn = new Map((L.passes || []).map((ps) => [ps.n, ps.replaced || 0]));
     for (const ps of L.passes || []) {
       ps.notes.forEach((n, i) => out.push({ pass: ps.n, kind: ps.drums ? 'drums' : 'pitch', p: n.p, row: ps.drums ? rowOfP(n.p) : null, t: n.t, raw: ps.raw?.[i] ?? n.t, d: n.d, v: n.v, track: ps.track, held: false }));
     }
@@ -483,16 +488,31 @@ function mount(el, app) {
     return out;
   }
   const marksNow = () => (recLive ? { marks: marksOf(recLive), pass: recLive.pass } : { marks: along.marks, pass: along.pass });
-  // after a pass: how it sat against the click, the engineer's number (no grade)
+  // after a pass: how it sat against the click, the engineer's number (no grade). Measured against where each one
+  // landed (the cell the forgiving grid put it in, which is where it plays), so the number is honest: how far you
+  // were from what went in, and how many were nudged into place (more than 20 ms) or replaced a miss from an
+  // earlier pass (input/recorder.js settleMisses)
+  let replacedIn = new Map();
   function setReadout(n, ms0) {
     const ms = ms0.filter((m) => !m.held);
     if (!ms.length) return;
-    const q = gridQ(), spb = spbNow();
-    const offs = ms.map((m) => (m.raw - Math.round(m.raw / q) * q) * spb * 1000);
+    const spb = spbNow();
+    // (a hit just before the loop came round lands on its downbeat: measured across the seam, not a loop's length)
+    const lp = recLive?.loop || (store.get().loop?.on ? store.get().loop : null), len = lp ? lp.end - lp.start : 0;
+    const offs = ms.map((m) => { let d = m.raw - m.t; if (len > 0 && Math.abs(d) > len / 2) d -= Math.sign(d) * len; return d * spb * 1000; });
     const mean = offs.reduce((a, b) => a + b, 0) / offs.length, abs = Math.round(Math.abs(mean));
     const noun = ms.every((m) => m.kind === 'drums') ? 'hit' : 'note';
-    const text = `Pass ${n + 1}: ${ms.length} ${noun}${ms.length === 1 ? '' : 's'}, ${abs === 0 ? 'on the grid on average' : `${abs} ms ${mean > 0 ? 'late' : 'early'} on average`}`;
-    readout = { pass: n + 1, hits: ms.length, ms: Math.round(mean * 10) / 10, text };
+    const moved = offs.filter((x) => Math.abs(x) > 20), most = moved.length ? Math.round(Math.max(...moved.map(Math.abs))) : 0;
+    const rep = replacedIn.get(n) || 0;
+    // (a steady lean, most of them late or most early by 40 ms or more: said as such, "behind the click", since the
+    // take moved them onto the beat; input/timing.js leanOf)
+    const side = mean > 0 ? offs.filter((x) => x > 20).length : offs.filter((x) => x < -20).length;
+    const leaning = abs >= 40 && side >= 0.75 * offs.length;
+    const text = `Pass ${n + 1}: ${ms.length} ${noun}${ms.length === 1 ? '' : 's'}, `
+      + (leaning ? `about ${Math.round(abs / 10) * 10} ms ${mean > 0 ? 'behind' : 'ahead of'} the click; ${moved.length === ms.length ? 'all' : moved.length} moved onto the beat`
+        : `${abs === 0 ? 'on the grid on average' : `${abs} ms ${mean > 0 ? 'late' : 'early'} on average`}${moved.length ? `; ${moved.length} nudged into place, ${most} ms at most` : ''}`)
+      + (rep ? `; ${rep} replaced ${rep === 1 ? 'a miss' : 'misses'} from before` : '');
+    readout = { pass: n + 1, hits: ms.length, ms: Math.round(mean * 10) / 10, nudged: moved.length, most, replaced: rep, leaning, text };
     readouts.push(readout); if (readouts.length > 16) readouts.shift();
     paintReadout();
   }
@@ -628,6 +648,15 @@ function mount(el, app) {
       }
       g.globalAlpha = 1;
     }
+    // the notes as they are being sung (not in yet): the track's colour, faint, a dashed warm edge
+    if (!drums) {
+      for (const m of extra.sung || []) {
+        if (m.t < a - 1e-6 || m.t >= b - 1e-6 || m.p < lo || m.p > hi) continue;
+        const x = X(m.t), ww = Math.max(3, X(Math.min(b, m.t + m.d)) - x - 1), y = B - (m.p - lo + 1) * rh, hh = Math.max(3, rh - 2);
+        g.globalAlpha = m.low ? 0.25 : 0.45; rr(g, x, y + 1, ww, hh, 1.5); g.fillStyle = colorOf(recLive?.track || null); g.fill(); g.globalAlpha = 1;
+        g.setLineDash([3, 2]); g.strokeStyle = cs.human; g.lineWidth = 1; rr(g, x + 0.5, y + 1.5, ww - 1, hh - 1, 1.5); g.stroke(); g.setLineDash([]);
+      }
+    }
     // the hum, as sung, up to the cursor
     if (trace.length && !drums) {
       const tl = trace[trace.length - 1].t;
@@ -644,10 +673,11 @@ function mount(el, app) {
     }
     // the cursor: the playhead's leader green
     if (cur >= a - 1e-6 && cur <= b + 1e-6) { g.fillStyle = cs.accent; g.fillRect(Math.round(X(cur)) - 0.75, T - 12, 1.5, B - T + 12); }
-    // the count-in: the meter's beats counting down over the ruler
+    // the count-in over the ruler, counting up with the beat (1 2 3 4, then you're on); Tap it and Hum it count in their
+    // band, so not here as well (one count in view, not two)
     const cnt = recLive && recLive.counting;
-    if (cnt && cnt.beats > 1e-3) {
-      const left = cnt.beats, n = Math.max(1, Math.ceil(left - 1e-6)), num = ((n - 1) % bpb) + 1;
+    if (cnt && cnt.beats > 1e-3 && cnt.beats <= bpb + 1e-6 && mode !== 'tap' && mode !== 'hum') {   // (the count's last bar only)
+      const left = cnt.beats, n = Math.max(1, Math.ceil(left - 1e-6)), nb = Math.ceil(bpb - 1e-9), num = nb - ((n - 1) % nb);
       g.globalAlpha = reduced() ? 0.7 : 0.7 * Math.max(0.2, Math.min(1, left - (n - 1)));
       g.fillStyle = cs.text; g.font = `italic 800 ${Math.max(20, Math.min(46, Math.round((B - T) * 0.9)))}px ${cs.disp}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       if ('fontStretch' in g) g.fontStretch = 'expanded';
@@ -879,6 +909,119 @@ function mount(el, app) {
   listen(ui.on('transport-ui', () => paintStrip(true)));
   listen(input.on('mode', () => paintStrip(true)));
 
+  /* ---------------------------------------------------------------- the beat band: the click you can see */
+  // Tap it and Hum it (the capture diagnosis, 2026-10-05: the only beat in view was four 18 x 12 px squares at the
+  // foot of the window, and the card pointed at a top bar the simple view puts away). Over the canvas (over the pads on
+  // a touch screen), where the eyes are: a lamp a beat, bar 1 wider, lit on the beat you hear (red-edged while it
+  // records); the count-in's last bar counting down in big numerals; one line of what is happening (the tempo, the
+  // loop's bars, the time round, what Space does); the click as a lamp (on for a take from here unless you turn it
+  // off: then, over a song with nothing in it, a take is in your own time and the tempo comes from you); and after a
+  // take, its timing: Tight (where the forgiving grid put each hit), Loose, As played.
+  let lastCommit = null;
+  listen(rec.on('commit', (res) => {
+    lastCommit = res;
+    // (a lean the stop took out: the line under the canvas says it for the whole take, the pass lines having been
+    // measured as it went)
+    if (res && res.ok && !res.empty && res.lean && res.lean.beats) {
+      const ms = Math.abs(Math.round(res.lean.ms / 10) * 10);
+      readout = { pass: 0, take: res.take, lean: res.lean.ms, text: `About ${ms} ms ${res.lean.ms > 0 ? 'behind' : 'ahead of'} the click; on the beat now` };
+      readouts.push(readout); if (readouts.length > 16) readouts.shift();
+      paintReadout();
+    }
+    for (const b of bands) b.paint(true);
+  }));
+  const bands = new Set();
+  function toggleClick() {
+    const on = !rec.captureClick;
+    rec.setCaptureClick(on);
+    // (on while the song plays: heard now, not only at the next take)
+    if (on && (eng.playing || rec.state !== 'idle') && !eng.metronome) app.transport?.click?.set?.({ on: true });
+    ui.emit('transport-ui');
+    paintStrip(true);
+    for (const b of bands) b.paint(true);
+    ui.announce?.(on ? 'Click on.' : rec.wouldBeFree() ? 'Click off: play in your own time, and the tempo comes from you.' : 'Click off.');
+  }
+  function beatBand() {
+    const lamps = h('div.sk-beats', { 'aria-hidden': 'true', title: 'The beat: the lamp the song is on' });
+    const num = h('span.sk-counting', { 'aria-hidden': 'true' });
+    const where = h('span.sk-where', { role: 'status', 'aria-live': 'polite' });
+    const clickT = h('button.tog.sk-bclick', { type: 'button', onclick: () => toggleClick(), title: 'The click for a take from here. Off, over a song with nothing in it yet: play in your own time, and the tempo comes from you.' }, 'Click');
+    const timing = h('span.sk-timing', { role: 'group', 'aria-label': 'Timing of the last take' });
+    const el = h('div.sk-band', lamps, num, where, timing, clickT);
+    let lampSig = '', whereText = '', timingSig = '';
+    // (short: it is one line of the head; the whole of it is its title)
+    const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+    function words() {
+      const st = rec.state, p = store.get(), bpb = bpbNow(), tempo = Math.round(+p.tempo || 120), L = recLive;
+      const keep = touch ? 'Stop keeps it.' : 'Space keeps it.';
+      if (st === 'rec' && rec.free) return `Your own time, no click. ${touch ? 'Stop' : 'Space'} when you’re done.`;
+      // (the numerals count the bar in with the lamps, 1 to 4: you come in on the 1 after the 4. R while the loop plays
+      // waits out the rest of a bar, or for the loop's top, first: those beats are counted too, dimmer)
+      if (st === 'count') return L?.counting && L.counting.beats > bpb + 1e-6 ? (L.loop && Math.abs(L.from - L.loop.start) < 1e-6 ? 'Waiting for the loop’s top, then a bar counts you in.' : 'Waiting for the bar line, then a bar counts you in.') : `Count-in: come in right after the ${Math.ceil(bpb - 1e-9)}.`;
+      if (st === 'rec' && L) {
+        if (L.loop) return `${cap(barsOf(bpb, L.loop.start, L.loop.end))}, time ${(L.pass || 0) + 1} round. ${keep}`;
+        return `Recording from ${barsOf(bpb, L.from, L.from + 1e-6)}. ${keep}`;
+      }
+      const lp = p.loop, b = eng.beat || 0;
+      if (eng.playing) return lp?.on && b >= lp.start - 1e-6 && b < lp.end ? `${cap(barsOf(bpb, lp.start, lp.end))} round and round, ${tempo} BPM.` : `${tempo} BPM.`;
+      if (lastCommit && lastCommit.ok && !lastCommit.empty && lastCommit.free && lastCommit.bpm) return lastCommit.tempo ? `${tempo} BPM, the tempo you played.` : `You played at ${Math.round(lastCommit.bpm)} BPM; the song is at ${tempo}.`;
+      if (rec.wouldBeFree()) return 'No click: your own time, your tempo.';
+      const how = mode === 'hum' ? 'Hum' : touch ? 'Record' : 'R';
+      return `${tempo} BPM. ${how} counts in a bar${lp?.on ? `, then ${barsOf(bpb, lp.start, lp.end)} round and round` : ''}.`;
+    }
+    function paint(force = false) {
+      const bpb = bpbNow(), st = rec.state, L = recLive;
+      if (lamps.children.length !== Math.ceil(bpb - 1e-9)) { lamps.replaceChildren(...Array.from({ length: Math.ceil(bpb - 1e-9) }, (_, i) => h('i' + (i === 0 ? '.one' : ''), String(i + 1)))); lampSig = ''; }
+      const on = !!eng.playing && (following() || st === 'count');
+      const cur = on ? ((Math.floor((eng.beat || 0) + 1e-6) % Math.ceil(bpb - 1e-9)) + Math.ceil(bpb - 1e-9)) % Math.ceil(bpb - 1e-9) : -1;
+      // the count, in numerals, counting up with the lamps: 1 2 3 4, then you're on. The count-in's own bar is bright;
+      // what R while the loop plays waits out before it (the rest of a bar, or to the loop's top) is counted dimmer
+      let n = '', wait = false;
+      if (st === 'count' && L?.counting) {
+        const left = L.counting.beats, nb = Math.ceil(bpb - 1e-9);
+        if (left > 1e-3) { n = String(nb - ((Math.max(1, Math.ceil(left - 1e-6)) - 1) % nb)); wait = left > bpb + 1e-6; }
+      }
+      const sig = `${cur}:${st}:${n}:${wait}`;
+      if (sig !== lampSig || force) {
+        lampSig = sig;
+        [...lamps.children].forEach((c, i) => c.classList.toggle('now', i === cur));
+        lamps.classList.toggle('rec', st === 'rec' && !rec.free);
+        lamps.classList.toggle('count', st === 'count');
+        lamps.dataset.beat = String(cur);
+        num.textContent = n;
+        num.classList.toggle('wait', wait);
+      }
+      const w = words();
+      if (w !== whereText || force) { whereText = w; where.textContent = w; where.title = w; el.title = w; }
+      const cc = rec.captureClick;
+      if (clickT.getAttribute('aria-pressed') !== String(cc)) { clickT.setAttribute('aria-pressed', String(cc)); clickT.classList.toggle('on', cc); }
+      // (the take this way in made: a beat's in Tap it, a hum's in Hum it)
+      const tm0 = st === 'idle' ? rec.timing : null, tm = tm0 && tm0.kind === (mode === 'hum' ? 'hum' : 'pads') ? tm0 : null, tsig = tm ? `${tm.level}:${tm.notes}` : '';
+      if (tsig !== timingSig || force) {
+        timingSig = tsig;
+        if (!tm) timing.replaceChildren();
+        else {
+          const sg = seg([['tight', 'Tight'], ['loose', 'Loose'], ['played', 'As played']], tm.level, (lv) => {
+            const d = rec.retime(lv);
+            if (d && d.ok) ui.announce?.(lv === 'played' ? `As played: ${tm.notes} back where you played them.` : lv === 'loose' ? 'Loose: half way back to how you played it.' : 'Tight: on the grid.');
+            else if (d && d.error) ui.toast(d.error, { kind: 'bad' });
+            paint(true);
+          }, 'Timing of the last take');
+          sg.firstChild.title = 'Tight: each hit or note where the forgiving grid put it';
+          sg.children[1].title = 'Loose: half way back to how you played it';
+          sg.lastChild.title = 'As played: exactly where you played it';
+          timing.replaceChildren(sg);
+          timing.title = 'The last take’s timing: Tight, Loose or As played';
+        }
+        // (after a take its timing has the line's place: the line says the tempo, which the top bar says too)
+        where.hidden = !!tm;
+      }
+    }
+    const band = { el, paint, destroy: () => bands.delete(band) };
+    bands.add(band);
+    return band;
+  }
+
   const sketchApi = app.sketch = {
     // what the ruler shows: its bars, the cursor, every mark (raw and snapped beats, its pass), the last pass's line
     ruler() {
@@ -906,6 +1049,9 @@ function mount(el, app) {
     // the floating card's Keep on a take not kept yet: the take onto a new track, with the sound on trial (keepTo)
     keepTake() { const id = view?.takeId?.(); if (!id) return false; keepTo(id, 'new'); view?.kept?.(); return true; },
     stopHearing: () => stopHear(),
+    // the beat band is on screen (Tap it or Hum it, Sketch showing): its numerals are the count-in, so the arranger's
+    // lane doesn't draw a second one (ui/arranger.js)
+    bandShown: () => (mode === 'tap' || mode === 'hum') && (!ui.visible || !!ui.visible('sketch')),
   };
 
   /* ---------------------------------------------------------------- modes */
@@ -922,10 +1068,13 @@ function mount(el, app) {
     for (const b of rail.children) { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); b.firstChild.classList.toggle('sk-title', on); }
     const def = MODES.find((x) => x.id === m);
     const blurb = (touch && TOUCH_BLURB[m]) || def.blurb;
-    head.replaceChildren(h('p.sk-blurb', { title: blurb }, blurb));
+    const blurbEl = h('p.sk-blurb', { title: blurb }, blurb);
+    head.replaceChildren(blurbEl);
     body.replaceChildren(); foot.replaceChildren();
     body.dataset.mode = m;
     view = (m === 'hum' ? humView : m === 'tap' ? tapView : m === 'play' ? playView : recView)();
+    // (Tap it and Hum it: the beat band is the head's line, the blurb's place)
+    if (view.band) { blurbEl.replaceWith(view.band); view.band.title = blurb; }
     if (view.opts) head.append(view.opts);
     if (m !== 'tap' && input.mode === 'tap') input.setMode(null);
     // on a touch screen, Play it's strip sits right above the keys (it was under them, below the fold of a phone)
@@ -1015,7 +1164,11 @@ function mount(el, app) {
     let explaining = !micOk && !input.audio.state.open;
     const unexplain = () => { explaining = false; explain.remove(); };
     const status = h('div.sk-status.sk-cap', { role: 'status', 'aria-live': 'polite' });
-    const btn = h('button.btn.sk-big.sk-hum', { onclick: () => go(), title: touch ? 'Hum it. Tap again to stop.' : 'Hum it (H). Esc stops.' }, h('span.sk-dot'), h('span.sk-big-l', 'Hum'), touch ? null : h('kbd', 'H'));
+    // Hum: a take into the song, as R in Hum it: a bar of count-in with the click (unless it's off), then sing; Stop (or
+    // Space) and it is in, on its own track (a new Melody), at the bars it was sung. With the click off over a song with
+    // nothing in it, no count: hum in your own time and the tempo comes from you
+    const btn = h('button.btn.sk-big.sk-hum', { onclick: () => go(), title: touch ? 'Hum it into the song: a bar of count-in, then sing. Tap again to stop.' : 'Hum it into the song: a bar of count-in, then sing (R). Space stops and keeps it.' }, h('span.sk-dot'), h('span.sk-big-l', 'Hum'), touch ? null : h('kbd', 'R'));
+    const band = beatBand();
     const dest = h('span.sk-destwrap');
     const keepBtn = h('button.btn.btn-go.ew-btn-primary', { onclick: () => { const tk = hum.take; if (tk && tk.capture) { keepTo(tk.capture, keepDest()); paintKept(); } }, title: 'Keep it as a clip (by you)' }, h('span.sk-wide', 'Keep as a clip'), h('span.sk-narrow', 'Keep'));
     const agentBtn = h('button.btn.ew-btn-agent', { onclick: () => hum.take && hum.take.capture && toAgent(hum.take.capture), title: 'Hand it to the agent' }, icon('agent', { size: 15 }), h('span.sk-wide', 'Hand it to the agent'), h('span.sk-narrow', 'Agent'));
@@ -1031,15 +1184,19 @@ function mount(el, app) {
     // and its Keep row in the footer. A phone keeps its pinned row to one row (Hum, Record and its track): the
     // explainer sits beside the dial, so "Allow the mic and hum" is in view with the ways in above it, and the take's
     // line and Keep row go under the dial. Keep there goes where Record's picker says: one picker, not two.
+    // (a touch screen: the band over the roll, under the dial and the mic's explainer, so they stay where a first look
+    // finds them; a computer: the head's line)
+    const rollCol = touch ? h('div.sk-rollcol', band.el, rollWrap) : rollWrap;
     function place() {
       if (isSplit()) {
         takeRow.replaceChildren(status, acts);
         explain.classList.add('beside');
-        body.replaceChildren(spWrap, ...(explaining ? [explain] : []), takeRow, rollWrap);
+        body.replaceChildren(spWrap, ...(explaining ? [explain] : []), takeRow, ...(touch ? [band.el] : []), rollWrap);
         rollWrap.append(readEl);
       } else {
         explain.classList.remove('beside');
-        body.replaceChildren(spWrap, rollWrap);
+        if (touch) rollCol.replaceChildren(band.el, rollWrap);
+        body.replaceChildren(spWrap, rollCol);
         if (explaining) rollWrap.prepend(explain);
         rollWrap.append(status, readEl);
         foot.insertBefore(acts, btn.nextSibling);
@@ -1107,18 +1264,26 @@ function mount(el, app) {
     }
     const offKeyIdle = rec.on('state', (e) => { if (e?.state === 'idle' && keyFor) setTimeout(adoptHeardKey, 0); });
     const offKeyDo = store.on('change', (e) => { if (keyFor && e?.kind === 'do' && e.by === 'you') setTimeout(adoptHeardKey, 0); });
+    // a take that went into the song by itself (with R, or in free time): its line is the recorder's
+    const landed = () => { const tk = hum.take, c = lastCommit; return !!(tk && tk.result && c && c.ok && !c.empty && (c.free ? !!tk.capture && c.capture === tk.capture : !!tk.rec && c.take === tk.recTake)); };
     function paintFoot() {
-      const on = hum.active, tk = hum.take, r = tk && tk.result;
+      const st = rec.state, taking = st !== 'idle' && (rec.humming() || rec.free);
+      const on = hum.active || taking, tk = hum.take, r = tk && tk.result, inSong = !on && landed();
       saidEl.textContent = said || ''; saidEl.hidden = !said;
       btn.classList.toggle('on', on);
-      btn.querySelector('.sk-big-l').textContent = on ? 'Stop' : tk && tk.result ? 'Again' : 'Hum';
-      acts.hidden = on || !r; listen2.hidden = on || !r;
+      btn.classList.toggle('counting', st === 'count' && taking);
+      btn.querySelector('.sk-big-l').textContent = st === 'count' && taking ? 'Cancel' : on ? 'Stop' : tk && tk.result ? 'Again' : 'Hum';
+      acts.hidden = on || !r || inSong; listen2.hidden = acts.hidden;
       const kb = btn.querySelector('kbd'); if (kb) kb.hidden = !!(tk && tk.result) && !on;
-      if (!on && r) fillDest(dest, 'hum');
+      if (!on && r && !inSong) fillDest(dest, 'hum');
       paintKept();
       sp.setKey(dialKey());
-      if (on) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), touch ? ' Hum or sing. Tap Stop when you’re done.' : ' Hum or sing. Stop (or Esc) when you’re done.');
+      if (st === 'count' && taking) status.replaceChildren(h('span.sk-live.rec', 'Counting in'), ` Come in right after the ${Math.ceil(bpbNow() - 1e-9)}.`);
+      else if (taking && rec.free) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), ' Hum or sing in your own time. ', touch ? 'Tap Stop when you’re done.' : 'Stop (or Space) when you’re done.');
+      else if (on) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), touch ? ' Hum or sing. Tap Stop when you’re done.' : ' Hum or sing. Stop (or Space) when you’re done.');
       else if (said) status.replaceChildren(said);
+      // (the lean is the line under the roll's to say: this one stays a line)
+      else if (inSong) { const sum = lastCommit.summary || 'Your hum is in the song.', lw = lastCommit.lean?.words; status.replaceChildren(h('b', lw ? sum.replace(' ' + lw, '') : sum), ' Undo takes it back.'); }
       else if (r) {
         // the key it was snapped to (the song's), or the one heard in the hum (a song with no key yet); what was moved
         // into it, counted, as the toast says it ("Moved 3 notes into C minor")
@@ -1134,11 +1299,15 @@ function mount(el, app) {
       status.title = status.textContent;
     }
     async function go() {
+      const st = rec.state;
+      // a take that is the hum's (this button's, or R's in Hum it): Cancel in the count, Stop keeps it
+      if (st !== 'idle' && (rec.humming() || rec.free)) { if (st === 'count') rec.cancel(); else await rec.stop(); paintFoot(); dirty = true; return; }
       if (hum.active) { await hum.stop(); paintFoot(); dirty = true; return; }
       try {
         unexplain();
-        // (a playing song always counts: the notes land on its beats; while a take records, the hum is part of it)
-        await hum.start({ rec: rec.state !== 'idle' });
+        // another take recording (keys, pads): the hum joins it; otherwise a take of its own, into the song
+        if (st !== 'idle') await hum.start({ rec: true });
+        else await rec.record({ hum: true });
         try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ }
       } catch (e) { ui.toast(e.message, { kind: 'bad' }); }
       paintFoot(); dirty = true;
@@ -1154,13 +1323,22 @@ function mount(el, app) {
       ui.emit('sketch:intune', { on: inTuneNow(), capture: hum.take?.capture || null });
     });
     const offState = hum.on('state', () => { if (!hum.active) sp.push(null); else { unexplain(); said = null; } paintFoot(); dirty = true; });
+    const offRec = rec.on('state', () => { paintFoot(); dirty = true; });
+    // the notes so far, as they are sung, where they will land: a take's on its passes (the recorder's grid), along
+    // with the song at its beats; drawn on the ruler with a dashed warm edge until the take is in
+    function sungNow() {
+      const ns = hum.live();
+      if (!ns.length) return [];
+      const L = recLive;
+      return ns.map((n) => { const w = L && hum.recording ? rec.where(n.t) : null; return { p: n.p, t: w ? w.beat : n.t, d: n.d, pass: w ? w.pass : along.pass, low: n.low }; });
+    }
     place();
     paintFoot();
     let dirty = true, wasF = false;
 
     function drawRoll(now) {
       // the song is playing: the ruler, with the hum's pitch drawn up to the cursor
-      if (following()) { drawRuler(roll, 'pitch', now, { trace: hum.active ? hum.trace().slice(-400) : null, hum: true }); return; }
+      if (following()) { drawRuler(roll, 'pitch', now, { trace: hum.active ? hum.trace().slice(-400) : null, hum: true, sung: hum.active ? sungNow() : null }); return; }
       roll.fit();
       const g = roll.g, w = roll.w, H = roll.h;
       g.clearRect(0, 0, w, H);
@@ -1236,9 +1414,11 @@ function mount(el, app) {
     }
     return {
       opts: optsEl,
+      band: touch ? null : band.el,   // (a computer: the stage's head, the line where the blurb was, so the roll keeps its height)
       place,
       frame(now) {
         sp.frame(now);
+        band.paint();
         const f = following();
         if (dirty || hum.active || f || wasF) { dirty = false; drawRoll(now); }
         wasF = f;
@@ -1249,7 +1429,7 @@ function mount(el, app) {
       takeId: () => (hum.take?.result ? hum.take.capture || null : null),
       said: () => paintFoot(),
       refresh() { dirty = true; },
-      destroy() { offF(); offS(); offT(); offState(); offKeyIdle(); offKeyDo(); },
+      destroy() { offF(); offS(); offT(); offState(); offRec(); offKeyIdle(); offKeyDo(); band.destroy(); },
     };
   }
 
@@ -1265,24 +1445,14 @@ function mount(el, app) {
     }));
     const grid = canvas('sk-grid');
     const gridWrap = h('div.sk-rollwrap', h('div.sk-cv', grid.cv));
-    // the beat, right over the pads: the click's lamps (a square a beat, bar 1 wider, the beat the song is on cream;
-    // record ink while it takes), so the click has a picture where the thumbs are, not only in the top bar
-    const beats = h('div.sk-beats', { 'aria-hidden': 'true', title: 'The beat: the square the song is on' });
+    // the beat where the eyes are (the band: its lamps, the count, what is recording, the click, the take's timing):
+    // over the canvas on a computer, right over the pads on a touch screen, where the thumbs are
+    const band = beatBand();
     // (a touch screen: the pads are big, over the ruler; a computer: a row in the footer, so the ruler has the stage's
     // whole width and height)
-    const padCol = h('div.sk-padcol', beats, pads);
+    const padCol = h('div.sk-padcol', ...(touch ? [band.el] : []), pads);
     if (touch) body.append(padCol, gridWrap); else body.append(gridWrap);
-    let beatSig = '';
-    function paintBeats() {
-      const bpb = bpbNow(), on = following() && !!eng && (eng.playing || rec.state === 'count');
-      if (beats.children.length !== bpb) { beats.replaceChildren(...Array.from({ length: bpb }, (_, i) => h('i' + (i === 0 ? '.one' : '')))); beatSig = ''; }
-      const cur = on ? ((Math.floor((eng.beat || 0) + 1e-6) % bpb) + bpb) % bpb : -1, sig = `${cur}:${rec.state}`;
-      if (sig === beatSig) return;
-      beatSig = sig;
-      [...beats.children].forEach((c, i) => c.classList.toggle('now', i === cur));
-      beats.classList.toggle('rec', rec.state !== 'idle');
-      beats.dataset.beat = String(cur);
-    }
+    const paintBeats = () => band.paint();
     const status = h('div.sk-status.sk-cap', { role: 'status', 'aria-live': 'polite' });
     const bbBtn = h('button.btn.sk-big.sk-bb', { onclick: async () => { try { if (tap.beatboxing) { await tap.stopBeatbox(); } else { await tap.startBeatbox(); try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ } } } catch (e) { ui.toast(e.message, { kind: 'bad' }); } paint(); }, title: 'Beatbox: the mic as drums. To hum a tune, use Hum it.' }, h('span.sk-dot'), h('span.sk-big-l', 'Beatbox'));
     const dest = h('span.sk-destwrap');
@@ -1408,15 +1578,22 @@ function mount(el, app) {
       paintKept();
       // the status is a live region and paint() runs every frame during a take: only touch it when what it says changes
       const fol = following() ? (rec.state !== 'idle' ? 'rec' : 'along') : '';
-      const key = tap.beatboxing ? 'bb' : fol ? `follow:${fol}` : cur ? `take:${cur.hits.length}` : lb?.rec ? `rec:${lb.take.id}:${lb.notes.length}` : l ? `kept:${l.id}:${l.at || ''}:${rawOf.has(l.id)}` : `idle:${keysOn}`;
+      const freeRec = rec.free && rec.state === 'rec';
+      const key = tap.beatboxing ? 'bb' : freeRec ? `free:${cur ? cur.hits.length : 0}` : fol ? `follow:${fol}` : cur ? `take:${cur.hits.length}` : lb?.rec ? `rec:${lb.take.id}:${lb.notes.length}:${lastCommit?.take || ''}` : l ? `kept:${l.id}:${l.at || ''}:${rawOf.has(l.id)}` : `idle:${keysOn}`;
       if (key === statusKey) return;
       statusKey = key;
       if (tap.beatboxing) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), ' “b” for kick, “k” for snare, “ts” for hat. Stop when you’re done.');
-      else if (fol === 'rec') status.replaceChildren(h('span.sk-live.rec', 'Recording'), ' The ticks are your taps; the cells are where they snapped.');
+      else if (freeRec) status.replaceChildren(h('span.sk-live.rec', 'Recording'), cur ? ` ${cur.hits.length} hit${cur.hits.length === 1 ? '' : 's'}, in your own time. ` : ' In your own time: no click. ', touch ? 'Stop when you’re done.' : 'Space when you’re done.');
+      else if (fol === 'rec') status.replaceChildren(h('span.sk-live.rec', 'Recording'), touch ? ' Each hit goes on the beat nearest it.' : ' The ticks are your taps; the cells are where they went in.');
       else if (fol) status.replaceChildren(h('span.ew-muted', touch ? 'Tap along. Record puts it in the song as you go; afterwards, Put it in the song.' : 'Tap along. R records into the song; Shift+R puts what you just tapped there.'));
       else if (cur) status.replaceChildren(h('b', `${cur.hits.length} hit${cur.hits.length === 1 ? '' : 's'}`), ' Keep going; stop for 2.5 s to finish the take.');
-      else if (lb?.rec) { const bars = Math.max(1, Math.ceil(Math.max(...lb.notes.map((n) => n.t + n.d), 1e-6) / bpbNow() - 1e-6)); status.replaceChildren(h('b', `Your beat is in the song: ${lb.notes.length} hits, ${barsOf(bpbNow(), lb.from, lb.from + bars * bpbNow())}.`), ' The ticks are your taps; the cells are where they snapped.'); }
-      else if (l) { const pn = input.capture.phraseNotes(l.id); status.replaceChildren(h('b', `Your beat is in. ${pn.notes.length} hits, ${pn.bars} bar${pn.bars === 1 ? '' : 's'}.`), rawOf.has(l.id) ? ' The ticks are your taps; the cells are where they snapped.' : ''); }
+      else if (lb?.rec) {
+        const bars = Math.max(1, Math.ceil(Math.max(...lb.notes.map((n) => n.t + n.d), 1e-6) / bpbNow() - 1e-6));
+        // (the take's lean, taken out at the stop, said with its number; input/recorder.js leanWords)
+        const c = lastCommit, lean = c && c.ok && c.take === lb.take?.take && c.lean ? leanWords({ lean: c.lean.beats, ms: c.lean.ms, opening: c.lean.opening, kind: 'hit' }) : '';
+        status.replaceChildren(h('b', `Your beat is in the song: ${lb.notes.length} hits, ${barsOf(bpbNow(), lb.from, lb.from + bars * bpbNow())}.`), lean ? ` ${lean}` : touch ? '' : ' The ticks are your taps; the cells are where they went in.');
+      }
+      else if (l) { const pn = input.capture.phraseNotes(l.id); status.replaceChildren(h('b', `Your beat is in. ${pn.notes.length} hits, ${pn.bars} bar${pn.bars === 1 ? '' : 's'}.`), rawOf.has(l.id) && !touch ? ' The ticks are your taps; the cells are where they went in.' : ''); }
       else status.replaceChildren(h('span.ew-muted', touch ? 'Tap the pads: kick, snare, hat, open hat.' : keysOn ? 'Tap F (kick), J (snare), K (hat), L (open hat), or the pads.' : 'Tap the pads, or turn the keys on.'));
     }
     let statusKey = '', wasF = false;
@@ -1493,14 +1670,15 @@ function mount(el, app) {
     }
     return {
       opts: optsEl,
-      frame(now) { const f = following(); paintBeats(); if (dirty || f || wasF || tap.take || [...flash.values()].some((t) => now - t < 320)) { dirty = false; drawGrid(now); if (tap.take || f !== wasF) paint(); } wasF = f; },
+      band: touch ? null : band.el,   // (a computer: the stage's head, where the blurb was; a touch screen: over the pads)
+      frame(now) { const f = following(); paintBeats(); if (dirty || f || wasF || tap.take || [...flash.values()].some((t) => now - t < 320)) { dirty = false; drawGrid(now); if (tap.take || f !== wasF) paint(); } if (rec.state !== 'idle' || statusKey.startsWith('free')) paint(); wasF = f; },
       update() { dirty = true; if (!tap.take) paint(); },
       kept() { paintKept(); paint(); },
       place,
       retarget: () => paintKept(),
       takeId: () => lastTake()?.id || null,
       refresh() { dirty = true; },
-      destroy() { offHit(); offTake(); offTune(); offMode(); if (input.mode === 'tap') input.setMode(null); },
+      destroy() { offHit(); offTake(); offTune(); offMode(); band.destroy(); if (input.mode === 'tap') input.setMode(null); },
     };
   }
 
@@ -2050,6 +2228,8 @@ const CSS = `
 .sk-recbtn { position: relative; height: 34px; padding: 0 14px 0 12px; gap: 8px; font-size: 13px; flex: none; }
 .sk-recbtn kbd { margin-left: 2px; }
 .sk-recbtn.on, .sk-recbtn.counting { border-color: var(--rec); }
+/* Hum it's big Hum button is its record button (R): the strip keeps Onto, not a second Record / Cancel / Stop */
+.sk[data-mode="hum"] .sk-strip .sk-recbtn { display: none; }
 .sk-recbtn.on .sk-dot { background: var(--rec); box-shadow: 0 0 6px color-mix(in srgb, var(--rec) 70%, transparent); }
 .sk-recbtn.on .sk-recbtn-l { color: var(--rec); }
 .sk-strip > .sk-recnote { flex: 1 1 0; min-width: 0; align-self: center; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2183,11 +2363,51 @@ const CSS = `
 .sk-pads { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(36px, 1fr); gap: 8px; min-height: 0; max-height: 260px; }
 /* the beat over the pads: the click's lamps */
 .sk-beats { display: flex; align-items: flex-end; gap: 6px; height: 14px; flex: none; }
+/* the beat band: the click you can see, over the canvas (over the pads on a touch screen). Lamps a beat (bar 1 wider)
+   with their numbers, lit cream on the beat you hear, red-edged while a take records; the count-in's last bar in
+   display numerals; one line of what is happening; the take's timing; the click's lamp */
+.sk-band { flex: none; display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; min-width: 0; padding: 8px 10px 7px; border-bottom: var(--rule); }
+.sk-band .sk-beats { height: auto; align-items: stretch; gap: 5px; }
+.sk-band .sk-beats i { display: grid; place-items: center; width: 44px; height: 38px; border: 1px solid var(--line-2); color: var(--text-3); font: italic 800 16px/1 var(--font-display); font-variation-settings: var(--font-display-vars, normal); }
+.sk-band .sk-beats i.one { width: 64px; }
+.sk-band .sk-beats i.now { background: var(--text); border-color: var(--text); color: var(--bg); box-shadow: 0 0 8px color-mix(in srgb, var(--text) 35%, transparent); }
+.sk-band .sk-beats.rec i.now { border-color: var(--rec); box-shadow: 0 0 0 2px var(--rec), 0 0 8px color-mix(in srgb, var(--rec) 45%, transparent); }
+.sk-band .sk-counting { font: italic 800 38px/1 var(--font-display); font-variation-settings: var(--font-display-vars, normal); color: var(--text); min-width: 1.2ch; text-align: center; }
+.sk-band .sk-counting:empty { display: none; }
+/* (the beats waited out before the count-in's own bar: counted, dimmer) */
+.sk-band .sk-counting.wait { color: var(--text-3); }
+.sk-band .sk-where { flex: 1 1 220px; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
+.sk-band .sk-timing { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.sk-band .sk-timing:empty { display: none; }
+.sk-band .sk-timing small { font-size: 11px; color: var(--text-3); }
+.sk-band .sk-bclick { flex: none; }
+.sk.touch .sk-band { padding: 6px 0; border-bottom: 0; }
+.sk-head > .sk-band { flex: 1 1 auto; min-width: auto; flex-wrap: nowrap; gap: 12px; padding: 0; border: 0; }
+.sk-head > .sk-band .sk-beats i { width: 36px; height: 30px; }
+.sk-head > .sk-band .sk-beats i.one { width: 50px; }
+.sk-head > .sk-band .sk-counting { font-size: 30px; }
+/* (the line takes what room is left and no more: its width doesn't hold the band open over the mode's options) */
+.sk-head > .sk-band .sk-where { flex: 1 1 0; width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.25; }
+.sk-rollcol { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 6px; }
+/* a narrow stage (the full studio with its panes open): the lamps and the click stay, the line goes to the band's title,
+   and the strip leaves its Click to the band */
+@container sketch (max-width: 1000px) {
+  .sk-head > .sk-band { flex: 0 1 auto; gap: 10px; }
+  .sk-head > .sk-band .sk-where { display: none; }
+  .sk-head > .sk-band .sk-beats i { width: 30px; height: 28px; font-size: 14px; }
+  .sk-head > .sk-band .sk-beats i.one { width: 42px; }
+  .sk[data-mode="tap"]:not(.touch) .sk-strip .sk-click, .sk[data-mode="hum"]:not(.touch) .sk-strip .sk-click { display: none; }
+}
+.sk.touch .sk-band .sk-beats i { width: 40px; height: 36px; font-size: 15px; }
+.sk.touch .sk-band .sk-beats i.one { width: 56px; }
+@media (prefers-reduced-motion: reduce) { .sk-band .sk-beats i { transition: none; } }
 .sk-beats i { width: 12px; height: 12px; border: 1px solid var(--line-2); }
 .sk-beats i.one { width: 18px; }
 .sk-beats i.now { background: var(--text); border-color: var(--text); }
 .sk-beats.rec i.now { border-color: var(--rec); }
-.sk-pad { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-height: 0; padding: 8px 10px; border-radius: var(--r-press); border: var(--rule-2); background: none; color: var(--text); cursor: pointer; touch-action: none; user-select: none; }
+.sk-pad { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; min-height: 0; padding: 8px 10px; border-radius: var(--r-press); border: var(--rule-2); background: none; color: var(--text); cursor: pointer; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* (a pressed pad lights in the room's own cream, never the browser's blue tap flash: cool ink is the agent's) */
+.sk-pad:focus:not(:focus-visible) { outline: none; }
 .sk-pad-l { font-weight: 600; font-size: 13px; }
 .sk-pad kbd { position: absolute; top: 8px; right: 8px; }
 .sk-pad small { color: var(--text-3); font-size: 11px; }

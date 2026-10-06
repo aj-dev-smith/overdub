@@ -20,10 +20,14 @@ then shows where everything else lives. In the studio, `?` shows every key.
    brings you back to a blank one.
 3. **Lay down take one.** Pick a way in on the blank song (**Hum it** and **Play it** open the **Sketch** tab under
    the song), or open Sketch yourself:
-   - **Hum it.** `H` turns the mic on (the browser asks first) and `H` again stops. The notes are written as you go,
-     as you sang them. Once the song has a key (one you set, or a part in one; a beat alone doesn't give it one), notes
-     between keys move into it, and it says how many ("Moved 2 notes into A minor"), with **Undo**.
-   - **Tap it.** `T`, then `F` `J` `K` `L` for kick, snare, hat and open hat. The pads work too.
+   - **Hum it.** The **Hum** button (the browser asks for the mic first) counts in a bar with the click, then records
+     your hum into the song; press it again (or `Space`) and it's in, on a track of its own (Melody), at the bars you
+     sang it. The notes are drawn as you sing, gently on the grid: a note near an eighth goes there, one well off it
+     keeps your timing. Once the song has a key (one you set, or a part in one; a beat alone doesn't give it one), notes
+     between keys move into it, and it says how many ("Moved 2 notes into A minor"), with **Undo**. `H` hums on its
+     own, into Sketch's **Takes**.
+   - **Tap it.** `T`, then `F` `J` `K` `L` for kick, snare, hat and open hat. The pads work too. A tap goes to the
+     nearest eighth when it's near one (80 ms late at 120 BPM is still on the beat), else to the nearest sixteenth.
    - **Play it.** `` ` `` turns on musical typing (`A` `S` `D`… are the white keys), or plug in a MIDI keyboard.
      Musical typing and a phone's keys have two helpers, on until you turn them off: what you play lands on the
      grid, and the keys play only the song's key. The line over the keys says so: *Snapping to 1/16, in C minor*.
@@ -80,14 +84,34 @@ one shows as a faint lane at the foot, *A new track, Lamp Tines*, until the take
 track still comes first, as it always has: arm a track and R records onto it; **A new track** in Onto disarms them,
 and arming one by hand again wins. It records from the start marker, after one bar of count-in: the bar before the marker plays with the click (below bar
 1, the click alone), the position counts −1.4 to −1.1 in red, and a big numeral over the track counts 4 3 2 1. `R`
-or `Space` during the count calls it off. With the song already playing, `R` waits for the next bar line and counts
-the beats left in this one. Then whatever you play, tap or hum lands on that track at the bars where you played it;
+or `Space` during the count calls it off. With the song already playing, `R` waits for a bar line with a whole bar to
+come in on (a loop of 2 bars or less, the loop's top, so what you play first is its first bar): the position counts
+down (−2.2 … −1.1) and the numeral counts the last bar, 4 3 2 1. Then whatever you play, tap or hum lands on that track at the bars where you played it;
 musical typing and a phone's keys are snapped as they record, as the line over the keys says. `Space` stops and
 keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it back out.
 
 - **Watch the ball.** Beside the position, a cell for each beat of the bar and a square that travels between them,
   landing on each beat as you hear it, so you can see the next one coming with the sound off. It goes red while a
   take counts in and records.
+- **The beat in Sketch.** In Tap it and Hum it, Sketch's top line is the beat: a lamp for each beat of the bar (bar 1
+  wider), lit on the beat you hear, red-edged while a take records; the count-in in big numerals counting up with the
+  lamps, 1 2 3 4, so you come in right after the 4 (the beats it waits out before its bar are counted dimmer); what is
+  recording ("Bars 1–2, time 2 round"); and **Click**. It is the one count on screen then: the track's numeral stays
+  away.
+- **Late or early all the way through.** Against the click, if you play every hit about the same amount late (waiting
+  to hear the click, then hitting) or early, that one lean comes out of the whole take before each hit is placed, up to
+  about 200 ms at 120 BPM, so a beat played 150 ms behind the click lands on its beats, not on the "and"s. The take
+  says so ("You played about 150 ms behind the click, so your hits are on their beats; As played puts them back."), as
+  does the line under the pads. A first hit or two that comes in late, on a drum you otherwise play on the beat, goes
+  on its beat too. Hums against the click get the same.
+- **No click: your own time.** Turn **Click** off there, over a song with nothing in it yet, and Record (or **Hum**)
+  records at once, no count and nothing playing: tap or hum in your own time and press `Space`. Overdub finds the pulse
+  in what you played (the tempo, a drift followed, your first note the downbeat), sets the song to your tempo and puts
+  it in on its own track, one undo step for all of it. Over a song with parts, the song keeps its tempo and your beats
+  become its beats.
+- **Tight, Loose, As played.** After a take from Tap it or Hum it, the same line has its timing: **Tight** is where the
+  grid put each hit, **As played** puts them back exactly where you played them, **Loose** half way (without the take's
+  lean: your feel, not your lateness). Each is one undo step.
 - **The click.** A take clicks even with the click off: that's *While recording* in the options under the caret
   beside **Click**, on until you turn it off. `K` turns the click on and off for everything, `⇧K` steps the count-in
   through 1 bar, 2 bars and off, and the options have the level too. They stay set in this browser. The click is
@@ -95,7 +119,9 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
 - **Each pass round the loop.** The loop is the punch range. On a drum track each pass **Layer**s into one clip, so
   you add a little every time round; on any other track each pass is a **New take**. Sketch's record strip switches
   it (**Each pass**), per track. A note you start a hair before the loop comes round (less than a 32nd early) is the
-  next pass's downbeat, on the grid or in your own timing.
+  next pass's downbeat, on the grid or in your own timing. On a drum track, a hit you play again on the next pass
+  replaces the one you missed (within a third of a beat of it, as played), so a miss never doubles; the line after
+  each pass says how many hits were nudged into place and how many replaced a miss.
 - **Takes.** A take covers the bars you played, from the bar you started in to where you stopped, and what played
   there before is muted under it, there and nowhere else. The passes and what was there before are one take folder:
   the clip says how many ("3 takes"), and that label lists them and plays the one you pick, with **Previous take**
@@ -116,7 +142,7 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
   Bass", with the key that stops it), and the keys they play on are notes: `K` and `L` aren't the click and the loop
   then, nor `S` solo in musical typing. Click that line to hand the keys back.
 - **First time?** **Tap a beat** on the Take one card, or on a new song's first screen, adds a Drums track if
-  there is none, loops two bars with the click and starts them: press `R` and tap `F` `J` `K` `L`. While the song is
+  there is none, loops two bars with the click and starts them: press `R`, a bar counts in, and tap `F` `J` `K` `L`. While the song is
   shorter than 8 bars, **Make it 8 bars** (beside a kept take, and on the tour's last card) repeats it to 8: parts
   that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase. The coach's next
   card offers **Hum over it**: it makes the beat 8 bars so a tune has room, turns the click off while you hum, and

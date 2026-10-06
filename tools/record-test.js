@@ -27,6 +27,7 @@ import { newPartFor, kindOfTake, soundsFor, familyOf, SOUND_SETS } from '../app/
 import { tuneOf } from '../app/src/input/tap.js';
 import { takeFolders, takeNumber, planClipTrim } from '../app/src/core/arrangement.js';
 import { passOf, passGrid } from '../app/src/input/capture.js';
+import { snapGentle } from '../app/src/input/timing.js';
 import { phrase, render as renderVoice } from './hum-bench.js';
 
 const t = tally('record');
@@ -552,9 +553,10 @@ try {
   const beatAfter = await page.evaluate((d) => { const app = window.overdub, tr = app.store.track(d), c = tr.clips[0]; return { clips: tr.clips.length, notes: c.notes.length, id: c.id, mine: c.notes.filter((n) => n.by === 'you').map((n) => n.p + '@' + n.t), label: app.store.history.slice(-1)[0]?.label, hist: app.store.history.length }; }, ids.Drums);
   t.ok(beatAfter.clips === 1 && beatAfter.id === beatBefore.id && beatAfter.notes === beatBefore.notes + 2, `Layer: the hits go into the Beat clip, no second clip (${beatBefore.notes} → ${beatAfter.notes} notes; yours: ${beatAfter.mine.join(' ')})`);
   const padKd = await page.evaluate(() => window.__kd.filter((x) => x.code === 'KeyJ' || x.code === 'KeyL').slice(-2));
-  const q16 = (b) => Math.round(b / 0.25) * 0.25;
+  // (the pads' forgiving grid: an eighth when near one, else the sixteenth; input/timing.js)
+  const q16 = (b) => snapGentle(b, { coarse: 0.5, fine: 0.25 });
   const wantPads = [`38@${q16(padKd[0]?.beat)}`, `46@${q16(padKd[1]?.beat)}`];
-  t.ok(wantPads.every((x) => beatAfter.mine.includes(x)) && beatAfter.label === 'record Drums' && beatAfter.hist === 1, `quantized on input to the 1/16 grid (${wantPads.join(' ')}: played at ${padKd.map((x) => x.beat?.toFixed(3)).join(', ')}), signed by you, one undo step ("${beatAfter.label}")`);
+  t.ok(wantPads.every((x) => beatAfter.mine.includes(x)) && beatAfter.label === 'record Drums' && beatAfter.hist === 1, `quantized on input, forgivingly (an eighth when near one, else the 1/16 cell: ${wantPads.join(' ')}: played at ${padKd.map((x) => x.beat?.toFixed(3)).join(', ')}), signed by you, one undo step ("${beatAfter.label}")`);
   t.ok(heard === beatBefore.notes + 2, 'while recording, each hit was already in the clip (heard on the next pass), out of the history');
   t.ok(/Your beat is in: bar 2, 2 hits on Drums\./.test(await lastToast()), `your own hits and their own bars: "${await lastToast()}"`);
   await reset();
@@ -575,7 +577,7 @@ try {
   t.ok(below.c && below.c.from === -4 && below.beat < 0.01, `below bar 1 the count is clicks alone, from beat -4 (beat ${below.beat.toFixed(2)})`);
   const loopKd = await page.evaluate(() => window.__kd.filter((x) => ['KeyF', 'KeyJ', 'KeyK'].includes(x.code)).slice(-3));
   const P_OF = { KeyF: 36, KeyJ: 38, KeyK: 42 };
-  const wantLoop = loopKd.map((x) => ({ p: P_OF[x.code], t: Math.round(x.beat / 0.25) * 0.25 })).sort((a, b) => a.t - b.t || a.p - b.p).map((n) => n.p + '@' + n.t).join(' ');
+  const wantLoop = loopKd.map((x) => ({ p: P_OF[x.code], t: snapGentle(x.beat, { coarse: 0.5, fine: 0.25 }) })).sort((a, b) => a.t - b.t || a.p - b.p).map((n) => n.p + '@' + n.t).join(' ');
   t.ok(pads.length === 1 && pads[0].start === 0 && pads[0].length === 4 && pads[0].notes.join(' ') === wantLoop, `pads, three passes of a one-bar loop: one clip with every pass layered (${JSON.stringify(pads)}; played ${loopKd.map((x) => x.beat?.toFixed(2)).join(', ')} in passes 1-3)`);
   // keys: two passes, two takes
   await page.evaluate(({ d, k }) => { const app = window.overdub; app.store.dispatch([{ type: 'track.set', track: d, patch: { arm: false } }, { type: 'track.set', track: k, patch: { arm: true } }], { by: 'you' }); app.engine.seek(0); }, { d: kit, k: ids.Keys });
@@ -1002,10 +1004,11 @@ await close();
     const key = async (code, ms = 100) => { await page.keyboard.down(code); await wait(ms); await page.keyboard.up(code); };
     const toast = () => ev(() => [...document.querySelectorAll('.ew-toast')].map((x) => x.textContent).pop() || '');
     await ev(async () => { const a = window.overdub; await a.engine.start(); a.ui.setOpen?.('bottom', true); a.ui.show('sketch'); const q = a.input.qwerty; q.setScaleLock(false); q.setQuantize(false); a.input.recorder.setCountIn(1); });
-    // the first minute's shape: a 2-bar loop already playing, a new track to play a tune on
+    // a 4-bar loop already playing, a new track to play a tune on (a loop of 2 bars or less, the first minute's, starts
+    // a take at its top, so a phrase only meets the seam in a longer one)
     const setup = () => ev(() => {
       const a = window.overdub; a.engine.stop();
-      const r = a.store.dispatch([{ type: 'project.set', patch: { loop: { on: true, start: 0, end: 8 } } }, { type: 'track.add', ref: 't', track: { name: 'Tune', instrument: { device: 'core.keys' } } }], { by: 'you', label: 'setup' });
+      const r = a.store.dispatch([{ type: 'project.set', patch: { loop: { on: true, start: 0, end: 16 } } }, { type: 'track.add', ref: 't', track: { name: 'Tune', instrument: { device: 'core.keys' } } }], { by: 'you', label: 'setup' });
       a.ui.select({ track: r.created.t }); a.engine.play(0);
       return r.created.t;
     });
@@ -1019,36 +1022,37 @@ await close();
     const QW = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'];   // C4 D4 E4 F4 G4 A4 B4 C5
     await page.keyboard.press('Backquote');
 
-    // 1. R in bar 1: recording starts at bar 2; an 8-note tune from bar 2 runs on round the loop; Space a pass later
+    // 1. R at the top of bar 3: a whole bar counts in, recording starts at bar 4; an 8-note tune from bar 4 runs on round
+    // the loop; Space a pass later (R later in bar 3 counts a whole bar too: to the loop's top after the wrap)
     const k1 = await setup();
-    await untilG(1.2);
+    await untilG(8.1);
     await page.keyboard.press('KeyR');
-    for (let i = 0; i < 8; i++) { await untilG(5.2 + i * 0.75); await key(QW[i]); }
-    await untilG(17);
+    for (let i = 0; i < 8; i++) { await untilG(13.2 + i * 0.75); await key(QW[i]); }
+    await untilG(33);
     await page.keyboard.press('Space');
     await idleR();
     const a1 = await takeOf(k1), t1 = await toast();
     const play1 = a1.clips.filter((c) => !c.mute);
     await shot4('record-seam-whole');
-    t.ok(play1.length === 1 && play1[0].notes.map((n) => n.p).join() === '67,69,71,72,60,62,64,65' && play1[0].start === 0 && play1[0].length === 8 && a1.clips.length === 1, `a tune played on round the loop's end is one take, all 8 notes playing, its last ones at bar 1 where they came round (${a1.clips.map((c) => `${c.name}${c.mute ? ' muted' : ''}: ${c.notes.map((n) => n.p + '@' + n.t).join(' ')}`).join('; ')})`);
-    t.ok(/^Take 1 is in on Tune, bars 1–2\. Your phrase ran past the loop's end and is kept whole: its last 4 notes come round at bar 1\. Undo takes it back\./.test(t1), `the toast says so: "${t1}"`);
+    t.ok(play1.length === 1 && play1[0].notes.map((n) => n.p).join() === '67,69,71,72,60,62,64,65' && play1[0].start === 0 && play1[0].length === 16 && a1.clips.length === 1, `a tune played on round the loop's end is one take, all 8 notes playing, its last ones at bar 1 where they came round (${a1.clips.map((c) => `${c.name}${c.mute ? ' muted' : ''}: ${c.notes.map((n) => n.p + '@' + n.t).join(' ')}`).join('; ')})`);
+    t.ok(/^Take 1 is in on Tune, bars 1–4\. Your phrase ran past the loop's end and is kept whole: its last 4 notes come round at bar 1\. Undo takes it back\./.test(t1), `the toast says so: "${t1}"`);
     await wait(2700);                                   // (the played phrase closes after its silence)
     const l1 = await takesList(a1.take);
-    t.ok(l1.length === 1 && l1[0].rec && l1[0].notes === 8 && !l1[0].put && /in the song: Tune, bars 1–2/.test(l1[0].insong), `Takes lists the tune once, whole and in the song, with no second copy offering to put it in (${JSON.stringify(l1)})`);
+    t.ok(l1.length === 1 && l1[0].rec && l1[0].notes === 8 && !l1[0].put && /in the song: Tune, bars 1–4/.test(l1[0].insong), `Takes lists the tune once, whole and in the song, with no second copy offering to put it in (${JSON.stringify(l1)})`);
 
     // 2. Sketch's Record button; 7 notes in the first pass, 1 late in the next; Space a pass later
     const k2 = await setup();
-    await untilG(1.2);
+    await untilG(8.1);
     await page.click('.sk-recbtn');
-    for (let i = 0; i < 7; i++) { await untilG(4.25 + i * 0.5); await key(QW[i], 80); }
-    await untilG(15); await key('KeyG', 80);
-    await untilG(17);
+    for (let i = 0; i < 7; i++) { await untilG(12.25 + i * 0.5); await key(QW[i], 80); }
+    await untilG(31); await key('KeyG', 80);
+    await untilG(33);
     await page.keyboard.press('Space');
     await idleR();
     const a2 = await takeOf(k2), t2 = await toast();
     const play2 = a2.clips.filter((c) => !c.mute);
     t.ok(play2.length === 1 && play2[0].notes.length === 7 && a2.clips.some((c) => c.mute && c.notes.length === 1), `a last pass of 1 note doesn't play over the 7 before it: the 7 play, the 1 is underneath (${a2.clips.map((c) => `${c.name}${c.mute ? ' muted' : ''}: ${c.notes.length}`).join('; ')})`);
-    t.ok(/^Take 1 is in on Tune, bars 1–2\. One more underneath, muted\. The last time round had only 1 note, so the fuller take plays \(7 notes\)\./.test(t2), `and the toast says why: "${t2}"`);
+    t.ok(/^Take 1 is in on Tune, bars 1–4\. One more underneath, muted\. The last time round had only 1 note, so the fuller take plays \(7 notes\)\./.test(t2), `and the toast says why: "${t2}"`);
     await wait(2700);
     const l2 = await takesList(a2.take);
     t.ok(l2.length === 2 && l2.every((x) => x.rec && !x.put) && l2.map((x) => x.notes).sort().join() === '1,7', `Takes: one card per pass, no copies of them (${JSON.stringify(l2)})`);

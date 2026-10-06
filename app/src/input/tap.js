@@ -21,6 +21,7 @@
 import { fft, rms, dbOf, median, frames as pitchFrames, segment } from './pitch.js';
 import { transcribe } from './hum.js';
 import { formatGrid, beatsPerBar } from '../core/music.js';
+import { fitHits } from './timing.js';
 
 export const ROWS = [
   { id: 'kick', key: 'KeyF', label: 'Kick', p: 36, hint: 'F', say: '“b” / “boom”' },
@@ -155,7 +156,9 @@ export function createTap(app, input) {
     const isDrums = (t) => t && t.kind === 'instrument' && /drum|kit|beat/i.test((t.instrument?.device || '') + ' ' + t.name);
     return p.tracks.find((t) => t.arm && isDrums(t)) || p.tracks.find((t) => t.id === sel && isDrums(t)) || p.tracks.find(isDrums) || null;
   };
-  const recording = () => !!(input.recorder && input.recorder.state !== 'idle');
+  // (a free take, no click and nothing playing, is the pads' own: each hit's time, counted on its pulse at the stop)
+  const recording = () => !!(input.recorder && input.recorder.state !== 'idle' && !input.recorder.free);
+  const freeTake = () => !!input.recorder?.free;
 
   const tap = {
     rows: ROWS,
@@ -174,20 +177,36 @@ export function createTap(app, input) {
       if (dt) { try { eng.liveNoteOn(dt.id, r.p, v); setTimeout(() => { try { eng.liveNoteOff(dt.id, r.p); } catch (e) { /* ok */ } }, 160); } catch (e) { /* silent engine */ } }
       // recording: into the take (it goes to capture pass by pass)
       if (recording()) { const n = input.recorder.hit(row, v); emit('hit', { row, v, t: now, rec: true, beat: n ? n.t : null }); return; }
-      if (!cur) cur = { hits: [], t0: now, playing: !!eng.playing, track: dt ? dt.id : null };
-      cur.hits.push({ t: now, row, v, beat: eng.playing ? eng.beat : null });
-      emit('hit', { row, v, t: now });
+      // (the key's own time: main-thread lag mustn't push a hit late)
+      let at = now;
+      try { const ev = globalThis.event, ts = ev && ev.timeStamp; if (ts > 0 && performance.now() - ts >= 0 && performance.now() - ts < 150) at = ts / 1000; } catch (e) { /* ok */ }
+      if (!cur) cur = { hits: [], t0: at, playing: !!eng.playing, track: dt ? dt.id : null };
+      cur.hits.push({ t: at, row, v, beat: eng.playing ? eng.beat : null });
+      emit('hit', { row, v, t: at });
       clearTimeout(idle);
-      idle = setTimeout(() => tap.flush(), GAP * 1000);
+      // (a free take runs until its stop: a pause to think doesn't end it)
+      if (!freeTake()) idle = setTimeout(() => tap.flush(), GAP * 1000);
     },
-    // End the current take: into the capture log as a drum phrase
-    flush() {
+    // End the current take: into the capture log as a drum phrase. Played with the song stopped (free time) the hits are
+    // counted on their own pulse (input/timing.js fitHits): your beats, not a grid at a tempo you never heard; the
+    // phrase says the tempo you played (free: { bpm, fit, drift }) and, for the recorder, where each hit was played
+    // (planned: [{ p, t, raw }]). opts.free: a free take is ending (the recorder lands it)
+    flush({ free = false } = {}) {
       clearTimeout(idle);
       const tk = cur;
       cur = null;
       if (!tk || !tk.hits.length) return null;
       const p = app.store.get();
-      let res, beat = null;
+      let res, beat = null, fit = null;
+      if (!tk.playing) fit = fitHits(tk.hits.map((h) => ({ t: h.t, p: ROW[h.row] ? ROW[h.row].p : 36, v: h.v })), { bpb: beatsPerBar(p.meter), grid: app.input?.options?.grid || 0.25 });
+      if (fit) {
+        res = { notes: fit.notes.map(({ p: pp, t, d, v }) => ({ p: pp, t, d, v })), bars: fit.bars };
+        res.grid = formatGrid(res.notes, { steps: Math.round((fit.bars * beatsPerBar(p.meter)) / 0.25), step: 0.25 });
+        const c = input.capture.add({ src: 'tap', kind: 'drums', notes: res.notes, tempo: fit.bpm, beat: null, track: tk.track, grid: res.grid, free: { bpm: fit.bpm, fit: fit.fit, drift: fit.drift } });
+        if (c) { c.planned = fit.notes.map(({ p: pp, t, raw }) => ({ p: pp, t, raw })); c.free = c.free || { bpm: fit.bpm, fit: fit.fit, drift: fit.drift }; }
+        emit('take', c);
+        return c;
+      }
       if (tk.playing && tk.hits.every((h) => h.beat != null)) {
         // played along: each hit at its song beat (keys and pads are near enough instant)
         const bpb = beatsPerBar(p.meter), first = Math.min(...tk.hits.map((h) => h.beat));
@@ -198,6 +217,8 @@ export function createTap(app, input) {
       emit('take', c);
       return c;
     },
+    // a free take called off: its hits go (nothing was kept)
+    discard() { clearTimeout(idle); cur = null; },
     // Beatbox into the mic: listen until stopBeatbox(), then find the hits and classify them
     async startBeatbox() {
       if (bb) return;

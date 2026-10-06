@@ -5,6 +5,9 @@
 //   const store = createStore(project, { getDevice });
 //   store.dispatch(ops, { by: 'claude', label: 'walking bassline', coalesce?: 'knob:fx_1:drive', kept? })
 //     -> { ok: true, txn, created } | { ok: false, error } | { ok: false, held: true, error, hold }
+//   store.dispatch(ops, { ..., join: txnId })  the change and that transaction are one undo step, when it is still the
+//     newest (nothing done after it, nothing undone) and by the same author: a take onto the track made for it (the
+//     track at the count-in, its hits at the stop) undoes in one step. Otherwise it is a transaction of its own.
 //   store.guard = (ops, { by, label, reason, as }) -> null | { error, hold }   a hold: the change isn't applied (kept
 //     skips it); as: [op], what the ops are as one op (an arrangement move dispatched as its plan), for the guard to read
 //   store.undo({ by?, id?, redo? }) / store.redo() / store.canUndo() / store.canRedo()
@@ -152,7 +155,7 @@ export function createStore(project, { getDevice = null } = {}) {
     // the guard reads for what the change is.
     guard: null,
 
-    dispatch(opOrOps, { by = 'you', label = '', reason = '', coalesce = null, silent = false, audition = false, kept = false, as = null } = {}) {
+    dispatch(opOrOps, { by = 'you', label = '', reason = '', coalesce = null, silent = false, audition = false, kept = false, as = null, join = null } = {}) {
       const ops = (Array.isArray(opOrOps) ? opOrOps : [opOrOps]).map(clone);
       if (!ops.length) return { ok: true, txn: null, created: {} };
       if (!kept && typeof store.guard === 'function') {
@@ -165,7 +168,14 @@ export function createStore(project, { getDevice = null } = {}) {
       touch(by);
       const last = done[done.length - 1];
       let txn;
-      if (coalesce && last && last.coalesce === coalesce && last.by === by && Date.now() - last.at < COALESCE_MS && !undone.length) {
+      if (join && last && last.id === join && last.by === by && !undone.length) {
+        last.ops.push(...ops);
+        last.inverse = [...r.inverse, ...last.inverse];
+        last.at = Date.now();
+        if (label) last.label = label;
+        if (reason) last.reason = reason;
+        txn = last;
+      } else if (coalesce && last && last.coalesce === coalesce && last.by === by && Date.now() - last.at < COALESCE_MS && !undone.length) {
         last.ops.push(...ops);
         last.inverse = [...r.inverse, ...last.inverse];
         last.at = Date.now();

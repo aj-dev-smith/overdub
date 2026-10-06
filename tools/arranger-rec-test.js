@@ -147,7 +147,7 @@ try {
     await clickHead('Drums');
   }
 
-  await E(() => { const app = window.overdub; app.input.recorder.setCountIn(1); app.engine.seek(16); app.arranger.zoomTo(8, 40); });
+  await E(() => { const app = window.overdub; app.input.recorder.setCountIn(1); app.engine.stop(); app.engine.seek(16); app.arranger.zoomTo(8, 40); });
   await page.keyboard.press('KeyT');
   await page.keyboard.press('KeyR');
   await page.waitForTimeout(120);

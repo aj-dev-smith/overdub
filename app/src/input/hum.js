@@ -7,7 +7,12 @@
 //                                     cost: ms spent tracking, decoding and segmenting
 //   transcribe(segs, opts)         -> { notes, moved, low, text, bars, key, keyGuess, tempo }   beats, ready for a clip
 //       opts: { tempo, key, grid = 0.25 (0: off), snapKey = true, keepTiming = false, origin (s of beat originBeat),
-//               originBeat = 0, peakDb }
+//               originBeat = 0, peakDb, gentle (an eighth when near one, else a sixteenth, else as sung: a take against
+//               the click), place ((seg, i) -> { t, e, tr }: the caller counted the notes, free time), clampStart = true }
+//       each note also has tr: the beat it began on, as sung (before any snapping): the take's "As played"
+//   A hum in free time (start({ free: true }): no click, nothing playing) is counted on its own pulse (input/timing.js
+//   fitSegs): take.free = { bpm, fit, drift }, its notes on the hummer's beats, take.result.tempo the hummer's tempo.
+//   hum.live() -> the notes so far, on the take's grid (Sketch draws them as they are sung), or []
 //   guessKey(notes) -> { root, scale, confidence } (the root spelled the usual way: Eb minor, Db major, G# minor)
 //   guessTempo(onsetsSec, prior) -> bpm
 //   keyChosen(song, history?) -> bool   the song's key counts once a person set it (or it isn't a blank song's default)
@@ -28,6 +33,7 @@
 //   they were sung on (from the last reading of the playhead if it never seemed to move), never the marker's.
 
 import { createPitchTracker, segment, median } from './pitch.js';
+import { snapGentle, fitSegs } from './timing.js';
 import { snapToScale, formatNotes, parsePc, beatsPerBar, keyLabel } from '../core/music.js';
 
 export function hear(samples, sr, { hop = 0.01, win = 2048, lo = 65, hi = 1300, seg = {} } = {}) {
@@ -39,23 +45,31 @@ export function hear(samples, sr, { hop = 0.01, win = 2048, lo = 65, hi = 1300, 
 }
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-export function transcribe(segs, { tempo = 120, key = null, grid = 0.25, snapKey = true, keepTiming = false, origin = null, originBeat = 0, peakDb = null, meter = [4, 4] } = {}) {
+export function transcribe(segs, { tempo = 120, key = null, grid = 0.25, snapKey = true, keepTiming = false, origin = null, originBeat = 0, peakDb = null, meter = [4, 4], gentle = false, place = null, clampStart = true } = {}) {
   const spb = 60 / tempo;
   const o = origin ?? (segs.length ? segs[0].t0 : 0);
   const peak = peakDb ?? Math.max(-60, ...segs.map((s) => s.db));
   const g = keepTiming ? 0 : grid;
+  // gentle (a take against the click, or in free time): an eighth when the note is near one, else a sixteenth when near
+  // that, else as sung (input/timing.js); its end the same, a little looser
   const q = (b) => (g > 0 ? Math.round(b / g) * g : Math.round(b * 64) / 64);
+  const qs = gentle && g > 0 ? (b) => snapGentle(b, { coarse: Math.max(g, 0.5), fine: g, tol: 0.35, fineTol: 0.3 }) : q;
+  const qe = gentle && g > 0 ? (b) => snapGentle(b, { coarse: Math.max(g, 0.5), fine: g, tol: 0.4, fineTol: 0.5 }) : q;
   const notes = [];
-  for (const s of segs) {
-    let t = q(originBeat + (s.t0 - o) / spb), e = q(originBeat + (s.t1 - o) / spb);
-    const minD = g > 0 ? g : 1 / 16;
+  segs.forEach((s, i) => {
+    // (place: where each note starts and ends, in beats, when the caller has counted them itself: free time)
+    const pl = place ? place(s, i) : null;
+    const tr = pl ? pl.tr : originBeat + (s.t0 - o) / spb;
+    let t = pl ? pl.t : qs(tr), e = pl ? pl.e : qe(originBeat + (s.t1 - o) / spb);
+    const minD = gentle ? 1 / 8 : g > 0 ? g : 1 / 16;
     if (e - t < minD) e = t + minD;
     const raw = Math.round(s.midi);
     const p = snapKey && key ? snapToScale(s.midi, key) : raw;
-    const n = { p, t: Math.max(0, t), d: e - t, v: clamp(0.8 + (s.db - peak) / 36, 0.35, 0.95), conf: s.conf, raw: s.midi, cents: s.cents, low: s.conf < 0.45, seg: s };
+    // (clampStart false: a note sung before the take's first beat keeps its place there, so the recorder can leave it out)
+    const n = { p, t: clampStart ? Math.max(0, t) : t, d: e - t, v: clamp(0.8 + (s.db - peak) / 36, 0.35, 0.95), conf: s.conf, raw: s.midi, cents: s.cents, low: s.conf < 0.45, seg: s, tr: Math.round(tr * 10000) / 10000 };
     if (p !== raw) n.moved = raw;
     notes.push(n);
-  }
+  });
   // two notes on one grid step: the stronger keeps it, the other moves on a step if there is room (nothing is lost)
   notes.sort((a, b) => a.t - b.t);
   const out = [];
@@ -67,6 +81,8 @@ export function transcribe(segs, { tempo = 120, key = null, grid = 0.25, snapKey
       else if (n.conf > prev.conf) { out[out.length - 1] = n; continue; } else continue;
     }
     if (prev && prev.t + prev.d > n.t) prev.d = Math.max(1 / 32, n.t - prev.t);
+    // (gentle: a gap under a sixteenth between two sung notes is legato, so the first runs on to the second)
+    if (gentle && prev && n.t - (prev.t + prev.d) > 0 && n.t - (prev.t + prev.d) < 0.25 - 1e-9) prev.d = n.t - prev.t;
     out.push(n);
   }
   for (const n of out) { n.t = r4(n.t); n.d = r4(n.d); n.v = r4(n.v); }
@@ -205,6 +221,15 @@ export function createHum(app, input) {
       s.rec = true; s.playing = true; s.snap = null; s.b0 = null; s.pairs = [];
       return true;
     },
+    // the notes so far, on the grid the take will place them on (a take with R: the recorder's grid; along with the
+    // song: its beats), each { p, t, d, low }; free time or nothing placed yet: []
+    live() {
+      const s = sess;
+      if (!s || !s.segs.length || !(s.playing || s.rec)) return [];
+      const o = takeOpts(s, { peek: true });
+      if (o.originBeat == null) return [];
+      try { return transcribe(s.segs, { ...o, key: effKey(o) }).notes.map((n) => ({ p: n.p, t: n.t, d: n.d, low: n.low, tr: n.tr })); } catch (e) { return []; }
+    },
     cancel() { if (sess) { sess.off && sess.off(); sess = null; emit('state', { active: false }); input.emit('hum', { active: false }); } },
     // the take it joined was called off in its count-in: the hum is yours again (H stops it into Sketch), in free time
     // unless the song plays on (its beats from here)
@@ -220,6 +245,15 @@ export function createHum(app, input) {
       // song plays (the take line gives way to the following roll then, ui/sketch.js)
       if (!s.segs.length) { if (!(app.ui?.visible ? app.ui.visible('sketch') : false) || app.engine?.playing) app.ui?.toast?.('Heard nothing. Hum a little louder, or closer to the mic.'); hum.take = { frames: s.frames, segs: [], result: null, opts: s.opts }; emit('take', hum.take); return null; }
       const opts = takeOpts(s);
+      // free time (nothing playing, no take): the notes are counted on the hummer's own pulse, at the hummer's own tempo
+      // (the grid follows them; it used to be 16ths at a tempo nobody heard, from the first note)
+      if (!s.playing && !s.rec) {
+        const fit = fitSegs(s.segs);
+        if (fit) {
+          opts.tempo = fit.bpm; opts.free = { bpm: fit.bpm, fit: fit.fit, drift: fit.drift };
+          opts.place = (sg, i) => ({ t: fit.starts[i], e: fit.ends[i], tr: fit.raws[i] });
+        }
+      }
       let result = transcribe(s.segs, { ...opts, key: effKey(opts) });
       if (!opts.key) { opts.heard = heardOf(result); if (opts.snapHeard && opts.heard) result = transcribe(s.segs, { ...opts, key: effKey(opts) }); }
       // keep the hummed audio with the notes (A/B what you meant); IndexedDB through the engine's assets
@@ -229,7 +263,7 @@ export function createHum(app, input) {
       // the key with what it was sung as (`was`), so the take's commit can say so and put it back (below)
       if (s.rec && opts.originBeat != null) {
         const left = [], recTake = input.recorder.live?.()?.take || null;
-        const n = input.recorder.addNotes(result.notes.map((x) => ({ p: x.p, v: x.v, g: x.t, d: x.d, conf: x.conf, ...(x.moved != null ? { was: x.moved } : {}) })), { src: 'hum', left });
+        const n = input.recorder.addNotes(result.notes.map((x) => ({ p: x.p, v: x.v, g: x.t, d: x.d, conf: x.conf, graw: x.tr, ...(x.moved != null ? { was: x.moved } : {}) })), { src: 'hum', left });
         // what the take didn't take (hummed before R: H, then R; or the take is gone) stays an idea in Sketch, with
         // the hummed audio, at the beats it was sung on
         let cap = null;
@@ -253,8 +287,8 @@ export function createHum(app, input) {
         for (const n of result.notes) n.t = Math.round((n.t - beat) * 10000) / 10000;
         result.text = formatNotes(result.notes.map(({ p, t, d, v }) => ({ p, t, d, v })));
       }
-      const cap = input.capture.add({ src: 'hum', kind: 'notes', notes: result.notes.map(({ p, t, d, v, conf }) => ({ p, t, d, v, conf })), tempo: opts.tempo, beat, audio: audioId, key: opts.key || opts.heard, keyFrom: opts.key ? 'song' : opts.heard ? 'hum' : undefined, moved: result.moved.length, low: result.low, raw: s.segs.map((g) => ({ t0: g.t0, t1: g.t1, midi: g.midi, conf: g.conf, db: g.db })) });
-      const tk = hum.take = { capture: cap ? cap.id : null, frames: s.frames, segs: s.segs, result, opts, audio: audioId, beat };
+      const cap = input.capture.add({ src: 'hum', kind: 'notes', notes: result.notes.map(({ p, t, d, v, conf }) => ({ p, t, d, v, conf })), tempo: opts.tempo, beat, audio: audioId, ...(opts.free ? { free: opts.free } : {}), key: opts.key || opts.heard, keyFrom: opts.key ? 'song' : opts.heard ? 'hum' : undefined, moved: result.moved.length, low: result.low, raw: s.segs.map((g) => ({ t0: g.t0, t1: g.t1, midi: g.midi, conf: g.conf, db: g.db })) });
+      const tk = hum.take = { capture: cap ? cap.id : null, frames: s.frames, segs: s.segs, result, opts, audio: audioId, beat, ...(opts.free ? { free: opts.free } : {}) };
       emit('take', hum.take);
       sayMoved(tk);
       return hum.take;
@@ -321,15 +355,20 @@ export function createHum(app, input) {
   // A hum onto a new track, in a song whose key nobody chose, is put in tune: into the key heard in it (snapHeard), said
   // and undoable as the song-key snap is; Undo (or Snap off) keeps the next hums as sung (options.snapKey). With nothing
   // to play in time with (no clip in the song, the click off, no take running), it keeps its own timing rather than a
-  // grid at a tempo it never heard (docs/INSTRUMENTS-UX.md 1.4)
-  function takeOpts(s) {
+  // grid at a tempo it never heard (docs/INSTRUMENTS-UX.md 1.4); in free time the take is then counted on the hummer's
+  // own pulse (fitSegs, above), so the grid follows them
+  function takeOpts(s, { peek = false } = {}) {
     const p = app.store.get(), key = songKey();
     let toNew = false;
     try { toNew = !!input.recorder && !input.recorder.targetFor('hum'); } catch (e) { toNew = false; }
     const alone = !s.rec && !(p.tracks || []).some((t) => (t.clips || []).length) && !app.engine?.metronome;
     const o = { tempo: p.tempo, meter: p.meter, ...hum.options, key, heard: null, snapHeard: !key && toNew && hum.options.snapKey !== false };
     if (alone) o.keepTiming = true;
-    if (s.playing && !s.snap && s.last) s.snap = s.last;   // sung with the song: never at the marker instead
+    // against the click (a take, the song playing) or in free time: gently, so a sloppy start is still on its beat; a
+    // take's notes sung before its first beat keep their place there (the recorder leaves them out: no chord on beat 1)
+    o.gentle = !o.keepTiming && (!!s.rec || !!s.playing || !!s.opts?.free);
+    if (s.rec) o.clampStart = false;
+    if (s.playing && !s.snap && s.last) { if (peek) s = { ...s, snap: s.last }; else s.snap = s.last; }   // sung with the song: never at the marker instead
     if (s.playing && s.snap) {
       // the song was playing: put each note on the beat it was sung against (the round trip taken off)
       const L = input.audio.latency.get(), out = input.audio.outLatency(), spb = 60 / p.tempo;

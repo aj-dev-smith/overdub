@@ -315,7 +315,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     T.ok(ck2.st === 'count' && !ck2.on && ck2.lamp && !ck3.lamp && !ck3.on, `with no click while recording, the count-in still lights the Click lamp, and it goes out after (${JSON.stringify([ck2, ck3])})`);
     await E(() => { const o = window.overdub; o.transport.click.set({ takes: true }); o.transport.marker.set(16); });
 
-    /* ---- R while the song plays: recording starts at the next bar line, the rest of this bar counted */
+    /* ---- R while the song plays: recording starts at a bar line with a whole bar to come in on (capture-timing: it
+       used to count only what was left of this bar, 171 ms of warning late in a bar), the numerals only in the last bar */
     await listen();
     await E(() => window.overdub.engine.play(17.5));                         // bar 5, the "and" of beat 2
     for (let i = 0; i < 80 && (await E(() => window.overdub.engine.beat)) < 18.1; i++) await sleep(20);
@@ -323,7 +324,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.keyboard.press('KeyR');
     const pl0 = await E(() => { const o = window.overdub, lv = o.input.recorder.live(); return { st: o.input.recorder.state, beat: o.engine.beat, from: lv?.from, pos: document.querySelector('.tp-pos-bar')?.textContent, posRec: document.querySelector('.tp-pos')?.classList.contains('counting'), playing: o.engine.playing }; });
     const pls = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 200; i++) {
       const c = await E(() => { const o = window.overdub; return { st: o.input.recorder.state, beat: o.engine.beat, pos: document.querySelector('.tp-pos-bar')?.textContent, n: o.arranger.recView()?.count ?? null }; });
       if (c.st !== 'count') { pls.push(c); break; }
       pls.push(c);
@@ -334,10 +335,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // flips from 'count' to 'rec' a frame later, which is right on screen and only a race for the sampler
     const plLabels = [...new Set(pls.filter((c) => c.st === 'count' && c.beat < pl0.from).map((c) => c.pos))];
     const plRec = pls[pls.length - 1];
-    T.ok(pl0.playing && pl0.st === 'count' && pl0.from === 20 && pl0.beat > 18 && pl0.beat < 19 && pl0.pos === '−1.2' && pl0.posRec, `R while playing (beat ${pl0.beat.toFixed(2)}) does not punch in: it counts to the next bar line, bar 6 (from ${pl0.from}; ${pl0.pos} at once, in record ink)`);
-    T.ok(plLabels.join(' ') === '−1.2 −1.1' && pls.filter((c) => c.st === 'count').some((c) => c.n === 2) && pls.filter((c) => c.st === 'count').some((c) => c.n === 1), `the count is the beats left in this bar: ${plLabels.join(' ')} (the numeral ${[...new Set(pls.map((c) => c.n))].join(' ')})`);
-    T.ok(plRec.st === 'rec' && plRec.beat >= 20 - 0.1 && plRec.beat < 20.6, `then it records from bar 6 (state ${plRec.st} at beat ${plRec.beat.toFixed(2)})`);
-    T.ok(/^Counting in\. Recording on Keys from bar 6\.$/.test(plSaid), `and says where ("${plSaid}")`);
+    const firstBar = pls.filter((c) => c.st === 'count' && /^−2\./.test(c.pos || ''));
+    T.ok(pl0.playing && pl0.st === 'count' && pl0.from === 24 && pl0.beat > 18 && pl0.beat < 19 && pl0.pos === '−2.2' && pl0.posRec, `R while playing (beat ${pl0.beat.toFixed(2)}) does not punch in: it counts a whole bar, to bar 7 (from ${pl0.from}; ${pl0.pos} at once, in record ink)`);
+    T.ok(plLabels.join(' ') === '−2.2 −2.1 −1.4 −1.3 −1.2 −1.1' && [4, 3, 2, 1].every((n) => pls.some((c) => c.st === 'count' && c.n === n)) && firstBar.length && firstBar.every((c) => c.n == null), `the count is the bars and beats to go: ${plLabels.join(' ')}; the numeral only in the last bar (${[...new Set(pls.filter((c) => c.n != null).map((c) => c.n))].join(' ')}; none while ${firstBar.length} samples read −2)`);
+    T.ok(plRec.st === 'rec' && plRec.beat >= 24 - 0.1 && plRec.beat < 24.6, `then it records from bar 7 (state ${plRec.st} at beat ${plRec.beat.toFixed(2)})`);
+    T.ok(/^Counting in\. Recording on Keys from bar 7\.$/.test(plSaid), `and says where ("${plSaid}")`);
     await page.keyboard.press('Space');
     for (let i = 0; i < 60 && (await E(() => window.overdub.input.recorder.state)) !== 'idle'; i++) await sleep(50);
     await sleep(300);
@@ -371,9 +373,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await neutral();
     await page.keyboard.press('KeyR');
     const fmc = await E(() => { const o = window.overdub, lv = o.input.recorder.live(), bpb = 4; return { st: o.input.recorder.state, beat: o.engine.beat, from: lv?.from, pos: document.querySelector('.tp-pos-bar')?.textContent, bpb }; });
-    const fmLeft = fmc.from > fmc.beat ? fmc.from - fmc.beat : fmc.from + 8 - fmc.beat;   // the next bar line, or the loop's start after the wrap
-    T.ok((fmc.st === 'count' && fmc.from % 4 === 0 && fmLeft > 0 && fmLeft <= 4 && fmc.pos === `−1.${Math.ceil(fmLeft - 1e-6)}`) || (fmc.st === 'rec' && Math.abs(fmc.beat % 4) < 0.05), `the first minute: R over the playing loop counts what is left of the bar (beat ${fmc.beat.toFixed(2)} → bar ${fmc.from / 4 + 1}, ${fmc.pos})`);
-    for (let i = 0; i < 80 && (await E(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await sleep(50);
+    const fmLeft = fmc.from > fmc.beat ? fmc.from - fmc.beat : fmc.from + 8 - fmc.beat;   // a bar line ahead, or the loop's start after the wrap
+    const fmCell = Math.ceil(fmLeft - 1e-6), fmBar = Math.ceil(fmCell / 4);
+    T.ok(fmc.st === 'count' && fmc.from % 4 === 0 && fmLeft >= 3.75 - 1e-6 && fmLeft <= 8.25 && fmc.pos === `−${fmBar}.${fmCell - (fmBar - 1) * 4}`, `the first minute: R over the playing loop counts a whole bar at least (beat ${fmc.beat.toFixed(2)} → bar ${fmc.from / 4 + 1}, ${fmLeft.toFixed(2)} beats, ${fmc.pos})`);
+    for (let i = 0; i < 160 && (await E(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await sleep(50);
     const mid = await E(() => document.querySelector('.ob')?.textContent || '');
     T.ok(/layer/i.test(mid) && /Space/.test(mid), `recording, the card says each pass layers and Space keeps it ("${mid.replace(/^.*?(Recording|Tap)/, '$1').slice(0, 110)}")`);
     for (const k of ['KeyF', 'KeyJ', 'KeyF', 'KeyK']) { await page.keyboard.down(k); await sleep(60); await page.keyboard.up(k); await sleep(260); }

@@ -123,6 +123,7 @@ import { noteExpr } from '../kernel/expr.js';
 import { renderProject, probeLatency } from './render.js';
 import { assets as sharedAssets } from './assets.js';
 import { emitter, frame, beatsPerBarOf, sleep, soon, afterAudio, ramp, dbToGain } from './util.js';
+import { clickSamples } from './click.js';
 
 const TICK_MS = 25;
 const AHEAD = 0.12;        // seconds scheduled ahead of the audio clock
@@ -833,20 +834,20 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // The metronome: a short synthesized click (higher and louder on the bar), to the speakers through the master's
   // monitor soft clip (summed with the mix after the master fader: never in masterTap or a render). It is held back
   // by the plugin latency so it lands with the beat you hear.
+  // (the sound is engine/click.js's, made once per context: a wood-block knock that cuts through a drum kit)
+  let clickBufs = null;
   function clickAt(t, accent, count = false) {
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.value = accent ? 1760 : 1320;
-    const pk = accent ? 0.32 : 0.18;
-    g.gain.value = 0;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(pk, t + 0.001);
-    g.gain.setTargetAtTime(0, t + 0.002, 0.012);
-    o.connect(g); g.connect(clickBus);
-    o.start(t); o.stop(t + 0.12);
+    if (!clickBufs || clickBufs.ctx !== ctx) {
+      const mk = (a) => { const x = clickSamples(ctx.sampleRate, a), b = ctx.createBuffer(1, x.length, ctx.sampleRate); b.getChannelData(0).set(x); return b; };
+      clickBufs = { ctx, beat: mk(false), bar: mk(true) };
+    }
+    const o = ctx.createBufferSource();
+    o.buffer = accent ? clickBufs.bar : clickBufs.beat;
+    o.connect(clickBus);
+    o.start(t);
     o.count = count;
     clicks.add(o);
-    o.onended = () => { clicks.delete(o); try { g.disconnect(); } catch (e) { /* ok */ } };
+    o.onended = () => { clicks.delete(o); try { o.disconnect(); } catch (e) { /* ok */ } };
   }
 
   // The click turned off (or a whileRecording click whose take ended): the clicks already handed over stop, except

@@ -43,8 +43,9 @@
 //                                         stacks a new take (everything else, audio always); a choice sticks per track
 //   recorder.countIn / setCountIn(bars)   0, 1 (default) or 2 bars (localStorage overdub:record)
 //   recorder.record({ countIn?, audio?, quantize? }) -> Promise<take | null>   stopped: the count-in from the playhead;
-//                                         playing: recording starts at the next bar line (quantize: false, now), the
-//                                         rest of this bar counted ('count', live().counting); before the loop, at its start
+//                                         playing: recording starts at a bar line with a whole bar to come in on (a loop
+//                                         of 2 bars or less: its top; quantize: false, now), the wait counted ('count',
+//                                         live().counting); before the loop, at its start
 //   recorder.stop({ keepPlaying?, why?, at? }) -> Promise<commit | null>  the take into the song (R punches out and
 //                                         keeps playing; Space stops; the killswitch, a seek or a hidden tab commit too;
 //                                         a seek ends the take where it was, not where the playhead jumped: at)
@@ -62,7 +63,9 @@
 //                                         before its source moved it (the hum's snap into the key): the commit says how
 //                                         many went in moved, with the ops that put them back as played (`sung`), and
 //                                         input/hum.js says so with Undo, as a hum on its own does
-//   recorder.last                         the last commit: { take, label, summary, parts, ok, sung? }
+//   recorder.last                         the last commit: { take, label, summary, parts, ok, sung?, lean? } (lean: the
+//                                         take's steady offset against the click, taken out at the stop, input/timing.js
+//                                         placeTake: { beats, ms, by, moved, opening, words })
 //   recorder.on('state' | 'pass' | 'note' | 'commit' | 'aim', fn) -> off   (also app.input 'record' { state })
 //
 // In Hum it (Sketch showing its Hum mode), R also records the mic as a hum into the take (with the count-in); a hum
@@ -94,16 +97,26 @@ import { planTakeFolder } from '../core/arrangement.js';
 import { passOf, passGrid } from './capture.js';
 import { ROW } from './tap.js';
 import { createAutorec } from './autorec.js';
+import { snapGentle, tightness, blend, leanOf, placeTake } from './timing.js';
 import { newPartFor } from '../core/sounds.js';
 
 const SAVE = 'overdub:record';
 const EPS = 1e-6, MIN_CLIP = 0.25, MIN_NOTE = 1 / 64;
 const EARLY = 0.5;          // a note in the count-in's last eighth counts as the downbeat (people anticipate it)
+const MISS = 0.35;          // two hits on one drum, in different passes, this close (beats) as played: one meant hit
 const EARLY_WRAP = 1 / 8;   // a note begun less than a 32nd before the loop's end is early on the next pass's downbeat
                             // (the grid's rounding does the same with the grid on; a 32nd pickup stays where it was)
 const r4 = (x) => Math.round(x * 10000) / 10000;
 const plural = (n, w, ws = w + 's') => `${n} ${n === 1 ? w : ws}`;
 const NUM = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+// what a take's lean was, and what was done about it: "You played about 140 ms behind the click, so your hits are on
+// their beats; As played puts them back." (x: relean's { ms, kind: 'hit' | 'note' (a hum's: "You sang"), opening, lean })
+export function leanWords(x) {
+  const ms = Math.abs(Math.round((x.ms || 0) / 10) * 10), them = x.kind === 'note' ? 'notes' : 'hits';
+  const a = x.lean ? `You ${x.kind === 'note' ? 'sang' : 'played'} about ${ms} ms ${x.ms > 0 ? 'behind' : 'ahead of'} the click, so your ${them} are on their beats; As played puts them back.` : '';
+  const b = x.opening ? ` Your first ${x.opening === 1 ? x.kind : `${x.opening} ${them}`} came in late and ${x.opening === 1 ? 'is' : 'are'} on ${x.opening === 1 ? 'its beat' : 'their beats'}.` : '';
+  return (a + b).trim();
+}
 
 export const isDrumTrack = (t) => !!t && t.kind === 'instrument' && /drum|kit|beat/i.test(`${t.instrument?.device || ''} ${t.name || ''}`);
 
@@ -586,10 +599,36 @@ export function createRecorder(app, input, opts = {}) {
       const mode = kind === 'audio' ? 'take' : track ? modeFor(track) : kind === 'drums' ? 'layer' : 'take';
       pt = { track: track ? track.id : null, kind: kind === 'audio' ? 'audio' : 'notes', drums: kind === 'drums', mode, passes: new Map(), name: extra.name || null, srcs: new Set(), previews: [] };
       // (no track to record onto: a new one, named and sounded as every new track is: core/sounds.js newPartFor)
-      if (!track) pt.newTrack = newPartFor(kind === 'drums' ? 'pads' : extra.src === 'hum' ? 'hum' : 'keys', P());
+      if (!track) pt.newTrack = newPartFor(kind === 'drums' ? 'pads' : extra.part || (extra.src === 'hum' ? 'hum' : 'keys'), P());
       r.parts.set(key, pt);
     }
     return pt;
+  }
+  // A miss is replaced, not added (layered drums): when a pass is over, a hit an earlier pass played on the same drum
+  // within a third of a beat of one of this pass's (as played), that landed in another cell, and that this pass didn't
+  // play again, was the same hit, missed: this pass's stays and the earlier one goes (its preview too). A pattern that
+  // fills both cells (hats in sixteenths) plays both again, so both stay. -> how many were replaced
+  function settleMisses(r, pt, n) {
+    if (pt.mode !== 'layer' || !pt.drums) return 0;
+    const ps = pt.passes.get(n);
+    if (!ps || !ps.notes.length) return 0;
+    const len = r.span.loop ? r.span.loop.end - r.span.loop.start : 0;
+    const dist = (a, b) => { const x = Math.abs(a - b); return len > 0 ? Math.min(x, Math.abs(len - x)) : x; };
+    const here = (p, t) => ps.notes.some((x) => x.p === p && Math.abs(x.t - t) < 1e-6);
+    let k = 0;
+    for (const [n2, ps2] of pt.passes) {
+      if (n2 >= n) continue;
+      ps2.notes = ps2.notes.filter((x) => {
+        const hit = ps.notes.find((y) => y.p === x.p && Math.abs(y.t - x.t) > 1e-6 && dist(x.raw, y.raw) < MISS);
+        if (!hit || here(x.p, x.t)) return true;
+        k++;
+        return false;
+      });
+    }
+    // (the misses' previews go: every preview of the part again, last first, since they stack)
+    if (k && R === r) repreview(r, pt);
+    ps.replaced = (ps.replaced || 0) + k;
+    return k;
   }
   function passIn(pt, n) { if (!pt.passes.has(n)) pt.passes.set(n, { n, notes: [] }); return pt.passes.get(n); }
 
@@ -597,12 +636,12 @@ export function createRecorder(app, input, opts = {}) {
   // note in the count's last eighth is the downbeat; one begun just before the loop's end (the grid rounds it there, or
   // with your own timing it is inside EARLY_WRAP) is the next pass's downbeat, early, not a stub at the end of this one.
   //   -> { w (passOf), beat, raw, early (beats it came early on the wrap, 0 if it didn't) }
-  function landing(r, g, quant = 0) {
+  function landing(r, g, quant = 0, snap = null) {
     if (g < r.span.g0) g = r.span.g0;
     let w = where(g, r), beat = w.beat, early = 0;
     const raw = beat;
     if (quant > 0) {
-      beat = Math.round(beat / quant) * quant;
+      beat = snap ? snap(beat) : Math.round(beat / quant) * quant;
       if (r.span.loop && beat >= w.to - EPS) { early = Math.max(0, w.to - raw); w = where(w.g1 + EPS, r); beat = w.from; }
       if (beat < r.span.b0 - EPS && !w.pass) beat = Math.ceil(r.span.b0 / quant - 1e-9) * quant;
     } else if (r.span.loop && w.to - beat < EARLY_WRAP - EPS) {
@@ -611,19 +650,25 @@ export function createRecorder(app, input, opts = {}) {
     return { w, beat, raw, early };
   }
   // A note (grid g, grid length dg) onto a part; was: its pitch before its source moved it (a hum snapped into the key)
-  function addNote(r, pt, { p, v, g, dg, quant = 0, src, was = null }) {
+  // gentle: snapGentle's options when the note was placed by the forgiving grid (pads, a hum against the click): the
+  // stop places it again with the take's lean out (relean)
+  function addNote(r, pt, { p, v, g, dg, quant = 0, snap = null, src, was = null, graw = null, gentle = null }) {
     if (g < r.span.g0 - EARLY - EPS) return null;      // the count-in (kept in capture, not in the take)
-    const { w, beat, raw, early } = landing(r, g, quant);
+    const { w, beat, raw: raw0, early } = landing(r, g, quant, snap);
     if (r.dropped?.has(w.pass)) return null;            // a pass taken out with ⌘Z (kept in capture)
     // (early on the wrap and held over it: it still ends where you let go)
     if (early && !quant && dg > early) dg -= early;
     const d = Math.max(MIN_NOTE, Math.min(dg, Math.max(MIN_NOTE, w.to - beat)));
+    // raw: where it really began (a hum's note comes in already placed: graw is where it was sung)
+    const raw = Number.isFinite(graw) ? raw0 + (graw - g) : raw0;
     const note = { p, t: r4(beat), d: r4(d), v: r4(v), raw: r4(raw), src };
     if (Number.isFinite(was) && was !== p) note.was = was;
+    // (where it was played on the take's grid, before any clamping: the lean is measured from it)
+    if (gentle) Object.defineProperty(note, 'gen', { value: { opts: gentle, gu: Number.isFinite(graw) ? graw : g, d: dg, quant }, enumerable: false, writable: true });
     const ps = passIn(pt, w.pass);
     ps.notes.push(note);
     pt.srcs.add(src);
-    if (pt.mode === 'layer') preview(r, pt, note);
+    if (pt.mode === 'layer') note.pv = preview(r, pt, note);
     emit('note', { track: pt.track, pass: w.pass, note });
     return note;
   }
@@ -647,7 +692,14 @@ export function createRecorder(app, input, opts = {}) {
       if (e - s < MIN_CLIP) return;
       pv = store.preview({ type: 'clip.add', track: t.id, clip: { kind: 'notes', start: s, length: e - s, name: pt.name || 'Recorded', notes: [{ p: n.p, t: r4(n.t - s), d: n.d, v: n.v }] } }, { by: 'you' });
     }
-    if (pv && pv.ok) pt.previews.push(pv);
+    if (pv && pv.ok) { pt.previews.push(pv); return pv; }
+    return null;
+  }
+  // a part's previews again, from its notes as they are now (previews are a stack: they go back last first, all of them)
+  function repreview(r, pt) {
+    if (pt.mode !== 'layer') return;
+    for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch (e) { /* the commit puts it right */ } }
+    for (const ps of [...pt.passes.values()].sort((a, b) => a.n - b.n)) for (const n of ps.notes) n.pv = preview(r, pt, n);
   }
   function releasePreviews(r) {
     for (const pt of r.parts.values()) { for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch (e) { /* the commit puts it right */ } } }
@@ -656,14 +708,14 @@ export function createRecorder(app, input, opts = {}) {
   /* ---- sources: keys and MIDI (input.noteOn/noteOff), pads (tap.hit), beatbox and hum (their stop), the mic */
   function noteOn(src, p, v, trackId, kind = 'midi') {
     const r = R;
-    if (!r || !trackId || r.closing) return;
+    if (!r || !trackId || r.closing || r.free) return;
     const g = gridNow(r, eventTime());
     if (g == null) return;
     r.held.set(src + ':' + p, { p, v, g, track: trackId, kind });
   }
   function noteOff(src, p) {
     const r = R;
-    if (!r || r.closing) return;
+    if (!r || r.closing || r.free) return;
     const h = r.held.get(src + ':' + p);
     if (!h) return;
     r.held.delete(src + ':' + p);
@@ -682,7 +734,7 @@ export function createRecorder(app, input, opts = {}) {
   // a pad: quantized on input to the Sketch grid (raw timing kept)
   function hit(row, v = 0.8, { g = null, src = 'pads' } = {}) {
     const r = R;
-    if (!r || (g == null && r.closing)) return null;
+    if (!r || r.free || (g == null && r.closing)) return null;
     const rw = ROW[row];
     if (!rw) return null;
     const gg = g ?? gridNow(r, eventTime());
@@ -690,7 +742,59 @@ export function createRecorder(app, input, opts = {}) {
     const t = targetFor('pads');
     const q = input.options?.grid || 0.25;
     const pt = partOf(r, t, 'drums', { name: src === 'beatbox' ? 'Beatboxed beat' : 'Tapped beat' });
-    return addNote(r, pt, { p: rw.p, v, g: gg, dg: q, quant: q, src });
+    // forgiving: an eighth when the hit is near one, else the grid's cell (input/timing.js snapGentle), with the take's
+    // lean so far taken out (a player 150 ms behind the click is on the beat from the fourth hit; the stop places every
+    // hit again with the whole take's lean: relean)
+    const gentle = { coarse: Math.max(q, 0.5), fine: q }, lean = r.lean || 0;
+    const n = addNote(r, pt, { p: rw.p, v, g: gg, dg: q, quant: q, snap: (b) => snapGentle(b - lean, gentle), src, gentle });
+    // (the lean found so far moved: the hits already in go where it says too, heard there on the next pass)
+    if (n) { const l2 = leanOf(gentleHits(r, pt)).lean; if (Math.abs(l2 - lean) > 0.02) { r.lean = l2; relean(r, { only: pt }); } }
+    return n;
+  }
+  // a part's notes placed by the forgiving grid, as played: { p (a drum's note; one value for a hum), b (the take's
+  // beats from its start, unwrapped) }, and the notes themselves
+  function gentleNotes(pt) { const out = []; for (const ps of pt.passes.values()) for (const n of ps.notes) if (n.gen) out.push({ n, ps }); return out; }
+  function gentleHits(r, pt, items = gentleNotes(pt)) { return items.length < 4 ? [] : items.map(({ n }) => ({ p: pt.drums ? n.p : 0, b: r.span.b0 + (n.gen.gu - r.span.g0) })); }
+  // At the stop: every note the forgiving grid placed, placed again with the whole take's lean out (input/timing.js
+  // placeTake: one steady offset, the median distance to the beat, so a player who is always 150 ms late lands on the
+  // beat and not on the "and"; a drum's nervous first hits, late coming in, on their beats). A hum's notes move only when
+  // there is a lean (its own placing, input/hum.js, is the same grid). -> { lean, by, ms, moved, opening, n, kind } | null
+  function relean(r, { only = null } = {}) {
+    let out = null;
+    for (const pt of r.parts.values()) {
+      if (only && pt !== only) continue;
+      const items = gentleNotes(pt);
+      if (items.length < 3) continue;
+      const hum = !pt.drums;
+      const hits = items.map(({ n }) => ({ p: pt.drums ? n.p : 0, b: r.span.b0 + (n.gen.gu - r.span.g0) }));
+      const pl = placeTake(hits, items[0].n.gen.opts, { from: r.span.b0, opening: !hum });
+      if (hum && !pl.lean) continue;
+      let moved = 0;
+      const touched = new Set();
+      items.forEach(({ n, ps }, i) => {
+        n.gen.lean = pl.lean;
+        let g = r.span.g0 + (pl.t[i] - r.span.b0);
+        if (g < r.span.g0) g = r.span.g0;
+        let w = where(g + 1e-7, r), beat = r4(w.beat);
+        if (r.span.loop && beat >= w.to - EPS) { w = where(w.g1 + EPS, r); beat = w.from; }
+        if (w.pass === ps.n && Math.abs(beat - n.t) < 1e-6) return;
+        moved++;
+        ps.notes.splice(ps.notes.indexOf(n), 1);
+        touched.add(ps);
+        if (r.dropped?.has(w.pass)) return;
+        n.t = beat;
+        n.d = r4(Math.max(MIN_NOTE, Math.min(hum ? n.d : n.gen.d, w.to - beat)));
+        const to = passIn(pt, w.pass);
+        to.notes.push(n);
+        touched.add(to);
+      });
+      // (heard where they go now, while the take runs)
+      if (only && moved) repreview(r, pt);
+      for (const ps of touched) { ps.notes.sort((a, b) => a.t - b.t || a.p - b.p); if (ps.captured) recapture(r, pt, ps, ps.notes); }
+      const spb = 60 / (+r.tempo || 120);
+      if (!out || Math.abs(pl.lean) > Math.abs(out.lean)) out = { lean: pl.lean, by: pl.by, ms: Math.round(pl.lean * spb * 1000), moved, opening: pl.opening, n: items.length, kind: pt.drums ? 'hit' : 'note' };
+    }
+    return out;
   }
 
   /* ---- the mic: blocks from the capture worklet, placed by a (ctx time, grid) pair */
@@ -805,6 +909,7 @@ export function createRecorder(app, input, opts = {}) {
   }
   // a completed pass goes to capture now (never lose one, even if the tab dies before the stop)
   function closePass(r, n) {
+    for (const pt of r.parts.values()) settleMisses(r, pt, n);
     for (const pt of r.parts.values()) {
       const ps = pt.passes.get(n);
       if (!ps || ps.captured || !ps.notes.length) continue;
@@ -837,7 +942,31 @@ export function createRecorder(app, input, opts = {}) {
   /* ---- record, stop, cancel */
   // Hum it is open: R records the mic into the song as a hum (with the count-in), the way tapping records the pads
   const humArmed = () => input.sketchMode === 'hum' && (!app.ui?.visible || !app.ui.panels?.has?.('sketch') || !!app.ui.visible('sketch'));
-  async function record({ countIn = rec.countIn, audio = null, quantize = true, hum = humArmed() } = {}) {
+  // Sketch's Tap it or Hum it on screen: a take from there is a capture take. Its click is the transport's click for
+  // takes (ui/transport.js clickSettings: on unless turned off, borrowed for the take); with the click off altogether
+  // and nothing in the song to play along to, it is a free take: no transport and no count, you play in your own time,
+  // and the grid follows you (finishFree)
+  const sketchShown = () => !app.ui?.visible || !app.ui.panels?.has?.('sketch') || !!app.ui.visible('sketch');
+  const tapArmed = () => input.sketchMode === 'tap' && sketchShown();
+  const silentSong = () => P().tracks.every((t) => !(t.clips || []).some((c) => !c.mute));
+  // a track for a take that needs one before it starts (the pads sound on a drum track; the keys on theirs): made now,
+  // selected, and its adding is one undo step with the take (store.dispatch join)
+  function makePart(kind) {
+    const np = newPartFor(kind, P());
+    const d = store.dispatch({ type: 'track.add', ref: 'n', track: { name: np.name, kind: 'instrument', instrument: { device: np.device, params: {} } } }, { by: 'you', label: `add ${np.name} to record on` });
+    if (!d.ok) return null;
+    ownSelect({ track: d.created.n, clip: null, notes: [] });
+    took(kind, d.created.n);   // (the kind's aim is this track now, as a commit would make it)
+    return { track: d.created.n, txn: d.txn?.id || null, name: np.name };
+  }
+  // the track made for a take that put nothing in it goes again (only while its adding is the newest change)
+  function unmake(r) {
+    const m = r && r.made;
+    if (!m || !m.txn) return;
+    const h = store.history, lastTx = h[h.length - 1], t = store.track(m.track);
+    if (lastTx && lastTx.id === m.txn && t && !t.clips.length) { try { store.undo({ id: m.txn, redo: false }); } catch (e) { /* ok */ } }
+  }
+  async function record({ countIn = rec.countIn, audio = null, quantize = true, hum = humArmed(), free = null } = {}) {
     if (R) return R;
     const au = audio ? store.track(audio) : targetFor('audio');
     // A sound on trial on a track this take records onto is kept first, said before it happens (the instrument change
@@ -856,21 +985,53 @@ export function createRecorder(app, input, opts = {}) {
         }
       }
     } catch (e) { /* the take still records */ }
-    // the keys aimed at a new track: it is made now, at the count-in, and this press records onto it (never "press R
-    // again"). A hum and the pads make theirs at the commit, since nothing sounds on them live till then
-    if (!au && !hum && kindNow() === 'keys' && !targetFor('keys')) keysTrack();
+    const capture = !au && (hum || tapArmed());
+    // no track to record onto is never a dead end: Tap it makes Drums now (so the pads sound), the keys make Keys now,
+    // at the count-in (they sound on it, and this press records onto it, never "press R again"), a hum makes Melody
+    // when it lands (newPartFor, core/sounds.js). Either is one undo step with the take (store.dispatch join)
+    let made = null;
+    if (!au && !hum && tapArmed() && !targetFor('pads')) made = makePart('pads');
+    else if (!au && !hum && kindNow() === 'keys' && !targetFor('keys')) {
+      const kt = keysTrack(), h = store.history, lastTx = h[h.length - 1];
+      if (kt && lastTx && lastTx.ops.length === 1 && lastTx.ops[0].type === 'track.add' && !kt.clips.length) made = { track: kt.id, txn: lastTx.id, name: kt.name };
+    }
+    // (a track made for this take just before it, by someone else's button: the first minute's Drums. Its adding is the
+    // newest change and it is empty: the take joins it too, so one undo takes the take and the track it was made for)
+    if (!made) {
+      const h = store.history, lastTx = h[h.length - 1], inv = lastTx && lastTx.inverse && lastTx.inverse[0];
+      const tid = inv && inv.type === 'track.remove' ? inv.track : null, tr = tid && store.track(tid);
+      const aimed = tid && [targetFor('pads'), targetFor('keys'), hum ? targetFor('hum') : null].some((x) => x && x.id === tid);
+      if (lastTx && lastTx.by === 'you' && lastTx.ops.length === 1 && lastTx.ops[0].type === 'track.add' && tr && !tr.clips.length && aimed) made = { track: tid, txn: lastTx.id, name: tr.name };
+    }
+    const isFree = free ?? (capture && !rec.captureClick && !engine.playing && silentSong());
+    if (isFree) return recordFree({ hum, made });
     const p = P();
     const bpb = beatsPerBar(p.meter), playing = !!engine.playing;
     const b0 = playing ? engine.beat : Math.max(0, +(engine.beat ?? 0) || 0);
     const lp = p.loop && p.loop.on && p.loop.end - p.loop.start >= 1 / 64 && b0 < p.loop.end - EPS ? { start: +p.loop.start, end: +p.loop.end } : null;
     // where recording starts (start, a song beat) and how far ahead that is as heard (ahead, beats): the loop is the
-    // punch range, so before it, its start; R while playing (a quantized launch, like a clip in Ableton), the next
-    // bar line, the rest of this bar counted in; the next bar line at the loop's end is its start, after the wrap
+    // punch range, so before it, its start; R while playing (a quantized launch, like a clip in Ableton), a bar line
+    // with at least the count-in's bars to come in on (a whole bar, less a sixteenth: R a hair after a bar line counts
+    // that bar), the loop's start after its end. It used to count only what was left of this bar: 171 ms of warning
+    // when R came late in the bar, and none in its last sixteenth
     let start = b0, ahead = 0;
     if (lp && b0 < lp.start - EPS) { start = lp.start; ahead = lp.start - b0; }
     else if (playing && quantize) {
-      const bar = Math.ceil((b0 - 1e-3) / bpb) * bpb;
-      if (lp && bar >= lp.end - EPS) { start = lp.start; ahead = lp.end - b0; } else { start = bar; ahead = Math.max(0, bar - b0); }
+      const want = Math.max(0, (+countIn || 0) * bpb - 0.25);
+      // (a loop of 2 bars or less, the first minute's: the take starts at its top, so what you play first is its first
+      // bar and a 2-bar beat lands as played, not its second bar then its first; a longer loop would wait too long)
+      const top = !!lp && b0 >= lp.start - EPS && lp.end - lp.start <= 2 * bpb + EPS;
+      // (the bar lines ahead, as heard: on to the loop's end, then round from its start)
+      const lines = [];
+      let pos = b0, acc = 0, next = Math.ceil((b0 - 1e-3) / bpb) * bpb;
+      for (let guard = 0; guard < 64 && !lines.length; guard++) {
+        if (lp && next >= lp.end - EPS) { acc += lp.end - pos; pos = lp.start; } else { acc += next - pos; pos = next; }
+        if (acc >= want - 1e-9 && (!top || Math.abs(pos - lp.start) < EPS)) lines.push({ at: pos, ahead: acc });
+        next = Math.ceil((pos + 1e-3) / bpb) * bpb;
+      }
+      // the first with a whole count before it
+      const pick = lines[0] || { at: b0, ahead: 0 };
+      start = pick.at; ahead = pick.ahead;
     }
     const g0 = (playing && fin(engine.gridBeat) ? engine.gridBeat : b0) + ahead;
     // (whether this take has a hum is known before its first 'state': the sound card reads humming() on it)
@@ -879,7 +1040,7 @@ export function createRecorder(app, input, opts = {}) {
       id: newId('tk'), state: 'count', at: Date.now(), parts: new Map(), held: new Map(), pass: 0, lastG: null,
       span: { g0, b0: start, loop: lp, wrap: lp ? g0 + (lp.end - start) : Infinity },
       startBeat: b0, tempo: p.tempo, meter: p.meter.join('/'), loopKey: JSON.stringify(p.loop || null),
-      offset: playing ? 0 : null, started: playing, wasPlaying: playing, newSpan: () => newSpan(r), keeps, humOn,
+      offset: playing ? 0 : null, started: playing, wasPlaying: playing, newSpan: () => newSpan(r), keeps, humOn, made, capture,
     };
     R = r;
     const beats = playing ? 0 : Math.max(0, (+countIn || 0) * bpb);   // (whole bars: 3.5 beats a bar in 7/8, not 4)
@@ -907,12 +1068,135 @@ export function createRecorder(app, input, opts = {}) {
     return r;
   }
 
+  // A free take (no click, nothing playing): no transport and no count, it records from the first tap or note. The
+  // pads keep their own take (input/tap.js, each hit's time), a hum its own (input/hum.js start({ free: true })); at
+  // the stop the pulse is found in what was played and the take lands on its own track (finishFree).
+  function recordFree({ hum, made }) {
+    const p = P();
+    const r = {
+      id: newId('tk'), free: true, state: 'rec', at: Date.now(), parts: new Map(), held: new Map(), pass: 0, lastG: 0,
+      span: { g0: 0, b0: 0, loop: null, wrap: Infinity }, startBeat: 0, tempo: p.tempo, meter: p.meter.join('/'),
+      loopKey: JSON.stringify(p.loop || null), offset: 0, started: true, wasPlaying: false, newSpan: () => ({ start: 0, end: 0 }), made, capture: true,
+    };
+    R = r;
+    try { input.tap?.flush?.(); } catch (e) { /* ok */ }   // (an earlier phrase of taps is its own take)
+    setState(r, 'rec');
+    if (hum && input.hum && !input.hum.active) {
+      r.hum = true;
+      r.humStart = input.hum.start({ free: true }).catch((e) => {
+        const blocked = /allow|NotAllowed|denied/i.test(String(e && e.message));
+        app.ui?.toast?.(blocked ? 'The mic is blocked. Allow it from the address bar, then press Hum again.' : 'No hum: ' + (e && e.message), { kind: 'bad' });
+        if (R === r) cancel();
+      });
+    }
+    return Promise.resolve(r);
+  }
+
+  // A free take ends: what was played, counted on its own pulse (input/timing.js), goes in on its own track as one undo
+  // step (with the track made for it): a beat onto the song's only drum track or a new Drums, a hum onto a new Melody.
+  // A song with nothing in it takes the tempo you played; one with parts keeps its own, and your beats become its beats.
+  async function finishFree(r, why) {
+    let cap = null, fit = null, planned = [];
+    const kind = r.hum ? 'hum' : 'pads';
+    if (r.hum) {
+      try { await r.humStart; } catch (e) { /* said */ }
+      const tk = input.hum?.active ? await input.hum.stop() : null;
+      if (tk && tk.capture) { cap = tk.capture; fit = tk.free || null; planned = (tk.result?.notes || []).map((n) => ({ p: n.p, t: n.t, raw: Number.isFinite(n.tr) ? n.tr : n.t })); }
+    } else {
+      const c = input.tap?.flush?.({ free: true }) || null;
+      if (c && c.id) { cap = c.id; fit = c.free || null; planned = c.planned || []; }
+    }
+    R = null;
+    setState(r, 'idle');
+    if (!cap) {
+      unmake(r);
+      const text = r.hum ? 'Heard nothing, so the song is as it was. Hum a little louder, or closer to the mic.' : 'Nothing played in that take, so the song is as it was.';
+      try { app.ui?.toast?.(text, { ms: 4000 }); app.ui?.announce?.(text); } catch (e) { /* ok */ }
+      const res = { ok: true, take: r.id, empty: true, why, free: true, parts: [], summary: '' };
+      last = res; emit('commit', res);
+      return res;
+    }
+    const p = P(), bpb = beatsPerBar(p.meter);
+    const t = kind === 'pads' ? targetFor('pads') : targetFor('hum');
+    const tempo = fit && fit.bpm && silentSong() ? Math.max(40, Math.min(240, Math.round(fit.bpm))) : null;
+    const np = t ? null : newPartFor(kind, p);
+    const k = input.capture.keep(cap, { track: t ? t.id : null, newTrack: np, tempo, join: r.made?.txn || null, label: kind === 'pads' ? 'record your beat, in your own time' : 'record your hum, in your own time' });
+    if (!k.ok) {
+      app.ui?.toast?.('The take could not go in: ' + k.error + '. Sketch kept it.', { kind: 'bad' });
+      const res = { ok: false, take: r.id, error: k.error, why, free: true };
+      last = res; emit('commit', res);
+      return res;
+    }
+    const c = store.clip(k.track, k.clip), tr = store.track(k.track), n = c?.notes?.length || 0;
+    const bars = c ? barsOf(bpb, c.start, c.start + c.length) : '';
+    const word = kind === 'pads' ? 'hit' : 'note';
+    const at = tempo ? ` The song is at ${tempo} BPM now, the tempo ${kind === 'pads' ? 'you played' : 'it heard in your hum'}.` : fit ? ` You ${kind === 'pads' ? 'played' : 'hummed'} at ${Math.round(fit.bpm)} BPM; it plays at the song's ${p.tempo}.` : '';
+    const summary = `${kind === 'pads' ? 'Your beat is in' : 'Your hum is in'}: ${plural(n, word)} on ${tr ? tr.name : 'a new track'}, ${bars}.${at}`;
+    timing = timingOf([{ track: k.track, clip: k.clip }], planned, 0, kind);
+    const h = store.history, txn = h[h.length - 1]?.id || null;
+    const res = { ok: true, take: r.id, capture: cap, why, free: true, tempo: tempo || null, bpm: fit ? fit.bpm : null, fit: fit ? fit.fit : null, drift: fit ? fit.drift : null, label: h[h.length - 1]?.label || '', summary, txn,
+      parts: [{ track: k.track, name: tr ? tr.name : '', mode: kind === 'pads' ? 'layer' : 'take', drums: kind === 'pads', notes: n, played: n, bars, clips: [k.clip] }], clips: [k.clip] };
+    last = res;
+    app.ui?.toast?.(`${summary} Undo takes it back.`, { kind: 'ok', ms: 6000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    try { app.ui?.announce?.(summary); } catch (e) { /* ok */ }
+    emit('commit', res);
+    return res;
+  }
+
+  // The take's timing, for its Tight / Loose / As played (retime): each note it put in the song, where the gentle grid
+  // put it (tight) and where it was played (raw), in its clip's beats. made: [{ track, clip | clips }]; planned:
+  // [{ p, t, raw }] in song beats (less `base`, the beat planned t are counted from minus the clip's start)
+  let timing = null;
+  function timingOf(made, planned, base = null, kind = 'keys') {
+    const pool = new Map();
+    for (const x of planned) { if (!pool.has(x.p)) pool.set(x.p, []); pool.get(x.p).push({ ...x, used: false }); }
+    const clips = [];
+    for (const m of made) {
+      for (const cid of m.clips || [m.clip]) {
+        const c = store.clip(m.track, cid);
+        if (!c || c.kind !== 'notes') continue;
+        const off = base == null ? c.start : base;
+        const notes = [];
+        for (const n of c.notes || []) {
+          const q = (pool.get(n.p) || []).find((x) => !x.used && Math.abs(x.t - off - n.t) < 1e-3);
+          if (!q) continue;
+          q.used = true;
+          notes.push({ id: n.id, tight: n.t, raw: r4(q.raw - off), lean: q.lean || 0 });
+        }
+        if (notes.length) clips.push({ track: m.track, clip: cid, length: c.length, notes });
+      }
+    }
+    return clips.length ? { level: 'tight', clips, kind } : null;
+  }
+  // Tight (where the gentle grid put each note), Loose (half way back to how it was played) or As played: one undo
+  // step, by you. -> dispatch result
+  const LEVEL_WORD = { tight: 'tight', loose: 'loose', played: 'as played' };
+  function retime(level) {
+    const tm = timing;
+    if (!tm || !LEVEL_WORD[level]) return { ok: false, error: 'no take to tighten' };
+    const s = tightness(level), ops = [];
+    for (const c of tm.clips) {
+      const clip = store.clip(c.track, c.clip);
+      if (!clip) continue;
+      const ids = new Set((clip.notes || []).map((n) => n.id));
+      // (Loose is half way back to how it was played, the lean left out: a player 150 ms behind the click keeps the feel
+      // of each hit, not the 150 ms; As played is where each was played)
+      const notes = c.notes.filter((n) => ids.has(n.id)).map((n) => ({ id: n.id, t: r4(Math.max(0, Math.min(clip.length - MIN_NOTE, blend(s > 0 ? n.raw - (n.lean || 0) : n.raw, n.tight, s)))) }));
+      if (notes.length) ops.push({ type: 'notes.set', track: c.track, clip: c.clip, notes });
+    }
+    if (!ops.length) { timing = null; return { ok: false, error: 'the take is no longer in the song' }; }
+    const d = store.dispatch(ops, { by: 'you', label: `timing: ${LEVEL_WORD[level]}` });
+    if (d.ok) tm.level = level;
+    return d;
+  }
+
   // at: the grid it stopped at, when the transport has already moved on (a seek or a play() jumps the grid to the new
   // place before its event: the take ends where it was, not where the playhead went)
   async function stop({ keepPlaying = false, why = 'stop', at = null } = {}) {
     const r = R;
     if (!r) return null;
     if (r.closing) return r.closing;
+    if (r.free) { r.closing = finishFree(r, why); return r.closing; }
     if (r.state === 'count') { cancel({ stopTransport: !keepPlaying }); return null; }
     r.closing = (async () => {
       if (!fin(at)) tick();
@@ -929,11 +1213,14 @@ export function createRecorder(app, input, opts = {}) {
       try { if (input.hum?.active && input.hum.recording) await input.hum.stop(); } catch (e) { /* ok */ }
       try { if (input.tap?.beatboxing && input.tap.recording) await input.tap.stopBeatbox(); } catch (e) { /* ok */ }
       const audioRes = await finishAudio(r, stopG);
+      r.leaned = relean(r);
+      for (const pt of r.parts.values()) settleMisses(r, pt, r.stopPass ?? r.pass);   // (the pass it stopped in)
       R = null;
       try { engine.recording = false; } catch (e) { /* ok */ }
       releasePreviews(r);
       setState(r, 'idle');
       const res = commit(r, audioRes, why);
+      if (!res || !res.ok || res.empty) unmake(r);
       emit('commit', res);
       return res;
     })();
@@ -967,7 +1254,11 @@ export function createRecorder(app, input, opts = {}) {
       // the take that plays: the last complete pass (a pass the stop cut short is kept under it), else the last one;
       // never a fragment over a fuller pass (pickActive)
       const pick = pickActive(passes);
-      take.parts.push({ track: pt.track, kind: 'notes', mode: pt.mode, name: pt.name || undefined, drums: pt.drums, newTrack: pt.newTrack, kinds: kindsOf(pt), span: { start: sp.start, end: r.span.loop ? sp.end : Math.ceil(sp.end / bpb - 1e-9) * bpb }, passes, active: pick.n, natural: pick.natural, joins });
+      // (where a new Layer clip may go: to the loop's end, or to the bar line before the stop, further when a note was
+      // played past it; a stop a hair into a bar with nothing played there doesn't add that bar)
+      const lastOn = Math.max(...own.flatMap((ps) => ps.notes.map((x) => x.t)));
+      const end = r.span.loop ? sp.end : Math.max(Math.ceil((lastOn + MIN_NOTE) / bpb - 1e-9) * bpb, Math.floor(sp.end / bpb + 1e-9) * bpb, sp.start + bpb);
+      take.parts.push({ track: pt.track, kind: 'notes', mode: pt.mode, name: pt.name || undefined, drums: pt.drums, newTrack: pt.newTrack, kinds: kindsOf(pt), span: { start: sp.start, end }, passes, active: pick.n, natural: pick.natural, joins });
     }
     if (audioRes) {
       const t = store.track(r.audioTrack) || targetFor('audio');
@@ -978,6 +1269,9 @@ export function createRecorder(app, input, opts = {}) {
     // the knobs and faders moved while it recorded (input/autorec.js): their lanes go in with the take, one undo step
     const auto = input.autorec ? input.autorec.finish(r) : null;
     const plan = planTake(P(), take);
+    // a lean taken out (relean): said, with the number, and that As played puts it back
+    const lean = r.leaned && (r.leaned.lean || r.leaned.opening) ? r.leaned : null;
+    if (lean && plan.ops.length) plan.summary = `${plan.summary} ${leanWords(lean)}`;
     if (auto && auto.ops.length) {
       plan.ops.push(...auto.ops);
       plan.label = plan.label ? `${plan.label}; ${auto.label}` : auto.label;
@@ -994,7 +1288,8 @@ export function createRecorder(app, input, opts = {}) {
       try { app.ui?.announce?.(text); } catch (e) { /* ok */ }
       return res;
     }
-    const d = store.dispatch(plan.ops, { by: 'you', label: plan.label });
+    // (a track made for this take at its start, and the take, are one undo step)
+    const d = store.dispatch(plan.ops, { by: 'you', label: plan.label, join: r.made?.txn || null });
     if (!d.ok) {
       app.ui?.toast?.('The take could not go in: ' + d.error + '. Sketch kept it.', { kind: 'bad' });
       const res = { ok: false, take: r.id, error: d.error, why, parts: plan.parts };
@@ -1014,11 +1309,16 @@ export function createRecorder(app, input, opts = {}) {
         for (const ps of pt.passes.values()) if (typeof ps.captured === 'string') input.capture.update(ps.captured, { track: tid });
       }
     } catch (e) { /* best effort: the take is in */ }
-    const res = { ok: true, take: r.id, why, label: plan.label, summary: plan.summary, parts: made, clips, lanes: plan.lanes || [], txn: d.txn?.id, audio: audioRes ? { asset: audioRes.asset, seconds: audioRes.seconds } : null };
+    const res = { ok: true, take: r.id, why, label: plan.label, summary: plan.summary, parts: made, clips, lanes: plan.lanes || [], txn: d.txn?.id, audio: audioRes ? { asset: audioRes.asset, seconds: audioRes.seconds } : null, ...(lean ? { lean: { beats: lean.lean, ms: lean.ms, by: lean.by, moved: lean.moved, opening: lean.opening, words: leanWords(lean) } } : {}) };
     // the notes a source moved on their way in (a hum snapped into the key), found in the song now, and the ops that put
     // them back as played (one notes.set per clip, one undo step): input/hum.js says how many, with Undo
     const sung = sungOf(plan.parts, made, d.created);
     if (sung) res.sung = sung;
+    // its timing, for Tight / Loose / As played: every note this take put in, tidy and as played (song beats)
+    const planned = [];
+    for (const pt of r.parts.values()) for (const ps of pt.passes.values()) for (const n of ps.notes) planned.push({ p: n.p, t: n.t, raw: n.raw, lean: n.gen?.lean || 0 });
+    const srcs = new Set([...r.parts.values()].flatMap((pt) => [...pt.srcs]));
+    timing = timingOf(made, planned, null, srcs.has('hum') ? 'hum' : [...r.parts.values()].some((pt) => pt.drums) ? 'pads' : 'keys');
     last = res;
     const playing = made.find((x) => x.mode === 'take') || made[0];
     const au = made.find((x) => store.track(x.track)?.kind === 'audio');
@@ -1108,6 +1408,13 @@ export function createRecorder(app, input, opts = {}) {
     if (!r) return;
     R = null;
     clearInterval(r.timer);
+    if (r.free) {
+      try { if (r.hum) Promise.resolve(r.humStart).then(() => { if (!R && input.hum?.active) input.hum.cancel(); }).catch(() => {}); } catch (e) { /* ok */ }
+      try { input.tap?.discard?.(); } catch (e) { /* ok */ }
+      unmake(r);
+      setState(r, 'idle');
+      return;
+    }
     if (r.audio) { r.audio.off && r.audio.off(); r.audio = null; input.audio._recording(false); }
     releasePreviews(r);
     if (input.autorec) input.autorec.finish(r, { cancel: true });
@@ -1120,13 +1427,14 @@ export function createRecorder(app, input, opts = {}) {
       else if (r.joined && input.hum.active) input.hum.leave?.();
     }
     setState(r, 'idle');
+    unmake(r);
   }
 
   /* ---- the transport and the song moving under a take */
   try {
     engine.on('transport', (e) => {
       const r = R;
-      if (!r || !e) return;
+      if (!r || !e || r.free) return;
       if (e.why === 'stop' && !e.playing) {
         r.stopG = r.lastG;
         // (the killswitch emits 'silence' right after this stop: it commits with its own words)
@@ -1157,6 +1465,7 @@ export function createRecorder(app, input, opts = {}) {
     if (!r || !e || e.kind === 'preview') return;
     const p = P();
     if (e.kind === 'load') { cancel(); return; }
+    if (r.free) return;   // (a free take has no timeline to move under it)
     if (p.tempo !== r.tempo || p.meter.join('/') !== r.meter || JSON.stringify(p.loop || null) !== r.loopKey) stop({ keepPlaying: true, why: 'time' });
   });
   try { document.addEventListener('visibilitychange', () => { if (document.hidden && R) (R.state === 'count' ? cancel() : stop({ why: 'hidden' })); }); } catch (e) { /* node */ }
@@ -1184,6 +1493,24 @@ export function createRecorder(app, input, opts = {}) {
     humming, lands, onto,
     get last() { return last; },
     get countIn() { return Number.isFinite(saved.countIn) ? saved.countIn : 1; },
+    // the click a take hears: the click, or the transport's click for takes (ui/transport.js: on unless turned off).
+    // Off altogether, over a song with nothing in it, a take from Tap it or Hum it is free: the grid follows you.
+    // setCaptureClick(false) turns both off; (true) turns the click for takes on
+    get captureClick() { const c = app.transport?.click?.get?.(); return c ? !!(c.on || c.takes) : saved.captureClick !== false; },
+    setCaptureClick(on) {
+      const c = app.transport?.click;
+      if (c?.set) c.set(on ? { takes: true } : { takes: false, on: false });
+      else { saved.captureClick = !!on; try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch (e) { /* ok */ } }
+      emit('state', { state: rec.state, captureClick: !!on });
+      return !!on;
+    },
+    // a take now would be free (no click, nothing in the song to play along to, nothing playing)
+    wouldBeFree: () => !R && !rec.captureClick && !engine.playing && silentSong(),
+    get free() { return !!(R && R.free); },
+    // the last take's timing (Tight, Loose, As played): { level, kind ('pads' | 'hum' | 'keys'), notes } or null while
+    // its notes are in the song; retime(level) moves it
+    get timing() { return timing && timing.clips.some((c) => store.clip(c.track, c.clip)) ? { level: timing.level, kind: timing.kind, notes: timing.clips.reduce((a, c) => a + c.notes.length, 0) } : null; },
+    retime: (level) => retime(level),
     setCountIn(bars) { saved.countIn = Math.max(0, Math.min(4, Math.round(+bars || 0))); try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch (e) { /* ok */ } emit('state', { state: rec.state, countIn: saved.countIn }); return saved.countIn; },
     targetFor, modeFor, primary, aim, setAim, took, keysTrack,
     ownTrack: (s) => ownTrack(s),
@@ -1212,8 +1539,10 @@ export function createRecorder(app, input, opts = {}) {
       let k = 0;
       for (const n of notes) {
         if (src === 'beatbox') { if (hit(n.row, n.v, { g: n.g, src })) k++; continue; }
-        const pt = partOf(r, t, 'notes', { name: src === 'hum' ? 'Hummed' : null, src });
-        if (addNote(r, pt, { p: n.p, v: n.v ?? 0.8, g: n.g, dg: n.d, src, was: n.was })) k++;
+        const pt = partOf(r, t, 'notes', { name: src === 'hum' ? 'Hummed' : null, src, part: src === 'hum' ? 'hum' : 'keys' });
+        // (a hum against the click was placed by the forgiving grid, input/hum.js, unless you keep your own timing)
+        const gentle = src === 'hum' && Number.isFinite(n.graw) && !input.hum?.options?.keepTiming ? { coarse: 0.5, fine: input.hum?.options?.grid || 0.25, tol: 0.35, fineTol: 0.3 } : null;
+        if (addNote(r, pt, { p: n.p, v: n.v ?? 0.8, g: n.g, dg: n.d, src, was: n.was, graw: n.graw, gentle })) k++;
         else if (left) left.push({ ...n, beat: r4(where(n.g, r).beat) });
       }
       return k;
@@ -1233,9 +1562,10 @@ export function createRecorder(app, input, opts = {}) {
     live() {
       const r = R;
       if (!r) return null;
+      if (r.free) return { state: r.state, take: r.id, free: true, track: lands()?.id || null, tracks: [], from: 0, now: 0, pass: 0, loop: null, counting: null, passes: [], held: [], peaks: [], trace: input.hum?.active ? input.hum.trace().slice(-400) : [] };
       const g = gridNow(r), w = g == null ? null : where(Math.max(g, r.span.g0), r);
       const passes = [];
-      for (const pt of r.parts.values()) for (const ps of pt.passes.values()) passes.push({ n: ps.n, track: pt.track, mode: pt.mode, drums: pt.drums, notes: ps.notes.map(({ p, t, d, v }) => ({ p, t, d, v })), raw: ps.notes.map((x) => x.raw) });
+      for (const pt of r.parts.values()) for (const ps of pt.passes.values()) passes.push({ n: ps.n, track: pt.track, mode: pt.mode, drums: pt.drums, notes: ps.notes.map(({ p, t, d, v }) => ({ p, t, d, v })), raw: ps.notes.map((x) => x.raw), replaced: ps.replaced || 0 });
       // (a key held from just before the loop's end is drawn where it will land: the next pass's downbeat)
       const held = [...r.held.values()].map((h) => { const x = landing(r, h.g); return { p: h.p, t: x.beat, d: Math.max(0, (g ?? h.g) - Math.max(h.g, r.span.g0) - x.early), v: h.v, track: h.track, held: true }; });
       return {

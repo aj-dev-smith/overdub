@@ -103,7 +103,7 @@ const errs = [];
   T.ok(takes.card.every((c) => /rgba\(0, 0, 0, 0\)\|0px\|none/.test(c)), `a take is a ruled row, not a card (${takes.card[0]})`);
   T.ok(/^4 hits, 1 bar/.test(takes.meta) && !/·/.test(takes.meta), `a take's meta is a phrase with commas ("${takes.meta}")`);
   T.ok(!!takes.keep && takes.gos === 1, `Keep is the one primary in Sketch (${takes.gos} go button, ${takes.keep})`);
-  T.ok(/The ticks are your taps; the cells are where they snapped/.test(takes.status), `the tap grid says what the ticks are ("${takes.status}")`);
+  T.ok(/The ticks are your taps; the cells are where they went in/.test(takes.status), `the tap grid says what the ticks are ("${takes.status}")`);
   // the ticks: cream columns drawn over the grid where each raw tap fell
   const ticks = await E(() => {
     const cv = document.querySelector('.sk-grid'), g = cv.getContext('2d'), w = cv.width, hgt = cv.height, gm = window.overdub.sketch.geom();

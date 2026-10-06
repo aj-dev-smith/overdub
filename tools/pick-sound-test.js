@@ -16,7 +16,7 @@
 //   6  trials: ↓ previews (no History), Back, Keep (one entry, no audition flag, its label), ⌘Z, held ↓ debounced
 //   7  what ends a trial: an agent tool that reads the song, R (kept first), another track, an undo, a click outside
 //   8  the leftover heal: overdub:sound-trying, reload
-//   9  the Sketch card on an uncommitted take: the ghost lane, Keep makes the track with the sound in one step, In tune
+//   9  the Sketch card on a hum that landed by itself (capture-timing): ↓ tries a sound on its Melody, Keep is one step
 //  10  the header: .ar-hinst opens the instrument big, Sounds and pending, a held instrument, .ar-hdev in the full studio
 //  11  the browser: a mismatch asks, a click tries, drops keep
 //  12  musical typing after Tap a beat makes Keys and sounds there
@@ -379,7 +379,9 @@ try {
     await A.page.keyboard.press('r');
     await sleep(500);
     const counting = (await A.E(STATE)).status.join(' | ') + ' ' + (await A.E(() => document.body.innerText.match(/Recording keeps[^.\n]*\./)?.[0] || ''));
-    await sleep(3500);
+    // (R while the loop plays waits for a short loop's top, then counts a bar: capture-timing; so wait for the take)
+    await A.until(() => window.overdub.input.recorder.state === 'rec');
+    await sleep(2500);
     await A.page.keyboard.press('Space');
     await A.until(() => window.overdub.input.recorder.state === 'idle');
     await sleep(800);
@@ -472,29 +474,31 @@ try {
 
   /* ---------------------------------------------------------------- 9: the Sketch card on an uncommitted take */
   await section('9 the Sketch card', async () => {
+    // (capture-timing: a take from Hum it lands in the song by itself, so the card is on the landed take's track, Melody;
+    // the uncommitted take's ghost lane and its In tune lamp are gone with the wait for Keep)
     const K = await fresh();
     await K.page.getByRole('button', { name: 'Hum it' }).click();
     await sleep(600);
     await K.page.locator('.sk-hum').click();
-    await sleep(5000);
+    await K.until(() => window.overdub.input.recorder.state === 'rec' || window.overdub.input.recorder.free, null, 6000);
+    await sleep(3000);
     await K.page.locator('.sk-hum').click();
+    await K.until(() => window.overdub.input.recorder.state === 'idle');
     await sleep(1500);
+    const landed = await K.E(STATE);
+    const mel0 = landed.tracks.find((t) => t.name === 'Melody');
+    T.ok(mel0 && mel0.clips.length === 1 && mel0.dev === 'core.keys', `9: the hum lands by itself on a new Melody, Lamp Tines, one clip (${JSON.stringify(mel0)})`);
     await K.page.keyboard.press('ArrowDown');
     await sleep(800);
-    const g = await K.E(() => ({ ghost: [...document.querySelectorAll('.ar-ghost, [data-ghost]')].map((x) => x.textContent.trim()).join(' | '), go: document.querySelectorAll('.sketch .btn-go, [data-panel="sketch"] .btn-go').length, lamp: [...document.querySelectorAll('.tog')].find((x) => /In tune/.test(x.textContent)), h: window.overdub.store.history.length }));
-    const lit = await K.E(() => { const t = [...document.querySelectorAll('.tog')].find((x) => /In tune/.test(x.textContent)); return t ? t.getAttribute('aria-pressed') === 'true' || t.classList.contains('on') : null; });
-    T.ok(/A new track, Light Table/.test(g.ghost) && g.go === 1 && lit === true, `9: the ghost lane reads "${g.ghost}" while Light Table is on trial; one .btn-go in Sketch (${g.go}); In tune is lit (${lit})`);
-    // In tune off: as sung (the moved notes go back)
-    const sung = await K.E(async () => { const t = [...document.querySelectorAll('.tog')].find((x) => /In tune/.test(x.textContent)); t?.click(); await new Promise((r) => setTimeout(r, 300)); const r = window.overdub.input.hum?.last || null; t?.click(); return !!t; });
-    T.ok(sung, '9: the In tune lamp turns off (as sung) and on again');
+    const g = await K.E(() => { const o = window.overdub, tr = o.sounds?.trying?.(); return { tr: tr ? { track: tr.track, device: tr.device, newTrack: !!tr.newTrack } : null, mel: o.store.get().tracks.find((t) => t.name === 'Melody')?.id, h: o.store.history.length, go: document.querySelectorAll('.sketch .btn-go, [data-panel="sketch"] .btn-go').length }; });
+    T.ok(g.tr && g.tr.track === g.mel && !g.tr.newTrack && g.go <= 1, `9: ↓ on the card tries a sound on Melody, the track the take made, at most one .btn-go in Sketch (${JSON.stringify(g)})`);
     const h0 = await K.E(() => window.overdub.store.history.length);
-    await K.page.getByRole('button', { name: /^Keep/ }).first().click();
+    const dev = g.tr?.device;
+    await K.E(() => window.overdub.sounds?.keepIfTrying?.(null, { why: 'keep' }));
     await sleep(600);
     const k = await K.E(STATE);
     const m = k.tracks.find((t) => t.name === 'Melody');
-    // (a hum kept on a song with no key also sets the key heard in it, its own step, said in the keep's toast: not the take's)
-    const steps = await K.E((n) => window.overdub.store.history.slice(n).filter((x) => !/^key .*heard in your hum$/.test(x.label || '')).length, h0);
-    T.ok(m && m.dev === 'core.wavetable' && m.clips.length === 1 && steps === 1, `9: the take's Keep makes Melody on Light Table with its clip, in one undo step (${JSON.stringify(m)}; History +${k.hist - h0}, ${steps} for the take)`);
+    T.ok(m && m.dev === dev && m.clips.length === 1 && k.hist - h0 === 1, `9: Keep puts the sound on Melody with its clip, in one undo step (${JSON.stringify(m)}; History +${k.hist - h0})`);
     await K.shot('09-sketch-kept');
   });
 

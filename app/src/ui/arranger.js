@@ -67,6 +67,7 @@ import {
 import { laneKey, laneAt, lanesOf, valueAt, toPos, laneView } from '../core/automation.js';
 import { DEVICE_CATS } from '../devices/registry.js';
 import * as rackKit from './rack.js';
+import { newPartFor } from '../core/sounds.js';
 import {
   LANE_H, LANE_H_PHONE, laneState, trackLanes, shownLanes, laneParams, laneInfo, staticValue, fmtValue, drawLaneRow, laneHead,
   laneEditor, laneKeysOn, SHAPES, laneHeight, setLaneHeight, heightsSig, masterTrack, tipHide, laneSigners,
@@ -2544,11 +2545,30 @@ function mountArranger(el, app) {
   ];
 
   /* ======================================================= empty state */
+  // A take counting in or recording onto the blank sheet (a hum from Sketch makes its Melody at the stop): the sheet says
+  // so, in place of the ways in, which would start another take over it
+  let emptyTake = '';
+  const takeNote = h('div.ar-empty-take', { role: 'status', 'aria-live': 'polite', hidden: true });
+  function syncEmptyTake(live) {
+    const st = live ? live.state : '', name = live && !live.track ? newPartFor(app.input?.recorder?.humming?.() ? 'hum' : 'keys', store.get()).name : '';
+    const key = `${st}:${name}`;
+    if (key === emptyTake) return;
+    emptyTake = key;
+    const card = empty.querySelector('.ar-empty-card');
+    if (card) card.hidden = !!st;
+    takeNote.hidden = !st;
+    if (!st) return;
+    const bpb = Math.ceil(bpbOf() - 1e-9);
+    takeNote.replaceChildren(h('h2.ar-empty-title.disp', st === 'count' ? 'Counting in.' : 'Recording.'),
+      h('p.ar-empty-text', st === 'count' ? `Come in right after the ${bpb}.` : `The take lands here${name ? ` on a new track, ${name},` : ''} when you stop.`));
+  }
   function syncEmpty() {
     const isEmpty = tracks().length === 0;
     empty.hidden = !isEmpty;
     root.classList.toggle('ar-isempty', isEmpty);
+    if (!isEmpty) emptyTake = '';
     if (!isEmpty || empty.childElementCount) return;
+    empty.append(takeNote);
     const sketch = () => (ui.panels.has('sketch') ? ui.show('sketch') : ui.toast('Sketch is still loading. It listens while you hum, tap or play.'));
     const pr = store.get();
     // the blank sheet before the first take: a head, a sentence, one primary (Tap a beat: the first minute is built
@@ -3107,7 +3127,10 @@ function mountArranger(el, app) {
       // (a take that makes a new track counts in over the ghost lane, where that track will be)
       const onGhost = !live.track && ghostAt >= 0;
       const i = onGhost ? ghostAt : rowOf(live.track || ids[0]);
-      if (k >= 1 && i >= 0) {
+      // (only the count's last bar: R while the loop plays can wait for the loop's top, and 1 4 3 2 1 4 3 2 1 read as
+      // two counts)
+      const lastBar = cd ? cd.bar <= 1 : left <= bpbOf() + 1e-6;
+      if (k >= 1 && i >= 0 && lastBar) {
         view.countOn = onGhost ? 'new' : p.tracks[i]?.id || null;
         const phase = cd ? cd.frac : clamp(k - left, 0, 1);
         const cx = clamp(Math.round(nowB * pb - sx) + 10, 10, Math.max(10, W - 70));
@@ -3117,7 +3140,8 @@ function mountArranger(el, app) {
         displayFont(g, 48);
         g.textBaseline = 'middle';
         g.lineJoin = 'round';
-        g.globalAlpha = reducedMotion() ? 1 : 1 - 0.35 * phase;
+        // (Sketch's beat band counts in, in Tap it and Hum it: one count in view, not two; ui/sketch.js bandShown)
+        g.globalAlpha = app.sketch?.bandShown?.() ? 0 : reducedMotion() ? 1 : 1 - 0.35 * phase;
         g.strokeStyle = pal.bg; g.lineWidth = 8;
         g.strokeText(String(k), cx, cy + 2);
         g.fillStyle = pal.text;
@@ -3370,6 +3394,7 @@ function mountArranger(el, app) {
   function sampleTake(now, inLv) {
     const R = recorder();
     const live = R && R.state !== 'idle' && typeof R.live === 'function' ? R.live() : null;
+    if (!empty.hidden) syncEmptyTake(live);
     if (!live) {
       if (rec.live && rec.view?.bands?.length) rec.fade = { at: now, bands: rec.view.bands };
       if (rec.live) { rec.live = null; rec.view = null; rec.take = null; rec.peaks = []; rec.trace = []; rec.lastTrace = null; dirty = true; }
@@ -3789,6 +3814,8 @@ const CSS = `
 .ar-isempty .ar-main { grid-template-columns: 0 1fr; }
 .ar-isempty .ar-corner, .ar-isempty .ar-heads { visibility: hidden; }
 .ar-empty-card { max-width: 500px; padding-top: 10px; border-top: var(--rule-heavy); animation: ar-in .16s var(--ease, ease) both; }
+.ar-empty-take { max-width: 500px; padding-top: 10px; border-top: var(--rule-heavy); }
+.ar-empty-take[hidden], .ar-empty-card[hidden] { display: none; }
 .ar-empty-title { margin: 0 0 8px; font-size: clamp(26px, 4vw, 36px); color: var(--text); }
 .ar-empty-text { margin: 0 0 16px; max-width: 46ch; color: var(--text-2); line-height: 1.5; font-size: 13.5px; }
 .ar-empty-actions { display: flex; flex-wrap: wrap; gap: 8px; }

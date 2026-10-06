@@ -3,6 +3,7 @@
 //   node tools/engine-test.js
 import { open, tally } from './pw.js';
 import { renderSong } from '../app/src/engine/node/render.js';
+import { CLICK } from '../app/src/engine/click.js';
 
 const T = tally('engine');
 const { page, errors, close } = await open('/tools/engine-test.html');
@@ -359,8 +360,9 @@ await page.evaluate(async () => {
     await sleep(200);
     out.afterSeek = engine.beat;
     out.playing = engine.playing;
-    const mk0 = engine.ctx.createOscillator.bind(engine.ctx); let oscs = 0;
-    engine.ctx.createOscillator = () => { const o = mk0(); const st = o.start.bind(o); o.start = (t) => { if (o.type === 'sine' && (o.frequency.value === 1320 || o.frequency.value === 1760)) oscs++; return st(t); }; return o; };
+    // (the click is a buffer of engine/click.js's knock, 60 ms long)
+    const mk0 = engine.ctx.createBufferSource.bind(engine.ctx); let oscs = 0;
+    engine.ctx.createBufferSource = () => { const o = mk0(); const st = o.start.bind(o); o.start = (t, ...r) => { if (o.buffer && Math.abs(o.buffer.duration - 0.06) < 0.002) oscs++; return st(t, ...r); }; return o; };
     store.dispatch({ type: 'track.set', track: 't_a', patch: { mute: true } });
     store.dispatch({ type: 'track.set', track: 't_b', patch: { mute: true } });
     const mt = []; engine.on('transport', (e) => mt.push(e.why));
@@ -368,7 +370,7 @@ await page.evaluate(async () => {
     await sleep(1300);
     engine.metronome = false;
     out.clicks = oscs; out.metEv = mt.includes('metronome');
-    delete engine.ctx.createOscillator;
+    delete engine.ctx.createBufferSource;
     engine.stop();
     await sleep(400);
     out.stopped = engine.meters.master.peak;
@@ -860,7 +862,7 @@ await page.evaluate(() => {
   T.ok(r.early.beat < -2.5 && r.early.beat > -4.01 && r.early.counting && Math.abs(r.early.grid - r.early.beat) < 0.05, `engine.beat runs negative in the count (${r.early.beat.toFixed(3)} at 300 ms; gridBeat ${r.early.grid.toFixed(3)})`);
   const gaps = r.clicks.slice(1).map((o, i) => o.t - r.clicks[i].t);
   T.ok(r.clicks.length === 4 && gaps.every((g) => Math.abs(g - 0.5) < 0.0005), `the count is 4 clicks 0.5 s apart with the metronome off (${r.clicks.length}: ${gaps.map((g) => g.toFixed(4)).join(' ')})`);
-  T.ok(r.clicks.length === 4 && r.clicks[0].pk > 0.28 && r.clicks.slice(1).every((o) => o.pk < 0.2 && o.pk > 0.1), `accent on the bar: ${r.clicks.map((o) => o.pk.toFixed(3)).join(' ')}`);
+  T.ok(r.clicks.length === 4 && r.clicks[0].pk > 0.65 && r.clicks.slice(1).every((o) => o.pk < 0.55 && o.pk > 0.45), `accent on the bar: ${r.clicks.map((o) => o.pk.toFixed(3)).join(' ')}`);
   T.ok(r.tapBefore === 0 && r.monAfter === 0, `below beat 0 only clicks (the mix is silent: ${r.tapBefore}); after the count the click stays off (${r.monAfter})`);
   T.ok(r.end && r.nEnd === 1 && Math.abs(r.end.at - r.early.counting.time) < 0.06 && Math.abs(r.end.beat) < 0.1 && r.end.until === 0 && r.end.counting === null, `'countin-end' once, at the audible downbeat (${r.end && ((r.end.at - r.early.counting.time) * 1000).toFixed(1)} ms from counting.time, engine.beat ${r.end && r.end.beat.toFixed(3)})`);
   T.ok(r.late.counting === null && r.late.beat > 1.8, `after the count engine.counting is null and the song runs (beat ${r.late.beat.toFixed(3)})`);
@@ -951,8 +953,8 @@ await page.evaluate(() => {
   });
   T.ok(r.alias === true && r.click.on === false && r.click.whileRecording === true && r.click.level === -12, `engine.metronome reads and sets click.on (${JSON.stringify(r.click)})`);
   T.ok(r.off === 0 && r.rec.length >= 2, `click "only while recording": ${r.off} clicks while playing, ${r.rec.length} once engine.recording is set`);
-  const hi = Math.max(...r.quiet), db = 20 * Math.log10(hi / 0.32);
-  T.ok(Math.abs(db + 12) < 0.25, `click level -12 dB: the accent peaks at ${hi.toFixed(4)} (${db.toFixed(2)} dB from 0.32)`);
+  const hi = Math.max(...r.quiet), db = 20 * Math.log10(hi / CLICK.bar);
+  T.ok(Math.abs(db + 12) < 0.25, `click level -12 dB: the accent peaks at ${hi.toFixed(4)} (${db.toFixed(2)} dB from ${CLICK.bar})`);
   T.ok(r.stopEv && r.stopEv.recording === true && r.after === false && r.recEv === 1 && r.metEv >= 3, `stop() ends the take: its 'stop' event says recording (${r.stopEv && r.stopEv.recording}), then engine.recording is ${r.after}; 'recording' and 'metronome' events fire`);
 }
 

@@ -27,7 +27,7 @@
 // ui events: 'onboard' { step, index, state }
 
 import { h, css, icon } from './dom.js';
-import { isDrumTrack } from '../input/recorder.js';
+import { isDrumTrack, leanWords } from '../input/recorder.js';
 import { beatsPerBar } from '../core/music.js';
 
 const KEY = 'overdub:onboard';
@@ -234,13 +234,27 @@ export default function (app) {
     const pt = last.parts?.[0];
     if (!pt) return null;
     const tr = store.track(pt.track);
-    return { track: pt.track, clip: pt.clips?.[pt.clips.length - 1] || null, name: pt.name, bars: pt.bars, notes: pt.notes, drums: pt.mode === 'layer' && (!!tr && isDrumTrack(tr)), summary: last.summary || '' };
+    const drums = pt.mode === 'layer' && (!!tr && isDrumTrack(tr));
+    // (a steady lean taken out: the card says so, with the number, so "in the song" is never said over a take that came
+    // out wrong without a word; input/recorder.js leanWords)
+    const lean = last.lean ? leanWords({ lean: last.lean.beats, ms: last.lean.ms, opening: last.lean.opening, kind: drums ? 'hit' : 'note' }) : '';
+    return { track: pt.track, clip: pt.clips?.[pt.clips.length - 1] || null, name: pt.name, bars: pt.bars, notes: pt.notes, drums, summary: last.summary || '', lean };
   }
   function select(c) { try { ui.select({ track: c.track, clip: c.clip, notes: [] }); } catch (e) { /* ok */ } }
 
   /* ---------------------------------------------------------------- doing it from the card (the same real actions) */
   const inp = () => app.input;
-  const doHum = () => { inp()?.toggleHum?.(); };
+  // Hum it: Sketch on Hum it and a take into the song (a bar of count-in with the click, then sing; Stop keeps it), the
+  // same as its big Hum button; a hum already going (H) stops
+  const doHum = async () => {
+    const i = inp();
+    if (!i) return;
+    if (i.hum?.active && i.recorder?.state === 'idle') { i.hum.stop(); return; }
+    ui.show?.('sketch');
+    if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true);
+    i.emit?.('sketch:mode', 'hum');
+    try { if (i.recorder?.state === 'idle') await i.recorder.record({ hum: true }); } catch (e) { ui.toast(e.message, { kind: 'bad' }); }
+  };
   const doPlay = () => { ui.show?.('sketch'); inp()?.emit?.('sketch:mode', 'play'); if (!inp()?.qwerty?.on) inp()?.qwerty?.toggle?.(true); };
   // Show the Keep button: open Sketch, bring the button into view (the detail pane scrolls; on a phone it sits below
   // the fold), move focus to it so Enter keeps the take, then light it up. The first one that is on screen: the hum
@@ -376,6 +390,9 @@ export default function (app) {
     const p = store.get();
     const drums = (x) => isDrumTrack(x) && yours(x);
     let t = p.tracks.find((x) => x.id === ui.state.selection.track && drums(x)) || p.tracks.find(drums);
+    // (the loop first, then the track: the track's adding is the newest change when the take comes, so the take and
+    // the track it made are one undo step, input/recorder.js)
+    const from = loopAtMarker();
     if (!t) {
       // the song's own drums stay theirs: your beat gets its own track beside them
       const name = p.tracks.some(isDrumTrack) ? 'Taps' : 'Drums';
@@ -385,7 +402,6 @@ export default function (app) {
     }
     try { ui.select({ track: t.id, clip: null, notes: [] }); } catch (e) { /* ok */ }
     disarmOthers(t);
-    const from = loopAtMarker();
     ui.show?.('sketch');
     if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true);
     // (what the pads and Sketch's tab were before: Sketch on Tap it keeps the pads live, so it goes back too)
@@ -526,24 +542,27 @@ export default function (app) {
     const r = app.input?.recorder, st = r?.state || 'idle', lp = store.get().loop, bpb = bpbNow();
     const bars = lp?.on ? `bars ${Math.round(lp.start / bpb) + 1}–${Math.round(lp.end / bpb)}` : 'the loop';
     const pads = coarse ? ['the pads'] : [kbd('F'), ' ', kbd('J'), ' ', kbd('K'), ' ', kbd('L')];
-    if (st === 'count') return [title('Get ready.'), h('p', `Counting in: watch the squares ${coarse ? 'over the pads' : 'in the top bar'} and come in on the first beat.`)];
+    // (the numbers count the bar in, 1 2 3 4, with the lamps: you come in on the next 1)
+    const last = Math.ceil(bpb - 1e-9);
+    if (st === 'count') return [title('Get ready.'), h('p', `Counting in: watch the numbers ${coarse ? 'over the pads' : 'over the beat in Sketch'} count 1 to ${last}, and come in right after the ${last}.`)];
     if (st === 'rec') {
       const pass = (r.live?.()?.pass || 0) + 1;
       return [title('Tap along.'), h('p', `Recording, time ${pass} round the loop. Each time round layers on the last, so add a little more every time. `, ...(coarse ? ['Tap ■'] : ['Press ', kbd('Space')]), ' when it sounds right: it’s in the song.'), h('p.ob-small', 'Tap on ', ...pads, '.')];
     }
     return [title('Tap a beat.'),
-      h('p', `The loop is playing ${bars} over and over with a click, and the square ${coarse ? 'over the pads' : 'in the top bar'} lands on every beat. `, ...(coarse ? ['Tap ● (top) and tap the pads along with it.'] : ['Press R (or ●, top) and tap along on ', ...pads, '.'])),
-      h('p.ob-small', `Each time round the loop layers on the last. Nothing records until you ${coarse ? 'tap ●' : 'press R'}.`)];
+      h('p', `The loop is playing ${bars} over and over with a click, and the lamps ${coarse ? 'over the pads' : 'in Sketch'} light on every beat. `, ...(coarse ? ['Tap ● (top): a bar counts in, then tap the pads along with it.'] : ['Press R (or ●, top): a bar counts in, then tap along on ', ...pads, '.'])),
+      h('p.ob-small', `Each time round the loop layers on the last, and a hit you play again replaces the one you missed. Nothing records until you ${coarse ? 'tap ●' : 'press R'}.`)];
   }
   // On a phone, while a take counts in or records, the card is one line at the foot of the arranger, so the hits
   // landing in the lane and the beat stay in sight: what is happening and how to stop. null when the card is whole.
   function miniLine(coarse) {
     const r = app.input?.recorder, st = r?.state || 'idle', s = step();
     if (!coarse || !fm || (st !== 'rec' && st !== 'count') || (s !== 'take' && s !== 'ask')) return null;
-    if (st === 'count') return 'Counting in: come in on the first beat.';
+    if (st === 'count') return `Counting in: come in right after the ${Math.ceil(bpbNow() - 1e-9)}.`;
     const pass = (r.live?.()?.pass || 0) + 1;
     if (fm === 'hum' && s === 'ask') return 'Recording your hum. ■ keeps it.';
-    return fm === 'keys' && s === 'ask' ? `Recording, round ${pass}: each round is a new take. ■ keeps it.` : `Recording, round ${pass}: each round adds to the last. ■ keeps it.`;
+    // (one line at 390 px: "■ keeps it" must not be the part that's cut off)
+    return fm === 'keys' && s === 'ask' ? `Time ${pass} round, each a new take. ■ keeps it.` : `Time ${pass} round, layering on. ■ keeps it.`;
   }
   // the strip's line for a step (a phone): what to do, in a few words
   function stripLine(s, coarse) {
@@ -597,12 +616,13 @@ export default function (app) {
       const mock = !app.agent?.provider || app.agent.provider === 'mock';
       const r = take.rec, st = app.input?.recorder?.state || 'idle';
       const what = `${plural(r.notes || 0, r.drums ? 'hit' : 'note')} on ${r.name}, ${r.bars}.`;
-      const keysLine = fm === 'hum' ? (st === 'count' ? h('p', 'Counting in: come in on the first beat.')
+      const countLine = () => h('p', `Counting in: come in right after the ${Math.ceil(bpbNow() - 1e-9)}.`);
+      const keysLine = fm === 'hum' ? (st === 'count' ? countLine()
         : st === 'rec' ? h('p', 'Recording your hum. ', ...(coarse ? ['■ '] : [kbd('Space'), ' ']), 'keeps it.')
         : take.keys ? null
         : h('p', ...(coarse ? ['Tap ● and hum: '] : [kbd('R'), ', then hum: ']), 'the tune goes onto a track of its own, and ', ...(coarse ? ['■'] : [kbd('Space')]), ' keeps it.'))
         : fm !== 'keys' ? null
-        : st === 'count' ? h('p', 'Counting in: come in on the first beat.')
+        : st === 'count' ? countLine()
         : st === 'rec' ? h('p', `Recording, time ${(app.input.recorder.live?.()?.pass || 0) + 1} round. Each time round is a new take; `, ...(coarse ? ['● '] : [kbd('Space'), ' ']), 'keeps the last, the others wait underneath.')
         : h('p', ...(coarse ? ['Tap ● and play the keys: '] : [kbd('R'), ', then play ', kbd('A'), kbd('S'), kbd('D'), kbd('F'), '…: ']), 'each time round the loop is a new take, and ', ...(coarse ? ['■'] : [kbd('Space')]), ' keeps it.');
       const over = fm === 'keys' || fm === 'hum';
@@ -610,7 +630,7 @@ export default function (app) {
       const over2 = take.keys && store.track(take.keys.track);
       body = [title(over2 ? (fm === 'hum' ? 'Your hum is in the song.' : 'Your keys are in the song.') : r.drums ? 'Your beat is in the song.' : 'Your part is in the song.'),
         over2 ? h('p', `${plural(take.keys.notes || 0, 'note')} on ${over2.name}, over ${plural(r.notes || 0, r.drums ? 'hit' : 'note')} on ${r.name}. Hand both to the agent: it plays a part over them, signed, and you keep it or not.`)
-        : h('p', what, fm === 'keys' ? ' Play a tune over it on its own track, then hand both to the agent.' : fm === 'hum' ? ' Hum a tune over it on its own track, then hand both to the agent.' : ' Next, hum a tune over it, play the keys, or let the agent play a part over it.'),
+        : h('p', what, r.lean ? ` ${r.lean}` : '', fm === 'keys' ? ' Play a tune over it on its own track, then hand both to the agent.' : fm === 'hum' ? ' Hum a tune over it on its own track, then hand both to the agent.' : ' Next, hum a tune over it, play the keys, or let the agent play a part over it.'),
         keysLine,
         h('div.ob-acts', over ? null : btn('Hum over it', () => humOver(), '', 'hum'), over ? null : btn('Play keys over it', () => keysOver(), '', 'keys'), btn(mock ? 'Ask the demo agent' : 'Ask for a take', askAgent, '.ew-btn-agent', 'agent'))];
     } else if (s === 'ask') {

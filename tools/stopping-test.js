@@ -297,7 +297,7 @@ t.ok(only.ownStop === 0, `the musician's own Stop still lets everything go (${on
 t.ok(only.a === false, 'the killswitch, Play while it renews, the killswitch again: stopped (the waiting play never starts)');
 t.ok(only.waiting === true && only.b === false, `Play while the killswitch renews, then Space again: stopped (engine.starting while it waited: ${only.waiting})`);
 t.ok(only.cState === 'count' && !only.c.playing && only.c.rec === 'idle', `R while the killswitch renews, then cancelling the count: nothing plays (${JSON.stringify(only.c)})`);
-t.ok(/R/.test(only.take.states.slice(0, 8)) && /^R{8}$/.test(only.take.states.slice(-8)) && only.take.playing && only.take.rec === 'rec', `an agent's ${only.take.secs} s play, R while it plays: the take runs on past the play's end (${only.take.states}: c count, R rec, '.' stopped)`);
+t.ok(/^c*R+$/.test(only.take.states) && /^R{8}$/.test(only.take.states.slice(-8)) && only.take.playing && only.take.rec === 'rec', `an agent's ${only.take.secs} s play, R while it plays: the take runs on past the play's end (${only.take.states}: c count, R rec, '.' stopped)`);
 t.ok(only.takeover === true, 'an agent\'s play, then Space twice (the musician takes the transport over): their playback runs on past the agent\'s end');
 t.ok(only.gtr.playing > -30 && only.gtr.low > -12 && !only.gtr.renewed, `a monitored guitar that comes back in 2.3 s after Stop is not faded or renewed under the player (${only.gtr.playing.toFixed(1)} dBFS playing, lowest ${only.gtr.low.toFixed(1)} from 2.45 s)`);
 

@@ -53,30 +53,15 @@ import { h, css, icon, clamp, byline, authorOf, tok } from './dom.js';
 import { palette, popover, menu, closePopover, fmtClock, MOD } from './arrange-kit.js';
 import { lanesOf } from '../core/automation.js';
 import { songEnd } from '../core/project.js';
+import { newPartFor } from '../core/sounds.js';
 
 const METERS = [[4, 4], [3, 4], [6, 8], [2, 4], [5, 4], [7, 8], [12, 8]];
 const SCALE_LIST = [['major', 'Major'], ['minor', 'Minor'], ['dorian', 'Dorian'], ['mixolydian', 'Mixolydian'], ['phrygian', 'Phrygian'],
   ['lydian', 'Lydian'], ['harmonicMinor', 'Harmonic minor'], ['minorPentatonic', 'Minor pentatonic'], ['majorPentatonic', 'Major pentatonic'], ['blues', 'Blues']];
 const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
-// A new track's name and first instrument: core/sounds.js newPartFor (Melody for a hum, Keys, Drums; then "Melody 2"),
-// and the same table here until that module is in the tree
-// (asked for once the recorder has its aim, the same change that brings core/sounds.js: before that, asking would
-// only be a 404 in the console)
-let SOUNDS = null, SOUNDS_ASKED = false;
-function loadSounds(app) {
-  if (SOUNDS_ASKED || typeof app?.input?.recorder?.aim !== 'function') return;
-  SOUNDS_ASKED = true;
-  import('../core/sounds.js').then((m) => { SOUNDS = m; }).catch(() => { /* not in this tree: NEW_PART */ });
-}
-const NEW_PART = { hum: ['Melody', 'core.keys'], keys: ['Keys', 'core.keys'], pads: ['Drums', 'core.drums'] };
-function newPart(kind, project, app) {
-  loadSounds(app);
-  const k = NEW_PART[kind] ? kind : 'keys';
-  if (SOUNDS?.newPartFor) { try { const r = SOUNDS.newPartFor(k, project); if (r && r.name && r.device) return r; } catch (e) { /* the table */ } }
-  const [base, device] = NEW_PART[k], names = new Set((project?.tracks || []).map((t) => t.name));
-  let name = base;
-  for (let i = 2; names.has(name); i++) name = `${base} ${i}`;
-  return { name, device };
+// A new track's name and first instrument: core/sounds.js newPartFor (Melody for a hum, Keys, Drums; then "Melody 2")
+function newPart(kind, project) {
+  return newPartFor(['hum', 'keys', 'pads'].includes(kind) ? kind : 'keys', project);
 }
 const SHORT = { major: 'maj', minor: 'min', dorian: 'dor', mixolydian: 'mix', phrygian: 'phr', lydian: 'lyd', locrian: 'loc', harmonicMinor: 'h.min', melodicMinor: 'm.min', minorPentatonic: 'min pent', majorPentatonic: 'maj pent', blues: 'blues', chromatic: 'chrom' };
 // the output meter: what red means, and how long "Clipping 2.4 dB" holds after the mix was last that far over

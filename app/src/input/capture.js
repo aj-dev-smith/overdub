@@ -8,11 +8,13 @@
 //   capture.update(id, patch) ; capture.hide(id) (still kept)    capture.get(id)
 //   capture.latest({ kind?, src? }) ; capture.list({ since?, all? })   newest first; list() is the last 30 minutes
 //   capture.phraseNotes(id, { grid? }) -> { notes, text, grid?, tempo, tempoGuess, bars, beat, kind, src }
-//   capture.keep(id, { track?, newTrack?: { device?, name? }, at? }) -> { ok, track, clip } | { ok: false, error }
+//   capture.keep(id, { track?, newTrack?: { device?, name? }, at?, tempo?, join?, label? }) -> { ok, track, clip } | { ok: false, error }
 //                                                           a new track's name and first instrument come from
 //                                                           core/sounds.js newPartFor (Melody, Keys, Drums); the track
 //                                                           it lands on is selected and is that kind's aim from then on
 //                                                           (recorder.took)
+//     tempo: the song's tempo set in the same step (a free take on a song with nothing in it: the tempo you played);
+//     join: a transaction the keep is one undo step with (store.dispatch join: the track made for the take)
 //   capture.live() -> the phrase being played now (ghost notes) or null ; capture.on('change', fn) -> off
 //
 // A phrase: { id, src: 'midi'|'qwerty'|'hum'|'tap'|'beatbox'|'rec', kind: 'notes'|'drums'|'audio', at (epoch ms),
@@ -230,7 +232,7 @@ export function createCapture(app, input) {
     },
 
     // Put a phrase on a track as a clip, by you. track: an instrument track id; newTrack: { device, name } makes one.
-    keep(id, { track = null, newTrack = null, at = null, grid = null } = {}) {
+    keep(id, { track = null, newTrack = null, at = null, grid = null, tempo = null, join = null, label = null } = {}) {
       const p = capture.get(id);
       if (!p) return { ok: false, error: `no captured idea "${id}"` };
       const doc = store.get(), bpb = beatsPerBar(doc.meter), spb = 60 / doc.tempo;
@@ -263,8 +265,9 @@ export function createCapture(app, input) {
         if (t.kind !== 'instrument') return { ok: false, error: `${t.name} is an audio track; notes go on an instrument track` };
       }
       const start = at ?? (p.beat != null ? p.beat : placeOn(tid));
+      if (Number.isFinite(tempo) && tempo > 0 && tempo !== doc.tempo) ops.unshift({ type: 'project.set', patch: { tempo } });
       ops.push({ type: 'clip.add', track: tid, ref: 'c', clip: { kind: 'notes', start, length, name, notes: pn.notes } });
-      const r = store.dispatch(ops, { by: 'you', label: `keep ${name.toLowerCase()}` });
+      const r = store.dispatch(ops, { by: 'you', label: label || `keep ${name.toLowerCase()}`, join });
       if (!r.ok) return { ok: false, error: r.error };
       return done(p, tid === '$t' ? r.created.t : tid, r.created.c);
     },

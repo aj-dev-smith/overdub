@@ -51,8 +51,9 @@ overdub/
                          jam.js (chords read from notes, jam tracks, tips, licks), fretboard.js (tunings, positions,
                          fingering in one hand position, tab text in and out), riff.js (the house riff writer),
                          playalong.js (judging what you play against a part)                           [jam]
+                         sounds.js (newPartFor: the track a new idea makes; the rest is ux-instruments')   [core]
   app/src/engine/        engine.js (context, transport, scheduler, tracks, mixer), strip.js (channel strips),
-                         schedule.js (what plays when), render.js (offline, in the browser), node/render.js (the
+                         schedule.js (what plays when), click.js (the click's sound), render.js (offline, in the browser), node/render.js (the
                          canonical Node renderer), node/check.js + check-render.js (the device check in Node, the
                          kernel in a child process), fallback.js, assets.js (audio in IndexedDB), clock.js   [engine]
   app/src/audio/         measure.js (the ears: LUFS, true peak, spectrum...), testsignals.js            [dsp]
@@ -68,6 +69,7 @@ overdub/
   app/kits/              kernel data files, <sha256>.odk (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
+                         timing.js (forgiving time: the gentle grid, a take's steady lean, the pulse in free playing),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
@@ -215,8 +217,10 @@ printing the old names. `music.parseGrid(grid)` → notes.
 import { createStore } from './core/store.js';
 const store = createStore(project?, { getDevice });
 store.get()                       // the project (live object: read it, never mutate it outside an op)
-store.dispatch(ops, { by = 'you', label, reason, coalesce, audition, silent, kept, as })   // op or [ops]: atomic, one undo step
+store.dispatch(ops, { by = 'you', label, reason, coalesce, audition, silent, kept, as, join })   // op or [ops]: atomic, one undo step
    → { ok: true, txn, created: { [refOrKind]: newId } } | { ok: false, error, index } | { ok: false, held: true, error, hold }
+   // join: a txn id; when it is still the newest (nothing done after it, nothing undone) and by the same author, the
+   // change goes into it (one undo step for both: a take and the track made for it at its count-in)
 store.guard = (ops, { by, label, reason, as }) → null | { error, hold }   // set by the agent layer (agent/keep.js)
 store.preview(ops, { by }) → { release() }   // hold-to-hear: applied silently, never in the history
 store.undo({ by?, id?, redo? }?) → { ok, txn, forward } / store.redo() / store.canUndo(by?) / store.canRedo()
@@ -1108,7 +1112,9 @@ locked() → boolean                      // a take is running: tempo, meter and
   square that travels between them on a shallow arc, lowest exactly on the beat, drawn from `engine.beat` (the audible
   beat) in `frame()`; red while a take counts in or records; with reduced motion it steps with no arc.
 - **The count-in** (`countdown()`): from the moment R is pressed the position reads `−bar.beat` in record ink, and the
-  arranger draws the one big numeral (4 3 2 1) over the lane being recorded onto. R while the song plays counts the
+  arranger draws the one big numeral (4 3 2 1) over the lane being recorded onto, unless Sketch's beat band is on
+  screen (`app.sketch.bandShown()`, Tap it and Hum it), whose numerals count the bar in instead, up with its lamps (1 2
+  3 4, the beats waited out before the count-in's bar dimmer): one count in view. R while the song plays counts the
   beats left in this bar (`live().counting`).
 - **The record key** shows the recorder's state: a ring (nothing to record onto), the ring in record ink (a target),
   its dot lit on each beat of the count, a filled lamp with REC beside the position (recording), dimmed while the take
@@ -1189,8 +1195,11 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
   while recording stops and keeps the take, and so do the killswitch, a seek, a tempo/meter/loop change and a hidden
   tab. `record()` plays from the playhead with the engine's count-in (`engine.play(from, { countIn: { beats, preroll:
   true } })`, `recorder.countIn` bars, default 1, `localStorage overdub:record`) and sets `engine.recording`; R while
-  playing is a quantized launch: recording starts at the next bar line (the loop's start when that is its end), the
-  rest of this bar counted as `'count'` (`record({ quantize: false })` punches in now). Every event is placed on the engine's unwrapped grid (`engine.gridBeat`,
+  playing is a quantized launch: recording starts at the first bar line with the count-in's bars to come in on (a
+  whole bar less a sixteenth for 1; the loop's start after its end; in a loop of 2 bars or less, its top, so a 2-bar
+  beat lands as played, not its second bar then its first), the wait counted as `'count'` (the bright numerals count
+  only its last bar; `record({ quantize: false })` punches in now). A take onto the blank sheet says so there
+  ("Counting in.", "Recording.") in place of its ways in. Every event is placed on the engine's unwrapped grid (`engine.gridBeat`,
   moved to the event's `timeStamp` with `engine.beatAt`), so loop passes never lose or reorder a note; a note in the
   count-in's last eighth is the downbeat, earlier ones and notes before the loop stay in capture only (the loop is
   the punch range). `capture.passOf(grid, span)` maps the grid to (pass, song beat).
@@ -1205,14 +1214,20 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
     "A new track" in Onto disarms), and nothing falls back to the first pitched track. A hum never goes onto an unarmed
     drum track. A new track's name and first instrument are `core/sounds.js` `newPartFor(kind)` (Melody, Keys, Drums;
     Lamp Tines or Gobo Kit); the track a take went onto is selected at commit, and the keys' new track is made when the
-    keys start, so they're heard where they'll be recorded. The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
+    keys start, so they're heard where they'll be recorded; Tap it makes its Drums at R (the pads sound on it), and the
+    take joins that track's adding in one undo step (`store.dispatch(ops, { join: txnId })`; the first minute's own
+    Drums, an empty track added just before, joins too). The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
     the UI may draw it armed without setting `track.arm`); the ● button (`track.arm`) arms on purpose, ⌘ for more.
     `recorder.target` (the armed track, else the one last selected) is the arranger's lit R; where the take really
     lands is `recorder.lands()`: the target, except when R records a hum (`recorder.humming()`: Hum it open or a hum
     going, no audio target), which lands where a hum goes (null: a new track). The top bar's **Onto**, the record
     key's title, the count-in's numeral and `live().track` say `lands()`, and Onto's menu offers `recorder.onto()`.
   - **Sources** are adapters over the existing modules: `input.noteOn/noteOff` (MIDI, musical typing), `tap.hit`
-    (quantized on input to `input.options.grid`, raw time kept), `tap.startBeatbox` and `hum.start({ rec: true })`
+    (quantized on input, forgivingly: `input/timing.js` `snapGentle`, the nearest eighth when within 0.35 of one,
+    else the `input.options.grid` cell; raw time kept; with the take's **lean** out: `leanOf`, the one steady offset
+    the take shares, its circular mean against the beat on the drums that keep one place in it (kick most, then snare),
+    else against the eighth, steadied by the median, none under 0.08 beat; from the fourth hit on, the hits already in
+    move with it, previews too), `tap.startBeatbox` and `hum.start({ rec: true })`
     (H while recording; they hand their notes in at their stop, on the grid), and the mic (`audio.openFor(track)`:
     the track's Input from the Inspector, else Sketch's picker; one asset per take, each pass a clip at its offset,
     the measured round trip taken off).
@@ -1220,7 +1235,9 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
     Layer (drum tracks; `recorder.setMode(track, 'layer' | 'take')` changes it, Sketch's **Each pass**) adds every
     pass's notes into the clip under them (`notes.add`; a hit on one already there is merged, and the summary says
     how many were) and makes clips only where there are none; while it records, each hit is previewed
-    (`store.preview`) so the next pass plays it. New take (pitched tracks, hum, audio always) puts the passes in one
+    (`store.preview`) so the next pass plays it. A miss is replaced, not added: when a pass closes, a hit an earlier
+    pass played on the same drum within a third of a beat (as played) of one of this pass's, in another cell, that
+    this pass didn't play again, goes, its preview too (`settleMisses`; `live().passes[].replaced` counts them). New take (pitched tracks, hum, audio always) puts the passes in one
     **take folder** over the beats they recorded (`core/arrangement.js` `planTakeFolder`). A pass's beats are
     `passRange(rec, pass, bpb)`: from the bar the take began in (the loop's start after a wrap) to the loop's end when
     it ran round, else to where you stopped (the bar line before the stop, or further when a note was played or still
@@ -1255,8 +1272,27 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
     clip; so every folder is still one range with one take playing in each stretch. A take folder moves whole (a drag
     of any of its clips takes every take along); on a comped folder a drag across the body selects bars (a piece of a
     comp isn't a clip of its own) and its label line moves the folder.
+  - **The lean at the stop** (`relean`, `input/timing.js` `placeTake`): every note the forgiving grid placed (pads,
+    beatbox, a hum against the click) is placed again with the whole take's lean out, and a drum's nervous first hits
+    (in its first two beats, before any lands on a beat, 0.25 to 0.5 beat late, on a drum otherwise on the beat) go
+    on their beats. The commit says it (`leanWords`: "You played about 150 ms behind the click, so your hits are on
+    their beats; As played puts them back.") and returns `res.lean` ({ beats, ms, by, moved, opening, words });
+    `retime('loose')` blends from where each was played less the lean.
+  - **Capture takes** (Sketch on Tap it or Hum it): Hum it's big button is R (the strip's Record button stands down
+    in Hum it: one record button). The click a take hears is the
+    transport's click for takes (`recorder.captureClick`, `setCaptureClick`; Sketch's beat band shows it as a lamp).
+    With it off altogether, over a song with nothing in it and nothing playing (`recorder.wouldBeFree()`), a take is
+    **free** (`recorder.free`): no transport and no count; the pads keep their own take (each hit's time) and the hum
+    its own (`hum.start({ free: true })`); at the stop the pulse is found in what was played (`input/timing.js`
+    `fitHits`, `fitSegs`: the tatum whose lattice fits every onset, counted with the tempo followed as it drifts, the
+    first onset the downbeat; a hum's count is the best of a few readings, the one whose notes sit nearest where they
+    were sung with a sixteenth costing 40 ms, since 60 ms of slop on an eighth pair reads as 75 BPM in sixteenths) and the take goes in on its own track by `capture.keep(id, { tempo, join })`, the song
+    taking the tempo played when it had nothing in it: one undo step. Every take from there keeps its timing
+    (`recorder.timing`, `recorder.retime('tight' | 'loose' | 'played')`: a `notes.set` by you, one undo step each).
   - **Hum into the take.** In Hum it (Sketch on its Hum mode), `record()` also starts the mic as a hum
-    (`hum.start({ rec: true })`, count-in and all); a hum already going when R starts (H, then R) joins the take
+    (`hum.start({ rec: true })`, count-in and all), its notes placed gently (`transcribe(..., { gentle: true })`) and
+    each one's as-sung beat kept (`tr`); one sung in the count-in keeps its place before the take (`clampStart: false`)
+    and stays in capture, never on beat 1; a hum already going when R starts (H, then R) joins the take
     (`hum.join()`). A blocked mic says so and the take records keys and pads without it. A hummed note moved into the
     song's key reaches the take with what it was sung as (`addNotes`' `was`); the commit finds those notes in the song
     (`res.sung`: how many, and the `notes.set` ops that put them back), and `hum.js` says it as it does for a hum on
@@ -1285,7 +1321,8 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
   phrases by silence, and every hum, tap, beatbox and audio take lands there too (in memory and IndexedDB
   `overdub-capture`). `capture.keep(id)` turns one into a clip by `'you'`; the agent's `get_capture` reads `latest()`.
 - **Hum** (`input/hum.js`, `input/pitch.js`): pYIN frames and a Viterbi path, then the note tracker; `transcribe`
-  snaps to the grid and the key and reports what it moved. `tools/hum-bench.js` scores it on synthesized phrases whose
+  snaps to the grid and the key and reports what it moved. A hum with nothing playing is counted on its own pulse
+  (`fitSegs`), its tempo the hummer's; `hum.live()` is the notes so far on the take's grid (Sketch draws them as sung). `tools/hum-bench.js` scores it on synthesized phrases whose
   notes are known.
 - **Musical typing and the touch keys** (`input/qwerty.js`, Sketch's Play it on a touch screen): two helpers, on until
   turned off and kept in this browser (`localStorage overdub:qwerty`): the grid (`qwerty.quantize`, onto
