@@ -113,7 +113,7 @@ export const DEFAULTS = {
   statMs: 3600e3,                    // how often the counts line is logged
   maxResultChars: 150000,            // claude.ai's tool result ceiling (text); beyond it we answer with an error
 
-  studioOrigins: ['https://overdubstudio.com'],
+  studioOrigins: ['https://overdubstudio.com', 'https://next.overdubstudio.com'],   // the live studio and its preview
   mcpOrigins: ['https://claude.ai', 'https://claude.com'],   // browser-based MCP clients we accept (plus the studio's)
   trustProxy: false,                 // take the client address from X-Forwarded-For (only behind CloudFront)
   originSecret: '',                  // when set, every request must carry x-overdub-origin: <secret> (CloudFront adds it)

@@ -297,6 +297,8 @@ try {
     p = await pre('https://overdubstudio.com');
     t.ok(p.status === 204 && p.headers.get('access-control-allow-origin') === 'https://overdubstudio.com' && (p.headers.get('access-control-allow-headers') || '').includes(SECRET_HEADER),
       `CORS preflight from https://overdubstudio.com is allowed, with the secret's header (${p.headers.get('access-control-allow-headers')})`);
+    p = await pre('https://next.overdubstudio.com');
+    t.ok(p.status === 204 && p.headers.get('access-control-allow-origin') === 'https://next.overdubstudio.com', 'CORS preflight from the preview, https://next.overdubstudio.com, is allowed');
     p = await pre('https://evil.example');
     t.ok(p.status === 403 && !p.headers.get('access-control-allow-origin'), 'CORS preflight from another site is refused');
     r = await post(base, tok, { tab: 'x' }, { route: 'hello', secret: P.secret, headers: { origin: 'https://overdubstudio.com.evil.example' } });
