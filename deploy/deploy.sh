@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Deploy Overdub to https://overdubstudio.com (the bucket keeps its first name): the landing page (site/), the studio (app/) and the public docs.
 # Text files revalidate every time (no-cache + ETag, so a deploy is live at once); media caches for a day.
+# Sampled kits (app/kits/<sha256>.odk, gitignored: node tools/fetch-kits.js builds them) go up from the working tree,
+# each checked against its name, gzipped, and cached for good (a file named by its hash never changes).
 # Run deploy/setup.sh once first. Usage:
 #   deploy/deploy.sh [--skip-tests]                  the live site, from REF (default HEAD)
 #   deploy/deploy.sh [--skip-tests] --next [REF]     the preview, https://next.overdubstudio.com (deploy/next/setup.sh
@@ -82,8 +84,24 @@ up --include '*.gif' --content-type 'image/gif' --cache-control "$MEDIA"
 up --include '*.mp4' --content-type 'video/mp4' --cache-control "$MEDIA"
 up --include '*.woff2' --content-type 'font/woff2' --cache-control "$MEDIA"
 up --include '*.wav' --content-type 'audio/wav' --cache-control "$MEDIA"
-# anything else, and remove what's gone
-x aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --delete
+# anything else, and remove what's gone (never the kits: they aren't in git, so they aren't in the stage)
+x aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --delete --exclude 'app/kits/*'
+
+# the sampled kits the code names: fetched here, uploaded once each
+node tools/fetch-kits.js --check
+KITTMP=$(mktemp -d)
+trap 'rm -rf "$STAGE" "$KITTMP"' EXIT
+for f in app/kits/*.odk; do
+  [ -e "$f" ] || continue
+  name=$(basename "$f" .odk)
+  sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
+  if [ "$sum" != "$name" ]; then echo "skipping $f: its SHA-256 is $sum"; continue; fi
+  if [ -z "$DRY" ] && aws s3api head-object --bucket "$BUCKET" --key "app/kits/$name.odk" >/dev/null 2>&1; then continue; fi
+  gzip -9 -n -c "$f" > "$KITTMP/$name.odk"
+  x aws s3 cp "$KITTMP/$name.odk" "s3://$BUCKET/app/kits/$name.odk" --only-show-errors \
+    --content-type 'application/octet-stream' --content-encoding gzip --cache-control 'public, max-age=31536000, immutable'
+  echo "uploaded kit $name ($(du -h "$KITTMP/$name.odk" | cut -f1) gzipped)"
+done
 
 if [ -n "$DRY" ]; then
   x aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*'

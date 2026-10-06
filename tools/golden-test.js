@@ -23,7 +23,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tally, OUTDIR } from './pw.js';
-import { scenes } from './golden-scenes.js';
+import { scenes, missingScenes } from './golden-scenes.js';
 import { renderSong } from '../app/src/engine/node/render.js';
 import { sha256, encodeWav, decodeWav, writeWav } from '../app/src/engine/node/io.js';
 import { measure } from '../app/src/audio/measure.js';
@@ -48,6 +48,8 @@ const sameEngine = golden.made && major(golden.made.node) === major(ENGINE.node)
 console.log('canonical renders (Node ' + ENGINE.node + ', ' + ENGINE.arch + ')');
 if (golden.made && !sameEngine) t.note(`golden.json was made on Node ${golden.made.node} ${golden.made.arch}: hashes are reported, not enforced; loudness and true peak must match to 0.05 dB`);
 const all = scenes();
+const missing = missingScenes();
+for (const name of missing) t.note(`${name}: skipped, its samples haven't been fetched (node tools/fetch-kits.js)`);
 const renders = new Map();
 const fresh = {};
 let t0 = Date.now();
@@ -57,12 +59,14 @@ for (const s of all) {
   const m = measure({ sr: r.sr, channels: r.channels });
   const h = sha256(r);
   renders.set(s.name, r);
-  fresh[s.name] = { sha256: h, frames: r.length, lufs: m.lufs, truePeak: m.truePeak, peak: m.peak };
+  fresh[s.name] = { sha256: h, frames: r.length, lufs: m.lufs, truePeak: m.truePeak, peak: m.peak, ...(s.data ? { data: s.data } : {}) };
   const g = golden.scenes && golden.scenes[s.name];
   const tag = `${s.name}: ${m.lufs} LUFS, ${m.truePeak} dBTP, ${(r.length / r.sr).toFixed(1)} s in ${Date.now() - a} ms`;
   if (updating !== undefined && (updating === null || updating.has(s.name))) { t.note(`${tag} -> ${h.slice(0, 16)} (${g ? (g.sha256 === h ? 'unchanged' : 'CHANGED from ' + g.sha256.slice(0, 16)) : 'new'})`); continue; }
   if (!g) { t.ok(false, `${tag}: no golden hash (a new scene? UPDATE_GOLDEN=${s.name} node tools/golden-test.js, and say why in the commit)`); continue; }
   t.ok(r.length === g.frames, `${s.name}: ${r.length} frames (golden ${g.frames})`);
+  // a scene that plays kernel data pins the files too (whole hashes): the same render from another kit is no match
+  if (s.data || g.data) t.ok(JSON.stringify(s.data) === JSON.stringify(g.data), `${s.name}: plays the kit golden.json names (${Object.values(s.data || {}).map((x) => x.slice(0, 19)).join(', ')}...)`);
   if (sameEngine) t.ok(h === g.sha256, `${tag}: sha256 ${h.slice(0, 16)}${h === g.sha256 ? ' matches' : ' != golden ' + g.sha256.slice(0, 16) + ' (the sound changed: if that was intended, see THE RULE in this file)'}`);
   else {
     t.note(`${s.name}: sha256 ${h.slice(0, 16)} (golden ${g.sha256.slice(0, 16)}, ${h === g.sha256 ? 'same' : 'differs'} on this engine)`);
@@ -74,7 +78,7 @@ t.note(`${all.length} scenes in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 if (updating !== undefined) {
   const next = { ...golden, scenes: { ...(golden.scenes || {}) } };
   for (const [k, v] of Object.entries(fresh)) if (updating === null || updating.has(k)) next.scenes[k] = v;
-  for (const k of Object.keys(next.scenes)) if (!fresh[k]) delete next.scenes[k];
+  for (const k of Object.keys(next.scenes)) if (!fresh[k] && !missing.includes(k)) delete next.scenes[k];
   next.rule = 'Never regenerate casually: a hash that moves means the sound moved. Regenerate only the scenes whose sound changed on purpose (UPDATE_GOLDEN=<scene,...> node tools/golden-test.js) and say which and why in the commit. See tools/golden-test.js.';
   next.hash = 'SHA-256 of the render\'s float samples: channel 0 then channel 1, each as Float32 little-endian (app/src/engine/node/io.js sha256)';
   next.renderer = 'app/src/engine/node/render.js at 48 kHz; scenes from tools/golden-scenes.js';
@@ -85,7 +89,7 @@ if (updating !== undefined) {
 }
 
 // determinism within one process: a second render of three scenes is bit-identical
-for (const name of ['inst:core.drums', 'fx:core.verb', 'demo']) {
+for (const name of ['inst:core.drums', 'fx:core.verb', 'demo', ...all.filter((s) => s.name.includes('#')).map((s) => s.name)]) {
   const s = all.find((x) => x.name === name);
   const again = sha256(renderSong(s.project, { ...s.opts, assets: s.assets }));
   t.ok(again === fresh[name].sha256, `${name}: a second render is bit-identical`);

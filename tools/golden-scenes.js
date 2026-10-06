@@ -10,9 +10,14 @@
 //               the lanes both renderers play (docs/research/AUTOMATION.md 3.5)
 //   demo:<id>   a song from the demo shelf (only those listed in SHELF_SCENES), whole, as demoById builds it (its ids
 //               are stable already), its timestamps pinned. Each scene is pinned on purpose, not the whole shelf.
+//   inst:<id>#<12 hex>   a sampled instrument (kernel data) on its phrase: the name carries the first 12 hex digits of
+//               the kit it plays, so a different kit is a different scene, never a moved hash. Only when the kit has
+//               been fetched (node tools/fetch-kits.js); otherwise it is listed by missingScenes() and skipped.
 //
 // `browser: true` marks the kernel-only scenes tools/golden-test.js also renders in Chromium's OfflineAudioContext.
-import { INSTRUMENTS, EFFECTS } from '../app/src/devices/builtin/index.js';
+import fs from 'node:fs';
+import { INSTRUMENTS, SAMPLED, EFFECTS } from '../app/src/devices/builtin/index.js';
+import { dataPath } from '../app/src/engine/node/data.js';
 import { SHOWCASE } from '../app/src/devices/showcase.js';
 import { demoProject, demoById } from '../app/src/core/demo.js';
 import { createProject } from '../app/src/core/project.js';
@@ -96,9 +101,21 @@ export function fixedDemo() {
   return p;
 }
 
+// the sampled instruments' scenes: [scene, the files it needs are here]
+function sampledScenes() {
+  return SAMPLED.map((d) => {
+    const hashes = Object.values(d.data || {});
+    const tag = '#' + hashes.map((h) => h.slice(7, 19)).join('+');
+    return [{ ...instrumentScene(d, {}, {}, tag), data: { ...d.data } }, hashes.every((h) => fs.existsSync(dataPath(h)))];
+  });
+}
+// the scenes skipped because their kernel data hasn't been fetched
+export const missingScenes = () => sampledScenes().filter(([, here]) => !here).map(([s]) => s.name);
+
 export function scenes() {
   const out = [];
   for (const d of INSTRUMENTS) out.push(instrumentScene(d));
+  for (const [s, here] of sampledScenes()) if (here) out.push(s);
   // core.drums' appended kits, each pinned on its own (the scene above plays the default, FIELD)
   const kit = INSTRUMENTS.find((d) => d.id === 'core.drums');
   if (kit) for (const [k, tag] of [[3, '808'], [4, '909'], [5, 'acoustic-plus']]) out.push(instrumentScene(kit, {}, { kit: k }, ':' + tag));

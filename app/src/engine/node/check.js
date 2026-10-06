@@ -15,7 +15,8 @@
 // anything but the frames asked for, or ends before the check does, fails the check ('render: ...'). At the deadline
 // or on `signal` the child is killed, so a process() that never returns costs nothing after the check. The child runs
 // under Node's permission model: it can read app/src (the code that renders), can't write files or start processes or
-// threads, and can reach the network (Node 24's model has no network permission).
+// threads, and can reach the network (Node 24's model has no network permission). It can also read app/kits/, the
+// kernel data a def may name (engine/node/data.js).
 //
 // What this keeps out is a kernel rewriting the report in the process that writes it. It doesn't make the samples the
 // checker's: the kernel shares the child, so everything the child sends (samples, claims, when its frames go out) is
@@ -27,6 +28,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { checkDevice } from '../../kernel/check.js';
 import { frame, reader } from './frames.js';
+import { KITS } from './data.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '../..'); // app/src
@@ -48,7 +50,8 @@ export function nodeRenderer({ node = process.execPath } = {}) {
   };
   const start = () => {
     if (!process.allowedNodeEnvironmentFlags.has('--permission')) throw new Error(`this Node (${process.version}) has no --permission flag; the device check needs Node 22 or later`);
-    child = spawn(node, ['--permission', `--allow-fs-read=${SRC}`, CHILD], { stdio: ['pipe', 'pipe', 'pipe'], env: {} });
+    // (it reads app/src, the code that renders, and app/kits, the kernel data a def may name)
+    child = spawn(node, ['--permission', `--allow-fs-read=${SRC}`, `--allow-fs-read=${KITS}`, CHILD], { stdio: ['pipe', 'pipe', 'pipe'], env: {} });
     // 'hi': the child has started and loaded the renderer, before any kernel has run in it (so it's the child's own)
     let greet;
     hi = new Promise((res) => { greet = res; });
@@ -96,7 +99,7 @@ export function nodeRenderer({ node = process.execPath } = {}) {
     const input = job.input ? [job.input[0], job.input[1] || job.input[0]] : null;
     const inFrames = input ? input[0].length : 0;
     cur = { id: ++seq, frames, sr: job.sr, def, hooks: hooks || {}, started: false, t0: 0, resolve, reject };
-    const d = { id: def.id, kind: def.kind, kernel: def.kernel, params: def.params, poly: def.poly, tail: def.tail };
+    const d = { id: def.id, kind: def.kind, kernel: def.kernel, params: def.params, poly: def.poly, tail: def.tail, data: def.data };
     const header = { type: 'job', id: cur.id, def: d, secs: job.secs, sr: job.sr, bpm: job.bpm, seed: job.seed, params: job.params,
       notes: job.notes, allOffAt: job.allOffAt, stats: !!job.stats, inFrames };
     const f = frame(header, input ? [Float32Array.from(input[0]), Float32Array.from(input[1]).subarray(0, inFrames)] : []);

@@ -6,7 +6,7 @@
 // The kernel shares this process, so everything here is the kernel's to change: what this process sends back is
 // treated as the kernel speaking. The checker keeps only samples of the length it asked for and measures them itself.
 //
-//   in:  { type: 'job', id, def: { id, kind, kernel, params, poly, tail }, secs, sr, bpm, seed, params, notes,
+//   in:  { type: 'job', id, def: { id, kind, kernel, params, poly, tail, data }, secs, sr, bpm, seed, params, notes,
 //          allOffAt, stats, inFrames } + the input (L then R, inFrames each; effects)
 //   out: { type: 'hi' }                                               once, at start, before any kernel has run
 //        { type: 'ready', id }                                        create() returned; the render starts
@@ -17,6 +17,7 @@ import { kernelSpecs } from '../../kernel/host.js';
 import { makeDsp } from '../../kernel/dsp.js';
 import { paramValues } from '../../devices/registry.js';
 import { frame, reader } from './frames.js';
+import { dataFor } from './data.js';
 
 const Q = 128;
 const cores = new Map();
@@ -37,7 +38,7 @@ function run(h, payload) {
   };
   const K = coreAt(sr);
   const core = new K({ source: def.kernel, kind, params: specs, values, poly: def.poly, seed: h.seed >>> 0,
-    transport: { bpm: h.bpm, playing: true, beat: 0, time: 0 }, tail: def.tail }, post);
+    transport: { bpm: h.bpm, playing: true, beat: 0, time: 0 }, tail: def.tail, data: dataFor(def.data) }, post);
   if (!ready) {
     const c = errors.find((e) => e.stage === 'compile');
     send({ type: 'done', id: h.id, compileError: c ? c.message : 'the kernel did not start', line: c ? c.line : null });

@@ -31,6 +31,8 @@
 // Ids are forever: songs name them. Built-ins are namespaced ('core.poly', 'pedal.clamwah', 'amp.punk'); project
 // devices (written in a session, stored in project.devices) are '<author>.<slug>' ('claude.tidal-verb').
 
+import { normData } from '../kernel/odk.js';
+
 const DEFS = new Map();
 const LIST = [];
 const listeners = new Set();
@@ -147,6 +149,9 @@ export function defineDevice(def, { replace = false } = {}) {
     flavour: def.build ? 'graph' : 'kernel',
     source: def.source || 'builtin',
   };
+  // kernel data (docs/DEVICES.md "Kernel data"): only { name: 'sha256-<hex>' } survives; a song carries the hash, never the file
+  const data = normData(def.data);
+  if (data) norm.data = data; else delete norm.data;
   for (const k of ['nod', 'kindLabel', 'claimedBy', 'via']) if (k in norm) { if (text(norm[k], '')) norm[k] = text(norm[k], ''); else delete norm[k]; }
   if (prev && prev.source !== 'project' && norm.source === 'project' && !SHADOWED.has(id)) SHADOWED.set(id, prev);
   if (!prev) LIST.push(norm); else LIST[LIST.indexOf(prev)] = norm;

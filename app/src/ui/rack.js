@@ -50,6 +50,7 @@ import { h, css, icon, drag, clamp, fmtDb, esc, byline } from './dom.js';
 import { DEVICE_CATS, paramValues, presetParams, presetOf, normParam } from '../devices/registry.js';
 import { popFocus, popLabel, menu as kitMenu, songColor, isHexColor, touchFirst } from './arrange-kit.js';
 import { laneAt, specFor, valueAt, toPos } from '../core/automation.js';
+import { dataState, onData } from '../kernel/data.js';
 
 let faces = null; // ui/faces.js (renderFace); FALLBACK below until/unless it loads
 const facesReady = import('./faces.js').then((m) => { faces = m; return m; }).catch((e) => { console.warn('rack: faces.js did not load, using plain faces', e.message); return null; });
@@ -98,6 +99,24 @@ export function quotedName(name, max = 60) {
   if (s.length > max) s = s.slice(0, max - 1).trimEnd() + '…';
   return `“${s}”`;
 }
+
+// A sampled device's samples: loading, or not on this server (nothing once they're here). The line names its file by
+// hash and is redrawn when the state changes.
+const DATA_SAYS = { loading: ['Loading samples…', 'Loading its samples: it plays once they’re in'], missing: ['No samples here', 'Its samples aren’t on this server, so it plays nothing'] };
+const dataSays = (hash) => DATA_SAYS[dataState(hash)] || ['', ''];
+export function dataLine(hash) {
+  const [t, long] = dataSays(hash);
+  return h('span.rk-data', { 'data-hash': hash, role: 'status', title: long || null, 'aria-label': long || null, hidden: !t }, t);
+}
+onData(({ hash }) => {
+  if (typeof document === 'undefined') return;
+  for (const el of document.querySelectorAll('.rk-data')) {
+    if (el.dataset.hash !== hash) continue;
+    const [t, long] = dataSays(hash);
+    el.textContent = t; el.hidden = !t;
+    if (long) { el.title = long; el.setAttribute('aria-label', long); } else { el.removeAttribute('title'); el.removeAttribute('aria-label'); }
+  }
+});
 
 export function addDevice(app, id, { track = currentTrack(app), index, toast = true, by = 'you' } = {}) {
   const def = app.devices.getDevice(id);
@@ -841,6 +860,8 @@ export default async function (app) {
         // caption it ran off the board, under the agent's pane)
         cap.append(...[grip, h('span.rk-name', { title: dname }, dname),
           openBig ? h('button.rk-open', { type: 'button', title: 'Open it in its own window (or double-click its name)', 'aria-label': `Open ${dname} in its own window`, onclick: openBig }, 'Open') : null,
+          // a sampled device: whether its samples are here yet (kernel/data.js holds the state; this only shows it)
+          ...(def && !held && def.data ? Object.values(def.data).map((hash) => dataLine(hash)) : []),
           h('span.rk-cap-sp'), authorBadge,
           lat ? h('span.rk-lat', { title: 'Latency this device adds' }, fmtLatency(lat)) : null,
           projDev ? h('button.rk-ib', { title: 'View its code', 'aria-label': `View the code of ${dname}`, onclick: () => openCode(devId) }, icon('code', { size: 14 })) : null,
@@ -1371,6 +1392,7 @@ const RACK_CSS = `
 .rk-card.sel .rk-name { color: var(--accent-2); }
 .rk-card.dragging { z-index: 5; opacity: .92; transition: none; filter: drop-shadow(0 14px 18px rgba(0,0,0,.5)); }
 .rk-card.shift-l { transform: translateX(-28px); } .rk-card.shift-r { transform: translateX(28px); }
+.rk-data { margin-left: 8px; color: var(--text-3); font-size: 11px; white-space: nowrap; }
 .rk-missing { display: grid; gap: 4px; width: 150px; padding: 18px 12px; border: 1px dashed var(--line-2); border-radius: var(--r-2); color: var(--text-3); font-size: 12px; text-align: center; }
 .rk-missing b { color: var(--text-2); font-family: var(--font-mono); font-size: 11px; }
 .rk-held { width: 190px; gap: 6px; padding: 14px 12px; text-align: left; line-height: 1.45; }

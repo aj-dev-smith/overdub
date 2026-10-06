@@ -442,8 +442,8 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const cp = await render(ndef, { secs: 4, params: defaults, notes: cpuNotes });
       if (note(cp, 'cpu render')) report.cpu = { pct: round((cp.ms / 4000) * 100), ms: Math.round(cp.ms), secs: 4 };
       if (report.cpu && report.cpu.pct > 25) warnings.push(`cpu: 4 s of the phrase took ${report.cpu.ms} ms (${report.cpu.pct}% of real time): look for per-sample trig/pow/exp you could move to per-block, or lower poly`);
-      // latency: a note-on at 0.25 s
-      const lt = await render(ndef, { secs: 1, params: defaults, notes: [{ p: 60, v: 1, t: 0.25, d: 0.5 }] });
+      // latency: a note-on at 0.25 s (a kit's snare: middle C is a note a kit may not play)
+      const lt = await render(ndef, { secs: 1, params: defaults, notes: [{ p: drums ? 38 : 60, v: 1, t: 0.25, d: 0.5 }] });
       if (note(lt, 'onset render') && lt.buffer) {
         const on = firstAbove(lt.buffer, 1e-5, 0);
         report.latency = { samples: on < 0 ? null : on - Math.round(0.25 * SR), ms: on < 0 ? null : round(((on - 0.25 * SR) / SR) * 1000, 100), declared: Math.round((lt.latency || 0) * SR) };

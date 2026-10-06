@@ -18,3 +18,6 @@ deploy/.next-distribution-id
 # The deploy's switches (deploy/deploy.sh writes app/site-config.json from deploy/site-config.json, else {}), never committed
 app/site-config.json
 deploy/site-config.json
+
+# Sampled kits (kernel data): built by node tools/fetch-kits.js, uploaded by deploy/deploy.sh, never committed
+app/kits/

@@ -31,16 +31,17 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 28 built-in instruments and effects of its own, all synthesized and
-  named after things in a studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand,
-  Rotor Cabinet, Music Stands, Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A and
-  Light Table; Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold and
-  Red Line.
+  also work on synths and drums. Overdub adds 32 built-in instruments and effects of its own, named after things in a
+  studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
+  Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table and Virtuosity Kit;
+  Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
+  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but one: Virtuosity Kit plays a real jazz-club kit
+  from samples.
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 28 built-ins.
+  behind it, next to the 32 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano
@@ -99,6 +100,7 @@ node server/serve.js                 # the site and the studio on http://localho
 node server/mcp.js                   # the MCP stdio server (MCP clients start it themselves)
 node tools/run-all.js                # every check (PAR=3 at a time); each tools/*-test.js also runs on its own
 node tools/render.js song.json --hash   # the canonical render (Node), and its hash
+node tools/fetch-kits.js             # fetch and build the sampled kit's samples into app/kits/ (not in git)
 node tools/bench/run.js              # OverdubBench
 ```
 
@@ -107,6 +109,7 @@ node tools/bench/run.js              # OverdubBench
 ```
 site/          the landing page, the press page, the docs hub (site/docs/, built from docs/)
 app/           the studio: index.html, library.html, style/, src/{core,engine,audio,devices,kernel,input,ui,agent}
+app/kits/      the sampled kits' samples (gitignored: node tools/fetch-kits.js builds them; deploy uploads them)
 app/vendor/    verbatim sources from Claw'd-o-Matic (pedals, amps, presets); tools/vendor-clawd.js re-syncs them
 server/        serve.js (static + agent bridge), mcp.js (MCP stdio server), relay.js (the claude.ai relay)
 tools/         checks (node tools/run-all.js), the Node renderer, OverdubBench, screenshot and film scripts
@@ -118,12 +121,16 @@ docs/          guide, agents, devices, architecture, bench, remote MCP, vision, 
 ## Credits
 
 The pedals, amps, cabs and presets are AJ's Guitar Studio from Claw'd-o-Matic. The synthesis techniques come from
-AJ's earlier synthesis experiments (Karplus-Strong strings, modal drums, tube amp models).
+AJ's earlier synthesis experiments (Karplus-Strong strings, modal drums, tube amp models). Virtuosity Kit plays
+[Virtuosity Drums](https://github.com/sfzinstruments/virtuosity_drums) by Versilian Studios, played by Austin McMahon
+on the house kit at Virtuosity Musical Instruments, Boston (CC0 1.0; the samples at commit `9f04cf9`, listed in
+`tools/kits/virtuosity.js`).
 
 ## Licence
 
 MIT: see [LICENSE](LICENSE). The fonts in `app/style/fonts/` are under the SIL Open Font License, each with its
-`OFL.txt`.
+`OFL.txt`. The kit samples `tools/fetch-kits.js` fetches aren't in this repository; they are CC0 1.0 (public domain
+dedication), and the tool checks the upstream LICENSE before it builds them.
 
 ## Contributing
 

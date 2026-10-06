@@ -438,7 +438,17 @@ t.ok(!tapBad.length, `a live note let go in the same render quantum it was press
 // on every kernel instrument (the kit's voices are one-shots that end by themselves: it gets the crash, 3.4 s, which is
 // still ringing when the watchdog looks; Studio A's strokes ring in its shared mics, not in a voice, so it gets the
 // snare roll, 33, the one stroke that holds its voice for as long as the note is held)
-const wdPitch = (id) => (every.dev[id] === 'core.drums' ? 49 : every.dev[id] === 'core.drumroom' ? 33 : 77);
+// (Virtuosity Kit, sampled, gets its crash too, once its samples are in: a kit that isn't here plays nothing, so it has
+// no voice to hold and is left out, as tools/drumkit-test.js says)
+const wdPitch = (id) => (every.dev[id] === 'core.drums' || every.dev[id] === 'core.drumkit' ? 49 : every.dev[id] === 'core.drumroom' ? 33 : 77);
+const noData = await page.evaluate(async (ids) => {
+  const { engine } = window.overdub;
+  const t0 = performance.now();
+  const state = (id) => { const d = engine.instance(id).data; return d ? d.state : 'none'; };
+  while (ids.some((id) => state(id) === 'loading') && performance.now() - t0 < 30000) await new Promise((r) => setTimeout(r, 100));
+  return ids.filter((id) => state(id) !== 'none' && state(id) !== 'ready');
+}, every.ids);
+for (const id of noData) t.note(`${devOf(id)}: its samples aren't here, so the watchdog has no voice to catch on it (left out)`);
 const wd = await page.evaluate(async ({ ids, pitch }) => {
   const { engine } = window.overdub;
   const s0 = await engine.voices();
@@ -454,9 +464,9 @@ const wd = await page.evaluate(async ({ ids, pitch }) => {
   for (const off of offs) off();
   for (const id of ids) { res[id].after = v[id].held; res[id].stuck = (v[id].stuck || 0) - (s0[id].stuck || 0); }
   return res;
-}, { ids: every.ids, pitch: Object.fromEntries(every.ids.map((id) => [id, wdPitch(id)])) });
-const wdBad = every.ids.filter((id) => { const r = wd[id]; return !(r.after === 0 && r.seen.join() === 'held:' + wdPitch(id) && r.stuck >= 1 && r.at != null && r.at < 600); });
-const wdSlow = Math.max(0, ...every.ids.map((id) => wd[id].at || 0));
+}, { ids: every.ids.filter((id) => !noData.includes(id)), pitch: Object.fromEntries(every.ids.map((id) => [id, wdPitch(id)])) });
+const wdBad = every.ids.filter((id) => !noData.includes(id)).filter((id) => { const r = wd[id]; return !(r.after === 0 && r.seen.join() === 'held:' + wdPitch(id) && r.stuck >= 1 && r.at != null && r.at < 600); });
+const wdSlow = Math.max(0, ...every.ids.filter((id) => wd[id]).map((id) => wd[id].at || 0));
 t.ok(every.ids.length >= 14 && !wdBad.length, `live, the watchdog lets go of a held voice nobody holds open while stopped, on all ${every.ids.length} kernel instruments (the slowest caught ${Math.round(wdSlow)} ms after it started${wdBad.length ? '; ' + wdBad.map((id) => `${devOf(id)}: caught ${wd[id].at == null ? 'never' : Math.round(wd[id].at) + ' ms'}, reported ${wd[id].seen.join(', ') || 'nothing'}, ${wd[id].after} held after a second`).join('; ') : ''})`);
 
 t.ok(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));

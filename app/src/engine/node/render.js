@@ -34,6 +34,10 @@
 //
 // Audio clips play their samples from `assets` ({ [assetId]: { sr, channels: [Float32Array] } }); a missing asset is
 // a warning and silence.
+//
+// Kernel data (docs/DEVICES.md "Kernel data"): a device whose def names files ({ kit: 'sha256-<hex>' }) gets them from
+// app/kits/ (engine/node/data.js, read once, checked against the hash). A file that isn't there is a warning
+// (kind 'data') and the kernel gets null: a sampled kit plays nothing.
 
 import { kernelCore, kernelCompiler } from '../../kernel/worklet.js';
 import { kernelSpecs } from '../../kernel/host.js';
@@ -47,6 +51,8 @@ import { cleanProject, songEnd as projectSongEnd } from '../../core/project.js';
 import { notesIn, audioIn, autoIn, lanesOf, mixGrid, GRID } from '../schedule.js';
 import { audibility, trackSpec, masterSpec, softClipCurve, SC_K } from '../strip.js';
 import { dbToGain, beatsPerBarOf } from '../util.js';
+import { dataFor } from './data.js';
+import { normData } from '../../kernel/odk.js';
 
 export const Q = 128;   // the render quantum: kernels see exactly the blocks the AudioWorklet sees
 const f32 = Math.fround;
@@ -103,8 +109,10 @@ function kernelDevice(def, kind, { uid, params, on = true, bpm, from, sr, warn, 
       else warn({ kind: 'fault', ...where, device: def.id, message: `${def.id} stopped: ${m.message}` });
     }
   };
+  const data = dataFor(def.data);
+  if (data) for (const [k, v] of Object.entries(data)) if (!v) warn({ kind: 'data', ...where, device: def.id, message: `${def.id} plays nothing: its ${k} (${normData(def.data)[k].slice(0, 19)}...) isn't in app/kits/ (node tools/fetch-kits.js fetches it)` });
   const core = new K({ source: def.kernel, kind, params: kernelSpecs(def), values, poly: def.poly, seed: seedOf(uid) >>> 0,
-    transport: { bpm, playing: true, beat: from, time: 0 } }, post);
+    transport: { bpm, playing: true, beat: from, time: 0 }, data }, post);
   if (failed || !core.cur) {
     warn({ kind: 'error', ...where, device: def.id, message: `${def.id} failed to build: ${failed || 'no kernel'} (${kind === 'instrument' ? 'track skipped' : 'bypassed'})` });
     return null;

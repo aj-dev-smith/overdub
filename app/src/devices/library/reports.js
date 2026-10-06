@@ -22,6 +22,7 @@ export const REPORTS = {
   "core.choir": {"hash":"13g0o8","kind":"instrument","ok":true,"lufs":-16.3,"deltaLU":-2.3,"truePeak":-1.4,"cpu":2.3,"tail":1.7,"warnings":0},
   "core.drumroom": {"hash":"pf71to","kind":"instrument","ok":true,"lufs":-18.2,"deltaLU":-4.2,"truePeak":-1.4,"cpu":3.1,"tail":3.1,"warnings":0},
   "core.wavetable": {"hash":"1wsaji2","kind":"instrument","ok":true,"lufs":-15.9,"deltaLU":-1.9,"truePeak":-1.7,"cpu":2.5,"tail":0.7,"warnings":0},
+  "core.drumkit": {"hash":"16ldoxu","kind":"instrument","ok":true,"lufs":-18.1,"deltaLU":-4.1,"truePeak":-1.5,"cpu":0.8,"tail":4,"warnings":0},
   "core.eq": {"hash":"1osp0l7","kind":"effect","ok":true,"lufs":-20.9,"deltaLU":0,"truePeak":-5.8,"cpu":0.4,"tail":0,"warnings":1},
   "core.comp": {"hash":"1piirlg","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-4.9,"cpu":0.3,"tail":0,"warnings":1},
   "core.verb": {"hash":"imnhbr","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-6.4,"cpu":0.6,"tail":1.1,"warnings":0},

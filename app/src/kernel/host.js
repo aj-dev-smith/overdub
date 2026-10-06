@@ -30,9 +30,16 @@
 // (release: the key goes back to set()'s value); autoStop() drops everything and releases every key.
 // Expression (kernel/expr.js, docs/DEVICES.md "Expression"): noteOn(pitch, vel, time, x) takes the note's own
 // { bend, mod } (from noteExpr), and expr({ bend?, mod?, sustain? }, time) sets the channel's.
+// Kernel data (docs/DEVICES.md "Kernel data"): a def whose `data` names files ({ kit: 'sha256-<hex>' }) gets them in
+// create({ data }). They're fetched when the first instance is built (kernel/data.js). An offline context waits for
+// them before it renders (nothing streams mid-render); a live one starts at once with data null (silence) and the
+// kernel is created again when they arrive. inst.data = { state: 'loading' | 'ready' | 'missing', hashes };
+// on('data', fn) hears it change. A missing file stays missing: the kernel gets null and plays nothing.
 import { kernelCompiler } from './worklet.js';
 import { normParam, paramValues, seedOf } from '../devices/registry.js';
 import { chanExpr } from './expr.js';
+import { loadData, peekData } from './data.js';
+import { normData } from './odk.js';
 
 const loaded = new WeakMap();
 // the watchdog's catches go to the console on a dev host (they mean a stop or a note-off went wrong somewhere)
@@ -60,6 +67,23 @@ export function compileKernel(source) {
 }
 
 const isOffline = (c) => typeof c.startRendering === 'function';
+
+// Which data files each context's worklet has been sent (the first node to need one carries the bytes; the worklet
+// keeps them for every node after, so 30 MB isn't copied per track).
+const sent = new WeakMap();
+// processorOptions.data for these files: { [name]: { hash, bytes? } | null }
+function dataOptions(c, files, have) {
+  let s = sent.get(c);
+  if (!s) { s = new Set(); sent.set(c, s); }
+  const out = {};
+  for (const [k, hash] of Object.entries(files)) {
+    const bytes = have[k];
+    if (!bytes) { out[k] = null; continue; }
+    if (s.has(hash)) out[k] = { hash };
+    else { out[k] = { hash, bytes }; s.add(hash); }
+  }
+  return out;
+}
 
 // Offline renders: an OfflineAudioContext renders without yielding, so messages posted just before startRendering()
 // (notes, params) can land after the frames they were meant for. Every offline context that hosts kernels gets one
@@ -112,14 +136,33 @@ export async function kernelInstance(c, def, opts = {}) {
     return { bpm, playing, beat, time: now };
   };
 
+  // kernel data: what's here now (an offline render waits for all of it; live, what is still loading comes later)
+  const files = normData(def.data);
+  const have = {};
+  let waiting = null;
+  if (files) {
+    for (const [k, hash] of Object.entries(files)) have[k] = peekData(hash);
+    const missing = Object.entries(files).filter(([k]) => !have[k]);
+    if (missing.length) {
+      const all = Promise.all(missing.map(([k, hash]) => loadData(hash).then((b) => { have[k] = b; })));
+      if (offline) await all; else waiting = all;
+    }
+  }
+  const dataNow = () => {
+    if (!files) return null;
+    const vals = Object.keys(files).map((k) => have[k]);
+    return { state: vals.every(Boolean) ? 'ready' : waiting ? 'loading' : 'missing', hashes: { ...files } };
+  };
+
   const node = new AudioWorkletNode(c, 'overdub-kernel', {
     numberOfInputs: kind === 'effect' ? 1 : 0,
     numberOfOutputs: 1,
     outputChannelCount: [2],
-    processorOptions: { source: def.kernel, kind, params: specs, values, poly: def.poly, seed, transport: transport(), idle: !offline, tail: def.tail },
+    processorOptions: { source: def.kernel, kind, params: specs, values, poly: def.poly, seed, transport: transport(), idle: !offline, tail: def.tail,
+      ...(files ? { data: dataOptions(c, files, have) } : {}) },
   });
 
-  const listeners = { error: new Set(), log: new Set(), ready: new Set(), stats: new Set(), stuck: new Set() };
+  const listeners = { error: new Set(), log: new Set(), ready: new Set(), stats: new Set(), stuck: new Set(), data: new Set() };
   const emit = (type, d) => { for (const fn of listeners[type] || []) { try { fn(d); } catch (e) { console.error(e); } } };
   const pending = new Map(); // reload ids -> { resolve, reject }
   const syncs = new Map();
@@ -130,7 +173,7 @@ export async function kernelInstance(c, def, opts = {}) {
   ready.catch(() => {}); // a compile error is reported through `ready` / errors; never an unhandled rejection
 
   const inst = {
-    def, uid: opts.uid || null, ready,
+    def, uid: opts.uid || null, ready, data: null,
     input: null, output: null,
     errors: [], faulted: false, version: 0,
     // (bypassed, an effect is its dry path: delayed by the declared latency, whatever the kernel reports)
@@ -335,6 +378,17 @@ export async function kernelInstance(c, def, opts = {}) {
       if (kind === 'instrument' && !tr.playing && ++n % 5 === 0 && tr.time > led.last + 0.2) post({ type: 'watch', open: ledOpen(tr.time), time: tr.time, ring: ring() });
     };
     tick = setInterval(send, 50);
+  }
+
+  inst.data = dataNow();
+  if (waiting) {
+    waiting.then(() => {
+      if (!node.port.onmessage) return; // disposed while it loaded
+      waiting = null;
+      inst.data = dataNow();
+      if (inst.data.state === 'ready') post({ type: 'data', data: dataOptions(c, files, have) });
+      emit('data', inst.data);
+    });
   }
 
   const unbarrier = offline ? offlineBarrier(c, inst) : null;

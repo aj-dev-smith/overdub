@@ -63,7 +63,9 @@ overdub/
                          wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
-                         worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js  [dsp]
+                         worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
+                         odk.js + data.js (kernel data: the .odk container; fetched once, checked, kept in IndexedDB)  [dsp]
+  app/kits/              kernel data files, <sha256>.odk (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
@@ -395,7 +397,8 @@ draw them, so the editor shows exactly what plays. Its design note, with the par
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 28 built-ins),
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 32 built-ins, one of
+them sampled: Virtuosity Kit, whose samples come as kernel data),
 `devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its
 156 rigs as device chains) and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source:
 'library'`, each with its `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices

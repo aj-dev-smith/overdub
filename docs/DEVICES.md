@@ -27,6 +27,10 @@ Where things live:
 | `app/src/kernel/guide.js` | `KERNEL_GUIDE` (the agent's version of this page), `GUIDE_EFFECT`, `GUIDE_INSTRUMENT` |
 | `app/src/kernel/examples.js` | `core.testsynth` and `core.testfilter`, the reference kernels (registered on import) |
 | `tools/kernel-test.js` | the platform's checks (`node tools/kernel-test.js`) |
+| `app/src/kernel/odk.js` | kernel data: the `.odk` container (`encodeOdk`, `decodeOdk`), `normData(def.data)` |
+| `app/src/kernel/data.js` | kernel data on the page: `loadData(hash)` (fetch once, check, IndexedDB), `dataState`, `onData` |
+| `app/src/engine/node/data.js` | kernel data in Node: `dataFor(def.data)` reads `app/kits/` for the renderer and the check |
+| `tools/fetch-kits.js` | builds the sampled kits into `app/kits/` from pinned upstream files (`tools/kits/`, `tools/flac.js`) |
 
 ## The loop: write, check, play, refine
 
@@ -278,8 +282,8 @@ this browser hasn't trusted are held, and the studio asks before they run.
 
 ## Drum kits and the note map
 
-Two built-in kits sit on the drums shelf (`cat: 'drums'`). Every kit plays the drum phrase in the device check, and a
-track with one gets the drum grid.
+Three built-in kits sit on the drums shelf (`cat: 'drums'`). Every kit plays the drum phrase in the device check, and
+a track with one gets the drum grid.
 
 - **Gobo Kit** (`core.drums`): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
   ACOUSTIC+. `hat_model` picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
@@ -290,14 +294,16 @@ track with one gets the drum grid.
 - **Studio A** (`core.drumroom`): an acoustic kit in a big tracking room, miked like a recording. It has
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
+- **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
+  samples. The studio's one sampled instrument (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)).
 
-**Cymbal models.** Both kits take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+**Cymbal models.** Gobo Kit and Studio A take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
 built in `app/src/devices/builtin/metal.js` and measured against real cymbal recordings. Each cymbal is one model that
 keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its `process()`, with its cymbal voices as
 probes (below). Gobo's 808 keeps its own.
 
-**The note map.** Both kits play General MIDI. Studio A plays these articulations GM has no note for:
+**The note map.** Every kit plays General MIDI. Studio A plays these articulations GM has no note for:
 
 | notes | piece | what they play |
 |---|---|---|
@@ -373,6 +379,80 @@ probes:
 
 The whole kit, its persistent piece models and its shared mic buses run there, sample accurate. Any kernel that
 needs per-voice buses (a mixer of sources, a sympathetic resonance between notes) can do the same.
+
+## Virtuosity Kit (`core.drumkit`): a sampled kit
+
+A jazz-club kit played with sticks: Virtuosity Drums (Versilian Studios, CC0 1.0), recorded at Virtuosity Musical
+Instruments in Boston with Austin McMahon on the house kit. Overdub plays a lean subset of it through one stereo pair
+of overheads. `app/src/devices/builtin/drumkit.js`; the samples come by [kernel data](#kernel-data-samples-a-kernel-plays).
+
+- **What it plays.** Eleven articulations: kick, snare, hi-hat closed, half open, open and pedal, ride and its bell, a
+  crash, and a high and a low tom. Each has three velocity layers of two strokes. The file is 66 samples, 22.9 MB
+  of 16-bit, 48 kHz stereo (10.5 MB gzipped), with tails cut after the last 20 ms window above -70 dBFS RMS.
+- **The note map** is General MIDI: 35 and 36 kick, 38 and 40 snare, 42 hat closed, 44 pedal, 46 open, 49 and 57 crash,
+  51 and 59 ride, 53 bell; 50, 48 and 47 the high tom, 45, 43 and 41 the low one. Studio A's half-open notes (23, 24)
+  play the half-open hat, its edge notes 22 and 26 the closed and open hat. Its `notes` names every one; any other
+  note plays nothing ("Not in this kit").
+- **Velocity.** A note's velocity picks the layer and crossfades across each layer boundary (within 0.06 of it):
+  drums linearly, since two strokes of one drum add at the attack, and cymbals and hats at equal power. The level
+  follows a curve through each layer's measured level (the RMS of its first 150 ms), so it doesn't jump where the
+  timbre changes. On the snare, each step of 0.02 in velocity moves the level by under 2 dB.
+- **Strokes.** Which of a layer's two strokes plays is drawn from the instance's seed, in the order notes arrive (the
+  other stroke three times in four), so a render repeats exactly and two tracks of the kit differ.
+- **The hats are one instrument.** A hat note chokes what the hats were ringing: a closed or pedal note within 30 ms,
+  an open or half-open one within 80 ms. A piece keeps at most three strokes ringing; the oldest fades in 50 ms.
+- **Each stroke lands on its note.** It starts 2 ms before it first comes within 20 dB of its peak (the overheads'
+  flight time, and the foot's travel before a pedal hat closes, are skipped), with a 1 ms fade in.
+- **Params.** `tune` (±12 semitones, by resampling with the kernel's own 4-point Hermite interpolator, fixed at each
+  stroke: lower is longer; at 0 a stroke is its recorded samples, scaled), `decay` (100% is the recording; lower
+  holds part of each stroke, then lets it go), `tone` (a tilt around 900 Hz, ±6 dB at the ends; at 0 it is bypassed),
+  `level`, and a level for the kick, snare, hats, toms, ride and crash (-40 is off). The defaults lift the kick 8 dB
+  and ease the snare back 5 and the hats 3; the **As recorded** preset is the pair's own balance.
+- **Levels.** The overheads' snare peaks sit about 18 dB over the kit's loudness, so the output runs into Studio A's
+  stereo-linked true-peak limiter (1.5 ms look-ahead, declared as 80 samples of latency). At the defaults the drum
+  phrase measures -17.8 LUFS and -1.6 dBTP. The hardest snare and tom strokes (velocity 0.95 and up) are eased by
+  4 to 6 dB, the hardest open hat by 3; anything under 0.7 passes untouched.
+- **At other sample rates** the kernel converts from 48 kHz with the same interpolator.
+
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.drumkit#902ab780bd60` pins its render.
+
+## Kernel data: samples a kernel plays
+
+A kernel sees only `dsp`, so a device that plays recordings needs the host to bring them. A def can name files by
+their content: `data: { kit: 'sha256-<64 hex>' }`. The file is `app/kits/<64 hex>.odk`, and the kernel gets it,
+decoded, as `create({ sr, seed, dsp, data })`: `data.kit = { sr, bits, channels, meta, samples: [{ id, ...,
+frames, ch: [Int16Array, ...] }] }`.
+
+- **The hash is all a song carries.** Songs, share links and device files name the hash, never the audio, so they stay
+  small. `defineDevice` keeps only `{ name: 'sha256-<hex>' }` (up to four) and drops anything else in `data`.
+- **The container is ours, and integer.** `kernel/odk.js`: `'ODK1'`, a JSON header, then 16- or 24-bit PCM, planar,
+  little-endian, at 48 kHz. Every engine reads the same integers, and `x / 32768` is exact anywhere, so a render is
+  bit-exact everywhere. There's no `decodeAudioData`, which resamples by each browser's own method. The server
+  gzips the file for transfer; the format itself is never compressed.
+- **Loaded lazily, once.** Nothing is fetched until a track uses the device (`kernel/host.js` asks when it builds an
+  instance). `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
+  (`overdub-kits`, beside the audio assets), so the next visit never fetches it. Each audio context's worklet decodes
+  it once: the first node that needs it carries the bytes, and every node after names the hash.
+- **Nothing streams mid-render.** An offline render (an export, the device check, the preview) waits for the file
+  before it starts. A live instance starts at once with `data.kit = null` (silence). When the file arrives,
+  `create()` runs again with it, crossfading from that silence. While it loads, the device's card says **Loading
+  samples…**.
+- **A missing file plays nothing, and says so.** A hash this server doesn't have (never fetched, or a song from
+  somewhere else) gives the kernel `null`. The card says **No samples here**, the engine reports it (kind `'data'`),
+  and the Node renderer warns. The device check fails it as silent.
+- **Node reads the same file.** `engine/node/data.js` reads `app/kits/` for the canonical renderer and the device
+  check, whose render process may read that folder too. A golden scene that plays a kit carries the kit's hash in
+  its name (`inst:core.drumkit#<12 hex>`) and its entry pins the whole hash, so a different kit is a different
+  scene, never a moved one.
+- **The audio stays out of git.** `node tools/fetch-kits.js` downloads the pinned upstream files (by commit, each
+  checked by SHA-256, with the upstream licence checked too), decodes them with `tools/flac.js` (held to each file's
+  MD5), trims and converts them in integer arithmetic, and writes the `.odk`. The same files always build the same
+  bytes: `--verify` rebuilds from the download cache and compares. `deploy/deploy.sh` uploads `app/kits/`, gzipped,
+  cached for good (`immutable`: a file named by its hash never changes). Without the kit, the tests that need it skip
+  it and say so.
+
+A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
+`data` only if its def names a file this server has.
 
 ## A big instrument: Light Table (`core.wavetable`)
 

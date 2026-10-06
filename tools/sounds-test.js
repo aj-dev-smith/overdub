@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { tally, OUTDIR } from './pw.js';
 import { measure, lufs, truePeak, spectrogram, onsets, keyOf, chroma } from '../app/src/audio/measure.js';
 import * as T from '../app/src/audio/testsignals.js';
+import { SAMPLED } from '../app/src/devices/builtin/index.js';
+import { dataPath } from '../app/src/engine/node/data.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SOUNDS = path.join(OUTDIR, 'sounds');
@@ -123,7 +125,10 @@ try {
     const B = await import('/app/src/devices/builtin/index.js');
     return B.BUILTINS.map((d) => d.id);
   });
-  t.ok(ids.length === 31, `builtin/index.js registers ${ids.length} devices`);
+  t.ok(ids.length === 32, `builtin/index.js registers ${ids.length} devices`);
+  // a sampled device whose samples haven't been fetched plays nothing: skipped here (tools/drumkit-test.js says so)
+  const unfetched = SAMPLED.filter((d) => Object.values(d.data || {}).some((h) => !fs.existsSync(dataPath(h)))).map((d) => d.id);
+  for (const id of unfetched) t.note(`${id}: skipped, its samples haven't been fetched (node tools/fetch-kits.js)`);
   // the ears in the page: measure() on a real AudioBuffer, spectrogram() through a canvas
   const ears = await page.evaluate(async () => {
     const M = await import('/app/src/audio/measure.js');
@@ -138,6 +143,7 @@ try {
   const rows = [];
   for (const id of ids) {
     if (only && !only.includes(id)) continue;
+    if (unfetched.includes(id)) continue;
     const res = await page.evaluate(async ({ id, quick }) => {
       const { getDevice } = await import('/app/src/devices/registry.js');
       const { checkDevice } = await import('/app/src/kernel/check.js');

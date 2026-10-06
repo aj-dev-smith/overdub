@@ -4,7 +4,11 @@
 // its top level uses nothing of the page's (no window, no document).
 //
 // processorOptions: { source, kind: 'effect' | 'instrument', params: [ParamSpec], values: { key: value }, poly, seed,
-//                     transport?: { bpm, playing, beat, time }, idle?: bool, tail?: seconds }
+//                     transport?: { bpm, playing, beat, time }, idle?: bool, tail?: seconds, data? }
+//   data (kernel data, docs/DEVICES.md "Kernel data"): { [name]: { hash, bytes? } | null }, what the def's `data`
+//   names. The processor decodes each file once per audio context (kernel/odk.js; bytes come with the first node that
+//   needs them, the hash alone after) and the kernel's create() gets { [name]: decoded | null }. KernelCore itself takes
+//   the decoded objects (the Node renderer reads the same files from disk).
 //   idle (live only; renders never set it): a kernel with nothing coming in (an effect fed exact silence, an
 //   instrument with no voices and no notes due) whose output has stayed under -100 dBFS for max(0.5 s, min(tail, 10 s))
 //   dozes: it outputs silence without running until something comes in again (the same block). Silence costs nothing.
@@ -37,6 +41,8 @@
 //                                              `from` (seconds); release: the key(s) go back to the 'params' value
 //   { type: 'auto.stop' }                      drop every segment and release every key (the transport stopped)
 //   { type: 'code', source, id }               hot reload: compile, then crossfade old -> new over 20 ms
+//   { type: 'data', data }                     the kernel data arrived (it was loading): create() again with it, the
+//                                              same source, crossfading from what played before (silence) over 20 ms
 //   { type: 'sleep', on }                      skip the kernel and output silence (bypassed effects)
 //   { type: 'sync', id }                       answered with { type: 'synced', id } (everything before it is in)
 //   { type: 'stats' }                          ask for { type: 'stats', voices, held, maxVoices, steals, notes, faulted,
@@ -50,6 +56,8 @@
 //   { type: 'error', stage: 'compile' | 'process', message, line?, id? }   compile errors keep the old kernel;
 //        a process error (a throw, NaN/Infinity, or an exploding output) silences the node until a reload
 //   { type: 'log', args }                      console.log from a kernel (the first 20)
+
+import { decodeOdk } from './odk.js';
 
 // Compile a kernel source string into its object. compile() evaluates the kernel and runs only where kernels run:
 // the worklet and the Node renderer. The main thread uses parse() alone (host.compileKernel), which never calls
@@ -181,7 +189,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
     // One compiled kernel instance and (for instruments) its voices.
     constructor(proc, k, seed) {
       this.proc = proc; this.k = k; this.kind = proc.kind;
-      this.inst = k.create({ sr: SR, seed, dsp, params: proc.specs, poly: proc.poly });
+      this.inst = k.create({ sr: SR, seed, dsp, params: proc.specs, poly: proc.poly, data: proc.data });
       const bad = proc.C.shape(this.inst, this.kind);
       if (bad) throw new Error(bad);
       this.latency = +this.inst.latency || 0;
@@ -368,6 +376,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       this.fL = new Float32Array(128); this.fR = new Float32Array(128);
       this.cur = null; this.old = null; this.fade = 0; this.faulted = false; this.ended = false; this.sleeping = false;
       this.idle = !!o.idle; this.dozing = false; this.quiet = 0;
+      this.data = o.data || null; this.source = null;
       this.hold = Math.round(Math.max(0.5, Math.min(10, o.tail == null ? 2 : +o.tail || 0)) * SR);
       this.version = 0;
       this.load(o.source, null);
@@ -403,7 +412,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       if (this.cur && !this.faulted) {
         this.old = this.cur; this.old.allOff(this.p); this.fade = FADE; // (a reload mid-fade drops the oldest)
       } else if (this.cur) { this.old = SILENT; this.fade = FADE; } // back from a fault: fade in from silence
-      this.cur = k; this.faulted = false; this.version++;
+      this.cur = k; this.faulted = false; this.version++; this.source = source;
       this.post({ type: 'ready', id, latency: k.latency, poly: k.poly || 0, version: this.version });
       return true;
     }
@@ -486,6 +495,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
           this.anchor = { bpm: +d.bpm || 120, playing: !!d.playing, beat: +d.beat || 0, time: +d.time || 0 };
           break;
         case 'code': this.load(d.source, d.id); break;
+        case 'data': this.data = d.data || null; if (this.source != null) this.load(this.source, null); break;
         case 'sleep': this.sleeping = !!d.on; break;
         case 'stats':
           this.post({ type: 'stats', voices: this.cur ? this.cur.voices.filter((s) => s.alive).length : 0, held: this.cur ? this.cur.voices.filter((s) => s.alive && s.held && !s.fade).length : 0, stuck: this.stuck, maxVoices: this.maxVoices, steals: this.steals, notes: this.notes, faulted: this.faulted, version: this.version, dozing: this.dozing,
@@ -647,12 +657,26 @@ export function kernelCore(SR, dsp, kernelCompiler) {
 // hands each render quantum to a KernelCore.
 export function overdubKernelWorklet(overdubDsp, kernelCompiler, kernelCore) {
   const KernelCore = kernelCore(sampleRate, overdubDsp(sampleRate), kernelCompiler);
+  // kernel data, decoded once in this audio context: hash -> the decoded file (or null: it didn't decode)
+  const DATA = new Map();
+  const open = (d) => {
+    if (!d || typeof d !== 'object') return null;
+    const out = {};
+    for (const k of Object.keys(d)) {
+      const v = d[k];
+      if (!v || typeof v.hash !== 'string') { out[k] = null; continue; }
+      if (!DATA.has(v.hash) && v.bytes) { let x = null; try { x = decodeOdk(v.bytes); } catch (e) { /* not a kit file: nothing */ } DATA.set(v.hash, x); }
+      out[k] = DATA.get(v.hash) || null;
+    }
+    return out;
+  };
   class OverdubKernel extends AudioWorkletProcessor {
     constructor(options) {
       super();
       const port = this.port;
-      this.core = new KernelCore((options && options.processorOptions) || {}, (m) => port.postMessage(m));
-      port.onmessage = (e) => this.core.msg(e.data);
+      const o = (options && options.processorOptions) || {};
+      this.core = new KernelCore(o.data ? { ...o, data: open(o.data) } : o, (m) => port.postMessage(m));
+      port.onmessage = (e) => { const d = e.data; this.core.msg(d && d.type === 'data' ? { type: 'data', data: open(d.data) } : d); };
     }
     process(inputs, outputs) {
       const core = this.core;

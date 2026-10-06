@@ -54,6 +54,8 @@
 <li><a href="#presets">Presets</a></li>
 <li><a href="#the-library-and-device-files-v0">The library and device files (v0)</a></li>
 <li><a href="#drum-kits-and-the-note-map">Drum kits and the note map</a></li>
+<li><a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit (core.drumkit): a sampled kit</a></li>
+<li><a href="#kernel-data-samples-a-kernel-plays">Kernel data: samples a kernel plays</a></li>
 <li><a href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (core.wavetable)</a></li>
 <li><a href="#for-agents">For agents</a></li>
 <li><a href="#the-definition">The definition</a></li>
@@ -68,7 +70,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 35 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 40 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -96,6 +98,10 @@ can be up to 256 KB.</p>
 <tr><td><code>app/src/kernel/guide.js</code></td><td><code>KERNEL_GUIDE</code> (the agent's version of this page), <code>GUIDE_EFFECT</code>, <code>GUIDE_INSTRUMENT</code></td></tr>
 <tr><td><code>app/src/kernel/examples.js</code></td><td><code>core.testsynth</code> and <code>core.testfilter</code>, the reference kernels (registered on import)</td></tr>
 <tr><td><code>tools/kernel-test.js</code></td><td>the platform's checks (<code>node tools/kernel-test.js</code>)</td></tr>
+<tr><td><code>app/src/kernel/odk.js</code></td><td>kernel data: the <code>.odk</code> container (<code>encodeOdk</code>, <code>decodeOdk</code>), <code>normData(def.data)</code></td></tr>
+<tr><td><code>app/src/kernel/data.js</code></td><td>kernel data on the page: <code>loadData(hash)</code> (fetch once, check, IndexedDB), <code>dataState</code>, <code>onData</code></td></tr>
+<tr><td><code>app/src/engine/node/data.js</code></td><td>kernel data in Node: <code>dataFor(def.data)</code> reads <code>app/kits/</code> for the renderer and the check</td></tr>
+<tr><td><code>tools/fetch-kits.js</code></td><td>builds the sampled kits into <code>app/kits/</code> from pinned upstream files (<code>tools/kits/</code>, <code>tools/flac.js</code>)</td></tr>
 </tbody></table></div>
 <h2 id="the-loop-write-check-play-refine"><a class="h-link" href="#the-loop-write-check-play-refine">The loop: write, check, play, refine</a></h2>
 <ol>
@@ -327,8 +333,8 @@ from people you trust. Importing one trusts its code in this browser (you chose 
 what your agent writes. A share link (<code>#s=</code>) or a song file carries the song's devices, kernels included; the ones
 this browser hasn't trusted are held, and the studio asks before they run.</p>
 <h2 id="drum-kits-and-the-note-map"><a class="h-link" href="#drum-kits-and-the-note-map">Drum kits and the note map</a></h2>
-<p>Two built-in kits sit on the drums shelf (<code>cat: 'drums'</code>). Every kit plays the drum phrase in the device check, and a
-track with one gets the drum grid.</p>
+<p>Three built-in kits sit on the drums shelf (<code>cat: 'drums'</code>). Every kit plays the drum phrase in the device check, and
+a track with one gets the drum grid.</p>
 <ul>
 <li><strong>Gobo Kit</strong> (<code>core.drums</code>): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
 ACOUSTIC+. <code>hat_model</code> picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
@@ -339,13 +345,15 @@ on any character; 0 (KIT) is each character's own, as before.</li>
 <li><strong>Studio A</strong> (<code>core.drumroom</code>): an acoustic kit in a big tracking room, miked like a recording. It has
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
+<li><strong>Virtuosity Kit</strong> (<code>core.drumkit</code>): a real jazz-club kit, recorded through a pair of overheads and played from
+samples. The studio's one sampled instrument (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>).</li>
 </ul>
-<p><strong>Cymbal models.</strong> Both kits take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+<p><strong>Cymbal models.</strong> Gobo Kit and Studio A take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
 built in <code>app/src/devices/builtin/metal.js</code> and measured against real cymbal recordings. Each cymbal is one model that
 keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its <code>process()</code>, with its cymbal voices as
 probes (below). Gobo's 808 keeps its own.</p>
-<p><strong>The note map.</strong> Both kits play General MIDI. Studio A plays these articulations GM has no note for:</p>
+<p><strong>The note map.</strong> Every kit plays General MIDI. Studio A plays these articulations GM has no note for:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>notes</th><th>piece</th><th>what they play</th></tr></thead>
 <tbody>
@@ -415,6 +423,75 @@ probes:</p>
 </ul>
 <p>The whole kit, its persistent piece models and its shared mic buses run there, sample accurate. Any kernel that
 needs per-voice buses (a mixer of sources, a sympathetic resonance between notes) can do the same.</p>
+<h2 id="virtuosity-kit-coredrumkit-a-sampled-kit"><a class="h-link" href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit (<code>core.drumkit</code>): a sampled kit</a></h2>
+<p>A jazz-club kit played with sticks: Virtuosity Drums (Versilian Studios, CC0 1.0), recorded at Virtuosity Musical
+Instruments in Boston with Austin McMahon on the house kit. Overdub plays a lean subset of it through one stereo pair
+of overheads. <code>app/src/devices/builtin/drumkit.js</code>; the samples come by <a href="#kernel-data-samples-a-kernel-plays">kernel data</a>.</p>
+<ul>
+<li><strong>What it plays.</strong> Eleven articulations: kick, snare, hi-hat closed, half open, open and pedal, ride and its bell, a
+crash, and a high and a low tom. Each has three velocity layers of two strokes. The file is 66 samples, 22.9 MB
+of 16-bit, 48 kHz stereo (10.5 MB gzipped), with tails cut after the last 20 ms window above -70 dBFS RMS.</li>
+<li><strong>The note map</strong> is General MIDI: 35 and 36 kick, 38 and 40 snare, 42 hat closed, 44 pedal, 46 open, 49 and 57 crash,
+51 and 59 ride, 53 bell; 50, 48 and 47 the high tom, 45, 43 and 41 the low one. Studio A's half-open notes (23, 24)
+play the half-open hat, its edge notes 22 and 26 the closed and open hat. Its <code>notes</code> names every one; any other
+note plays nothing (&quot;Not in this kit&quot;).</li>
+<li><strong>Velocity.</strong> A note's velocity picks the layer and crossfades across each layer boundary (within 0.06 of it):
+drums linearly, since two strokes of one drum add at the attack, and cymbals and hats at equal power. The level
+follows a curve through each layer's measured level (the RMS of its first 150 ms), so it doesn't jump where the
+timbre changes. On the snare, each step of 0.02 in velocity moves the level by under 2 dB.</li>
+<li><strong>Strokes.</strong> Which of a layer's two strokes plays is drawn from the instance's seed, in the order notes arrive (the
+other stroke three times in four), so a render repeats exactly and two tracks of the kit differ.</li>
+<li><strong>The hats are one instrument.</strong> A hat note chokes what the hats were ringing: a closed or pedal note within 30 ms,
+an open or half-open one within 80 ms. A piece keeps at most three strokes ringing; the oldest fades in 50 ms.</li>
+<li><strong>Each stroke lands on its note.</strong> It starts 2 ms before it first comes within 20 dB of its peak (the overheads'
+flight time, and the foot's travel before a pedal hat closes, are skipped), with a 1 ms fade in.</li>
+<li><strong>Params.</strong> <code>tune</code> (±12 semitones, by resampling with the kernel's own 4-point Hermite interpolator, fixed at each
+stroke: lower is longer; at 0 a stroke is its recorded samples, scaled), <code>decay</code> (100% is the recording; lower
+holds part of each stroke, then lets it go), <code>tone</code> (a tilt around 900 Hz, ±6 dB at the ends; at 0 it is bypassed),
+<code>level</code>, and a level for the kick, snare, hats, toms, ride and crash (-40 is off). The defaults lift the kick 8 dB
+and ease the snare back 5 and the hats 3; the <strong>As recorded</strong> preset is the pair's own balance.</li>
+<li><strong>Levels.</strong> The overheads' snare peaks sit about 18 dB over the kit's loudness, so the output runs into Studio A's
+stereo-linked true-peak limiter (1.5 ms look-ahead, declared as 80 samples of latency). At the defaults the drum
+phrase measures -17.8 LUFS and -1.6 dBTP. The hardest snare and tom strokes (velocity 0.95 and up) are eased by
+4 to 6 dB, the hardest open hat by 3; anything under 0.7 passes untouched.</li>
+<li><strong>At other sample rates</strong> the kernel converts from 48 kHz with the same interpolator.</li>
+</ul>
+<p><code>tools/drumkit-test.js</code> holds it to all of this, and the golden scene <code>inst:core.drumkit#902ab780bd60</code> pins its render.</p>
+<h2 id="kernel-data-samples-a-kernel-plays"><a class="h-link" href="#kernel-data-samples-a-kernel-plays">Kernel data: samples a kernel plays</a></h2>
+<p>A kernel sees only <code>dsp</code>, so a device that plays recordings needs the host to bring them. A def can name files by
+their content: <code>data: { kit: 'sha256-&lt;64 hex&gt;' }</code>. The file is <code>app/kits/&lt;64 hex&gt;.odk</code>, and the kernel gets it,
+decoded, as <code>create({ sr, seed, dsp, data })</code>: <code>data.kit = { sr, bits, channels, meta, samples: [{ id, ..., frames, ch: [Int16Array, ...] }] }</code>.</p>
+<ul>
+<li><strong>The hash is all a song carries.</strong> Songs, share links and device files name the hash, never the audio, so they stay
+small. <code>defineDevice</code> keeps only <code>{ name: 'sha256-&lt;hex&gt;' }</code> (up to four) and drops anything else in <code>data</code>.</li>
+<li><strong>The container is ours, and integer.</strong> <code>kernel/odk.js</code>: <code>'ODK1'</code>, a JSON header, then 16- or 24-bit PCM, planar,
+little-endian, at 48 kHz. Every engine reads the same integers, and <code>x / 32768</code> is exact anywhere, so a render is
+bit-exact everywhere. There's no <code>decodeAudioData</code>, which resamples by each browser's own method. The server
+gzips the file for transfer; the format itself is never compressed.</li>
+<li><strong>Loaded lazily, once.</strong> Nothing is fetched until a track uses the device (<code>kernel/host.js</code> asks when it builds an
+instance). <code>kernel/data.js</code> fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
+(<code>overdub-kits</code>, beside the audio assets), so the next visit never fetches it. Each audio context's worklet decodes
+it once: the first node that needs it carries the bytes, and every node after names the hash.</li>
+<li><strong>Nothing streams mid-render.</strong> An offline render (an export, the device check, the preview) waits for the file
+before it starts. A live instance starts at once with <code>data.kit = null</code> (silence). When the file arrives,
+<code>create()</code> runs again with it, crossfading from that silence. While it loads, the device's card says <strong>Loading
+samples…</strong>.</li>
+<li><strong>A missing file plays nothing, and says so.</strong> A hash this server doesn't have (never fetched, or a song from
+somewhere else) gives the kernel <code>null</code>. The card says <strong>No samples here</strong>, the engine reports it (kind <code>'data'</code>),
+and the Node renderer warns. The device check fails it as silent.</li>
+<li><strong>Node reads the same file.</strong> <code>engine/node/data.js</code> reads <code>app/kits/</code> for the canonical renderer and the device
+check, whose render process may read that folder too. A golden scene that plays a kit carries the kit's hash in
+its name (<code>inst:core.drumkit#&lt;12 hex&gt;</code>) and its entry pins the whole hash, so a different kit is a different
+scene, never a moved one.</li>
+<li><strong>The audio stays out of git.</strong> <code>node tools/fetch-kits.js</code> downloads the pinned upstream files (by commit, each
+checked by SHA-256, with the upstream licence checked too), decodes them with <code>tools/flac.js</code> (held to each file's
+MD5), trims and converts them in integer arithmetic, and writes the <code>.odk</code>. The same files always build the same
+bytes: <code>--verify</code> rebuilds from the download cache and compares. <code>deploy/deploy.sh</code> uploads <code>app/kits/</code>, gzipped,
+cached for good (<code>immutable</code>: a file named by its hash never changes). Without the kit, the tests that need it skip
+it and say so.</li>
+</ul>
+<p>A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
+<code>data</code> only if its def names a file this server has.</p>
 <h2 id="a-big-instrument-light-table-corewavetable"><a class="h-link" href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (<code>core.wavetable</code>)</a></h2>
 <p>Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
 a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a

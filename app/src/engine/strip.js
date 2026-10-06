@@ -65,6 +65,12 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
     if (kind === 'effect') { try { inst.setOn(on !== false); } catch (e) { /* optional */ } }
     inst.__sig = sig(values) + '|' + bpm;
     inst.__on = on !== false;
+    // kernel data that isn't on this server: the device plays nothing, and says so (once it knows)
+    if (inst.data && report) {
+      const say = (d) => { if (d && d.state === 'missing') report({ kind: 'data', device: deviceId, uid, message: `${def.name} plays nothing: its samples (${Object.values(d.hashes).map((x) => x.slice(7, 19)).join(', ')}) aren't on this server` }); };
+      say(inst.data);
+      if (inst.on) inst.on('data', say);
+    }
     return { inst, key, failed: false };
   } catch (e) {
     if (inst) { try { inst.dispose(); } catch (e2) { /* gone */ } }

@@ -123,7 +123,9 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
-                         worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js  [dsp]
+                         worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
+                         odk.js + data.js (kernel data: the .odk container; fetched once, checked, kept in IndexedDB)  [dsp]
+  app/kits/              kernel data files, &lt;sha256&gt;.odk (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
@@ -414,7 +416,8 @@ evaluates <code>(${lightTables})()</code> and builds the tables lazily in the wo
 draw them, so the editor shows exactly what plays. Its design note, with the param map its editor works from, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <p>Param <code>role</code> (for agents and semantic controls): <code>tone level drive mix time feedback rate depth size decay attack release pitch shape width gate sens</code> (or omit). <code>unit</code>: <code>Hz dB ms s % st note x</code>.</p>
-<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 28 built-ins),
+<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 32 built-ins, one of
+them sampled: Virtuosity Kit, whose samples come as kernel data),
 <code>devices/guitar/</code> (the Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its
 156 rigs as device chains) and <code>devices/library/</code> (the house shelf: ten kernels Claude wrote, <code>claude.*</code>, <code>source: 'library'</code>, each with its <code>request</code>; also loaded by the Node renderer). <code>devices/showcase.js</code> holds the three devices
 the demo song carries as project devices. Project devices (<code>project.devices</code>) follow the song: <code>main.js</code>
