@@ -146,7 +146,7 @@ try {
   for (const n of ['get_project', 'apply_ops', 'define_device', 'render_and_measure', 'highlight', 'say', 'propose_variations', 'get_variation_result', 'undo']) t.ok(tools.some((x) => x.name === n), `tool ${n} is listed`);
   // no tab is open yet (the usual flow: claude mcp add, then start Claude Code): the list still has every tool the
   // studio's own agent has, including the ones page modules register at boot
-  const PAGE_TOOLS = ['arrange_around', 'compare_to_reference', 'transform', 'share_link', 'provenance_report', 'workspace'];
+  const PAGE_TOOLS = ['arrange_around', 'compare_to_reference', 'transform', 'share_link', 'provenance_report'];
   const { catalogSchemas } = await import('../app/src/agent/tools.js');
   const fullNames = (await catalogSchemas()).map((x) => x.name);
   t.ok(PAGE_TOOLS.every((n) => tools.some((x) => x.name === n)) && tools.length === fullNames.length && fullNames.length >= 25,
@@ -362,7 +362,7 @@ try {
     await call('get_selection', {});
     const tl = (await rpc('tools/list')).result?.tools || [];
     const size = JSON.stringify({ tools: tl }).length;
-    t.ok(size < 68000 && tl.find((x) => x.name === 'apply_ops')?.description.length < 3000, `tools/list is ${size} characters (under 68,000 since the prompt diet; 70,000 before it; 73,165 before FRESH-EYES-6; apply_ops's description ${tl.find((x) => x.name === 'apply_ops')?.description.length}, it was 6,650)`);
+    t.ok(size < 72000 && tl.find((x) => x.name === 'apply_ops')?.description.length < 3000, `tools/list is ${size} characters (under 72,000 with suggest_sounds and find_community_device; 68,000 at 38 tools after the prompt diet; 70,000 before it; 73,165 before FRESH-EYES-6; apply_ops's description ${tl.find((x) => x.name === 'apply_ops')?.description.length}, it was 6,650)`);
   }
 
   // 11. Claude Code behind the Agent panel (server/local-claude.js): the panel's own chat, answered by `claude -p` on

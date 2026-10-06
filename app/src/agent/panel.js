@@ -491,7 +491,7 @@ function mountPanel(el, app) {
     const demoSec = firstDemo
       ? h('div.ag-kc-first',
         h('header.sheet-head', h('h3', 'Try the agent')),
-        h('p.ag-kc-p', 'Nothing to set up: the demo agent is a scripted session that plays over this song with the real tools. Everything it does is real, signed in History, and undoable.'),
+        h('p.ag-kc-p', 'Ask, or say how it should feel. The demo agent plays along, signed and undoable.'),
         h('div.ag-kc-acts', demo))
       : h('div.ag-kc-sec',
         h('p.head', 'Demo agent'),

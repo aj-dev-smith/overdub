@@ -34,7 +34,6 @@ const MODULES = [
   './ui/grooves.js', // the Grooves tab (core/grooves.js) and the find_grooves, use_groove and drum_track tools; before the bridges too
   './ui/jam.js', // the Jam room beside Arrange, and its tools (get_jam, make_jam_track, set_tone, show_on_fretboard)
   './ui/community.js', // the community shelf (From the community, in the Browser) and find_community_device; off unless on a local host
-  './agent/workspace-tool.js', // the workspace tool (what's on screen in the simple view); before the panel and the bridges
   './agent/sounds-tool.js', // suggest_sounds (sounds on the card, app.sounds.suggest); before the panel and the bridges
   './agent/panel.js', './agent/history.js', './agent/presence.js', './agent/bridge.js',
   './agent/remote.js',

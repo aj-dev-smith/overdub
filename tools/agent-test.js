@@ -512,17 +512,15 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
   const A = Object.fromEntries(cat.map((x) => [x.name, x.annotations || {}]));
   const reads = ['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'render_and_measure', 'get_capture', 'get_recording', 'get_variation_result', 'compare_to_reference', 'share_link', 'provenance_report'];
   const destroys = ['apply_ops', 'define_device', 'adjust', 'transform', 'arrange_song', 'propose_variations', 'undo', 'revert_my_changes'];
-  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around', 'workspace', 'suggest_sounds'];
+  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around', 'suggest_sounds'];
   const wrong = [...reads.filter((n) => !(A[n]?.readOnlyHint === true && A[n]?.destructiveHint === false)).map((n) => `${n} should read only`),
     ...destroys.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === true)).map((n) => `${n} can delete or overwrite`),
     ...neither.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === false)).map((n) => `${n} changes nothing in the song or only adds`),
     ...cat.filter((x) => x.annotations?.openWorldHint !== false).map((x) => `${x.name} reaches no network`)];
-  // the workspace tool (the person's studio layout, never the song) is in the catalog before any tab connects, and never
-  // waits on a take: it only refuses while they record (agent/workspace-tool.js)
-  t.ok(cat.some((x) => x.name === 'workspace') && extra.WORKSPACE_SCHEMA?.name === 'workspace' && extra.EXTRA_SCHEMAS?.includes(extra.WORKSPACE_SCHEMA)
-    && ['list', 'add', 'open', 'put_away', 'view'].every((a) => (extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).includes(a)) && /Never while they record/.test(extra.WORKSPACE_SCHEMA?.description || ''),
-    `node: workspace is in catalogSchemas() from extra-schemas.js, its actions list, add, open, put_away and view (${(extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).join(', ') || 'missing'})`);
-  // suggest_sounds (docs/INSTRUMENTS-UX.md 2.6), the 40th tool: rows on the person's sound card, from extra-schemas.js
+  // the workspace tool is gone: nothing is hidden in the studio, Find (⌘K) reaches anything, and the demo agent shows a
+  // panel itself (ui/workspace.js go)
+  t.ok(!cat.some((x) => x.name === 'workspace') && !('WORKSPACE_SCHEMA' in extra), `node: no workspace tool in the catalog: nothing is hidden, so there's nothing for it to bring in (${cat.length} tools)`);
+  // suggest_sounds (docs/INSTRUMENTS-UX.md 2.6), the 39th tool (find_community_device the 40th): rows on the person's sound card, from extra-schemas.js
   const SS = extra.SUGGEST_SOUNDS_SCHEMA;
   t.ok(cat.length === 40 && cat.some((x) => x.name === 'suggest_sounds') && extra.EXTRA_SCHEMAS?.includes(SS) && SS.input_schema?.properties?.sounds?.maxItems === 4 && (SS.input_schema?.properties?.sounds?.items?.required || []).join() === 'device,why'
     && /nothing changes until they Keep one/.test(SS.description) && /Refused while they record/.test(SS.description),
@@ -779,8 +777,8 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     const cat = await tools.catalogSchemas();
     const ap = cat.find((x) => x.name === 'apply_ops'), guide = await run(app, 'get_guide', { topic: 'ops' });
     const listed = JSON.stringify(cat.map((x) => ({ name: x.name, title: x.annotations?.title, description: x.description, inputSchema: x.input_schema, annotations: x.annotations }))).length;
-    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 68000,
-      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars (under 68,000 since the prompt diet trimmed adjust and transform; 70,000 before)`);
+    t.ok(ap.description.length < 3000 && /get_guide "ops"/.test(ap.description) && /preset: "<name>"/.test(ap.description) && guide.guide.includes(prompt.OPS_CHEATSHEET) && /preset/.test(prompt.OPS_CHEATSHEET) && listed < 72000,
+      `node: apply_ops's description is ${ap.description.length} chars (it was 6,650: the whole ops guide), the guide still has it all; the catalog is ${listed} chars (under 72,000 with suggest_sounds and find_community_device, the 39th and 40th; 68,000 at 38 tools after the prompt diet)`);
     // the prompt diet: the system prompt carries the rules and the voice, and points at the guides for the rest (the
     // device guide, every op's fields, the lexicon); a cap so it can't regrow unnoticed
     const sys = await prompt.buildSystemPrompt();

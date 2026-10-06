@@ -1801,61 +1801,6 @@
   }
  },
  {
-  "name": "workspace",
-  "description": "The person's studio layout: what's on screen. In the simple view most features are put away until someone adds them. list says what's shown and hidden. add / open bring features in (signed as yours); put_away puts back ones you added. Use it when they ask where something is or to see it, or when they need a hidden control to see or take over your change; otherwise offer in one line. Never while they record. Layout never changes the song.",
-  "input_schema": {
-   "type": "object",
-   "properties": {
-    "action": {
-     "type": "string",
-     "enum": [
-      "list",
-      "add",
-      "open",
-      "put_away",
-      "view"
-     ]
-    },
-    "features": {
-     "type": "array",
-     "items": {
-      "type": "string"
-     },
-     "description": "add, put_away: ids from list"
-    },
-    "feature": {
-     "type": "string",
-     "description": "open: one id"
-    },
-    "view": {
-     "type": "string",
-     "enum": [
-      "simple",
-      "full"
-     ]
-    },
-    "reason": {
-     "type": "string"
-    },
-    "asked": {
-     "type": "boolean",
-     "description": "they asked: needed to put away theirs, or to switch view"
-    }
-   },
-   "required": [
-    "action"
-   ],
-   "additionalProperties": false
-  },
-  "annotations": {
-   "title": "Change the studio layout",
-   "readOnlyHint": false,
-   "destructiveHint": false,
-   "idempotentHint": true,
-   "openWorldHint": false
-  }
- },
- {
   "name": "suggest_sounds",
   "description": "Offer the person 1–4 instruments for one track, on the sound card: their take plays through each when they pick it, and nothing changes until they Keep one (signed by them; History notes you suggested it). Each sound is { device, preset?, why ≤ 60 chars }. Use it when they ask what a track should sound like or for other sounds; when they name the instrument, set it with instrument.set instead. Returns { offered, id }; get_variation_result with the id gives their pick. Refused while they record.",
   "input_schema": {

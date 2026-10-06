@@ -1431,7 +1431,7 @@ function mountArranger(el, app) {
     ui.toast((under.length ? `${under.length} of the selected clips are under the playhead. Select one to split it.` : `None of the ${list.length} selected clips is under the playhead. Select one, or click the ruler where the cut goes.`) + note, { ms: note ? 6000 : undefined });
     return null;
   }
-  const splitKey = () => splitSelected({ note: ui.keys.firstPress?.('mod+KeyE') ? ` \`${MOD}E\` splits now, as in Ableton Live; \`S\` solos.` : '' });
+  const splitKey = () => splitSelected({ note: ui.keys.firstPress?.('mod+KeyE') ? ` \`${MOD}E\` splits now, as in Ableton Live. ${ui.keys.movedNote || ''}`.trimEnd() : '' });
 
   /* ======================================================= clips */
   function newClipAt(trackId, beat, { open = false } = {}) {

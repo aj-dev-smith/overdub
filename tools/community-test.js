@@ -473,15 +473,15 @@ await section('agent', async () => {
   } finally { await P.close(); }
 });
 
-// the catalog, and the Simple view's More
+// the catalog, and Find
 await section('catalog', async () => {
   const { catalogSchemas } = await import('../app/src/agent/tools.js');
   const cat = await catalogSchemas();
   const s = cat.find((x) => x.name === 'find_community_device');
   T.ok(s && s.annotations && s.annotations.readOnlyHint === false && s.annotations.destructiveHint === false, `the catalog lists find_community_device with its annotations (${cat.length} tools)`);
 });
-await section('simple', async () => {
-  const P = await studio(`view=simple&${FIXQ}`, { width: 390, height: 664 });
+await section('find', async () => {
+  const P = await studio(FIXQ, { width: 390, height: 664 });
   try {
     const r = await E(P, async () => {
       const app = window.overdub;
@@ -489,15 +489,15 @@ await section('simple', async () => {
       const f = app.ui.workspace.FEATURES.find((x) => x.id === 'browser');
       return { shelf: rank(f, 'shelf'), community: rank(f, 'community'), view: app.ui.workspace.view() };
     });
-    T.ok(r.view === 'simple' && r.shelf != null && r.community != null, `in the Simple view, More finds Instruments and effects by "shelf" and "community"`);
-    // More, "community", Add: the Browser opens with the shelf in view, and More gets out of the way
-    await E(P, () => window.overdub.ui.workspace.openMore({ query: 'community' }));
-    await P.page.waitForSelector('.ws-more .ws-row[data-ws="browser"] .ws-row-b');
+    T.ok(r.view === 'full' && r.shelf != null && r.community != null, `in the studio (one view), Find finds Instruments and effects by "shelf" and "community"`);
+    // Find, "community", Go to: the Browser opens with the shelf in view, and Find gets out of the way
+    await E(P, () => window.overdub.ui.workspace.openFind({ query: 'community' }));
+    await P.page.waitForSelector('.ws-more .ws-row[data-ws="browser"]');
     const purpose = await E(P, () => document.querySelector('.ws-more .ws-row[data-ws="browser"] .ws-row-w')?.textContent || '');
-    await P.page.click('.ws-more .ws-row[data-ws="browser"] .ws-row-b');
+    await P.page.click('.ws-more .ws-row[data-ws="browser"]');
     await P.page.waitForFunction(() => { const g = document.querySelector('.cs-group'); if (!g) return false; const r = g.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight - 80; }, null, { timeout: 8000 }).catch(() => {});
     const m = await E(P, () => { const g = document.querySelector('.cs-group'); const r = g?.getBoundingClientRect(); return { top: r ? Math.round(r.top) : null, h: innerHeight, more: !!document.querySelector('.ws-more') }; });
-    T.ok(/community shelf/.test(purpose) && m.top != null && m.top >= 0 && m.top < m.h - 80 && !m.more, `More, "community", Add: the shelf's head is on screen (top ${m.top} of ${m.h}), More closed, and its row says the shelf is in there ("${purpose}")`);
+    T.ok(/community shelf/.test(purpose) && m.top != null && m.top >= 0 && m.top < m.h - 80 && !m.more, `Find, "community", Go to: the shelf's head is on screen (top ${m.top} of ${m.h}), Find closed, and its row says the shelf is in there ("${purpose}")`);
     await P.shot('community-more-add');
     // on a phone, the row's ▶ is a 40 px target
     await E(P, () => window.overdub.community.reach(null, 'you'));

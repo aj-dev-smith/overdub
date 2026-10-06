@@ -1,17 +1,17 @@
-// The workspace: which of the studio's features are on screen. Two views: the full studio (everything, as it always
-// was) and the simple view (every feature below put away until someone adds it). Simple is the same studio with parts
-// hidden: one studio, one undo, one set of panels.
+// The workspace: the studio's features, by name, and Find. One studio: everything is on screen, for everyone, and
+// Find anything (⌘K, the top bar) reaches any of it: a panel or control (Go to), anything a key does (Do), a sound to
+// try on the selected track (Sound), a page of the guide (Help), or, last, the words asked of Claude (Ask).
 //
-// Hiding is by tag: a part carries data-feature="<id>" (several ids, space-separated), a panel maps to its feature
-// here (FEATURES[].panels), and the root element carries .ws-simple or .ws-full plus .ws-off-<id> for each put-away
-// feature; one generated stylesheet hides [data-feature~="<id>"] under .ws-off-<id> (display: none, so a hidden control
-// leaves the tab order and the accessibility tree). An untagged part is always shown.
+// The feature registry (FEATURES) is Find's index of the studio's parts. A part carries data-feature="<id>" (several
+// ids, space-separated) and a panel maps to its feature here (FEATURES[].panels), so Go to can show it and point at it.
 //
-// Things appear only when someone reaches for them: More (by hand), a key, a panel shown (ui.show), or an agent's
-// workspace tool; every appearance is signed (by: 'you' or an agent id) and says so in the note slot.
+// ?view=simple (one release, a URL only, never saved) is still the simple view: the root carries .ws-simple plus
+// .ws-off-<id> for each feature put away, one generated stylesheet hides [data-feature~="<id>"] under .ws-off-<id>
+// (display: none), and reaching for a part (Find, a key, a panel shown) brings it back, signed, with a note. ?view=round
+// (ui/round.js) is drawn over it. Nothing is hidden anywhere else.
 //
-// Layout is never a song op: not in the store, not undone by ⌘Z, never in a share link (ui/workspace-view.js keeps it
-// in localStorage 'overdub:workspace'). Put away is how an add is undone.
+// Layout is never a song op: not in the store, not undone by ⌘Z, never in a share link (ui/workspace-view.js keeps what
+// there is in localStorage 'overdub:workspace').
 //
 // Other modules never import this file: they tag parts with data-feature and call app.ui.workspace?.… so each works
 // with or without it. installWorkspace(ui, app, decision) is called by main.js straight after createShell.
@@ -48,15 +48,16 @@ export const FEATURES = [
 const BY_ID = new Map(FEATURES.map((f) => [f.id, f]));
 const OF_PANEL = new Map(FEATURES.flatMap((f) => f.panels.map((p) => [p, f.id])));
 
-// the copy (docs/BRAND.md; spec section 6)
+// the copy (docs/BRAND.md)
 const T = {
   full: 'Full studio', fullTitle: 'Show every panel and control. Your song stays as it is.',
-  simple: 'Simple view', simpleTitle: 'Hide what you’re not using. Nothing is removed; add anything back from More.',
-  more: 'More', moreTitle: 'Everything that’s put away, and how to add it',
-  find: 'Find something: mixer, piano roll, loop…',
-  none: 'Nothing called that. Ask your agent where it is.',
-  add: 'Add', put: 'Put away',
-  toFull: 'Show the full studio', toSimple: 'Back to the simple view', hides: 'Simple view hides these. Nothing is removed.',
+  find: 'Find anything', findTitle: 'Find anything: a panel, an action, a sound or help',
+  field: 'Find anything: mixer, loop, a sound, a question…',
+  empty: 'Every panel is here. Type what you’re after: mixer, loop, tempo, piano roll.',
+  none: 'Nothing called that. Ask Claude where it is.',
+  merged: 'One studio now: everything’s on screen, and Find (⌘K) gets you anywhere.',
+  put: 'Put away', hides: 'The simple view, for this visit. Full studio shows everything.',
+  kinds: { go: 'Go to', do: 'Do', sound: 'Sound', help: 'Help', ask: 'Ask' },
 };
 const NOTE_MS = 6000, PUT_MS = 3000;
 
@@ -86,49 +87,69 @@ function names(ids, { the = false, bold = true } = {}) {
   return out;
 }
 
+// what a key is called on its button: ⌘K, ⇧K, Space, /
+const MODK = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '') ? '⌘' : 'Ctrl+';
+const KEYNAME = { Space: 'Space', Slash: '/', Backslash: '\\', Comma: ',', Period: '.', Semicolon: ';', Quote: '\'', BracketLeft: '[', BracketRight: ']', Minus: '−', Equal: '=', Backquote: '`', Escape: 'Esc', Enter: 'Enter', Delete: 'Delete', Backspace: '⌫', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Home: 'Home', End: 'End' };
+export function keyText(k) {
+  const base = KEYNAME[k.key] || String(k.key || '').replace(/^Key/, '').replace(/^Digit/, '');
+  const mods = String(k.mod || '').split('+').filter(Boolean);
+  return (mods.includes('mod') ? MODK : '') + (mods.includes('alt') ? '⌥' : '') + (mods.includes('shift') ? '⇧' : '') + base;
+}
+const LIMIT = { go: 6, do: 6, sound: 6, help: 4 };
+const KIND_ORDER = ['go', 'do', 'sound', 'help'];
+
 export function installWorkspace(ui, app, decision = { view: 'full' }) {
   const html = document.documentElement;
   let storage = null;
   try { storage = window.localStorage; } catch (e) { storage = null; }
   const saved = readSaved(storage);
   let view = VIEWS.includes(decision?.view) ? decision.view : 'full';
-  if (decision?.persist) saved.view = view;
   const added = { ...saved.added };   // { featureId: by }; unknown ids are kept (a later version's), never shown
   const persist = () => {
     const out = { v: 1, added };
     if (saved.view) out.view = saved.view;
     try { storage?.setItem(WORKSPACE_KEY, JSON.stringify(out)); } catch (e) { /* private mode: this visit only */ }
   };
-  if (decision?.persist) persist();
+  // a browser that had the simple view saved: the full studio now, said once (overdub:start.merged)
+  if (decision?.from === 'merged') {
+    saved.view = 'full';
+    persist();
+    let said = false;
+    try { said = !!storage?.getItem('overdub:start.merged'); } catch (e) { said = false; }
+    if (!said) {
+      try { storage?.setItem('overdub:start.merged', '1'); } catch (e) { /* once a visit, then */ }
+      ui.on?.('ready', () => ui.toast?.(T.merged, { ms: 8000 }));
+    }
+  }
 
   const known = (id) => BY_ID.has(id);
   const has = (id) => view === 'full' || !known(id) || added[id] != null;
   const hidden = () => (view === 'full' ? [] : FEATURES.filter((f) => added[f.id] == null).map((f) => f.id));
 
-  // the one generated stylesheet, and the root's classes
-  css('workspace-off', FEATURES.map((f) => `.ws-off-${f.id} [data-feature~="${f.id}"] { display: none !important; }`).join('\n'));
+  // the simple view's stylesheet (generated only for it) and the root's classes
+  if (view === 'simple') css('workspace-off', FEATURES.map((f) => `.ws-off-${f.id} [data-feature~="${f.id}"] { display: none !important; }`).join('\n'));
   css('workspace', WS_CSS);
   function apply() {
     for (const c of [...html.classList]) if (c.startsWith('ws-')) html.classList.remove(c);
     html.classList.add(view === 'full' ? 'ws-full' : 'ws-simple');
     for (const id of hidden()) html.classList.add('ws-off-' + id);
+    viewBtn.hidden = view === 'full';
     placeButtons();
-    viewBtn.textContent = view === 'full' ? T.simple : T.full;
-    viewBtn.title = view === 'full' ? T.simpleTitle : T.fullTitle;
   }
-  // The simple view's top bar holds More and Full studio. The full studio's top bar is full (at 1280 px the two
-  // buttons push out the title, Loop, the meter and Redo), so while the agent pane is open on a wide screen they sit at
-  // the end of its tab row (ui.wsSide). With that pane closed on a wide screen they come back to the top bar, so the
-  // way back to the simple view is never out of sight. Under 900 px the top bar has no room, and the agent is a sheet:
-  // they stay in its tab row, and the Song menu offers Simple view too (ui/export.js).
-  const NARROW = window.matchMedia?.('(max-width: 900px)');
+  // Find sits at the end of the top bar. While the agent pane is open on a wide screen it sits at the end of that
+  // pane's tab row (ui.wsSide) instead, so the top bar keeps its room (at 1280 px it pushes out the title, Loop, the
+  // meter and Redo); with the pane closed it comes back to the top bar. From 641 to 900 px the agent is a sheet that
+  // is mostly closed, so Find stays in the top bar. A phone's top bar has no room left (Find would take a row of its
+  // own): it is the first row of the Song menu there, and sits at the end of the agent sheet's tab row. The simple
+  // view keeps it, and Full studio, in the top bar.
+  const NARROW = window.matchMedia?.('(max-width: 900px)'), PHONE_W = window.matchMedia?.('(max-width: 640px)');
   function placeButtons() {
-    const side = view === 'full' && ui.wsSide && (ui.isOpen?.('right') || NARROW?.matches);
+    const side = view === 'full' && ui.wsSide && (PHONE_W?.matches || (ui.isOpen?.('right') && !NARROW?.matches));
     const host = side ? ui.wsSide : box;
     box.classList.toggle('ws-here', host === box);
-    if (moreBtn.parentNode !== host) {
-      const had = document.activeElement === viewBtn ? viewBtn : document.activeElement === moreBtn ? moreBtn : null;
-      host.append(moreBtn, viewBtn);
+    if (findBtn.parentNode !== host) {
+      const had = document.activeElement === viewBtn ? viewBtn : document.activeElement === findBtn ? findBtn : null;
+      host.append(findBtn, viewBtn);
       had?.focus({ preventScroll: true });
       return true;
     }
@@ -138,16 +159,17 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   function changed() {
     apply();
     ui.emit('workspace', { view, hidden: hidden() });
-    if (moreOpen) renderMore();
+    if (findOpen) renderFind();
     ui.fitTop?.(true);
   }
 
-  /* ------------------------------------------------ the top bar's corner: the note slot, More, the view switch */
+  /* ------------------------------------------------ the top bar's corner: the note slot, Find, (simple) Full studio */
   const note = h('div.ws-note', { role: 'status', 'aria-live': 'polite' });
-  const moreBtn = h('button.btn.ws-more-btn', { type: 'button', title: T.moreTitle, 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: () => (moreOpen ? closeMore() : openMore()) }, T.more);
-  const viewBtn = h('button.btn.ws-view', { type: 'button', onclick: () => setView(view === 'full' ? 'simple' : 'full') });
+  const findBtn = h('button.btn.ws-more-btn.ws-find-btn', { type: 'button', title: `${T.findTitle} (${MODK}K)`, 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'aria-keyshortcuts': MODK === '⌘' ? 'Meta+K' : 'Control+K', onclick: () => (findOpen ? closeFind() : openFind()) },
+    h('span.ws-find-l', 'Find', h('span.ws-find-x', ' anything')), h('kbd.ws-find-k', `${MODK}K`));
+  const viewBtn = h('button.btn.ws-view', { type: 'button', title: T.fullTitle, onclick: () => setView('full') }, T.full);
   const box = ui.wsBox || h('div.ew-ws');
-  box.append(note, moreBtn, viewBtn);
+  box.append(note, findBtn, viewBtn);
   const topBar = box.closest('.ew-top');
 
   let noteT = 0;
@@ -161,22 +183,22 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   }
   function clearNote() {
     clearTimeout(noteT);
-    // focus on its Put away goes back to More rather than out of the page
-    if (note.contains(document.activeElement)) moreBtn.focus({ preventScroll: true });
+    if (note.contains(document.activeElement)) findBtn.focus({ preventScroll: true });
     note.replaceChildren();
     topBar?.classList.remove('ws-noting');
   }
 
   /* ------------------------------------------------ the API */
+  // (add and put away are the simple view's: in the full studio there is nothing to add)
   function add(ids, { by = 'you', note: withNote = true } = {}) {
     const list = [...new Set((Array.isArray(ids) ? ids : [ids]).filter(known))];
     const now = [], already = [];
-    for (const id of list) { if (added[id] != null || view === 'full') { if (added[id] == null) added[id] = by; already.push(id); } else { added[id] = by; now.push(id); } }
-    if (!list.length) return { added: now, already };
+    for (const id of list) { if (added[id] != null || view === 'full') already.push(id); else { added[id] = by; now.push(id); } }
+    if (!now.length) return { added: now, already };
     persist();
     changed();
     const loud = now.filter((id) => !BY_ID.get(id).quiet);
-    if (withNote && view === 'simple' && loud.length) {
+    if (withNote && loud.length) {
       const who = String(by || 'you');
       if (authorOf(who, app).kind === 'agent') say([byline(who, { app }), ' added ', ...names(loud, { the: true }), '.'], NOTE_MS, loud);
       else say([...names(loud), loud.length > 1 ? ' are' : ' is', ' in your studio now.'], NOTE_MS, loud);
@@ -190,30 +212,43 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (!list.length) return { put: [] };
     persist();
     changed();
-    if (view === 'simple') say(agentBy(by) ? [byline(String(by), { app }), ' put away ', ...names(list, { the: true }), '. It’s in More.'] : ['Put away ', ...names(list), '. It’s in More.'], PUT_MS);
+    if (view === 'simple') say(agentBy(by) ? [byline(String(by), { app }), ' put away ', ...names(list, { the: true }), '.'] : ['Put away ', ...names(list), '.'], PUT_MS);
     return { put: list };
   }
+  // the simple view's way out (Full studio): the full studio, for good (the simple view is a URL only)
   function setView(v, { by = 'you' } = {}) {
     if (!VIEWS.includes(v) || v === view) return view;
-    const bottomGoes = v === 'simple' && ui.active?.('bottom') && OF_PANEL.has(ui.active('bottom')) && added[OF_PANEL.get(ui.active('bottom'))] == null;
-    view = v; saved.view = v;
-    persist();
-    // ?view= was for that load: off the address, so a reload opens the view chosen now
+    view = v;
+    if (v === 'full') { saved.view = 'full'; persist(); }
     try { const u = new URL(location.href); if (u.searchParams.has('view')) { u.searchParams.delete('view'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } } catch (e) { /* fine */ }
     clearNote();
-    // an agent's switch is signed (the person asked it to); theirs needs no note, the screen is the answer
     if (agentBy(by)) say([byline(String(by), { app }), ' switched to the ', v === 'full' ? 'full studio' : 'simple view', '.'], PUT_MS);
-    if (v === 'simple') {
-      ui.setOpen?.('left', false);
-      if (bottomGoes) ui.setOpen?.('bottom', false);
-      changed();
-    } else {
-      changed();
-      // the full studio opens its panes (today's default; a phone's side panes stay sheets you open)
+    changed();
+    if (v === 'full') {
       const narrow = window.matchMedia?.('(max-width: 900px)').matches;
-      for (const r of narrow ? ['bottom'] : ['left', 'bottom', 'right']) if (!ui.isOpen?.(r)) ui.setOpen?.(r, true);
-    }
+      for (const r of narrow ? ['bottom'] : ['bottom', 'right']) if (!ui.isOpen?.(r)) ui.setOpen?.(r, true);
+    } else { ui.setOpen?.('left', false); }
     return view;
+  }
+  // Go to: the feature in view (brought back first in the simple view), its panel shown, and the control pointed at
+  // for two seconds: a pencil outline, unsigned when it's yours, in the agent's ink when an agent asked
+  let pointT = 0, pointed = null;
+  function go(id, { by = 'you', query = findOpen?.find.value.trim() || '' } = {}) {
+    const f = BY_ID.get(id);
+    if (!f) return false;
+    api.reach(id, by);
+    const panel = f.panels.find((p) => ui.panels?.has?.(p)) || null;
+    try { if (panel) ui.show?.(panel, { by }); } catch (e) { /* pointing is the answer */ }
+    const el = panel ? null : [...document.querySelectorAll(`[data-feature~="${id}"]`)].find((x) => x.getClientRects().length);
+    if (el) {
+      clearTimeout(pointT); pointed?.classList.remove('ws-pointed', 'ws-pointed-agent');
+      el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      el.classList.add('ws-pointed'); if (agentBy(by)) el.classList.add('ws-pointed-agent');
+      pointed = el;
+      pointT = setTimeout(() => { el.classList.remove('ws-pointed', 'ws-pointed-agent'); pointed = null; }, 2000);
+    }
+    ui.emit('workspace:go', { id, query, by });   // (query: what Find was asked, so a shelf word opens the Browser on the shelf)
+    return true;
   }
   const api = {
     FEATURES,
@@ -225,46 +260,141 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     featureOfPanel: (panelId) => OF_PANEL.get(panelId) || null,
     add,
     putAway,
+    go,
     // reaching for something put away brings it in, with a note (unless it's quiet); shown already: nothing happens
     reach(id, by = 'you') { if (!known(id) || has(id)) return { added: [], already: known(id) ? [id] : [] }; return add([id], { by: by || 'you', note: true }); },
     list: () => FEATURES.map((f) => ({ id: f.id, group: f.group, title: f.title, purpose: f.purpose, shown: has(f.id), addedBy: added[f.id] ?? null })),
     hidden,
     addedBy: (id) => added[id] ?? null,
     where: (id) => BY_ID.get(id)?.where || null,
-    openMore: (o) => openMore(o),
-    closeMore: () => closeMore(),
+    // Find (More was its name in the simple view: openMore stays an alias)
+    openFind: (o) => openFind(o),
+    closeFind: () => closeFind(),
+    openMore: (o) => openFind(o),
+    closeMore: () => closeFind(),
+    search: (q) => search(q),
   };
   ui.workspace = api;
+  app.find = { open: (o) => openFind(o), close: () => closeFind(), search: (q) => search(q) };
   apply();
+  // ⌘K anywhere, a field included: Find (again: its field)
+  ui.keys?.add?.({ key: 'KeyK', mod: 'mod', global: true, run: () => openFind(), label: 'Find anything', group: 'View' });
 
-  // the first screen in simple: no side panes and no detail pane until something opens them (a door, D, a reach).
-  // Only on a browser with no layout of its own yet; a returning person's panes stay as they left them (one left with
-  // nothing shown in it closes at 'ready', ui/shell.js).
+  // the simple view's first screen: no side panes and no detail pane until something opens them (a door, D, a reach).
+  // Only on a browser with no layout of its own yet.
   if (view === 'simple') {
     let fresh = true;
     try { fresh = storage?.getItem('overdub:layout') == null; } catch (e) { /* fresh */ }
     if (fresh) for (const r of ['left', 'bottom']) { if (ui.isOpen?.(r)) ui.setOpen?.(r, false, { save: false }); }
   }
 
-  /* ------------------------------------------------ More: a popover on a wide screen, a bottom sheet on a phone */
-  let moreOpen = null;   // { el, find, list, away }
+  /* ------------------------------------------------ the sources */
+  // Do: every key the studio declares, by its label (modes, keys that only work inside something, are left out)
+  function doItems() {
+    const seen = new Set(), out = [];
+    for (const k of ui.keys?.list?.() || []) {
+      if (!k.label || k.when || seen.has(k.label)) continue;
+      seen.add(k.label);
+      out.push({ kind: 'do', id: 'do:' + k.label, title: k.label, purpose: k.group || '', aliases: [k.group || ''].filter(Boolean), key: keyText(k), run: () => runKey(k) });
+    }
+    return out;
+  }
+  function runKey(k) {
+    const ev = { code: k.key, key: '', shiftKey: /shift/.test(k.mod || ''), altKey: /alt/.test(k.mod || ''), metaKey: false, ctrlKey: false, repeat: false, target: document.body, preventDefault() {}, stopPropagation() {} };
+    try { k.run(ev); } catch (e) { console.error('find: key', k.label, e); }
+    if (k.feature && !app.transport?.locked?.()) { try { api.reach(k.feature, 'you'); } catch (e) { /* ok */ } }
+  }
+  // Sound: every instrument and effect, and each preset by name; an instrument tries on the selected track (a trial,
+  // with Keep and Back: never an overwrite), anything else opens the Browser on it
+  function soundItems() {
+    const out = [];
+    let defs = [];
+    try { defs = app.devices?.listDevices?.() || []; } catch (e) { defs = []; }
+    for (const d of defs) {
+      if (d.kind !== 'instrument' && d.kind !== 'effect') continue;
+      const words = [d.kindLabel, d.cat, d.nod].filter(Boolean).map(String);
+      out.push({ kind: 'sound', id: 'sound:' + d.id, title: d.name, purpose: d.blurb || d.kindLabel || '', aliases: words, def: d, preset: null });
+      for (const pr of d.presets || []) out.push({ kind: 'sound', id: `sound:${d.id}:${pr.name}`, title: pr.name, purpose: `${d.name}${d.kindLabel ? ', ' + d.kindLabel : ''}`, aliases: [d.name, ...words], def: d, preset: pr.name });
+    }
+    return out;
+  }
+  const selectedTrack = () => { try { const id = ui.state?.selection?.track; const t = id ? app.store.track(id) : null; return t && t.kind === 'instrument' ? t : null; } catch (e) { return null; } };
+  function trySound(it) {
+    const t = selectedTrack();
+    if (it.def.kind === 'instrument' && t && app.sounds?.try) {
+      try { app.sounds.offer?.({ track: t.id, from: 'browser' }); } catch (e) { /* the trial still plays */ }
+      const r = app.sounds.try(t.id, { device: it.def.id, ...(it.preset ? { preset: it.preset } : {}) }, { from: 'browser' });
+      if (r && r.ok === false && r.error) ui.toast?.(r.error, { kind: 'bad' });
+      return;
+    }
+    app.browser?.search?.(it.def.name);
+  }
+  // Help: the guide's headings, read once from the site's guide page (no page, no Help rows)
+  let helpRows = null, helpAsked = false;
+  function loadHelp() {
+    if (helpAsked) return;
+    helpAsked = true;
+    const url = new URL('/site/docs/guide.html', location.href);   // (as the agent pane links it: the site's tree, here and live)
+    fetch(url, { credentials: 'same-origin' }).then((r) => (r.ok ? r.text() : '')).then((txt) => {
+      if (!txt) { helpRows = []; return; }
+      const doc = new DOMParser().parseFromString(txt, 'text/html');
+      helpRows = [...doc.querySelectorAll('h2[id], h3[id]')].map((el) => ({ kind: 'help', id: 'help:' + el.id, title: el.textContent.trim(), purpose: 'the guide', aliases: [], href: `${url.pathname}#${el.id}` }));
+      if (findOpen) renderFind();
+    }).catch(() => { helpRows = []; });
+  }
+  // every source, ranked: the best match first, then Go to, Do, Sound, Help; a few of each
+  function search(query) {
+    const q = String(query || '').trim();
+    if (!q) return [];
+    const goes = FEATURES.map((f) => ({ kind: 'go', id: 'go:' + f.id, title: f.title, purpose: f.purpose, aliases: f.aliases, f, key: null }));
+    const all = [...goes, ...doItems(), ...soundItems(), ...(helpRows || [])];
+    const per = {};
+    return all.map((it, i) => ({ it, r: rank(it, q), i }))
+      .filter((x) => x.r != null)
+      .sort((a, b) => a.r - b.r || KIND_ORDER.indexOf(a.it.kind) - KIND_ORDER.indexOf(b.it.kind) || a.i - b.i)
+      .filter((x) => { per[x.it.kind] = (per[x.it.kind] || 0) + 1; return per[x.it.kind] <= LIMIT[x.it.kind]; })
+      .map((x) => x.it);
+  }
+  function run(it) {
+    const q = findOpen?.find.value.trim() || '';
+    if (it.kind === 'ask') { closeFind({ refocus: false }); ui.emit('agent:compose', { text: q, send: true }); return; }
+    if (it.kind === 'go') { closeFind({ refocus: false }); go(it.f.id, { by: 'you', query: q }); return; }
+    if (it.kind === 'do') { closeFind(); it.run(); return; }
+    if (it.kind === 'sound') { closeFind({ refocus: false }); trySound(it); return; }
+    if (it.kind === 'help') { closeFind(); try { window.open(it.href, '_blank', 'noopener'); } catch (e) { location.href = it.href; } }
+  }
+
+  /* ------------------------------------------------ Find: a popover on a wide screen, a sheet on a phone */
+  let findOpen = null;   // { el, find, list, quick, foot, away, back, rows, at }
   const PHONE = window.matchMedia('(max-width: 640px)');
   const hiddenEl = (el) => !!el && el.getClientRects().length === 0;
-  function openMore({ query = '' } = {}) {
-    if (moreOpen) { moreOpen.find.value = query || moreOpen.find.value; renderMore(); moreOpen.find.focus({ preventScroll: true }); return api; }
-    const find = h('input.ws-find', { type: 'search', placeholder: T.find, 'aria-label': 'Find something', autocomplete: 'off', spellcheck: false, value: query || '' });
-    find.addEventListener('input', () => renderMore());
+  function openFind({ query = '' } = {}) {
+    if (findOpen) { if (query) findOpen.find.value = query; renderFind(); findOpen.find.focus({ preventScroll: true }); findOpen.find.select(); return api; }
+    loadHelp();
+    const find = h('input.ws-find', { type: 'search', placeholder: T.field, 'aria-label': T.find, autocomplete: 'off', spellcheck: false, value: query || '', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'ws-find-list', 'aria-autocomplete': 'list' });
+    find.addEventListener('input', () => { if (findOpen) findOpen.at = 0; renderFind(); });
+    find.addEventListener('keydown', (e) => {
+      if (!findOpen) return;
+      const n = findOpen.rows.length;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (n) { findOpen.at = (findOpen.at + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; paintActive(); } }
+      else if (e.key === 'Enter') {
+        e.preventDefault(); e.stopPropagation();
+        const q = find.value.trim();
+        if ((e.metaKey || e.ctrlKey) && q) { run({ kind: 'ask' }); return; }
+        const it = findOpen.rows[findOpen.at];
+        if (it) run(it);
+      }
+    });
     const quick = h('div.ws-quick');
-    const list = h('div.ws-list');
+    const list = h('div.ws-list', { id: 'ws-find-list', role: 'listbox', 'aria-label': T.find });
     const foot = h('div.ws-foot');
-    const el = h('div.ew-pop.ws-more', { role: 'dialog', 'aria-label': 'More' }, quick, h('div.ws-findrow', find), list, foot);
+    const el = h('div.ew-pop.ws-more.ws-findpop', { role: 'dialog', 'aria-label': T.find }, quick, h('div.ws-findrow', find), list, foot);
     document.body.append(el);
-    const back = document.activeElement && document.activeElement !== document.body ? document.activeElement : moreBtn;
+    const back = document.activeElement && document.activeElement !== document.body ? document.activeElement : findBtn;
     const away = (e) => {
-      if (el.contains(e.target) || moreBtn.contains(e.target)) return;
-      closeMore({ refocus: false });
-      // a phone's sheet covers the song: the tap that puts it away goes no further (it never moves the playhead or
-      // drops the selection under it); the top bar's buttons still act on the first tap
+      if (el.contains(e.target) || findBtn.contains(e.target)) return;
+      closeFind({ refocus: false });
+      // a phone's sheet covers the song: the tap that puts it away goes no further
       if (PHONE.matches && !e.target?.closest?.('.ew-top')) {
         e.preventDefault(); e.stopPropagation();
         const eat = (c) => { c.preventDefault(); c.stopPropagation(); };
@@ -273,44 +403,48 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
       }
     };
     setTimeout(() => window.addEventListener('pointerdown', away, true), 0);
-    // focus that leaves it (Tab past its last row, Shift+Tab out of the search) puts it away too
-    el.addEventListener('focusout', (e) => { const to = e.relatedTarget; if (to && !el.contains(to) && !moreBtn.contains(to)) closeMore({ refocus: false }); });
-    el.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); closeMore(); } });
+    el.addEventListener('focusout', (e) => { const to = e.relatedTarget; if (to && !el.contains(to) && !findBtn.contains(to)) closeFind({ refocus: false }); });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); closeFind(); } });
     window.addEventListener('resize', place);
-    moreOpen = { el, find, list, quick, foot, away, back };
-    moreBtn.setAttribute('aria-expanded', 'true');
-    renderMore();
+    findOpen = { el, find, list, quick, foot, away, back, rows: [], at: 0 };
+    findBtn.setAttribute('aria-expanded', 'true');
+    renderFind();
     place();
     find.focus({ preventScroll: true });
     return api;
   }
   function place() {
-    if (!moreOpen) return;
-    const { el } = moreOpen;
+    if (!findOpen) return;
+    const { el } = findOpen;
     if (PHONE.matches) { el.style.left = ''; el.style.top = ''; return; }
-    const r = moreBtn.getBoundingClientRect(), w = el.offsetWidth;
+    const r = findBtn.getBoundingClientRect(), w = el.offsetWidth;
     el.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
     el.style.top = (r.bottom + 6) + 'px';
   }
-  function closeMore({ refocus = true } = {}) {
-    if (!moreOpen) return;
-    const { el, away } = moreOpen;
+  function closeFind({ refocus = true } = {}) {
+    if (!findOpen) return;
+    const { el, away } = findOpen;
     window.removeEventListener('pointerdown', away, true);
     window.removeEventListener('resize', place);
-    const had = el.contains(document.activeElement);
+    const had = el.contains(document.activeElement), back = findOpen.back;
     el.remove();
-    moreOpen = null;
-    moreBtn.setAttribute('aria-expanded', 'false');
-    if (refocus || had) moreBtn.focus({ preventScroll: true });
+    findOpen = null;
+    findBtn.setAttribute('aria-expanded', 'false');
+    // focus goes back to Find's button; on a phone, where it waits in the agent sheet, to what opened Find (the Song
+    // menu's row is gone with its menu: then the Song button)
+    if (refocus || had) {
+      const songB = [...document.querySelectorAll('.ew-region-top .sm-btn')].find((x) => !hiddenEl(x));
+      const to = !hiddenEl(findBtn) ? findBtn : back?.isConnected && !hiddenEl(back) ? back : songB || findBtn;
+      to.focus({ preventScroll: true });
+    }
   }
-  // the phone's first rows: what the top row gave up (the view switch, and whichever of Song, Tempo and Key the top
-  // bar has put out of sight on a narrow screen)
+  // the phone's first rows: what the top row gave up (Song, Tempo and Key, whichever the top bar put out of sight)
   function renderQuick() {
-    const { quick } = moreOpen;
+    const { quick } = findOpen;
     const kids = [];
-    if (hiddenEl(viewBtn)) kids.push(h('button.ws-q.ws-q-view', { type: 'button', onclick: () => { closeMore(); setView(view === 'full' ? 'simple' : 'full'); } }, h('b', view === 'full' ? T.simple : T.full), h('small', view === 'full' ? T.simpleTitle : T.fullTitle)));
+    if (view === 'simple' && hiddenEl(viewBtn)) kids.push(h('button.ws-q.ws-q-view', { type: 'button', onclick: () => { closeFind(); setView('full'); } }, h('b', T.full), h('small', T.fullTitle)));
     const songB = document.querySelector('.ew-region-top .sm-btn');
-    if (songB && hiddenEl(songB)) kids.push(h('button.ws-q', { type: 'button', onclick: () => { closeMore({ refocus: false }); if (app.exporter?.openMenu) app.exporter.openMenu(moreBtn); else songB.click(); } }, h('b', 'Song'), h('small', 'New, open, save, share, export')));
+    if (songB && hiddenEl(songB)) kids.push(h('button.ws-q', { type: 'button', onclick: () => { closeFind({ refocus: false }); if (app.exporter?.openMenu) app.exporter.openMenu(findBtn); else songB.click(); } }, h('b', 'Song'), h('small', 'New, open, save, share, export')));
     const tempoEl = document.querySelector('.ew-region-top .tp-tempo');
     if (tempoEl && hiddenEl(tempoEl)) {
       const s = app.store.get();
@@ -325,58 +459,63 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
         inp.value = String(t);
       };
       inp.addEventListener('change', commit);
-      inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); commit(); inp.select(); } if (e.key === 'Escape') { e.preventDefault(); closeMore(); } });
+      inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); commit(); inp.select(); } if (e.key === 'Escape') { e.preventDefault(); closeFind(); } });
       kids.push(h('label.ws-q', h('b', 'Tempo'), h('span.ws-q-v', inp, h('small', 'BPM'))));
     }
     const keyEl = document.querySelector('.ew-region-top .tp-key');
     if (keyEl && hiddenEl(keyEl)) {
       const k = app.store.get().key;
-      kids.push(h('button.ws-q', { type: 'button', onclick: () => { closeMore({ refocus: false }); if (app.transport?.openKey) app.transport.openKey(moreBtn); else keyEl.click(); } }, h('b', 'Key'), h('small', k ? `${k.root} ${k.scale}` : 'none')));
+      kids.push(h('button.ws-q', { type: 'button', onclick: () => { closeFind({ refocus: false }); if (app.transport?.openKey) app.transport.openKey(findBtn); else keyEl.click(); } }, h('b', 'Key'), h('small', k ? `${k.root} ${k.scale}` : 'none')));
     }
     quick.replaceChildren(...kids);
     quick.hidden = !kids.length;
   }
-  function row(f) {
-    const by = added[f.id];
+  // a row: what kind it is, its name and a line on what it is, and its key; the whole row is the button
+  function row(it, i) {
+    const by = it.kind === 'go' ? added[it.f.id] : null;
     const agentAdded = by != null && authorOf(by, app).kind === 'agent';
-    const isAdded = by != null;
-    const b = h('button.btn.ws-row-b', { type: 'button', dataset: { ws: f.id }, 'aria-label': `${isAdded ? T.put : T.add}: ${f.title}`, onclick: () => {
-      if (added[f.id] != null) { putAway([f.id], { by: 'you' }); return; }
-      const query = moreOpen?.find.value.trim() || '';
-      add([f.id], { by: 'you' });
-      // a feature with a panel opens on it, so the add is seen, and More steps out of its way
-      if (f.panels[0] && ui.panels?.has(f.panels[0])) { closeMore({ refocus: false }); ui.show(f.panels[0], { by: 'you' }); }
-      // (what was searched for goes with it: the community shelf opens the Browser on itself for its own words)
-      ui.emit('workspace:add', { id: f.id, query, by: 'you' });
-    } }, isAdded ? T.put : T.add);
-    // in the full studio everything is on screen: the rows say what each thing is, with nothing to add or put away
-    return h('div.ws-row', { dataset: { ws: f.id } },
-      h('div.ws-row-w', h('b.ws-row-t', f.title), agentAdded ? h('small.ws-row-by', 'added by ', byline(by, { app })) : null, h('span.ws-row-p', f.purpose), f.note ? h('span.ws-row-p.ws-row-note', f.note) : null),
-      view === 'full' ? null : b);
+    const putB = view === 'simple' && it.kind === 'go' && by != null
+      ? h('button.btn.btn-txt.ws-row-put', { type: 'button', 'aria-label': `${T.put}: ${it.title}`, onclick: (e) => { e.stopPropagation(); putAway([it.f.id], { by: 'you' }); } }, T.put) : null;
+    const sel = i === findOpen.at;
+    return h('div.ws-row', { id: `ws-opt-${i}`, role: 'option', 'aria-selected': String(sel), dataset: { ws: it.kind === 'go' ? it.f.id : it.id, kind: it.kind }, class: sel ? 'on' : '', onclick: () => run(it), onpointermove: () => { if (findOpen && findOpen.at !== i) { findOpen.at = i; paintActive(); } } },
+      h('span.ws-row-k', T.kinds[it.kind]),
+      h('div.ws-row-w', h('b.ws-row-t', it.title), agentAdded ? h('small.ws-row-by', 'added by ', byline(by, { app })) : null,
+        it.purpose ? h('span.ws-row-p', it.purpose) : null, it.f?.note ? h('span.ws-row-p.ws-row-note', it.f.note) : null),
+      it.key ? h('kbd.ws-row-key', it.key) : null,
+      putB);
   }
-  function renderMore() {
-    if (!moreOpen) return;
-    const { list, foot, find } = moreOpen;
-    const focusId = document.activeElement?.closest?.('.ws-row')?.dataset.ws || null;
+  function paintActive() {
+    if (!findOpen) return;
+    const { list, find, at } = findOpen;
+    for (const el of list.querySelectorAll('.ws-row')) { const on = el.id === `ws-opt-${at}`; el.classList.toggle('on', on); el.setAttribute('aria-selected', String(on)); if (on) el.scrollIntoView?.({ block: 'nearest' }); }
+    find.setAttribute('aria-activedescendant', `ws-opt-${at}`);
+  }
+  function renderFind() {
+    if (!findOpen) return;
+    const { list, foot, find } = findOpen;
     renderQuick();
     const q = find.value.trim();
     const kids = [];
+    let rows;
     if (q) {
-      const hits = FEATURES.map((f, i) => ({ f, r: rank(f, q), i })).filter((x) => x.r != null).sort((a, b) => a.r - b.r || a.i - b.i);
-      if (!hits.length) kids.push(h('p.ws-none', T.none));
-      for (const { f } of hits) kids.push(row(f));
+      rows = [...search(q), { kind: 'ask', id: 'ask', title: `Ask Claude: “${q}”`, purpose: '', key: `${MODK}Enter` }];
+      if (rows.length === 1) kids.push(h('p.ws-none', T.none));
     } else {
-      for (const g of GROUPS) {
-        const fs = FEATURES.filter((f) => f.group === g);
-        if (!fs.length) continue;
-        kids.push(h('div.ws-group', { role: 'group', 'aria-label': g }, h('div.ws-head', { 'aria-hidden': 'true' }, g), fs.map(row)));
-      }
+      // empty: every part of the studio by group, a map of what's here
+      kids.push(h('p.ws-none.ws-hint', T.empty));
+      rows = [];
+      for (const g of GROUPS) for (const f of FEATURES.filter((x) => x.group === g)) rows.push({ kind: 'go', id: 'go:' + f.id, title: f.title, purpose: f.purpose, aliases: f.aliases, f, group: g });
     }
+    findOpen.rows = rows;
+    if (findOpen.at >= rows.length) findOpen.at = 0;
+    let lastG = null;
+    rows.forEach((it, i) => {
+      if (it.group && it.group !== lastG) { lastG = it.group; kids.push(h('div.ws-head', { 'aria-hidden': 'true' }, it.group)); }
+      kids.push(row(it, i));
+    });
     list.replaceChildren(...kids);
-    foot.replaceChildren(
-      h('button.btn.btn-txt.ws-foot-b', { type: 'button', onclick: () => { closeMore(); setView(view === 'full' ? 'simple' : 'full'); } }, view === 'full' ? T.toSimple : T.toFull),
-      view === 'full' ? null : h('small.ws-foot-s', T.hides));
-    if (focusId) list.querySelector(`.ws-row[data-ws="${focusId}"] .ws-row-b`)?.focus({ preventScroll: true });
+    find.setAttribute('aria-activedescendant', rows.length ? `ws-opt-${findOpen.at}` : '');
+    foot.replaceChildren(view === 'simple' ? h('small.ws-foot-s', T.hides) : h('small.ws-foot-s', `↑ ↓ choose · Enter goes · ${MODK}Enter asks Claude · Esc closes`));
     place();
   }
 
@@ -395,24 +534,34 @@ const WS_CSS = `
 .ws-note b { color: var(--text); font-weight: 600; }
 .ws-note .by { font-weight: 600; }
 .ws-note-put { flex: none; }
-/* More: typographic rows in the liner-notes style, the type of the tabs; no stripes, no pills */
-.ew-pop.ws-more { position: fixed; z-index: 900; width: 380px; max-width: calc(100vw - 16px); max-height: min(72vh, 620px); overflow: auto; padding: 0;
+/* Find: the button (its key beside it, quiet), then typographic rows in the liner-notes style; no stripes, no pills */
+.ws-find-btn { display: inline-flex; align-items: center; gap: 8px; }
+.ws-view[hidden] { display: none; }
+.ws-find-k { font: 500 11px var(--font-mono); color: var(--text-3); border: 0; padding: 0; background: none; }
+.ew-pop.ws-more { position: fixed; z-index: 900; width: 460px; max-width: calc(100vw - 16px); max-height: min(72vh, 620px); overflow: auto; padding: 0;
   background: var(--bg-3); border: var(--rule-2); border-radius: 0; box-shadow: var(--shadow-2); animation: ew-in .16s var(--ease, ease) both; }
 .ws-findrow { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: var(--bg-3); border-bottom: var(--rule); }
-.ws-find { width: 100%; height: 32px; padding: 0 10px; border: var(--rule-2); border-radius: var(--r-press); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.ws-find { width: 100%; height: 34px; padding: 0 10px; border: var(--rule-2); border-radius: var(--r-press); background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
 .ws-find:focus { outline: 2px solid var(--accent-2); outline-offset: -1px; }
 .ws-list { padding: 0 12px; }
 .ws-head { padding: 14px 0 4px; color: var(--text-3); font-size: 13px; font-weight: 600; }
-.ws-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: var(--rule); }
-.ws-group > .ws-row:last-child, .ws-list > .ws-row:last-child { border-bottom: 0; }
+.ws-row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: var(--rule); cursor: pointer; }
+.ws-list > .ws-row:last-child { border-bottom: 0; }
+.ws-row.on .ws-row-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.ws-row.on .ws-row-k { color: var(--text); }
+.ws-row-k { flex: none; width: 48px; font-size: 12px; color: var(--text-3); }
 .ws-row-w { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ws-row-t { font-size: 13px; font-weight: 600; color: var(--text); }
 .ws-row-by { font-size: 12px; color: var(--text-3); }
-.ws-row-p { font-size: 12px; line-height: 1.4; color: var(--text-2); }
-.ws-row-b { flex: none; min-width: 72px; }
-.ws-none { margin: 0; padding: 18px 0; color: var(--text-2); font-size: 13px; }
-.ws-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-top: var(--rule); }
+.ws-row-p { font-size: 12px; line-height: 1.4; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ws-row-key { flex: none; font: 500 11px var(--font-mono); color: var(--text-3); }
+.ws-row-put { flex: none; }
+.ws-none { margin: 0; padding: 14px 0 6px; color: var(--text-2); font-size: 13px; }
+.ws-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; border-top: var(--rule); }
 .ws-foot-s { font-size: 12px; color: var(--text-3); }
+/* Go to's finger: a pencil outline for two seconds (the agent's ink when an agent asked) */
+.ws-pointed { outline: 1.5px dashed var(--text-2); outline-offset: 3px; }
+.ws-pointed-agent { outline-color: var(--agent); }
 .ws-quick[hidden] { display: none; }
 .ws-quick { padding: 4px 12px; border-bottom: var(--rule); }
 .ws-q { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 6px 0; border: 0; border-bottom: var(--rule); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
@@ -436,9 +585,8 @@ const WS_CSS = `
   .ws-note .btn-txt { min-height: 26px; }
   .ew-pop.ws-more { left: 0; right: 0; top: auto; bottom: 0; width: 100%; max-width: none; max-height: 70vh; max-height: 70dvh; border: 0; border-top: var(--rule-heavy);
     box-shadow: 0 -12px 30px -12px #000; padding-bottom: env(safe-area-inset-bottom); animation: ew-sheet-up .22s var(--ease, ease) both; }
-  .ws-row { min-height: 52px; }
-  .ws-row-b { min-height: 40px; }
-  .ws-foot-b { min-height: 40px; }
+  .ws-row { min-height: 52px; align-items: center; }
+  .ws-row-key, .ws-find-k, .ws-find-x { display: none; }
   .ws-find { height: 40px; font-size: 16px; }
 }
 `;

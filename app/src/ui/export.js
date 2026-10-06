@@ -521,9 +521,7 @@ export default function (app) {
       app.devicesIO ? item('knob', 'Import a device…', 'checked before it’s added', `${mod}⇧I`, () => app.devicesIO.pick(), '', 'files') : null,
       item('check', 'Save the project file', 'the song, every note and device', `${mod}S`, saveProject),
       app.share?.copy ? item('send', 'Share a link', 'copies it: the song, but not its audio clips', null, () => app.share.copy({ anchor: at.isConnected ? at : btn })) : null,
-      // the full studio under 900 px keeps its view switch in the agent sheet's tab row: here too, one tap from the top bar
-      app.ui.workspace?.view?.() === 'full' && typeof matchMedia === 'function' && matchMedia('(max-width: 900px)').matches
-        ? item('panelRight', 'Simple view', 'hide what you’re not using; nothing is removed', null, () => app.ui.workspace.setView('simple')) : null,
+      app.find?.open ? item('search', 'Find anything', 'a panel, an action, a sound or help', `${mod}K`, () => app.find.open()) : null,
       app.onboard?.start ? item('play', 'Take one', 'the two-minute tour, on this song', null, () => app.onboard.start({ force: true, restart: true })) : null,
       ...recentRows,
       h('div.sm-sep', 'Export'),

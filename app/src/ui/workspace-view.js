@@ -7,8 +7,6 @@
 
 export const WORKSPACE_KEY = 'overdub:workspace';
 export const VIEWS = ['simple', 'full'];
-// a browser that has used the studio before this seam existed: it keeps the full studio it knows
-export const EXISTING_KEYS = ['overdub:layout', 'overdub:welcomed', 'overdub:project'];
 
 const get = (storage, key) => { try { return storage ? storage.getItem(key) : null; } catch (e) { return null; } };
 
@@ -25,19 +23,18 @@ export function readSaved(storage) {
   return out;
 }
 
-// The view this load opens in, in order: ?view= (this load only), the saved view, full under a test browser
-// (navigator.webdriver), full for an existing user, else simple. -> { view, persist, from, round? }
-// persist: write the view to storage now (the last two: the choice is made once, then remembered).
-// ?view=round (a prototype, ui/round.js) is the simple view with the song drawn as a circle on top: round: true, for
-// this load only, never written down.
+// The view this load opens in. One studio: the full one, everything on screen, for everyone. ?view=simple (this load
+// only) still opens the simple view for one release, so its checks can retire in order; ?view=round (a prototype,
+// ui/round.js) is the simple view with the song drawn as a circle on top: round: true, for this load only. Neither is
+// written down. A browser that had the simple view saved opens the full studio too (from: 'merged': the studio says
+// so once, ui/workspace.js). -> { view, persist, from, round? }
 export function decideView({ search = '', storage = null, webdriver = false } = {}) {
   let q = null;
   try { q = new URLSearchParams(search || '').get('view'); } catch (e) { q = null; }
   if (VIEWS.includes(q)) return { view: q, persist: false, from: 'url' };
   if (q === 'round') return { view: 'simple', persist: false, from: 'url', round: true };
   const saved = readSaved(storage);
+  if (saved.view === 'simple') return { view: 'full', persist: false, from: 'merged' };
   if (saved.view) return { view: saved.view, persist: false, from: 'saved' };
-  if (webdriver) return { view: 'full', persist: false, from: 'webdriver' };
-  if (EXISTING_KEYS.some((k) => get(storage, k) != null)) return { view: 'full', persist: true, from: 'existing' };
-  return { view: 'simple', persist: true, from: 'new' };
+  return { view: 'full', persist: false, from: webdriver ? 'webdriver' : 'default' };
 }

@@ -4,8 +4,9 @@
 // contextmenu), the inspector deletes and duplicates without a gesture, reduced motion holds still, toasts with an
 // action wait, single-letter keys can be switched off, labels name their track, and the "Take one" coach keeps focus,
 // announces each step and fits a phone. Also: the panels' modules are fetched together, not one after another. And the
-// simple view (?view=simple): every control on its first screen has a name, its note is a status line, and More opens
-// from the keyboard with focus inside, names what each Add adds, and gives focus back on Esc, on a desktop and a phone.
+// studio's Find anything: every control on its first screen has a name, its note is a status line, and Find opens
+// from the keyboard with focus inside, a combobox over a named listbox, and gives focus back on Esc, on a desktop and a
+// phone.
 //   node tools/a11y-test.js      (screenshots: tools/.out/a11y-*.png)
 import path from 'node:path';
 import { open, tally, OUTDIR } from './pw.js';
@@ -591,7 +592,7 @@ const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|Audi
   await s.close();
 }
 
-/* ======================================================================== the simple view: the first screen and More */
+/* ======================================================================== Find anything: the first screen and Find */
 // (each in-page function carries its own accessible name, roughly as the browser computes it: labelledby, aria-label,
 // the words, title, an image's alt, a field's label or placeholder)
 const unnamed = () => {
@@ -599,81 +600,78 @@ const unnamed = () => {
   const vis = (e) => { if (!e.getClientRects().length || e.closest('[inert]')) return false; const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth && cs.visibility !== 'hidden'; };
   return [...document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=tab], [role=slider], [role=spinbutton]')].filter(vis).filter((e) => !nameOf(e)).map((e) => e.outerHTML.slice(0, 80));
 };
-const moreState = () => {
-  const nameOf = (e) => { const lb = e.getAttribute('aria-labelledby'); if (lb) return lb.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ').trim(); return (e.getAttribute('aria-label') || e.textContent || e.getAttribute('title') || e.querySelector?.('img[alt]')?.alt || (e.labels && e.labels[0]?.textContent) || e.getAttribute('placeholder') || '').trim(); };
-  const inp = [...document.querySelectorAll('input')].find((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length);
-  const bar = document.querySelector('.ew-ws') || document.querySelector('.ew-top');
-  const btn = [...bar.querySelectorAll('button')].find((x) => x.getClientRects().length && x.textContent.trim() === 'More');
-  if (!inp) return { open: false, expanded: btn?.getAttribute('aria-expanded'), focusMore: document.activeElement === btn };
-  let b = inp.parentElement;
-  while (b && b !== document.body && !(b.getAttribute('role') === 'dialog' || ['fixed', 'absolute'].includes(getComputedStyle(b).position))) b = b.parentElement;
-  const titles = (window.overdub.ui.workspace?.FEATURES || []).map((f) => f.title);
-  // each Add / Put away names what it adds: its own name, its describedby, or a labelled row around it
-  const vague = [...b.querySelectorAll('button')].filter((x) => /^(Add|Put away)$/.test(x.textContent.trim())).filter((x) => {
-    const own = nameOf(x), desc = (x.getAttribute('aria-describedby') || '').split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ');
-    const row = x.closest('[role=group], [role=listitem], li, [aria-label]');
-    const rowName = row && row !== b ? (row.getAttribute('aria-label') || '') : '';
-    return !titles.some((t) => own.includes(t) || desc.includes(t) || rowName.includes(t));
-  }).length;
-  return { open: true, focusIn: b.contains(document.activeElement), focus: document.activeElement?.tagName, inputName: nameOf(inp), expanded: btn?.getAttribute('aria-expanded'), vague, buttons: [...b.querySelectorAll('button')].filter((x) => /^(Add|Put away)$/.test(x.textContent.trim())).length };
+// Find's state: its button (in the top bar, or at the end of the agent pane's tab row), the field, the listbox and the
+// option the field points at
+const findState = () => {
+  const btn = [...document.querySelectorAll('.ws-find-btn')].find((x) => x.getClientRects().length);
+  const inp = [...document.querySelectorAll('input[role=combobox]')].find((i) => i.getClientRects().length);
+  if (!inp) return { open: false, expanded: btn?.getAttribute('aria-expanded'), focusFind: !!btn && document.activeElement === btn, keys: btn?.getAttribute('aria-keyshortcuts') || null };
+  const dlg = inp.closest('[role=dialog]');
+  const list = document.getElementById(inp.getAttribute('aria-controls') || '');
+  const act = document.getElementById(inp.getAttribute('aria-activedescendant') || '');
+  return { open: true, dialog: !!dlg && !!dlg.getAttribute('aria-label'), focusIn: !!dlg && dlg.contains(document.activeElement), inputName: inp.getAttribute('aria-label') || inp.placeholder || '', expanded: btn?.getAttribute('aria-expanded'),
+    listbox: list?.getAttribute('role') === 'listbox' && !!list.getAttribute('aria-label'), options: list ? list.querySelectorAll('[role=option]').length : 0,
+    active: act ? { role: act.getAttribute('role'), selected: act.getAttribute('aria-selected'), text: act.textContent.trim().slice(0, 40) } : null };
 };
 {
-  const s = await open('/app/', { query: 'view=simple', width: 1440, height: 900 });
+  const s = await open('/app/', { width: 1440, height: 900 });
   const { page, errors } = s;
   await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   await sleep(500);
   const E = (fn, arg) => page.evaluate(fn, arg);
-  T.ok(await E(() => window.overdub.ui.workspace?.view?.()) === 'simple', 'simple: ?view=simple opens the simple view');
+  T.ok(await E(() => window.overdub.ui.workspace?.view?.()) === 'full', 'find: the studio opens as one full studio');
   const nn = await E(unnamed);
-  T.ok(!nn.length, `simple: every control on the first screen has a name${nn.length ? ' (' + nn.slice(0, 4).join(' | ') + ')' : ''}`);
+  T.ok(!nn.length, `find: every control on the first screen has a name${nn.length ? ' (' + nn.slice(0, 4).join(' | ') + ')' : ''}`);
   const st = await E(() => { const n = document.querySelector('.ew-ws [role=status]') || document.querySelector('.ew-top [role=status]'); return { role: n?.getAttribute('role'), live: n?.getAttribute('aria-live') || 'polite' }; });
-  T.ok(st.role === 'status' && st.live !== 'off', `simple: the note slot is a status line the screen reader reads (${JSON.stringify(st)})`);
-  // More from the keyboard
-  await E(() => { const bar = document.querySelector('.ew-ws') || document.querySelector('.ew-top'); [...bar.querySelectorAll('button')].find((x) => x.getClientRects().length && x.textContent.trim() === 'More')?.focus(); });
-  const m0 = await E(moreState);
+  T.ok(st.role === 'status' && st.live !== 'off', `find: the note slot is a status line the screen reader reads (${JSON.stringify(st)})`);
+  // Find from the keyboard
+  await E(() => [...document.querySelectorAll('.ws-find-btn')].find((x) => x.getClientRects().length)?.focus());
+  const m0 = await E(findState);
+  T.ok(/K$/.test(m0.keys || ''), `find: its button names its shortcut (aria-keyshortcuts ${m0.keys})`);
   await page.keyboard.press('Enter');
   await sleep(300);
-  const m1 = await E(moreState);
-  T.ok(m0.expanded === 'false' && m1.open && m1.expanded === 'true', `simple: Enter on More opens it, and More says so (aria-expanded ${m0.expanded} → ${m1.expanded})`);
-  T.ok(m1.open && m1.focusIn, `simple: focus goes into More (${m1.focus})`);
-  T.ok(m1.open && /\S/.test(m1.inputName || ''), `simple: More's search field has a name ("${m1.inputName}")`);
-  T.ok(m1.open && m1.buttons > 0 && !m1.vague, `simple: each Add says what it adds to a screen reader (${m1.vague} of ${m1.buttons} don't)`);
-  for (let i = 0; i < 3; i++) await page.keyboard.press('Tab');
-  const m2 = await E(moreState);
-  T.ok(m2.open && m2.focusIn, `simple: Tab moves through More's rows, focus kept inside (${m2.focus})`);
+  const m1 = await E(findState);
+  T.ok(m0.expanded === 'false' && m1.open && m1.expanded === 'true', `find: Enter on Find opens it, and its button says so (aria-expanded ${m0.expanded} → ${m1.expanded})`);
+  T.ok(m1.open && m1.focusIn && m1.dialog, `find: a named dialog, focus inside (${JSON.stringify({ dialog: m1.dialog, focusIn: m1.focusIn })})`);
+  T.ok(m1.open && /\S/.test(m1.inputName || '') && m1.listbox && m1.options > 0, `find: its field has a name and controls a named listbox of ${m1.options} options ("${m1.inputName}")`);
+  await page.keyboard.type('mix');
+  await sleep(200);
+  await page.keyboard.press('ArrowDown');
+  await sleep(100);
+  const m2 = await E(findState);
+  T.ok(m2.open && m2.focusIn && m2.active?.role === 'option' && m2.active.selected === 'true', `find: the arrows move the active option, which the field points at (${JSON.stringify(m2.active)})`);
   await page.keyboard.press('Escape');
   await sleep(250);
-  const m3 = await E(moreState);
-  T.ok(!m3.open && m3.focusMore && m3.expanded === 'false', `simple: Esc closes More and focus goes back to its button (${JSON.stringify(m3)})`);
-  // a reveal's note: its Put away is a button the keyboard reaches
-  await E(() => window.overdub.ui.workspace?.add(['mixer'], { by: 'you' }));
-  await sleep(200);
-  const pb = await E(() => { const n = document.querySelector('.ew-ws [role=status]') || document.querySelector('.ew-top [role=status]'); const b = n?.querySelector('button'); if (!b) return null; b.focus(); return { tag: b.tagName, text: b.textContent.trim(), focused: document.activeElement === b }; });
-  T.ok(pb && pb.tag === 'BUTTON' && pb.text === 'Put away' && pb.focused, `simple: the note's Put away takes focus (${JSON.stringify(pb)})`);
-  await page.screenshot({ path: path.join(OUTDIR, 'a11y-simple.png') }).catch(() => {});
+  const m3 = await E(findState);
+  T.ok(!m3.open && m3.focusFind && m3.expanded === 'false', `find: Esc closes it and focus goes back to its button (${JSON.stringify(m3)})`);
+  await page.screenshot({ path: path.join(OUTDIR, 'a11y-find.png') }).catch(() => {});
   const errs = errors.filter((e) => !ignorable(e));
-  T.ok(!errs.length, `simple: no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);
+  T.ok(!errs.length, `find: no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);
 
-  // on a phone: the More sheet takes focus and gives it back
+  // on a phone: the Find sheet takes focus and gives it back
   const ctx = await s.browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, permissions: ['microphone'] });
   const pg = await ctx.newPage();
   const perr = [];
   pg.on('pageerror', (e) => perr.push('pageerror: ' + (e && e.stack || e)));
-  await pg.goto(s.base + '/app/?view=simple', { waitUntil: 'load' });
+  await pg.goto(s.base + '/app/', { waitUntil: 'load' });
   await pg.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   await sleep(500);
   const pnn = await pg.evaluate(unnamed);
-  T.ok(!pnn.length, `simple phone: every control on the first screen has a name${pnn.length ? ' (' + pnn.slice(0, 4).join(' | ') + ')' : ''}`);
-  const mr = await pg.evaluate(() => { const bar = document.querySelector('.ew-ws') || document.querySelector('.ew-top'); const b = [...bar.querySelectorAll('button')].find((x) => x.getClientRects().length && x.textContent.trim() === 'More'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
-  if (mr) { await pg.touchscreen.tap(mr[0], mr[1]); await sleep(400); }
-  const p1 = await pg.evaluate(moreState);
-  T.ok(p1.open && p1.focusIn && !p1.vague, `simple phone: a tap on More opens its sheet with focus inside, each Add named (${JSON.stringify({ open: p1.open, focusIn: p1.focusIn, vague: p1.vague })})`);
+  T.ok(!pnn.length, `find phone: every control on the first screen has a name${pnn.length ? ' (' + pnn.slice(0, 4).join(' | ') + ')' : ''}`);
+  // (a phone's top bar has no room for Find: it is the Song menu's row, and the end of the agent sheet's tab row)
+  const centre = (sel, words) => pg.evaluate(([sel, words]) => { const b = [...document.querySelectorAll(sel)].find((x) => x.getClientRects().length && (!words || x.textContent.includes(words))); if (!b) return null; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, [sel, words]);
+  const sb = await centre('.ew-region-top .sm-btn');
+  if (sb) { await pg.touchscreen.tap(sb[0], sb[1]); await sleep(400); }
+  const fr = await centre('.sm-i', 'Find anything');
+  if (fr) { await pg.touchscreen.tap(fr[0], fr[1]); await sleep(400); }
+  const p1 = await pg.evaluate(findState);
+  T.ok(!!fr && p1.open && p1.focusIn, `find phone: Song, then Find anything, opens its sheet with focus inside (${JSON.stringify({ row: !!fr, open: p1.open, focusIn: p1.focusIn })})`);
   await pg.keyboard.press('Escape');
   await sleep(250);
-  const p2 = await pg.evaluate(moreState);
-  T.ok(!p2.open && p2.focusMore, `simple phone: Esc closes the sheet and focus goes back to More (${JSON.stringify(p2)})`);
-  await pg.screenshot({ path: path.join(OUTDIR, 'a11y-simple-phone.png') }).catch(() => {});
-  T.ok(!perr.length, `simple phone: no page errors${perr.length ? ': ' + perr.slice(0, 3).join(' | ') : ''}`);
+  const p2 = await pg.evaluate(() => ({ open: !![...document.querySelectorAll('input[role=combobox]')].find((i) => i.getClientRects().length), focus: document.activeElement?.className || '', visible: !!document.activeElement?.getClientRects().length }));
+  T.ok(!p2.open && p2.visible && /sm-btn|ws-find-btn/.test(p2.focus), `find phone: Esc closes the sheet and focus goes back to the Song button (${JSON.stringify(p2)})`);
+  await pg.screenshot({ path: path.join(OUTDIR, 'a11y-find-phone.png') }).catch(() => {});
+  T.ok(!perr.length, `find phone: no page errors${perr.length ? ': ' + perr.slice(0, 3).join(' | ') : ''}`);
   await ctx.close();
   await s.close();
 }

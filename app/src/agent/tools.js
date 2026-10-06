@@ -232,11 +232,6 @@ export function chipFor(app, name, input = {}, result = {}) {
     case 'share_link': return { icon: '🔗', text: 'made a share link' };
     case 'find_community_device': return result.offered ? { icon: '⇄', text: `suggested ${result.on ? `a community device for ${result.on}` : 'a community device'}` } : { icon: '⌕', text: Array.isArray(result.results) ? `looked on the community shelf (${result.results.length})` : 'looked on the community shelf' };
     case 'provenance_report': return { icon: '📖', text: 'read who wrote what' };
-    case 'workspace': {
-      // the agent's one plain line of why, after what it did (never in the top bar's note)
-      const c = workspaceChip(app, input, result), why = typeof input.reason === 'string' ? input.reason.trim().slice(0, 80) : '';
-      return why && input.action !== 'list' ? { ...c, text: `${c.text}: ${why}` } : c;
-    }
     default: return { icon: '•', text: name.replace(/_/g, ' ') };
   }
 }
@@ -246,17 +241,6 @@ function soundsChip(app, input, result = {}) {
   if (result.kept && result.picked) return { icon: '⇄', text: `you kept ${String(result.picked.name || result.picked.device).slice(0, 40)} on ${tname}` };
   if (result.kept === false && !result.offered) return { icon: '⇄', text: `you kept the sound ${tname} had` };
   return { icon: '⇄', text: `suggested sounds for ${tname}`, ...(result.track?.id ? { target: { tracks: [result.track.id], clips: [] } } : {}) };
-}
-function workspaceChip(app, input, result) {
-  if (input.action === 'list') return { icon: '▦', text: 'read the studio layout' };
-  if (result.note && !result.added) return { icon: '▦', text: 'found it on screen already' };
-  const fs = app.ui?.workspace?.FEATURES || [];
-  const title = (id) => { const f = fs.find((x) => x.id === id); return f ? `${f.the ? 'the ' : ''}${f.title}` : null; };
-  const named = (ids) => { const n = (ids || []).map(title).filter(Boolean); return n.length > 1 ? `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}` : n[0] || ''; };
-  if ((input.action === 'add' || input.action === 'open') && result.added?.length && named(result.added)) return { icon: '▦', text: `added ${named(result.added)}` };
-  if (input.action === 'open' && result.already?.length && named(result.already)) return { icon: '▦', text: `showed ${named(result.already)}` };
-  if (input.action === 'put_away' && result.put_away?.length && named(result.put_away)) return { icon: '▦', text: `put away ${named(result.put_away)}` };
-  return { icon: '▦', text: 'changed the studio layout' };
 }
 const fmtSigned = (x) => (x < 0 ? '−' : '') + Math.abs(x).toFixed(1);
 
@@ -726,7 +710,7 @@ export function annotationGaps(list, extra = {}) {
 /* ------------------------------------------------------------------------------------------------ run */
 let callSeq = 0;
 // tools that neither read nor change the song, so a held audition can keep playing through them
-const KEEPS_AUDITION = new Set(['get_guide', 'get_variation_result', 'get_capture', 'ask_human', 'say', 'highlight', 'list_devices', 'get_device', 'workspace', 'suggest_sounds']);
+const KEEPS_AUDITION = new Set(['get_guide', 'get_variation_result', 'get_capture', 'ask_human', 'say', 'highlight', 'list_devices', 'get_device', 'suggest_sounds']);
 // While an agent's tool runs, ui.state.actor is that agent: a panel the tool shows (ui.show), a pane it opens, is
 // brought into the simple view signed as the agent's, never passed off as the person's (ui/shell.js, ui/workspace.js).
 // Overlapping runs stack; the newest running caller is the actor, and it clears when the last one settles. Tools that
@@ -798,7 +782,7 @@ export async function runTool(name, input, { by = 'claude', app = globalThis.win
 // While a take records (app.input.recorder, docs/research/RECORDING-UX.md 3.15), nothing an agent does may move the
 // tracks it records onto or the timeline under it: those calls come back { error: 'recording', hint }. Edits to other
 // tracks go through (the engine takes edits inside its lookahead), and so does everything that only reads.
-const NEVER_BLOCKED = new Set(['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'get_capture', 'get_recording', 'get_variation_result', 'say', 'highlight', 'render_and_measure', 'compare_to_reference', 'share_link', 'provenance_report', 'ask_human', 'workspace', 'suggest_sounds']);   // (workspace: layout, never the song; suggest_sounds: rows on the person's sound card, the song changes only when they Keep one. Each refuses itself while a take records)
+const NEVER_BLOCKED = new Set(['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'get_capture', 'get_recording', 'get_variation_result', 'say', 'highlight', 'render_and_measure', 'compare_to_reference', 'share_link', 'provenance_report', 'ask_human', 'suggest_sounds']);   // (suggest_sounds: rows on the person's sound card, the song changes only when they Keep one. Each refuses itself while a take records)
 const TIME_OPS = new Set(['time.insert', 'time.remove', 'section.add', 'section.set', 'section.remove', 'section.duplicate']);
 const TIME_ARRANGE = new Set(['duplicate_section', 'insert_bars', 'remove_bars']);
 function recordingBlock(app, name, input, by) {
@@ -1039,9 +1023,10 @@ function selectionInfo(app) {
   out.key = keyLabel(p.key) + (p.key && keyUnchosen(app) ? ' (a new song\'s default: nobody chose it yet)' : '');
   out.tempo = p.tempo;
   if (!t && !f && !out.range) out.hint = 'nothing selected: work on what the human names, or ask; say which scope you used';
-  // their layout: in the simple view, what's put away (so an agent never says "drag the fader" with the Mixer away)
+  // the simple view (?view=simple, a URL only): what's put away, so an agent never says "drag the fader" with the Mixer
+  // away. The full studio, everyone's, hides nothing, so it says nothing here
   const ws = app.ui?.workspace;
-  if (ws) { try { out.studio = { view: ws.view(), hidden: ws.view() === 'full' ? [] : (ws.hidden?.() || ws.list().filter((x) => !x.shown).map((x) => x.id)) }; } catch (e) { /* the layout is a nicety */ } }
+  if (ws && ws.view?.() === 'simple') { try { out.studio = { view: 'simple', hidden: ws.hidden?.() || [] }; } catch (e) { /* the layout is a nicety */ } }
   // a sound they're hearing on a track before keeping it (ui/sounds.js, a preview): the song still has the old one, so
   // the tried track's instrument is said as what it really is, and the trial is named beside it
   let trying = null;

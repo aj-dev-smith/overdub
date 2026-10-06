@@ -8,7 +8,7 @@
 //
 // Off on the live site. COMMUNITY_LIVE is false until AJ turns it on (not before the API key is out of origin storage);
 // while it is, everything here needs the page to be on localhost or 127.0.0.1: elsewhere ?community=,
-// ?community-device= and a stored overdub:community are ignored, the section isn't drawn, More's shelf words aren't
+// ?community-device= and a stored overdub:community are ignored, the section isn't drawn, Find's shelf words aren't
 // added and the tool answers "isn't on".
 //
 // What runs when:
@@ -59,7 +59,7 @@ const say = {
   heldBack: 'Trying shelf devices in the studio isn’t open yet. You can hear each one and read its code.',
   clipRefused: 'That clip wasn’t played: it isn’t audio the studio takes, or it’s over 2 MB.',
 };
-// the shelf's words in More: a query that finds the Browser by one of them opens it on the shelf
+// the shelf's words in Find: a query that finds the Browser by one of them opens it on the shelf
 const SHELF_WORDS = ['community', 'shelf', 'other people', 'new sounds'];
 const shelfQuery = (q) => { const w = String(q || '').trim().toLowerCase(); return w.length >= 3 && SHELF_WORDS.some((a) => a.includes(w) || a.split(' ').some((x) => x.startsWith(w)) || w.includes(a)); };
 // the part a new track gets so a Try can be heard: two bars, by input (an effect) or by category (an instrument)
@@ -164,7 +164,7 @@ export default async function (app) {
       S.built = r.built || null; S.skipped = r.skipped || 0; S.refused = r.refused || 0; S.newer = !!r.newer; S.inputs = r.inputs || {};
       S.status = r.newer ? 'newer' : r.error && !S.all.length ? 'none' : 'ready';
       prints = null;
-      // More finds the Browser by the shelf's words while it's on, and says the shelf is in there
+      // Find finds the Browser by the shelf's words while it's on, and says the shelf is in there
       try {
         const f = ui.workspace?.FEATURES?.find((x) => x.id === 'browser');
         if (f) {
@@ -489,8 +489,8 @@ export default async function (app) {
       });
     });
   }
-  // More: Add on Instruments and effects, found by one of the shelf's words, opens the Browser on the shelf
-  ui.on('workspace:add', (d) => { if (d?.id === 'browser' && shelfQuery(d.query)) reach(null, d.by || 'you'); });
+  // Find: Go to Instruments and effects, found by one of the shelf's words, opens the Browser on the shelf
+  ui.on('workspace:go', (d) => { if (d?.id === 'browser' && shelfQuery(d.query)) reach(null, d.by || 'you'); });
   function credit(e, cls = 'cs-credit') {
     const who = e.author.alias || e.author.handle;
     const a = byline(`author:${who}`, { app, title: e.author.alias ? `${e.author.alias} (was ${e.author.handle})` : null });

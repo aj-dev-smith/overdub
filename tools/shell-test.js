@@ -224,12 +224,12 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     const m1 = await press('KeyM', { focus: 'arranger', sel: { track: 'bass' } });
     const m2 = await press('KeyM', { focus: 'arranger' });
     T.ok(m1.n === 1 && m1.label === 'mute Bass' && m1.by === 'you' && m1.ops === 'track.set{"mute":true}' && !m1.click, `M mutes the selected track: "${m1.label}" by ${m1.by} (${m1.ops}), the click left alone`);
-    T.ok(/^Muted Bass\. M mutes now, as in Logic and GarageBand; the click is K\.$/.test(m1.toast), `the first M says the key moved ("${m1.toast}")`);
+    T.ok(/^Muted Bass\. Keys changed on 2 October: M mutes, S solos, K is the click\. \? lists them all\.$/.test(m1.toast), `the first moved key says, once, that the keys moved ("${m1.toast}")`);
     T.ok(m2.n === 1 && m2.label === 'unmute Bass' && m2.ops === 'track.set{"mute":false}' && !m2.toast, `M again unmutes it ("${m2.label}"), and says nothing more (${JSON.stringify(m2.toast)})`);
     const s1 = await press('KeyS', { focus: 'mixer' });
     const s2 = await press('KeyS', { focus: 'pianoroll' });
     T.ok(s1.n === 1 && s1.label === 'solo Bass' && s1.by === 'you' && s1.ops === 'track.set{"solo":true}' && s2.n === 1 && s2.label === 'unsolo Bass' && s2.ops === 'track.set{"solo":false}', `S solos the selected track from the mixer and unsolos it from Notes ("${s1.label}", "${s2.label}"), by ${s1.by}`);
-    T.ok(/^Soloed Bass\. S solos now, as in Logic and GarageBand; (⌘|Ctrl\+)E splits\.$/.test(s1.toast) && !s2.toast, `the first S says the key moved, once ("${s1.toast}")`);
+    T.ok(!/Keys changed/.test(s1.toast) && !s2.toast, `S says nothing more: one line for every moved key ("${s1.toast}")`);
     // with only a clip selected, its track
     const c1 = await press('KeyM', { focus: 'arranger', sel: { clip: 'keysClip' } });
     const c2 = await press('KeyM', { focus: 'arranger' });
@@ -244,11 +244,11 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     const ci0 = await E(() => window.overdub.input.recorder.countIn);
     const k1 = await press('KeyK', { focus: 'arranger', sel: { track: 'bass' } });
     const k2 = await press('KeyK');
-    T.ok(k1.click && !k2.click && k1.n === 0 && /^Click on\. K is the click now, as in Logic and GarageBand; M mutes\.$/.test(k1.toast) && !k2.toast, `K turns the click on and off; the first says the key moved ("${k1.toast}")`);
+    T.ok(k1.click && !k2.click && k1.n === 0 && !/Keys changed/.test(k1.toast) && !k2.toast, `K turns the click on and off, and says nothing more ("${k1.toast}")`);
     const q1 = await press('Shift+KeyK');
     const q2 = await press('Shift+KeyK');
     const q3 = await press('Shift+KeyK');
-    T.ok(ci0 === 1 && q1.countIn === 2 && q2.countIn === 0 && q3.countIn === 1 && /^Count-in: 2 bars\. ⇧K steps it now, beside the click on K\.$/.test(q1.toast) && !q2.toast && !q3.toast, `⇧K steps the count-in (1 → ${q1.countIn} → ${q2.countIn} → ${q3.countIn}); the first says so ("${q1.toast}")`);
+    T.ok(ci0 === 1 && q1.countIn === 2 && q2.countIn === 0 && q3.countIn === 1 && !/Keys changed/.test(q1.toast) && !q2.toast && !q3.toast, `⇧K steps the count-in (1 → ${q1.countIn} → ${q2.countIn} → ${q3.countIn}), said once already ("${q1.toast}")`);
     const sm = await press('Shift+KeyM');
     T.ok(sm.n === 0 && sm.countIn === 1 && !sm.click && !sm.toast && !(await E(() => window.overdub.ui.keys.list().some((k) => k.key === 'KeyM' && k.mod === 'shift'))), `⇧M is bound to nothing: no count-in step, no click, nothing said (${JSON.stringify({ n: sm.n, countIn: sm.countIn, toast: sm.toast })})`);
     // ⌘E: the selected clip, at the playhead, on the grid; from the mixer too (S solos there now)
@@ -257,7 +257,7 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     const e2 = await press(`${MODKEY}+KeyE`, { focus: 'mixer', sel: { track: 'bass', clip: 'bassClip' }, clips: ['bassClip'], at: 2 });
     await E(() => window.overdub.store.undo());
     T.ok(e1.n === 1 && /^split /.test(e1.label) && e1.by === 'you' && /clip\./.test(e1.ops) && e2.n === 1 && /^split /.test(e2.label), `⌘E splits the selected clip at the playhead, from the arranger and from the mixer ("${e1.label}" by ${e1.by})`);
-    T.ok(/^Split .* at bar \d+.*(⌘|Ctrl\+)E splits now, as in Ableton Live; S solos\.$/.test(e1.toast) && !/splits now/.test(e2.toast) && /^Split /.test(e2.toast), `the first ⌘E says the key moved, once ("${e1.toast}")`);
+    T.ok(/^Split .* at bar \d+/.test(e1.toast) && !/splits now|Keys changed/.test(e1.toast + e2.toast) && /^Split /.test(e2.toast), `⌘E says what it split, the keys' line said once already ("${e1.toast}")`);
     // 0 still mutes the selected clips
     const z1 = await press('Digit0', { focus: 'arranger', sel: { track: 'bass', clip: 'bassClip' }, clips: ['bassClip'] });
     const z2 = await press('Digit0');

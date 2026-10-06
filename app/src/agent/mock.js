@@ -281,13 +281,11 @@ async function sceneSounds(app, { say, tool }, ask) {
   const tapOrClick = globalThis.matchMedia?.('(max-width: 899px)')?.matches ? 'Tap' : 'Click';
   await say(`${COUNT_WORDS[names.length] || names.length} more for ${r.track?.name || track.name}: ${listed(names)}. ${tapOrClick} one to hear it.`);
 }
-async function sceneStudio(app, { say, tool }, ask) {
+async function sceneStudio(app, { say }, ask) {
   const ws = app.ui.workspace;
+  // one studio: everything is on screen, and Find (⌘K) reaches anything (ui/workspace.js); ?view=simple is a URL only
   if (ask.kind === 'view') {
-    if (ws.view() === ask.view) { await say(ask.view === 'full' ? 'This is the full studio already: everything is on screen.' : 'This is the simple view already. Anything put away is in More.'); return; }
-    const r = await tool('workspace', { action: 'view', view: ask.view, asked: true, reason: 'they asked' });
-    if (r.error) { await say(r.error === 'the person is recording' ? 'After the take: the screen holds still while you record.' : `I couldn't switch it: ${r.error}.`); return; }
-    await say(ask.view === 'full' ? 'That’s the full studio. Simple view is top right.' : 'That’s the simple view. Full studio is top right, and More has everything put away.');
+    await say(ws.view() === 'simple' ? 'This is the simple view, for this visit. Full studio, top right, shows everything; Find (⌘K) reaches anything.' : 'There’s one studio now: everything is on screen, and Find (⌘K) gets you anywhere in it.');
     return;
   }
   if (ask.kind === 'intro') {
@@ -297,12 +295,11 @@ async function sceneStudio(app, { say, tool }, ask) {
   }
   const f = ws.FEATURES.find((x) => x.id === ask.id);
   const name = `${f.the ? 'the ' : ''}${f.title}`;
-  const wasShown = ws.has(f.id);
-  const r = await tool('workspace', { action: 'open', feature: f.id, reason: ask.verb === 'where' ? `they asked where ${name} is` : `they asked for ${name}` });
-  if (r.error) { await say(r.error === 'the person is recording' ? `${cap1(name)} can wait until the take is in: the screen holds still while you record.` : `I couldn't bring ${name} in: ${r.error}.`); return; }
-  const where = r.where || ws.where?.(f.id) || 'on screen';
-  if (r.added?.length && !wasShown) await say(`Added ${name}: it’s ${where}. Put it away from More.`);
-  else await say(`${cap1(name)} is ${where}.`);
+  if (app.input?.recorder?.state && app.input.recorder.state !== 'idle') { await say(`${cap1(name)} can wait until the take is in: the screen holds still while you record.`); return; }
+  // (layout, never the song: the panel is shown and the control pointed at, as Find's Go to does, signed by the agent)
+  try { ws.go?.(f.id, { by: 'claude' }); } catch (e) { /* saying where is the answer */ }
+  const where = ws.where?.(f.id);
+  await say(where ? `${cap1(where)}: it’s showing now.` : `${cap1(name)} is on screen.`);
 }
 // a finger on something that isn't in the song (the blank sheet's first door): an outline in agent ink for a few
 // seconds, never focus (the person's cursor stays where it is). match(button) picks it.

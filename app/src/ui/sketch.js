@@ -1517,7 +1517,7 @@ function mount(el, app) {
       // (a phone: the line, beside the snap chips (paintOpts), then the grid, over the pads, so what to tap and the beat
       // you tap are in view above them and the pads are nearest the thumb; under the pads, they sat under the pinned
       // row, below the fold)
-      if (isSplit()) { takeRow.replaceChildren(catchEl, overEl, acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
+      if (isSplit()) { takeRow.replaceChildren(catchEl, acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(overEl, readEl); }
       else { body.replaceChildren(padCol, catchEl, gridWrap); gridWrap.append(status, overEl, readEl); foot.insertBefore(acts, bbBtn.nextSibling); }
       paintOpts();
       paintKept();
@@ -2398,8 +2398,13 @@ const CSS = `
   .sk-head > .sk-band .sk-beats i.one { width: 42px; }
   .sk[data-mode="tap"]:not(.touch) .sk-strip .sk-click, .sk[data-mode="hum"]:not(.touch) .sk-strip .sk-click { display: none; }
 }
-.sk.touch .sk-band .sk-beats i { width: 40px; height: 36px; font-size: 15px; }
-.sk.touch .sk-band .sk-beats i.one { width: 56px; }
+/* a phone: the band is one short row (its sentence is the line beside the snap chips' to say), so what to tap, the
+   grid and the pads all fit above the pinned row */
+.sk.touch .sk-band { flex-wrap: nowrap; padding: 0; gap: 8px; }
+.sk.touch .sk-band .sk-where { display: none; }
+.sk.touch .sk-band .sk-beats i { width: 34px; height: 24px; font-size: 13px; }
+.sk.touch .sk-band .sk-beats i.one { width: 46px; }
+.sk.touch .sk-band .sk-bclick { min-height: 24px; }
 @media (prefers-reduced-motion: reduce) { .sk-band .sk-beats i { transition: none; } }
 .sk-beats i { width: 12px; height: 12px; border: 1px solid var(--line-2); }
 .sk-beats i.one { width: 18px; }
@@ -2523,7 +2528,8 @@ const CSS = `
 .sk.sk-split[data-mode="tap"] .sk-blurb { display: none; }
 .sk.sk-split[data-mode="tap"] .sk-head { min-height: 0; }
 .sk.sk-split[data-mode="tap"] .sk-opts { padding-block: 2px; }
-.sk.sk-split[data-mode="tap"] .sk-body { gap: 6px; }
+.sk.sk-split[data-mode="tap"] .sk-body { gap: 2px; }
+.sk.sk-split[data-mode="tap"] .sk-take { gap: 4px; }
 .sk.sk-split[data-mode="tap"] .sk-opts > .sk-status { flex: 1 1 auto; min-width: 0; padding: 0; white-space: normal; overflow: visible; font-size: 12.5px; line-height: 17px; }
 .sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap { flex: none; min-height: 0; }
 .sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap > .sk-cv { flex: none; height: 76px; }   /* (four 14.75 px rows under a 14 px band of bar numbers; a pass's line goes under it) */

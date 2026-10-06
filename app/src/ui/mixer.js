@@ -449,7 +449,7 @@ export default function (app) {
   const MOVED = { mute: '`M` mutes now, as in Logic and GarageBand; the click is `K`.', solo: `\`S\` solos now, as in Logic and GarageBand; \`${MOD}E\` splits.` };
   function flagKey(k) {
     const t = selTrack(), first = ui.keys.firstPress?.(k === 'mute' ? 'KeyM' : 'KeyS');
-    const note = first ? ' ' + MOVED[k] : '';
+    const note = first ? ' ' + (ui.keys.movedNote || MOVED[k]) : '';
     if (!t) { ui.toast(`${ui.state.selection.track === 'master' ? `The master has no ${k}. ` : ''}Select a track to ${k} it.${note}`, { ms: first ? 6000 : 2400 }); return; }
     const on = !t[k];
     const r = store.dispatch({ type: 'track.set', track: t.id, patch: { [k]: on } }, { by: 'you', label: flagLabel(t, k) });

@@ -6,7 +6,7 @@
 // the gallery and the community shelf's gallery (a clip from a blob: URL) run under their content security policies with no violation; every AudioWorklet module is a file on the
 // studio's origin; and markup can't run script there: an injected inline script and an <iframe srcdoc> with a data:
 // script don't run, and a worklet module from a data: or blob: URL is refused. And the simple view (?view=simple, clean
-// storage) boots in each with no errors, on a blank song, and its More opens and closes.
+// storage) boots in each with no errors, on a blank song, and its Find opens and closes.
 //
 //   node tools/compat-test.js                        all four: chromium, webkit, firefox, chromium-phone
 //   node tools/compat-test.js webkit firefox         some of them (also BROWSERS=webkit,firefox)
@@ -653,7 +653,7 @@ async function phoneLoop(b, base, tag) {
 
 // ------------------------------------------------------------------------------------------------ the simple view
 // A clean context (the passes above left a song and a layout in theirs), ?view=simple: it boots with no errors on a
-// blank song, More opens and closes, and the page never scrolls sideways.
+// blank song, Find opens and closes, and the page never scrolls sideways.
 async function simple(b, base, tag) {
   const context = await b.browser.newContext(b.ctxOpts);
   const page = await context.newPage();
@@ -671,15 +671,15 @@ async function simple(b, base, tag) {
     await page.waitForTimeout(500);
     const st = await E(() => ({ view: window.overdub.ui.workspace?.view?.() || null, tracks: window.overdub.store.get().tracks.length, wide: document.documentElement.scrollWidth, vw: innerWidth }));
     T.ok(st.view === 'simple' && st.tracks === 0 && st.wide <= st.vw, `${tag}: it opens simple, on a blank song, no sideways scroll (${st.view}, ${st.tracks} tracks, ${st.wide} px in ${st.vw})`);
-    const more = page.locator('.ew-ws button', { hasText: /^More$/ }).first();
+    const more = page.locator('.ew-ws button.ws-find-btn').first();
     const can = await more.isVisible().catch(() => false);
     if (can) await more.click({ timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(300);
-    const opened = await E(() => [...document.querySelectorAll('input')].some((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length));
+    const opened = await E(() => [...document.querySelectorAll('input')].some((i) => /^Find anything/.test(i.placeholder || '') && i.getClientRects().length));
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
-    const closed = await E(() => ![...document.querySelectorAll('input')].some((i) => /^Find something/.test(i.placeholder || '') && i.getClientRects().length));
-    T.ok(can && opened && closed, `${tag}: More opens and closes (button ${can}, opened ${opened}, closed ${closed})`);
+    const closed = await E(() => ![...document.querySelectorAll('input')].some((i) => /^Find anything/.test(i.placeholder || '') && i.getClientRects().length));
+    T.ok(can && opened && closed, `${tag}: Find opens and closes (button ${can}, opened ${opened}, closed ${closed})`);
     await page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-simple.png`) }).catch(() => {});
     T.ok(!real(errors).length, `${tag}: the simple view raises no errors${list(real(errors))}`);
   } finally { await context.close().catch(() => {}); }

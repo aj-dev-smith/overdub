@@ -246,7 +246,8 @@ export function createShell(root, app) {
   ui.setOpen = setOpen;
   ui.isOpen = (region) => !!layout.open[region];
   function loadLayout() {
-    const def = { leftW: 236, rightW: 380, bottomH: 300, open: { left: true, right: true, bottom: true }, tabs: {} };
+    // (a first visit: the song, its detail pane and the agent; the Browser and the Inspector wait behind B and their button)
+    const def = { leftW: 236, rightW: 380, bottomH: 300, open: { left: false, right: true, bottom: true }, tabs: {} };
     try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s) return { ...def, ...s, open: { ...def.open, ...(s.open || {}) }, tabs: { ...(s.tabs || {}) } }; } catch (e) { /* fresh */ }
     return def;
   }
@@ -394,18 +395,19 @@ export function createShell(root, app) {
     list: () => keys.slice(),
   };
   // The keys moved to the layout of Logic and GarageBand on 2 October 2026: M mutes and S solos the selected track,
-  // K is the click and ⇧K the count-in, ⌘E splits. The first press of each in a browser says so, once:
-  // ui.keys.firstPress(id) -> true that first time (and remembers it in overdub:keys-moved), false after. With storage
-  // blocked it is once a session.
-  const MOVED_KEY = 'overdub:keys-moved';
-  const movedSaid = new Set();
+  // K is the click and ⇧K the count-in, ⌘E splits. The first press of any of them in a browser says so, once, for all
+  // of them (one line, ui.keys.movedNote, after what the key did): ui.keys.firstPress(id) -> true that first time (and
+  // remembers every moved key in overdub:keys-moved), false after. With storage blocked it is once a session.
+  const MOVED_KEY = 'overdub:keys-moved', MOVED_IDS = ['KeyM', 'KeyS', 'KeyK', 'shift+KeyK', 'mod+KeyE'];
+  let movedSaid = false;
+  ui.keys.movedNote = 'Keys changed on 2 October: `M` mutes, `S` solos, `K` is the click. `?` lists them all.';
   ui.keys.firstPress = (id) => {
-    if (movedSaid.has(id)) return false;
-    movedSaid.add(id);
+    if (movedSaid) return false;
+    movedSaid = true;
     let seen = {};
     try { const v = JSON.parse(localStorage.getItem(MOVED_KEY) || '{}'); if (v && typeof v === 'object' && !Array.isArray(v)) seen = v; } catch (e) { /* blocked or unreadable: once a session */ }
-    if (seen[id]) return false;
-    try { localStorage.setItem(MOVED_KEY, JSON.stringify({ ...seen, [id]: 1 })); } catch (e) { /* private mode */ }
+    if (Object.keys(seen).length) return false;
+    try { localStorage.setItem(MOVED_KEY, JSON.stringify(Object.fromEntries([...MOVED_IDS, id].map((k) => [k, 1])))); } catch (e) { /* private mode */ }
     return true;
   };
   const typing = (t) => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));

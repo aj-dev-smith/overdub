@@ -411,7 +411,7 @@ lane's drop line says so while you drag: "Drop for a new track with Light Table"
 new track, as today. Only a click in the browser is a trial.
 
 Budget: a track's header in the simple view goes from 2 controls (M, S) to 3 (the instrument, M, S), plus Sounds on
-the selected or pending track. The first-screen budgets in `tools/simple-test.js` are measured on a blank song and
+the selected or pending track. The first-screen budgets in `tools/find-test.js` are measured on a blank song and
 don't move.
 
 ### 2.4 The browser tries, it never overwrites (`ui/browser.js`, `ui/rack.js`)
@@ -760,7 +760,7 @@ a helper both use, which also writes a fake beatbox wav: noise bursts on the bea
     offer keeps the beat. **The fake beatbox wav through Beatbox raises no offer.**
 17. **Time to a pretty sound**, counted clicks and keys (playing and humming not counted): from the blank song, Hum it,
     the Hum button, stop, then ↓ hears the take on a second instrument: **at most 4**. From the coach's beat card,
-    Hum over it, R, Space, ↓: **at most 4**. (Held here beside the flow it measures; `simple-test.js` keeps the first
+    Hum over it, R, Space, ↓: **at most 4**. (Held here beside the flow it measures; `find-test.js` keeps the first
     screen's budgets.)
 18. Liner notes: no `inset Npx 0 0` and no `99px` in `ew-sounds`' CSS; bylines present; at most one `.btn-go` per
     region; the `.sel` row's text is in `--bg` ink.
@@ -777,7 +777,7 @@ Each package fixes the existing checks its own change breaks, in the test files 
 - **WP1:** `tools/record-test.js`, `tools/input-test.js`, `tools/transport-rec-test.js` (the aim, the full studio's
   dropped first-pitched fallback, "Press R again" gone, the keys' track).
 - **WP2:** `tools/sketch-rec-test.js` ("New track, Keys" → "A new track"; full-studio targeting checks stay),
-  `tools/onboard-test.js` (Hum over it first), `tools/simple-test.js` (Onto visible in Sketch in the simple view; the
+  `tools/onboard-test.js` (Hum over it first), `tools/find-test.js` (Onto visible in Sketch in the simple view; the
   registry's Recording options purpose word for word, section 7).
 - **WP3:** `tools/share-test.js` (held instruments: `.ar-hinst` opens the Devices tab in the simple view; `.ar-hdev`
   is unchanged in the full studio), `tools/panes-test.js` if its header counts move.
@@ -820,7 +820,7 @@ the others land.
 | WP | Owns (only these) | Builds |
 |---|---|---|
 | **WP1 Where a take goes** | `app/src/core/sounds.js` (new), `app/src/input/recorder.js`, `app/src/input/capture.js`, `app/src/input/tap.js`, `app/src/input/index.js`, `app/src/input/hum.js`, `tools/record-test.js`, `tools/input-test.js`, `tools/transport-rec-test.js` | 1.1 the aim and `targetFor` in both views (one-shot new, the selection rule, the only kit, the full studio's arm-clears-choice and no first-pitched fallback), the keys' track made when keys start, the new track selected on commit, stack only on overlap and the "own track" op; 1.2 `newPartFor` everywhere (five defaults); 1.4 `snapHeard` and `keepTiming` from the aim; 3.1 `kindOfTake` (hum first), `soundsFor`, `familyOf`, `SOUND_SETS`; the take toast's extra line from `app.sounds?.toastLine?.(made)` and the "Take 1 is muted" line; "Recording keeps…" from `app.sounds?.trying()`; the Beatbox catch's detection (`frames`, `segment`, emits `tap` `'tune'` with the segments) |
-| **WP2 Sketch, the top bar and the first minute** | `app/src/ui/sketch.js`, `app/src/ui/transport.js`, `app/src/ui/onboard.js`, `app/src/ui/workspace.js` (the one registry line, 7), `tools/sketch-rec-test.js`, `tools/onboard-test.js`, `tools/simple-test.js` | 2.1 Onto out of `record-options` and "A new track" in both pickers and the keep select, `NEW_TRACK_DEVICES` gone, the top bar's copy and keys line; `app.sounds.setHost` for the stage and the phone sheet, the take's Keep carrying the trial, the pinned Keep/Back/record lamp, the In tune lamp wired to Snap; 2.7 Hum over it (8 bars, click off, the headphones line), the coach's card, Tap it's line and Beatbox title, the Beatbox catch's UI (Keep the beat default) |
+| **WP2 Sketch, the top bar and the first minute** | `app/src/ui/sketch.js`, `app/src/ui/transport.js`, `app/src/ui/onboard.js`, `app/src/ui/workspace.js` (the one registry line, 7), `tools/sketch-rec-test.js`, `tools/onboard-test.js`, `tools/find-test.js` | 2.1 Onto out of `record-options` and "A new track" in both pickers and the keep select, `NEW_TRACK_DEVICES` gone, the top bar's copy and keys line; `app.sounds.setHost` for the stage and the phone sheet, the take's Keep carrying the trial, the pinned Keep/Back/record lamp, the In tune lamp wired to Snap; 2.7 Hum over it (8 bars, click off, the headphones line), the coach's card, Tap it's line and Beatbox title, the Beatbox catch's UI (Keep the beat default) |
 | **WP3 The sound card, the arranger and the window** | `app/src/ui/sounds.js` (new), `app/src/ui/arranger.js`, `app/src/ui/plugin.js`, `app/src/ui/dom.js` (`icon('open')` only), `app/src/main.js`, `tools/share-test.js`, `tools/panes-test.js` | 1.3 trials, Keep (no `audition`, one engine rebuild), Back, every ending and its line, the heal (both kinds); 2.2 the card (when it opens in each view, the popover, the phone sheet, click-outside, Done, family words, dedup), its keys and debounce; 2.3 `.ar-hinst` with the glyph, held → Devices tab, `.ar-hdev` kept in the full studio, Sounds and pending, the lit R and the ghost lane, drops kept at once with the mismatch rule, the blank-sheet comment, the track menu; 2.5 the window's Sounds, Effects, placement and keep-on-touch; MODULES gets `./ui/sounds.js` after `./ui/plugin.js` (so `app.input.recorder` exists) and `./agent/sounds-tool.js` before `./agent/panel.js` (`tryImport` skips it with a warning until WP5 lands) |
 | **WP4 The browser** | `app/src/ui/browser.js`, `app/src/ui/rack.js`, `tools/mix-test.js`, `tools/phone-test.js` | 2.4: trial on click, the mismatch menu, the target line and trial bar, touch folded in; `rack.isMismatch(def, track, project)` (WP3's drop uses it) and `addDevice` kept as is |
 | **WP5 Agent, docs and the new suite** | `app/src/agent/sounds-tool.js` (new), `app/src/agent/extra-schemas.js`, `app/src/agent/tools.js`, `app/src/agent/prompt.js`, `app/src/agent/mock.js`, `server/relay-catalog.json` (generated), `docs/*`, `README.md`, `site/index.html`, `site/press/index.html`, `site/docs/` (generated), `tools/pick-sound-test.js` (new), `tools/instruments-repro.js` and its shared wav helper, `tools/agent-test.js` | 2.6 the tool, `get_selection.trying`, NEVER_BLOCKED and its own recording check, the get_variation_result hint, the etiquette, the demo agent's moves; 6.1 the suite (written against this spec in parallel, run last on the merged tree); 6.3 and 7 |
@@ -885,8 +885,8 @@ recording many ideas in a session (B), and a check of the spec against the code 
   load order fix is taken.
 - *`docs/BRAND.md:101` has the old Recording options wording* (C-B4): it doesn't (101 is the device-naming paragraph,
   and a grep finds no "record onto" in BRAND or GUIDE). The private SPEC does; flagged.
-- *Hold the time-to-pretty budget in `simple-test.js`* (A15): it lives in `pick-sound-test.js` beside the flow it
-  measures, so `simple-test.js` stays the first screen's.
+- *Hold the time-to-pretty budget in `find-test.js`* (A15): it lives in `pick-sound-test.js` beside the flow it
+  measures, so `find-test.js` stays the first screen's.
 - *The new suite as `tools/instruments-test.js`*: that file exists (the acoustic instruments' signatures); the suite
   is `tools/pick-sound-test.js`.
 - *The Grid rule* (C-D): no change. In the simple view a keys take still snaps to 16ths, as today; Grid stays in

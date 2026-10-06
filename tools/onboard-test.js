@@ -408,10 +408,11 @@ try {
     await ctx.close();
   }
 
-  /* ================================================================ the simple view: no coach until you choose a door
-     A person's first visit (navigator.webdriver hidden, so the coach's own first-visit rule runs) opens the simple view
-     on the blank sheet: the coach doesn't start by itself and the welcome card doesn't show. ?coach still starts it,
-     and Tap a beat (the first minute) still runs. */
+  /* ================================================================ one studio: a first visit is the full studio
+     A person's first visit (navigator.webdriver hidden, so the coach's own first-visit rule runs) opens the full studio,
+     the simple view's hide-by-default gone: the welcome is up and the tour waits for it. ?view=simple (a URL only, for
+     one release) still opens the simple view on the blank sheet, where ?coach starts the tour and Tap a beat (the first
+     minute) still runs. */
   {
     const hide = () => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true }); };
     const ctx = await s.browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['microphone'] });
@@ -420,8 +421,8 @@ try {
     const boot = async (url) => { await pg.goto(s.base + url, { waitUntil: 'load' }); await pg.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); await sleep(900); };
     await boot('/app/');
     const first = await pg.evaluate(() => { const o = window.overdub, w = document.querySelector('.ar-welcome'); return { wd: navigator.webdriver, view: o.ui.workspace?.view?.() || null, coach: !!o.onboard?.active, card: !!document.querySelector('.ob:not(.out)'), welcome: !!w && w.getClientRects().length > 0, blank: !!document.querySelector('.ar-empty-title')?.getClientRects().length }; });
-    T.ok(first.wd === false && first.view === 'simple' && first.blank, `a person's first visit opens the simple view on the blank sheet (${JSON.stringify(first)})`);
-    T.ok(!first.coach && !first.card && !first.welcome, `... and the coach doesn't start by itself, nor the welcome card show (coach ${first.coach}, welcome ${first.welcome})`);
+    T.ok(first.wd === false && first.view === 'full' && !first.blank, `a person's first visit opens the full studio, nothing put away (${JSON.stringify(first)})`);
+    T.ok(!first.coach && !first.card && first.welcome, `... with the welcome up, and the coach waiting for it (coach ${first.coach}, welcome ${first.welcome})`);
     await boot('/app/?view=simple&coach');
     const forced = await pg.evaluate(() => ({ coach: !!window.overdub.onboard?.active, step: window.overdub.onboard?.step, view: window.overdub.ui.workspace?.view?.() || null }));
     T.ok(forced.coach && forced.view === 'simple', `?coach still starts the tour in the simple view (${JSON.stringify(forced)})`);

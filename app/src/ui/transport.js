@@ -84,16 +84,17 @@ export default function (app) {
   const loopKey = () => { if (lockedSay(app, 'The loop')) return; toggleLoop(); };
   ui.keys.add({ key: 'KeyL', run: loopKey, label: 'Loop on/off', group: 'Transport', feature: 'loop' });
   const click = clickSettings(app);
-  // the first press of each in a browser: what it did, and that the key moved (once; after that the announcement alone)
+  // the first press of a moved key in a browser: what it did, and that the keys moved (once, for all of them; after that
+  // the announcement alone)
   const clickKey = () => {
     const on = !engine.metronome, first = ui.keys.firstPress?.('KeyK');
     click.set({ on }, { announce: !first });
-    if (first) ui.toast(`Click ${on ? 'on' : 'off'}. \`K\` is the click now, as in Logic and GarageBand; \`M\` mutes.`, { ms: 6000 });
+    if (first) ui.toast(`Click ${on ? 'on' : 'off'}. ${ui.keys.movedNote}`, { ms: 6000 });
   };
   const countKey = () => {
     const first = ui.keys.firstPress?.('shift+KeyK');
     const n = click.cycleCountIn({ announce: !first });
-    if (first && n != null) ui.toast(`Count-in: ${n ? `${n} bar${n > 1 ? 's' : ''}` : 'off'}. \`⇧K\` steps it now, beside the click on \`K\`.`, { ms: 6000 });
+    if (first && n != null) ui.toast(`Count-in: ${n ? `${n} bar${n > 1 ? 's' : ''}` : 'off'}. ${ui.keys.movedNote}`, { ms: 6000 });
   };
   ui.keys.add({ key: 'KeyK', run: clickKey, label: 'The click (metronome) on/off', group: 'Transport', feature: 'song-settings' });
   ui.keys.add({ key: 'KeyK', mod: 'shift', run: countKey, label: 'Count-in: 1 bar, 2 bars, off', group: 'Transport', feature: 'record-options' });
