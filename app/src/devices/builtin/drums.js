@@ -35,6 +35,7 @@ export default defineDevice({
     { key: 'drive', label: 'DRIVE', min: 0, max: 1, def: 0.15, role: 'drive', desc: 'glue, then crunch' },
     { key: 'width', label: 'WIDTH', min: 0, max: 1, def: 0.6, role: 'width', desc: 'how far the hats, toms and cymbals spread' },
     { key: 'room', label: 'ROOM', min: 0, max: 1, def: 0.3, role: 'mix', desc: 'the room around the kit: dry booth to big live room' },
+    { key: 'hat_model', label: 'HATS', opts: ['ORIGINAL', 'PLATES', 'BANDS', 'SQUARES'], def: 0, role: 'shape', desc: "the hi-hat's model: each kit's original, two struck plates, banded noise, or six squares with a body (a note's mod opens the hats on all but the original)" },
   ],
   presets: [
     { name: 'Studio kit', params: {} },
@@ -66,6 +67,33 @@ const KITMAP = [null, null, null,
   { [HAT]: HM }];
 Object.assign(LEVEL, { [K8]: 1.38, [S8]: 0.95, [CP8]: 0.9, [H8]: 0.6, [T8]: 0.67, [RM8]: 0.56, [CY8]: 0.55, [MA8]: 0.27, [K9]: 1.32, [S9]: 1.2, [CP9]: 0.83, [H9]: 0.6, [T9]: 0.67, [RM9]: 0.56, [HM]: 0.6 });
 const HAT909 = [317.2, 436.4, 551.6, 697.1, 873.3, 1104.5];
+// The hat models (param hat_model; 0 keeps each kit's original hats, so no old song moves). Fitted to real one-shots by
+// measurement (overdub-private tools/drum-room/hat-models.mjs). Each takes an openness h (0 clamped .. 1 wide open):
+// 42 is 0, 46 is 1, and a note's mod, when it has one, sets it (and moves it while the note plays: the foot).
+//   PLATES   two plates of struck modes (evenly dense from the low body to the top), ringing for a time set by h, the
+//            chatter of the plates touching (noise that follows the plates' own motion) and the stick's thud. The
+//            stick's contact time sets how bright a stroke is. (cC, clash: more chatter held shut, a lower slap half
+//            open; the fit left both at 0.)
+//   BANDS    three bands of noise with their own rings, the top's low-pass falling as it rings, and a ring-mod tint
+//            (three square pairs multiplied). The cheapest.
+//   SQUARES  the classic machine's six squares through a band-pass, with what the circuit leaves out: the plates'
+//            body under 2 kHz, a stick tick (the fit all but removed it), and a detune per side (so it is stereo).
+// The foot (44) on every model: the plates clapped shut (a short dark ring) and the chick of them meeting.
+const XHP = 25, XHB = 26, XHS = 27, HAT6 = [1, 1.304, 1.466, 1.787, 1.932, 2.536];
+const HXP = {
+  p: { tC: 0.4187, tO: 2.065, hExp: 0.6142, nm: 48, lo: 152.1, hi: 17000, warp: 1, tilt: -0.0985, ampExp: -0.1711, chatter: 2.9, cbF: 6982, cbQ: 0.5, chp: 1095, tcS: 0.000225, tcH: 0.0001192, spread: 0.9, p2: 0.4794, fol: 15.15, cC: 0, clash: 0, clF: 900, thud: 0.6937, thF: 224.8 },
+  b: { tC: 0.4013, tO: 2.662, hExp: 0.35, f: [641.2, 1385, 6110], q: [0.8, 0.7, 0.9], g: [2.068, 0.1768, 0.7427], tm: [0.6492, 0.9176, 1], from: 18790, to: 10270, tau: 0.4885, ring: 0.138, rf: [200, 7530, 510, 8075, 730, 10500] },
+  s: { tC: 0.4431, tO: 2.603, hExp: 0.8428, f0: 300, bp: 6599, bpq: 1.133, hp: 3402, noise: 0.562, body: 0.06353, bodyN: 10, bodyLo: 280, bodyHi: 1607, tick: 0.005, det: 0.002 },
+  // the foot, per model: the plates' level (a) and brightness (fc) and ring (t) when clapped shut, and the chick
+  ped: [
+    { a: 0.5354, fc: 5251, t: 0.3582, bF: 614.9, bQ: 1.2, lF: 563, bG: 1.704, lG: 1.756, tau: 0.012 },
+    { a: 1.181, fc: 4810, t: 0.5337, bF: 529.4, bQ: 1.2, lF: 711.5, bG: 4, lG: 0.8335, tau: 0.009747 },
+    { a: 0.3312, fc: 1825, t: 0.5933, bF: 552.2, bQ: 1.2, lF: 745.4, bG: 1.472, lG: 0.2739, tau: 0.012 },
+  ],
+  // levels (tools/drum-room/calibrate-hats.mjs): the hats alone in a groove as loud as the original hats; open +4 LU
+  // and the foot -5 LU against a closed stroke
+  hOpen: 1, lvl: [0.275, 0.458, 0.716], go: [0.726, 0.653, 0.684], gp: [1.72, 0.616, 0.656] };
+LEVEL[XHP] = HXP.lvl[0]; LEVEL[XHB] = HXP.lvl[1]; LEVEL[XHS] = HXP.lvl[2];
 // lib's svf() and onepole(), op for op, as classes: one shared tick() a call site can inline, where lib's closures are a
 // fresh function per voice (so every voice's filters would be a different callee to the same line)
 class SV {
@@ -194,6 +222,31 @@ return {
     // draws are untouched): [freq, amp, phase]
     const ra = rng(seed ^ 0xacc5), HATM = [];
     for (let m = 0; m < 10; m++) HATM.push([3100 + 8600 * Math.pow((ra() + 1) / 2, 1.25), 0.55 + 0.45 * (ra() + 1) / 2, (ra() + 1) * Math.PI]);
+    // the hat models' plates (hat_model 1-3; their own seeded generator, so nothing above moves): PLATES' two plates of
+    // modes, evenly dense across lo..hi (stratified: no two modes beat, none line up into a pitch), each with its ring
+    // against the plate's (PT), its level (PA) and how the two overheads hear it (PL, PR: one angle apart, sometimes
+    // in opposite phase); and SQUARES' body modes
+    const XP = HXP.p, PN = 2 * XP.nm, SBN = HXP.s.bodyN, PB = Math.max(PN, SBN);
+    const PF = new Float64Array(PN), PT = new Float64Array(PN), PA = new Float64Array(PN), PL = new Float64Array(PN), PR = new Float64Array(PN);
+    const SF = new Float64Array(SBN), SL = new Float64Array(SBN), SRt = new Float64Array(SBN);
+    {
+      const rp = rng(seed ^ 0x4a75), u = () => (rp() + 1) / 2;
+      for (let pl = 0; pl < 2; pl++) {
+        const lo = XP.lo * (1 + 0.07 * pl), hi = XP.hi;
+        for (let k = 0; k < XP.nm; k++) {
+          const j = pl * XP.nm + k, f = lo + (hi - lo) * Math.pow((k + 0.15 + 0.7 * u()) / XP.nm, XP.warp);
+          PF[j] = f; PT[j] = Math.pow(f / 4000, XP.tilt) * (0.7 + 0.6 * u());
+          PA[j] = (0.4 + 0.6 * u()) * Math.pow(f / 1000, XP.ampExp) / Math.sqrt(XP.nm) * (pl ? XP.p2 : 1);
+          const th = (u() - 0.5) * Math.PI * XP.spread;
+          PL[j] = Math.cos(Math.PI / 4 + th) * Math.SQRT2; PR[j] = Math.sin(Math.PI / 4 + th) * Math.SQRT2 * (u() < 0.5 * XP.spread ? -1 : 1);
+        }
+      }
+      const S = HXP.s;
+      for (let k = 0; k < SBN; k++) {
+        SF[k] = S.bodyLo + (S.bodyHi - S.bodyLo) * (k + 0.15 + 0.7 * u()) / SBN;
+        SL[k] = S.body * (0.5 + 0.5 * u()) / Math.sqrt(SBN); SRt[k] = SL[k] * (0.6 + 0.8 * u());
+      }
+    }
     const voices = [];
     return {
       voice() {
@@ -204,7 +257,13 @@ return {
         const bandG = new Float64Array(3), bandE = new Float64Array(3), bandK = new Float64Array(3), bandB = new Float64Array(3);
         const vlp = new OP(sr);
         let type = KICK, kit = 0, t = 0, len = 1, vel = 1, g = 1, pan = [1, 1], nModes = 0, nBands = 0, f0 = 50, dec = 1, tn = 1;
-        let choke = 0, ck = 1, open = false, pedal = false, dark = false, p1 = 0, p2 = 0, sq = new Float64Array(6), am = 0, gone = false;
+        let choke = 0, ck = 1, open = false, pedal = false, dark = false, p1 = 0, p2 = 0, sq = new Float64Array(12), am = 0, gone = false;
+        // the hat models: a bank of modes heard by two mics (PLATES' plates, SQUARES' body), the openness now (hO) and
+        // by default (hD), the plates' motion (fol), the chick (C), the stereo spread (sw); Y2 is the right channel
+        const pc1 = new Float64Array(PB), pc2 = new Float64Array(PB), py1 = new Float64Array(PB), py2 = new Float64Array(PB);
+        const pcw = new Float64Array(PB), ptf = new Float64Array(PB), pgl = new Float64Array(PB), pgr = new Float64Array(PB), pon = new Uint8Array(PB);
+        const vlp2 = new OP(sr);
+        let cG1 = 0, cG2 = 0, pn = 0, hO = 0, hD = 0, fol = 0, folA = 0, C = 0, cK = 0, sw = 1, e1 = 0, e1k = 0, e2 = 0, e2k = 0, stereo = false;
         const NS = new Uint32Array(1);   // the hit's noise (rnd)
         let pitchN = 36;
         let tone = 0, xa = 0.1, xb = 0.1, xk = 1, x2 = 0, acc = 1;
@@ -241,6 +300,7 @@ return {
               break;
             }
             case MA8: nb[0].set(5500, 0.7); len = 0.15 * sr; break;
+            case XHP: case XHB: case XHS: setupH(); break;
             case HM: {
               nModes = HATM.length;
               const sc = tn * (1 + 0.01 * r());
@@ -259,8 +319,88 @@ return {
             }
           }
         }
+        // the hat models: set up a stroke (start), and the rings for the openness hO (start, and whenever it moves)
+        let wP = 0.6;
+        function setupH() {
+          const X = HXP, m = type - XHP;
+          // DUST's old sampler darkens them by a fixed amount (the model's own stick sets how bright a stroke is)
+          stereo = true; dark = kit === 2;
+          if (dark) { vlp.set(Math.min(sr * 0.45, 18800 * 0.55)); vlp.reset(); }
+          vlp2.a = vlp.a; vlp2.reset();
+          hD = pedal ? 0 : open ? X.hOpen : 0; hO = hD;
+          fol = 0; folA = Math.exp(-TAU * X.p.fol / sr);
+          const F = X.ped[m];
+          C = pedal ? 1 : 0; cK = coef(F.tau, sr); cG1 = F.bG; cG2 = F.lG;
+          lb[0].set(F.bF, F.bQ); lb[1].set(F.lF, 0.7);
+          sw = Math.min(1.5, wP / 0.6) * (kit === 2 ? 0.6 : 1);
+          g *= pedal ? X.gp[m] : open ? X.go[m] : 1;
+          pn = 0;
+          if (m === 0) {
+            // PLATES: the stick's contact time sets how far up the stroke reaches; the foot claps them, darker
+            const tc = X.p.tcS + (X.p.tcH - X.p.tcS) * vel, fc = pedal ? F.fc : 1.4 / tc, A = pedal ? F.a : 1;
+            pn = PN;
+            for (let k = 0; k < pn; k++) {
+              const f = Math.min(PF[k] * tn, sr * 0.45), w = TAU * f / sr, x = f / fc;
+              pcw[k] = Math.cos(w); ptf[k] = PT[k];
+              pgl[k] = PL[k]; pgr[k] = PR[k];
+              py1[k] = A * PA[k] * (0.85 + 0.15 * (rnd(NS) + 1)) / Math.sqrt(1 + x * x * x * x) * Math.sin(w);
+            }
+            nb[0].set(X.p.cbF, X.p.cbQ); nb[1].set(X.p.chp, 0.7); nb[2].set(X.p.cbF, X.p.cbQ); nb[3].set(X.p.chp, 0.7);
+            nb[4].set(X.p.clF, 0.7); nb[5].set(X.p.clF, 0.7); hb[0].set(X.p.thF, 0.7);
+            e2 = X.p.thud * vel; e2k = coef(0.006, sr);
+          } else if (m === 1) {
+            // BANDS: a band-pass per band and side, the low-pass over the top, the ring-mod's three pairs
+            const B = X.b;
+            for (let c = 0; c < 2; c++) for (let b = 0; b < 3; b++) nb[3 * c + b].set(B.f[b] * (1 + 0.03 * rnd(NS)), B.q[b]);
+            for (let k = 0; k < 6; k++) { fr[k] = Math.min(B.rf[k] * tn * (1 + 0.01 * rnd(NS)), sr * 0.2) / sr; sq[k] = (rnd(NS) + 1) / 2; }
+            for (let b = 0; b < 3; b++) bandE[b] = 1;
+            xa = 0.55 + 0.45 * vel; xb = 1.2 - 0.4 * vel;
+          } else {
+            // SQUARES: six squares per side, each side a hair detuned; the body's modes struck by the stick
+            const S = X.s, f0 = S.f0 * tn * (1 + 0.004 * rnd(NS));
+            for (let k = 0; k < 12; k++) { fr[k] = Math.min(f0 * HAT6[k % 6] * (1 + S.det * rnd(NS)), sr * 0.2) / sr; sq[k] = (rnd(NS) + 1) / 2; }
+            for (let c = 0; c < 2; c++) { nb[3 * c].set(S.bp, S.bpq); nb[3 * c + 1].set(S.hp, 0.7); nb[3 * c + 2].set(2500 + 14000 * vel * vel, 0.6); hb[c].set(3000, 0.7); }
+            const tc = 0.0004 + 0.0008 * (1 - vel), fc = pedal ? F.fc : 1.4 / tc;
+            pn = SBN;
+            for (let k = 0; k < pn; k++) {
+              const f = Math.min(SF[k] * tn, sr * 0.45), w = TAU * f / sr, x = f / fc;
+              pcw[k] = Math.cos(w); ptf[k] = 0.8; pgl[k] = 1; pgr[k] = SRt[k] / SL[k];
+              py1[k] = SL[k] / Math.sqrt(1 + x * x * x * x) * Math.sin(w) * (pedal ? F.a : 1);
+            }
+            e1 = 1; e2 = 1; e2k = coef(0.0015, sr);
+          }
+          hdecay();
+          // the bank's state: a struck mode, y[n] = a r^n sin((n + 1) w), so its first output sample is a sin(w)
+          for (let k = 0; k < pn; k++) { const a = py1[k]; py1[k] = 0; py2[k] = -a / (pc2[k] || 1); pon[k] = 1; }
+        }
+        function hdecay() {
+          const X = HXP, m = type - XHP, M = m === 0 ? X.p : m === 1 ? X.b : X.s;
+          const T = M.tC * Math.pow(M.tO / M.tC, Math.pow(hO, M.hExp)) * Math.pow(dec, 0.5 + 0.5 * hO) * (pedal ? X.ped[m].t : 1);
+          let top = T;
+          for (let k = 0; k < pn; k++) {
+            const t60 = Math.min(2 * T, T * ptf[k]), rr = Math.exp(-6.907755 / (Math.max(0.004, t60) * sr));
+            pc1[k] = 2 * rr * pcw[k]; pc2[k] = rr * rr; if (t60 > top) top = t60;
+          }
+          if (m === 1) for (let b = 0; b < 3; b++) { const tb = T * X.b.tm[b]; bandK[b] = Math.exp(-6.907755 / (tb * sr)); if (tb > top) top = tb; }
+          if (m === 2) e1k = Math.exp(-6.907755 / (T * sr));
+          len = t + Math.min(6, top * 1.1 + 0.05) * sr;
+        }
+        // a bank of struck modes into Xb (left) and Bb (right); a mode that has died away stops costing anything
+        function pbank(end) {
+          for (let i = 0; i < end; i++) { Xb[i] = 0; Bb[i] = 0; }
+          let live = 0;
+          for (let k = 0; k < pn; k++) {
+            if (!pon[k]) continue;
+            const a1 = pc1[k], a2 = pc2[k], gl = pgl[k], gr = pgr[k];
+            let u1 = py1[k], u2 = py2[k];
+            for (let i = 0; i < end; i++) { const v = a1 * u1 - a2 * u2; u2 = u1; u1 = v; Xb[i] += gl * v; Bb[i] += gr * v; }
+            py1[k] = u1; py2[k] = u2;
+            if (u1 * u1 + u2 * u2 < 1e-16) pon[k] = 0; else live++;
+          }
+          return live;
+        }
         // ---------------------------------------------------------------- the pieces: raw samples into Y, from sample t of the hit
-        let Y = new Float64Array(128), Xb = new Float64Array(128), Bb = new Float64Array(128);
+        let Y = new Float64Array(128), Xb = new Float64Array(128), Bb = new Float64Array(128), Y2 = new Float64Array(128);
         // a struck head's modes over the block, mode by mode: Xb[i] gets 0 + mode 0 + mode 1 + ..., the very sums (in the
         // very order) a per-sample loop over the modes makes, with each mode's phase and level held in registers.
         // Bb[i] is the pitch bend at sample i.
@@ -615,9 +755,67 @@ return {
             Y[i] = (x + nb[1].lp * Math.exp(-s / xa) * 0.9 + nb[2].bp * Math.exp(-s / 0.0012) * xk * 1.2) * Math.min(1, s / 0.0003) * (pedal ? 1.5 : open ? 1 : 1.8);
           }
         };
+        // the chick: the plates meeting under the foot (a pedal stroke)
+        const chick = () => { if (C < 1e-9) return 0; const z = rnd(NS); lb[0].tick(z); lb[1].tick(z); const y = (lb[0].bp * cG1 + lb[1].lp * cG2) * C; C *= cK; return y; };
+        const gHP = (Y, end, t) => {
+          // the chatter: the plates touching, as much as they move (more the tighter they're held); the clash: half
+          // open, they slap together, lower down; the thud: the stick's push on the stand
+          const X = HXP.p, live = pbank(end), ch = X.chatter * (1 + X.cC * (1 - hO)), cl = X.clash * 4 * hO * (1 - hO), a = folA;
+          for (let i = 0; i < end; i++, t++) {
+            const l = Xb[i], r = Bb[i], m = (l < 0 ? -l : l) + (r < 0 ? -r : r);
+            fol = m + (fol - m) * a;
+            const nl = rnd(NS), nr = rnd(NS);
+            nb[0].tick(nl); nb[1].tick(nb[0].bp); nb[2].tick(nr); nb[3].tick(nb[2].bp);
+            let yl = l + nb[1].hp * ch * fol, yr = r + nb[3].hp * ch * fol;
+            if (cl > 0) { nb[4].tick(nl); nb[5].tick(nr); yl += nb[4].bp * cl * fol; yr += nb[5].bp * cl * fol; }
+            if (e2 > 1e-7) { const th = hb[0].tick(nl) * e2; e2 *= e2k; yl += th; yr += th; }
+            const c = chick();
+            Y[i] = yl + c; Y2[i] = yr + c * 0.8;
+          }
+          if (!live && fol < 1e-9 && C < 1e-9) len = t;
+        };
+        const gHB = (Y, end, t) => {
+          const B = HXP.b, g0 = B.g[0] * xb, g1 = B.g[1], g2 = B.g[2], k0 = bandK[0], k1 = bandK[1], k2 = bandK[2], rl = B.ring;
+          let E0 = bandE[0], E1 = bandE[1], E2 = bandE[2];
+          for (let i = 0; i < end; i++, t++) {
+            const s = t / sr;
+            if ((t & 31) === 0) { const fc = B.to + (B.from - B.to) * xa * Math.exp(-s / (B.tau * (0.4 + 2 * hO))); hb[0].set(fc, 0.6); hb[1].set(fc, 0.6); }
+            let ring = 0;
+            for (let k = 0; k < 6; k += 2) {
+              const da = fr[k], db = fr[k + 1];
+              let qa = sq[k] + da; if (qa >= 1) qa -= 1; sq[k] = qa; let qb = sq[k + 1] + db; if (qb >= 1) qb -= 1; sq[k + 1] = qb;
+              ring += bsq(qa, da) * bsq(qb, db);
+            }
+            const atk = s < 0.0006 ? s / 0.0006 : 1, c = chick();
+            const nl = rnd(NS), nr = rnd(NS);
+            nb[0].tick(nl); nb[1].tick(nl); nb[2].tick(nl + ring * rl); nb[3].tick(nr); nb[4].tick(nr); nb[5].tick(nr + ring * rl);
+            Y[i] = hb[0].tick(nb[0].bp * g0 * E0 + nb[1].bp * g1 * E1 + nb[2].bp * g2 * E2) * atk + c;
+            Y2[i] = hb[1].tick(nb[3].bp * g0 * E0 + nb[4].bp * g1 * E1 + nb[5].bp * g2 * E2) * atk + c * 0.8;
+            E0 *= k0; E1 *= k1; E2 *= k2;
+          }
+          bandE[0] = E0; bandE[1] = E1; bandE[2] = E2;
+        };
+        const gHS = (Y, end, t) => {
+          pbank(end);
+          const S = HXP.s, nz = S.noise, tk = S.tick;
+          for (let i = 0; i < end; i++, t++) {
+            const s = t / sr, atk = s < 0.0005 ? s / 0.0005 : 1;
+            let ml = 0, mr = 0;
+            for (let k = 0; k < 6; k++) { const d = fr[k]; let q = sq[k] + d; if (q >= 1) q -= 1; sq[k] = q; ml += bsq(q, d); }
+            for (let k = 6; k < 12; k++) { const d = fr[k]; let q = sq[k] + d; if (q >= 1) q -= 1; sq[k] = q; mr += bsq(q, d); }
+            const nl = rnd(NS), nr = rnd(NS), c = chick();
+            nb[0].tick(ml * 0.25 + nl * nz); nb[1].tick(nb[0].bp); nb[3].tick(mr * 0.25 + nr * nz); nb[4].tick(nb[3].bp);
+            hb[0].tick(nl); hb[1].tick(nr);
+            const ek = e1 * atk, ce = e2 * tk;
+            Y[i] = nb[2].tick(nb[1].hp * ek + hb[0].hp * ce) + Xb[i] + c;
+            Y2[i] = nb[5].tick(nb[4].hp * ek + hb[1].hp * ce) + Bb[i] + c * 0.8;
+            e1 *= e1k; e2 *= e2k;
+          }
+        };
         const me = {
           get open() { return open && !gone; },
-          choke() { if (!choke) choke = coef(0.012, sr); },
+          get hx() { return type >= XHP && !gone; },
+          choke(tau) { if (!choke) choke = coef(tau || 0.012, sr); },
           start(p, v, P) {
             kit = P.kit | 0; vel = v; t = 0; choke = 0; ck = 1; gone = false; dec = P.decay; tn = Math.pow(2, P.tune / 12); pitchN = p;
             NS[0] = (((r() * 4294967296) ^ p) >>> 0) || 0x9e3779b9;
@@ -634,12 +832,19 @@ return {
             else if (p === 54) type = TAMB;
             else type = RIM;
             if (kit >= 3 && KITMAP[kit] && KITMAP[kit][type] !== undefined) type = KITMAP[kit][type];
+            stereo = false;
+            const hm = P.hat_model | 0;
+            if (hm > 0 && hm < 4 && (type === HAT || type === H8 || type === H9 || type === HM)) {
+              // the hat models: the same plates struck again, so what rang before gives way (a closed stroke stops it)
+              type = XHP + hm - 1;
+              for (const o of voices) if (o !== me && o.hx) o.choke(open && o.open ? 0.08 : 0.03);
+            }
             tone = P.tone;
             const bright = kit === 2 ? 0.55 : 1;
             g = LEVEL[type] * Math.pow(vel, 1.4);
             dark = (vel < 0.97 || kit === 2) && kit !== 3 && kit !== 4;
             vlp.set(Math.min(sr * 0.45, (1800 + 17000 * vel * vel) * bright)); vlp.reset();
-            const pw = P.width;
+            const pw = P.width; wP = pw;
             pan = panLR((PAN[p] || 0) * pw * (kit === 2 ? 0.6 : 1));
             p1 = 0; p2 = 0; nModes = 0; nBands = 0;
             for (const f of nb) f.reset(); for (const f of hb) f.reset(); for (const f of lb) f.reset();
@@ -698,10 +903,15 @@ return {
           },
           release() {},
           stop() { gone = true; },
-          render(L, R, n, P) {
+          render(L, R, n, P, tx) {
             if (gone) return false;
+            if (stereo) {
+              // a hat model's openness: the note's mod (or the wheel), while it plays; else the note's own
+              const hm = !pedal && tx && tx.mod > 0.02 ? Math.min(1, tx.mod) : hD;
+              if (hm !== hO) { hO = hm; hdecay(); }
+            }
             const end = Math.min(n, Math.max(0, Math.ceil(len - t)));
-            if (Y.length < n) { Y = new Float64Array(n); Xb = new Float64Array(n); Bb = new Float64Array(n); }
+            if (Y.length < n) { Y = new Float64Array(n); Xb = new Float64Array(n); Bb = new Float64Array(n); Y2 = new Float64Array(n); }
             // the piece (each its own loop, so the filters and the noise inline), then the voice's level, choke and fade
             switch (type) {
               case KICK: gKICK(Y, end, t); break;
@@ -727,6 +937,21 @@ return {
               case CY8: gCY8(Y, end, t); break;
               case MA8: gMA8(Y, end, t); break;
               case HM: gHM(Y, end, t); break;
+              case XHP: gHP(Y, end, t); break;
+              case XHB: gHB(Y, end, t); break;
+              case XHS: gHS(Y, end, t); break;
+            }
+            if (stereo) {
+              for (let i = 0; i < end; i++, t++) {
+                let y = Y[i], z = Y2[i];
+                if (dark) { y = vlp.lp(y); z = vlp2.lp(z); }
+                if (choke) { ck *= choke; y *= ck; z *= ck; if (ck < 1e-4) len = t + 1; }
+                const left = len - t; if (left < 0.02 * sr) { const f = left / (0.02 * sr); y *= f; z *= f; }
+                y *= g; z *= g;
+                const mid = (y + z) * 0.5, sd = (y - z) * 0.5 * sw;
+                L[i] += (mid + sd) * pan[0]; R[i] += (mid - sd) * pan[1];
+              }
+              return t < len;
             }
             for (let i = 0; i < end; i++, t++) {
               let y = Y[i];

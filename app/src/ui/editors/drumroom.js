@@ -219,7 +219,7 @@ export function mount(el, ctx) {
   const panels = {};
   const metaEls = {};
   const knob = (key, label, aria) => {
-    const c = ctx.control(key, { size: 48, label });
+    const c = ctx.control(key, key === 'hat_model' ? { kind: 'select', label } : { size: 48, label });   // a switch: a select keeps the row one line
     const d = c?.querySelector('[role=slider]');
     if (d && aria) d.setAttribute('aria-label', aria);
     return c;
@@ -242,6 +242,7 @@ export function mount(el, ctx) {
     const nm = NAME[piece];
     const keys = [[`${piece}_tune`, 'TUNE', `${nm} tune`], [`${piece}_decay`, 'DECAY', `${nm} decay`], [`${piece}_level`, 'LEVEL', `${nm} level`]];
     if (piece === 'snare') keys.push(['snare_wires', 'WIRES', 'Snare wires']);
+    if (piece === 'hat') keys.push(['hat_model', 'MODEL', 'Hi-hat model']);
     panel(piece, nm, keys, notesOf(piece).map((p) => [p, piece]));
   }
   panel('perc', 'Percussion', [['perc_level', 'LEVEL', 'Percussion level: tambourine, cowbell, shaker and claps']], PERC.flatMap((piece) => notesOf(piece).map((p) => [p, piece])));

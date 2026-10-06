@@ -270,7 +270,9 @@ Two built-in kits sit on the drums shelf (`cat: 'drums'`). Every kit plays the d
 track with one gets the drum grid.
 
 - **Gobo Kit** (`core.drums`): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
-  ACOUSTIC+.
+  ACOUSTIC+. `hat_model` picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
+  plates of struck modes that chatter), BANDS (banded noise) or SQUARES (six squares with a body). On the last three
+  a hat note's `mod` (0..1) sets how open the hats are, and moves them while the note plays.
 - **Studio A** (`core.drumroom`): an acoustic kit in a big tracking room, miked like a recording. It has
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
@@ -336,6 +338,7 @@ is the same layout `drumroom.js` builds the mics from, so the picture and the st
 - Each piece's `<piece>_tune`, `<piece>_decay` and `<piece>_level` for kick, snare, hat, tom1-tom4, ride, crash1,
   crash2, china and splash.
 - `snare_wires` (0 is snares off) and `perc_level`.
+- `hat_model`: ORIGINAL (the default) or PLATES (two plates of dense modes that chatter as they ring).
 - Every param carries a `group` (its piece, `mics`, `kit` or `perc`), so an editor can lay them out by piece.
 
 **A kernel technique it uses: probes.** A voice renders into one stereo pair and doesn't know where in the block it
