@@ -28,7 +28,7 @@ human's normal permission prompt, which they can set to "always allow".
 2. `get_project` (`detail: "summary"`): tempo, key, meter, sections, tracks, inserts with params, clips. Read one
    part's notes with `detail: "full"` and `track`; don't pull the whole song in full. It also names what the human has
    selected: **that is your scope.**
-3. `get_selection` only when you need the detail: the selected notes and insert, and what the studio has put away.
+3. `get_selection` only when you need the detail: the selected notes and insert.
 4. If you are coming back to a song, `get_history` first. If the human undid something of yours, it stays undone.
 
 The first tool call starts the local Overdub server if it isn't running and, if no studio tab is connected, opens
