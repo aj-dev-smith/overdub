@@ -822,6 +822,35 @@ ui.workspace = { FEATURES, view(), setView(view, { by }), has(id), panelShown(pa
                  add(ids, { by, note }), putAway(ids, { by }), reach(id, by), list(), openMore({ query }) }
 ```
 
+**Picking a sound** (`ui/sounds.js`, `app.sounds`; the sets in `core/sounds.js`; docs/INSTRUMENTS-UX.md): a new idea
+is a new track, and its sound is picked by ear on the **sound card** ("What should this sound like?"). After the first
+take onto a track that had no clips the card offers the track's current sound and up to four others that suit the
+take (`soundsFor(kindOfTake(take))`: a hum, a played line, chords, a bass line or a beat each have a set of real
+device ids and presets, `SOUND_SETS`); in the simple view it opens by itself with the take playing, in the full studio
+from the take's toast or the header's **Sounds**. Trying a sound is a **preview**: `store.preview({ type:
+'instrument.set', … })`, never in History; one track at a time, the next trial releasing the last. **Keep** releases it
+and dispatches one `instrument.set` by you in the same task (one undo step; a track still named after its old
+instrument is renamed with it; an agent's suggestion keeps `reason: 'suggested by …'`); **Back** releases it. A trial
+ends by itself, said in the card's status line or a toast with **Keep it**: R on that track and touching the tried
+device's controls keep it first; an undo or redo that touches the track, an agent tool that reads or changes the song
+(not `suggest_sounds`, `get_selection`, `get_variation_result`, `say`, `ask_human`, `get_recording`, `highlight`), another track
+selected, the browser's pane closed, the track removed or another song go back first. On an uncommitted Sketch take
+the card previews the track the Keep would make (`track.add`), and the take's own Keep makes track, clip and sound in
+one step. While a preview is applied `localStorage['overdub:sound-trying'] = { song, track, instrument, newTrack?, at
+}` holds what the track really plays, and the next boot puts it back (a preview by the house, nothing in History). The
+browser follows the same rule: a click on an instrument tries it on the selected track (Keep, Back in its target
+line); a melodic instrument on a drum track, or a kit on a pitched track with notes (`rack.isMismatch`), asks first
+(**New track with …**); Shift-click and a drop onto empty space make a new track, a drop onto a lane keeps at once.
+`suggest_sounds` (`agent/sounds-tool.js`) puts an agent's rows on the card, signed by it.
+
+```js
+app.sounds = { setHost(fn), offer({ track, from, anchor?, take? }), try(track, { device, preset? }, { play }),
+               tryNew(take, { device, preset? }), keep({ reason? }), back({ why? }), keepIfTrying(track),
+               trying() → { track, device, preset?, was, newTrack? } | null, pending(track), toastLine(made),
+               suggest(track, rows, { by, id, reason, done }) → { id }, close(), current → { track, rows, from } | null,
+               setsFor(track) }
+```
+
 **Take one** (`ui/onboard.js`, `app.onboard`): the first-run coach (hear it, take one, keep it, ask the agent, keep
 its take). Each step advances on the real event (transport, capture `add`, a kept clip by you, an agent's request or
 notes). State in `overdub:onboard`; never starts under `navigator.webdriver` unless `?coach` or `start({ force })`.
@@ -1091,6 +1120,16 @@ locked() → boolean                      // a take is running: tempo, meter and
 
 ### Lanes in the arranger (`ui/lanes.js`, `app.arranger`)
 
+**A track's header** shows its instrument as a button, `.ar-hinst` (its swatch, its name and an open glyph, in both
+views): a click on the name selects the track and opens the instrument big (`app.plugin.open({ track, slot:
+'instrument' })`, placed so it doesn't cover the track's lane); a held instrument opens the Devices tab instead. The
+full studio keeps the devices button `.ar-hdev` beside it. **Sounds** (`.ar-hsounds`) opens the sound card for that
+track: on the selected track, on a hovered or focused header (by CSS, its space always reserved), and *pending* on a
+new track until the card has been opened on it once. During a trial the header names the sound being tried ("Light
+Table, trying"). **Where R goes** is drawn in both views: the aimed track's R is lit (the simple view's is a lamp, not a
+button), and while the aim is a new track (Sketch open, a count-in or a take, or the card previewing a new track) a
+**ghost lane** at the foot reads "A new track, Lamp Tines": one row, no clips, a dashed hairline, nothing to select.
+
 A track's open lanes are rows under it (40 px, 48 on phones), one per param, in one layout (`rows()`) that drawing,
 hit-testing, the headers, `locate()` and presence read. Which lanes show is session state (`ui.state.lanes`); the
 lanes themselves are the song's, and they play shown or hidden. E (or a header's A key) toggles the selected track's
@@ -1155,10 +1194,18 @@ shared classes built on them (`.btn`, `.tog`, `.ledger`, `.sheet-head`, `.by`, �
   moved to the event's `timeStamp` with `engine.beatAt`), so loop passes never lose or reorder a note; a note in the
   count-in's last eighth is the downbeat, earlier ones and notes before the loop stay in capture only (the loop is
   the punch range). `capture.passOf(grid, span)` maps the grid to (pass, song beat).
-  - **Targets** (`recorder.targetFor(kind)`, also `input.target()`): keys and MIDI → an armed pitched track, an
-    armed drum track (armed on purpose), the selected track (a drum track too: the one R names), the first pitched
-    one: never keys onto drums by accident. A hum (`'hum'`) is the same but goes onto drums only when they're armed.
-    Pads and beatbox → an armed drum track, the selected one, the first (a new Drums track at commit if none). The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
+  - **The aim** (`recorder.aim(kind)` → `{ track | null, why }`, `recorder.setAim(kind, id | 'new' | null)`,
+    `recorder.on('aim')`; docs/INSTRUMENTS-UX.md 1.1): each kind of take (`hum`, `keys`, `pads`, `audio`) has a track
+    it goes onto, or a new track. Session state, never the song: the person's pick in **Onto** (`'new'` is one-shot:
+    its commit spends it, and the next take of that kind follows the track it made as the last take's), the last take of that kind, and the
+    selection when it is newer than that take. **Targets** (`recorder.targetFor(kind)`, also `input.target()`) read
+    it. In the simple view: the pick, the selected track if newer and it fits, the last take's track, for pads the
+    song's only drum track, else a new track. In the full studio the armed track still comes first (the pick, then an
+    armed track that fits, then the selected one that fits, else a new track; arming by hand clears the pick, and
+    "A new track" in Onto disarms), and nothing falls back to the first pitched track. A hum never goes onto an unarmed
+    drum track. A new track's name and first instrument are `core/sounds.js` `newPartFor(kind)` (Melody, Keys, Drums;
+    Lamp Tines or Gobo Kit); the track a take went onto is selected at commit, and the keys' new track is made when the
+    keys start, so they're heard where they'll be recorded. The mic → the armed audio track, else the selected one. Selecting a track makes it the target (auto-arm;
     the UI may draw it armed without setting `track.arm`); the ● button (`track.arm`) arms on purpose, ⌘ for more.
     `recorder.target` (the armed track, else the one last selected) is the arranger's lit R; where the take really
     lands is `recorder.lands()`: the target, except when R records a hum (`recorder.humming()`: Hum it open or a hum
@@ -1285,7 +1332,7 @@ AGENTS.md documents each tool in the catalog; by job:
 | read | `get_project`, `get_guide`, `get_selection`, `get_history`, `list_devices`, `get_device`, `get_capture`, `get_recording`, `provenance_report`, `find_grooves`, `get_jam`, `tab_for` |
 | change | `apply_ops`, `define_device`, `adjust`, `transform`, `arrange_around`, `arrange_song`, `use_groove`, `drum_track`, `make_jam_track`, `set_tone`, `write_tab`, `suggest_riff` |
 | listen | `render_and_measure`, `compare_to_reference`, `play`, `stop` |
-| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `get_variation_result`, `share_link` |
+| talk and point | `highlight`, `show_device`, `show_on_fretboard`, `say`, `ask_human`, `propose_variations`, `suggest_sounds`, `get_variation_result`, `share_link`, `workspace` |
 | take back | `undo`, `revert_my_changes` |
 
 - **The catalog without a tab.** Some tools are registered by page modules at boot (`installTools(app).register(def)`):
@@ -1293,8 +1340,8 @@ AGENTS.md documents each tool in the catalog; by job:
   (`agent/arrangement-tool.js`), `compare_to_reference` (`ui/reference.js`), `show_device` (`ui/plugin.js`),
   `find_grooves`, `use_groove` and `drum_track` (`agent/grooves-tool.js`, installed by `ui/grooves.js`), `get_jam`,
   `make_jam_track`, `set_tone` and `show_on_fretboard` (`ui/jam.js`), `tab_for`, `write_tab` and `suggest_riff`
-  (`agent/tabs-tool.js`, installed by `ui/tabs.js`), `share_link` (`ui/share.js`) and
-  `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
+  (`agent/tabs-tool.js`, installed by `ui/tabs.js`), `workspace` (`agent/workspace-tool.js`), `suggest_sounds`
+  (`agent/sounds-tool.js`), `share_link` (`ui/share.js`) and `provenance_report` (`ui/provenance.js`). Their schemas live in `agent/extra-schemas.js` (no DOM), and
   `catalogSchemas()` lists them with the static ones, so `server/mcp.js` and `server/bridge.js` list them all before a
   studio tab connects. `tools/relay-catalog.js` writes the same list to `server/relay-catalog.json`, which is all the
   relay ever lists, tab or no tab (`relay-test` checks it is current). `register()` emits ui `agent:tools` and the
@@ -1516,7 +1563,8 @@ analytics, plugin, jam, site }` plus the panels that publish an API (`arranger`,
 ## Testing
 
 `tools/pw.js` opens the studio in Chromium (WebKit and Firefox too, for `compat-test` and `phone-test`) on its own
-server on a free port (`open('/app/')`), with fake media and autoplay allowed, so suites run in parallel. Each area
+server on a free port (`open('/app/')`), with fake media and autoplay allowed, so suites run in parallel. The fake mic plays a file
+(`open(…, { fakeAudio })`): `tools/fake-wav.js` writes the ones the checks use (a hummed line, a beatbox). Each area
 adds `tools/<area>-test.js` that prints `ok`/`FAIL` lines and exits 1 on failure; fail on page errors (`errors` from
 `open`). Screenshots go to `tools/.out/`. `node tools/run-all.js` runs every suite (`PAR=3` at a time by default) and
 leaves its totals in `tools/.out/run-all.json`, which `tools/pages-test.js` holds the public check count to.

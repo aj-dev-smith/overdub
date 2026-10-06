@@ -160,7 +160,7 @@ How each is decided (the comment above `TOOLS` says the same):
 |---|---|
 | read-only | `get_project`, `get_guide`, `get_selection`, `get_history`, `list_devices`, `get_device`, `render_and_measure`, `get_variation_result`, `get_capture`, `get_recording`, `compare_to_reference`, `share_link`, `provenance_report`, `tab_for` |
 | destructive | `apply_ops`, `define_device`, `adjust`, `propose_variations`, `transform`, `arrange_song`, `undo`, `revert_my_changes`, `write_tab`, `suggest_riff` (a riff the person keeps replaces what was in those bars) |
-| neither (changes the room, or only adds) | `play`, `stop`, `highlight`, `say`, `ask_human`, `show_device`, `arrange_around` |
+| neither (changes the room, or only adds) | `play`, `stop`, `highlight`, `say`, `ask_human`, `show_device`, `arrange_around`, `workspace`, `suggest_sounds` (rows on the person's sound card; the song changes only when they keep one) |
 
 A tool without them fails the checks by name, with where to add them: `node tools/relay-catalog.js` won't write the
 catalog and the relay won't load one, and `tools/agent-test.js` checks every catalog, the tab's own included.

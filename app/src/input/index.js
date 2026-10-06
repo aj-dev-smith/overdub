@@ -3,9 +3,10 @@
 //   input.on(type, fn) -> off ; input.emit(type, detail)
 //     'audio' (input state) 'take' (an audio take landed) 'hum' 'beatbox' 'qwerty' 'midi' 'mode' 'capture' 'note'
 //     'record' (the recorder's state) 'devices' (an input was plugged in or out)
-//   input.target(kind = 'keys')    the track live notes play and record onto (recorder.targetFor): an armed pitched
-//                                  track, an armed drum track (on purpose), the selected one (a drum track too, as R
-//                                  says), the first pitched one. Never keys onto drums by accident.
+//   input.target(kind = 'keys')    the track live notes play and record onto: the aim (recorder.targetFor), or null
+//                                  when that is a new track. The keys are heard where they'll be recorded: aimed at a
+//                                  new track, it is made when they start (musical typing on, a touch key, the first
+//                                  MIDI note: recorder.keysTrack), never a stand-in track that the take won't land on
 //   input.noteOn(src, p, v, kind) / noteOff(src, p, kind)   live notes (engine) + capture; MIDI and typing use these
 //   input.expr(src, { bend?, mod?, sustain? }, kind)    the channel's expression on the target's instrument (midi.js)
 //   input.mode                     null | 'qwerty' | 'tap' (which keys the home row plays); input.setMode(mode)
@@ -35,9 +36,7 @@ export default function (app) {
     on(t, fn) { if (!fns.has(t)) fns.set(t, new Set()); fns.get(t).add(fn); return () => fns.get(t).delete(fn); },
     emit(t, d) { for (const fn of fns.get(t) || []) { try { fn(d); } catch (e) { console.error('input listener', t, e); } } },
     target(kind = 'keys') {
-      const t = input.recorder ? input.recorder.targetFor(kind) : null;
-      if (t || kind !== 'keys') return t;
-      return app.store.get().tracks.find((x) => x.kind === 'instrument') || null;
+      return input.recorder ? input.recorder.targetFor(kind) : null;
     },
     setMode(m) {
       if (m === 'qwerty') return input.qwerty.toggle(true);
@@ -50,7 +49,8 @@ export default function (app) {
   };
   const live = new Map(); // src:p -> track id (the note-off goes where the note-on went)
   input.noteOn = (src, p, v = 0.8, kind = 'midi') => {
-    const t = input.target();
+    // (the keys aimed at a new track: the first note makes it, so it sounds where it will be recorded)
+    const t = input.target() || input.recorder?.keysTrack?.() || null;
     const k = src + ':' + p;
     if (live.has(k)) input.noteOff(src, p, kind);
     if (t) { live.set(k, t.id); try { app.engine.liveNoteOn(t.id, p, v); } catch (e) { console.warn('live note', e); } }
@@ -100,6 +100,10 @@ export default function (app) {
   input.tap = createTap(app, input);
   input.midi = createMidi(app, input);
   input.qwerty = createQwerty(app, input);
+  // musical typing turned on with the keys aimed at a new track: the track is made first, so the strip names it and
+  // the first key sounds there
+  const qtoggle = input.qwerty.toggle;
+  input.qwerty.toggle = (on = !input.qwerty.on) => { if (on && !input.qwerty.on && !input.target()) input.recorder.keysTrack(); return qtoggle(on); };
 
   // the tap pads on the home row, while Tap is on (and the Sketch pane shows it)
   const tapOn = () => input.mode === 'tap' && (!app.ui.visible || !app.ui.panels?.has('sketch') || app.ui.visible('sketch'));

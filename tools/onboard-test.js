@@ -114,6 +114,9 @@ try {
   await take(['KeyF', 'KeyJ', 'KeyK', 'KeyF', 'KeyL']);
   const beat = await E(() => { const o = window.overdub; return { step: o.onboard.step, title: document.querySelector('.ob .ob-t')?.textContent, text: document.querySelector('.ob')?.textContent || '', hits: o.store.get().tracks.find((t) => t.name === 'Drums').clips.reduce((n, c) => n + c.notes.filter((x) => (x.by || c.by) === 'you').length, 0) }; });
   T.ok(beat.step === 'ask' && beat.title === 'Your beat is in the song.' && beat.hits >= 4 && /Play keys over it/.test(beat.text), `R, F J K L, Space: "${beat.title}" (${beat.hits} hits in the song), and keys over it next`);
+  // (docs/INSTRUMENTS-UX.md 2.7: the card offers Hum over it first, then the keys, then the agent)
+  const bc = await E(() => ({ btns: [...document.querySelectorAll('.ob .ob-acts button')].map((b) => b.textContent.trim()), line: document.querySelector('.ob .ob-body > p')?.textContent || '' }));
+  T.ok(bc.btns[0] === 'Hum over it' && bc.btns[1] === 'Play keys over it' && /^\d+ hits on Drums, bars? [\d–]+\. Next, hum a tune over it, play the keys, or let the agent play a part over it\.$/.test(bc.line), `the beat's card offers Hum over it first (${bc.btns.join(', ')}): "${bc.line}"`);
   const tc1 = await toastClear();
   T.ok(/Your beat is in/.test(tc1.text) && tc1.bottom && tc1.ts.every((t) => !overlaps(t, [tc1.bottom, ...tc1.btns]) && !(tc1.ob && overlaps(t, [tc1.ob]))), `the take's toast stays off the detail pane (the Takes list's ${tc1.btns.length} Hear / Keep / Agent buttons) and off the tour card (${tc1.ts.length} toasts: "${tc1.text.slice(-90)}")`);
   await shot('onboard-own-beat');
@@ -234,6 +237,44 @@ try {
     drawn.push(await E(() => ({ step: window.overdub.onboard.step, text: document.querySelector('.ob')?.textContent || '' })));
   }
   T.ok(drawn[2].step === 'ask' && /Your 3 hits are on a track/.test(drawn[2].text), `three squares drawn in the first minute: the card says "Your 3 hits" (${drawn.map((d) => `${d.step}: ${(d.text.match(/Your \d+ hits?/) || ['?'])[0]}`).join(' → ')})`);
+  await E(() => { window.overdub.onboard.stop(); window.overdub.engine.stop(); });
+  await undoToast();
+  await sleep(300);
+  // Hum over it (docs/INSTRUMENTS-UX.md 2.7): the beat runs 8 bars (one undo step, the loop with it), the click goes off
+  // (the take's too) while you hum, Sketch is on Hum it with Onto on "A new track", and its line says so, with the
+  // headphones once a session; a hum kept from Sketch lands on a new track, Melody, the click comes back, and the card
+  // moves on to the agent
+  await ownNow();
+  await take(['KeyF', 'KeyJ', 'KeyK', 'KeyL']);
+  const h0 = await E(() => ({ hist: window.overdub.store.history.length, click: window.overdub.transport.click.get() }));
+  await page.click('.ob button:has-text("Hum over it")');
+  await sleep(500);
+  const ho = await E(() => {
+    const o = window.overdub, p = o.store.get(), d = p.tracks.find((t) => t.name === 'Drums'), on = d.clips.filter((c) => !c.mute);
+    const last = o.store.history[o.store.history.length - 1];
+    return { start: Math.min(...on.map((c) => c.start)), end: Math.max(...on.map((c) => c.start + c.length)), loop: p.loop, hist: o.store.history.length, label: last?.label, by: last?.by, metro: o.engine.metronome, click: o.transport.click.get(), mode: o.input.sketchMode,
+      onto: document.querySelector('.sk-target')?.selectedOptions[0]?.textContent, line: document.querySelector('[data-panel="sketch"] .sk-status')?.textContent || '', step: o.onboard.step, minute: o.onboard.minute, card: document.querySelector('.ob')?.textContent || '' };
+  });
+  T.ok(ho.end - ho.start === 32 && ho.loop.on && ho.loop.start <= ho.start && ho.loop.end >= ho.end && ho.hist === h0.hist + 1 && ho.label === 'make it 8 bars' && ho.by === 'you', `Hum over it: the beat runs 8 bars and the loop holds them, one undo step by you (${JSON.stringify({ beat: [ho.start, ho.end], loop: [ho.loop.start, ho.loop.end], label: ho.label })})`);
+  T.ok(h0.click.on && !ho.metro && !ho.click.on && !ho.click.takes, `the click goes off while you hum, the take's click too (${JSON.stringify({ before: h0.click, after: ho.click })})`);
+  T.ok(ho.mode === 'hum' && ho.onto === 'A new track' && /The beat runs 8 bars now, so a tune has room\./.test(ho.line) && /Headphones keep the drums out of your hum\./.test(ho.line) && ho.step === 'ask' && ho.minute === 'hum', `Sketch is on Hum it, Onto "${ho.onto}", and its line says "${ho.line}"`);
+  await shot('onboard-hum-over');
+  await E(async () => {
+    const sr = 48000, ps = [60, 64, 67, 69, 67, 64, 62, 60], seg = 0.4, x = new Float32Array(Math.round(sr * seg * ps.length + sr * 0.3));
+    let ph = 0; ps.forEach((p, i) => { const f = 440 * 2 ** ((p - 69) / 12); for (let n = 0; n < sr * seg * 0.9; n++) { ph += 2 * Math.PI * f / sr; x[Math.round(i * seg * sr) + n] = 0.3 * Math.sin(ph) + 0.1 * Math.sin(2 * ph); } });
+    await window.overdub.input.hum.fromSamples(x, sr);
+  });
+  await sleep(400);
+  const back = await E(() => ({ metro: window.overdub.engine.metronome, click: window.overdub.transport.click.get() }));
+  await page.click('[data-panel="sketch"] .sk-acts .btn-go');
+  await sleep(500);
+  const hk = await E(() => { const o = window.overdub, p = o.store.get(), m = p.tracks.find((t) => t.name === 'Melody'); return { tracks: p.tracks.map((t) => t.name), notes: m ? m.clips.reduce((n, c) => n + c.notes.length, 0) : 0, sel: o.store.track(o.ui.state.selection.track)?.name, card: document.querySelector('.ob')?.textContent || '', played: o.onboard.played() }; });
+  T.ok(back.metro && back.click.on && back.click.takes, `after the hum's take the click is back as it was (${JSON.stringify(back.click)})`);
+  T.ok(hk.tracks.join() === 'Drums,Melody' && hk.notes > 0 && /Your hum is in/.test(hk.card) && hk.played.notes === hk.notes, `Keep puts the hum on a new track, Melody (${hk.notes} notes; tracks ${hk.tracks.join(', ')}), and the card moves on to the agent ("${(hk.card.match(/Your hum is in[^.]*\./) || [''])[0]}")`);
+  await E(() => window.overdub.onboard.humOver());
+  await sleep(300);
+  const again = await E(() => document.querySelector('[data-panel="sketch"] .sk-status')?.textContent || '');
+  T.ok(!/Headphones/.test(again), `the headphones line is said once a session ("${again.slice(0, 80)}")`);
   await E(() => { window.overdub.onboard.stop(); window.overdub.engine.stop(); });
   await undoToast();
   await sleep(300);

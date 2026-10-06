@@ -392,11 +392,11 @@ async function phone(pw, srvUrl, run) {
       if (name === 'agent') T.ok(sh.open && sh.top >= sh.vh * 0.2 && sh.top <= sh.vh * 0.42 && sh.bottom >= sh.vh && sh.w >= sh.vw - 1 && sh.lanes > 40, `${label}: the agent opens as a sheet at about 70% of the height, the timeline in view above it (${sh.left},${sh.top} ${sh.w}x${sh.bottom - sh.top} in ${sh.vw}x${sh.vh}; ${sh.lanes} px of lanes above)`);
       else T.ok(sh.open && sh.top <= 0 && sh.bottom >= sh.vh && sh.w >= sh.vw - 1, `${label}: the ${name} opens as a full-height sheet (${sh.left},${sh.top} ${sh.w}x${sh.bottom - sh.top} in ${sh.vw}x${sh.vh})`);
       T.ok(sh.x && sh.x[0] >= 44 && sh.x[1] >= 44 && sh.xHit, `${label}: the ${name} sheet has a close button you can hit ("${sh.name}", ${sh.x?.join('x')})`);
-      // the browser says what a finger does with a row: a tap puts it on the track (no drag and drop out of a sheet over
-      // the studio)
+      // the browser says what a finger does with a row: a tap tries it on the track, or puts it on (no drag and drop out
+      // of a sheet over the studio)
       if (name === 'browser') {
         const tg = await E(() => document.querySelector('.br-target')?.textContent || '');
-        T.ok(/^Tap puts it on/.test(tg) && !/drag|click/i.test(tg), `${label}: the browser says where a tap puts a device ("${tg}")`);
+        T.ok(/^Tap (tries|puts) it on|^Tap tries a kit on/.test(tg) && !/drag|click/i.test(tg), `${label}: the browser says where a tap puts a device ("${tg}")`);
       }
       await noSideways(`with the ${name} open`);
       await readable(`.ew-region-${region}`, `in the ${name} sheet`);
@@ -901,8 +901,9 @@ const line = (x0, y0, x1, y1, n = 12) => Array.from({ length: n + 1 }, (_, i) =>
 
 // The sixth round's phone findings that hold in every engine (docs/FRESH-EYES-6.md): Add an effect's search left
 // unfocused (no keyboard over its list, 16 px if tapped); Studio A's KIT menu and VIEW lever, Hum it's chips and the
-// line over the touch keys reach 44 px; a tap on an instrument in the browser asks where it goes (it swapped the
-// selected track's instrument out); at most two toasts, the same one counted.
+// line over the touch keys reach 44 px; a tap on an instrument in the browser never swaps the selected track's
+// instrument out (it did): on a drum track a melodic one asks, a new track first; on a pitched track it's tried, with
+// Keep and Back (docs/INSTRUMENTS-UX.md 2.4); at most two toasts, the same one counted.
 async function phoneSix(page, E, label, shot, tap) {
   const reach = (sel) => E((sel) => [...document.querySelectorAll(sel)].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden').map((e) => {
     e.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -927,24 +928,39 @@ async function phoneSix(page, E, label, shot, tap) {
   const lever = await reach('[data-panel="rack"] .rk-inst .rk-face .ms-b');
   T.ok(kit.length >= 1 && kit.every((x) => x.ok) && lever.length >= 1 && lever.every((x) => x.ok), `${label}: Studio A's face in Devices has a 44 px KIT menu and VIEW lever under a finger (${say(kit)}; ${say(lever)})`);
   await shot('studioa-face');
-  // the browser: a tap on an instrument while the selected track plays one asks where it goes, and changes nothing
-  // until you pick; the line over the list says what a tap does
+  // the browser: a tap on a melodic instrument while a drum track is selected asks, a new track with it first, and
+  // changes nothing until you pick; the line over the list says what a tap does
   await E((id) => { const o = window.overdub; o.ui.select({ track: id, insert: null }); o.ui.setOpen('left', true); o.ui.show('browser'); }, sa);
   await sleep(450);
   const tg = await E(() => document.querySelector('.br-target')?.textContent || '');
-  T.ok(/^Tap puts it on/.test(tg) && /in place of Studio A, or a new track/.test(tg) && !/drag|click/i.test(tg), `${label}: the browser says where a tap puts a sound, and that an instrument asks first ("${tg}")`);
+  T.ok(/^Tap tries a kit on Studio A\./.test(tg) && /Another instrument asks first: a track of its own, or on Studio A anyway\./.test(tg) && !/drag|click/i.test(tg), `${label}: the browser says what a tap does, and that another instrument asks first ("${tg}")`);
   const before = await E(() => ({ n: window.overdub.store.history.length, tracks: window.overdub.store.get().tracks.length }));
   const row = '.br-row[data-device="core.wavetable"]';
   await E((row) => document.querySelector(row)?.scrollIntoView({ block: 'center', behavior: 'instant' }), row);
   await tap(row);
   await sleep(300);
   const ask = await E(() => ({ items: [...document.querySelectorAll('.ek-pop .ek-item')].map((b) => b.textContent), n: window.overdub.store.history.length, dev: window.overdub.store.get().tracks.find((t) => t.name === 'Studio A')?.instrument?.device }));
-  T.ok(ask.items.length === 2 && ask.n === before.n && ask.dev === 'core.drumroom', `${label}: a tap on Light Table asks where it goes and swaps nothing (${ask.items.join(' / ')}; ${ask.n - before.n} changes)`);
+  T.ok(ask.items.length === 2 && /^New track with Light Table/.test(ask.items[0]) && /^On Studio A anyway/.test(ask.items[1]) && ask.n === before.n && ask.dev === 'core.drumroom', `${label}: a tap on Light Table on a drum track asks, a new track first, and swaps nothing (${ask.items.join(' / ')}; ${ask.n - before.n} changes)`);
   await shot('browser-ask');
   if (ask.items.length) await tap('.ek-pop .ek-item');
   await sleep(300);
   const after = await E(() => ({ n: window.overdub.store.history.length, tracks: window.overdub.store.get().tracks.length, last: window.overdub.store.get().tracks.at(-1)?.instrument?.device, dev: window.overdub.store.get().tracks.find((t) => t.name === 'Studio A')?.instrument?.device }));
-  T.ok(after.tracks === before.tracks + 1 && after.last === 'core.wavetable' && after.dev === 'core.drumroom', `${label}: "On a new track" puts it on a track of its own (${after.tracks - before.tracks} track added, Studio A still plays ${after.dev})`);
+  T.ok(after.tracks === before.tracks + 1 && after.last === 'core.wavetable' && after.dev === 'core.drumroom', `${label}: "New track with Light Table" puts it on a track of its own (${after.tracks - before.tracks} track added, Studio A still plays ${after.dev})`);
+  // a tap on another melodic instrument with that new (pitched) track selected tries it: no menu, nothing in History,
+  // Keep and Back in the line; Back puts Light Table back
+  const lt = await E(() => { const o = window.overdub, t = o.store.get().tracks.at(-1); o.ui.select({ track: t.id, insert: null }); return { id: t.id, n: o.store.history.length }; });
+  await sleep(200);
+  const row2 = '.br-row[data-device="core.keys"]';
+  await E((row) => document.querySelector(row)?.scrollIntoView({ block: 'center', behavior: 'instant' }), row2);
+  await tap(row2);
+  await sleep(300);
+  const tri = await E((lt) => { const o = window.overdub; return { menu: document.querySelectorAll('.ek-pop .ek-item').length, dev: o.store.track(lt.id)?.instrument?.device, n: o.store.history.length, line: document.querySelector('.br-target')?.textContent || '', keep: document.querySelector('.br-target .br-keep')?.getBoundingClientRect().height || 0 }; }, lt);
+  T.ok(!tri.menu && tri.dev === 'core.keys' && tri.n === lt.n && /^Trying Lamp Tines on Light Table\./.test(tri.line) && tri.keep >= 40, `${label}: a tap on Lamp Tines on a pitched track tries it, no menu, nothing in History ("${tri.line}", Keep ${Math.round(tri.keep)} px tall)`);
+  await shot('browser-trial');
+  await tap('.br-target .br-back');
+  await sleep(250);
+  const bk = await E((lt) => ({ dev: window.overdub.store.track(lt.id)?.instrument?.device, n: window.overdub.store.history.length }), lt);
+  T.ok(bk.dev === 'core.wavetable' && bk.n === lt.n, `${label}: Back puts Light Table back, nothing in History`);
   await E((n) => { const o = window.overdub; while (o.store.history.length > n && o.store.canUndo()) o.store.undo(); for (const p of document.querySelectorAll('.ek-pop')) p.remove(); o.ui.setOpen('left', false); }, before.n);
   await sleep(300);
   // Sketch: Hum it's Snap and grid chips, and the line over the touch keys, reach 44 px

@@ -695,7 +695,8 @@ const boot = async (opts = {}) => {
     await sleep(300);
     const k1 = await E(() => { const o = window.overdub, g = o.jam.guitars().keys; return { keys: g?.name, dev: g?.instrument?.device, target: o.input.target()?.id === g?.id, hidden: document.querySelector('.jm-keys').hidden }; });
     await E(() => window.overdub.input.setMode(null));
-    T.ok(/^The keys play Bass\. Give the keys a guitar$/.test(k0.line) && k0.y <= k0.neck, `on Night Shift (its Guitar is audio) the room says by the neck what the keys play ("${k0.line}")`);
+    // (nothing selected: the keys play a new track when they start, not the first instrument: docs/INSTRUMENTS-UX.md 1.1)
+    T.ok(/^The keys play a new track\. Give the keys a guitar$/.test(k0.line) && k0.y <= k0.neck, `on Night Shift (its Guitar is audio) the room says by the neck what the keys play ("${k0.line}")`);
     T.ok(k1.keys === 'Keys guitar' && k1.dev === 'core.guitar' && k1.target && k1.hidden, 'musical typing turned on in the room plays a guitar: a Keys guitar for the keys, and the line goes');
     await jamTrack('blues');
     const k2 = await E(() => ({ hidden: document.querySelector('.jm-keys').hidden, any: /The keys play/.test(document.querySelector('[data-panel="jam"]').textContent), target: window.overdub.input.target()?.name }));

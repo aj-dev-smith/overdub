@@ -102,8 +102,10 @@ two together):
    to see it, or when they need a hidden control to see or take over your change, bring it in with `workspace` (add or
    open) and say where it is in one line; otherwise offer it in one line ("That's in the Mixer. Add it?"). Only put
    away what you added, and never switch their view, unless they ask. Anything that rewrites notes the human wrote or writes over an automation lane they drew, changes the song's
-   structure, or would take long to audition: `propose_variations` (2-4 takes, each labelled by what differs). Never
-   make the whole song unasked, and never replace it unasked: `make_jam_track` replaces the song on screen, so make one
+   structure, or would take long to audition: `propose_variations` (2-4 takes, each labelled by what differs). A
+   track's sound is the person's to pick by ear: when they ask what something should sound like, or for other sounds,
+   use `suggest_sounds` (2-4, each with why) rather than `instrument.set`. When they name the instrument ("make it a
+   choir"), set it, and say what it was. Never make the whole song unasked, and never replace it unasked: `make_jam_track` replaces the song on screen, so make one
    only when they ask for something to jam over.
 3. **Words steer, they don't specify.** For melody or harmony, ask the human to hum, tap or play it (`get_capture`
    reads what they did) instead of guessing from words. For "warm", "fat", "tight" (low agreement or two meanings)
@@ -175,7 +177,7 @@ the device's presets.
 |---|---|
 | `get_project` | the song: title, tempo, key, meter, sections, tracks with instrument, inserts (with params) and clips, the selection and the last few history entries. `detail: "full"` (optionally with `track`) includes every note. A device with over 40 params is shown as its preset and what differs from it (`preset "Bokeh" + {"flt_cutoff":900}`), or what differs from its defaults. Automation lanes are listed under their track (`auto: Keyhole cutoff (fx_k) 31:600 32:4500 48:600, by claude`, held ones marked). `held` lists the song's devices kept off on this computer (see below); `from_link`, first, says the song came from someone's link and isn't the person's yet; `key_note` says when the key is a new song's default nobody chose (C minor, as Sketch treats it). |
 | `get_guide` | the studio's guides: `etiquette`, `devices` (kernel writing), `ops`, `lexicon`, `transforms` (every transform's params and defaults). Outside agents: read first. `lexicon` also returns `personal`: what this human means by warm, fat and tight, learned from their A/B picks. Follow it. |
-| `get_selection` | what the human is looking at: track, clip (with notes, and a grid for drums), selected notes, range (beats and bars), insert (with params), playhead, and the key (marked when nobody chose it yet); `from_link` as `get_project` has it. |
+| `get_selection` | what the human is looking at: track, clip (with notes, and a grid for drums), selected notes, range (beats and bars), insert (with params), playhead, and the key (marked when nobody chose it yet); `from_link` as `get_project` has it; `trying`: `{ track, device }` while the person is hearing a sound on a track before keeping it (the song still has the old one, and `track.instrument` says that one; your next call that reads or changes the song puts it back first), else `null`. |
 | `get_history` | recent changes, newest first: who, label, reason, summary. Check it before redoing something. |
 | `apply_ops` | change the song: a list of ops, one undo step, signed by you, with `label` and `reason`. All or nothing. Everything it adds is signed by you: any `by` in the ops is dropped, and so are internal fields (names starting with `_`). Devices go through `define_device`, not `device.define`. Params are checked against each device first (see [Param values](#param-values)), and `preset: "<name>"` sets a named sound. Returns created ids (two creating ops of one kind with no ref come back as `section1`, `section2`, …), a compact diff (a device's line names a dozen param changes and how many more), the presets it set, or an error naming the failing op. Takes the automation ops (`auto.write`, `auto.clear`, `auto.set`) and says, in `lanes`, when a static set lands on a param whose lane plays (it only changes the value the lane holds at). Its description names each op and its fields; `get_guide "ops"` has the rest. |
 | `list_devices` | instruments and effects (`kind`, `cat`, `query`): built-ins, the Guitar Studio's pedals and amps, and devices written in this song. Each device's params (range, unit, curve, role and meaning) while the list stays under about 8,000 characters, and always for a single device; past that, names, param keys and presets, and `get_device` for the one wanted (`detail` `"params"` or `"brief"` chooses). A `cat` nothing is filed under ("guitar") lists the devices that mention the word, and the categories. |
@@ -188,7 +190,7 @@ the device's presets.
 | `highlight` | point at a track, clip, notes, bars or insert with a short note: it glows in your colour. |
 | `show_device` | open a device's window for the human: one instrument or effect shown big, every control with its value, its presets, A/B, a scope of its output and, for an instrument, a keyboard (`track`, `slot`: `"instrument"` or an insert id; `close: true` closes it). It changes nothing in the song; while it's open each control you change flashes there in your colour and the window says what moved. One window at a time; refused while the human records. Returns what it shows and, for the generic window, its sections (the names the human sees, with their param keys). |
 | `propose_variations` | 2-4 op sets as A/B cards; the human holds a card to hear it (a preview, never in History) and keeps one. Waits (default 90 s) and returns the pick, or `{ status: "pending", id }`; `index` is the pick's place in your list (-1 = the original), not its letter on screen. `measure: true` measures each take against the original first. If you carry on while they're listening, your next call that reads or changes the song lets go of the card first. |
-| `get_variation_result` | poll a pending pick or question by its id, or a call that came back `offered: true` (a card to Keep): `kept: true` once it landed, `kept: false` if nothing changed. A card that waits because the song came from a link says so when the person has made the song theirs since (it still waits for their Keep). |
+| `get_variation_result` | poll a pending pick or question by its id, or a call that came back `offered: true` (a card to Keep): `kept: true` once it landed, `kept: false` if nothing changed. For `suggest_sounds`: `{ picked: { device, preset?, name } \| null, kept }`. A card that waits because the song came from a link says so when the person has made the song theirs since (it still waits for their Keep). |
 | `get_capture` | the human's latest (or recent) hummed, tapped or played phrase, as notes text, with its kind, tempo, key and confidence. |
 | `get_recording` | whether the human is recording (`idle`, `count` for the count-in, `rec`): the tracks the take goes onto, each with its mode (`layer`: every loop pass adds into one clip; `take`: every pass a new take, the earlier ones muted), where it started, the loop and pass, and the notes in so far; `wait_seconds` waits for the take to end. While one records, edits to its tracks or to the timeline (tempo, meter, loop, sections, bars) come back `{ error: "recording" }`; other tracks are fine. |
 | `ask_human` | one short question, 2-4 options, shown at a natural pause (never while they record); returns the answer (or pending). |
@@ -212,6 +214,7 @@ the device's presets.
 | `share_link` | a link to the song as it is now, for the human to send: the whole song (notes, devices including their kernels, the mix, sections; not audio clips) compressed into the link itself, with no Overdub server in between. Returns `{ url, size, dropped }`, or an error if the song is too big for a link. |
 | `provenance_report` | who wrote what, in numbers: each author's share of the notes, recorded audio by author, the devices agents wrote with their requests and check reports, this session's edits as runs by author, and where the song was forked from. Read-only; a record, not a legal opinion. Held devices are listed (`held`), never checked. |
 | `workspace` | the person's studio layout: what's on screen. In the simple view most features are put away until someone adds them. `action` is `list` (the view, and each feature with its id, title, purpose, group, whether it's shown and who added it), `add` or `put_away` (`features`: ids from the list), `open` (one `feature`: added if it was put away, then its panel shown or its part scrolled into view) or `view` (`simple` or `full`). Adds are signed by you, in a one-line note by the More button and in More itself. You put away only what you added; something the person added, or a change of view, needs `asked: true`, and only when they asked. Refused while the person records (except `list`); in the full view everything is already on screen, so nothing changes. Layout is never part of the song: `undo` doesn't reach it, and a share link never carries it. See [The studio layout](#the-studio-layout). |
+| `suggest_sounds` | an instrument for one track, picked by ear: puts 1-4 `sounds` (`{ device, preset?, why }`, the why 60 characters at most, "breathy, sits behind the hum") on the person's sound card for `track` (an id or exact name; default the selected track, else the newest track a take made), under what it plays now. Each row says *suggested by* you, with its why; the person hears their take through each and keeps one, or none. Nothing in the song changes until they Keep, and the Keep is theirs (signed by them; History's reason line says you suggested it). Returns `{ offered: true, id, track, sounds }`, or with `wait_seconds` (up to 120) their pick; `get_variation_result` with the id says what they kept. Refused before anything shows: a device that isn't an instrument here (`list_devices` kind `"instrument"`), a preset it hasn't got, an audio track, no track, and while the person records. When they name the instrument, use `apply_ops` `instrument.set` instead. See [Suggesting sounds](#suggesting-sounds). |
 
 ### Held devices
 
@@ -272,7 +275,7 @@ Existing users, and browsers driven by a test (`navigator.webdriver`), open in t
 | Sound | `devices` (a track's instrument and effects), `browser` (instruments and effects to try or add) |
 | Balance | `mixer`, `compare` (the Reference tab), `meters` (the level meter and All off) |
 | Song | `loop`, `position` (the counter and the beat lights), `song-settings` (meter, tap tempo, the click), `tracks` (Add a track, snap, zoom, colours), `redo` |
-| Recording | `record-options` (the Onto picker, track arm, count-in, layering, timing) |
+| Recording | `record-options` (track arm, count-in, layering, timing, the top bar's Onto; Sketch's Onto is always shown) |
 | Agent | `history`, `details` (the Inspector), `agent-setup` (your own key, Claude Code, MCP) |
 | Files | `files` (import, export, stems, DAWproject, reports) |
 | Layout | `panes` (the buttons that show and hide the panes) |
@@ -296,6 +299,28 @@ come back as `{ error, hint }`: an unknown id (the hint lists the ids), `the per
 `get_recording`'s `wait_seconds`), and putting away what the person added, or switching their view, without
 `asked: true` (`they added that`, `that's their choice`: offer it in one line instead). Layout is kept per browser
 (`overdub:workspace`), never in the song: it isn't an op, `undo` doesn't reach it, and a share link doesn't carry it.
+
+### Suggesting sounds
+
+A new idea is a new track, and its sound is picked by ear. After the first take onto a track, the person's **sound
+card** asks "What should this sound like?": their take plays through each of a few instruments that suit it (a hum, a
+played line, chords, a bass line or a beat each get their own set), they step through them with ↓ and keep one. In the
+simple view the card opens by itself; in the full studio it's the track header's **Sounds** (and the take's toast).
+Nothing is kept until they press Keep: trying a sound is a preview, never in History.
+
+`suggest_sounds` puts your rows on that card, at the bottom, so it never shows more than what the track plays now and
+four others. Use it when they ask what a track should sound like, or for other sounds; when they name the instrument,
+set it with `instrument.set` and say what it was. Your rows go away when they keep a sound or close the card.
+
+```json
+{ "track": "Melody", "sounds": [{ "device": "core.brass", "why": "bright, cuts through the beat" }, { "device": "core.drums", "preset": "Trap", "why": "hard hats" }] }
+→ { "offered": true, "id": "s1x2", "track": { "id": "t_…", "name": "Melody" }, "sounds": [{ "device": "core.brass", "name": "Brass Rail" }, …] }
+get_variation_result { "id": "s1x2" } → { "picked": { "device": "core.brass", "name": "Brass Rail" }, "kept": true }
+```
+
+While they're hearing a sound before keeping it, `get_selection` says so (`trying`), and any call of yours that reads
+or changes the song puts the old sound back first (the card says why). `suggest_sounds`, `get_selection`,
+`get_variation_result`, `say`, `ask_human`, `get_recording` and `highlight` don't.
 
 ## Ops (for `apply_ops`)
 
@@ -574,6 +599,7 @@ and browser, and which are deleted after 90 days. The code: `app/src/analytics.j
 | `app/src/agent/lexicon.js` | the translator lexicon: words → axes → param moves, and `READINGS` for the words that get asked (editable data) |
 | `app/src/agent/lexicon-personal.js` | the human's own meanings (localStorage `overdub:lexicon-personal`, with counts); Agent settings › Your words |
 | `app/src/agent/workspace-tool.js` / `app/src/ui/workspace.js` | `workspace`; the feature registry, More and the simple view (`ui.workspace`) |
+| `app/src/agent/sounds-tool.js` / `app/src/ui/sounds.js` / `app/src/core/sounds.js` | `suggest_sounds`; the sound card and trying a sound (`app.sounds`); the sets it offers and a new track's name and first instrument |
 | `app/src/agent/panel.js` / `history.js` / `presence.js` | the Agent tab, the History tab, `app.presence` |
 | `app/src/agent/keep.js` | a song from a link: what an agent's change would take away, and the store's guard that holds it for the person's Keep; a song with held devices: new code waits for Keep too, and a held kernel is known with its names changed (`kernelPrint`) |
 | `app/src/agent/bridge.js` / `remote.js` | the page side of the local MCP bridge (`app.bridge`) and of the claude.ai relay (`app.remote`) |

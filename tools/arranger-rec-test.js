@@ -109,9 +109,10 @@ try {
     await clickHead('Drums');   // (the take below starts from Drums, selected)
   }
 
-  /* ---- fresh eyes 5: in Hum it with a drum track selected, "Onto" names where the hum really lands (the first pitched
-     track: a hum goes onto drums only when they're armed), and so do the record key, its menu and the count-in's
-     numeral; clicking a header still arms that track (its R lit, the recorder's target) */
+  /* ---- fresh eyes 5, then docs/INSTRUMENTS-UX.md 1.1: in Hum it with a drum track selected (and armed), "Onto" names
+     where the hum really lands, a new track (a hum never goes onto drums unless picked in Onto, and the full studio's
+     first-pitched-track fallback is gone: it was the same wrong turn as the simple view's), and so do the record key,
+     its menu and the count-in's numeral, over the ghost lane; clicking a header still arms that track */
   {
     await E(() => { const a = window.overdub; a.ui.show('sketch'); a.input.emit('sketch:mode', 'hum'); });
     await page.waitForTimeout(150);
@@ -120,20 +121,20 @@ try {
     const said = () => E(() => { const a = window.overdub, rb = document.querySelector('.tp-rec'); return { onto: document.querySelector('.tp-recto-v')?.textContent, title: rb.title, label: rb.getAttribute('aria-label'), target: a.store.track(a.input.recorder.target)?.name }; });
     const d1 = { ...(await said()), armed: await armedNames(), lit: await lit() };
     t.ok(d1.armed.join() === 'Drums' && d1.lit.join() === 'Drums' && d1.target === 'Drums', `in Hum it, clicking the Drums header still arms it: its R lit, the recorder's target (${JSON.stringify({ armed: d1.armed, lit: d1.lit, target: d1.target })})`);
-    t.ok(d1.onto === 'Bass' && /your hum onto Bass/.test(d1.title) && /onto Bass/.test(d1.label), `and "Onto" names where the hum lands: Bass, the first pitched track, not the drums ("Onto ${d1.onto}"; "${d1.title}")`);
+    t.ok(d1.onto === 'a new track' && /your hum onto a new track \(Melody\)/.test(d1.title) && !/Bass|Drums/.test(d1.label), `and "Onto" names where the hum lands: a new track, not the drums or the first pitched track ("Onto ${d1.onto}"; "${d1.title}")`);
     await page.click('.tp-recto');
     await page.waitForTimeout(150);
     const m1 = await E(() => { const m = document.querySelector('[role=menu]'); return m ? { head: m.querySelector('.ek-head')?.textContent || '', items: [...m.querySelectorAll('.ek-item')].map((b) => b.textContent) } : null; });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(100);
-    t.ok(m1 && m1.head === 'R records your hum onto' && m1.items.some((x) => /^Bass●?$/.test(x)) && !m1.items.some((x) => /^Drums/.test(x)), `its menu offers the tracks a hum goes onto, Bass marked, no drums (${JSON.stringify(m1)})`);
+    t.ok(m1 && m1.head === 'R records your hum onto' && /^A new track/.test(m1.items[0] || '') && m1.items.some((x) => /^Bass/.test(x)) && !m1.items.some((x) => /^Drums/.test(x)), `its menu offers a new track first, then the tracks a hum goes onto, no drums (${JSON.stringify(m1)})`);
     await page.keyboard.press('KeyR');
     let cnt = null;
     for (let i = 0; i < 50 && !cnt; i++) { const v = await view(); if (v && v.state === 'count' && v.count) cnt = v; else await page.waitForTimeout(60); }
     const lv = await E(() => { const a = window.overdub; return { track: a.store.track(a.input.recorder.live()?.track)?.name, onto: document.querySelector('.tp-recto-v')?.textContent }; });
     await page.keyboard.press('KeyR');   // (R in the count calls it off, the hum with it)
     await idle();
-    t.ok(cnt && cnt.track === ids.Bass && lv.track === 'Bass' && lv.onto === 'Bass', `R: the count-in's numeral is over Bass's lane, where the hum will land (${JSON.stringify({ lane: cnt && Object.keys(ids).find((k) => ids[k] === cnt.track), take: lv.track, onto: lv.onto })})`);
+    t.ok(cnt && cnt.countOn === 'new' && !lv.track && lv.onto === 'a new track', `R: the count-in's numeral is over the ghost lane, the new track the hum will make (${JSON.stringify({ on: cnt && cnt.countOn, take: lv.track || null, onto: lv.onto })})`);
     // out of Hum it the drums are where R records again; in it, a pitched track clicked is where the hum goes
     await E(() => window.overdub.input.emit('sketch:mode', 'tap'));
     await page.waitForTimeout(150);
@@ -216,7 +217,7 @@ try {
   // is Take 2 and plays, after what played there, and the pass you stopped in is Take 3; fresh eyes 5 had them the other
   // way round)
   const third = stack.takes && stack.takes.takes.find((x) => x.name === 'Take 3');
-  t.ok(tn && `Take ${tn[1]}` === stack.name && stack.name === 'Take 2' && third && !third.playing && /Two more underneath, muted, the pass you stopped in among them/.test(said3) && stack.takes.n === 3, `the toast names the take that plays and counts the others the badge counts, the takes numbered in the order played ("${said3.slice(0, 120)}"; playing ${stack.name} of ${stack.takes.n})`);
+  t.ok(tn && `Take ${tn[1]}` === stack.name && stack.name === 'Take 2' && third && !third.playing && /Changes is muted\. One more underneath, muted, the pass you stopped in among them/.test(said3) && stack.takes.n === 3, `the toast names the take that plays and counts the others the badge counts, the takes numbered in the order played ("${said3.slice(0, 400)}"; playing ${stack.name} of ${stack.takes.n})`);
   await shot('arranger-rec-stack');
   // a click where the clips sit hits the playing take, never a muted one under it
   const hitId = await E(({ k }) => { const a = window.overdub.arranger; const loc = a.locate(a.xOf(2), a.yOf(k) + 8); return loc; }, { k: ids.Keys });
@@ -264,6 +265,7 @@ try {
   // drag across Take 3's lane (the pass the stop cut short) from beat 0.5 to 1.5, over its D4 (the snap grid takes it
   // to those beats)
   const lane2 = lanesOpen.rows[2];
+  await E(() => document.querySelectorAll('.ew-toast').forEach((x) => x.remove()));   // (the take toasts, with their Sounds line, sit over the lanes)
   const x2 = await E(() => window.overdub.arranger.xOf(0.52)), x3 = await E(() => window.overdub.arranger.xOf(1.48));
   await page.mouse.move(x2, lane2.mid); await page.mouse.down();
   for (let i = 1; i <= 6; i++) await page.mouse.move(x2 + (x3 - x2) * i / 6, lane2.mid);

@@ -265,7 +265,7 @@ export function createHum(app, input) {
   function sayMoved(tk, sung = null) {
     const r = tk && tk.result, k = tk && effKey(tk.opts), n = sung ? sung.notes : r ? r.moved.length : 0;
     if (!k || !n) return;
-    const text = `Moved ${n} ${n === 1 ? 'note' : 'notes'} into ${keyLabel(k)}${tk.opts.key ? ', the song’s key' : ''}.`;
+    const text = `Moved ${n} ${n === 1 ? 'note' : 'notes'} into ${keyLabel(k)}${tk.opts.key ? ', the song’s key' : ', the key you hummed in'}.`;
     try {
       app.ui?.toast?.(text, { kind: 'info', action: { label: 'Undo', run: () => (sung ? backInSong(tk, sung) : backAsSung(tk)) } });
     } catch (e) { /* no shell (Node) */ }
@@ -318,9 +318,17 @@ export function createHum(app, input) {
   // another song: the last take was that song's, not this one's
   try { app.store.on('change', (e) => { if (e && e.kind === 'load' && hum.take && !sess) { hum.take = null; emit('take', null); } }); } catch (e) { /* no store */ }
 
+  // A hum onto a new track, in a song whose key nobody chose, is put in tune: into the key heard in it (snapHeard), said
+  // and undoable as the song-key snap is; Undo (or Snap off) keeps the next hums as sung (options.snapKey). With nothing
+  // to play in time with (no clip in the song, the click off, no take running), it keeps its own timing rather than a
+  // grid at a tempo it never heard (docs/INSTRUMENTS-UX.md 1.4)
   function takeOpts(s) {
-    const p = app.store.get();
-    const o = { tempo: p.tempo, meter: p.meter, ...hum.options, key: songKey(), heard: null, snapHeard: false };
+    const p = app.store.get(), key = songKey();
+    let toNew = false;
+    try { toNew = !!input.recorder && !input.recorder.targetFor('hum'); } catch (e) { toNew = false; }
+    const alone = !s.rec && !(p.tracks || []).some((t) => (t.clips || []).length) && !app.engine?.metronome;
+    const o = { tempo: p.tempo, meter: p.meter, ...hum.options, key, heard: null, snapHeard: !key && toNew && hum.options.snapKey !== false };
+    if (alone) o.keepTiming = true;
     if (s.playing && !s.snap && s.last) s.snap = s.last;   // sung with the song: never at the marker instead
     if (s.playing && s.snap) {
       // the song was playing: put each note on the beat it was sung against (the round trip taken off)

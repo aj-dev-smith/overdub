@@ -645,7 +645,7 @@ const IGNORE = (e) => /Failed to load resource/.test(e) && !/\/input\/|sketch|sp
       const off = await page.evaluate(() => { window.overdub.input.capture.flush(); return document.querySelector('.ew-announce')?.textContent || ''; });
       T.ok(a.role === 'group' && !a.live && a.label === 'Musical typing' && a.rows, `the musical-typing strip is a labelled group with its key rows hidden from screen readers (role ${a.role}, aria-live ${a.live})`);
       T.ok(lit && unlit && mut === 0, `a note lights and unlights its key without redrawing the strip (${mut} child-list changes)`);
-      T.ok(a.said === `Musical typing on, playing ${a.target}` && oct.said === `Octave ${oct.octave}` && off === 'Musical typing off', `real changes are announced once: "${a.said}", "${oct.said}", "${off}"`);
+      T.ok((a.said === `Musical typing on, playing ${a.target}` || a.said === `Keys play a new track, ${a.target} (Lamp Tines). Undo takes it away.`) && oct.said === `Octave ${oct.octave}` && off === 'Musical typing off', `real changes are announced once: "${a.said}", "${oct.said}", "${off}"`);
     }
 
     // tap: T brings the Tap mode forward, then F J K on the keys
@@ -851,7 +851,7 @@ const AMIN = [[57, 1], [60, 1], [64, 1], [60, 1], [57, 2]];   // A3 C4 E4 C4 A3:
     const s1 = await page.evaluate(() => ({ status: document.querySelector('.sk-status')?.textContent || '', snap: [...document.querySelectorAll('.sk-opts .sk-chip')].find((c) => /^Snap/.test(c.textContent)), opts: [...document.querySelectorAll('.sk-foot .sk-destwrap option')].map((o) => o.textContent) }));
     T.ok(h1 && h1.n === 5 && h1.moved === 0 && h1.ps === '57,60,64,60,57' && !h1.key && h1.heard?.root === 'A' && h1.heard?.scale === 'minor',
       `a hum on a song with no notes keeps the line sung, A3 C4 E4 C4 A3, and hears A minor (${h1 && h1.ps}, moved ${h1 && h1.moved})`);
-    T.ok(/^Your hum is in\. 5 notes, A minor\./.test(s1.status), `and says so: "${s1.status}"`);
+    T.ok(/^Your hum: 5 notes, A minor\./.test(s1.status), `and says so, before it is in the song: "${s1.status}"`);
     T.ok(!s1.opts.some((o) => demo.tracks.some((n) => o === 'On ' + n)), `the keep targets are this song's, none of the demo's (${s1.opts.join(' | ')})`);
     await shot('input-hum-blank-song');
     // Keep: the button says Kept, and the song takes the heard key
@@ -987,6 +987,37 @@ console.log('  ..   screenshots in ' + path.relative(process.cwd(), OUTDIR));
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => { const n = document.querySelector('.sk-midinote'), b = [...document.querySelectorAll('button')].find((x) => /Connect MIDI/.test(x.textContent)); const nr = n?.getBoundingClientRect(); return { midi: !!navigator.requestMIDIAccess, typing: window.overdub.input.qwerty.on, text: n?.textContent || '', shown: !!(n && !n.hidden && nr.width > 0 && nr.bottom <= innerHeight), button: !!(b && !b.hidden) }; });
     T.ok(!r.midi && r.typing && r.shown && /Chrome, Edge or Firefox/.test(r.text) && !r.button, `no Web MIDI: Play it says to open it in Chrome, Edge or Firefox, with musical typing on, and offers no dead button (${JSON.stringify(r)})`);
+  } finally { await close(); }
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The keys are heard where they'll be recorded (docs/INSTRUMENTS-UX.md 1.1): after Tap a beat in the simple view, the
+// keys aim at a new track, so musical typing makes Keys (Lamp Tines) on the way in, selected and said once, and the
+// first note sounds there, never on the drums. input.target() has no first-instrument fallback any more.
+{
+  const { page, errors, close } = await open('/app/', { query: 'view=simple' });
+  try {
+    await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+    await sleep(500);
+    await page.getByRole('button', { name: 'Tap a beat' }).click();
+    await sleep(1200);
+    const pre = await page.evaluate(() => {
+      const a = window.overdub;
+      a.engine.stop(); a.input.setMode(null);
+      window.__said = []; a.input.on('keys:track', (e) => window.__said.push(e.text));
+      const on = a.engine.liveNoteOn.bind(a.engine); window.__live = [];
+      a.engine.liveNoteOn = (t, p, v) => { window.__live.push(a.store.track(t)?.name); return on(t, p, v); };
+      return { view: a.ui.workspace.view(), sel: a.store.track(a.ui.state.selection.track)?.name, target: a.input.target()?.name || null, aim: a.input.recorder.aim('keys') };
+    });
+    await page.keyboard.press('Backquote'); await sleep(300);
+    await page.keyboard.press('KeyA'); await sleep(250);
+    const k = await page.evaluate(() => { const a = window.overdub, t = a.store.get().tracks.find((x) => x.name === 'Keys'); return { said: window.__said, live: window.__live, sel: a.store.track(a.ui.state.selection.track)?.name, dev: t?.instrument.device, tracks: a.store.get().tracks.map((x) => x.name), hold: document.querySelector('.tp-hold')?.textContent || '' }; });
+    T.ok(pre.view === 'simple' && pre.sel === 'Drums' && pre.target === null && pre.aim.track === null, `after Tap a beat the keys aim at a new track, not the selected Drums (${JSON.stringify(pre)})`);
+    T.ok(k.tracks.join() === 'Drums,Keys' && k.dev === 'core.keys' && k.sel === 'Keys' && k.said.length === 1 && /^Keys play a new track, Keys \(Lamp Tines\)\. Undo takes it away\.$/.test(k.said[0]) && k.live.length && k.live.every((x) => x === 'Keys'),
+      `musical typing makes Keys (Lamp Tines), selected, said once, and the note sounds on Keys (${JSON.stringify(k)})`);
+    await page.keyboard.press('Backquote');
+    const errs = errors.filter((e) => !/Failed to load resource/.test(e));
+    T.ok(errs.length === 0, `the keys' track: no page errors (${errs.length})${errs.length ? ' ' + errs.slice(0, 3).join(' | ') : ''}`);
   } finally { await close(); }
 }
 

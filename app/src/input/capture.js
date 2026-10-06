@@ -8,7 +8,11 @@
 //   capture.update(id, patch) ; capture.hide(id) (still kept)    capture.get(id)
 //   capture.latest({ kind?, src? }) ; capture.list({ since?, all? })   newest first; list() is the last 30 minutes
 //   capture.phraseNotes(id, { grid? }) -> { notes, text, grid?, tempo, tempoGuess, bars, beat, kind, src }
-//   capture.keep(id, { track?, newTrack?: { device, name }, at? }) -> { ok, track, clip } | { ok: false, error }
+//   capture.keep(id, { track?, newTrack?: { device?, name? }, at? }) -> { ok, track, clip } | { ok: false, error }
+//                                                           a new track's name and first instrument come from
+//                                                           core/sounds.js newPartFor (Melody, Keys, Drums); the track
+//                                                           it lands on is selected and is that kind's aim from then on
+//                                                           (recorder.took)
 //   capture.live() -> the phrase being played now (ghost notes) or null ; capture.on('change', fn) -> off
 //
 // A phrase: { id, src: 'midi'|'qwerty'|'hum'|'tap'|'beatbox'|'rec', kind: 'notes'|'drums'|'audio', at (epoch ms),
@@ -26,6 +30,7 @@
 
 import { formatNotes, formatGrid, beatsPerBar, quantize } from '../core/music.js';
 import { guessTempo } from './hum.js';
+import { newPartFor } from '../core/sounds.js';
 
 // Where notes played along with the song sit in it (each { t: seconds from the first, d, b: song beat at note-on,
 // be: at note-off, g / ge: the same on the engine's unwrapped grid }): from the bar the first one started in. Where each
@@ -248,8 +253,9 @@ export function createCapture(app, input) {
       const ops = [];
       let tid = track;
       if (newTrack || !tid) {
-        const dev = pickDevice(newTrack && newTrack.device, p.kind);
-        ops.push({ type: 'track.add', ref: 't', track: { name: (newTrack && newTrack.name) || (p.kind === 'drums' ? 'Beat' : p.src === 'hum' ? 'Hum' : 'Idea'), kind: 'instrument', instrument: { device: dev, params: {} } } });
+        const np = newPartFor(aimOf(p), doc);
+        const dev = pickDevice((newTrack && newTrack.device) || np.device, p.kind);
+        ops.push({ type: 'track.add', ref: 't', track: { name: (newTrack && newTrack.name) || np.name, kind: 'instrument', instrument: { device: dev, params: (newTrack && dev === newTrack.device && newTrack.params) || {} } } });
         tid = '$t';
       } else {
         const t = store.track(tid);
@@ -263,10 +269,14 @@ export function createCapture(app, input) {
       return done(p, tid === '$t' ? r.created.t : tid, r.created.c);
     },
   };
+  // the aim a phrase speaks for: a hum, the pads (tapped, beatboxed) or the keys
+  const aimOf = (p) => (p.kind === 'drums' ? 'pads' : p.src === 'hum' ? 'hum' : 'keys');
   function done(p, track, clip) {
     p.kept = [...(p.kept || []), { track, clip, at: Date.now() }];
     persist(p); emit('update', p);
-    try { app.ui?.select?.({ track, clip, notes: [] }); } catch (e) { /* ok */ }
+    const rec = input.recorder;
+    try { if (rec?.select) rec.select({ track, clip, notes: [] }); else app.ui?.select?.({ track, clip, notes: [] }); } catch (e) { /* ok */ }
+    try { if (p.kind !== 'audio') rec?.took?.(aimOf(p), track); } catch (e) { /* ok */ }
     try { app.arranger?.show?.([clip], 'you'); } catch (e) { /* no arranger (Node) */ }   // where it landed, flashed warm
     return { ok: true, track, clip };
   }

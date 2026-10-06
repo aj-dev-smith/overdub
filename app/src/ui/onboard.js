@@ -22,7 +22,8 @@
 // it on, only if nobody has changed that loop since, signed by the house (it's tidying up, not an edit of yours).
 //
 // app.onboard = { start({ force?, restart? }), stop(), skip(), done(), ask(), firstMinute(kind = 'tap'), keysOver(),
-//   ownSong(), played() -> { hits, notes }, step, index, steps, active, state, take }
+//   humOver(), ownSong(), played() -> { hits, notes }, step, index, steps, active, state, take }
+// (humOver works with the tour off too: Tap it's "Hum a tune over it?" uses it)
 // ui events: 'onboard' { step, index, state }
 
 import { h, css, icon } from './dom.js';
@@ -37,6 +38,8 @@ const ls = {
 };
 const SRC_WORD = { hum: 'hummed', tap: 'tapped', beatbox: 'beatboxed', midi: 'played', qwerty: 'played on the keys', touch: 'played', rec: 'recorded' };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+// Hum over it says "Headphones keep the drums out of your hum." once a session (this page's life)
+let headphonesSaid = false;
 // where the agent's thread is: the Agent tab in the full studio; the simple view's agent pane has no tab strip
 const agentAt = (app) => (app.ui?.workspace?.view?.() === 'simple' ? 'the agent pane' : 'the Agent tab');
 // the agent's takes, counted and lettered as the Agent tab letters them: "three versions, A, B and C"
@@ -60,7 +63,7 @@ export default function (app) {
   const take = { phrase: null, track: null, clip: null, notes: 0, drums: false, rec: null, keys: null };   // what the newcomer made
   const two = { by: null, label: null, takes: 0 };                     // what the agent played over it (takes: how many it offered)
   let note = '';                                                       // a one-line aside for the current step
-  let fm = null;                                                       // the first minute: null | 'tap' | 'keys'
+  let fm = null;                                                       // the first minute: null | 'tap' | 'keys' | 'hum'
   let lent = null;                                                     // what the first minute set, to put back: { loop, was, song, touched, typing, click, tap }
   let settingLoop = false;                                             // the tour's own loop change is going in (not the person's)
   let paused = false;                                                  // stepped aside for someone else's song (a link), to pick up on yours
@@ -177,11 +180,15 @@ export default function (app) {
         if (f) { take.notes = f.clip.notes.filter((n) => (n.by || f.clip.by) === 'you').length; save('on'); paint(); }
         return;
       }
-      // keys over the beat (the first minute): the take is in; next, the agent
-      if (e.by === 'you' && s === 'ask' && fm === 'keys') {
+      // keys or a hum over the beat (the first minute): the take is in; next, the agent. (A hum kept from Sketch rather
+      // than recorded with R is a clip of yours on a pitched track.)
+      if (e.by === 'you' && s === 'ask' && (fm === 'keys' || fm === 'hum')) {
+        const kc = fm === 'hum' && !take.keys && e.ops.some((o) => o.type === 'clip.add') ? keptClip(e) : null;
         setTimeout(() => {
-          const r = recorded(e);
-          if (r && !r.drums && idx >= 0) { take.keys = { track: r.track, clip: r.clip, notes: r.notes || 0 }; save('on'); note = `${r.summary} Now hand it to the agent.`; paint(); }
+          const k = kc && !kc.drums ? store.track(kc.track) : null;
+          const r = recorded(e) || (k ? { track: kc.track, clip: kc.clip, notes: kc.notes, drums: false, summary: `Your hum is in: ${plural(kc.notes, 'note')} on ${k.name}.` } : null);
+          // (the card's head and body say it now: a note under them saying it again was one too many)
+          if (r && !r.drums && idx >= 0) { take.keys = { track: r.track, clip: r.clip, notes: r.notes || 0 }; save('on'); note = ''; announce(`${r.summary} Now hand it to the agent.`); paint(); }
         }, 0);
         return;
       }
@@ -289,6 +296,7 @@ export default function (app) {
   // nobody has changed it since; that is the house tidying up, signed so, never you. Musical typing goes off if the
   // tour turned it on. (Left on, the loop made Space ignore the marker and typing ate the L key.)
   function giveBack() {
+    giveClickBack();
     const l = lent;
     lent = null;
     if (!l) return;
@@ -419,6 +427,46 @@ export default function (app) {
     if (idx >= 0) paint();
     return true;
   }
+  // Hum over it (the beat's card, and Tap it's take line: ui/sketch.js): Sketch on Hum it, and the tune given room before
+  // anything records. A short beat runs 8 bars (Make it 8 bars, app.song.longer: one undo step by you, the loop growing
+  // with it), so a hum is one take over up to 8 bars, not four 2-bar takes in a folder. The click goes off while you hum
+  // (its ticks would bleed into the mic, and a take would borrow it: so the take's click goes too) and comes back after
+  // the hum's take. The first time this session Sketch's line says headphones keep the drums out of the hum (the browser
+  // can't tell whether they're in). No Onto choice is set: a hum goes onto a new track by the aim's own rule.
+  let clickBack = null, clickHooked = false, sawRec = false;
+  function giveClickBack() {
+    const c = clickBack;
+    clickBack = null; sawRec = false;
+    if (!c) return;
+    try { app.transport?.click?.set?.(c); } catch (e) { if (engine) engine.metronome = !!c.on; }
+  }
+  function hookClickBack() {
+    if (clickHooked || !inp()) return;
+    clickHooked = true;
+    // (the click's settings are kept in this browser: a page left mid-hum gives it back first)
+    addEventListener('pagehide', () => giveClickBack());
+    store.on('change', (e) => { if (e?.kind === 'load') giveClickBack(); });
+    // (after the hum's take: a take recorded with R ends, or a hum in Sketch comes back as a take)
+    inp().recorder?.on?.('state', (e) => { if (!clickBack) return; if (e?.state === 'rec') sawRec = true; else if (e?.state === 'idle' && sawRec) giveClickBack(); });
+    inp().hum?.on?.('take', (tk) => { if (clickBack && tk && inp().recorder?.state === 'idle') giveClickBack(); });
+  }
+  async function humOver() {
+    const lines = [];
+    if (app.song?.longerPlan?.({ bars: 8 })?.ok) { const r = app.song.longer({ bars: 8, toast: false, cover: true }); if (r?.ok) lines.push('The beat runs 8 bars now, so a tune has room.'); }
+    hookClickBack();
+    const ck = app.transport?.click?.get?.();
+    if (ck && (ck.on || ck.takes)) { if (!clickBack) clickBack = { on: !!ck.on, takes: !!ck.takes }; app.transport.click.set({ on: false, takes: false }); }
+    else if (!ck && engine?.metronome) { if (!clickBack) clickBack = { on: true }; engine.metronome = false; }
+    if (!headphonesSaid) { headphonesSaid = true; lines.push('Headphones keep the drums out of your hum.'); }
+    ui.show?.('sketch');
+    if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true);
+    if (inp()?.qwerty?.on) inp().qwerty.toggle?.(false);
+    inp()?.emit?.('sketch:mode', 'hum');
+    if (inp()?.mode === 'tap') inp().setMode?.(null);
+    app.sketch?.say?.(lines.join(' ') || null);
+    if (idx >= 0) { fm = 'hum'; note = lines[0] || ''; if (step() === 'ask') paint(); }
+    return true;
+  }
   // Make your own (the welcome's main action, the Song menu's too): a new song (the one on screen goes to Recent songs,
   // the toast's Undo brings it back), then the first minute on it: a beat, then a tune over it
   async function ownSong() {
@@ -455,7 +503,8 @@ export default function (app) {
   // right above the sheet, so the song (and your clip landing in it) stays in sight at every step: the step in a line,
   // its main button and Close; a tap on the line opens the whole card (Fold puts it back). While it is up, no toast
   // covers the song or the card: what a toast would say (and its Undo) is the strip's line for as long as it would show.
-  const phoneStrip = () => { try { return touch() && matchMedia('(max-width: 640px)').matches; } catch (e) { return false; } };
+  // (any screen that narrow, touch or not: the whole card there covered every track's header)
+  const phoneStrip = () => { try { return matchMedia('(max-width: 640px)').matches; } catch (e) { return false; } };
   const toast0 = ui.toast;
   if (typeof toast0 === 'function') {
     ui.toast = (text, o = {}) => {
@@ -493,7 +542,8 @@ export default function (app) {
     if (!coarse || !fm || (st !== 'rec' && st !== 'count') || (s !== 'take' && s !== 'ask')) return null;
     if (st === 'count') return 'Counting in: come in on the first beat.';
     const pass = (r.live?.()?.pass || 0) + 1;
-    return fm === 'keys' && s === 'ask' ? `Recording, time ${pass} round: each time a new take. ■ keeps it.` : `Recording, time ${pass} round: each time layers on. ■ keeps it.`;
+    if (fm === 'hum' && s === 'ask') return 'Recording your hum. ■ keeps it.';
+    return fm === 'keys' && s === 'ask' ? `Recording, round ${pass}: each round is a new take. ■ keeps it.` : `Recording, round ${pass}: each round adds to the last. ■ keeps it.`;
   }
   // the strip's line for a step (a phone): what to do, in a few words
   function stripLine(s, coarse) {
@@ -501,7 +551,9 @@ export default function (app) {
     if (s === 'listen') return 'Tap ▶ (top) to hear it first.';
     if (s === 'take' && fm === 'tap') return coarse ? 'Tap a beat: tap ● (top), then the pads.' : 'Tap a beat: R, then F J K L.';
     if (s === 'take') return 'Take one is yours: tap, hum or play it.';
+    if (s === 'ask' && r && take.keys) return `${fm === 'hum' ? 'Your hum is in' : 'Your keys are in'}: ${plural(take.keys.notes || 0, 'note')}. Next, the agent.`;
     if (s === 'ask' && r && fm === 'keys' && !take.keys) return 'Your beat is in. Tap ● (top) and play the keys over it.';
+    if (s === 'ask' && r && fm === 'hum' && !take.keys) return 'Your beat is in. Tap ● (top) and hum over it.';
     if (s === 'ask' && r) return r.drums ? `Your beat is in: ${plural(r.notes || 0, 'hit')}, ${r.bars}.` : `Your part is in: ${plural(r.notes || 0, 'note')}, ${r.bars}.`;
     if (s === 'done') return two.by ? `${store.author(two.by).name} played over you.` : `In the song: your ${playedText(played())}.`;
     return '';
@@ -545,14 +597,22 @@ export default function (app) {
       const mock = !app.agent?.provider || app.agent.provider === 'mock';
       const r = take.rec, st = app.input?.recorder?.state || 'idle';
       const what = `${plural(r.notes || 0, r.drums ? 'hit' : 'note')} on ${r.name}, ${r.bars}.`;
-      const keysLine = fm !== 'keys' ? null
+      const keysLine = fm === 'hum' ? (st === 'count' ? h('p', 'Counting in: come in on the first beat.')
+        : st === 'rec' ? h('p', 'Recording your hum. ', ...(coarse ? ['■ '] : [kbd('Space'), ' ']), 'keeps it.')
+        : take.keys ? null
+        : h('p', ...(coarse ? ['Tap ● and hum: '] : [kbd('R'), ', then hum: ']), 'the tune goes onto a track of its own, and ', ...(coarse ? ['■'] : [kbd('Space')]), ' keeps it.'))
+        : fm !== 'keys' ? null
         : st === 'count' ? h('p', 'Counting in: come in on the first beat.')
         : st === 'rec' ? h('p', `Recording, time ${(app.input.recorder.live?.()?.pass || 0) + 1} round. Each time round is a new take; `, ...(coarse ? ['● '] : [kbd('Space'), ' ']), 'keeps the last, the others wait underneath.')
         : h('p', ...(coarse ? ['Tap ● and play the keys: '] : [kbd('R'), ', then play ', kbd('A'), kbd('S'), kbd('D'), kbd('F'), '…: ']), 'each time round the loop is a new take, and ', ...(coarse ? ['■'] : [kbd('Space')]), ' keeps it.');
-      body = [title(r.drums ? 'Your beat is in the song.' : 'Your part is in the song.'),
-        h('p', what, fm === 'keys' ? ' Play a tune over it on its own track, then hand both to the agent.' : ' Next, play a tune over it on the keys, or let the agent play a part over it.'),
+      const over = fm === 'keys' || fm === 'hum';
+      // (the tune over the beat is in: the card says so, and what's next, rather than still announcing the beat)
+      const over2 = take.keys && store.track(take.keys.track);
+      body = [title(over2 ? (fm === 'hum' ? 'Your hum is in the song.' : 'Your keys are in the song.') : r.drums ? 'Your beat is in the song.' : 'Your part is in the song.'),
+        over2 ? h('p', `${plural(take.keys.notes || 0, 'note')} on ${over2.name}, over ${plural(r.notes || 0, r.drums ? 'hit' : 'note')} on ${r.name}. Hand both to the agent: it plays a part over them, signed, and you keep it or not.`)
+        : h('p', what, fm === 'keys' ? ' Play a tune over it on its own track, then hand both to the agent.' : fm === 'hum' ? ' Hum a tune over it on its own track, then hand both to the agent.' : ' Next, hum a tune over it, play the keys, or let the agent play a part over it.'),
         keysLine,
-        h('div.ob-acts', fm === 'keys' ? null : btn('Play keys over it', () => keysOver(), '', 'keys'), btn(mock ? 'Ask the demo agent' : 'Ask for a take', askAgent, '.ew-btn-agent', 'agent'))];
+        h('div.ob-acts', over ? null : btn('Hum over it', () => humOver(), '', 'hum'), over ? null : btn('Play keys over it', () => keysOver(), '', 'keys'), btn(mock ? 'Ask the demo agent' : 'Ask for a take', askAgent, '.ew-btn-agent', 'agent'))];
     } else if (s === 'ask') {
       const mock = !app.agent?.provider || app.agent.provider === 'mock';
       body = [title('Your part is in the song.'),
@@ -597,7 +657,8 @@ export default function (app) {
     // (a button in the toast's words, "Make it 8 bars", is a button of the strip's own)
     const isBtn = (x) => x && x.nodeType === 1 && x.tagName === 'BUTTON';
     // (built once per toast: a paint mid-tap keeps the same buttons, so the tap still lands)
-    const saidRow = () => said.row || (said.row = [h('p.ob-said' + (said.kind === 'bad' ? '.bad' : ''), ...said.parts.filter((x) => !isBtn(x))), ...said.parts.filter(isBtn).map((b) => { b.className = 'btn ew-btn ew-btn-small ob-said-act'; return b; }), said.action ? h('button.btn.ew-btn.ew-btn-small.ob-said-act', { type: 'button', onclick: () => { const a = said?.action; if (said) { clearTimeout(said.timer); said = null; } a?.run?.(); paint(); } }, said.action.label) : null]);
+    // (a button gone stale since, "Make it 8 bars" once the beat is 8 bars, stays gone: x._gone)
+    const saidRow = () => (said.row || (said.row = [h('p.ob-said' + (said.kind === 'bad' ? '.bad' : ''), ...said.parts.filter((x) => !isBtn(x))), ...said.parts.filter(isBtn).map((b) => { b.className = 'btn ew-btn ew-btn-small ob-said-act'; return b; }), said.action ? h('button.btn.ew-btn.ew-btn-small.ob-said-act', { type: 'button', onclick: () => { const a = said?.action; if (said) { clearTimeout(said.timer); said = null; } a?.run?.(); paint(); } }, said.action.label) : null])).filter((x) => !x || !x._gone);
     if (mini) content = [h('div.ob-mini-row', ...(said && phoneStrip() ? saidRow() : body), closeX())];
     else if (strip) {
       // the step in one line (it is the step's title, so focus lands on it as on the card's), its main button, Close
@@ -646,7 +707,7 @@ export default function (app) {
     // the 'ask' step's button (the demo agent when no agent is on): Sketch's "Hand it to the agent" uses it mid-tour
     ask: () => askAgent(),
     // the first minute (Tap a beat: a New song's first door too) and keys over it
-    firstMinute: (kind) => firstMinute(kind), keysOver: () => keysOver(), ownSong: () => ownSong(), played: () => played(),
+    firstMinute: (kind) => firstMinute(kind), keysOver: () => keysOver(), humOver: () => humOver(), ownSong: () => ownSong(), played: () => played(),
     get step() { return step(); }, get index() { return idx; }, get active() { return idx >= 0; }, steps: STEPS.slice(),
     get state() { return ls.get(); }, get take() { return { ...take }; }, get minute() { return fm; },
     reset() { stop('reset'); try { localStorage.removeItem(KEY); } catch (e) { /* ok */ } },
@@ -725,7 +786,8 @@ const CSS = `
 /* a phone, between takes: the strip, one line over the sheet (the line opens the whole card) */
 .ob.ob-strip { padding: 6px 10px 6px 12px; gap: 0; max-height: none; overflow: visible; }
 .ob-strip .ob-t { flex: 1 1 auto; min-width: 0; font-size: 14px; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.ob-strip .ob-mini-row > .ew-btn { flex: 0 1 auto; min-width: 0; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* (the step's button keeps its whole label, "Ask the demo agent"; the line gives way with an ellipsis) */
+.ob-strip .ob-mini-row > .ew-btn { flex: none; white-space: nowrap; }
 .ob-said { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.3; color: var(--ink) !important; }
 .ob-said-act { flex: none; }
 .ob-saying { flex-wrap: wrap; row-gap: 6px; justify-content: flex-end; }

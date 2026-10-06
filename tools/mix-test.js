@@ -403,10 +403,10 @@ try {
     ok(rows.length > 0 && rows.every((t) => /delay|echo|time|tape/i.test(t) || true), `search filters the list (${rows.length} rows for "delay")`);
     ok(await E(() => !!document.querySelector('.br-row.on .br-blurb')), 'the first match is active and shows its blurb');
     const tid = await E(() => { const a = window.overdub; const t = a.store.get().tracks.find((x) => x.name === 'Keys') || a.store.get().tracks[0]; a.ui.select({ track: t.id }); return t.id; });
-    // the line over the list says what a click does before it's done: where it goes, and what an instrument would take
-    // the place of ("Click adds to Guitar" read as adding a new one, and a click swapped Guitar's instrument out)
-    const said = await E((tid) => { const a = window.overdub, t = a.store.track(tid); return { line: document.querySelector('.br-target')?.textContent || '', inst: a.devices.getDevice(t.instrument?.device)?.name }; }, tid);
-    ok(/^Click puts it on/.test(said.line) && said.line.includes(`An instrument replaces ${said.inst} (Shift-click: a new track)`), `the browser says what a click does: "${said.line}"`);
+    // the line over the list says what a click does before it's done: an instrument is tried on the track, kept or not
+    // after ("Click puts it on Guitar. An instrument replaces DI Box" was true, and a click still swapped it out)
+    const said = await E(() => document.querySelector('.br-target')?.textContent || '');
+    ok(/^Click tries it on Keys\./.test(said) && /Keep it or go back after\./.test(said), `the browser says what a click does: "${said}"`);
     const n0 = await E((tid) => window.overdub.store.track(tid).inserts.length, tid);
     await page.focus('.br-q');
     await page.keyboard.press('ArrowDown');
@@ -425,10 +425,64 @@ try {
     if (inst) {
       await E((id) => { const a = window.overdub; const q = document.querySelector('.br-q'); q.value = ''; q.dispatchEvent(new Event('input')); const s = [...document.querySelectorAll('.br-sec')].find((b) => /Instruments/i.test(b.textContent)); if (s?.getAttribute('aria-expanded') === 'false') s.click(); void a; void id; }, inst);
       await sleep(80);
-      ok(/in place of its instrument\. Shift-click: a new track/.test(await E((id) => document.querySelector(`.br-row[data-device="${id}"]`)?.title || '', inst)), 'an instrument row\'s title says a click puts it in place of the track\'s instrument');
+      ok(/Click: try it on the selected track\. Shift-click: a new track/.test(await E((id) => document.querySelector(`.br-row[data-device="${id}"]`)?.title || '', inst)), 'an instrument row\'s title says a click tries it on the selected track');
       await page.click(`.br-row[data-device="${inst}"]`);
       ok(await E((n) => window.overdub.store.get().tracks.length === n + 1, n), 'an instrument clicked with an audio track selected gets a new track (nothing is replaced)');
       await E(() => window.overdub.store.undo());
+    }
+    // An instrument on a pitched track is a trial: nothing in History, the line becomes Keep and Back; Back leaves
+    // nothing, Keep is one undo step signed you; a drum track asks first, a new track with it first
+    {
+      const pick = await E(() => {
+        const a = window.overdub, p = a.store.get();
+        const keys = p.tracks.find((x) => x.name === 'Keys');
+        const other = a.devices.listDevices({ kind: 'instrument' }).find((d) => d.cat !== 'drums' && d.id !== keys.instrument.device && document.querySelector(`.br-row[data-device="${d.id}"]`));
+        a.ui.select({ track: keys.id, clip: null, insert: null });
+        return { keys: keys.id, was: keys.instrument.device, dev: other?.id, name: other?.name, h: a.store.history.length };
+      });
+      await sleep(60);
+      await E((id) => document.querySelector(`.br-row[data-device="${id}"]`)?.scrollIntoView({ block: 'center' }), pick.dev);
+      await page.click(`.br-row[data-device="${pick.dev}"]`);
+      await sleep(80);
+      const tr = await E((pk) => { const a = window.overdub; return { dev: a.store.track(pk.keys).instrument.device, h: a.store.history.length, line: document.querySelector('.br-target')?.textContent || '', keep: !!document.querySelector('.br-target .br-keep.btn-go'), back: !!document.querySelector('.br-target .br-back'), gos: document.querySelectorAll('[data-panel="browser"] .btn-go').length }; }, pick);
+      ok(tr.dev === pick.dev && tr.h === pick.h && tr.line.startsWith(`Trying ${pick.name} on Keys.`) && tr.keep && tr.back && tr.gos === 1, `a click on ${pick.name} with Keys selected tries it: Keys plays it, nothing in History, the line says "${tr.line}" with Keep (the one primary) and Back`);
+      await page.click('.br-target .br-back');
+      await sleep(60);
+      const bk = await E((pk) => { const a = window.overdub; return { dev: a.store.track(pk.keys).instrument.device, h: a.store.history.length, line: document.querySelector('.br-target')?.textContent || '' }; }, pick);
+      ok(bk.dev === pick.was && bk.h === pick.h && /^Click tries it on Keys/.test(bk.line), `Back puts ${bk.dev} back and leaves nothing in History`);
+      await page.click(`.br-row[data-device="${pick.dev}"]`);
+      await sleep(60);
+      await page.click('.br-target .br-keep');
+      await sleep(80);
+      const kp = await E((pk) => { const a = window.overdub, last = a.store.history.at(-1); return { dev: a.store.track(pk.keys).instrument.device, h: a.store.history.length, by: last?.by, aud: !!last?.audition, toast: document.querySelector('.ew-toast:last-child')?.textContent || '' }; }, pick);
+      ok(kp.dev === pick.dev && kp.h === pick.h + 1 && kp.by === 'you' && !kp.aud && /^Keys plays .* now \(was /.test(kp.toast), `Keep is one undo step signed you, a real edit ("${kp.toast}")`);
+      await E(() => window.overdub.store.undo());
+      ok(await E((pk) => window.overdub.store.track(pk.keys).instrument.device === pk.was, pick), 'one undo puts the old instrument back');
+      // a click on what the track plays says so
+      await E((id) => document.querySelector(`.br-row[data-device="${id}"]`)?.scrollIntoView({ block: 'center' }), pick.was);
+      if (await E((id) => !!document.querySelector(`.br-row[data-device="${id}"]`), pick.was)) {
+        await page.click(`.br-row[data-device="${pick.was}"]`);
+        await sleep(60);
+        const al = await E(() => ({ line: document.querySelector('.br-target')?.textContent || '', open: !!document.querySelector('.br-target .br-open') }));
+        ok(/^Keys plays .* already\./.test(al.line) && al.open, `a click on the instrument Keys plays says so, with Open ("${al.line}")`);
+      }
+      // a melodic instrument with a drum track selected: a menu, a new track with it first; the kit stays
+      const drums = await E(() => { const a = window.overdub, t = a.store.get().tracks.find((x) => x.instrument?.device === 'core.drums' || a.devices.getDevice(x.instrument?.device)?.cat === 'drums'); if (t) a.ui.select({ track: t.id, clip: null, insert: null }); return t ? { id: t.id, dev: t.instrument.device, name: t.name, n: a.store.get().tracks.length, h: a.store.history.length } : null; });
+      if (drums) {
+        await sleep(60);
+        const dl = await E(() => document.querySelector('.br-target')?.textContent || '');
+        ok(/^Click tries a kit on /.test(dl) && /Another instrument asks first: a track of its own, or on .+ anyway\./.test(dl), `with a drum track selected the line says a click tries a kit, and another instrument asks first ("${dl}")`);
+        await E((id) => document.querySelector(`.br-row[data-device="${id}"]`)?.scrollIntoView({ block: 'center' }), pick.dev);
+        await page.click(`.br-row[data-device="${pick.dev}"]`);
+        await sleep(120);
+        const mm = await E((d) => { const a = window.overdub; return { items: [...document.querySelectorAll('.ek-pop .ek-item')].map((b) => b.textContent), focus: document.activeElement?.textContent || '', dev: a.store.track(d.id).instrument.device, h: a.store.history.length }; }, drums);
+        ok(mm.items.length === 2 && mm.items[0].startsWith(`New track with ${pick.name}`) && mm.items[1].startsWith(`On ${drums.name} anyway`) && mm.focus.startsWith('New track with') && mm.dev === drums.dev && mm.h === drums.h, `a melodic instrument on ${drums.name} asks first and changes nothing (${mm.items.join(' / ')})`);
+        await page.keyboard.press('Enter');
+        await sleep(100);
+        const nt = await E((d) => { const a = window.overdub, p = a.store.get(); return { n: p.tracks.length, last: p.tracks.at(-1), dev: a.store.track(d.id).instrument.device, h: a.store.history.length }; }, drums);
+        ok(nt.n === drums.n + 1 && nt.last.name === pick.name && nt.last.instrument.device === pick.dev && nt.dev === drums.dev && nt.h === drums.h + 1, `New track with ${pick.name} adds "${nt.last.name}" in one undo step, ${drums.name} untouched`);
+        await E(() => window.overdub.store.undo());
+      }
     }
     await shot('mix-browser');
     await E(() => window.overdub.store.undo());

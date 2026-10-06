@@ -58,6 +58,26 @@ const METERS = [[4, 4], [3, 4], [6, 8], [2, 4], [5, 4], [7, 8], [12, 8]];
 const SCALE_LIST = [['major', 'Major'], ['minor', 'Minor'], ['dorian', 'Dorian'], ['mixolydian', 'Mixolydian'], ['phrygian', 'Phrygian'],
   ['lydian', 'Lydian'], ['harmonicMinor', 'Harmonic minor'], ['minorPentatonic', 'Minor pentatonic'], ['majorPentatonic', 'Major pentatonic'], ['blues', 'Blues']];
 const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+// A new track's name and first instrument: core/sounds.js newPartFor (Melody for a hum, Keys, Drums; then "Melody 2"),
+// and the same table here until that module is in the tree
+// (asked for once the recorder has its aim, the same change that brings core/sounds.js: before that, asking would
+// only be a 404 in the console)
+let SOUNDS = null, SOUNDS_ASKED = false;
+function loadSounds(app) {
+  if (SOUNDS_ASKED || typeof app?.input?.recorder?.aim !== 'function') return;
+  SOUNDS_ASKED = true;
+  import('../core/sounds.js').then((m) => { SOUNDS = m; }).catch(() => { /* not in this tree: NEW_PART */ });
+}
+const NEW_PART = { hum: ['Melody', 'core.keys'], keys: ['Keys', 'core.keys'], pads: ['Drums', 'core.drums'] };
+function newPart(kind, project, app) {
+  loadSounds(app);
+  const k = NEW_PART[kind] ? kind : 'keys';
+  if (SOUNDS?.newPartFor) { try { const r = SOUNDS.newPartFor(k, project); if (r && r.name && r.device) return r; } catch (e) { /* the table */ } }
+  const [base, device] = NEW_PART[k], names = new Set((project?.tracks || []).map((t) => t.name));
+  let name = base;
+  for (let i = 2; names.has(name); i++) name = `${base} ${i}`;
+  return { name, device };
+}
 const SHORT = { major: 'maj', minor: 'min', dorian: 'dor', mixolydian: 'mix', phrygian: 'phr', lydian: 'lyd', locrian: 'loc', harmonicMinor: 'h.min', melodicMinor: 'm.min', minorPentatonic: 'min pent', majorPentatonic: 'maj pent', blues: 'blues', chromatic: 'chrom' };
 // the output meter: what red means, and how long "Clipping 2.4 dB" holds after the mix was last that far over
 const METER_TITLE = 'The mix, before the master’s safety clip: peak (upper bar, held 1.5 s), RMS (lower bar) and the held peak in dBFS. Red is clipping: the mix went over 0 dBFS by the amount shown, and the safety clip is shaving that off its peaks.';
@@ -299,10 +319,11 @@ function recordAnnounce(app) {
     const t = store.track(lv.track || r.target);
     const where = Number.isFinite(lv.from) ? app.transport?.marker?.label?.(lv.from) || '' : '';
     const on = t ? ` on ${t.name}` : '';
-    if (s === 'count' && app.engine?.playing && !app.engine.counting) ui.announce?.(`Counting in. Recording${on} from ${where}.`);   // R while playing: the rest of this bar
+    const keeps = lv.keeps ? ` ${lv.keeps}` : '';   // (a sound on trial there, kept first: INSTRUMENTS-UX 1.3)
+    if (s === 'count' && app.engine?.playing && !app.engine.counting) ui.announce?.(`Counting in. Recording${on} from ${where}.${keeps}`);   // R while playing: the rest of this bar
     else if (s === 'count') {
       const n = r.countIn || 0;
-      ui.announce?.(`Counting in, ${n || 1} bar${n > 1 ? 's' : ''}. Recording${on} from ${where}.`);
+      ui.announce?.(`Counting in, ${n || 1} bar${n > 1 ? 's' : ''}. Recording${on} from ${where}.${keeps}`);
     } else if (s === 'rec' && prev === 'count') ui.announce?.(`Recording${on}.`);
     else if (s === 'rec') ui.announce?.(`Recording${on} from ${where}.`);
   });
@@ -488,16 +509,29 @@ function mountTransport(el, app) {
   // click on its header does
   const recToV = h('span.tp-val.tp-recto-v', '—');
   const recTo = h('button.tp-spec.tp-recto', { type: 'button', 'aria-haspopup': 'menu', dataset: { feature: 'record-options' }, onclick: () => pickRecTrack() }, h('small.tp-lab', 'Onto'), recToV);
+  // The kind of take R would make now (Hum it: a hum; Tap it: the pads; else the keys), whose aim Onto shows
+  const recKind = () => { const inp = app.input, r = inp?.recorder; return r?.humming?.() ? 'hum' : inp?.sketchMode === 'tap' || inp?.mode === 'tap' ? 'pads' : 'keys'; };
+  const fullView = () => (ui.workspace?.view?.() || 'full') !== 'simple';
   function pickRecTrack() {
     if (takeRunning(app)) { lockedSay(app, 'The track a take records onto'); return; }
     // (where the take lands: in Hum it, the tracks a hum goes onto, the drums left out unless armed: recorder.lands, onto)
-    const r = app.input?.recorder, hum = !!r?.humming?.();
+    const r = app.input?.recorder, hum = !!r?.humming?.(), kind = recKind();
     const cur = (r?.lands ? r.lands()?.id : r?.target) || null, ts = r?.onto ? r.onto() : p().tracks.filter((t) => t.kind === 'audio' || t.kind === 'instrument');
-    if (!ts.length) { ui.toast(hum ? 'No track a hum can go onto yet: R makes one (Keys) and records your hum onto it.' : 'No track yet: R makes one (Keys) and records onto it.', { kind: 'info' }); return; }
-    menu(recTo, [{ head: hum ? 'R records your hum onto' : 'R records onto' }, ...ts.map((t) => ({ label: t.name, sub: t.id === cur ? '●' : '', run: () => {
+    const part = newPart(kind, p(), app);
+    // "A new track" first (the full studio's lit R agrees: every arm goes, then the aim), then the tracks: a pick is
+    // selected and the arms elsewhere give way, as a click on its header does, then aimed
+    const toNew = () => {
+      const armed = p().tracks.filter((x) => x.arm && x.kind === 'instrument');
+      if (fullView() && armed.length) store.dispatch(armed.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { by: 'you', label: 'record onto a new track' });
+      r?.setAim?.(kind, 'new');
+      ui.announce?.(`R records onto a new track (${part.name})`);
+      sync();
+    };
+    menu(recTo, [{ head: hum ? 'R records your hum onto' : 'R records onto' }, { label: 'A new track', sub: cur ? '' : '●', run: toNew }, ...ts.map((t) => ({ label: t.name, sub: t.id === cur ? '●' : '', run: () => {
       ui.select({ track: t.id, clip: null, notes: [] });
       const others = p().tracks.filter((x) => x.arm && x.id !== t.id);
       if (others.length) store.dispatch(others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { by: 'you', label: `arm ${t.name}`, coalesce: 'arm-select' });
+      if (t.kind === 'instrument') r?.setAim?.(kind, t.id);
       ui.announce?.(`R records onto ${t.name}`);
       sync();
     } }))]);
@@ -768,11 +802,34 @@ function mountTransport(el, app) {
   // where the credit line was ("Keys play Bass, Esc to stop"), a lit lamp; a press hands the keys back. (R still records
   // and M still mutes: neither plays a note.) It reads whole: under a short title ("Untitled") the title's group is as
   // wide as the line.
+  // The keys play where they'll be recorded (the keys' aim, input/recorder.js): "Keys play Keys". When turning them on
+  // made that track (a new track for the keys), it is said once, for a few seconds: "Keys play a new track, Keys (Lamp
+  // Tines). Undo takes it away."
+  let keysMade = null;
+  store.on?.('change', (e) => {
+    if (e?.kind !== 'do' || e.by !== 'you' || !e.ops?.some((o) => o.type === 'track.add')) return;
+    const ids = new Set(Object.values(e.created || {}));
+    setTimeout(() => {
+      const inp = app.input;
+      if (!inp?.qwerty?.on) return;
+      const a = inp.recorder?.aim?.('keys'), tid = a?.track || inp.target?.('keys')?.id || null;
+      if (!tid || !ids.has(tid)) return;
+      keysMade = { id: tid, until: performance.now() + 8000 };
+      const t = store.track(tid), dev = t?.instrument?.device ? app.devices?.getDevice?.(t.instrument.device)?.name || t.instrument.device : '';
+      if (t) ui.announce?.(`Keys play a new track, ${t.name}${dev ? ` (${dev})` : ''}. Undo takes it away.`);
+    }, 0);
+  });
   function keysHeld() {
     const inp = app.input;
     if (!inp) return null;
-    if (inp.qwerty?.on) { const t = inp.target?.(); return { kind: 'keys', what: 'Keys', name: t?.name || 'nothing', stop: 'Esc' }; }
-    if (inp.mode === 'tap' && (!ui.panels?.has?.('sketch') || ui.visible?.('sketch'))) { const t = inp.recorder?.targetFor?.('pads'); return { kind: 'pads', what: 'Keys', name: t?.name || 'the pads', stop: 'Esc' }; }
+    if (inp.qwerty?.on) {
+      const a = inp.recorder?.aim?.('keys'), t = a ? (a.track ? store.track(a.track) : null) : inp.target?.();
+      if (!t) return { kind: 'keys', what: 'Keys', name: 'a new track', stop: 'Esc' };
+      const made = keysMade && keysMade.id === t.id && performance.now() < keysMade.until;
+      const dev = made && t.instrument?.device ? app.devices?.getDevice?.(t.instrument.device)?.name || t.instrument.device : '';
+      return { kind: 'keys', what: 'Keys', name: made ? `a new track, ${t.name}` : t.name, dev: made ? dev : '', made, stop: 'Esc' };
+    }
+    if (inp.mode === 'tap' && (!ui.panels?.has?.('sketch') || ui.visible?.('sketch'))) { const a = inp.recorder?.aim?.('pads'), t = a ? (a.track ? store.track(a.track) : null) : inp.recorder?.targetFor?.('pads'); return { kind: 'pads', what: 'Keys', name: t?.name || 'the pads', stop: 'Esc' }; }
     return null;
   }
   function releaseKeys() {
@@ -783,15 +840,16 @@ function mountTransport(el, app) {
   }
   function syncHold() {
     const k = keysHeld();
-    const sig = k ? `${k.kind}|${k.name}` : '';
+    const sig = k ? `${k.kind}|${k.name}|${k.made ? 1 : 0}` : '';
     if (sig === last.hold) return;
     last.hold = sig;
     holdB.hidden = !k;
     row.classList.toggle('tp-has-hold', !!k);
     requestAnimationFrame(refit);   // (the bar's room changed: the title fits again)
     if (!k) { holdB.replaceChildren(); return; }
-    holdB.replaceChildren(h('span.tp-hold-l', `${k.what} play`, h('b.tp-hold-n', k.name)), h('span.tp-hold-s', h('kbd', k.stop), h('span.tp-hold-w', ' to stop')));
-    holdB.title = k.kind === 'keys' ? `Musical typing is on: the home row and the row above it play ${k.name}, so S, K and L are notes, not solo, the click and the loop. Click (or Esc, or \`) to hand the keys back.` : `Tap is on: F, J, K and L play the pads on ${k.name} (so K is the hat and L the open hat, not the click and the loop). Click (or Esc) to hand the keys back.`;
+    // (the sound and the undo line where the bar has room: the announcement said the whole line once)
+    holdB.replaceChildren(h('span.tp-hold-l', `${k.what} play`, h('b.tp-hold-n', k.name), k.dev ? h('span.tp-hold-w', ` (${k.dev})`) : null, k.made ? h('span.tp-hold-w', '. Undo takes it away.') : null), h('span.tp-hold-s', h('kbd', k.stop), h('span.tp-hold-w', ' to stop')));
+    holdB.title = k.kind === 'keys' ? `Musical typing is on: the home row and the row above it play ${k.name}${k.dev ? ` (${k.dev})` : ''}, so S, K and L are notes, not solo, the click and the loop. Click (or Esc, or \`) to hand the keys back.` : `Tap is on: F, J, K and L play the pads on ${k.name} (so K is the hat and L the open hat, not the click and the loop). Click (or Esc) to hand the keys back.`;
     holdB.setAttribute('aria-label', k.kind === 'keys' ? `Musical typing on: the letter keys play ${k.name}. Press to turn it off` : `Tap on: F J K L play ${k.name}. Press to leave Tap`);
   }
   const row = h('div.tp-row', left, transport, timeG, tempoG, songG, modeG, h('div.tp-spacer'), heldG, editG, killG, meterG);
@@ -944,7 +1002,7 @@ function mountTransport(el, app) {
     const hum = !!r?.humming?.(), at = r ? (r.lands ? r.lands()?.id : r.target) : null;
     const tn = at ? store.track(at)?.name || null : null;
     const onto = st !== 'idle' && r?.tracks?.length ? r.tracks.map((id) => store.track(id)?.name).filter(Boolean).join(' and ') : tn;
-    const sig = [st, armed, tn, onto, hum].join('|');
+    const sig = [st, armed, tn, onto, hum, recKind(), p().tracks.length, fullView()].join('|');
     if (last.recSig === sig) return;
     last.recSig = sig;
     for (const k of ['counting', 'on', 'keeping']) recB.classList.remove(k);
@@ -954,12 +1012,14 @@ function mountTransport(el, app) {
     recB.classList.toggle('armed', armed);
     recB.setAttribute('aria-pressed', String(st !== 'idle'));
     const what = hum ? 'your hum ' : '';
-    const t = st === 'count' ? `Counting in${onto ? `, to record ${what}onto ${onto}` : ''}: R or Space cancels` : st === 'rec' ? `Recording${onto ? ` ${what}onto ${onto}` : ''}: R punches out and keeps playing, Space stops and keeps the take` : st === 'keeping' ? 'The take is going into the song' : tn ? `Record ${what}onto ${tn}, from the marker (R)` : `Record ${what}into the song from the marker (R): a new track, Keys`;
+    const part = newPart(recKind(), p(), app).name;
+    const t = st === 'count' ? `Counting in${onto ? `, to record ${what}onto ${onto}` : ''}: R or Space cancels` : st === 'rec' ? `Recording${onto ? ` ${what}onto ${onto}` : ''}: R punches out and keeps playing, Space stops and keeps the take` : st === 'keeping' ? 'The take is going into the song' : tn ? `Record ${what}onto ${tn}, from the marker (R)` : `R records ${what}onto a new track (${part}), from the marker`;
     recB.title = t;
     recB.setAttribute('aria-label', st === 'idle' ? `Record (R)${tn ? `, ${what}onto ${tn}` : ''}` : st === 'count' ? 'Counting in. Press to cancel' : st === 'rec' ? 'Recording. Press to punch out' : 'Keeping the take');
-    recToV.textContent = onto || 'new track';
+    recToV.textContent = onto || 'a new track';
     recToV.classList.toggle('tp-dim', !onto);
-    recTo.title = st === 'idle' ? (tn ? `R records ${what}onto ${tn}${hum ? ' (a hum goes onto a drum track only when it’s armed)' : ''}. Click to record onto another track.` : `R records ${what}onto a new track (Keys). Click to pick a track.`) : `Recording ${what}onto ${onto || 'a new track'}`;
+    // (the hum's drum-track rule is the full studio's: there a hum goes onto a drum track only when it's armed)
+    recTo.title = st === 'idle' ? (tn ? `R records ${what}onto ${tn}${hum && fullView() ? ' (a hum goes onto a drum track only when it’s armed)' : ''}. Click to pick another, or a new track.` : `R records ${what}onto a new track (${part}). Click to pick a track.`) : `Recording ${what}onto ${onto || 'a new track'}`;
     recTo.setAttribute('aria-label', st === 'idle' ? `R records ${what}onto ${tn || 'a new track'}. Pick another track` : `Recording ${what}onto ${onto || 'a new track'}`);
     recTo.classList.toggle('tp-rec-on', st === 'rec' || st === 'count');
     pos.classList.toggle('counting', st === 'count');

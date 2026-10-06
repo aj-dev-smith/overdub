@@ -205,7 +205,7 @@ revert, and every read).</li>
 <tbody>
 <tr><td>read-only</td><td><code>get_project</code>, <code>get_guide</code>, <code>get_selection</code>, <code>get_history</code>, <code>list_devices</code>, <code>get_device</code>, <code>render_and_measure</code>, <code>get_variation_result</code>, <code>get_capture</code>, <code>get_recording</code>, <code>compare_to_reference</code>, <code>share_link</code>, <code>provenance_report</code>, <code>tab_for</code></td></tr>
 <tr><td>destructive</td><td><code>apply_ops</code>, <code>define_device</code>, <code>adjust</code>, <code>propose_variations</code>, <code>transform</code>, <code>arrange_song</code>, <code>undo</code>, <code>revert_my_changes</code>, <code>write_tab</code>, <code>suggest_riff</code> (a riff the person keeps replaces what was in those bars)</td></tr>
-<tr><td>neither (changes the room, or only adds)</td><td><code>play</code>, <code>stop</code>, <code>highlight</code>, <code>say</code>, <code>ask_human</code>, <code>show_device</code>, <code>arrange_around</code></td></tr>
+<tr><td>neither (changes the room, or only adds)</td><td><code>play</code>, <code>stop</code>, <code>highlight</code>, <code>say</code>, <code>ask_human</code>, <code>show_device</code>, <code>arrange_around</code>, <code>workspace</code>, <code>suggest_sounds</code> (rows on the person's sound card; the song changes only when they keep one)</td></tr>
 </tbody></table></div>
 <p>A tool without them fails the checks by name, with where to add them: <code>node tools/relay-catalog.js</code> won't write the
 catalog and the relay won't load one, and <code>tools/agent-test.js</code> checks every catalog, the tab's own included.

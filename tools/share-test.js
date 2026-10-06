@@ -900,6 +900,26 @@ const LINK_HASH = (await S.encodeShare(heldSong(), { from: { name: 'Sam' } })).h
   const drawn = lane.labels.filter((x) => x !== undefined);   // (undefined: off screen, never drawn)
   T.ok(drawn.length && drawn.every((x) => x === 'kept off') && /kept off: its instrument is silent until you play it/.test(lane.said), `the Keys' clips say "kept off" on the lane itself (${JSON.stringify(lane.labels)}), and aloud ("${lane.said}")`);
   await shot('share-held-ask');
+  // the header's instrument (ui/arranger.js .ar-hinst) opens a device big, but a held one opens the Devices tab, where
+  // Play it is, and no window; the full studio keeps its devices button (.ar-hdev) beside it
+  const headOf = (k) => page.evaluate((k) => { const r = document.querySelector(`.ar-head[data-track="${k.id}"]`), v = (s) => !!r?.querySelector(s)?.getClientRects().length; return { text: r?.querySelector('.ar-hinst-n')?.textContent || '', title: r?.querySelector('.ar-hinst')?.title || '', glyph: v('.ar-hinst .ico'), inst: v('.ar-hinst'), dev: v('.ar-hdev'), view: window.overdub.ui.workspace?.view?.() }; }, k);
+  const went = () => page.evaluate(() => ({ tab: window.overdub.ui.active('bottom'), shown: window.overdub.ui.visible('rack'), win: window.overdub.plugin?.current?.name || null, devices: window.overdub.ui.workspace?.has?.('devices') }));
+  const hf = await headOf(keys);
+  await page.click(`.ar-head[data-track="${keys.id}"] .ar-hinst`);
+  await page.waitForTimeout(300);
+  const gf = await went();
+  T.ok(hf.view === 'full' && hf.text === 'Tin Whistle' && hf.glyph && hf.dev && /^Kept off: its code hasn’t run on this computer\. Open its devices to play it$/.test(hf.title) && gf.tab === 'rack' && gf.shown && !gf.win,
+    `full studio: the held Keys' header names Tin Whistle with its open glyph and keeps the devices button; a click on the name opens the Devices tab (${gf.tab}), not a window (${gf.win})`);
+  await page.evaluate(() => { window.overdub.ui.setOpen('bottom', false); window.overdub.ui.workspace.setView('simple'); });
+  await page.waitForTimeout(300);
+  const hs = await headOf(keys);
+  await page.click(`.ar-head[data-track="${keys.id}"] .ar-hinst`);
+  await page.waitForTimeout(300);
+  const gs = await went();
+  T.ok(hs.view === 'simple' && hs.inst && hs.glyph && !hs.dev && gs.tab === 'rack' && gs.shown && gs.devices && !gs.win,
+    `simple view: the devices button is put away and the instrument shows; a click on the held one adds Sound and opens the Devices tab (${gs.tab}, devices ${gs.devices}), no window`);
+  await page.evaluate(() => window.overdub.ui.workspace.setView('full'));
+  await page.waitForTimeout(200);
   // 2. Keep them off: still held, still silent, and the banner says what's off; the same link opened again asks again
   await tap(page, '.sh-off');
   const b = await probe(page);
@@ -929,7 +949,7 @@ const LINK_HASH = (await S.encodeShare(heldSong(), { from: { name: 'Sam' } })).h
   await page.evaluate(() => { window.__same = 1; });
   const pressed = await tap(page, '.sh-play');
   // the track header names the device it plays now, not its id (it printed "tin-whistle" until something redrew)
-  const named = await page.evaluate(() => { const t = window.overdub.store.get().tracks.find((x) => x.name === 'Keys'); return document.querySelector(`.ar-head[data-track="${t.id}"] .ar-hdev`)?.textContent || ''; });
+  const named = await page.evaluate(() => { const t = window.overdub.store.get().tracks.find((x) => x.name === 'Keys'); return document.querySelector(`.ar-head[data-track="${t.id}"] .ar-hinst-n`)?.textContent || ''; });
   T.ok(named === 'Tin Whistle', `after Play them the Keys header names its device at once ("${named}")`);
   const d = await probe(page);
   const stay = await page.evaluate(() => ({ same: window.__same === 1, ask: !!document.querySelector('.sh-held'), toast: [...document.querySelectorAll('.ew-toast')].map((t) => t.textContent).find((t) => /are on/.test(t)) || '' }));
@@ -965,7 +985,7 @@ const LINK_HASH = (await S.encodeShare(heldSong(), { from: { name: 'Sam' } })).h
   // played, its track says who made it and whose link it came through
   await page.click('.sh-play').catch(() => {});
   await page.waitForTimeout(300);
-  // (what's drawn: the simple view's plain device name sits beside the devices button, display:none in full)
+  // (what's drawn: the instrument's name, its open glyph and the devices button's knob glyph, then the byline)
   const head = await page.evaluate(() => { const t = window.overdub.store.get().tracks.find((x) => x.name === 'Keys'), r = document.querySelector(`.ar-head[data-track="${t.id}"]`); return { sub: (() => { const e = r?.querySelector('.ar-hsub'); if (!e) return ''; const c = e.cloneNode(true), cs = [...c.querySelectorAll('*')]; [...e.querySelectorAll('*')].forEach((x, i) => { if (!x.getClientRects().length) cs[i].remove(); }); return c.textContent; })(), title: r?.querySelector('.ar-hdev')?.title || '' }; });
   T.ok(/^Tape Organ, by Sam via Jo$/.test(head.sub) && /^Tape Organ, made by Sam, via Jo’s link\. /.test(head.title) && !realErrors(errors).length, `and its track header credits it the same way ("${head.sub}"; "${head.title}")`);
   // ... as do the browser's row (Written in this song) and the device's About card in Devices ("Made by Sam via Jo")
@@ -1162,6 +1182,8 @@ console.log('Take one');
   const a = await page.evaluate(() => ({ step: window.overdub.onboard.step, w: document.documentElement.scrollWidth, r: document.querySelector('.ob').getBoundingClientRect().right }));
   T.ok(a.step === 'listen' && a.w <= 390 && a.r <= 390, '?coach starts it under webdriver; at 390 px it fits');
   await shot('share-coach-390');
+  // (at 390 px the card is the one-line strip, touch or not: a tap on its line unfolds the whole card, with Skip)
+  if (await page.$('.ob.ob-strip')) await page.click('.ob.ob-strip .ob-t');
   await page.click('.ob-skip');
   const b = await page.evaluate(() => ({ step: window.overdub.onboard.step, saved: window.overdub.onboard.state }));
   T.ok(b.step === 'take' && b.saved.state === 'on' && b.saved.step === 'take', 'Skip moves to the next step, and where you are is remembered');

@@ -170,6 +170,8 @@ function parseMaybeJSON(v) { if (typeof v === 'string') { try { return JSON.pars
 // Short labels for activity chips: "✎ 16 notes on Bass", "🎚 measured −11.2 LUFS".
 export function chipFor(app, name, input = {}, result = {}) {
   if (result && result.error) return { icon: '⚠', text: `${name.replace(/_/g, ' ')}: ${String(result.error).slice(0, 60)}`, kind: 'error' };
+  // suggest_sounds' rows on the person's card: offered, but nothing was asked of the song
+  if (name === 'suggest_sounds') return soundsChip(app, input, result);
   // a call that went to the person as a card to Keep (a song from a link): it asked, nothing changed
   if (result && result.offered) return { icon: '⇄', text: `asked to ${String(result.what || 'change the song').replace(/\s*\([^)]*\)/g, '')}`, target: result.targets };
   const p = app ? P(app) : null;
@@ -200,6 +202,7 @@ export function chipFor(app, name, input = {}, result = {}) {
       // (a pick, a Keep or an answer: each in its own words)
       if (result.status === 'pending') return { icon: '⇄', text: 'waiting for you' };
       if (result.answer !== undefined) return { icon: '?', text: result.answer == null ? 'no answer' : `you said "${String(result.answer).slice(0, 40)}"` };
+      if (result.picked && typeof result.picked === 'object') return { icon: '⇄', text: result.kept ? `you kept ${String(result.picked.name || result.picked.device).slice(0, 40)}` : 'you kept the sound it had' };
       if (result.kept !== undefined) return { icon: '⇄', text: result.kept ? 'you kept it' : 'you kept it as it was' };
       return { icon: '⇄', text: result.picked === 'original' || result.index === -1 ? 'you kept it as it was' : result.picked ? `you picked ${String(result.picked).slice(0, 40)}` : 'got your pick' };
     case 'get_recording': return { icon: '●', text: result.state && result.state !== 'idle' ? `saw you recording on ${(result.tracks || []).map((t) => t.name).join(' and ') || 'a track'}` : 'checked whether you were recording' };
@@ -235,6 +238,13 @@ export function chipFor(app, name, input = {}, result = {}) {
     }
     default: return { icon: '•', text: name.replace(/_/g, ' ') };
   }
+}
+function soundsChip(app, input, result = {}) {
+  const tname = result.track?.name || (app && input.track ? findTrack(app, input.track)?.name : null) || (app ? (() => { const id = app.ui?.state?.selection?.track; return id ? P(app).tracks.find((t) => t.id === id)?.name : null; })() : null) || 'a track';
+  if (result.status === 'pending') return { icon: '⇄', text: `suggested sounds for ${tname}` };
+  if (result.kept && result.picked) return { icon: '⇄', text: `you kept ${String(result.picked.name || result.picked.device).slice(0, 40)} on ${tname}` };
+  if (result.kept === false && !result.offered) return { icon: '⇄', text: `you kept the sound ${tname} had` };
+  return { icon: '⇄', text: `suggested sounds for ${tname}`, ...(result.track?.id ? { target: { tracks: [result.track.id], clips: [] } } : {}) };
 }
 function workspaceChip(app, input, result) {
   if (input.action === 'list') return { icon: '▦', text: 'read the studio layout' };
@@ -344,7 +354,7 @@ Ids: tracks t_…, clips c_…, inserts fx_…, sections s_…. All times are in
   {
     name: 'get_selection',
     annotations: { title: 'Read the selection', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    description: `What the human is looking at right now: the selected track, clip (with its notes in the text format), the selected notes, the time range (beats and bars), the selected insert (with params), and the playhead. Act on THIS by default. Empty fields mean nothing of that kind is selected. studio.hidden: features put away on their screen.`,
+    description: `What the human is looking at right now: the selected track, clip (with its notes in the text format), the selected notes, the time range (beats and bars), the selected insert (with params), and the playhead. Act on THIS by default. Empty fields mean nothing of that kind is selected. studio.hidden: features put away on their screen. trying: { track, device } while they're hearing a sound on a track before keeping it (the song still has the old one), else null.`,
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
     run(input, { app }) { return selectionInfo(app); },
   },
@@ -603,12 +613,13 @@ measure: true renders each take before showing it (a scratch copy over the targe
   {
     name: 'get_variation_result',
     annotations: { title: 'Check a pending pick', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    description: 'Check a pending propose_variations (or ask_human, or a call that came back offered: true, a card the human Keeps) by its id: { status: "pending" } or the human\'s pick / answer. For takes, index is the position in your variations list (0-based; -1 = the original), not the letter on screen; an offered call comes back kept: true (it landed, signed by you) or kept: false (nothing changed). wait_seconds (default 0) waits for it.',
+    description: 'Check a pending propose_variations (or ask_human, suggest_sounds, or a call that came back offered: true, a card the human Keeps) by its id: { status: "pending" } or the human\'s pick / answer. For takes, index is the position in your variations list (0-based; -1 = the original), not the letter on screen; an offered call comes back kept: true (it landed, signed by you) or kept: false (nothing changed); suggest_sounds comes back { picked: { device, preset?, name } | null, kept } (kept by them, signed by them). wait_seconds (default 0) waits for it.',
     input_schema: { type: 'object', properties: { id: { type: 'string' }, wait_seconds: { type: 'number' } }, required: ['id'], additionalProperties: false },
     async run(input, ctx) {
       const req = st(ctx.app).requests.get(input.id);
-      if (!req) return err(`no request "${input.id}"`, 'ids come from propose_variations or ask_human');
-      if (req.status === 'pending' && input.wait_seconds) await waitFor(req, input.wait_seconds, ctx.signal);
+      if (!req) return err(`no request "${input.id}"`, 'ids come from propose_variations, ask_human or suggest_sounds');
+      req.poll?.();   // (a request that settles from what's on screen: suggest_sounds' card closed with nothing kept)
+      if (req.status === 'pending' && input.wait_seconds) await (req.wait ? req.wait(input.wait_seconds, ctx.signal) : waitFor(req, input.wait_seconds, ctx.signal));
       // a card that waits because the song came from a link, which the person has since made theirs: it still waits for
       // their Keep, but a call like it now applies directly
       if (req.status === 'pending' && req.link && !keepFirst(ctx.app, ctx.by)) return { status: 'pending', id: req.id, note: 'The person has made the song theirs since (Make it yours). This card still waits for their Keep or Keep as it was; a call like it now applies directly.' };
@@ -714,13 +725,13 @@ export function annotationGaps(list, extra = {}) {
 /* ------------------------------------------------------------------------------------------------ run */
 let callSeq = 0;
 // tools that neither read nor change the song, so a held audition can keep playing through them
-const KEEPS_AUDITION = new Set(['get_guide', 'get_variation_result', 'get_capture', 'ask_human', 'say', 'highlight', 'list_devices', 'get_device', 'workspace']);
+const KEEPS_AUDITION = new Set(['get_guide', 'get_variation_result', 'get_capture', 'ask_human', 'say', 'highlight', 'list_devices', 'get_device', 'workspace', 'suggest_sounds']);
 // While an agent's tool runs, ui.state.actor is that agent: a panel the tool shows (ui.show), a pane it opens, is
 // brought into the simple view signed as the agent's, never passed off as the person's (ui/shell.js, ui/workspace.js).
 // Overlapping runs stack; the newest running caller is the actor, and it clears when the last one settles. Tools that
 // sit waiting on the person (their pick, their answer, their take) don't hold it, so what they reach for meanwhile
 // stays theirs.
-const WAITS_ON_PERSON = new Set(['ask_human', 'propose_variations', 'get_variation_result', 'get_recording', 'get_capture', 'adjust']);
+const WAITS_ON_PERSON = new Set(['ask_human', 'propose_variations', 'get_variation_result', 'get_recording', 'get_capture', 'adjust', 'suggest_sounds']);
 function holdActor(app, by, name) {
   const state = app.ui?.state;
   if (!state || by === 'you' || WAITS_ON_PERSON.has(name)) return () => {};
@@ -786,7 +797,7 @@ export async function runTool(name, input, { by = 'claude', app = globalThis.win
 // While a take records (app.input.recorder, docs/research/RECORDING-UX.md 3.15), nothing an agent does may move the
 // tracks it records onto or the timeline under it: those calls come back { error: 'recording', hint }. Edits to other
 // tracks go through (the engine takes edits inside its lookahead), and so does everything that only reads.
-const NEVER_BLOCKED = new Set(['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'get_capture', 'get_recording', 'get_variation_result', 'say', 'highlight', 'render_and_measure', 'compare_to_reference', 'share_link', 'provenance_report', 'ask_human', 'workspace']);   // (workspace: layout, never the song; it refuses every change itself while a take records)
+const NEVER_BLOCKED = new Set(['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'get_capture', 'get_recording', 'get_variation_result', 'say', 'highlight', 'render_and_measure', 'compare_to_reference', 'share_link', 'provenance_report', 'ask_human', 'workspace', 'suggest_sounds']);   // (workspace: layout, never the song; suggest_sounds: rows on the person's sound card, the song changes only when they Keep one. Each refuses itself while a take records)
 const TIME_OPS = new Set(['time.insert', 'time.remove', 'section.add', 'section.set', 'section.remove', 'section.duplicate']);
 const TIME_ARRANGE = new Set(['duplicate_section', 'insert_bars', 'remove_bars']);
 function recordingBlock(app, name, input, by) {
@@ -1030,6 +1041,18 @@ function selectionInfo(app) {
   // their layout: in the simple view, what's put away (so an agent never says "drag the fader" with the Mixer away)
   const ws = app.ui?.workspace;
   if (ws) { try { out.studio = { view: ws.view(), hidden: ws.view() === 'full' ? [] : (ws.hidden?.() || ws.list().filter((x) => !x.shown).map((x) => x.id)) }; } catch (e) { /* the layout is a nicety */ } }
+  // a sound they're hearing on a track before keeping it (ui/sounds.js, a preview): the song still has the old one, so
+  // the tried track's instrument is said as what it really is, and the trial is named beside it
+  let trying = null;
+  try {
+    const tr = app.sounds?.trying?.();
+    if (tr && tr.device) {
+      trying = { track: tr.track ?? null, device: tr.device, ...(tr.preset ? { preset: tr.preset } : {}) };
+      const was = tr.was && typeof tr.was === 'object' ? tr.was : tr.was ? { device: tr.was, params: {} } : null;
+      if (was?.device && out.track && out.track.id === tr.track) out.track.instrument = `${was.device} ${JSON.stringify(was.params || {})}`;
+    }
+  } catch (e) { /* a nicety */ }
+  out.trying = trying;
   const link = fromLink(app);
   return link ? { from_link: link, ...out } : out;
 }

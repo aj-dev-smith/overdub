@@ -463,6 +463,32 @@ for (const w of [1280, 1366, 1440]) {
   } finally { await s.close(); }
 }
 
+/* ================================================================ R on a blank song (docs/INSTRUMENTS-UX.md 1.1) */
+// No track to record onto is never a dead end: R with the keys aimed at a new track makes it at the count-in and
+// records onto it in the same press (it used to say "New track: Keys. Press R again to record.").
+{
+  const s = await open('/app/', { width: 1440, height: 900 });
+  const { page, errors } = s;
+  const E = (fn, a) => page.evaluate(fn, a);
+  try {
+    await E(() => { localStorage.setItem('overdub:welcomed', '1'); });
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+    await E(async () => { const o = window.overdub; o.onboard?.stop?.(); await o.exporter.newSong(); o.input.emit('sketch:mode', 'play'); });
+    await sleep(400);
+    const before = await E(() => ({ tracks: window.overdub.store.get().tracks.length, aim: window.overdub.input.recorder.aim('keys') }));
+    await page.keyboard.press('KeyR');
+    await sleep(500);
+    const r = await E(() => { const o = window.overdub, t = o.store.track(o.input.recorder.live()?.track); return { state: o.input.recorder.state, track: t && `${t.name} (${t.instrument.device})`, sel: o.store.track(o.ui.state.selection.track)?.name, toasts: [...document.querySelectorAll('.ew-toast')].map((x) => x.textContent), hist: o.store.history.map((h) => h.label) }; });
+    await page.keyboard.press('KeyR');   // (R in the count calls it off)
+    await sleep(300);
+    T.ok(before.tracks === 0 && before.aim.track === null && r.state !== 'idle' && r.track === 'Keys (core.keys)' && r.sel === 'Keys' && !r.toasts.some((x) => /Press R again/.test(x)) && r.hist.join() === 'add Keys for the keys',
+      `R on a blank song makes Keys and counts in onto it in the same press, no "Press R again" (${JSON.stringify(r)})`);
+    const errs = errors.filter((e) => !ignorable(e));
+    T.ok(!errs.length, `R on a blank song: no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);
+  } finally { await s.close(); }
+}
+
 /* ================================================================ a phone */
 {
   const s = await open('/app/', { query: 'demo', width: 390, height: 844 });

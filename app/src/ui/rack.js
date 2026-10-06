@@ -7,6 +7,9 @@
 //   authorKind(app, by) -> 'human' | 'agent' | 'house'
 //   currentTrack(app)   -> the selected track id, 'master', or the first track's id (or null)
 //   addDevice(app, id, { track, index, toast }) -> dispatch result (instrument -> instrument.set, effect -> insert.add)
+//   isMismatch(def, track, project) -> true when putting instrument def on that track would play its notes on the wrong
+//                         kind of sound: a melodic instrument on a drum track, or a kit on a pitched track that has
+//                         notes (the browser's click asks first, a drop on a lane makes a new track instead)
 //   applyRig(app, rig, { track, replace, index }) -> dispatch result (a guitar rig's whole chain, one undo step)
 //   guitar()            -> Promise<{ RIGS, RIG_BANKS, rigOps } | null>   (devices/guitar/index.js, if it's there)
 //   popover(anchor, content, { onClose, align }) -> { el, close() }   a non-modal floating card (Esc / outside closes)
@@ -25,7 +28,8 @@
 //   controlMenu(app, anchor, addr, { name, can }) -> the right-click menu: Automate, Back to the lane (a master lane:
 //                                       Clear its lane, as the arranger has no row for it; clearMasterLane)
 //
-// app.rack = { refresh(), focusInsert(insertId), openCode(deviceId), presetOf(track, slot), keptOff(), showKeptOff() }
+// app.rack = { refresh(), focusInsert(insertId), openCode(deviceId), presetOf(track, slot), keptOff(), showKeptOff(),
+//              isMismatch(def, track, project) }
 //   (openCode: the read-only kernel sheet; presetOf: what a face's preset line says, { name, label, edited }, slot
 //   'instrument' or an insert id; keptOff: the ids of the tracks, in song order, with a device whose code is kept off
 //   here, devices/trust.js; showKeptOff: Devices on the first of them, for the ask's "The Devices tab can play them")
@@ -47,7 +51,7 @@
 // other sound.
 
 import { h, css, icon, drag, clamp, fmtDb, esc, byline } from './dom.js';
-import { DEVICE_CATS, paramValues, presetParams, presetOf, normParam } from '../devices/registry.js';
+import { DEVICE_CATS, paramValues, presetParams, presetOf, normParam, getDevice, heldDevice } from '../devices/registry.js';
 import { popFocus, popLabel, menu as kitMenu, songColor, isHexColor, touchFirst } from './arrange-kit.js';
 import { laneAt, specFor, valueAt, toPos } from '../core/automation.js';
 import { dataState, onData } from '../kernel/data.js';
@@ -149,6 +153,23 @@ export function addDevice(app, id, { track = currentTrack(app), index, toast = t
   if (!r.ok) { toast && ui.toast(r.error, { kind: 'bad' }); return r; }
   if (toast) ui.toast(msg, { kind: 'ok', action: { label: 'Undo', run: () => app.store.undo() } });
   return r;
+}
+
+// A kit is a device filed under drums (core.drums by its id too, as the arranger's isDrumTrack has it). def is the
+// instrument being put on (a def or an id); track an id or a track; project the song (store.get(), for a track by id
+// and a device only the song knows). The track's instrument is read as the song has it: a caller in the middle of a
+// trial passes the track as it really is (its instrument before the trial).
+export function isMismatch(def, track, project = null) {
+  const look = (id) => (id ? getDevice(id) || heldDevice(id) || project?.devices?.[id] || null : null);
+  if (typeof def === 'string') def = look(def);
+  if (typeof track === 'string') track = project?.tracks?.find((t) => t.id === track) || null;
+  if (!def || def.kind !== 'instrument' || !track || track.kind !== 'instrument' || !track.instrument?.device) return false;
+  const on = track.instrument.device;
+  if (on === def.id) return false;
+  const kit = (id, d) => id === 'core.drums' || d?.cat === 'drums';
+  const isKit = kit(def.id, def), onKit = kit(on, look(on));
+  if (!isKit) return onKit;
+  return !onKit && (track.clips || []).some((c) => c.kind !== 'audio' && (c.notes?.length || 0) > 0);
 }
 
 export async function applyRig(app, rig, { track = currentTrack(app), replace = null, index, toast = true, by = 'you' } = {}) {
@@ -601,6 +622,7 @@ export default async function (app) {
     presetOf: (track, slot = 'instrument') => presetNow(app, track, slot),
     notePresets: (evt) => notePresets(app, evt),
     keptOff,
+    isMismatch,
     showKeptOff() {
       const id = keptOff()[0];
       if (!id) return null;

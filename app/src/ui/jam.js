@@ -1367,13 +1367,14 @@ export default function (app) {
       // what the keys play when it isn't the room's guitar, by the neck ("The keys play Bass. Give the keys a guitar");
       // a phone has no keys to speak of: the neck is what it plays
       keys() {
+        // (no track for the keys: they'd make a new one when they start, docs/INSTRUMENTS-UX.md 1.1, so the line says so)
         const kt = keysTarget(), g = guitars();
-        const on = !coarse() && source() === 'keys' && !!kt && (!g.keys || kt.id !== g.keys.id);
-        const k = on ? `${kt.id}|${kt.name}` : '';
+        const on = !coarse() && source() === 'keys' && (!kt || !g.keys || kt.id !== g.keys.id);
+        const k = on ? (kt ? `${kt.id}|${kt.name}` : 'new') : '';
         if (k === keysKey) return;
         keysKey = k;
         keysLine.hidden = !on;
-        put(keysLine, on ? [h('span.t3', `The keys play ${kt.name}. `), h('button.btn.btn-txt.jm-give', { type: 'button', onclick: () => { ensureKeysGuitar(); view.tones(); view.practice(); } }, 'Give the keys a guitar')] : null);
+        put(keysLine, on ? [h('span.t3', kt ? `The keys play ${kt.name}. ` : 'The keys play a new track. '), h('button.btn.btn-txt.jm-give', { type: 'button', onclick: () => { ensureKeysGuitar(); view.tones(); view.practice(); } }, 'Give the keys a guitar')] : null);
       },
       // The rig, drawn: the chain's first amp big (its whole face: the panel, the cab, the cab and mics strip), and the
       // pedalboard under it in signal order: your guitar's jack, the pedals before the amp, an Add a pedal slot, the amp's
@@ -1540,6 +1541,8 @@ export default function (app) {
     };
     // a click on a track's header (or the room's own selecting) changes what the keys play: the lines that name it follow
     ui.on('select', () => { if (!view) return; view.keys(); view.practice(); });
+    // (and so does where the keys are aimed: Onto, a take, a new track made for them)
+    try { app.input?.recorder?.on?.('aim', () => { if (view) view.keys(); }); } catch (e) { /* no recorder */ }
     function toSpec(s) { return s.positions ? { notes: s.positions.map((x) => `${stringNumber(x.s)}:${x.f}`).join(' '), frets: s.frets } : s.chord ? { chord: s.chord, frets: s.frets } : s.scale ? { scale: s.scale, frets: s.frets } : { notes: '' }; }
 
     async function toggleInput() {

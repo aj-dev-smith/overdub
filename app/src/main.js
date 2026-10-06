@@ -28,9 +28,11 @@ const MODULES = [
   './input/importers.js', // MIDI and audio files dropped in (or Song menu → Import MIDI… / Import audio…)
   './ui/reference.js', // the Reference tab and the compare_to_reference tool; before the bridges so MCP clients list it
   './ui/plugin.js', // device windows (a device opened big: app.plugin) and the show_device tool; before the bridges too
+  './ui/sounds.js', // the sound card (app.sounds: trying an instrument by ear, Keep and Back); after plugin.js and input/index.js
   './ui/grooves.js', // the Grooves tab (core/grooves.js) and the find_grooves, use_groove and drum_track tools; before the bridges too
   './ui/jam.js', // the Jam room beside Arrange, and its tools (get_jam, make_jam_track, set_tone, show_on_fretboard)
   './agent/workspace-tool.js', // the workspace tool (what's on screen in the simple view); before the panel and the bridges
+  './agent/sounds-tool.js', // suggest_sounds (sounds on the card, app.sounds.suggest); before the panel and the bridges
   './agent/panel.js', './agent/history.js', './agent/presence.js', './agent/bridge.js',
   './agent/remote.js',
   './ui/devices-io.js', // export / import device files; ?device=<id> opens the song with that device on a track
@@ -240,7 +242,12 @@ async function boot() {
 
   // autosave (the song only; audio lives in IndexedDB)
   let saveT = 0;
-  store.on('change', () => { clearTimeout(saveT); if (app.share?.listening) return; saveT = setTimeout(() => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(store.get())); } catch (e) { app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' }); } }, 500); });
+  const save = () => { saveT = 0; try { localStorage.setItem(SAVE_KEY, JSON.stringify(store.get())); } catch (e) { app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' }); } };
+  store.on('change', () => { clearTimeout(saveT); saveT = 0; if (app.share?.listening) return; saveT = setTimeout(save, 500); });
+  // a page going away saves what's waiting (a sound on trial let go as the tab hides is the song's last change)
+  const flush = () => { if (!saveT) return; clearTimeout(saveT); save(); };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
 
   // audio starts on the first gesture (browsers require one)
   const wake = async () => { try { await engine.start(); } catch (e) { console.error('engine start', e); app.ui.toast('Audio could not start: ' + e.message, { kind: 'bad' }); } };

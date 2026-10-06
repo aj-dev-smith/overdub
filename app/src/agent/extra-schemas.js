@@ -379,8 +379,36 @@ export const WORKSPACE_SCHEMA = {
   },
 };
 
+// suggest_sounds (docs/INSTRUMENTS-UX.md 2.6): the agent's rows on the person's sound card. It never changes the song:
+// the person hears each and Keeps one (signed by them). Registered by agent/sounds-tool.js. (The description is the
+// spec's, word for word.)
+export const SUGGEST_SOUNDS_SCHEMA = {
+  name: 'suggest_sounds',
+  annotations: { title: 'Suggest sounds for a track', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },   // puts rows on the person's card; the song changes only when they Keep one
+  description: 'Offer the person 1–4 instruments for one track, on the sound card: their take plays through each when they pick it, and nothing changes until they Keep one (signed by them; History notes you suggested it). Each sound is { device, preset?, why ≤ 60 chars }. Use it when they ask what a track should sound like or for other sounds; when they name the instrument, set it with instrument.set instead. Returns { offered, id }; get_variation_result with the id gives their pick. Refused while they record.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      track: { type: 'string', description: 'id or exact name; default the selected track, else the newest track a take made' },
+      sounds: {
+        type: 'array', minItems: 1, maxItems: 4,
+        items: {
+          type: 'object',
+          properties: { device: { type: 'string', description: 'an instrument id (list_devices kind "instrument")' }, preset: { type: 'string' }, why: { type: 'string', description: '≤ 60 chars, e.g. "breathy, sits behind the hum"' } },
+          required: ['device', 'why'],
+          additionalProperties: false,
+        },
+      },
+      reason: { type: 'string' },
+      wait_seconds: { type: 'number', description: 'default 0; up to 120' },
+    },
+    required: ['sounds'],
+    additionalProperties: false,
+  },
+};
+
 // in the order main.js loads the modules that register them
-export const EXTRA_SCHEMAS = [TRANSFORM_SCHEMA, ARRANGE_SCHEMA, ARRANGE_SONG_SCHEMA, COMPARE_SCHEMA, SHOW_DEVICE_SCHEMA, FIND_GROOVES_SCHEMA, USE_GROOVE_SCHEMA, DRUM_TRACK_SCHEMA, JAM_SCHEMA, JAM_TRACK_SCHEMA, TONE_SCHEMA, FRETBOARD_SCHEMA, TAB_FOR_SCHEMA, WRITE_TAB_SCHEMA, SUGGEST_RIFF_SCHEMA, WORKSPACE_SCHEMA, SHARE_SCHEMA, PROVENANCE_SCHEMA];
+export const EXTRA_SCHEMAS = [TRANSFORM_SCHEMA, ARRANGE_SCHEMA, ARRANGE_SONG_SCHEMA, COMPARE_SCHEMA, SHOW_DEVICE_SCHEMA, FIND_GROOVES_SCHEMA, USE_GROOVE_SCHEMA, DRUM_TRACK_SCHEMA, JAM_SCHEMA, JAM_TRACK_SCHEMA, TONE_SCHEMA, FRETBOARD_SCHEMA, TAB_FOR_SCHEMA, WRITE_TAB_SCHEMA, SUGGEST_RIFF_SCHEMA, WORKSPACE_SCHEMA, SUGGEST_SOUNDS_SCHEMA, SHARE_SCHEMA, PROVENANCE_SCHEMA];
 
 // Free text that came with a song (a share link, a device file, a MIDI file: names, device requests and blurbs,
 // markers) goes back to agents trimmed, so a long paste can't crowd out the rest of a result. It is the song's content,

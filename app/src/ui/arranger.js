@@ -66,6 +66,7 @@ import {
 } from '../core/arrangement.js';
 import { laneKey, laneAt, lanesOf, valueAt, toPos, laneView } from '../core/automation.js';
 import { DEVICE_CATS } from '../devices/registry.js';
+import * as rackKit from './rack.js';
 import {
   LANE_H, LANE_H_PHONE, laneState, trackLanes, shownLanes, laneParams, laneInfo, staticValue, fmtValue, drawLaneRow, laneHead,
   laneEditor, laneKeysOn, SHAPES, laneHeight, setLaneHeight, heightsSig, masterTrack, tipHide, laneSigners,
@@ -193,8 +194,11 @@ function mountArranger(el, app) {
   const said = h('p.sr-only', { 'aria-live': 'polite', 'aria-atomic': 'true' });
   const playhead = h('div.ar-playhead');
   const dropHi = h('div.ar-drop', { hidden: true });
+  // the ghost lane: where R's take goes when it makes a new track (or the new track a take's sound card previews), a
+  // dashed frame at the foot of the tracks; not a track, nothing selects it
+  const ghostLane = h('div.ar-ghostlane', { hidden: true, 'aria-hidden': 'true' });
   const empty = h('div.ar-empty', { hidden: true });
-  const laneWrap = h('div.ar-lanewrap', lanes.cv, scroller, playhead, dropHi, empty);
+  const laneWrap = h('div.ar-lanewrap', lanes.cv, scroller, playhead, ghostLane, dropHi, empty);
   const main = h('div.ar-main', corner, rulerWrap, heads, laneWrap);
   const root = h('div.ar', bar, main, said);
   el.append(root);
@@ -856,7 +860,10 @@ function mountArranger(el, app) {
     const laneSig = L.rows.filter((r) => r.kind === 'lane').map((r) => { const l = laneAt(p, r.addr), inf = laneInfo(app, p, r.addr); return [r.key, r.h, l?.by, l ? laneSigners(app, l).join() : '', !!l?.off, ls.draw === r.key, inf.name, inf.device, !!inf.spec]; });
     const takeSig = L.rows.filter((r) => r.kind === 'take').map((r) => [r.i, r.k, r.h, r.folders.map((f) => (f.lanes[r.k] ? [f.lanes[r.k].name, f.lanes[r.k].clips[0].by, f.comp.map((x) => `${x.lane}@${x.start}-${x.end}`).join()] : null))]);
     const heldOn = keptOffTrack;
-    const sig = JSON.stringify([th(), p.tracks.map((t) => [t.id, t.name, t.color, t.kind, t.mute, t.solo, t.arm, t.by, t.instrument?.device, t.inserts.length, laneKeysOn(p, t).length > 0, !!ls.tracks[t.id]?.open, heldOn(t), deviceName(app, t.instrument?.device), ((d) => d && [d.by, d.via])(app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device))]), laneSig, takeSig]);
+    // the sound card's state: the trial (its track shows "Light Table, trying"), the tracks whose Sounds is pending,
+    // and the ghost lane (a new track R's take would make, or the one a take's card previews)
+    const tried = app.sounds?.trying?.() || null, gh = ghostInfo();
+    const sig = JSON.stringify([th(), p.tracks.map((t) => [t.id, t.name, t.color, t.kind, t.mute, t.solo, t.arm, t.by, t.instrument?.device, t.inserts.length, t.inserts.length ? t.inserts.slice(0, 3).map((x) => x.device).join() : '', laneKeysOn(p, t).length > 0, !!ls.tracks[t.id]?.open, heldOn(t), deviceName(app, t.instrument?.device), ((d) => d && [d.by, d.via])(app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device)), !!app.sounds?.pending?.(t.id)]), laneSig, takeSig, !!app.sounds, tried && [tried.track, tried.device, tried.newTrack], gh && [gh.track, gh.name]]);
     if (sig === headSig) { syncHeadSel(); return; }
     headSig = sig;
     const anySolo = p.tracks.some((t) => t.solo);
@@ -888,10 +895,42 @@ function mountArranger(el, app) {
       const devVia = devDef?.via && devDef.via !== devBy && signer === devBy ? devDef.via : null;
       const devCredit = devBy && authorKind(app, devBy) !== 'house' ? `${dev}, made by ${devBy === 'you' ? 'you' : authorName(app, devBy)}${devVia ? `, via ${authorName(app, devVia)}’s link` : ''}` : '';
       // (the simple view puts away the swatch (Track tools), R (Recording options) and the devices button (Sound): the
-      // header keeps the name, the byline, the device's name as plain words, M and S; ui/workspace.js)
+      // header keeps the name, the byline, the instrument (its name, which opens it big), M and S; ui/workspace.js)
       const swatch = h('button.ar-swatch', { dataset: { feature: 'tracks' }, title: 'Track colour', 'aria-label': `Colour of ${t.name}`, onclick: (e) => { e.stopPropagation(); colorMenu(e.currentTarget, t); } });
       const tall = th() >= 46;
-      const row = h('div.ar-head' + (ui.state.selection.track === t.id ? '.sel' : '') + (t.mute || (anySolo && !t.solo) ? '.quiet' : ''), {
+      // the previewed new track of a take's sound card is drawn as the ghost lane, not as a track
+      if (gh && gh.track === t.id) return ghostHead(gh);
+      const isInst = t.kind === 'instrument' && !!t.instrument;
+      const trying = tried && !tried.newTrack && tried.track === t.id;
+      const pending = !!app.sounds?.pending?.(t.id);
+      // The instrument as a button: the name opens it big (the device window, app.plugin); a held one opens the Devices
+      // tab, where Play it lives. Only the name and its glyph open: the swatch and the header's space select.
+      const inst = isInst ? h('button.ar-hinst' + (trying ? '.trying' : ''), {
+        type: 'button',
+        title: held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : `Open ${dev} big: its sound, presets and a keyboard`,
+        'aria-label': `Open ${dev}, the instrument on ${t.name}${held ? ', kept off' : ''}`,
+        onclick: (e) => { e.stopPropagation(); openInstrument(t); },
+      }, h('span.ar-hinst-n', trying ? `${dev}, trying` : dev || 'No device'), icon('open', { size: 12 })) : null;
+      // the devices button (Sound, put away in the simple view): an instrument track's effects, one click away
+      const devBtn = h('button.ar-hdev' + (isInst ? '.ar-hdev-fx' : ''), {
+        type: 'button', dataset: { feature: 'devices' },
+        title: (devCredit ? devCredit + '. ' : '') + (held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : isInst ? `Open its devices: ${t.inserts.length ? t.inserts.map((x) => deviceName(app, x.device)).join(', ') : 'no effects yet'}` : 'Open its devices'),
+        'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`,
+        onclick: (e) => {
+          e.stopPropagation();
+          const had = e.currentTarget === document.activeElement;
+          ui.select({ track: t.id }); if (ui.panels.has('rack')) ui.show('rack');
+          // (selecting redraws the header: focus goes to the same button on the new one, not to the page)
+          if (had) requestAnimationFrame(() => { if (document.activeElement && document.activeElement !== document.body) return; headsInner.querySelector(`.ar-head[data-track="${t.id}"] .ar-hdev`)?.focus({ preventScroll: true }); });
+        },
+      }, isInst ? icon('knob', { size: 13 }) : dev || 'No device');
+      // Sounds: on the selected track, on one the pointer is over or focus is in (CSS, over the name's end, so the
+      // header never shifts), and pending on a new track until its card has been opened once
+      const sounds = isInst && app.sounds ? h('button.btn.btn-txt.ar-hsounds', {
+        type: 'button', title: `Hear ${t.name} on other instruments`, 'aria-label': `Sounds for ${t.name}`,
+        onclick: (e) => { e.stopPropagation(); if (ui.state.selection.track !== t.id) selectTrackArm(t); app.sounds.offer({ track: t.id, from: 'header', anchor: e.currentTarget }); },
+      }, 'Sounds') : null;
+      const row = h('div.ar-head' + (ui.state.selection.track === t.id ? '.sel' : '') + (t.mute || (anySolo && !t.solo) ? '.quiet' : '') + (pending ? '.pending' : '') + (tall ? '' : '.short'), {
         dataset: { track: t.id, author: ak }, style: { height: th() + 'px' },
         title: ak === 'house' ? t.name : `${t.name}, by ${authorName(app, t.by)}`,
       },
@@ -901,12 +940,15 @@ function mountArranger(el, app) {
       h('div.ar-htap', { 'aria-hidden': 'true', onclick: () => {} }),
       h('span.ar-hnum.num', { 'aria-hidden': 'true' }, String(i + 1).padStart(2, '0')),
       h('div.ar-hmain',
-        h('div.ar-hrow', tall ? h('i.ar-hsw', { 'aria-hidden': 'true' }) : [h('i.ar-hsw.ar-hsw-off', { 'aria-hidden': 'true' }), swatch], name),
-        tall ? h('div.ar-hsub', swatch,
-          h('span.ar-hdevname', dev || 'No device'),
-          h('button.ar-hdev', { dataset: { feature: 'devices' }, title: (devCredit ? devCredit + '. ' : '') + (held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : 'Open its devices'), 'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`, onclick: (e) => { e.stopPropagation(); ui.select({ track: t.id }); if (ui.panels.has('rack')) ui.show('rack'); } }, dev || 'No device'),
-          held ? h('span.ar-hby.ar-hheld', ', kept off') : signer ? h('span.ar-hby', ', by ', byline(signer, { app }), ...(devVia ? [' via ', byline(devVia, { app })] : [])) : null) : null),
-      h('div.ar-hbtns', flag('mute', 'M', 'Mute', 'M'), flag('solo', 'S', 'Solo', 'S'), flag('arm', 'R', `${t.kind === 'audio' ? 'Arm to record audio' : 'Arm to record what you play'} (a selected track is armed; ${MOD}click arms one more)`), autoKey(t)),
+        h('div.ar-hrow', tall ? h('i.ar-hsw', { 'aria-hidden': 'true' }) : [h('i.ar-hsw.ar-hsw-off', { 'aria-hidden': 'true' }), swatch], name, sounds),
+        tall ? h('div.ar-hsub', swatch, inst,
+          isInst ? null : devBtn,
+          held ? h('span.ar-hby.ar-hheld', ', kept off') : signer ? h('span.ar-hby', ', by ', byline(signer, { app }), ...(devVia ? [' via ', byline(devVia, { app })] : [])) : null,
+          isInst ? devBtn : null) : null),
+      h('div.ar-hbtns', flag('mute', 'M', 'Mute', 'M'), flag('solo', 'S', 'Solo', 'S'), flag('arm', 'R', `${t.kind === 'audio' ? 'Arm to record audio' : 'Arm to record what you play'} (a selected track is armed; ${MOD}click arms one more)`),
+        // the simple view's R: a lamp on the track R records onto, not a button (Onto, in Sketch, picks another)
+        h('span.ar-hlamp', { role: 'img', 'aria-label': `R records onto ${t.name}`, title: `R records onto ${t.name}. Onto in Sketch picks another.` }, 'R'),
+        autoKey(t)),
       h('div.ar-hmeter', meterFill),
       // the armed track's input: a 2 px meter along the header's bottom edge
       h('div.ar-hin', { 'aria-hidden': 'true' }, inFill));
@@ -949,7 +991,11 @@ function mountArranger(el, app) {
       laneHeads(mrow.t, L.n);
     }
     const addRow = h('button.ar-addrow', { dataset: { feature: 'tracks' }, style: { height: Math.max(40, Math.min(56, th())) + 'px' }, onclick: (e) => addTrackMenu(e.currentTarget) }, h('span', 'Add a track'));
-    headsInner.replaceChildren(...all, addRow);
+    // the ghost lane's head at the foot, when R would make a new track (a previewed one took its own track's place)
+    const ghostRow = gh && !gh.track ? ghostHead(gh) : null;
+    headsInner.replaceChildren(...all, ...(ghostRow ? [ghostRow] : []), addRow);
+    ghostAt = gh ? (gh.track ? Math.max(0, p.tracks.findIndex((t) => t.id === gh.track)) : p.tracks.length) : -1;
+    syncGhost();
     laneValT = 0;
     presenceSig = '';
     armSig = ''; syncArm();
@@ -991,17 +1037,75 @@ function mountArranger(el, app) {
   // the R keys: lit on every armed track (on purpose, or the selected one by selection)
   let armSig = '';
   function syncArm() {
-    const lit = armedIds();
-    const sig = [...lit].join(',');
+    const lit = armedIds(), aim = aimId();
+    const sig = [...lit].join(',') + '|' + (aim || '');
     if (sig === armSig) return;
     armSig = sig;
     for (const row of headsInner.children) {
       if (!row._track) continue;
       const on = lit.has(row._track);
+      row.classList.toggle('aimed', aim === row._track);
       row.classList.toggle('armed', on);
       if (row._arm) { row._arm.classList.toggle('on', on); row._arm.setAttribute('aria-pressed', String(on)); }
       if (!on && row._in) row._in.style.clipPath = 'inset(0 100% 0 0)';
     }
+  }
+  // Where R goes, shown: in the simple view the aimed track's R is a lamp (its arm button is put away); the ghost lane
+  // at the foot says "A new track, Lamp Tines" while R's take would make one (Sketch open, or a take counting in or
+  // recording), or while a take's sound card previews the track its Keep would make.
+  function aimId() {
+    const R = recorder();
+    if (!R || typeof R.lands !== 'function') return null;
+    try { return R.lands()?.id || null; } catch (e) { return null; }
+  }
+  function ghostInfo() {
+    const tr = app.sounds?.trying?.();
+    if (tr?.newTrack && tr.track && store.track(tr.track)) return { track: tr.track, name: `A new track, ${tr.name || deviceName(app, store.track(tr.track)?.instrument?.device)}` };
+    if (!tracks().length) return null;
+    const R = recorder();
+    if (!R || typeof R.lands !== 'function') return null;
+    const busy = R.state && R.state !== 'idle';
+    if (!busy && !ui.visible?.('sketch')) return null;
+    let lands;
+    try { lands = R.lands(); } catch (e) { return null; }
+    if (lands !== null) return null;
+    let hum = false;
+    try { hum = !!R.humming?.(); } catch (e) { hum = false; }
+    const kind = hum ? 'hum' : app.input?.mode === 'tap' ? 'pads' : 'keys';
+    const part = app.sounds?.newPart?.(kind) || { device: kind === 'pads' ? 'core.drums' : 'core.keys' };
+    return { track: null, name: `A new track, ${deviceName(app, part.device)}` };
+  }
+  function ghostHead(gh) {
+    return h('div.ar-ghost', { style: { height: th() + 'px' }, dataset: { ghost: gh.track ? 'preview' : 'aim' }, title: gh.name },
+      h('span.ar-hnum.num', { 'aria-hidden': 'true' }, ''),
+      h('div.ar-hmain', h('span.ar-gname', gh.name)),
+      h('div.ar-hbtns', h('span.ar-hlamp.on', { role: 'img', 'aria-label': 'R records onto a new track', title: 'R records onto a new track' }, 'R')));
+  }
+  let ghostAt = -1, ghostSig = '', ghostPos = '', aimT = 0;
+  function syncGhost() {
+    if (ghostAt < 0) { if (!ghostLane.hidden) { ghostLane.hidden = true; ghostPos = ''; } return; }
+    const pos = `top:${Math.round(trackTop(ghostAt) - scroller.scrollTop)}px;left:0;right:0;height:${th()}px`;
+    if (pos === ghostPos && !ghostLane.hidden) return;
+    ghostPos = pos;
+    ghostLane.hidden = false;
+    ghostLane.style.cssText = pos;
+  }
+  // ~10 Hz: the aim and the ghost follow Sketch's mode, the selection and the recorder without a redraw of their own
+  function syncAim(now) {
+    if (now - aimT < 100) return;
+    aimT = now;
+    const gh = ghostInfo();
+    const sig = gh ? `${gh.track}|${gh.name}` : '';
+    if (sig !== ghostSig) { ghostSig = sig; headSig = ''; buildHeads(); dirty = true; }
+    else syncGhost();
+    syncArm();
+  }
+  // the instrument opened big; a held one (kept off here) opens the Devices tab instead, where Play it is
+  function openInstrument(t) {
+    selectTrackArm(t);
+    if (keptOffTrack(t)) { ui.show('rack'); return; }
+    const r = app.plugin?.open?.({ track: t.id, slot: 'instrument' });
+    if (r && !r.ok) { if (r.held) ui.show('rack'); else ui.toast(r.error, { kind: 'bad' }); }
   }
   function renameTrack(t, nameEl) {
     const inp = h('input.ar-hinput', { value: t.name, 'aria-label': 'Track name', maxlength: 40 });
@@ -1031,6 +1135,11 @@ function mountArranger(el, app) {
       { head: t.name },
       { label: 'Rename', run: () => { const n = headsInner.querySelector(`[data-track="${t.id}"] .ar-hname`); if (n) renameTrack(t, n); } },
       { label: 'Colour…', run: () => colorMenu(headsInner.querySelector(`[data-track="${t.id}"] .ar-swatch`) || at, t) },
+      ...(t.kind === 'instrument' && t.instrument ? [
+        { label: `Open ${deviceName(app, t.instrument.device)}`, sub: keptOffTrack(t) ? 'kept off: its devices' : 'its sound, presets and a keyboard', run: () => openInstrument(t) },
+        ...(app.sounds ? [{ label: 'Sounds', sub: 'hear it on other instruments', run: () => { if (ui.state.selection.track !== t.id) selectTrackArm(t); app.sounds.offer({ track: t.id, from: 'header', anchor: headsInner.querySelector(`[data-track="${t.id}"]`) || null }); } }] : []),
+      ] : []),
+      { label: `Devices on ${t.name}`, run: () => { ui.select({ track: t.id }); ui.show('rack'); } },
       { label: 'Automation…', kbd: 'E', sub: 'lanes under the track', run: () => automationMenu(at, t) },
       { label: 'Duplicate track', run: () => duplicateTrack(t) },
       { label: 'Move up', disabled: i <= 0, run: () => store.dispatch({ type: 'track.move', track: t.id, index: i - 1 }, { by: 'you', label: `move ${t.name}` }) },
@@ -2172,17 +2281,26 @@ function mountArranger(el, app) {
     return { row, track: tracks()[row] || null };
   };
   const hasDevice = (e) => [...(e.dataTransfer?.types || [])].includes(DEVICE_MIME);
+  // (a drag's data can't be read until the drop, so the device being dragged is noted as the drag starts: the lane's
+  // line can say a melodic instrument over a drum lane makes a new track)
+  let dragDev = null;
+  const onDragStart = (e) => { const id = e.target?.closest?.('[data-device]')?.dataset?.device; dragDev = id ? app.devices.getDevice(id) || null : null; };
+  const onDragEnd = () => { dragDev = null; };
+  document.addEventListener('dragstart', onDragStart, true);
+  document.addEventListener('dragend', onDragEnd, true);
+  const offDrag = () => { document.removeEventListener('dragstart', onDragStart, true); document.removeEventListener('dragend', onDragEnd, true); };
   for (const zone of [laneWrap, heads]) {
     zone.addEventListener('dragover', (e) => {
       if (!hasDevice(e)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       const { row, track } = dropTarget(e);
+      const split = !!(track && dragDev && dragDev.kind === 'instrument' && mismatch(dragDev, track));
       dropHi.hidden = false;
-      dropHi.className = 'ar-drop' + (track ? '' : ' ar-drop-new');
+      dropHi.className = 'ar-drop' + (track && !split ? '' : ' ar-drop-new');
       const top = trackTop(track ? row : tracks().length) - scroller.scrollTop;
       dropHi.style.cssText = `top:${top}px;left:0;right:0;height:${track ? th() : 44}px`;
-      dropHi.textContent = track ? `Drop on ${track.name}` : 'Drop for a new track';
+      dropHi.textContent = split ? `Drop for a new track with ${dragDev.name}` : track ? `Drop on ${track.name}` : 'Drop for a new track';
     });
     zone.addEventListener('dragleave', (e) => { if (!zone.contains(e.relatedTarget)) dropHi.hidden = true; });
     zone.addEventListener('drop', (e) => {
@@ -2194,13 +2312,37 @@ function mountArranger(el, app) {
       dropDevice(info, dropTarget(e).track);
     });
   }
+  // A melodic instrument on a drum track, or a kit on a pitched track with notes: a drop there makes a new track rather
+  // than turning the hits into notes (rack.js isMismatch when the browser's package has it; the same rule here)
+  function mismatch(def, t) {
+    if (typeof rackKit.isMismatch === 'function') { try { return !!rackKit.isMismatch(def, t, P()); } catch (e) { /* the rule below */ } }
+    if (!def || def.kind !== 'instrument' || !t || t.kind !== 'instrument') return false;
+    const kit = def.cat === 'drums', drums = isDrumTrack(app, t);
+    if (!kit && drums) return true;
+    return kit && !drums && t.clips.some((c) => c.kind === 'notes' && c.notes?.length);
+  }
+  // A drop is a deliberate act: kept at once, one undo step signed you, with a toast and Undo (only a click in the
+  // browser is a trial). A track still named after its old instrument takes the new one's name in the same step.
   function dropDevice(info, track) {
     const def = app.devices.getDevice(info?.id);
     if (!def) { ui.toast(`No device "${info?.id}"`, { kind: 'bad' }); return; }
     const kind = info.kind || def.kind;
-    if (track && kind === 'instrument' && track.kind === 'instrument') {
-      store.dispatch({ type: 'instrument.set', track: track.id, device: def.id }, { by: 'you', label: `${track.name} plays ${def.name}` });
+    if (track && kind === 'instrument' && track.kind === 'instrument' && mismatch(def, track)) {
+      const id = addTrack({ kind: 'instrument', name: def.name, instrument: { device: def.id, params: {} } });
+      if (id) ui.toast(`New track with ${def.name}; ${track.name} keeps ${deviceName(app, track.instrument?.device)}.`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    } else if (track && kind === 'instrument' && track.kind === 'instrument') {
+      const was = deviceName(app, track.instrument?.device);
+      if (track.instrument?.device === def.id) { ui.toast(`${track.name} plays ${def.name} already.`); ui.select({ track: track.id }); return; }
+      // (a sound being tried on that track gives way to the one dropped: Back, quietly, then the drop)
+      const tr = app.sounds?.trying?.();
+      if (tr && !tr.newTrack && tr.track === track.id) app.sounds.back({ quiet: true });
+      const name = track.name;
+      const ops = [{ type: 'instrument.set', track: track.id, device: def.id }];
+      if (name === was && def.name !== name) ops.push({ type: 'track.set', track: track.id, patch: { name: def.name } });
+      const r = store.dispatch(ops, { by: 'you', label: `${name}: ${def.name} (was ${was})` });
+      if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
       ui.select({ track: track.id });
+      ui.toast(`${name} plays ${def.name} now (was ${was}).`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo({ id: r.txn?.id }) } });
     } else if (track && kind === 'effect') {
       store.dispatch({ type: 'insert.add', track: track.id, insert: { device: def.id } }, { by: 'you', label: `add ${def.name} to ${track.name}` });
       ui.select({ track: track.id });
@@ -2409,7 +2551,8 @@ function mountArranger(el, app) {
     if (!isEmpty || empty.childElementCount) return;
     const sketch = () => (ui.panels.has('sketch') ? ui.show('sketch') : ui.toast('Sketch is still loading. It listens while you hum, tap or play.'));
     const pr = store.get();
-    // the blank sheet before the first take: a head, a sentence, one primary (Hum it), the other ways in as plain buttons
+    // the blank sheet before the first take: a head, a sentence, one primary (Tap a beat: the first minute is built
+    // around it, and a beat gives a hum a tempo and a grid), the other ways in as plain buttons
     empty.append(h('div.ar-empty-card',
       h('h2.ar-empty-title.disp', 'Take 1 is yours.'),
       h('p.ar-empty-text', `Hum it, tap it, play it, or ask your agent. Every take is kept and signed with who played it, at ${pr.tempo || 120} BPM until you change it.`),
@@ -2961,8 +3104,11 @@ function mountArranger(el, app) {
       const cd = app.transport?.countdown?.();
       const left = live.counting.beats;
       const k = cd ? cd.n : Math.ceil(left - 1e-3);
-      const i = rowOf(live.track || ids[0]);
+      // (a take that makes a new track counts in over the ghost lane, where that track will be)
+      const onGhost = !live.track && ghostAt >= 0;
+      const i = onGhost ? ghostAt : rowOf(live.track || ids[0]);
       if (k >= 1 && i >= 0) {
+        view.countOn = onGhost ? 'new' : p.tracks[i]?.id || null;
         const phase = cd ? cd.frac : clamp(k - left, 0, 1);
         const cx = clamp(Math.round(nowB * pb - sx) + 10, 10, Math.max(10, W - 70));
         const cy = trackTop(i) - sy + TH / 2;
@@ -3140,6 +3286,8 @@ function mountArranger(el, app) {
   const offTr = engine.on?.('transport', () => { rulerDirty = true; }) || (() => {});
   // the workspace changed (Loop added or put away): the ruler's loop row is drawn again
   const offWs = ui.on?.('workspace', () => { rulerDirty = true; dirty = true; }) || (() => {});
+  // the sound card (ui/sounds.js): a trial, a pending Sounds, the previewed new track
+  const offSounds = ui.on?.('sounds', () => { buildHeads(); dirty = true; }) || (() => {});
   // the registry changed (a held device let play, a device defined, removed or put back): the headers name devices, and
   // a held one's clips say "kept off", so both redraw once it has all landed. Play it holds the set first and defines
   // the device after (main.js syncProjectDevices), so a redraw on the held event alone printed the device's id
@@ -3325,6 +3473,8 @@ function mountArranger(el, app) {
     playhead.style.opacity = px < -2 || px > lanes.w ? '0' : '1';
     playhead.classList.toggle('playing', !!engine.playing);
     syncHeadExtras(now);
+    syncAim(now);
+    syncGhost();
     // mini meters (~30 Hz)
     if (now - meterT > 33) {
       meterT = now;
@@ -3470,7 +3620,7 @@ function mountArranger(el, app) {
     update: onChange,
     frame,
     refresh() { dirty = true; rulerDirty = true; headSig = ''; buildHeads(); },
-    unmount() { offSel(); offPres(); offResize(); offSnap(); offTr(); offWs(); offDevs(); offs.forEach((f) => f()); document.fonts?.removeEventListener?.('loadingdone', refont); },
+    unmount() { offSel(); offPres(); offResize(); offSnap(); offTr(); offWs(); offSounds(); offDrag(); offDevs(); offs.forEach((f) => f()); document.fonts?.removeEventListener?.('loadingdone', refont); },
   };
 }
 
@@ -3530,17 +3680,53 @@ const CSS = `
 .ar-hsw { display: none; flex: none; margin: 0; }
 .ar-hdev { flex: none; min-width: 0; max-width: 100%; padding: 1px 0; border: 0; background: transparent; color: var(--text-3); font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .ar-hdev:hover { color: var(--text-2); }
-/* the simple view (ui/workspace.js): the devices button put away leaves the device's name as words; the swatch put
-   away leaves the track's colour as a plain square */
-.ar-hdevname { display: none; flex: 0 1 auto; min-width: 0; padding: 1px 0; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-off-devices .ar-hdevname { display: block; }
+/* an instrument track's devices button is a small knob glyph after the instrument (the effects, one click away) */
+.ar-hdev.ar-hdev-fx { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; margin-left: 4px; padding: 0; border-radius: var(--r-press); }
+.ar-hdev.ar-hdev-fx:hover { background: var(--bg-3); color: var(--text); }
+/* the instrument: its name in the second ink and the open glyph, at rest; underlined on hover and focus, no box. Only
+   the name and the glyph open it */
+.ar-hinst { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-width: 0; padding: 1px 0; border: 0; background: transparent; color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }
+.ar-hinst-n { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
+.ar-hinst:hover .ar-hinst-n, .ar-hinst:focus-visible .ar-hinst-n { color: var(--text); text-decoration-color: var(--text-3); }
+.ar-hinst .ico { flex: none; color: var(--text-3); }
+.ar-hinst:hover .ico { color: var(--text-2); }
+.ar-hinst:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+/* a sound on trial (ui/sounds.js): "Light Table, trying", in pencil italic */
+.ar-hinst.trying .ar-hinst-n { font-style: italic; color: var(--text-3); }
+/* Sounds: over the end of the name row, so showing it never moves the header; on the selected track, on one the
+   pointer is over or focus is in, and on a new track until its card has been opened (in cream, not pencil) */
+.ar-head { --hbg: var(--bg); }
+.ar-head:hover { --hbg: color-mix(in srgb, var(--bg-3) 50%, var(--bg)); }
+.ar-head.sel { --hbg: var(--bg-3); }
+.ar-hrow { position: relative; }
+.ar-hsounds { position: absolute; right: 0; top: 50%; transform: translateY(-50%); visibility: hidden; height: auto; min-height: 0; padding: 0 0 0 10px; border: 0; background: linear-gradient(to right, transparent, var(--hbg) 8px); font-size: 12px; line-height: 1.4; }
+.ar-head.sel .ar-hsounds, .ar-head.pending .ar-hsounds, .ar-head:focus-within .ar-hsounds { visibility: visible; }
+@media (hover: hover) and (pointer: fine) { .ar-head:hover .ar-hsounds { visibility: visible; } }
+.ar-head.pending .ar-hsounds { color: var(--text); text-decoration-color: var(--text-3); }
+@media (min-width: 701px) { .ar-head.short .ar-hsounds { display: none; } }
+/* (while Sounds shows, the name ends before it, with an ellipsis, rather than running under it: "Light Tab… Sounds") */
+@media (min-width: 701px) {
+  .ar-head.sel:not(.short) .ar-hname, .ar-head.pending:not(.short) .ar-hname, .ar-head:not(.short):focus-within .ar-hname { max-width: calc(100% - 58px); }
+}
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) { .ar-head:not(.short):hover .ar-hname { max-width: calc(100% - 58px); } }
+/* the simple view's R: a lamp on the track R records onto (its arm button is put away there), not a button */
+.ar-hlamp { display: none; place-items: center; width: 19px; height: 19px; border: 1px solid var(--rec); border-radius: var(--r-press); background: var(--rec); color: var(--bg); font: 600 10px/1 var(--font-mono); }
+/* (its room is kept on every header, so the keys line up whichever track is aimed) */
+.ws-off-record-options .ar-head .ar-hlamp { display: inline-grid; visibility: hidden; }
+.ws-off-record-options .ar-head.aimed .ar-hlamp, .ar-ghost .ar-hlamp { display: inline-grid; visibility: visible; }
+/* the ghost lane: where a new track would go, in pencil italic with a lit R, framed dashed like a muted clip */
+.ar-ghost { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 3px; align-items: center; padding-left: 14px; border-bottom: var(--rule); background: var(--bg); pointer-events: none; user-select: none; }
+.ar-ghost .ar-hmain { padding-right: 6px; }
+.ar-gname { min-width: 0; font-size: 13px; font-style: italic; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-ghostlane { position: absolute; z-index: 1; box-sizing: border-box; border: 1px dashed var(--line-2); pointer-events: none; }
+/* the simple view: the swatch put away leaves the track's colour as a plain square */
 .ar-hsw.ar-hsw-off { display: none; }
 .ws-off-tracks .ar-hsw.ar-hsw-off { display: block; }
 /* (the device's name is fitted first; the byline gives way to it, "Firefly, by Cla…", never "Fir…, by Claude") */
-.ar-hby { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ar-hby { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a held instrument: "kept off" always shows; its name gives way first */
 .ar-hby.ar-hheld { flex: none; }
-.ar-hsub:has(.ar-hheld) .ar-hdev { flex: 0 1 auto; }
+.ar-hsub:has(.ar-hheld) .ar-hinst { flex: 0 1 auto; }
 /* a take lane of an open folder: the take's name (a click plays it everywhere), its byline, where it plays */
 .ar-takehead { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 48px; border-bottom: var(--rule); background: var(--bg); white-space: nowrap; overflow: hidden; user-select: none; min-width: 0; font-size: 11.5px; }
 .ar-tkname { flex: none; padding: 0; border: 0; background: none; font: 600 12px/1.2 var(--font-ui); color: var(--text-3); cursor: pointer; }
@@ -3666,7 +3852,17 @@ const CSS = `
   .ar-bar { gap: 8px; padding: 0 6px 0 10px; }
   .ar-hnum, .ar-hsub, .ar-hbtns .ar-hb-arm, .ar-hbtns .ar-hb-solo, .ar-hint, .ar-zoom, .ar-sep { display: none; }
   .ar-lhead { padding-left: 10px; } .ar-ldev, .ar-lby, .ar .ar-lhead .tog, .ar .ar-lhead .btn { display: none; } .ar-lname { max-width: 100%; font-size: 12px; } .ar-lname::after { content: ''; position: absolute; inset: 0; } .ar-lval { font-size: 12px; }
-  .ar-head { grid-template-columns: minmax(0, 1fr) auto 3px; padding-left: 10px; }
+  .ar-head, .ar-ghost { grid-template-columns: minmax(0, 1fr) auto 3px; padding-left: 10px; }
+  /* (no sub row here: Sounds takes a line of its own under the name, never over it) */
+  .ar-hrow { flex-wrap: wrap; row-gap: 0; }
+  .ew-shell .ar-hsounds { position: static; transform: none; flex-basis: 100%; min-height: 24px; padding: 0; background: none; text-align: left; font-size: 12px; }
+  /* (one line under the name: the instrument, whose name opens it big as on a computer, and whose window has Sounds;
+     on a new track whose sound nobody has picked yet, Sounds in its place) */
+  .ar-head .ar-hsub { display: flex; font-size: 12px; }
+  .ar-head .ar-hsub > :not(.ar-hinst) { display: none; }
+  .ar-head .ar-hinst { min-height: 24px; }
+  .ew-shell .ar-head:not(.pending) .ar-hsounds { display: none; }
+  .ar-head.pending .ar-hsub { display: none; }
   .ar-hsw { display: block; }
   .ar-hbtns { padding: 0 3px; gap: 2px; } .ar-hb { width: 19px; }
   .ar-corner-row { padding: 0 4px 0 10px; }

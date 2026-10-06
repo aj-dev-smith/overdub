@@ -44,7 +44,7 @@ const SPEC = [
   ['Song', 'song-settings', 'Song settings', 'Beats per bar, tap the tempo, the click.'],
   ['Song', 'tracks', 'Track tools', 'Add tracks, snap, zoom, and colours.'],
   ['Song', 'redo', 'Redo', 'Put back what Undo took away.'],
-  ['Recording', 'record-options', 'Recording options', 'Count-in, layering takes, timing, and which track you record onto.'],
+  ['Recording', 'record-options', 'Recording options', 'Count-in, layering takes and timing.'],
   ['Agent', 'history', 'History', 'Everything that changed, who changed it, and how to take it back.'],
   ['Agent', 'details', 'Details', 'Exact values for whatever is selected.'],
   ['Agent', 'agent-setup', 'Connect your own agent', 'Use your own Claude, or Claude Code on this computer.'],
@@ -244,9 +244,11 @@ try {
       await new Promise((r) => setTimeout(r, 300));
       const vis = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().width > 0;
       const heads = [...document.querySelectorAll('.ar-head')].filter(vis);
-      return heads.map((h) => ({ n: [...h.querySelectorAll('button, input, select, a[href], [role=button], [role=slider]')].filter(vis).map((b) => (b.getAttribute('aria-label') || b.textContent).trim().slice(0, 14)), m: !!h.querySelector('.ar-hb-mute') && vis(h.querySelector('.ar-hb-mute')), s: !!h.querySelector('.ar-hb-solo') && vis(h.querySelector('.ar-hb-solo')) }));
+      // (the instrument, .ar-hinst, opens it big, and Sounds, .ar-hsounds, shows on the selected or a new track:
+      // docs/INSTRUMENTS-UX.md 2.3; anything else is a control too many)
+      return heads.map((h) => ({ n: [...h.querySelectorAll('button, input, select, a[href], [role=button], [role=slider]')].filter(vis).filter((b) => !b.closest('.ar-hinst, .ar-hsounds')).map((b) => (b.getAttribute('aria-label') || b.textContent).trim().slice(0, 14)), inst: !!h.querySelector('.ar-hinst') && vis(h.querySelector('.ar-hinst')), m: !!h.querySelector('.ar-hb-mute') && vis(h.querySelector('.ar-hb-mute')), s: !!h.querySelector('.ar-hb-solo') && vis(h.querySelector('.ar-hb-solo')) }));
     });
-    T.ok(hd.length === 2 && hd.every((h) => h.m && h.s && h.n.length <= 2), `each track header shows M and S and no other control (${hd.map((h) => h.n.join(' ')).join(' / ')})`);
+    T.ok(hd.length === 2 && hd.every((h) => h.m && h.s && h.inst && h.n.length <= 2), `each track header shows its instrument, M and S, and no other control besides Sounds (${hd.map((h) => h.n.join(' ')).join(' / ')})`);
     const sk = await S.E(async () => {
       const o = window.overdub;
       o.ui.show('sketch');
@@ -255,11 +257,15 @@ try {
       const p = document.querySelector('[data-panel="sketch"]');
       const tagged = p ? [...p.querySelectorAll('[data-feature~="record-options"]')] : [];
       const strip = document.querySelector('.ew-region-bottom > .ew-tabs');
-      return { open: o.ui.isOpen('bottom') && o.ui.active('bottom') === 'sketch', tagged: tagged.length, shown: tagged.filter(vis).length, strip: !!strip && vis(strip), text: p ? p.innerText : '' };
+      const onto = p?.querySelector('.sk-onto'), sel = p?.querySelector('.sk-target');
+      return { open: o.ui.isOpen('bottom') && o.ui.active('bottom') === 'sketch', tagged: tagged.length, shown: tagged.filter(vis).length, strip: !!strip && vis(strip), text: p ? p.innerText : '',
+        onto: !!onto && vis(onto) && !onto.closest('[data-feature]'), opts: sel ? [...sel.options].map((x) => x.textContent) : [], value: sel?.selectedOptions[0]?.textContent || '' };
     });
     T.ok(sk.open && !sk.strip, `Sketch opens alone in the bottom pane, no tab strip (open ${sk.open}, strip ${sk.strip})`);
     T.ok(sk.tagged > 0 && sk.shown === 0, `Sketch's recording options are tagged record-options and put away (${sk.tagged} tagged, ${sk.shown} showing)`);
     T.ok(/Hum it/.test(sk.text) && /Keep|Takes|Record/.test(sk.text), 'Sketch keeps its modes, the Hum and Record buttons and the takes');
+    // (docs/INSTRUMENTS-UX.md 2.1: where R records is always in view; "A new track" first, then the tracks)
+    T.ok(sk.onto && sk.opts[0] === 'A new track' && sk.opts.includes('Keys') && sk.opts.includes('Bass'), `Sketch's Onto shows in the simple view, untagged: "${sk.opts.join('", "')}" (now "${sk.value}")`);
     await S.E(() => { const o = window.overdub; o.ui.setOpen('bottom', false); o.store.undo(); });
     const src = fs.readFileSync(new URL('../app/src/ui/sketch.js', import.meta.url), 'utf8');
     T.ok(/Heard nothing\./.test(src) && /Hum a little louder, or closer to the mic\./.test(src), 'an empty hum says "Heard nothing. Hum a little louder, or closer to the mic."');

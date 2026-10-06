@@ -512,7 +512,7 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
   const A = Object.fromEntries(cat.map((x) => [x.name, x.annotations || {}]));
   const reads = ['get_project', 'get_guide', 'get_selection', 'get_history', 'list_devices', 'get_device', 'render_and_measure', 'get_capture', 'get_recording', 'get_variation_result', 'compare_to_reference', 'share_link', 'provenance_report'];
   const destroys = ['apply_ops', 'define_device', 'adjust', 'transform', 'arrange_song', 'propose_variations', 'undo', 'revert_my_changes'];
-  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around', 'workspace'];
+  const neither = ['play', 'stop', 'highlight', 'say', 'ask_human', 'show_device', 'arrange_around', 'workspace', 'suggest_sounds'];
   const wrong = [...reads.filter((n) => !(A[n]?.readOnlyHint === true && A[n]?.destructiveHint === false)).map((n) => `${n} should read only`),
     ...destroys.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === true)).map((n) => `${n} can delete or overwrite`),
     ...neither.filter((n) => !(A[n]?.readOnlyHint === false && A[n]?.destructiveHint === false)).map((n) => `${n} changes nothing in the song or only adds`),
@@ -522,6 +522,11 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
   t.ok(cat.some((x) => x.name === 'workspace') && extra.WORKSPACE_SCHEMA?.name === 'workspace' && extra.EXTRA_SCHEMAS?.includes(extra.WORKSPACE_SCHEMA)
     && ['list', 'add', 'open', 'put_away', 'view'].every((a) => (extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).includes(a)) && /Never while they record/.test(extra.WORKSPACE_SCHEMA?.description || ''),
     `node: workspace is in catalogSchemas() from extra-schemas.js, its actions list, add, open, put_away and view (${(extra.WORKSPACE_SCHEMA?.input_schema?.properties?.action?.enum || []).join(', ') || 'missing'})`);
+  // suggest_sounds (docs/INSTRUMENTS-UX.md 2.6), the 40th tool: rows on the person's sound card, from extra-schemas.js
+  const SS = extra.SUGGEST_SOUNDS_SCHEMA;
+  t.ok(cat.length === 40 && cat.some((x) => x.name === 'suggest_sounds') && extra.EXTRA_SCHEMAS?.includes(SS) && SS.input_schema?.properties?.sounds?.maxItems === 4 && (SS.input_schema?.properties?.sounds?.items?.required || []).join() === 'device,why'
+    && /nothing changes until they Keep one/.test(SS.description) && /Refused while they record/.test(SS.description),
+    `node: the catalog has 40 tools, suggest_sounds among them from extra-schemas.js: 1-4 sounds, each a device and a why, nothing changes until the person keeps one (${cat.length})`);
   t.ok(!wrong.length, `node: read-only, destructive and neither, as each tool behaves: ${reads.length} read, ${destroys.length} can delete or overwrite, ${neither.length} neither; none reaches past the tab${wrong.length ? ' (' + wrong.join('; ') + ')' : ''}`);
   const titles = cat.map((x) => x.annotations?.title || '');
   t.ok(titles.every((s) => s.length >= 4 && s.length <= 40 && /^[A-Z]/.test(s) && !/[.:!]$/.test(s)) && new Set(titles).size === titles.length, `node: each title is a short, distinct name ("${titles.slice(0, 4).join('", "')}"…)`);
@@ -532,6 +537,65 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     `node: a tool without annotations fails with its name and where to add them:\n       ${probe.join('\n       ')}`);
   // schemas() carries them; what the in-app agent sends the Messages API doesn't (it takes no such field)
   t.ok(tools.schemas().every((x) => x.annotations && x.annotations.title), 'node: app.tools.schemas() carries each static tool\'s annotations');
+}
+
+/* ------------------------------------------------------------------ 0b2. suggest_sounds (Node) */
+// docs/INSTRUMENTS-UX.md 2.6: an agent's sounds go onto the person's sound card (app.sounds, a stand-in here); nothing in
+// the song changes until they Keep one, and that Keep is theirs. Refused before anything shows: a device that isn't an
+// instrument, a preset it hasn't, an audio track, no track at all, and a take recording (its own check: it is in
+// NEVER_BLOCKED). With no track named or selected it goes to the newest track a take made.
+{
+  const reg = await import('../app/src/devices/registry.js');
+  await import('../app/src/devices/builtin/index.js');
+  const { createStore } = await import('../app/src/core/store.js');
+  const tools = await import('../app/src/agent/tools.js');
+  const sounds = await import('../app/src/agent/sounds-tool.js');
+  const store = createStore(null, { getDevice: reg.getDevice });
+  let shown = null, current = null, trying = null;
+  const app = { store, devices: reg, input: { recorder: { state: 'idle' } }, ui: { state: { selection: { track: null, clip: null, notes: new Set() } }, emit() {}, on() { return () => {}; }, toast() {} },
+    sounds: { suggest(track, rows, opts) { shown = { track, rows, by: opts.by, id: opts.id }; current = { track, rows }; return { ok: true }; }, get current() { return current; }, trying: () => trying } };
+  tools.installTools(app);
+  sounds.default(app);
+  const run = (n, i, by = 'claude') => app.tools.run(n, i, { by });
+  const none = await run('suggest_sounds', { sounds: [{ device: 'core.brass', why: 'bright' }] });
+  store.dispatch([{ type: 'track.add', ref: 'd', track: { name: 'Drums', instrument: { device: 'core.drums' } } }, { type: 'clip.add', track: '$d', clip: { start: 0, length: 4, notes: 'C2@0:1' } }], { by: 'you' });
+  store.dispatch([{ type: 'track.add', ref: 'm', track: { name: 'Melody', instrument: { device: 'core.keys' } } }, { type: 'clip.add', track: '$m', clip: { start: 0, length: 4, notes: 'C4@0:1 E4@1:1' } }], { by: 'you' });
+  store.dispatch({ type: 'track.add', track: { name: 'Pad', instrument: { device: 'core.pad' } } }, { by: 'you' });   // (added by hand, no take: not the newest new track)
+  store.dispatch({ type: 'track.add', track: { name: 'Vox', kind: 'audio' } }, { by: 'you' });
+  const ids = Object.fromEntries(store.get().tracks.map((x) => [x.name, x.id]));
+  const ok = await run('suggest_sounds', { sounds: [{ device: 'core.brass', why: 'bright, cuts through' }, { device: 'core.drums', preset: 'trap', why: 'hard hats' }] });
+  t.ok(none.error === 'no track to suggest sounds for' && none.hint === 'name one with track' && ok.offered && ok.track?.name === 'Melody' && shown?.track === ids.Melody && shown.rows.length === 2 && shown.rows[1].name === 'Gobo Kit, Trap' && shown.by === 'claude' && store.history.length === 4,
+    `node: suggest_sounds with nothing selected goes to the newest track a take made (${ok.track?.name}), puts its rows on the card signed by the caller, and changes nothing (${none.error} before any track)`);
+  const bad = await run('suggest_sounds', { sounds: [{ device: 'x', why: 'y' }] });
+  const fx = await run('suggest_sounds', { sounds: [{ device: 'pedal.fuzz', why: 'y' }] });
+  const pre = await run('suggest_sounds', { sounds: [{ device: 'core.drums', preset: 'Nope', why: 'y' }] });
+  const au = await run('suggest_sounds', { track: 'Vox', sounds: [{ device: 'core.brass', why: 'y' }] });
+  const five = await run('suggest_sounds', { sounds: Array.from({ length: 5 }, () => ({ device: 'core.brass', why: 'y' })) });
+  app.input.recorder.state = 'rec'; app.input.recorder.tracks = [ids.Drums];
+  const rec = await run('suggest_sounds', { track: 'Melody', sounds: [{ device: 'core.brass', why: 'y' }] });
+  app.input.recorder.state = 'idle';
+  t.ok(bad.error === 'no instrument "x"' && bad.hint === 'list_devices kind "instrument" lists them' && /^no instrument/.test(fx.error || '') && pre.error === 'no preset "Nope" on Gobo Kit' && pre.hint === 'get_device lists its presets'
+    && au.error === 'Vox is an audio track' && au.hint === 'sounds are for instrument tracks' && !!five.error && rec.error === 'the person is recording' && /get_recording/.test(rec.hint || ''),
+    `node: suggest_sounds refuses before anything shows: "${bad.error}", "${pre.error}", "${au.error}", 5 sounds, and while a take records, by its own check ("${rec.error}")`);
+  // the person's pick, as get_variation_result says it
+  const pend = await run('get_variation_result', { id: ok.id });
+  store.dispatch({ type: 'instrument.set', track: ids.Melody, device: 'core.brass' }, { by: 'you' });
+  const kept = await run('get_variation_result', { id: ok.id });
+  const two = await run('suggest_sounds', { track: 'Melody', sounds: [{ device: 'core.mallets', why: 'soft' }] });
+  current = null;
+  const closed = await run('get_variation_result', { id: two.id });
+  const unknown = await run('get_variation_result', { id: 'nope' });
+  t.ok(pend.status === 'pending' && kept.kept === true && kept.picked?.device === 'core.brass' && kept.picked?.name === 'Brass Rail' && closed.kept === false && closed.picked === null && /suggest_sounds/.test(unknown.hint || ''),
+    `node: get_variation_result says what they did with the sounds: pending, then kept Brass Rail (${JSON.stringify(kept.picked)}), or the card closed with nothing kept; its hint names suggest_sounds ("${unknown.hint}")`);
+  // get_selection says what they're trying; the chips have words
+  trying = { track: ids.Melody, device: 'core.wavetable', was: { device: 'core.keys', params: {} } };
+  app.ui.state.selection.track = ids.Melody;
+  const sel = await run('get_selection', {});
+  trying = null;
+  const sel2 = await run('get_selection', {});
+  const chip = tools.chipFor(app, 'suggest_sounds', {}, ok).text, chip2 = tools.chipFor(app, 'get_variation_result', {}, kept).text;
+  t.ok(sel.trying?.device === 'core.wavetable' && sel.trying.track === ids.Melody && /^core\.keys /.test(sel.track?.instrument || '') && sel2.trying === null && chip === 'suggested sounds for Melody' && chip2 === 'you kept Brass Rail',
+    `node: get_selection's trying (${JSON.stringify(sel.trying)}, the track's instrument as the song has it: ${sel.track?.instrument}; then ${sel2.trying}); the chips read "${chip}" and "${chip2}"`);
 }
 
 /* ------------------------------------------------------------------ 0c. FRESH-EYES-6, the agent builder (Node) */

@@ -9,25 +9,36 @@
 //
 //   recorder = app.input.recorder
 //   recorder.state                        'idle' | 'count' | 'rec'
-//   recorder.target                       the track id R records onto first (the armed one, else the selected one).
-//                                         Selecting a track makes it the target; clearing the selection (a click on
-//                                         empty arranger space to move the marker) never moves it: the last track
-//                                         selected stays the target until another is selected or armed. The arranger's
-//                                         lit R is this one: clicking a header arms that track, whatever R records
+//   recorder.aim(kind) -> { track, why }  where the next take of a kind ('hum' | 'keys' | 'pads') goes: a track id, or
+//                                         null for a new track (docs/INSTRUMENTS-UX.md 1.1). why: 'choice' (picked in
+//                                         Onto; 'new' is one-shot: once its take is in, the choice is spent and the track it made is the last take's),
+//                                         'selected', 'last' (the last take of that kind went there), 'only-kit' (pads:
+//                                         the song's one drum track), 'armed' (the full studio), 'new'. Session state,
+//                                         never the song; another song starts with none
+//   recorder.setAim(kind, track | 'new' | null)   Onto's pick (null clears it); in the full studio a track is armed and
+//                                         'new' disarms every track, so the lit R says the same. Emits 'aim'
+//   recorder.targetFor(kind)              kind 'keys' | 'hum' | 'pads' | 'audio' -> the track that source records onto,
+//                                         or null (a new track). Simple view: Onto's choice, the track selected since
+//                                         that kind's last take, the last take's track, (pads) the only drum track.
+//                                         Full studio: Onto's choice, an armed track that fits (hum and keys: pitched
+//                                         first, then drums), the selected one (a hum never onto unarmed drums), (pads)
+//                                         the only drum track. Arming a track by hand there clears every choice, as does
+//                                         selecting another track: the newest deliberate act wins. audio: armed, selected
+//   recorder.target                       the track id R records onto first: in the full studio the armed one, else the
+//                                         selected one (the arranger's lit R), unless Onto chose; in the simple view the
+//                                         aim of what R records now (Hum it, Tap it, the keys)
 //   recorder.humming()                    R records the hum: Hum it is open or a hum is going (and no audio track is the
 //                                         target, which records the mic as it is), or the take running has one
 //   recorder.lands() -> track | null      where R's take lands, as the top bar's "Onto", the record key, the count-in's
-//                                         numeral and live().track say it: the target, but a hum lands where a hum goes
-//                                         (targetFor('hum'): a drum track only when armed; null: a new track). So with
-//                                         Drums selected in Hum it, Onto says Bass, the pitched track the hum goes onto
+//                                         numeral and live().track say it (null: a new track)
 //   recorder.onto() -> [track]            the tracks "Onto" offers: those R can record onto now (a hum: the pitched ones,
-//                                         and a drum track armed on purpose)
-//   recorder.targetFor(kind)              kind 'keys' | 'hum' | 'pads' | 'audio' -> the track that source records onto
-//                                         (or null): keys (MIDI, typing): an armed pitched track, an armed drum track (on
-//                                         purpose), the selected one (a drum track too: what R names), the first pitched
-//                                         one (never keys onto drums by accident); hum: the same, but a drum track only
-//                                         when armed; pads: an armed drum track, the selected one, the first; audio:
-//                                         armed, selected
+//                                         and a drum track chosen or armed on purpose)
+//   recorder.keysTrack() -> track | null  the keys' track, made now when the keys are aimed at a new track (the keys are
+//                                         heard where they'll be recorded): one track.add by you, selected, emitted on
+//                                         app.input as 'keys:track' { track, name, device, text }
+//   recorder.ownTrack(stacked?) -> dispatch result   a take that muted what played under it, onto a track of its own
+//                                         with the same instrument, what it muted playing again: one undo step
+//   recorder.took(kind, track)            a take of that kind went onto track (capture's Keep says so too)
 //   recorder.modeFor(track) / setMode(track, 'layer' | 'take')   each loop pass layers into one clip (drum tracks) or
 //                                         stacks a new take (everything else, audio always); a choice sticks per track
 //   recorder.countIn / setCountIn(bars)   0, 1 (default) or 2 bars (localStorage overdub:record)
@@ -52,7 +63,7 @@
 //                                         many went in moved, with the ops that put them back as played (`sung`), and
 //                                         input/hum.js says so with Undo, as a hum on its own does
 //   recorder.last                         the last commit: { take, label, summary, parts, ok, sung? }
-//   recorder.on('state' | 'pass' | 'note' | 'commit', fn) -> off   (also app.input 'record' { state })
+//   recorder.on('state' | 'pass' | 'note' | 'commit' | 'aim', fn) -> off   (also app.input 'record' { state })
 //
 // In Hum it (Sketch showing its Hum mode), R also records the mic as a hum into the take (with the count-in); a hum
 // already going when R starts (H, then R) becomes the take's too, so whatever it draws lands on the stop.
@@ -72,6 +83,10 @@
 // first time round, whichever of them plays).
 // parts[].notes and .bars are your own: the notes or hits you played, their bars. A pass's note with `was` (its pitch
 // before a source moved it) can be found again after the commit: parts[].sung, [{ clip | ref, p, t (clip beats), was }].
+// A take stacks over what plays on its track only where its bars overlap it (planTakeFolder mutes nothing past them):
+// parts[].stacked, { names (what played there, now muted), unmute: [clip id | ref] } says what it muted, and the summary
+// says so ("Take 2 is in on Melody, bars 1–2; Take 1 is muted."). parts[].kinds: the aims ('hum' | 'keys' | 'pads') the
+// part's notes came from (part.kinds, passed through).
 
 import { beatsPerBar } from '../core/music.js';
 import { newId } from '../core/project.js';
@@ -79,6 +94,7 @@ import { planTakeFolder } from '../core/arrangement.js';
 import { passOf, passGrid } from './capture.js';
 import { ROW } from './tap.js';
 import { createAutorec } from './autorec.js';
+import { newPartFor } from '../core/sounds.js';
 
 const SAVE = 'overdub:record';
 const EPS = 1e-6, MIN_CLIP = 0.25, MIN_NOTE = 1 / 64;
@@ -212,7 +228,7 @@ export function planTake(p, take) {
     }
     const kind = part.kind === 'audio' ? 'audio' : 'notes';
     const live = t.clips.filter((c) => c.kind === kind && !c.mute);
-    const info = { track: tid, name: t.name, bpb, mode: part.mode, drums: !!part.drums, notes: 0, played: 0, there: 0, passes: passes.length, from: Infinity, to: -Infinity, takes: 0, under: 0, into: [], refs: [], sung: [] };
+    const info = { track: tid, name: t.name, bpb, mode: part.mode, drums: !!part.drums, notes: 0, played: 0, there: 0, passes: passes.length, from: Infinity, to: -Infinity, takes: 0, under: 0, into: [], refs: [], sung: [], kinds: part.kinds || [] };
     if (part.mode === 'layer' && kind === 'notes') {
       // every pass's notes in one set (two hits of one note on one step: the louder stays)
       const seen = new Map();
@@ -279,6 +295,18 @@ export function planTake(p, take) {
       });
       inRecordedOrder(tf, ps2.length);
       ops.push(...tf.ops);
+      // what played here before and is muted under the take now: the take line says so, and offers it a track of its own
+      if (kind === 'notes') {
+        const before = live.filter((c) => Math.min(c.start + c.length, b) - Math.max(c.start, a) >= MIN_CLIP - EPS);
+        if (before.length) {
+          const ids = new Set(before.map((c) => c.id)), unmute = [];
+          for (const op of tf.ops) {
+            if (op.type === 'clip.set' && ids.has(op.clip) && op.patch && op.patch.mute === true) unmute.push(op.clip);
+            else if (op.type === 'clip.add' && !op.ref && op.clip && op.clip.id && op.clip.mute && op.clip.take === tf.group && !/^Take \d+$/.test(op.clip.name || '')) unmute.push(op.clip.id);
+          }
+          if (unmute.length) info.stacked = { names: [...new Set(before.map((c) => c.name || 'what played'))], unmute };
+        }
+      }
       // (a pass's clip starts at the folder's start and holds its own notes from where the pass began: there at their song
       // beat less that)
       if (kind === 'notes') {
@@ -310,6 +338,7 @@ export function planTake(p, take) {
   const label = !parts.length ? '' : parts.every((x) => x.mode === 'layer') ? `record ${names.join(' and ')}` : `record take ${Math.max(...parts.map((x) => x.takes || 1))} on ${names.join(' and ')}`;
   return { ops, parts, label, summary: parts.map((x) => summaryOf(x)).join(' ') };
 }
+const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 function span(info, a, b) { info.from = Math.min(info.from, a); info.to = Math.max(info.to, b); }
 // A take folder's passes are numbered in the order they were recorded: the first time round is the lowest number
 // whichever of them plays (planTakeFolder names the one that plays last, so a complete first pass stopped in the
@@ -329,18 +358,22 @@ function summaryOf(x) {
     const there = x.there ? ` (${x.there === x.played ? (x.played === 1 ? 'it was' : 'all were') : x.there} already there)` : '';
     return x.drums || /drum|beat/i.test(x.name) ? `Your beat is in: ${x.bars}, ${plural(x.played, 'hit')} on ${x.name}${there}.` : `${plural(x.played, 'note')} layered into ${x.name}, ${x.bars}${there}.`;
   }
-  const under = x.under ? ` ${NUM[x.under] || x.under} more underneath, muted${x.cut ? ', the pass you stopped in among them' : ''}.` : '';
+  // (what played there, muted under it, said by name: "Take 1 is muted"; the take's own other passes as a count)
+  const st = x.stacked && x.stacked.names.length ? x.stacked.names : null;
+  const rest = st ? Math.max(0, (x.under || 0) - 1) : x.under || 0;
+  const under = rest ? ` ${NUM[rest] || rest} more underneath, muted${x.cut ? ', the pass you stopped in among them' : ''}.` : '';
+  const muted = st ? `; ${andList(st)} ${st.length === 1 ? 'is' : 'are'} muted` : '';
   const bpb = x.bpb || 4;
   const wrapped = (x.wrapped || []).map((j) => (j.at === 'start'
     ? ` Your phrase ran past the loop's end and is kept whole: its last ${plural(j.notes, 'note')} come round at ${barsOf(bpb, j.a, j.b + MIN_NOTE)}.`
     : ` Your phrase began just before the loop's end and is kept whole: its first ${plural(j.notes, 'note')} stay at ${barsOf(bpb, j.a, j.b + MIN_NOTE)}.`)).join('');
   const frag = x.frag ? ` The last time round had only ${plural(x.frag.had, 'note')}, so the fuller take plays (${plural(x.frag.plays, 'note')}).` : '';
-  return `Take ${x.takes} is in on ${x.name}, ${x.bars}.${under}${wrapped}${frag}`;
+  return `Take ${x.takes} is in on ${x.name}, ${x.bars}${muted}.${under}${wrapped}${frag}`;
 }
 
 /* ------------------------------------------------------------------------------------------------ live */
 
-export function createRecorder(app, input) {
+export function createRecorder(app, input, opts = {}) {
   const { store, engine } = app;
   const fns = new Map();
   const emit = (t, d) => { for (const fn of fns.get(t) || []) { try { fn(d); } catch (e) { console.error('recorder listener', t, e); } } if (t === 'state') input.emit('record', d); };
@@ -365,42 +398,157 @@ export function createRecorder(app, input) {
     if (inSong(s)) { lastSel = s; return s; }
     return inSong(lastSel) ? lastSel : null;
   };
-  try { app.ui?.on?.('select', (x) => { if (inSong(x?.track)) lastSel = x.track; }); } catch (e) { /* no shell (Node) */ }
 
-  function targetFor(kind) {
+  /* ---- the aim: where each kind's next take goes (docs/INSTRUMENTS-UX.md 1.1). Session state: never the song, never
+     storage. choice: Onto's pick (a track id, or 'new': one-shot); last / lastAt: the track the last take of that kind
+     went onto, and when (an order, not a clock); selAt: when the selected track was selected */
+  const KINDS = ['hum', 'keys', 'pads'];
+  const none = () => ({ hum: null, keys: null, pads: null });
+  const A = { choice: none(), last: none(), lastAt: { hum: 0, keys: 0, pads: 0 } };
+  let seq = 0, selAt = 0, selTrack = null, mine = 0;   // mine: our own selects and arms, which aren't the person's acts
+  const kindOf = (k) => (k === 'pads' || k === 'drums' || k === 'tap' || k === 'beatbox' ? 'pads' : k === 'hum' ? 'hum' : k === 'keys' || k === 'midi' || k === 'qwerty' || k === 'touch' ? 'keys' : null);
+  // the view: the shell's workspace (ui/workspace.js), else what the caller said (the Node checks), else the full studio
+  const viewOf = () => { try { const v = app.ui?.workspace?.view?.(); if (v) return v; } catch (e) { /* no shell */ } const v = typeof opts.view === 'function' ? opts.view() : opts.view; return v === 'simple' ? 'simple' : 'full'; };
+  const ownSelect = (s) => { mine++; try { app.ui?.select?.(s); } catch (e) { /* ok */ } finally { mine--; } };
+  function aimChanged(kind = null) { emit('aim', { kind, view: viewOf() }); }
+  function clearChoices() { if (KINDS.some((k) => A.choice[k] != null)) { A.choice = none(); return true; } return false; }
+  try {
+    app.ui?.on?.('select', (x) => {
+      if (!inSong(x?.track)) return;
+      const moved = x.track !== selTrack;
+      lastSel = selTrack = x.track;
+      if (!moved) return;
+      selAt = ++seq;
+      // the full studio: selecting another track is aiming at it (a header click lights its R), so Onto's choice gives way
+      if (!mine && viewOf() === 'full') clearChoices();
+      aimChanged();
+    });
+  } catch (e) { /* no shell (Node) */ }
+
+  // Where a take of this kind goes: { track (or null: a new track), why }
+  function resolve(kind) {
     const p = P(), s = sel();
-    if (kind === 'audio') { const au = p.tracks.filter((t) => t.kind === 'audio'); return au.find((t) => t.arm) || au.find((t) => t.id === s) || null; }
+    if (kind === 'audio') { const au = p.tracks.filter((t) => t.kind === 'audio'); const t = au.find((x) => x.arm) || au.find((x) => x.id === s) || null; return { track: t, why: t ? (t.arm ? 'armed' : 'selected') : 'new' }; }
+    const k = kindOf(kind) || 'keys';
     const ins = p.tracks.filter((t) => t.kind === 'instrument');
-    if (kind === 'pads') return ins.find((t) => t.arm && isDrumTrack(t)) || ins.find((t) => t.id === s && isDrumTrack(t)) || ins.find(isDrumTrack) || null;
+    const byId = (id) => (id ? ins.find((t) => t.id === id) || null : null);
+    const fits = (t) => !!t && (k === 'pads' ? isDrumTrack(t) : !isDrumTrack(t));
+    // Onto's choice: a drum track for a hum or the keys too (pads on a controller, a hum on purpose)
+    const c = A.choice[k];
+    if (c === 'new') return { track: null, why: 'choice' };
+    const ct = byId(c);
+    if (ct && (k !== 'pads' || isDrumTrack(ct))) return { track: ct, why: 'choice' };
+    const kits = ins.filter(isDrumTrack);
+    if (viewOf() === 'simple') {
+      const st = byId(s);
+      if (fits(st) && (!A.lastAt[k] || selAt > A.lastAt[k])) return { track: st, why: 'selected' };
+      const lt = byId(A.last[k]);
+      if (fits(lt)) return { track: lt, why: 'last' };
+      if (k === 'pads' && kits.length === 1) return { track: kits[0], why: 'only-kit' };
+      return { track: null, why: 'new' };
+    }
+    // the full studio: the lit R first (full-studio users record onto the armed track and rely on it)
     const armed = ins.filter((t) => t.arm);
+    const at = k === 'pads' ? armed.find(isDrumTrack) : armed.find((t) => !isDrumTrack(t)) || armed[0];
+    if (at) return { track: at, why: 'armed' };
     // (keys and MIDI play a drum track you selected, as R and its lamp say: pads on a controller, the kit's GM map; a
-    // hum is pitched, so it never goes onto drums unless one is armed)
-    return armed.find((t) => !isDrumTrack(t)) || armed[0] || ins.find((t) => t.id === s && (kind !== 'hum' || !isDrumTrack(t))) || ins.find((t) => !isDrumTrack(t)) || null;
+    // hum is pitched, so it never goes onto drums unless they're armed or chosen)
+    const st = byId(s);
+    if (st && (k === 'pads' ? isDrumTrack(st) : k === 'keys' || !isDrumTrack(st))) return { track: st, why: 'selected' };
+    if (k === 'pads' && kits.length === 1) return { track: kits[0], why: 'only-kit' };
+    return { track: null, why: 'new' };
   }
-  // The track R records onto first: an armed one, else the selected one (selecting a track arms it; clearing the
-  // selection leaves it: sel), else keys' target. Everything that says where R goes reads this: the lit R in the
-  // arranger, the top bar's record key and its "Onto", the count-in's numeral, what is announced.
+  const targetFor = (kind) => resolve(kind).track;
+  function aim(kind) { const k = kindOf(kind); if (!k) return null; const r = resolve(k); return { track: r.track ? r.track.id : null, why: r.why }; }
+
+  // What R records now, for the lit R and Onto: the hum (Hum it), the pads (Tap it) or the keys
+  const tapNow = () => input.mode === 'tap' || (input.sketchMode === 'tap' && (!app.ui?.visible || !app.ui.panels?.has?.('sketch') || !!app.ui.visible('sketch')));
+  const kindNow = () => (humming() ? 'hum' : tapNow() ? 'pads' : 'keys');
+  // The track R records onto first. The full studio: Onto's choice, else an armed one, else the selected one (selecting
+  // a track lights its R; clearing the selection leaves it: sel), else keys' target. The simple view: the aim of what R
+  // records now. Everything that says where R goes reads this: the lit R in the arranger, the top bar's record key and
+  // its "Onto", the count-in's numeral, what is announced.
   function primary() {
-    const p = P(), s = sel();
+    const p = P(), k = kindNow();
+    if (viewOf() === 'simple') return targetFor('audio') || targetFor(k);
+    const c = A.choice[k];
+    if (c === 'new') return null;
+    if (c && inSong(c)) return targetFor(k);
+    const s = sel();
     return p.tracks.find((t) => t.arm) || p.tracks.find((t) => t.id === s && (t.kind === 'audio' || t.kind === 'instrument')) || targetFor('keys');
   }
   // R records the hum: a take running that has one (R started it in Hum it, or one already going joined it); idle, Hum it
   // open or a hum going, unless an audio track is the target (R records the mic onto it as it is, not as a hum)
   function humming() {
     const r = R;
-    if (r) return !!(r.hum || r.joined);
+    if (r) return !!(r.hum || r.joined || r.humOn);
     if (targetFor('audio')) return false;
     return humArmed() || !!(input.hum?.active && !input.hum.recording);
   }
   // Where R's take lands, said beside the record key and over the lane: the target, but a hum goes where a hum goes (a
-  // drum track only when armed, so Drums selected in Hum it is Bass's take; null: a new track). The lit R stays primary()
-  // (fresh eyes 5: a hum said "Onto Drums" and landed on the first pitched track; making primary() follow the hum broke
-  // "clicking a header arms it")
+  // drum track only when armed or chosen; null: a new track). In the full studio the lit R stays primary() (fresh eyes
+  // 5: making it follow the hum broke "clicking a header arms it")
   const lands = () => (humming() ? targetFor('hum') : primary());
-  // the tracks "Onto" offers: where R can record now (a hum: the pitched tracks, and a drum track armed on purpose)
+  // the tracks "Onto" offers: where R can record now (a hum: the pitched tracks, and a drum track armed or chosen on
+  // purpose; in the simple view, the tracks that fit what R records)
   function onto() {
-    const ts = P().tracks.filter((t) => t.kind === 'audio' || t.kind === 'instrument');
-    return humming() ? ts.filter((t) => t.kind === 'instrument' && (!isDrumTrack(t) || t.arm)) : ts;
+    const ts = P().tracks.filter((t) => t.kind === 'audio' || t.kind === 'instrument'), k = kindNow(), aimed = targetFor(k);
+    if (viewOf() === 'simple') return ts.filter((t) => t.kind === 'instrument' && ((k === 'pads' ? isDrumTrack(t) : !isDrumTrack(t)) || t === aimed));
+    return humming() ? ts.filter((t) => t.kind === 'instrument' && (!isDrumTrack(t) || t.arm || t === aimed)) : ts;
+  }
+  // Onto's pick. The full studio's lit R agrees: a track is armed (an arm on another instrument track gives way), 'new'
+  // disarms every track. null clears the choice
+  function setAim(kind, v) {
+    const k = kindOf(kind);
+    if (!k) return null;
+    let t = null;
+    if (v === 'new') A.choice[k] = 'new';
+    else if (v == null || v === '') A.choice[k] = null;
+    else {
+      t = store.track(v);
+      if (!t || t.kind !== 'instrument') return { error: `no instrument track "${v}"`, ...aim(k) };
+      if (k === 'pads' && !isDrumTrack(t)) return { error: `${t.name} isn't a drum track`, ...aim(k) };
+      A.choice[k] = t.id;
+    }
+    if (viewOf() === 'full' && v != null && v !== '') {
+      const ts = P().tracks;
+      const ops = v === 'new'
+        ? ts.filter((x) => x.arm).map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } }))
+        : [...ts.filter((x) => x.arm && x.id !== t.id && x.kind === 'instrument').map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), ...(t.arm ? [] : [{ type: 'track.set', track: t.id, patch: { arm: true } }])];
+      if (ops.length) { mine++; try { store.dispatch(ops, { by: 'you', label: v === 'new' ? 'record onto a new track' : `arm ${t.name}` }); } finally { mine--; } }
+    }
+    aimChanged(k);
+    return aim(k);
+  }
+  // A take of this kind went onto track: the next one of its kind follows it (last), and a one-shot 'new' is spent. It
+  // clears rather than becoming a choice of that track, so a track clicked after the take still wins (a choice would
+  // outrank the selection and send the next hum somewhere the person had clicked away from)
+  function took(kind, track) {
+    const k = kindOf(kind);
+    if (!k || !inSong(track)) return;
+    if (A.choice[k] === 'new') A.choice[k] = null;
+    A.last[k] = track;
+    A.lastAt[k] = ++seq;
+    aimChanged(k);
+  }
+  const kindsOf = (pt) => [...new Set([...pt.srcs].map((x) => (x === 'pads' ? 'pads' : kindOf(x))).filter(Boolean))];
+  // The keys are heard where they'll be recorded: aimed at a new track, the track is made when they start (typing on, a
+  // touch key, the first MIDI note, R): one track.add by you, selected, said once
+  function keysTrack() {
+    const t = targetFor('keys');
+    if (t) return t;
+    const np = newPartFor('keys', P());
+    const d = store.dispatch({ type: 'track.add', ref: 'k', track: { name: np.name, kind: 'instrument', instrument: { device: np.device, params: {} } } }, { by: 'you', label: `add ${np.name} for the keys` });
+    if (!d.ok) return null;
+    const id = d.created.k;
+    ownSelect({ track: id, clip: null, notes: [] });
+    took('keys', id);   // (a one-shot "A new track" for the keys is this one now)
+    let dev = 'Lamp Tines';
+    try { dev = app.devices?.getDevice?.(np.device)?.name || dev; } catch (e) { /* ok */ }
+    const text = `Keys play a new track, ${np.name} (${dev}). Undo takes it away.`;
+    try { app.ui?.announce?.(text); } catch (e) { /* ok */ }
+    input.emit('keys:track', { track: id, name: np.name, device: np.device, text });
+    return store.track(id);
   }
   const modeFor = (tr) => { const t = typeof tr === 'string' ? store.track(tr) : tr; if (!t) return 'take'; if (t.kind === 'audio') return 'take'; return modes.get(t.id) || (isDrumTrack(t) ? 'layer' : 'take'); };
 
@@ -432,12 +580,13 @@ export function createRecorder(app, input) {
 
   /* ---- parts and passes */
   function partOf(r, track, kind, extra = {}) {
-    const key = track ? track.id : '+' + kind;
+    const key = track ? track.id : '+' + (extra.src === 'hum' ? 'hum' : kind);
     let pt = r.parts.get(key);
     if (!pt) {
       const mode = kind === 'audio' ? 'take' : track ? modeFor(track) : kind === 'drums' ? 'layer' : 'take';
       pt = { track: track ? track.id : null, kind: kind === 'audio' ? 'audio' : 'notes', drums: kind === 'drums', mode, passes: new Map(), name: extra.name || null, srcs: new Set(), previews: [] };
-      if (!track) pt.newTrack = kind === 'drums' ? { name: 'Drums', device: 'core.drums' } : { name: 'Keys', device: 'core.keys' };
+      // (no track to record onto: a new one, named and sounded as every new track is: core/sounds.js newPartFor)
+      if (!track) pt.newTrack = newPartFor(kind === 'drums' ? 'pads' : extra.src === 'hum' ? 'hum' : 'keys', P());
       r.parts.set(key, pt);
     }
     return pt;
@@ -690,15 +839,27 @@ export function createRecorder(app, input) {
   const humArmed = () => input.sketchMode === 'hum' && (!app.ui?.visible || !app.ui.panels?.has?.('sketch') || !!app.ui.visible('sketch'));
   async function record({ countIn = rec.countIn, audio = null, quantize = true, hum = humArmed() } = {}) {
     if (R) return R;
-    const p = P();
     const au = audio ? store.track(audio) : targetFor('audio');
-    const keys = targetFor('keys'), pads = targetFor('pads');
-    if (!au && !keys && !pads) {
-      // no track to record onto: make one and say so
-      const r = store.dispatch({ type: 'track.add', ref: 'k', track: { name: 'Keys', kind: 'instrument', instrument: { device: 'core.keys', params: {} } } }, { by: 'you', label: 'add a track to record on' });
-      if (r.ok) { try { app.ui?.select?.({ track: r.created.k }); } catch (e) { /* ok */ } app.ui?.toast?.('New track: Keys. Press R again to record.', { kind: 'ok' }); }
-      return null;
-    }
+    // A sound on trial on a track this take records onto is kept first, said before it happens (the instrument change
+    // and the take are two undo steps, in that order: docs/INSTRUMENTS-UX.md 1.3)
+    let keeps = null;
+    try {
+      const tr = app.sounds?.trying?.();
+      if (tr && tr.track && !tr.newTrack) {
+        const onto = new Set([au?.id, hum ? targetFor('hum')?.id : null, kindNow() === 'pads' ? targetFor('pads')?.id : targetFor('keys')?.id].filter(Boolean));
+        const t = store.track(tr.track);
+        if (t && onto.has(t.id)) {
+          const def = app.devices?.getDevice?.(tr.device);
+          keeps = `Recording keeps ${(def && def.name) || tr.device}${tr.preset ? `, ${tr.preset}` : ''} on ${t.name}.`;
+          app.sounds.keepIfTrying?.(t.id, { why: 'record' });
+          app.ui?.announce?.(keeps);
+        }
+      }
+    } catch (e) { /* the take still records */ }
+    // the keys aimed at a new track: it is made now, at the count-in, and this press records onto it (never "press R
+    // again"). A hum and the pads make theirs at the commit, since nothing sounds on them live till then
+    if (!au && !hum && kindNow() === 'keys' && !targetFor('keys')) keysTrack();
+    const p = P();
     const bpb = beatsPerBar(p.meter), playing = !!engine.playing;
     const b0 = playing ? engine.beat : Math.max(0, +(engine.beat ?? 0) || 0);
     const lp = p.loop && p.loop.on && p.loop.end - p.loop.start >= 1 / 64 && b0 < p.loop.end - EPS ? { start: +p.loop.start, end: +p.loop.end } : null;
@@ -712,11 +873,13 @@ export function createRecorder(app, input) {
       if (lp && bar >= lp.end - EPS) { start = lp.start; ahead = lp.end - b0; } else { start = bar; ahead = Math.max(0, bar - b0); }
     }
     const g0 = (playing && fin(engine.gridBeat) ? engine.gridBeat : b0) + ahead;
+    // (whether this take has a hum is known before its first 'state': the sound card reads humming() on it)
+    const humOn = !au && !!input.hum && (input.hum.active ? !input.hum.recording : !!hum);
     const r = {
       id: newId('tk'), state: 'count', at: Date.now(), parts: new Map(), held: new Map(), pass: 0, lastG: null,
       span: { g0, b0: start, loop: lp, wrap: lp ? g0 + (lp.end - start) : Infinity },
       startBeat: b0, tempo: p.tempo, meter: p.meter.join('/'), loopKey: JSON.stringify(p.loop || null),
-      offset: playing ? 0 : null, started: playing, wasPlaying: playing, newSpan: () => newSpan(r),
+      offset: playing ? 0 : null, started: playing, wasPlaying: playing, newSpan: () => newSpan(r), keeps, humOn,
     };
     R = r;
     const beats = playing ? 0 : Math.max(0, (+countIn || 0) * bpb);   // (whole bars: 3.5 beats a bar in 7/8, not 4)
@@ -804,7 +967,7 @@ export function createRecorder(app, input) {
       // the take that plays: the last complete pass (a pass the stop cut short is kept under it), else the last one;
       // never a fragment over a fuller pass (pickActive)
       const pick = pickActive(passes);
-      take.parts.push({ track: pt.track, kind: 'notes', mode: pt.mode, name: pt.name || undefined, drums: pt.drums, newTrack: pt.newTrack, span: { start: sp.start, end: r.span.loop ? sp.end : Math.ceil(sp.end / bpb - 1e-9) * bpb }, passes, active: pick.n, natural: pick.natural, joins });
+      take.parts.push({ track: pt.track, kind: 'notes', mode: pt.mode, name: pt.name || undefined, drums: pt.drums, newTrack: pt.newTrack, kinds: kindsOf(pt), span: { start: sp.start, end: r.span.loop ? sp.end : Math.ceil(sp.end / bpb - 1e-9) * bpb }, passes, active: pick.n, natural: pick.natural, joins });
     }
     if (audioRes) {
       const t = store.track(r.audioTrack) || targetFor('audio');
@@ -840,6 +1003,17 @@ export function createRecorder(app, input) {
     }
     const made = plan.parts.map(({ sung, ...x }) => ({ ...x, track: typeof x.track === 'string' && x.track.startsWith('$') ? d.created[x.track.slice(1)] : x.track, clips: [...x.into, ...x.refs.map((rf) => d.created[rf])].filter(Boolean) }));
     const clips = made.flatMap((x) => x.clips);
+    // a take onto a new track: its passes in Sketch's Takes say where they went ("in the song: Melody"), as a take onto
+    // a track already there does (the capture entries were made before the track was)
+    try {
+      for (const pt of r.parts.values()) {
+        if (pt.track && store.track(pt.track)) continue;
+        const i = plan.parts.findIndex((x) => typeof x.track === 'string' && x.track.startsWith('$') && !!x.drums === !!pt.drums);
+        const tid = i >= 0 ? made[i].track : null;
+        if (!tid) continue;
+        for (const ps of pt.passes.values()) if (typeof ps.captured === 'string') input.capture.update(ps.captured, { track: tid });
+      }
+    } catch (e) { /* best effort: the take is in */ }
     const res = { ok: true, take: r.id, why, label: plan.label, summary: plan.summary, parts: made, clips, lanes: plan.lanes || [], txn: d.txn?.id, audio: audioRes ? { asset: audioRes.asset, seconds: audioRes.seconds } : null };
     // the notes a source moved on their way in (a hum snapped into the key), found in the song now, and the ops that put
     // them back as played (one notes.set per clip, one undo step): input/hum.js says how many, with Undo
@@ -852,13 +1026,61 @@ export function createRecorder(app, input) {
       const ac = au.clips[au.clips.length - 1];
       input.emit('take', { track: au.track, clip: ac, asset: audioRes.asset, seconds: audioRes.seconds, startBeat: store.clip(au.track, ac)?.start, latency: audioRes.latency });
     }
-    try { app.ui?.select?.({ track: playing.track, clip: clips[clips.length - 1] || null, notes: [] }); } catch (e) { /* ok */ }
+    // the track the take went onto is selected (the next take, and the keys, follow the idea you just made), and each
+    // kind's aim follows it: a one-shot "A new track" is spent, and that track is the last take's
+    // (a take of only automation, a knob moved while it recorded, has no part: the selection stays)
+    if (playing) ownSelect({ track: playing.track, clip: clips[clips.length - 1] || null, notes: [] });
+    for (const x of made) for (const k of x.kinds || []) took(k, x.track);
     try { app.arranger?.show?.(clips, 'you'); } catch (e) { /* no arranger */ }
+    // a take that muted what played under it: "Put it on its own track" (both play, each on its own sound)
+    const st = made.find((x) => x.stacked && x.mode === 'take' && store.track(x.track)?.kind === 'instrument');
+    if (st) {
+      const active = st.clips[st.clips.length - 1];
+      res.stacked = { track: st.track, clip: active, kind: (st.kinds || [])[0] || 'keys', names: st.stacked.names, unmute: st.stacked.unmute.map((u) => d.created[u] || u).filter(Boolean) };
+    }
     const text = why === 'silence' ? `Silenced. ${made.map((x) => (x.mode === 'layer' ? `${x.name} kept (${x.bars}).` : `Take ${x.takes} kept on ${x.name} (${x.bars}).`)).join(' ')}` : `${plan.summary} Undo takes it back.`;
     // (a short song: "Make it 8 bars" beside it, ui/sketch.js app.song.offer)
     const more = why === 'silence' ? null : app.song?.offer?.({ bars: 8 }) || null;
-    app.ui?.toast?.(more ? [text, ' ', more] : text, { kind: 'ok', ms: 6000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    const own = res.stacked && why !== 'silence' ? ownOffer(res.stacked) : null;
+    // the sound card's line ("What should it sound like? Sounds"), when ui/sounds.js has one for this take
+    let line = null;
+    try { line = app.sounds?.toastLine?.(res) || null; } catch (e) { line = null; }
+    const parts = [text, more ? ' ' : null, more, own ? ' ' : null, own, line ? ' ' : null, line].filter(Boolean);
+    app.ui?.toast?.(parts.length > 1 ? parts : text, { kind: 'ok', ms: 6000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
     return res;
+  }
+
+  // A take stacked over what played on its track, onto a track of its own: a track from newPartFor with the same
+  // instrument, the take moved there out of its folder, what it muted playing again. One dispatch by you, one undo step.
+  // s: commit's res.stacked { track, clip, kind, unmute }
+  function ownTrack(s = last?.stacked) {
+    const t = s && store.track(s.track), c = t && store.clip(t.id, s.clip);
+    if (!c) return { ok: false, error: 'that take isn’t on its track any more' };
+    const np = newPartFor(s.kind, P()), inst = t.instrument ? JSON.parse(JSON.stringify(t.instrument)) : { device: np.device, params: {} };
+    const ops = [
+      { type: 'track.add', ref: 'own', index: P().tracks.indexOf(t) + 1, track: { name: np.name, kind: 'instrument', instrument: { device: inst.device, params: inst.params || {} } } },
+      { type: 'clip.move', track: t.id, clip: c.id, toTrack: '$own' },
+      { type: 'clip.set', track: '$own', clip: c.id, patch: { take: null, ...(c.mute ? { mute: false } : {}) } },
+      ...(s.unmute || []).filter((id) => store.clip(t.id, id)?.mute).map((id) => ({ type: 'clip.set', track: t.id, clip: id, patch: { mute: false } })),
+    ];
+    const d = store.dispatch(ops, { by: 'you', label: `${c.name || 'the take'} onto its own track` });
+    if (!d.ok) { app.ui?.toast?.(`Couldn’t put it on its own track: ${d.error}`, { kind: 'bad' }); return d; }
+    const id = d.created.own;
+    ownSelect({ track: id, clip: c.id, notes: [] });
+    took(s.kind, id);
+    const text = `${c.name || 'The take'} is on ${np.name} now, and ${andList(s.names || ['what it covered'])} ${(s.names || []).length > 1 ? 'play' : 'plays'} again on ${t.name}.`;
+    app.ui?.toast?.(text, { kind: 'ok', action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    return { ...d, track: id, clip: c.id, text };
+  }
+  function ownOffer(s) {
+    try {
+      if (typeof document === 'undefined') return null;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-txt ew-toast-act rec-own';
+      b.textContent = 'Put it on its own track';
+      b.addEventListener('click', (e) => { ownTrack(s); e.currentTarget.closest('.ew-toast')?.remove(); });
+      return b;
+    } catch (e) { return null; }
   }
 
   // parts: planTake's (each with its sung locators), made: the same with their tracks' ids, created: the dispatch's refs
@@ -921,7 +1143,16 @@ export function createRecorder(app, input) {
   } catch (e) { /* no engine (Node) */ }
   // tempo, meter or the loop changing mid-take: the take so far goes in (it was placed on the old timeline)
   store.on('change', (e) => {
-    if (e && e.kind === 'load') lastSel = null;   // (another song: its own target)
+    if (e && e.kind === 'load') {
+      // (another song: its own target, and its own aim)
+      lastSel = selTrack = null; selAt = 0;
+      A.choice = none(); A.last = none(); A.lastAt = { hum: 0, keys: 0, pads: 0 };
+      aimChanged();
+    } else if (e && e.kind !== 'preview' && (e.ops || []).some((o) => o && (/^track\./.test(o.type) || o.type === 'instrument.set'))) {
+      // the full studio: an arm set or cleared by hand is the newest deliberate act, so Onto's choice gives way to it
+      if (!mine && e.kind === 'do' && e.by === 'you' && viewOf() === 'full' && e.ops.some((o) => o.type === 'track.set' && o.patch && 'arm' in o.patch)) clearChoices();
+      aimChanged();
+    }
     const r = R;
     if (!r || !e || e.kind === 'preview') return;
     const p = P();
@@ -937,8 +1168,8 @@ export function createRecorder(app, input) {
     try { if (input.tap?.take) input.tap.flush(); } catch (e) { /* ok */ }
     const ph = id ? cap.get(id) : [...cap.phrases].reverse().find((x) => !x.hidden && !x.rec && x.kind !== 'audio' && (x.notes || []).length);
     if (!ph) { app.ui?.toast?.('Nothing played yet. Play, tap or hum something, then Shift+R puts it in the song.'); return { ok: false, error: 'nothing captured' }; }
-    const t = ph.kind === 'drums' ? targetFor('pads') : targetFor('keys');
-    const r = cap.keep(ph.id, t ? { track: t.id } : { newTrack: ph.kind === 'drums' ? { device: 'core.drums', name: 'Drums' } : { device: 'core.keys', name: 'Keys' } });
+    const t = ph.kind === 'drums' ? targetFor('pads') : targetFor(ph.src === 'hum' ? 'hum' : 'keys');
+    const r = cap.keep(ph.id, t ? { track: t.id } : { newTrack: newPartFor(ph.kind === 'drums' ? 'pads' : ph.src === 'hum' ? 'hum' : 'keys', P()) });
     if (!r.ok) { app.ui?.toast?.(r.error, { kind: 'bad' }); return r; }
     const c = store.clip(r.track, r.clip), tr = store.track(r.track), n = c && c.notes ? c.notes.length : 0;
     const bars = c ? barsOf(bpbNow(), c.start, c.start + c.length) : '';
@@ -954,7 +1185,13 @@ export function createRecorder(app, input) {
     get last() { return last; },
     get countIn() { return Number.isFinite(saved.countIn) ? saved.countIn : 1; },
     setCountIn(bars) { saved.countIn = Math.max(0, Math.min(4, Math.round(+bars || 0))); try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch (e) { /* ok */ } emit('state', { state: rec.state, countIn: saved.countIn }); return saved.countIn; },
-    targetFor, modeFor, primary,
+    targetFor, modeFor, primary, aim, setAim, took, keysTrack,
+    ownTrack: (s) => ownTrack(s),
+    // what R records now ('hum' | 'pads' | 'keys'): the kind the lit R and Onto speak for
+    kindNow: () => kindNow(),
+    view: () => viewOf(),
+    // a select made for the person (a take kept, a track made): the selection follows it, and it isn't their act
+    select: (x) => ownSelect(x),
     setMode(track, mode) { const t = typeof track === 'string' ? store.track(track) : track; if (t && (mode === 'layer' || mode === 'take')) modes.set(t.id, mode); return t ? modeFor(t) : null; },
     // the tracks a take in progress records onto
     get tracks() { return R ? [...new Set([...[...R.parts.values()].map((x) => x.track), R.audioTrack].filter(Boolean))] : []; },
@@ -975,7 +1212,7 @@ export function createRecorder(app, input) {
       let k = 0;
       for (const n of notes) {
         if (src === 'beatbox') { if (hit(n.row, n.v, { g: n.g, src })) k++; continue; }
-        const pt = partOf(r, t, 'notes', { name: src === 'hum' ? 'Hummed' : null });
+        const pt = partOf(r, t, 'notes', { name: src === 'hum' ? 'Hummed' : null, src });
         if (addNote(r, pt, { p: n.p, v: n.v ?? 0.8, g: n.g, dg: n.d, src, was: n.was })) k++;
         else if (left) left.push({ ...n, beat: r4(where(n.g, r).beat) });
       }
@@ -1002,7 +1239,7 @@ export function createRecorder(app, input) {
       // (a key held from just before the loop's end is drawn where it will land: the next pass's downbeat)
       const held = [...r.held.values()].map((h) => { const x = landing(r, h.g); return { p: h.p, t: x.beat, d: Math.max(0, (g ?? h.g) - Math.max(h.g, r.span.g0) - x.early), v: h.v, track: h.track, held: true }; });
       return {
-        state: r.state, take: r.id, track: lands()?.id || null, tracks: rec.tracks, from: r.span.b0, now: engine.beat, pass: w ? w.pass : 0,
+        state: r.state, take: r.id, track: lands()?.id || null, tracks: rec.tracks, from: r.span.b0, keeps: r.keeps || null, now: engine.beat, pass: w ? w.pass : 0,
         loop: r.span.loop, counting: r.state === 'count' ? { until: r.span.b0, beats: Math.max(0, r.span.g0 - (g ?? r.span.g0)) } : null,
         passes: passes.sort((a, b) => a.n - b.n), held, peaks: r.audio ? r.audio.peaks.slice(-600) : [], trace: input.hum?.active ? input.hum.trace().slice(-400) : [],
       };

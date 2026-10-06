@@ -111,7 +111,9 @@ try {
     });
   }
   t.ok(Object.values(modes).every((x) => x.inStage && x.rec === 'Record' && /^Count-in: 1 bar$/.test(x.count) && x.click === 'Click'), `every mode ends in the record strip: Record, Onto, Each pass, the count-in, the click (${Object.entries(modes).map(([k, v]) => `${k}: ${v.rec}, ${v.count}`).join('; ')})`);
-  t.ok(modes.tap.target === 'Drums' && modes.tap.each === 'Layer* New take' && modes.play.target === 'Keys' && modes.play.each === 'Layer New take*', `the strip names the track and how each pass records: Tap onto ${modes.tap.target} (${modes.tap.each}), Play onto ${modes.play.target} (${modes.play.each})`);
+  // (Onto: "A new track" first; a track whose take would stack over the one there reads "Keys, a new take")
+  t.ok(modes.tap.target === 'Drums' && modes.tap.each === 'Layer* New take' && /^Keys(, a new take)?$/.test(modes.play.target) && modes.play.each === 'Layer New take*', `the strip names the track and how each pass records: Tap onto ${modes.tap.target} (${modes.tap.each}), Play onto ${modes.play.target} (${modes.play.each})`);
+  t.ok(['hum', 'tap', 'play'].every((m) => modes[m].onto[0] === 'A new track'), `Onto offers "A new track" first in every way in (${['hum', 'tap', 'play'].map((m) => `${m}: ${modes[m].onto.join(', ')}`).join('; ')})`);
   t.ok(!modes.play.onto.includes('Drums') && !modes.tap.onto.includes('Keys'), `keys never list the drums, pads never list the keys (Play: ${modes.play.onto.join(', ')}; Tap: ${modes.tap.onto.join(', ')})`);
   t.ok(!modes.hum.chips.some((c) => /With song/.test(c)) && !modes.tap.buttons.includes('Done'), `With song and Tap's Done are gone (hum chips: ${modes.hum.chips.join(', ')}; tap foot: ${modes.tap.buttons.join(', ')})`);
   // the strip's Each pass sets the recorder's mode for that track
@@ -465,7 +467,7 @@ try {
     a.onboard.stop(); a.input.recorder.setCountIn(1);
     return out;
   });
-  t.ok(ob.state === 'rec' && ob.mini && ob.h <= 64 && ob.oneLine && /pass 1|time 1 round/i.test(ob.text) && !ob.after && (ob.counting.st !== 'count' || ob.counting.mini), `phone: counting in and recording, the tour's card is one line, ${ob.h} px ("${ob.text.slice(0, 70)}"), and whole again after`);
+  t.ok(ob.state === 'rec' && ob.mini && ob.h <= 64 && ob.oneLine && /pass 1|time 1 round|round 1/i.test(ob.text) && !ob.after && (ob.counting.st !== 'count' || ob.counting.mini), `phone: counting in and recording, the tour's card is one line, ${ob.h} px ("${ob.text.slice(0, 70)}"), and whole again after`);
   t.ok(!/press R|Space/.test(ob.idleText) && /tap ●/i.test(ob.idleText), `phone: the tour says tap ●, never "press R" ("${ob.idleText.replace(/^.*?Tap a beat\./, '').slice(0, 150)}")`);
   t.ok(!perr.length, `no page errors on the phone${perr.length ? ': ' + perr.slice(0, 2).join(' | ') : ''}`);
   await ctx.close();
@@ -840,14 +842,14 @@ try {
     const h14 = await look();
     await pg.screenshot({ path: new URL('./.out/sketch-phone-hum.png', import.meta.url).pathname });
     t.ok(h14.rows === 1 && h14.dial?.on && h14.line?.on && h14.keep?.on && !h14.offRight.length && h14.sw <= 390, `phone, after a hum: the pinned row is one row (${h14.row.join(' | ')}), the dial, the line saying what the hum became and Keep are on screen, nothing past the right edge (${JSON.stringify({ dial: h14.dial, line: h14.line, keep: h14.keep, off: h14.offRight })})`);
-    t.ok(h14.pickers.length === 1 && h14.pickers[0] === 'New track, Keys' && h14.keepText === 'Keep on a new track', `phone: one track picker, Record's ("${h14.pickers.join('", "')}"), and Keep says where it goes by it ("${h14.keepText}")`);
-    // Keep: onto the picker's track (a new one, Keys), and the song (3 bars over a 2-bar beat) is offered 8 bars
+    t.ok(h14.pickers.length === 1 && h14.pickers[0] === 'A new track' && h14.keepText === 'Keep on a new track', `phone: one track picker, Record's ("${h14.pickers.join('", "')}"), and Keep says where it goes by it ("${h14.keepText}")`);
+    // Keep: onto the picker's track (a new one: a hum's is Melody), and the song (3 bars over a 2-bar beat) is offered 8 bars
     await pg.tap('.sk-take .btn-go');
     await pg.waitForTimeout(300);
-    const k14 = await P(() => { const a = window.overdub, t = a.store.get().tracks.find((x) => x.name === 'Hum'), toast = [...document.querySelectorAll('.ew-toast')].pop(); return { device: t?.instrument?.device, offer: [...(toast?.querySelectorAll('button') || [])].map((b) => b.textContent), plan: a.song.longerPlan({ bars: 8 }) }; });
-    t.ok(k14.device === 'core.keys' && k14.offer.includes('Make it 8 bars') && k14.plan.ok, `phone: Keep puts the hum on a new Keys track, as the picker said, and the toast still offers "Make it 8 bars" over a 3-bar song (${JSON.stringify({ device: k14.device, offer: k14.offer, plan: k14.plan.summary || k14.plan.error })})`);
-    const m14 = await P(() => { const a = window.overdub, b = [...document.querySelectorAll('.ew-toast button')].find((x) => x.textContent === 'Make it 8 bars'); b?.click(); const ts = a.store.get().tracks; const span = (t) => t.clips.filter((c) => !c.mute).map((c) => `${c.start}+${c.length}`).join(','); return { drums: span(ts.find((x) => x.name === 'Drums')), hum: span(ts.find((x) => x.name === 'Hum')), toast: [...document.querySelectorAll('.ew-toast')].map((x) => x.querySelector('.ew-toast-text')?.textContent || '').pop() }; });
-    t.ok(m14.drums === '0+8,8+8,16+8,24+8' && m14.hum === '0+12,16+12' && /^It’s 8 bars now: Drums plays 4 times and Hum twice, bars 1–8\./.test(m14.toast), `"Make it 8 bars": the beat four times under all of it, the 3-bar hum on each 4-bar phrase (Drums ${m14.drums}; Hum ${m14.hum}; "${m14.toast}")`);
+    const k14 = await P(() => { const a = window.overdub, t = a.store.get().tracks.find((x) => x.name === 'Melody'), toast = [...document.querySelectorAll('.ew-toast')].pop(); return { device: t?.instrument?.device, offer: [...(toast?.querySelectorAll('button') || [])].map((b) => b.textContent), plan: a.song.longerPlan({ bars: 8 }) }; });
+    t.ok(k14.device === 'core.keys' && k14.offer.includes('Make it 8 bars') && k14.plan.ok, `phone: Keep puts the hum on a new track, Melody (Lamp Tines), as the picker said, and the toast still offers "Make it 8 bars" over a 3-bar song (${JSON.stringify({ device: k14.device, offer: k14.offer, plan: k14.plan.summary || k14.plan.error })})`);
+    const m14 = await P(() => { const a = window.overdub, b = [...document.querySelectorAll('.ew-toast button')].find((x) => x.textContent === 'Make it 8 bars'); b?.click(); const ts = a.store.get().tracks; const span = (t) => t.clips.filter((c) => !c.mute).map((c) => `${c.start}+${c.length}`).join(','); return { drums: span(ts.find((x) => x.name === 'Drums')), hum: span(ts.find((x) => x.name === 'Melody')), toast: [...document.querySelectorAll('.ew-toast')].map((x) => x.querySelector('.ew-toast-text')?.textContent || '').pop() }; });
+    t.ok(m14.drums === '0+8,8+8,16+8,24+8' && m14.hum === '0+12,16+12' && /^It’s 8 bars now: Drums plays 4 times and Melody twice, bars 1–8\./.test(m14.toast), `"Make it 8 bars": the beat four times under all of it, the 3-bar hum on each 4-bar phrase (Drums ${m14.drums}; Melody ${m14.hum}; "${m14.toast}")`);
     t.ok(!perr14.length, `phone: no page errors${perr14.length ? ': ' + perr14.slice(0, 2).join(' | ') : ''}`);
     await c14.close();
   }
@@ -865,6 +867,74 @@ try {
       return [...drawn];
     });
     t.ok(['Eb', 'Ab', 'Bb'].every((x) => said.includes(x)) && !said.some((x) => /^(D#|G#|A#)/.test(x)), `the hum dial spells C minor's notes Eb, Ab and Bb, never D# G# A# (${said.join(' ')})`);
+  }
+
+  /* ---- 16. a new idea is a new track (docs/INSTRUMENTS-UX.md 2.1, 2.2, 2.7): the keep select, the sound card's place
+     and its Keep, Tap it after a beat, the Beatbox catch. The sound card itself (ui/sounds.js) is stood in for here by
+     a stub that records what Sketch asks of it */
+  {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await E(() => {
+      const a = window.overdub, log = (window.__snd = { offers: [], backs: [], host: null, trying: null });
+      a.sounds = { setHost: (fn) => { log.host = fn; }, offer: (o) => { log.offers.push(o); return { ok: true }; }, trying: () => log.trying, back: (o) => { log.backs.push(o || {}); log.trying = null; return true; }, keep: () => null, keepIfTrying: () => false };
+      for (const x of document.querySelectorAll('.ew-toast')) x.remove();
+      a.ui.show('sketch'); a.input.emit('sketch:mode', 'tap'); a.input.emit('sketch:mode', 'hum');
+    });
+    const hum16 = async () => E(async () => {
+      const sr = 48000, ps = [60, 64, 67, 69, 67, 64], seg = 0.4, x = new Float32Array(Math.round(sr * seg * ps.length + sr * 0.3));
+      let ph = 0; ps.forEach((p, i) => { const f = 440 * 2 ** ((p - 69) / 12); for (let n = 0; n < sr * seg * 0.9; n++) { ph += 2 * Math.PI * f / sr; x[Math.round(i * seg * sr) + n] = 0.3 * Math.sin(ph) + 0.1 * Math.sin(2 * ph); } });
+      await window.overdub.input.hum.fromSamples(x, sr);
+    });
+    await hum16();
+    await page.waitForTimeout(300);
+    const k16 = await E(() => {
+      const s = document.querySelector('[data-panel="sketch"] .sk-acts .sk-destwrap select'), log = window.__snd, h = log.host && log.host({});
+      return { opts: s ? [...s.options].map((o) => o.textContent) : [], value: s?.selectedOptions[0]?.textContent, host: !h, keepTake: typeof window.overdub.sketch?.keepTake === 'function', offer: log.offers[log.offers.length - 1] || null, cap: window.overdub.input.hum.take?.capture, sounds: !!document.querySelector('.sk-acts .sk-sounds:not([hidden])') };
+    });
+    t.ok(k16.opts[0] === 'A new track' && k16.opts.length > 1 && k16.opts.slice(1).every((o) => /^On /.test(o)) && !k16.opts.some((o) => /Pluck|On Drums/.test(o)), `a hum's keep select: "A new track" first, then the pitched tracks, no instrument in it ("${k16.opts.join('", "')}", now "${k16.value}")`);
+    // (on a computer the stage is a strip too short for the card's rows: it floats by the track's header instead, with
+    // a Keep of its own for the take, app.sketch.keepTake; only the phone's split sheet hosts it)
+    t.ok(k16.host && k16.keepTake && k16.offer?.from === 'take' && k16.offer?.take?.capture === k16.cap && k16.sounds, `on a computer Sketch doesn't host the sound card (it floats, its Keep keeps the take: app.sketch.keepTake) and offers it the take before Keep, with Sounds on the take line (${JSON.stringify(k16.offer && { track: k16.offer.track, from: k16.offer.from, take: k16.offer.take })})`);
+    // the card trying Light Table on the take's new track: the take's Keep makes the track with it, one undo step
+    const n0 = await E(() => window.overdub.store.history.length);
+    await E(() => {
+      const s = document.querySelector('[data-panel="sketch"] .sk-acts .sk-destwrap select'); s.value = 'new'; s.dispatchEvent(new Event('change'));
+      window.__snd.trying = { track: 't_preview', device: 'core.wavetable', newTrack: true, was: 'core.keys' };
+    });
+    await page.click('[data-panel="sketch"] .sk-acts .btn-go');
+    await page.waitForTimeout(300);
+    const kept16 = await E((n0) => { const a = window.overdub, ts = a.store.get().tracks, m = ts[ts.length - 1]; return { name: m.name, device: m.instrument?.device, clips: m.clips.length, steps: a.store.history.length - n0, backs: window.__snd.backs, offer: window.__snd.offers[window.__snd.offers.length - 1] }; }, n0);
+    t.ok(/^Melody( \d+)?$/.test(kept16.name) && kept16.device === 'core.wavetable' && kept16.clips === 1 && kept16.steps >= 1 && kept16.backs.some((b) => b.why === 'kept') && kept16.offer?.track && kept16.offer.take?.kept, `the take's Keep carries the sound on trial: a new track, ${kept16.name}, on ${kept16.device}, with the take (the preview let go first; the card offered the new track after)`);
+    for (let i = 0; i < kept16.steps; i++) await E(() => window.overdub.store.undo());
+    // Tap it: its mic button says what it is; a beat in the song ends its take line "Hum a tune over it?"
+    await E(() => { const c = window.overdub.input.capture; c.add({ src: 'tap', kind: 'drums', notes: [{ p: 36, t: 0, d: 0.25, v: 0.8 }, { p: 38, t: 1, d: 0.25, v: 0.8 }, { p: 36, t: 2, d: 0.25, v: 0.8 }], tempo: 92 }); window.overdub.input.emit('sketch:mode', 'hum'); window.overdub.input.emit('sketch:mode', 'tap'); });
+    await page.waitForTimeout(200);
+    await page.click('[data-panel="sketch"] .sk-capline .btn-go');
+    await page.waitForTimeout(300);
+    const t16 = await E(() => { const o = document.querySelector('.sk-over'); return { bb: document.querySelector('.sk-bb')?.title, over: o && !o.hidden && o.getClientRects().length ? o.textContent : null }; });
+    t.ok(t16.bb === 'Beatbox: the mic as drums. To hum a tune, use Hum it.' && t16.over === 'Hum a tune over it? Hum over it', `Tap it: Beatbox's title says it's the mic as drums ("${t16.bb}"); a beat in the song ends the take line "${t16.over}"`);
+    // the Beatbox catch: a beatbox that sounded like a tune asks, Keep the beat focused (Enter keeps the beat); Make it a
+    // melody puts its notes on a new track
+    await E(() => { const a = window.overdub, tap = a.input.tap, on0 = tap.on; tap.on = function (k, fn) { if (k === 'tune') window.__tune = fn; return on0.call(this, k, fn); }; a.input.emit('sketch:mode', 'hum'); a.input.emit('sketch:mode', 'tap'); tap.on = on0; });
+    const segs = [60, 64, 67, 69, 67, 64, 62].map((m, i) => ({ t0: i * 0.4, t1: i * 0.4 + 0.35, midi: m + 0.1, conf: 0.9, db: -18, cents: 10 }));
+    const fire = () => E((sg) => window.__tune?.({ segs: sg }), segs);
+    await fire();
+    await page.waitForTimeout(200);
+    const c16 = await E(() => { const el = document.querySelector('.sk-catch'); return el && !el.hidden ? { text: el.querySelector('.sk-catch-l')?.textContent, btns: [...el.querySelectorAll('button')].map((b) => b.textContent), focus: document.activeElement?.textContent, tracks: window.overdub.store.get().tracks.length } : null; });
+    t.ok(c16 && c16.text === 'That sounded like a tune: 7 notes. Keep it as a melody?' && c16.btns.join() === 'Keep the beat,Make it a melody' && c16.focus === 'Keep the beat', `the Beatbox catch: "${c16?.text}" with ${c16?.btns.join(' and ')}, Keep the beat focused`);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const e16 = await E(() => ({ shown: !document.querySelector('.sk-catch')?.hidden, tracks: window.overdub.store.get().tracks.length }));
+    t.ok(!e16.shown && e16.tracks === c16?.tracks, `Enter keeps the beat: the offer goes and nothing is added (${e16.tracks} tracks)`);
+    await fire();
+    await page.waitForTimeout(200);
+    const h0 = await E(() => window.overdub.store.history.length);
+    await page.click('.sk-catch .sk-melody');
+    await page.waitForTimeout(300);
+    const m16 = await E((h0) => { const a = window.overdub, ts = a.store.get().tracks, m = ts[ts.length - 1]; return { name: m.name, notes: m.clips.reduce((n, c) => n + c.notes.length, 0), steps: a.store.history.length - h0, take: !!a.input.capture.list({ all: true }).find((p) => p.src === 'hum' && p.label === 'From the beatbox') }; }, h0);
+    t.ok(/^Melody( \d+)?$/.test(m16.name) && m16.notes === 7 && m16.take, `Make it a melody: ${m16.notes} notes on a new track, ${m16.name}, and the tune is in Takes too`);
+    for (let i = 0; i < m16.steps; i++) await E(() => window.overdub.store.undo());
+    await E(() => { delete window.overdub.sounds; });
   }
 } catch (e) {
   t.ok(false, 'threw: ' + (e && e.stack || e));

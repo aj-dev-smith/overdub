@@ -8,13 +8,18 @@
 //   classify(f, trained?)                  -> 'kick' | 'snare' | 'hat'           (rules, or the nearest trained class)
 //   beatbox(samples, sr, opts)             -> [{ t, row, v, f }]
 //   toDrums(hits, { tempo, grid, origin, originBeat, meter }) -> { notes, grid, bars }   hits: [{ t (s), row, v }]
+//   tuneOf(samples, sr, { tempo, hits }) -> { segs, notes, conf, perBeat } | null   the Beatbox catch: a beatbox take
+//                                          that reads as a tune, not a beat (pitch confidence over 0.6 on more than half
+//                                          its voiced frames, fewer than 2 onsets a beat, 2 notes or more)
 //
 // Live (browser): createTap(app, input) -> tap = { hit(row, v), take, flush(), startBeatbox(), stopBeatbox(),
-//   beatboxing, recording, train(row, f), on(type, fn) }   events: 'hit' { row, v, t, rec? }, 'take' (a phrase kept to
-//   capture). While R records (input/recorder.js) a hit goes into the take (quantized on input, its raw time kept) and a
+//   beatboxing, recording, train(row, f), asMelody(tune), on(type, fn) }   events: 'hit' { row, v, t, rec? }, 'take' (a
+//   phrase kept to capture), 'tune' { segs, notes, capture, tune } (the Beatbox catch, outside a recording only: the
+//   beat is in Takes as ever, and Sketch asks "Keep it as a melody?"; asMelody(tune) puts it on a new Melody track). While R records (input/recorder.js) a hit goes into the take (quantized on input, its raw time kept) and a
 //   beatbox started then hands its hits to the take at its stop, each at its place on the transport's grid.
 
-import { fft, rms, dbOf, median } from './pitch.js';
+import { fft, rms, dbOf, median, frames as pitchFrames, segment } from './pitch.js';
+import { transcribe } from './hum.js';
 import { formatGrid, beatsPerBar } from '../core/music.js';
 
 export const ROWS = [
@@ -116,6 +121,23 @@ export function toDrums(hits, { tempo = 120, grid = 0.25, origin = null, originB
   return { notes, grid: formatGrid(notes, { steps: Math.round((bars * bpb) / grid), step: grid }), bars };
 }
 
+// The Beatbox catch: someone who hums into Beatbox meant a tune. The take's pitch (pYIN frames, then the note tracker)
+// says so when it is steady (confident on most voiced frames) and slow for a beat (fewer than 2 onsets a beat).
+export function tuneOf(x, sr, { tempo = 120, hits = null } = {}) {
+  if (!x || x.length < sr * 0.3 || x.length > sr * 90) return null;
+  const fr = pitchFrames(x, sr);
+  let peak = -120; for (const f of fr) if (f.db > peak) peak = f.db;
+  const voiced = fr.filter((f) => f.hz > 0 && f.db > peak - 36);
+  if (voiced.length < 20) return null;
+  const sure = voiced.filter((f) => (f.conf ?? 0) > 0.6).length / voiced.length;
+  const n = (hits || onsets(x, sr)).length, beats = x.length / sr / (60 / tempo);
+  const perBeat = beats > 0 ? n / beats : Infinity;
+  if (!(sure > 0.5 && perBeat < 2)) return null;
+  const segs = segment(fr);
+  if (segs.length < 2) return null;
+  return { segs, notes: segs.length, conf: Math.round(sure * 100) / 100, perBeat: Math.round(perBeat * 100) / 100 };
+}
+
 /* ---------------------------------------------------------------- live */
 const TRAIN_KEY = 'overdub:beatbox-train';
 export function createTap(app, input) {
@@ -207,8 +229,15 @@ export function createTap(app, input) {
       input.emit('beatbox', { active: false });
       const x = new Float32Array(s.len); let w = 0; for (const c of s.chunks) { x.set(c, w); w += c.length; }
       const hits = beatbox(x, s.sr, { trained });
-      if (!hits.length) { app.ui?.toast?.('No hits heard. Get closer to the mic and punch the sounds.'); return null; }
       const p = app.store.get();
+      // the Beatbox catch, outside a recording only (with R running the hits go straight into the take)
+      let tune = null;
+      if (!s.rec) { try { tune = tuneOf(x, s.sr, { tempo: p.tempo, hits }); } catch (e) { tune = null; } }
+      if (tune) tune.sr = s.sr;
+      if (!hits.length) {
+        if (tune) { emit('tune', { segs: tune.segs, notes: tune.notes, capture: null, tune }); return { tune }; }
+        app.ui?.toast?.('No hits heard. Get closer to the mic and punch the sounds.'); return null;
+      }
       let res, beat = null;
       if (s.rec && s.snap && input.recorder.state !== 'idle') {
         // into the take: each hit at its grid beat (the recorder quantizes and places it in its pass)
@@ -227,7 +256,22 @@ export function createTap(app, input) {
       } else res = toDrums(hits, { tempo: p.tempo, meter: p.meter });
       const c = input.capture.add({ src: 'beatbox', kind: 'drums', notes: res.notes, tempo: p.tempo, beat, grid: res.grid, track: drumTrack()?.id || null });
       emit('take', c);
+      if (tune) { tune.capture = c ? c.id : null; emit('tune', { segs: tune.segs, notes: tune.notes, capture: tune.capture, tune }); }
       return c;
+    },
+    // The Beatbox catch's "Make it a melody": the take's notes in tune (into the key heard in it, unless the song's key
+    // was chosen), kept in Takes as a hum and put on a new Melody track (core/sounds.js newPartFor), by you
+    asMelody(tune) {
+      if (!tune || !tune.segs || !tune.segs.length) return { ok: false, error: 'no tune to keep' };
+      const p = app.store.get();
+      let key = null;
+      try { key = input.hum?.songKey?.() || null; } catch (e) { key = null; }
+      let r = transcribe(tune.segs, { tempo: p.tempo, meter: p.meter, key, grid: input.options?.grid || 0.25 });
+      if (!key && r.keyGuess) r = transcribe(tune.segs, { tempo: p.tempo, meter: p.meter, key: { root: r.keyGuess.root, scale: r.keyGuess.scale }, grid: input.options?.grid || 0.25 });
+      const c = input.capture.add({ src: 'hum', kind: 'notes', notes: r.notes.map(({ p: pp, t, d, v, conf }) => ({ p: pp, t, d, v, conf })), tempo: p.tempo, beat: null, key: r.key || undefined, keyFrom: key ? 'song' : r.key ? 'hum' : undefined, moved: r.moved.length, low: r.low });
+      if (!c) return { ok: false, error: 'couldn’t keep it' };
+      const k = input.capture.keep(c.id, { newTrack: {} });
+      return k.ok ? { ...k, capture: c.id, notes: r.notes.length, moved: r.moved.length, key: r.key } : k;
     },
     // Teach it your sounds: f from features() of one of your hits
     train(row, f) {

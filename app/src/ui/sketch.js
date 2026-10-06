@@ -31,8 +31,12 @@
 // with the song at the beats where it was played; a take that is in the song says where ("in the song: Keys, bars
 // 5–8") and that label shows it in the arranger. Record's input picker writes the record track's Input (track.input,
 // the one the recorder opens), so there is one picker. On a phone the strip is pinned to the bottom of the sheet.
-// app.sketch = { ruler(), geom() } is what the tests read (geom: the ruler while the song plays; the tap grid's, kind 'tap',
-// when it doesn't).
+// Onto and the keep select beside a take's Keep say where a take goes (docs/INSTRUMENTS-UX.md 2.1): "A new track" first,
+// then the tracks that fit, reading and setting the recorder's aim (aim / setAim); Onto shows in the simple view too.
+// The sound card (ui/sounds.js) sits in the stage beside the take (app.sounds.setHost), and a take's Keep carries the
+// sound on trial for its new track.
+// app.sketch = { ruler(), geom(), inTune(), setInTune(on), say(text), host() } is what the tests and the card read
+// (geom: the ruler while the song plays; the tap grid's, kind 'tap', when it doesn't).
 //
 // A beginner's route (docs/FRESH-EYES-3.md): Draw a beat, under the ways in, opens the Beat tab's squares (app.beat.draw,
 // ui/drumgrid.js), for anyone who can't tap in time. Play it's keys are in key and on the grid until you say otherwise,
@@ -63,11 +67,33 @@ const NO_KEY = { root: 'C', scale: 'major' };
 // a take is signed with what you did: "tapped by you"
 const SRC_VERB = { hum: 'hummed', tap: 'tapped', beatbox: 'beatboxed', midi: 'played', qwerty: 'played', touch: 'played', rec: 'recorded' };
 const AGENT_TEXT = { hum: 'Here’s an idea I hummed — ', tap: 'Here’s a beat I tapped — ', beatbox: 'Here’s a beat I beatboxed — ', midi: 'Here’s something I played — ', qwerty: 'Here’s something I played — ', touch: 'Here’s something I played — ', rec: 'Here’s a take I recorded — ' };
-const NEW_TRACK_DEVICES = [['core.pluck', 'Pluck'], ['core.keys', 'Keys'], ['core.bass', 'Bass'], ['core.poly', 'Poly'], ['core.pad', 'Pad']];
 const MODE_KEY = 'overdub:sketch-mode', MIC_OK = 'overdub:mic-ok';
+// A new track's name and first instrument come from one place, core/sounds.js newPartFor (Melody, Keys or Drums, then
+// "Melody 2"); the instrument is the sound card's to change (ui/sounds.js). Until that module is in the tree the same
+// table stands in for it here.
+// (asked for once the recorder has its aim, the same change that brings core/sounds.js: before that, asking would
+// only be a 404 in the console)
+let SOUNDS = null, SOUNDS_ASKED = false;
+function loadSounds(app) {
+  if (SOUNDS_ASKED || typeof app?.input?.recorder?.aim !== 'function') return;
+  SOUNDS_ASKED = true;
+  import('../core/sounds.js').then((m) => { SOUNDS = m; }).catch(() => { /* not in this tree: NEW_PART */ });
+}
+const NEW_PART = { hum: ['Melody', 'core.keys'], keys: ['Keys', 'core.keys'], pads: ['Drums', 'core.drums'] };
+export function newPart(kind, project) {
+  const k = kind === 'drums' || kind === 'beatbox' ? 'pads' : NEW_PART[kind] ? kind : 'keys';
+  if (SOUNDS?.newPartFor) { try { const r = SOUNDS.newPartFor(k, project); if (r && r.name && r.device) return r; } catch (e) { /* the table */ } }
+  const [base, device] = NEW_PART[k], names = new Set((project?.tracks || []).map((t) => t.name));
+  let name = base;
+  for (let i = 2; names.has(name); i++) name = `${base} ${i}`;
+  return { name, device };
+}
+// the aim's kind for a take in Takes (a beat, a hum, or notes played)
+const aimKindOf = (p) => (!p ? 'keys' : p.kind === 'drums' ? 'pads' : p.src === 'hum' ? 'hum' : 'keys');
 
 export default function (app) {
   if (!app.input) initInput(app);
+  loadSounds(app);
   css('sketch', CSS);
   // every take belongs to the song it was made in (whether or not the pane is open): a New song starts with none
   app.input.capture.on((e) => {
@@ -93,7 +119,9 @@ export default function (app) {
 // loops at its own length rounded up to one that does (1, 2 or 4 bars, from the song's first bar; a longer part plays
 // once), so the beat runs under all of it and the tune comes round on the next even phrase: still offered, the song
 // still short. The loop, if it is on round that span (or from its start to inside it), grows with it.
-export function longerPlan(app, { bars = 8 } = {}) {
+// cover: the loop, if it is on and doesn't hold the 8 bars, is set round them (Hum over it: a hum over the beat records
+// as one take over all of it, not a take a pass of the first minute's 2-bar loop)
+export function longerPlan(app, { bars = 8, cover = false } = {}) {
   const p = app.store.get(), bpb = beatsPerBar(p.meter), EPS = 1e-6;
   const playing = p.tracks.flatMap((t) => t.clips.filter((c) => !c.mute).map((c) => ({ t, c })));
   if (!playing.length) return { ok: false, error: 'There’s nothing in the song yet to repeat: play or draw a part first.' };
@@ -131,6 +159,7 @@ export function longerPlan(app, { bars = 8 } = {}) {
   }
   const lp = p.loop;
   if (lp?.on && Math.abs(lp.start - a) < EPS && (even ? Math.abs(lp.end - b) < EPS : lp.end > a + EPS && lp.end <= b + EPS)) ops.push({ type: 'project.set', patch: { loop: { ...lp, end: a + bars * bpb } } });
+  else if (cover && lp?.on && !(lp.start <= a + EPS && lp.end >= a + bars * bpb - EPS)) ops.push({ type: 'project.set', patch: { loop: { ...lp, start: a, end: a + bars * bpb } } });
   const names = [...parts.keys()];
   const from = Math.round(a / bpb) + 1;
   const often = (k) => (k === 1 ? 'once' : k === 2 ? 'twice' : `${k} times`);
@@ -144,8 +173,8 @@ export function longerPlan(app, { bars = 8 } = {}) {
   return { ok: true, ops, times: times ?? Math.max(...parts.values()), bars, from, to: from + bars - 1, n,
     summary: `It’s ${bars} bars now: ${what}, bars ${from}–${from + bars - 1}.` };
 }
-export function makeLonger(app, { bars = 8, by = 'you', toast = true } = {}) {
-  const plan = longerPlan(app, { bars });
+export function makeLonger(app, { bars = 8, by = 'you', toast = true, cover = false } = {}) {
+  const plan = longerPlan(app, { bars, cover });
   if (!plan.ok) { if (toast) app.ui.toast(plan.error, { kind: 'bad' }); return plan; }
   const r = app.store.dispatch(plan.ops, { by, label: `make it ${bars} bars` });
   if (!r.ok) { if (toast) app.ui.toast('Couldn’t make it longer: ' + r.error, { kind: 'bad' }); return r; }
@@ -155,7 +184,14 @@ export function makeLonger(app, { bars = 8, by = 'you', toast = true } = {}) {
 // The offer, as a button for a card or a toast's line: only while the song is short enough to repeat to 8 bars
 export function longerOffer(app, { bars = 8, after = null } = {}) {
   if (!longerPlan(app, { bars }).ok) return null;
-  return h('button.btn.btn-txt.ew-toast-act.sk-longer', { type: 'button', onclick: (e) => { const r = makeLonger(app, { bars }); after?.(r); e.currentTarget.closest('.ew-toast')?.remove(); } }, `Make it ${bars} bars`);
+  const b = h('button.btn.btn-txt.ew-toast-act.sk-longer', { type: 'button', onclick: (e) => { const r = makeLonger(app, { bars }); after?.(r); e.currentTarget.closest('.ew-toast')?.remove(); } }, `Make it ${bars} bars`);
+  // (an offer that has come true some other way, Hum over it or an undo of the take, goes from the toast it's on)
+  const off = app.store.on('change', () => {
+    if (!b.isConnected && b._shown) { off(); return; }
+    if (b.isConnected) b._shown = true;
+    if (!longerPlan(app, { bars }).ok) { off(); b._gone = true; b.remove(); }
+  });
+  return b;
 }
 
 function mount(el, app) {
@@ -263,9 +299,10 @@ function mount(el, app) {
   };
   // A phone's take row has one picker, Record's (the strip's): Keep goes where it says, and says where
   // ("Keep on Bass", "Keep on a new track"). kind: 'notes' | 'drums'
-  const stripDest = (kind) => { const t = stripTarget(); return t ? t.id : kind === 'drums' ? 'new:core.drums' : 'new:core.keys'; };
+  const stripDest = () => { const t = stripTarget(); return t ? t.id : 'new'; };
+  const isNewDest = (v) => !v || v === 'new' || v.startsWith('new:');
   function keepOnLabel(btn, value) {
-    const t = value && !value.startsWith('new:') ? store.track(value) : null, text = t ? `Keep on ${t.name}` : 'Keep on a new track';
+    const t = !isNewDest(value) ? store.track(value) : null, text = t ? `Keep on ${t.name}` : 'Keep on a new track';
     for (const s of btn.querySelectorAll('.sk-wide, .sk-narrow')) s.textContent = text;
     btn.title = `${text}, as a clip, by you: the track Record’s picker shows (pick another there)`;
   }
@@ -277,28 +314,46 @@ function mount(el, app) {
   function seg(opts, cur, onpick, label) {
     return h('div.sk-seg', { role: 'radiogroup', 'aria-label': label }, opts.map(([v, l]) => h('button' + (v === cur ? '.on' : ''), { role: 'radio', 'aria-checked': String(v === cur), onclick: () => onpick(v) }, l)));
   }
-  // where a kept idea goes: a select of "new track (device)" and the instrument tracks
-  function destSelect(kind, preferTrack) {
+  // Where a kept take goes: "A new track" first, then the tracks that fit it ("On Melody", "On Keys"), the same list and
+  // the same default as Onto (where R would put this kind of take: recorder.aim). The new track's instrument is the
+  // sound card's to pick (ui/sounds.js), so there is no instrument in this list. kind: 'hum' | 'keys' | 'pads';
+  // all: every instrument track (a card's Keep on…)
+  const fitsKind = (t, kind) => t && t.kind === 'instrument' && (kind === 'pads' ? isDrumTrack(t) : kind === 'hum' ? !isDrumTrack(t) : true);
+  function destSelect(kind, preferTrack, { all = false } = {}) {
     const sel = h('select.sk-select', { 'aria-label': 'Keep it on' });
-    const tracks = instrumentTracks();
-    const selTrack = ui.state.selection.track && store.track(ui.state.selection.track);
-    let def = null;
-    if (kind === 'drums') {
-      const dt = tracks.find((t) => t.id === preferTrack && isDrumTrack(t)) || (isDrumTrack(selTrack) ? selTrack : null) || tracks.find(isDrumTrack);
-      def = dt ? dt.id : 'new:core.drums';
-      sel.append(h('option', { value: 'new:core.drums' }, 'New track, Drums'));
-    } else {
-      const it = (selTrack && selTrack.kind === 'instrument' && !isDrumTrack(selTrack)) ? selTrack : null;
-      def = it ? it.id : 'new:core.pluck';
-      for (const [d, n] of NEW_TRACK_DEVICES) if (!app.devices.getDevice || app.devices.getDevice(d) || d === 'core.pluck') sel.append(h('option', { value: 'new:' + d }, `New track, ${n}`));
-    }
-    const grp = h('optgroup', { label: 'On a track' });
-    for (const t of tracks) grp.append(h('option', { value: t.id }, `On ${t.name}`));
-    sel.append(grp);
+    const tracks = instrumentTracks().filter((t) => all || fitsKind(t, kind));
+    const pref = preferTrack && tracks.find((t) => t.id === preferTrack && fitsKind(t, kind));
+    const aimed = aimOf(kind);
+    const def = pref ? pref.id : aimed && tracks.some((t) => t.id === aimed.id) ? aimed.id : 'new';
+    sel.append(h('option', { value: 'new' }, 'A new track'), ...tracks.map((t) => h('option', { value: t.id }, `On ${t.name}`)));
     sel.value = def;
     return sel;
   }
+  // Keep a take. A new track is named for what it is (newPart: Melody for a hum) and plays the sound the card has on
+  // trial for it, made in the keep's own transaction (track, clip and sound, one undo step); kept onto a track whose
+  // sound is on trial, the sound is kept first. Then the card is offered for the track (it decides whether it opens).
   function keepTo(id, value, opts = {}) {
+    const ph0 = input.capture.get(id), kind = aimKindOf(ph0), tr = app.sounds?.trying?.() || null;
+    const toNew = isNewDest(value);
+    let newTrack = null;
+    // (the previewed new track goes before the real one is made, or before the take goes onto another track: takeNew
+    // lets it go and says what sound was on trial for it)
+    let handed = null;
+    if (tr && tr.newTrack) {
+      try { if (toNew && typeof app.sounds.takeNew === 'function') handed = app.sounds.takeNew(); } catch (e) { handed = null; }
+      if (!handed) {
+        try { app.sounds.back?.({ why: 'kept' }); } catch (e) { /* ok */ }
+        if (!toNew) { try { app.sounds.close?.(); } catch (e) { /* ok */ } }
+        else handed = { device: tr.device, preset: tr.preset || null };
+      }
+    }
+    if (toNew) {
+      const part = newPart(kind, store.get());
+      newTrack = { name: part.name, device: part.device };
+      if (handed?.device) { newTrack.device = handed.device; if (handed.preset) newTrack.preset = handed.preset; if (handed.params && Object.keys(handed.params).length) newTrack.params = handed.params; }
+    }
+    else if (tr && !toNew && tr.track === value) { try { app.sounds.keepIfTrying?.(value); } catch (e) { /* ok */ } }
+    const first = toNew || !(store.track(value)?.clips || []).length;
     // a hum on a song with no key yet: the key heard in it becomes the song's, so the next hum snaps to it (not to a
     // default nobody chose)
     const ph = input.capture.get(id);
@@ -307,7 +362,7 @@ function mount(el, app) {
       const k = { root: ph.key.root, scale: ph.key.scale };
       if (store.dispatch({ type: 'project.set', patch: { key: k } }, { by: 'you', label: `key ${keyLabel(k)}, heard in your hum` }).ok) keyed = k;
     }
-    const r = value && value.startsWith('new:') ? input.capture.keep(id, { newTrack: { device: value.slice(4) }, ...opts }) : input.capture.keep(id, { track: value, ...opts });
+    const r = toNew ? input.capture.keep(id, { newTrack, ...opts }) : input.capture.keep(id, { track: value, ...opts });
     if (r.ok) {
       const t = store.track(r.track), name = t ? t.name : 'a new track', also = keyed ? ` The song is in ${keyLabel(keyed)} now, from your hum.` : '';
       const steps = keyed ? 2 : 1;
@@ -315,6 +370,7 @@ function mount(el, app) {
       const more = longerOffer(app, { bars: 8 }), with8 = (t) => (more ? [t, ' ', more] : t);
       if (touch) ui.toast(with8(`Kept on ${name}.${also} It’s yours: tap Undo to take it back.`), { kind: 'ok', action: { label: 'Undo', run: () => { for (let i = 0; i < steps; i++) store.undo(); } } });
       else ui.toast(with8(`Kept on ${name}.${also} It’s yours: undo with ⌘Z${keyed ? ' (twice for the key)' : ''}.`), { kind: 'ok', ...(more ? { ms: 8000 } : {}) });
+      try { app.sounds?.offer?.({ track: r.track, from: 'take', take: { capture: id, kind, src: ph0?.src || null, kept: true, first } }); } catch (e) { console.error(e); }
     } else { if (keyed) store.undo(); ui.toast(r.error, { kind: 'bad' }); }
     return r;
   }
@@ -336,7 +392,9 @@ function mount(el, app) {
   const rawOf = new Map();
   function hear(notes, trackId, { drums = false, id = null } = {}) {
     stopHear();
-    const t = trackId && store.track(trackId) ? trackId : drums ? instrumentTracks().find(isDrumTrack)?.id : input.target()?.id;
+    // (no track given and the card is trying a sound for this take's new track: the take plays on that one)
+    const tr = !trackId ? app.sounds?.trying?.() : null;
+    const t = trackId && store.track(trackId) ? trackId : tr?.newTrack && store.track(tr.track) ? tr.track : drums ? instrumentTracks().find(isDrumTrack)?.id : input.target()?.id;
     if (!t || !notes.length) return;
     const spb = 60 / store.get().tempo, eng = app.engine, pv = preview;
     pv.id = id; pv.track = t;
@@ -613,7 +671,25 @@ function mount(el, app) {
     const sel = kind === 'keys' ? ui.state?.selection?.track : null;
     return ts.filter((t) => t.kind === 'instrument' && (!isDrumT(t) || t.id === sel));
   }
-  const stripTarget = () => { const k = kindNow(); return k === 'audio' ? (rec.targetFor('audio') || input.audio.recordTrack?.() || null) : rec.targetFor(k); };
+  // Where the next take of a kind goes (input/recorder.js aim: the track, or null for a new track). Onto, the keep
+  // select's default, a phone's Keep and the record line all read it.
+  const viewNow = () => ui.workspace?.view?.() || 'full';
+  function aimOf(kind) {
+    if (kind === 'audio') return rec.targetFor('audio') || input.audio.recordTrack?.() || null;
+    const a = typeof rec.aim === 'function' ? rec.aim(kind) : null;
+    if (a) return a.track ? store.track(a.track) || null : null;
+    return rec.targetFor(kind);
+  }
+  const stripTarget = () => aimOf(kindNow());
+  // a take onto this track would stack over an earlier one (its bars overlap a take there): Onto says "a new take"
+  function stacks(t, kind) {
+    if (!t) return false;
+    if (typeof rec.stacks === 'function') { try { return !!rec.stacks(kind, t.id); } catch (e) { /* the guess below */ } }
+    if (rec.modeFor(t) !== 'take') return false;
+    const p = store.get(), bpb = bpbNow(), lp = p.loop;
+    const a = lp && lp.on ? lp.start : Math.floor((app.transport?.marker?.beat ?? eng.beat ?? 0) / bpb + 1e-9) * bpb, b = lp && lp.on ? lp.end : a + bpb;
+    return t.clips.some((c) => !c.mute && c.start < b - 1e-6 && c.start + c.length > a + 1e-6);
+  }
   const recBtn = h('button.btn.sk-recbtn', { type: 'button', 'aria-pressed': 'false', onclick: () => recPress() }, h('span.sk-dot'), h('span.sk-recbtn-l', 'Record'), touch ? null : h('kbd', 'R'));
   const tgtSel = h('select.sk-select.sk-target', { 'aria-label': 'Record onto', onchange: () => pickTarget(tgtSel.value) });
   const passWrap = h('span.sk-each');
@@ -626,10 +702,10 @@ function mount(el, app) {
   const recNote = h('span.sk-recnote', { role: 'status', 'aria-live': 'polite' });
   // how a take records (Each pass, the count-in, the click): in the strip on a computer; on a touch screen a row of its
   // own under the canvas, so the pinned strip stays one row and these are still a tap away
-  // (the simple view puts these away as Recording options, data-feature="record-options": Record keeps today's
-  // defaults, onto the selected or a new track, and the take line still says where it went)
+  // (the simple view puts these away as Recording options, data-feature="record-options"; Onto beside Record stays)
   const recOpts = h('div.sk-recopts', { role: 'group', 'aria-label': 'How a take records', dataset: { feature: 'record-options' } }, h('span.sk-field.sk-each-f', h('small', 'Each pass'), passWrap), countB, clickB);
-  strip.append(recBtn, h('label.sk-field.sk-onto', { dataset: { feature: 'record-options' } }, h('small', 'Onto'), tgtSel), ...(touch ? [] : [recOpts]), recNote);
+  // Onto: where R records, always shown (the simple view too): "A new track" first, then the tracks that fit
+  strip.append(recBtn, h('label.sk-field.sk-onto', h('small', 'Onto'), tgtSel), ...(touch ? [] : [recOpts]), recNote);
   // The line saying what a take records onto ("Recording onto Drums, pass 1."): the strip's last word on a computer; on
   // a phone, above the pads (or the dial), so the pinned row stays one row (it wrapped to two and covered the pads'
   // bottom: a low tap on Kick hit Beatbox). Play it's strip is in the sheet already, over the keys: it stays there.
@@ -647,23 +723,124 @@ function mount(el, app) {
     if (mode === 'rec') return input.audio.record({ countIn: rec.countIn });
     return rec.record();
   }
-  // picking the track: it is selected (selecting arms it); an arm set on another track of this kind moves to it
-  function pickTarget(id) {
-    const t = store.track(id);
-    if (!t) return;
-    ui.select({ track: id, clip: null, notes: [] });
-    if (stripTarget()?.id !== id) {
-      const others = store.get().tracks.filter((x) => x.arm && x.id !== id && (kindNow() === 'audio' ? x.kind === 'audio' : x.kind === 'instrument'));
-      store.dispatch([...others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { type: 'track.set', track: id, patch: { arm: true } }], { by: 'you', label: `arm ${t.name}` });
+  // Picking in Onto sets the aim for this kind of take (recorder.setAim). In the full studio the lit R agrees with it: a
+  // track picked is selected and armed (an arm on another gives way), "A new track" disarms every track; the arming goes
+  // first, so the recorder's "armed by hand clears the choice" doesn't undo the pick. In the simple view a pick only aims.
+  function pickTarget(v) {
+    const k = kindNow(), full = viewNow() !== 'simple' || typeof rec.setAim !== 'function';
+    if (k === 'audio' || (v && v !== 'new')) {
+      const t = store.track(v);
+      if (!t) return;
+      if (full || k === 'audio') {
+        ui.select({ track: v, clip: null, notes: [] });
+        if (stripTarget()?.id !== v || !t.arm) {
+          const others = store.get().tracks.filter((x) => x.arm && x.id !== v && (k === 'audio' ? x.kind === 'audio' : x.kind === 'instrument'));
+          store.dispatch([...others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), ...(t.arm ? [] : [{ type: 'track.set', track: v, patch: { arm: true } }])], { by: 'you', label: `arm ${t.name}` });
+        }
+      }
+      if (k !== 'audio') rec.setAim?.(k, v);
+    } else {
+      const armed = store.get().tracks.filter((x) => x.arm && x.kind === 'instrument');
+      if (viewNow() !== 'simple' && armed.length) store.dispatch(armed.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { by: 'you', label: 'record onto a new track' });
+      rec.setAim?.(k, 'new');
     }
     paintStrip(true);
   }
+  /* ---------------------------------------------------------------- the sound card's place (ui/sounds.js) */
+  // ui/sounds.js alone decides when "What should this sound like?" opens; Sketch says where it goes (app.sounds.setHost):
+  // beside the take's canvas on a computer (two columns, the card under the canvas in a narrow stage), under the take's
+  // row on a phone. Sketch tells it when a take lands (offer), and its take line has Sounds, the door in both views.
+  const cardHost = h('div.sk-cardhost');
+  function placeHost() {
+    cardHost.hidden = mode === 'rec';
+    const into = (isSplit() && body.querySelector('.sk-take')) || body;
+    if (cardHost.parentNode !== into || into.lastElementChild !== cardHost) into.append(cardHost);
+  }
+  let hostSet = null;   // (the app.sounds Sketch registered with: a new one, say a stand-in, is registered with too)
+  // (only the phone's split sheet hosts it: on a computer Sketch's stage is a strip a few hundred pixels tall, where the
+  // card's rows fell under the window's edge, so there it floats by the track's header, ui/sounds.js place())
+  const hostFn = () => { if (!el.isConnected || mode === 'rec' || !isSplit() || (ui.visible && !ui.visible('sketch'))) return null; placeHost(); return cardHost; };
+  function registerHost() { if (hostSet === app.sounds || typeof app.sounds?.setHost !== 'function') return; hostSet = app.sounds; try { app.sounds.setHost(hostFn); } catch (e) { console.error(e); } }
+  // what the card is told about a take not yet kept (or just kept): where its Keep would put it, and whether that track
+  // is empty (the card is offered on a track's first take)
+  function takeInfo(id, kind, dest, extra = {}) {
+    const ph = input.capture.get(id), track = isNewDest(dest) ? null : dest;
+    return { capture: id, kind, src: ph?.src || null, notes: (ph?.notes || []).length, onto: track || 'new', first: !track || !(store.track(track)?.clips || []).length, ...extra };
+  }
+  const offered = new Set();   // (each take is offered once: a re-snap of the same hum isn't a new take)
+  function offerTake(id, kind, dest) {
+    if (!id || offered.has(id) || typeof app.sounds?.offer !== 'function') return;
+    const ph = input.capture.get(id);
+    if (!ph || ph.rec || !ofSong(ph) || !(ph.notes || []).length || keptOn(ph)) return;
+    offered.add(id);
+    try { app.sounds.offer({ track: isNewDest(dest) ? null : dest, from: 'take', take: takeInfo(id, kind, dest) }); } catch (e) { console.error(e); }
+  }
+  // the take line's Sounds (.btn-txt): opens the card for the take before it is kept
+  function soundsBtn(getId, kind, getDest) {
+    const b = h('button.btn.btn-txt.sk-sounds', { type: 'button', hidden: true, title: 'Hear this take on other instruments before you keep it', onclick: () => {
+      const id = getId(), v = getDest();
+      if (!id || typeof app.sounds?.offer !== 'function') return;
+      offered.add(id);
+      app.sounds.offer({ track: isNewDest(v) ? null : v, from: 'take', anchor: b, asked: true, take: takeInfo(id, kind, v) });
+    } }, 'Sounds');
+    return b;
+  }
+  // A phone, while a sound is on trial: the pinned row is Keep (the name is in the card's status line), Back and the
+  // record lamp. Keep on a take not yet kept keeps the take with the sound; on a track, keeps the sound.
+  const trialKeep = h('button.btn.btn-go.sk-tkeep', { type: 'button', onclick: () => keepTrial() }, 'Keep');
+  const trialBack = h('button.btn.btn-txt.sk-tback', { type: 'button', onclick: () => { try { app.sounds?.back?.(); } catch (e) { console.error(e); } } }, 'Back');
+  const trialRow = h('div.sk-trialrow', { role: 'group', 'aria-label': 'The sound being tried' }, trialKeep, trialBack);
+  function keepTrial() {
+    const tr = app.sounds?.trying?.();
+    if (!tr) return;
+    if (tr.newTrack) { const id = view?.takeId?.(); if (id) { keepTo(id, 'new'); view?.kept?.(); return; } }
+    try { app.sounds.keep?.(); } catch (e) { console.error(e); }
+  }
+  const nameOf = (x) => (!x ? '' : typeof x === 'string' ? app.devices?.getDevice?.(x)?.name || x : x.name || app.devices?.getDevice?.(x.device)?.name || x.device || '');
+  let trialSig = null;
+  function syncTrial() {
+    const tr = app.sounds?.trying?.() || null, sig = tr ? `${tr.track}|${tr.device}|${tr.preset || ''}|${tr.newTrack ? 1 : 0}` : '';
+    // (in the page only on the phone's split layout, where it is pinned: elsewhere the card's own Keep is the primary)
+    if (tr && isSplit()) { if (trialRow.parentNode !== foot) foot.prepend(trialRow); }
+    else if (trialRow.parentNode) trialRow.remove();
+    if (sig === trialSig) return;
+    trialSig = sig;
+    root.classList.toggle('sk-trying', !!tr);
+    if (!tr) return;
+    const name = `${nameOf(tr.device)}${tr.preset ? `, ${tr.preset}` : ''}`, was = nameOf(tr.was);
+    trialKeep.title = `Keep ${name}`; trialKeep.setAttribute('aria-label', `Keep ${name}`);
+    trialBack.title = was ? `Back to ${was}` : 'Back'; trialBack.setAttribute('aria-label', trialBack.title);
+  }
+  // In tune: a hum on a song whose key nobody chose, not yet kept, moved into the key heard in it. The card's In tune
+  // lamp and the Snap chip are one state (app.sketch.inTune / setInTune; 'sketch:intune' says it changed).
+  function inTuneNow() {
+    const tk = input.hum.take;
+    if (!tk || !tk.result || !tk.capture || !tk.opts || tk.opts.key || !tk.opts.heard) return null;
+    if (keptOn(input.capture.get(tk.capture))) return null;
+    return !!(tk.opts.snapHeard && input.options.snapKey !== false);
+  }
+  function setInTune(on) {
+    const tk = input.hum.take;
+    if (inTuneNow() == null) return false;
+    input.options.snapKey = true;
+    input.hum.retranscribe({ snapHeard: !!on, snapKey: true });
+    ui.emit('sketch:intune', { on: !!on, capture: tk.capture });
+    return true;
+  }
+  // a line of Sketch's own for the next hum (Hum over it: "The beat runs 8 bars now…"), until the hum starts
+  let said = null;
+  const say = (text) => { said = text || null; view?.said?.(); };
+  // Hum over it (Tap it's take line; the coach's card has the same): ui/onboard.js humOver gives the tune room (8 bars, the
+  // click off while you hum) and puts Sketch on Hum it; without it, Hum it
+  const humOver = () => (typeof app.onboard?.humOver === 'function' ? app.onboard.humOver() : setMode('hum'));
+
   let stripKey = '';
   function paintStrip(force = false) {
     const st = rec.state, k = kindNow(), t = stripTarget(), list = stripTracks(k);
     const m = k === 'audio' ? 'take' : t ? rec.modeFor(t) : k === 'pads' ? 'layer' : 'take';
     const L = st !== 'idle' ? recLive : null;
-    const key = [st, k, t ? t.id : '', list.map((x) => x.id + ':' + x.name).join(','), m, rec.countIn, !!eng.metronome, input.mode, L ? L.pass : -1, rec.tracks.join()].join('|');
+    const stk = k !== 'audio' && stacks(t, k);
+    const key = [st, k, t ? t.id : '', list.map((x) => x.id + ':' + x.name).join(','), m, rec.countIn, !!eng.metronome, input.mode, L ? L.pass : -1, rec.tracks.join(), stk].join('|');
     if (!force && key === stripKey) return;
     stripKey = key;
     view?.retarget?.();   // (a phone's Keep says the track this picker shows)
@@ -671,8 +848,13 @@ function mount(el, app) {
     recBtn.setAttribute('aria-pressed', String(st !== 'idle'));
     recBtn.querySelector('.sk-recbtn-l').textContent = st === 'rec' ? 'Stop' : st === 'count' ? 'Cancel' : 'Record';
     recBtn.title = st === 'rec' ? (touch ? 'Stop and keep the take' : 'Stop and keep the take (Space)') : st === 'count' ? 'Cancel the count-in: nothing is recorded' : touch ? 'Record into the song from the marker' : 'Record into the song from the marker (R). Space stops and keeps it.';
-    tgtSel.replaceChildren(...list.map((x) => h('option', { value: x.id }, x.name)), ...(t ? [] : [h('option', { value: '' }, k === 'pads' ? 'New track, Drums' : k === 'audio' ? 'New track, Audio' : 'New track, Keys')]));
-    tgtSel.value = t ? t.id : '';
+    // ("A new track" first; the aimed track reads "Melody, a new take" when its take would stack over an earlier one)
+    const shown = t && k !== 'audio' && !list.some((x) => x.id === t.id) ? [...list, t] : list;
+    const opt = (x) => h('option', { value: x.id }, x.id === t?.id && stk ? `${x.name}, a new take` : x.name);
+    if (k === 'audio') tgtSel.replaceChildren(...shown.map(opt), ...(t ? [] : [h('option', { value: '' }, 'A new track')]));
+    else tgtSel.replaceChildren(h('option', { value: 'new' }, 'A new track'), ...shown.map(opt));
+    tgtSel.value = t ? t.id : k === 'audio' ? '' : 'new';
+    tgtSel.title = t ? `R records onto ${t.name}${stk ? ', a new take over the one there' : ''}` : 'R records onto a new track';
     tgtSel.disabled = st !== 'idle';
     const sg = seg([['layer', 'Layer'], ['take', 'New take']], m, (v) => { const tt = stripTarget(); if (tt && kindNow() !== 'audio') rec.setMode(tt, v); paintStrip(true); }, 'Each pass');
     sg.firstChild.title = 'Layer: each time the loop comes round, what you play is added to what’s there';
@@ -686,11 +868,14 @@ function mount(el, app) {
     clickB.classList.toggle('on', !!eng.metronome); clickB.setAttribute('aria-pressed', String(!!eng.metronome));
     const names = rec.tracks.map((id) => store.track(id)?.name).filter(Boolean).join(' and ') || t?.name || 'a new track';
     recNote.classList.toggle('rec', st === 'rec');
-    recNote.textContent = st === 'rec' ? `Recording onto ${names}${L && L.loop ? `, pass ${L.pass + 1}` : ''}.`
-      : st === 'count' ? 'Counting in.'
+    // (a sound on trial on that track was kept first: "Recording keeps Light Table on Melody.", INSTRUMENTS-UX 1.3)
+    const keeps = st !== 'idle' ? (((L && L.keeps) || rec.live()?.keeps) ? ` ${(L && L.keeps) || rec.live().keeps}` : '') : '';
+    recNote.textContent = st === 'rec' ? `Recording onto ${names}${L && L.loop ? `, pass ${L.pass + 1}` : ''}.${keeps}`
+      : st === 'count' ? `Counting in.${keeps}`
       : '';
   }
   listen(ui.on('select', () => paintStrip(true)));
+  listen(rec.on('aim', () => paintStrip(true)));
   listen(ui.on('transport-ui', () => paintStrip(true)));
   listen(input.on('mode', () => paintStrip(true)));
 
@@ -701,6 +886,26 @@ function mount(el, app) {
       return { following: following(), from: a, to: b, cursor: eng.beat, pass, marks: marks.map((m) => ({ pass: m.pass, kind: m.kind, row: m.row, p: m.p, t: m.t, raw: m.raw, track: m.track })), readout, readouts: readouts.slice() };
     },
     geom: () => geom,
+    // the card's In tune lamp (ui/sounds.js): null when it doesn't apply (no hum waiting, or the song has a key)
+    inTune: () => inTuneNow(),
+    setInTune: (on) => setInTune(on),
+    // a line for the next hum (ui/onboard.js: Hum over it)
+    say: (text) => say(text),
+    host: () => cardHost,
+    // the card on a take not kept yet (ui/sounds.js): the take plays on the track its Keep would make (previewed), by
+    // hear(); hearing() is whether one is playing
+    hearTake(id) {
+      const ph = id ? input.capture.get(id) : null;
+      if (!ph || ph.kind === 'audio') return false;
+      const notes = input.capture.phraseNotes(id).notes;
+      if (!notes.length) return false;
+      hear(notes, null, { drums: ph.kind === 'drums', id });
+      return !!preview.track;
+    },
+    hearing: () => !!preview.track,
+    // the floating card's Keep on a take not kept yet: the take onto a new track, with the sound on trial (keepTo)
+    keepTake() { const id = view?.takeId?.(); if (!id) return false; keepTo(id, 'new'); view?.kept?.(); return true; },
+    stopHearing: () => stopHear(),
   };
 
   /* ---------------------------------------------------------------- modes */
@@ -726,6 +931,7 @@ function mount(el, app) {
     // on a touch screen, Play it's strip sits right above the keys (it was under them, below the fold of a phone)
     if (touch && m === 'play') body.prepend(strip); else foot.append(strip);
     settle();
+    placeHost();
     paintStrip(true);
     paintJam();
     requestAnimationFrame(revealStage);
@@ -794,10 +1000,16 @@ function mount(el, app) {
     const spWrap = h('div.sk-spiral', sp.el);
     const roll = canvas('sk-roll');
     const rollWrap = h('div.sk-rollwrap', h('div.sk-cv', roll.cv));
-    const explain = h('div.sk-explain',
-      h('p.sk-more', h('b', 'Hum something.'), ' Nothing is recorded until you press the button. The sound stays on this device; an agent you’ve connected can read the notes.'),
+    // (Sketch's own line for the next hum, Hum over it's, heads the explainer while it covers the take's line)
+    const saidEl = h('p.sk-said', { hidden: true });
+    // (over a song with parts, R is the way the tour and the record button point to: the explainer says what each of
+    // the two does, and its own button is the quieter one, so one way in leads)
+    const over = !touch && store.get().tracks.some((t) => t.clips.length);
+    const explain = h('div.sk-explain', saidEl,
+      over ? h('p.sk-more', h('b', 'Press R and hum'), ': it counts you in and records over the song, onto a track of its own. Hum (H) sketches it loose instead, to keep or not. The sound stays on this device; an agent you’ve connected can read the notes.')
+        : h('p.sk-more', h('b', 'Hum something.'), ' Nothing is recorded until you press the button. The sound stays on this device; an agent you’ve connected can read the notes.'),
       h('p.sk-short', h('b', 'Hum something.')),
-      h('button.btn.btn-go', { onclick: () => go() }, 'Allow the mic and hum'),
+      h(over ? 'button.btn' : 'button.btn.btn-go', { onclick: () => go() }, 'Allow the mic and hum'),
       h('p.sk-small', 'The browser asks once. Its voice processing stays off, so Overdub hears your pitch, not a phone call.'));
     let micOk = false; try { micOk = localStorage.getItem(MIC_OK) === '1'; } catch (e) { /* ok */ }
     let explaining = !micOk && !input.audio.state.open;
@@ -809,7 +1021,8 @@ function mount(el, app) {
     const agentBtn = h('button.btn.ew-btn-agent', { onclick: () => hum.take && hum.take.capture && toAgent(hum.take.capture), title: 'Hand it to the agent' }, icon('agent', { size: 15 }), h('span.sk-wide', 'Hand it to the agent'), h('span.sk-narrow', 'Agent'));
     const hearBtn = h('button.btn.btn-txt.sk-ic', { onclick: () => { const r = hum.take?.result; if (r) hear(r.notes, destTrack()); }, title: 'Hear the notes it became' }, h('span.sk-wide', 'Hear the notes'), h('span.sk-narrow', 'Notes'));
     const hearMe = h('button.btn.btn-txt.sk-ic', { onclick: () => hum.take?.audio && hearAudio(hum.take.audio), title: 'Hear what you hummed (A/B)' }, h('span.sk-wide', 'Hear your hum'), h('span.sk-narrow', 'Your hum'));
-    const acts = h('div.sk-acts', dest, keepBtn, agentBtn, hearBtn, hearMe);
+    const hSounds = soundsBtn(() => hum.take?.capture, 'hum', () => keepDest());
+    const acts = h('div.sk-acts', dest, keepBtn, agentBtn, hSounds, hearBtn, hearMe);
     const listen2 = h('div.sk-listen');
     // (a phone: what the take is and its Keep row sit under the dial, in the sheet, not in the pinned row)
     const takeRow = h('div.sk-take');
@@ -833,10 +1046,11 @@ function mount(el, app) {
       }
       if (explaining) fitExplain(explain);
       paintKept();
+      placeHost();
     }
     // the take's Keep goes where the row's picker says (a phone: Record's picker, the strip's; else the one beside Keep)
     const keepDest = () => (isSplit() ? stripDest('notes') : dest.firstChild?.value);
-    const destTrack = () => { const v = keepDest(); return v && !v.startsWith('new:') ? v : null; };
+    const destTrack = () => { const v = keepDest(); return isNewDest(v) ? null : v; };
 
     // (Snap, the grid and My timing: Recording options, put away in the simple view; the take line still says what moved)
     const optsEl = h('div.sk-opts', { dataset: { feature: 'record-options' } });
@@ -844,7 +1058,7 @@ function mount(el, app) {
       // the song's key once it's one somebody meant (a part in a key, or a key was set); else the key heard in the take
       const key = hum.songKey(), tk = hum.take, heard = tk && tk.opts && !tk.opts.key ? tk.opts.heard : null;
       const snap = key ? chip(`Snap: ${keyLabel(key)}`, opts.snapKey, () => { opts.snapKey = !opts.snapKey; reapply(); }, 'Move notes that are between notes onto the song’s key (you’ll see which)')
-        : heard ? chip(`Snap: ${keyLabel(heard)}`, !!tk.opts.snapHeard && opts.snapKey, () => { const on = !(tk.opts.snapHeard && opts.snapKey); opts.snapKey = true; hum.retranscribe({ snapHeard: on, snapKey: true }); paintOpts(); dirty = true; paintFoot(); }, 'The song has no key yet (no part in a key, no key set), so your notes stay as you sang them. Turn this on to move them into the key heard in your hum.')
+        : heard ? chip(`Snap: ${keyLabel(heard)}`, !!tk.opts.snapHeard && opts.snapKey, () => { const on = !(tk.opts.snapHeard && opts.snapKey); if (!setInTune(on)) { opts.snapKey = true; hum.retranscribe({ snapHeard: on, snapKey: true }); } paintOpts(); dirty = true; paintFoot(); }, 'The song has no key yet (no part in a key, no key set). On: your notes move into the key heard in your hum (the sound card’s In tune). Off: as you sang them.')
         : h('button.sk-chip', { disabled: true, title: 'The song has no key yet (no part in a key, no key set): a hum keeps the notes you sang, and its key is heard from the hum.' }, 'Snap: no key yet');
       optsEl.replaceChildren(
         snap,
@@ -854,27 +1068,66 @@ function mount(el, app) {
     function reapply() { paintOpts(); if (!hum.active && hum.take) hum.retranscribe({ snapKey: opts.snapKey, grid: opts.grid, keepTiming: opts.keepTiming }); dirty = true; paintFoot(); }
     paintOpts();
 
+    // a hum recorded with R is in the song already (the recorder's commit put it there): where, or null once undone
+    function recIn(tk) {
+      const L = tk && tk.rec ? rec.last : null;
+      if (!L || !L.ok || L.empty) return null;
+      const pt = (L.parts || []).find((x) => x.track && store.track(x.track) && !isDrumTrack(store.track(x.track)) && (x.clips || []).some((c) => store.clip(x.track, c)));
+      return pt ? { track: pt.track, clip: pt.clips.find((c) => store.clip(pt.track, c)) } : null;
+    }
     function paintKept() {
-      const tk = hum.take, k = tk && tk.capture ? keptOn(input.capture.get(tk.capture)) : null;
+      const tk = hum.take, inSong = tk && tk.rec ? recIn(tk) : null;
+      const k = inSong || (tk && tk.capture ? keptOn(input.capture.get(tk.capture)) : null);
       setKept(keepBtn, k);
+      // (a take recorded with R and nothing left over has nothing for Keep or the keep-to list to do: "Kept ✓" says so)
+      dest.hidden = !!k;
+      keepBtn.hidden = !!(tk && tk.rec && !tk.capture && !k);
+      hSounds.hidden = !!k || !tk?.result || !tk.capture || typeof app.sounds?.offer !== 'function';
       if (!k && isSplit()) keepOnLabel(keepBtn, keepDest());
     }
+    // A hum recorded with R onto a song whose key nobody chose: the key heard in it becomes the song's, as a hum kept
+    // from here does (keepTo), so the top bar's Key and the take line say the same key. Its own undo step, after the take.
+    // (the hum's take and the recorder's commit come in either order: it waits for the commit, a few seconds at most)
+    let keyFor = null;
+    function adoptHeardKey() {
+      const tk = keyFor;
+      if (!tk) return;
+      if (Date.now() - tk.at0 > 10000) { keyFor = null; return; }
+      if (rec.state !== 'idle' || !recIn(tk)) return;
+      keyFor = null;
+      const heard = tk.opts && !tk.opts.key ? tk.opts.heard : null;
+      // (asked of the song as it was when it was hummed, tk.opts.key unset: once the hum's notes are in, they count
+      // as a part in a key; a key set by hand since still wins)
+      const setByHand = store.history.some((x) => (x.ops || []).some((o) => o && o.type === 'project.set' && o.patch && 'key' in o.patch));
+      if (heard && !setByHand) {
+        const k = { root: heard.root, scale: heard.scale };
+        if (store.dispatch({ type: 'project.set', patch: { key: k } }, { by: 'you', label: `key ${keyLabel(k)}, heard in your hum` }).ok) tk.keyed = k;
+      }
+      paintFoot();
+    }
+    const offKeyIdle = rec.on('state', (e) => { if (e?.state === 'idle' && keyFor) setTimeout(adoptHeardKey, 0); });
+    const offKeyDo = store.on('change', (e) => { if (keyFor && e?.kind === 'do' && e.by === 'you') setTimeout(adoptHeardKey, 0); });
     function paintFoot() {
       const on = hum.active, tk = hum.take, r = tk && tk.result;
+      saidEl.textContent = said || ''; saidEl.hidden = !said;
       btn.classList.toggle('on', on);
       btn.querySelector('.sk-big-l').textContent = on ? 'Stop' : tk && tk.result ? 'Again' : 'Hum';
       acts.hidden = on || !r; listen2.hidden = on || !r;
       const kb = btn.querySelector('kbd'); if (kb) kb.hidden = !!(tk && tk.result) && !on;
-      if (!on && r) fillDest(dest, 'notes');
+      if (!on && r) fillDest(dest, 'hum');
       paintKept();
       sp.setKey(dialKey());
       if (on) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), touch ? ' Hum or sing. Tap Stop when you’re done.' : ' Hum or sing. Stop (or Esc) when you’re done.');
+      else if (said) status.replaceChildren(said);
       else if (r) {
         // the key it was snapped to (the song's), or the one heard in the hum (a song with no key yet); what was moved
         // into it, counted, as the toast says it ("Moved 3 notes into C minor")
         const fromHum = !tk.opts.key && !!tk.opts.heard, key = tk.opts.key || tk.opts.heard, n = r.notes.length, m = r.moved.length;
         const moved = m ? ` Moved ${m} ${m === 1 ? 'note' : 'notes'} into ${keyLabel(key)}.` : fromHum ? ' Heard in your hum; nothing moved.' : key && tk.opts.snapKey === false ? ' As you sang it: nothing moved.' : '';
-        status.replaceChildren(h('b', `Your hum is in. ${n} note${n === 1 ? '' : 's'}${key ? ', ' + keyLabel(key) : ''}.`), moved,
+        // (it is in the song only once it's kept, or when R recorded it: before that it's a take, heard)
+        const ins = recIn(tk), it = ins && store.track(ins.track);
+        const head = it ? `Your hum is in the song: ${n} note${n === 1 ? '' : 's'} on ${it.name}${key ? ', ' + keyLabel(key) : ''}.` : `Your hum: ${n} note${n === 1 ? '' : 's'}${key ? ', ' + keyLabel(key) : ''}.`;
+        status.replaceChildren(h('b', head), moved, tk.keyed ? ` The song is in ${keyLabel(tk.keyed)} now, from your hum.` : '',
           r.low ? ` ${r.low} dimmed: not sure of ${r.low === 1 ? 'it' : 'them'}.` : '');
       } else if (tk && !tk.result && !(tk.segs && tk.segs.length)) status.replaceChildren(h('b', 'Heard nothing.'), ' Hum a little louder, or closer to the mic.');
       else status.replaceChildren(h('span.ew-muted', touch ? 'Tap Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.' : 'Press Hum and sing. Whatever is snapped to the key or the grid is shown, never hidden.'));
@@ -892,8 +1145,15 @@ function mount(el, app) {
     }
     const offF = hum.on('frame', (f) => { sp.push(f.hz > 0 && f.conf > 0.3 ? f.midi : null, { conf: f.conf }); dirty = true; });
     const offS = hum.on('segs', () => { dirty = true; });
-    const offT = hum.on('take', () => { unexplain(); dirty = true; paintOpts(); paintFoot(); const r = hum.take?.result; if (r) { for (const n of r.notes.slice(-6)) sp.pulse(n.p); bringKeep(acts, spWrap); } });
-    const offState = hum.on('state', () => { if (!hum.active) sp.push(null); else unexplain(); paintFoot(); dirty = true; });
+    const offT = hum.on('take', () => {
+      if (hum.take) said = null;
+      if (hum.take?.rec) { keyFor = hum.take; keyFor.at0 = Date.now(); if (rec.state === 'idle') setTimeout(adoptHeardKey, 0); }
+      unexplain(); dirty = true; paintOpts(); paintFoot();
+      const r = hum.take?.result;
+      if (r) { for (const n of r.notes.slice(-6)) sp.pulse(n.p); bringKeep(acts, spWrap); offerTake(hum.take.capture, 'hum', keepDest()); }
+      ui.emit('sketch:intune', { on: inTuneNow(), capture: hum.take?.capture || null });
+    });
+    const offState = hum.on('state', () => { if (!hum.active) sp.push(null); else { unexplain(); said = null; } paintFoot(); dirty = true; });
     place();
     paintFoot();
     let dirty = true, wasF = false;
@@ -986,8 +1246,10 @@ function mount(el, app) {
       update(evt) { sp.setKey(dialKey()); if (evt && evt.ops && evt.ops.some((o) => o.type === 'project.set' || o.type.startsWith('clip.'))) { paintOpts(); dirty = true; } if (!hum.active && hum.take && evt && evt.ops && evt.ops.some((o) => o.type.startsWith('track.'))) paintFoot(); paintKept(); },
       kept: () => paintKept(),
       retarget: () => paintKept(),
+      takeId: () => (hum.take?.result ? hum.take.capture || null : null),
+      said: () => paintFoot(),
       refresh() { dirty = true; },
-      destroy() { offF(); offS(); offT(); offState(); },
+      destroy() { offF(); offS(); offT(); offState(); offKeyIdle(); offKeyDo(); },
     };
   }
 
@@ -1022,15 +1284,56 @@ function mount(el, app) {
       beats.dataset.beat = String(cur);
     }
     const status = h('div.sk-status.sk-cap', { role: 'status', 'aria-live': 'polite' });
-    const bbBtn = h('button.btn.sk-big.sk-bb', { onclick: async () => { try { if (tap.beatboxing) { await tap.stopBeatbox(); } else { await tap.startBeatbox(); try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ } } } catch (e) { ui.toast(e.message, { kind: 'bad' }); } paint(); }, title: 'Beatbox into the mic: “b” kick, “k” snare, “ts” hat' }, h('span.sk-dot'), h('span.sk-big-l', 'Beatbox'));
+    const bbBtn = h('button.btn.sk-big.sk-bb', { onclick: async () => { try { if (tap.beatboxing) { await tap.stopBeatbox(); } else { await tap.startBeatbox(); try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ } } } catch (e) { ui.toast(e.message, { kind: 'bad' }); } paint(); }, title: 'Beatbox: the mic as drums. To hum a tune, use Hum it.' }, h('span.sk-dot'), h('span.sk-big-l', 'Beatbox'));
     const dest = h('span.sk-destwrap');
     // (a phone: Keep goes where Record's picker says, one picker for both)
     const keepDest = () => (isSplit() ? stripDest('drums') : dest.firstChild?.value);
     const keepBtn = h('button.btn.btn-go.ew-btn-primary', { onclick: () => { const l = lastTake(); if (l) { keepTo(l.id, keepDest()); paintKept(); } }, title: 'Keep it as a clip (by you)' }, h('span.sk-wide', 'Keep as a clip'), h('span.sk-narrow', 'Keep'));
-    function paintKept() { const l = lastTake(), k = l ? keptOn(l) : null; setKept(keepBtn, k); if (!k && isSplit()) keepOnLabel(keepBtn, keepDest()); }
+    function paintKept() { const l = lastTake(), k = l ? keptOn(l) : null; setKept(keepBtn, k); tSounds.hidden = !l || !!k || typeof app.sounds?.offer !== 'function'; if (!k && isSplit()) keepOnLabel(keepBtn, keepDest()); }
     const agentBtn = h('button.btn.ew-btn-agent', { onclick: () => { const l = lastTake(); if (l) toAgent(l.id); }, title: 'Hand it to the agent' }, icon('agent', { size: 15 }), h('span.sk-wide', 'Hand it to the agent'), h('span.sk-narrow', 'Agent'));
     const hearBtn = h('button.btn.btn-txt.sk-ic', { onclick: () => { const l = lastTake(); if (l) hear(input.capture.phraseNotes(l.id).notes, l.track, { drums: true }); }, title: 'Hear the beat as it snapped' }, 'Hear it');
-    const acts = h('div.sk-acts', dest, keepBtn, agentBtn, hearBtn);
+    const tSounds = soundsBtn(() => lastTake()?.id, 'pads', () => keepDest());
+    const acts = h('div.sk-acts', dest, keepBtn, agentBtn, tSounds, hearBtn);
+    // A beat in the song: the take line ends "Hum a tune over it?" (Hum over it: ui/onboard.js humOver, the coach's)
+    const overEl = h('span.sk-over', { hidden: true }, 'Hum a tune over it? ', h('button.btn.btn-txt.sk-humover', { type: 'button', title: 'Sketch goes to Hum it, and a short beat runs 8 bars so a tune has room', onclick: () => humOver() }, 'Hum over it'));
+    // The Beatbox catch: a beatbox that reads as a tune (input/tap.js 'tune') asks before anything changes. Keep the
+    // beat is the default (focused: Enter presses it), because the person chose Beatbox; Make it a melody hears the same
+    // sounds as a hum, in the key heard in it, on a new track (Melody), and the sound card follows. Takes keeps both.
+    const catchEl = h('div.sk-catch', { role: 'group', 'aria-label': 'A tune in the beatbox', hidden: true });
+    let tune = null;
+    function melodyOf(segs) {
+      const p = store.get(), o = { tempo: p.tempo, meter: p.meter, grid: input.options.grid || 0.25, keepTiming: false };
+      let r = transcribe(segs, { ...o, key: input.hum.songKey?.() || null });
+      const heard = !input.hum.songKey?.() && r.keyGuess ? { root: r.keyGuess.root, scale: r.keyGuess.scale } : null;
+      if (heard) r = transcribe(segs, { ...o, key: heard, snapKey: true });
+      return { notes: r.notes, moved: (r.moved || []).length, key: input.hum.songKey?.() || heard, heard: !!heard };
+    }
+    function showCatch(e) {
+      if (!e || rec.state !== 'idle') return;
+      const segs = e.segs || e.segments || [];
+      const m = segs.length ? melodyOf(segs) : null;
+      if (!m || !m.notes.length) return;
+      tune = { ...m, capture: e.capture || e.id || lastTake()?.id || null };
+      const keepB = h('button.btn.sk-keepbeat', { type: 'button', title: 'Keep it as a beat: it stays as it is', onclick: () => dropCatch() }, 'Keep the beat');
+      const melB = h('button.btn.btn-txt.sk-melody', { type: 'button', title: 'Hear it as a hum: its notes, in the key heard in it, on a new track', onclick: () => makeMelody() }, 'Make it a melody');
+      const n = m.notes.length;
+      catchEl.replaceChildren(h('p.sk-catch-l', `That sounded like a tune: ${n} note${n === 1 ? '' : 's'}. Keep it as a melody?`), keepB, melB);
+      catchEl.hidden = false;
+      requestAnimationFrame(() => { if (!catchEl.hidden) keepB.focus({ preventScroll: true }); });
+    }
+    function dropCatch() {
+      const had = catchEl.contains(document.activeElement);
+      tune = null; catchEl.hidden = true; catchEl.replaceChildren();
+      if (had) (acts.hidden ? null : keepBtn)?.focus({ preventScroll: true });
+    }
+    function makeMelody() {
+      const tn = tune;
+      if (!tn) return;
+      const src = tn.capture ? input.capture.get(tn.capture) : null, p = store.get();
+      const ph = input.capture.add({ src: 'hum', kind: 'notes', notes: tn.notes.map(({ p: pp, t, d, v }) => ({ p: pp, t, d, v: v ?? 0.8 })), tempo: p.tempo, beat: src?.beat ?? null, key: tn.key, keyFrom: tn.heard ? 'hum' : tn.key ? 'song' : undefined, moved: tn.moved, label: 'From the beatbox' });
+      dropCatch();
+      if (ph?.id) keepTo(ph.id, 'new');
+    }
     const listen2 = h('div.sk-listen');
     // (a computer: the take's Keep row is the caption line over its grid, so the footer stays two rows; a touch screen
     // keeps it in the pinned footer, under the thumb)
@@ -1044,13 +1347,14 @@ function mount(el, app) {
       // (a phone: the line, beside the snap chips (paintOpts), then the grid, over the pads, so what to tap and the beat
       // you tap are in view above them and the pads are nearest the thumb; under the pads, they sat under the pinned
       // row, below the fold)
-      if (isSplit()) { takeRow.replaceChildren(acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
-      else { body.replaceChildren(padCol, gridWrap); gridWrap.append(status, readEl); foot.insertBefore(acts, bbBtn.nextSibling); }
+      if (isSplit()) { takeRow.replaceChildren(catchEl, overEl, acts); body.replaceChildren(gridWrap, padCol, takeRow); gridWrap.append(readEl); }
+      else { body.replaceChildren(padCol, catchEl, gridWrap); gridWrap.append(status, overEl, readEl); foot.insertBefore(acts, bbBtn.nextSibling); }
       paintOpts();
       paintKept();
+      placeHost();
     }
     if (touch) foot.append(bbBtn);
-    else { foot.append(bbBtn, padCol); gridWrap.append(h('div.sk-capline', status, readEl, acts)); }
+    else { foot.append(bbBtn, padCol); gridWrap.append(catchEl, h('div.sk-capline', status, overEl, readEl, acts)); }
     const optsEl = h('div.sk-opts');
     // this song's last beat, not another song's (a pass recorded with R is in the song already: its card says where)
     const lastTake = () => input.capture.list({ all: true }).find((p) => p.kind === 'drums' && ofSong(p) && !p.rec) || null;
@@ -1088,7 +1392,8 @@ function mount(el, app) {
     const flash = new Map();
     let pending = null;   // the take's own hits, as tapped (performance.now seconds, and the song's beat if it played)
     const offHit = tap.on('hit', (e) => { flash.set(e.row, performance.now()); if (!e.rec && !e.live && tap.take) pending = { hits: tap.take.hits, playing: tap.take.playing }; dirty = true; });
-    const offTake = tap.on('take', (c) => { if (c && c.id && pending) rawOf.set(c.id, { ...pending, tempo: c.tempo || store.get().tempo }); pending = null; dirty = true; paint(); bringKeep(acts, isSplit() ? gridWrap : padCol); });
+    const offTake = tap.on('take', (c) => { if (c && c.id && pending) rawOf.set(c.id, { ...pending, tempo: c.tempo || store.get().tempo }); pending = null; if (tune && c && c.id !== tune.capture) dropCatch(); dirty = true; paint(); bringKeep(acts, isSplit() ? gridWrap : padCol); if (c && c.id) offerTake(c.id, 'pads', keepDest()); });
+    const offTune = tap.on('tune', (e) => showCatch(e));
     const offMode = input.on('mode', (m) => { keysOn = m === 'tap'; paintOpts(); });
     let dirty = true;
     function paint() {
@@ -1097,11 +1402,13 @@ function mount(el, app) {
       bbBtn.querySelector('.sk-big-l').textContent = tap.beatboxing ? 'Stop' : 'Beatbox';
       // (while the song plays, the ruler has the room: the take's buttons come back when it stops)
       acts.hidden = !l || !!cur || tap.beatboxing || following() || !!lb?.rec; listen2.hidden = acts.hidden;
-      if (l && !cur) fillDest(dest, 'drums', l.track);
+      // (a beat in the song: recorded with R, or kept)
+      overEl.hidden = !lb || !!cur || tap.beatboxing || following() || !(lb.rec || keptOn(lb.take)) || !!tune;
+      if (l && !cur) fillDest(dest, 'pads', l.track);
       paintKept();
       // the status is a live region and paint() runs every frame during a take: only touch it when what it says changes
       const fol = following() ? (rec.state !== 'idle' ? 'rec' : 'along') : '';
-      const key = tap.beatboxing ? 'bb' : fol ? `follow:${fol}` : cur ? `take:${cur.hits.length}` : lb?.rec ? `rec:${lb.take.id}:${lb.notes.length}` : l ? `kept:${l.id}:${l.at || ''}` : `idle:${keysOn}`;
+      const key = tap.beatboxing ? 'bb' : fol ? `follow:${fol}` : cur ? `take:${cur.hits.length}` : lb?.rec ? `rec:${lb.take.id}:${lb.notes.length}` : l ? `kept:${l.id}:${l.at || ''}:${rawOf.has(l.id)}` : `idle:${keysOn}`;
       if (key === statusKey) return;
       statusKey = key;
       if (tap.beatboxing) status.replaceChildren(h('span.sk-live.rec', 'Rolling'), ' “b” for kick, “k” for snare, “ts” for hat. Stop when you’re done.');
@@ -1188,11 +1495,12 @@ function mount(el, app) {
       opts: optsEl,
       frame(now) { const f = following(); paintBeats(); if (dirty || f || wasF || tap.take || [...flash.values()].some((t) => now - t < 320)) { dirty = false; drawGrid(now); if (tap.take || f !== wasF) paint(); } wasF = f; },
       update() { dirty = true; if (!tap.take) paint(); },
-      kept() { paintKept(); },
+      kept() { paintKept(); paint(); },
       place,
       retarget: () => paintKept(),
+      takeId: () => lastTake()?.id || null,
       refresh() { dirty = true; },
-      destroy() { offHit(); offTake(); offMode(); if (input.mode === 'tap') input.setMode(null); },
+      destroy() { offHit(); offTake(); offTune(); offMode(); if (input.mode === 'tap') input.setMode(null); },
     };
   }
 
@@ -1616,7 +1924,7 @@ function mount(el, app) {
   function keepMenu(btn, p) {
     closeMenu();
     menuBtn = btn;
-    const sel = destSelect(p.kind, p.track);
+    const sel = destSelect(aimKindOf(p), p.track, { all: true });
     const opts = [...sel.querySelectorAll('option')];
     menu = h('div.sk-menu', { role: 'menu', 'aria-label': 'Keep it on' }, h('div.sk-menu-h', 'Keep it on'), opts.map((o) => h('button', { role: 'menuitem', class: o.value === sel.value ? 'def' : '', onclick: () => { closeMenu(); keepTo(p.id, o.value); refocusKeep(p.id); } }, o.textContent)));
     menu.addEventListener('keydown', (e) => {
@@ -1663,6 +1971,8 @@ function mount(el, app) {
   let lastAgo = 0;
   return {
     frame(now) {
+      registerHost();
+      syncTrial();
       trackAlong();
       if (!following()) for (const x of root.querySelectorAll('.sk-rollwrap.follow')) x.classList.remove('follow');
       if (rec.state !== 'idle') { const L = rec.live(); if (L) recLive = L; }
@@ -1679,7 +1989,7 @@ function mount(el, app) {
       view && view.update && view.update(evt); if (evt && evt.ops && evt.ops.some((o) => /^(track|clip)\./.test(o.type))) ideasDirty = true;
     },
     refresh() { view && view.refresh && view.refresh(); ideasDirty = true; },
-    unmount() { footRO?.disconnect(); input.sketchMode = null; view && view.destroy && view.destroy(); for (const o of offs) o(); closeMenu(); stopHear(); if (app.sketch && app.sketch.geom === sketchApi.geom) delete app.sketch; },
+    unmount() { if (hostSet && hostSet === app.sounds) { try { app.sounds?.setHost?.(null); } catch (e) { /* ok */ } } footRO?.disconnect(); input.sketchMode = null; view && view.destroy && view.destroy(); for (const o of offs) o(); closeMenu(); stopHear(); if (app.sketch && app.sketch.geom === sketchApi.geom) delete app.sketch; },
   };
 }
 
@@ -1733,6 +2043,10 @@ const CSS = `
 .sk-strip .sk-seg { height: 28px; }
 .sk-strip .sk-seg button:disabled { opacity: .45; cursor: default; }
 .sk-target { max-width: 180px; min-width: 72px; flex: 0 1 auto; }
+/* Onto takes the room there is ("Melody, a new take" is long): it lines up from 100 px and grows to 200, so a long
+   name never pushes the click onto a row of its own */
+.sk-strip > .sk-onto { flex: 1 1 100px; max-width: 200px; min-width: 0; }
+.sk-strip > .sk-onto .sk-target { flex: 1 1 auto; width: 100%; min-width: 0; max-width: none; }
 .sk-recbtn { position: relative; height: 34px; padding: 0 14px 0 12px; gap: 8px; font-size: 13px; flex: none; }
 .sk-recbtn kbd { margin-left: 2px; }
 .sk-recbtn.on, .sk-recbtn.counting { border-color: var(--rec); }
@@ -1810,6 +2124,7 @@ const CSS = `
 .sk-explain.small { position: static; background: none; padding: 4px 2px; }
 .sk-explain p { margin: 0; max-width: 520px; line-height: 1.5; font-size: 13px; color: var(--text-2); }
 .sk-explain p b { color: var(--text); font-weight: 600; }
+.sk-explain .sk-said { color: var(--text); }
 .sk-explain .btn { white-space: nowrap; flex: none; margin: 2px 0; }
 .sk-explain.tight { padding: 6px 14px; gap: 6px; }
 .sk-explain.tight p { font-size: 12px; line-height: 1.4; }
@@ -2029,6 +2344,38 @@ const CSS = `
   .sk.touch .sk-opts :is(.sk-chip, .sk-seg button)::before { height: 44px; }
   .sk.touch .sk-opts { padding-block: 8px; }
 }
+/* the sound card's place (ui/sounds.js fills it, "What should this sound like?"): beside the take's canvas, the card
+   300 px and the canvas 360 or more; in a narrow stage the dial steps aside, then the card goes under the canvas; on a
+   phone, under the take's row */
+.sk-cardhost:empty, .sk-cardhost[hidden] { display: none; }
+.sk-body > .sk-cardhost { flex: 0 0 300px; min-width: 0; min-height: 0; overflow: auto; }
+.sk-body:has(> .sk-cardhost:not(:empty)) > .sk-rollwrap { min-width: 360px; }
+@container sketch (max-width: 1500px) and (min-width: 641px) { .sk-body:has(> .sk-cardhost:not(:empty)) > .sk-spiral { display: none; } }
+@container sketch (max-width: 1200px) and (min-width: 641px) {
+  .sk-body:has(> .sk-cardhost:not(:empty)) { flex-wrap: wrap; overflow: auto; }
+  .sk-body:has(> .sk-cardhost:not(:empty)) > .sk-rollwrap { flex: 1 0 100%; min-width: 0; min-height: 140px; }
+  .sk-body > .sk-cardhost { flex: 1 0 100%; overflow: visible; }
+}
+.sk-take > .sk-cardhost { flex: none; }
+/* a phone, while a sound is on trial: the pinned row is Keep, Back and the record lamp */
+.sk-trialrow { display: none; }
+.sk.sk-split.sk-trying > .sk-foot > .sk-trialrow { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; }
+.sk.sk-split.sk-trying .sk-tkeep { flex: 1 1 auto; min-width: 0; height: 48px; font-size: 15px; }
+.sk.sk-split.sk-trying .sk-tback { flex: none; min-height: 40px; }
+.sk.sk-split.sk-trying > .sk-foot > :not(.sk-trialrow, .sk-strip) { display: none; }
+.sk.sk-split.sk-trying > .sk-foot > .sk-strip { flex: none; }
+.sk.sk-split.sk-trying > .sk-foot > .sk-strip > :not(.sk-recbtn) { display: none; }
+/* (one primary: the pinned Keep is the take's Keep while a sound is on trial) */
+.sk.sk-split.sk-trying .sk-take .sk-acts .btn-go { display: none; }
+/* Tap it, a beat in the song: "Hum a tune over it?" at the end of the take line */
+.sk-over { flex: none; font-size: 12px; line-height: 17px; color: var(--text-2); white-space: nowrap; }
+.sk-over .btn-txt { height: auto; min-height: 0; padding: 0; font-size: 12px; vertical-align: baseline; }
+.sk-rollwrap > .sk-over { order: 0; padding: 0 10px 2px; }
+.sk-take > .sk-over { font-size: 13px; white-space: normal; }
+/* the Beatbox catch: a line and two buttons over the beat, Keep the beat first */
+.sk-catch { flex: none; order: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 6px 10px; border-bottom: var(--rule); }
+.sk-catch-l { margin: 0; flex: 1 1 220px; min-width: 0; font-size: 13px; line-height: 1.4; color: var(--text); }
+.sk.touch .sk-catch .btn { min-height: 40px; }
 /* the Jam room open: one Record, the room's (syncJam) */
 .sk.sk-jam .sk-strip { display: none; }
 .sk-jamnote { margin: 4px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--text-2); }

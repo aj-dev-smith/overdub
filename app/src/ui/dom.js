@@ -104,6 +104,8 @@ const P = {
   dot: '<circle cx="10" cy="10" r="3" fill="currentColor" stroke="none"/>',
   send: '<path d="M3.5 10l13-6-4.5 13-2.5-5z"/>',
   bolt: '<path d="M11 2.5L4.5 11H10l-1 6.5L15.5 9H10z"/>',
+  // open it big: a square with an arrow out of its corner (the track header's instrument, at 12 px)
+  open: '<path d="M9 4.5H5.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11M12 4.5h3.5V8M15.5 4.5L9.5 10.5"/>',
 };
 export function icon(name, { size = 18, title = '' } = {}) {
   const span = document.createElement('span');

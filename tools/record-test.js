@@ -22,7 +22,9 @@ import { open, tally } from './pw.js';
 import { createStore } from '../app/src/core/store.js';
 import { createProject, cleanProject } from '../app/src/core/project.js';
 import { demoProject } from '../app/src/core/demo.js';
-import { planTake, passRange, joinSeams, pickActive } from '../app/src/input/recorder.js';
+import { planTake, passRange, joinSeams, pickActive, createRecorder } from '../app/src/input/recorder.js';
+import { newPartFor, kindOfTake, soundsFor, familyOf, SOUND_SETS } from '../app/src/core/sounds.js';
+import { tuneOf } from '../app/src/input/tap.js';
 import { takeFolders, takeNumber, planClipTrim } from '../app/src/core/arrangement.js';
 import { passOf, passGrid } from '../app/src/input/capture.js';
 import { phrase, render as renderVoice } from './hum-bench.js';
@@ -71,7 +73,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   t.ok(r.ok && store.history.length === 1 && k.clips.length === 4 && group.length === 3, `one dispatch, one undo step: Keys has the first half, the covered half and two takes (${k.clips.map((c) => `${c.start}+${c.length}${c.mute ? ' muted' : ''}${c.take ? ' ' + c.take : ''}`).join(', ')})`);
   const playing = group.filter((c) => !c.mute);
   t.ok(playing.length === 1 && playing[0].name === 'Take 3' && playing[0].notes.length === 1 && playing[0].notes[0].p === 64 && playing[0].notes[0].t === 1, `the last pass plays ("${playing[0]?.name}"), the first pass and the covered half are kept, muted`);
-  t.ok(/Take 3 is in on Keys, bars 5–8\. Two more underneath, muted\./.test(take.summary) && take.label === 'record take 3 on Keys', `"${take.summary}" (${take.label})`);
+  t.ok(/Take 3 is in on Keys, bars 5–8; Changes is muted\. One more underneath, muted\./.test(take.summary) && take.label === 'record take 3 on Keys', `"${take.summary}" (${take.label})`);
   t.ok(k.clips.find((c) => c.id === keys.clips[0].id).length === 16 && !k.clips.find((c) => c.id === keys.clips[0].id).mute, 'the part before bar 5 keeps playing');
   store.undo();
   t.ok(canon(store.get().tracks) === before, 'undo takes the whole take out and puts the clip back exactly');
@@ -107,7 +109,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   const origIn = (a, b) => changes.notes.filter((n) => n.t >= a - 1e-6 && n.t < b - 1e-6).length;
   const t56 = planTake(sk.get(), { id: 'tk_fresh1', parts: [{ track: kid, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: pr.start, end: pr.end }, notes: ns([16.5, 19, 22.75]) }] }] });
   sk.dispatch(t56.ops, { by: 'you', label: t56.label });
-  t.ok(heardAt(sk, 0, 16) === origIn(0, 16) && heardAt(sk, 24, 32) === origIn(24, 32) && heardAt(sk, 16, 24) === 3 && /Take 2 is in on Keys, bars 5–6\. One more underneath, muted\./.test(t56.summary), `the original plays on in bars 1–4 and 7–8 (${heardAt(sk, 0, 16)} and ${heardAt(sk, 24, 32)} notes heard), only bars 5–6 are your take: "${t56.summary}"`);
+  t.ok(heardAt(sk, 0, 16) === origIn(0, 16) && heardAt(sk, 24, 32) === origIn(24, 32) && heardAt(sk, 16, 24) === 3 && /Take 2 is in on Keys, bars 5–6; Changes is muted\.$/.test(t56.summary), `the original plays on in bars 1–4 and 7–8 (${heardAt(sk, 0, 16)} and ${heardAt(sk, 24, 32)} notes heard), only bars 5–6 are your take: "${t56.summary}"`);
   // loop bars 5–6: two passes and a third cut short by the stop, over the same bars: one folder, one entry per pass
   const tLoop = planTake(sk.get(), { id: 'tk_fresh2', parts: [{ track: kid, kind: 'notes', mode: 'take', active: 1, passes: [
     { n: 0, clip: { start: 16, end: 24 }, notes: ns([17]) }, { n: 1, clip: { start: 16, end: 24 }, notes: ns([18, 21.5]) }, { n: 2, clip: { start: 16, end: 20 }, notes: ns([16.25]) }] }] });
@@ -119,7 +121,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   const act = f56.playing;
   // (numbered in the order they were recorded: the passes are Takes 3, 4 and 5, and the complete second one plays)
   const byName = (nm) => f56.clips.find((c) => c.name === nm);
-  t.ok(byName('Take 3').notes.some((n) => n.t === 1) && act && act.name === 'Take 4' && act.notes.some((n) => n.t === 2) && byName('Take 5').notes.some((n) => n.t === 0.25) && /^Take 4 is in on Keys, bars 5–6\. Four more underneath, muted, the pass you stopped in among them\.$/.test(tLoop.summary) && tLoop.label === 'record take 4 on Keys', `stopped mid-pass: the last complete pass plays (${act?.name}), the cut-short pass is stacked under it, the takes numbered in the order they were played; the toast, the label, the badge and "take k of n" agree: "${tLoop.summary}" (${tLoop.label}; ${f56.clips.length} takes, ${act?.name} is ${f56.clips.indexOf(act) + 1} of ${f56.clips.length})`);
+  t.ok(byName('Take 3').notes.some((n) => n.t === 1) && act && act.name === 'Take 4' && act.notes.some((n) => n.t === 2) && byName('Take 5').notes.some((n) => n.t === 0.25) && /^Take 4 is in on Keys, bars 5–6; Take 2 is muted\. Three more underneath, muted, the pass you stopped in among them\.$/.test(tLoop.summary) && tLoop.label === 'record take 4 on Keys', `stopped mid-pass: the last complete pass plays (${act?.name}), the cut-short pass is stacked under it, the takes numbered in the order they were played; the toast, the label, the badge and "take k of n" agree: "${tLoop.summary}" (${tLoop.label}; ${f56.clips.length} takes, ${act?.name} is ${f56.clips.indexOf(act) + 1} of ${f56.clips.length})`);
   // a complete first pass, then a second the stop cut short: Take 1 is the first and plays, Take 2 the cut-short one
   // (fresh eyes 5: the complete first pass played as "Take 2", the later, cut-short pass was "Take 1")
   {
@@ -184,7 +186,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   const km = sm.get().tracks.find((x) => x.name === 'Keys').id;
   sm.dispatch({ type: 'project.set', patch: { meter: [3, 4] } }, { by: 'you' });
   const pm = planTake(sm.get(), { id: 'tk_meter1', bpb: 4, parts: [{ track: km, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: 16, end: 20, from: 16, to: 19 }, notes: [{ p: 60, t: 16.5, d: 0.5, v: 0.8 }] }] }] });
-  t.ok(/Take 2 is in on Keys, bar 5\./.test(pm.summary), `a take keeps the bars it was played in after a meter change ("${pm.summary}")`);
+  t.ok(/Take 2 is in on Keys, bar 5; Changes is muted\./.test(pm.summary), `a take keeps the bars it was played in after a meter change ("${pm.summary}")`);
 
   // an audio take begun inside the loop and stopped just after the wrap: nothing it doesn't play over goes quiet
   const sa = createStore(createProject());
@@ -285,6 +287,154 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
   t.ok(fp.length === 1 && fp[0].notes.length === 7 && fr.summary === 'Take 1 is in on Tune, bars 1–2. One more underneath, muted. The last time round had only 1 note, so the fuller take plays (7 notes).', `the fuller pass plays and the toast says why, without calling the 1-note pass the one you stopped in: "${fr.summary}"`);
 }
 
+/* ------------------------------------------------------------------ 1d. Node: where a take goes (docs/INSTRUMENTS-UX.md 1.1, 1.2, 3.1) */
+{
+  // a recorder over a stub shell: the store, the selection, a view; nothing sounds
+  const rig = (view, build) => {
+    const store = createStore(createProject());
+    const ids = build ? build(store) : {};
+    const fns = new Map();
+    const ui = { state: { selection: { track: null } }, on: (k, fn) => { if (!fns.has(k)) fns.set(k, new Set()); fns.get(k).add(fn); return () => fns.get(k).delete(fn); }, emit: (k, d) => { for (const fn of fns.get(k) || []) fn(d); }, toast() {}, announce() {} };
+    ui.select = (x) => { Object.assign(ui.state.selection, x); ui.emit('select', ui.state.selection); };
+    const app = { store, engine: { playing: false, on() {} }, ui, devices: { getDevice: () => null } };
+    const events = [];
+    const input = { emit: (k, d) => events.push([k, d]), capture: { add: () => null, flush() {} }, options: { grid: 0.25 } };
+    const rec = createRecorder(app, input, { view });
+    return { store, ui, rec, ids, events, input, name: (id) => store.track(id)?.name || null };
+  };
+  const add = (store, name, device, clips = []) => store.dispatch({ type: 'track.add', ref: 'x', track: { name, instrument: { device }, clips } }).created.x;
+  // a take onto a track, as the commit leaves it: a clip, then the recorder told
+  const takeOn = (R, kind, track, start = 0) => { R.store.dispatch({ type: 'clip.add', track, clip: { kind: 'notes', start, length: 8, notes: [{ p: 60, t: 0, d: 1, v: 0.8 }] } }); R.rec.took(kind, track); R.ui.select({ track }); };
+
+  // newPartFor: one name and first sound per kind, then "Melody 2"
+  t.ok(JSON.stringify(newPartFor('hum', createProject())) === '{"name":"Melody","device":"core.keys"}' && newPartFor('keys', null).name === 'Keys' && newPartFor('pads', null).device === 'core.drums' && newPartFor('beatbox', null).name === 'Drums', 'newPartFor: Melody, Keys, Drums (Lamp Tines, Lamp Tines, Gobo Kit)');
+  t.ok(newPartFor('hum', { tracks: [{ name: 'Melody' }, { name: 'melody 2' }] }).name === 'Melody 3', 'and the next free name: Melody 3');
+  // kindOfTake: a hum is a hum in any register (hum before bass)
+  const line = (ps) => ps.map((p, i) => ({ p, t: i, d: 1 }));
+  t.ok(kindOfTake({ src: 'hum', notes: line([60, 64, 67, 69]) }) === 'hum' && kindOfTake({ src: 'hum', notes: line([45, 47, 48]) }) === 'hum' && kindOfTake({ src: 'midi', notes: line([36, 40, 43]) }) === 'bass'
+    && kindOfTake({ src: 'midi', notes: [0, 1, 2].flatMap((b) => [60, 64, 67].map((p) => ({ p, t: b, d: 1 }))) }) === 'chords' && kindOfTake({ kind: 'drums', src: 'tap', notes: [] }) === 'drums' && kindOfTake({ src: 'qwerty', notes: line([60, 62, 64]) }) === 'played',
+  'kindOfTake: a hummed C4–A4 line and a hummed A2–C3 line are hums, a played low line is bass, triads are chords, a tapped beat is drums');
+  // soundsFor: the hum set, its fallbacks, the current sound first, no doubles, every row a family
+  const ids = (rs) => rs.map((r) => r.device + (r.preset ? ':' + r.preset : '')).join(',');
+  const hs = soundsFor('hum');
+  t.ok(ids(hs) === 'core.keys,core.wavetable,core.strings,claude.choir-loft' && hs.every((r) => r.family), `soundsFor hum: ${ids(hs)}`);
+  t.ok(ids(soundsFor('hum', { has: (id) => id !== 'claude.choir-loft' })).endsWith('core.mallets'), 'without Choir Loft the fourth is Mallet Bag');
+  const cw = soundsFor({ src: 'hum' }, { current: 'core.wavetable' });
+  t.ok(cw.length === 4 && cw[0].device === 'core.wavetable' && cw[0].now && cw.filter((r) => r.device === 'core.wavetable').length === 1, `current first, kept to four: ${ids(cw)}`);
+  const dk = soundsFor('drums', { current: 'core.drums', currentPreset: 'Studio kit' });
+  t.ok(dk.filter((r) => r.device === 'core.drums' && r.preset === 'Studio kit').length === 1 && dk.every((r) => r.family), `a kit on Studio kit isn't listed twice: ${ids(dk)}`);
+  t.ok(familyOf({ device: 'core.wavetable', preset: 'Low Key' }, { blurb: 'x', presets: [{ name: 'Low Key', blurb: 'Bass: deep and round' }] }) === 'Bass' && familyOf({}, { blurb: 'Electric piano with bark' }) === '', 'familyOf: the blurb\'s words before its colon');
+  const { BUILTINS } = await import('../app/src/devices/builtin/index.js');
+  const { LIBRARY } = await import('../app/src/devices/library/index.js');
+  const findDef = (id) => [...BUILTINS, ...LIBRARY].find((d) => d && d.id === id) || null;
+  const bad = Object.values(SOUND_SETS).flatMap((S) => [...S.rows, ...S.fallbacks]).filter((r) => { const d = findDef(r.device); return !d || (r.preset && !(d.presets || []).some((x) => x.name === r.preset)); });
+  t.ok(!bad.length, `every id and preset in SOUND_SETS is a real device (${bad.map((r) => r.device + ':' + (r.preset || '')).join(', ') || 'all found'})`);
+
+  // the simple view
+  {
+    const R = rig('simple', (s) => ({ drums: add(s, 'Drums', 'core.drums') }));
+    const { drums } = R.ids;
+    R.ui.select({ track: drums });
+    t.ok(R.rec.aim('hum').track === null && R.rec.aim('hum').why === 'new' && R.rec.targetFor('keys') === null, `simple: Drums selected, a hum and the keys aim at a new track (${JSON.stringify(R.rec.aim('hum'))})`);
+    t.ok(R.rec.aim('pads').track === drums, `the pads aim at the song's only kit (${JSON.stringify(R.rec.aim('pads'))})`);
+    const mel = add(R.store, 'Melody', 'core.keys');
+    takeOn(R, 'hum', mel);
+    R.ui.select({ track: drums });
+    t.ok(R.rec.aim('hum').track === mel && R.rec.aim('hum').why === 'last', `the second hum goes onto Melody, the last hum's track (${JSON.stringify(R.rec.aim('hum'))})`);
+    const bass = add(R.store, 'Bass', 'core.bass', [{ kind: 'notes', start: 0, length: 4, notes: [{ p: 36, t: 0, d: 1 }] }]);
+    R.ui.select({ track: bass });
+    t.ok(R.rec.aim('hum').track === bass && R.rec.aim('hum').why === 'selected', 'selecting Bass after the last hum aims the next hum at Bass');
+    R.rec.setAim('hum', drums);
+    t.ok(R.rec.targetFor('hum')?.id === drums && R.rec.aim('hum').why === 'choice' && R.events.length >= 0, 'setAim(hum, Drums) puts a hum on Drums (a choice)');
+    // 'new' is one-shot: once its take is in, the next goes onto that track, never a Melody 2
+    R.rec.setAim('hum', 'new');
+    t.ok(R.rec.aim('hum').track === null, 'setAim(hum, new): a new track');
+    const m2 = add(R.store, newPartFor('hum', R.store.get()).name, 'core.keys');
+    takeOn(R, 'hum', m2);
+    R.ui.select({ track: drums });
+    t.ok(R.rec.aim('hum').track === m2 && R.name(m2) === 'Melody 2', `after that take, the next hum's aim is that track (${R.name(R.rec.aim('hum').track)}), not another new one`);
+    let aims = 0; R.rec.on('aim', () => aims++); R.rec.setAim('keys', null);
+    t.ok(aims > 0, "setAim emits 'aim'");
+  }
+  {
+    // pads after a reload (no last take): the only Drums, nothing selected; two kits and none picked: a new one
+    const R = rig('simple', (s) => ({ drums: add(s, 'Drums', 'core.drums', [{ kind: 'notes', start: 0, length: 4, notes: [{ p: 36, t: 0, d: 0.25 }] }]) }));
+    t.ok(R.rec.aim('pads').track === R.ids.drums && R.rec.aim('pads').why === 'only-kit', 'pads after a reload: onto the only drum track');
+    add(R.store, 'Drums 2', 'core.drums');
+    t.ok(R.rec.aim('pads').track === null, 'two kits, none picked or selected: a new one');
+  }
+  // the full studio: the armed track first; 'new' disarms; arming by hand clears the choice; no first-pitched fallback
+  {
+    const R = rig('full', (s) => ({ bass: add(s, 'Bass', 'core.bass'), keys: add(s, 'Keys', 'core.keys'), drums: add(s, 'Drums', 'core.drums') }));
+    const { bass, keys, drums } = R.ids;
+    R.ui.select({ track: drums });
+    t.ok(R.rec.targetFor('hum') === null && R.rec.targetFor('keys')?.id === drums, `full: Drums selected, nothing armed: a hum aims at a new track, not at Bass (${R.name(R.rec.targetFor('hum')?.id)}); the keys play the selected Drums as before`);
+    R.store.dispatch({ type: 'track.set', track: keys, patch: { arm: true } }, { by: 'you' });
+    t.ok(R.rec.targetFor('hum')?.id === keys && R.rec.aim('hum').why === 'armed', 'an armed Keys takes the hum (today\'s rule)');
+    R.input.sketchMode = 'hum';   // (Hum it open: R records the hum, so the lit R speaks for it)
+    t.ok(R.rec.target === keys && R.rec.lands()?.id === keys, 'in Hum it the lit R is the armed Keys');
+    R.rec.setAim('hum', 'new');
+    t.ok(R.rec.targetFor('hum') === null && !R.store.get().tracks.some((x) => x.arm) && R.rec.target === null && R.rec.lands() === null && R.store.history.at(-1).label === 'record onto a new track' && R.store.history.at(-1).by === 'you', `setAim(hum, new) overrides it and disarms every track, one step by you ("${R.store.history.at(-1).label}"), and nothing is lit`);
+    R.input.sketchMode = null;
+    R.store.dispatch({ type: 'track.set', track: bass, patch: { arm: true } }, { by: 'you', label: 'arm Bass' });
+    t.ok(R.rec.aim('hum').track === bass && R.rec.aim('hum').why === 'armed', `arming a track by hand afterwards clears the choice (${JSON.stringify(R.rec.aim('hum'))})`);
+    R.rec.setAim('hum', keys);
+    t.ok(R.store.track(keys).arm && !R.store.track(bass).arm && R.rec.aim('hum').track === keys, 'picking a track in Onto arms it, the other arm gives way');
+    R.ui.select({ track: bass });
+    t.ok(R.rec.aim('hum').why !== 'choice', 'selecting another track by hand is the newer act: the choice gives way');
+  }
+  // the commit plan: a take over other bars stacks nothing; over the same bars it says what it muted
+  {
+    const st = createStore(createProject());
+    const mel = st.dispatch({ type: 'track.add', ref: 'm', track: { name: 'Melody', instrument: { device: 'core.keys' } } }).created.m;
+    const take1 = planTake(st.get(), { id: 'tk_aim001', parts: [{ track: mel, kind: 'notes', mode: 'take', kinds: ['hum'], passes: [{ n: 0, clip: { start: 0, end: 8 }, notes: [{ p: 60, t: 0, d: 1, v: 0.8 }] }] }] });
+    st.dispatch(take1.ops, { by: 'you' });
+    const beside = planTake(st.get(), { id: 'tk_aim002', parts: [{ track: mel, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: 8, end: 16 }, notes: [{ p: 64, t: 8, d: 1, v: 0.8 }] }] }] });
+    const d2 = st.dispatch(beside.ops, { by: 'you' });
+    t.ok(d2.ok && !beside.parts[0].stacked && st.track(mel).clips.every((c) => !c.mute) && !/muted/.test(beside.summary) && take1.parts[0].kinds.join() === 'hum', `a take over other bars is a clip beside the first, nothing muted ("${beside.summary}")`);
+    const over = planTake(st.get(), { id: 'tk_aim003', parts: [{ track: mel, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: 0, end: 8 }, notes: [{ p: 67, t: 0, d: 1, v: 0.8 }] }] }] });
+    t.ok(over.parts[0].stacked && over.parts[0].stacked.names.join() === 'Take 1' && /^Take 2 is in on Melody, bars 1–2; Take 1 is muted\.$/.test(over.summary), `one over the same bars stacks as Take 2 and says so: "${over.summary}" (${JSON.stringify(over.parts[0].stacked)})`);
+  }
+  // Put it on its own track: one step, the take on a new Melody with the same sound, Take 1 playing again
+  {
+    const R = rig('simple', (s) => ({ mel: add(s, 'Melody', 'core.wavetable') }));
+    const { mel } = R.ids;
+    R.store.dispatch(planTake(R.store.get(), { id: 'tk_own001', parts: [{ track: mel, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: 0, end: 8 }, notes: [{ p: 60, t: 0, d: 1, v: 0.8 }] }] }] }).ops, { by: 'you' });
+    const pl = planTake(R.store.get(), { id: 'tk_own002', parts: [{ track: mel, kind: 'notes', mode: 'take', passes: [{ n: 0, clip: { start: 0, end: 8 }, notes: [{ p: 64, t: 0, d: 1, v: 0.8 }] }] }] });
+    const d = R.store.dispatch(pl.ops, { by: 'you' });
+    const act = R.store.track(mel).clips.find((c) => !c.mute), was = R.store.track(mel).clips.find((c) => c.mute);
+    const n0 = R.store.history.length;
+    const own = R.rec.ownTrack({ track: mel, clip: act.id, kind: 'hum', names: ['Take 1'], unmute: pl.parts[0].stacked.unmute.map((u) => d.created[u] || u) });
+    const nt = R.store.track(own.track), moved = nt && nt.clips[0];
+    t.ok(own.ok && R.store.history.length === n0 + 1 && nt.name === 'Melody 2' && nt.instrument.device === 'core.wavetable' && moved && moved.id === act.id && !moved.take && !moved.mute && !R.store.track(mel).clips.find((c) => c.id === was.id).mute && R.rec.aim('hum').track === nt.id,
+      `Put it on its own track: one undo step, ${nt?.name} on Light Table with the take, Take 1 playing again on Melody ("${own.text}")`);
+    R.store.undo();
+    t.ok(!R.store.track(own.track) && R.store.track(mel).clips.filter((c) => !c.mute).length === 1, 'and one undo puts the stack back');
+  }
+  // the keys' track: made when the keys start, selected, said
+  {
+    const R = rig('simple', (s) => ({ drums: add(s, 'Drums', 'core.drums') }));
+    R.ui.select({ track: R.ids.drums });
+    const k = R.rec.keysTrack();
+    const said = R.events.find((e) => e[0] === 'keys:track');
+    t.ok(k && k.name === 'Keys' && k.instrument.device === 'core.keys' && R.ui.state.selection.track === k.id && said && said[1].text === 'Keys play a new track, Keys (Lamp Tines). Undo takes it away.' && R.rec.keysTrack().id === k.id,
+      `the keys aimed at a new track: keysTrack makes Keys (Lamp Tines), selected, said once ("${said?.[1].text}"), and the next call plays it`);
+    R.ui.select({ track: R.ids.drums });
+    t.ok(R.rec.targetFor('keys')?.id === k.id, 'selecting Drums afterwards: the keys still play Keys (a drum track is the keys\' only when picked)');
+  }
+  // the Beatbox catch: a hummed voice reads as a tune, noise bursts on the beat don't
+  {
+    const sr = 22050, voice = renderVoice(phrase([60, 64, 67, 69, 67, 64, 62, 60].map((m) => ({ m, beats: 1, gap: 0.1 })), { tempo: 90 }), sr);
+    const x = voice.x || voice.samples || voice;
+    const tn = tuneOf(x, sr, { tempo: 90 });
+    const bursts = new Float32Array(sr * 4);
+    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+    for (let b = 0; b < 8; b++) { const i0 = Math.round(b * 0.5 * sr); for (let i = 0; i < sr * 0.06; i++) bursts[i0 + i] = rnd() * 0.6 * Math.exp(-i / (sr * 0.015)); }
+    const nb = tuneOf(bursts, sr, { tempo: 120 });
+    t.ok(tn && tn.notes >= 6 && !nb, `tuneOf: a hum is a tune (${tn ? `${tn.notes} notes, confident on ${Math.round(tn.conf * 100)}%, ${tn.perBeat} onsets a beat` : 'not heard'}); beatbox bursts are not (${nb ? JSON.stringify({ n: nb.notes, c: nb.conf }) : 'none'})`);
+  }
+}
+
 /* ------------------------------------------------------------------ 2. the studio */
 const MIC_SHIM = `(() => {
   // the mic: a stream the test feeds (a synthesized voice; a two-input interface with a different tone on each input);
@@ -382,7 +532,7 @@ try {
   const covered = take1.clips.filter((c) => c.take === tk.take && c.mute);
   t.ok(tk.length === 4 && covered.length === 1 && covered[0].start === 16 && covered[0].length === 4 && take1.clips.some((c) => c.start === 0 && c.length === 16 && !c.mute && !c.take) && take1.clips.some((c) => c.start === 20 && c.length === 12 && !c.mute && !c.take), `New take: played in bar 5 and stopped in it, the take is bar 5 and only bar 5 of Changes is muted; bars 1–4 and 6–8 play on (${take1.clips.map((c) => `${c.start}+${c.length}${c.mute ? ' muted' : ''}`).join(', ')})`);
   t.ok(take1.hist[0].by === 'you' && take1.hist[0].label === 'record take 2 on Keys' && !take1.playing, `one undo step by you ("${take1.hist[0].label}"); Space stopped the song`);
-  t.ok(/Take 2 is in on Keys, bar 5\. One more underneath, muted\. Undo takes it back\./.test(await lastToast()), `the toast: "${await lastToast()}"`);
+  t.ok(/Take 2 is in on Keys, bar 5; \S.* is muted\. Undo takes it back\./.test(await lastToast()), `the toast: "${await lastToast()}"`);
   const cap = await page.evaluate(() => window.overdub.input.capture.list().find((x) => x.rec));
   t.ok(cap && cap.notes.length === 3 && cap.beat === 16 && /^tk_/.test(cap.take) && cap.pass === 0, `the pass is in capture too (Sketch's Takes), marked in the song (${cap && cap.notes.length} notes from beat ${cap && cap.beat}, ${cap && cap.take} pass ${cap && cap.pass})`);
   await page.keyboard.press('Backquote');

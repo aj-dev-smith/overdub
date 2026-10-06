@@ -200,7 +200,7 @@ export default function (app) {
   // that Esc closes first is open over it (a menu, a popover, the code, the keys sheet), the agent is at work (Esc
   // stops it) or a hum is going. Ahead of musical typing's Esc: the window is the nearer thing.
   const escOk = () => !!win && !app.agent?.busy && !app.input?.hum?.active && !popoverOpen()
-    && !document.querySelector('.ek-pop, .ew-pop, .sk-menu, [role=menu], .rk-sheet, .tpk, [aria-modal=true]:not(.ew-region)')
+    && !document.querySelector('.ek-pop, .ew-pop, .sk-menu, [role=menu], .rk-sheet, .tpk, .snd-card:focus-within, .snd-sheet, [aria-modal=true]:not(.ew-region)')
     && (phone() || ui.state.focus === 'plugin' || win.el.contains(document.activeElement));
   ui.keys.add({ key: 'Escape', first: true, global: true, when: escOk, run: () => close(), label: 'Close the device window', group: 'Devices' });
 
@@ -288,6 +288,8 @@ export default function (app) {
     const laneAddr = (k) => ({ track, insert: slot, param: k });
     const slotNow = () => slotOf(track, slot);
     const storedNow = () => { const s = slotNow(); return s && s.def ? paramValues(def, s.host.params || {}) : stored; };
+    // a hand on the controls of an instrument being tried keeps it first (the sound card's "Kept … to change it")
+    const keepTrial = () => { if (isInst) { try { app.sounds?.keepIfTrying?.(track, { why: 'control' }); } catch (e) { console.error('plugin: keep the trial', e); } } };
 
     /* ---- the frame of it */
     const { color, ink } = colorsOf(def);
@@ -328,7 +330,9 @@ export default function (app) {
         who.push('made by ', byline(maker, { app }));
         if (via && via !== maker) who.push(', via ', byline(via, { app }), '’s link');
       }
-      credit.replaceChildren(...[h('span.pw-where', where), who.length ? h('span.pw-who', ...who) : null].filter(Boolean));
+      // (what it is, in plain words, for an instrument: "What is Light Table?" answered where it opens)
+      const what = isInst && def.blurb ? h('span.pw-what', def.blurb) : null;
+      credit.replaceChildren(...[h('span.pw-where', where), what, who.length ? h('span.pw-who', ...who) : null].filter(Boolean));
       credit.title = [def.blurb, def.nod ? `Tips its hat to ${def.nod}.` : ''].filter(Boolean).join(' ');
     }
     renderCredit();
@@ -348,19 +352,41 @@ export default function (app) {
       if (short && barItems[0].parentNode !== head) for (const x of barItems) head.insertBefore(x, playKey);
       else if (!short && barItems[0].parentNode !== bar) bar.prepend(...barItems);
     }
+    // Until it is dragged somewhere, a window opening keeps clear of the selected track's lane, so you see the take
+    // you're shaping and the knobs at once: over the lower half of the arranger when the lane is in the upper half,
+    // else the upper. -> { lo, hi, at(height) -> y } or null (no lane on screen, or no room either side: the usual place)
+    let spareMax = null;
+    function spare() {
+      if (track === 'master') return null;
+      const row = [...document.querySelectorAll('.ar-head[data-track]')].find((x) => x.dataset.track === track);
+      const arr = row?.closest('.ar-main') || document.querySelector('.ar-main');
+      if (!row || !arr || !row.getClientRects().length) return null;
+      const r = row.getBoundingClientRect(), a = arr.getBoundingClientRect(), vh = window.innerHeight;
+      if (r.bottom < a.top || r.top > a.bottom) return null;
+      const top = (document.querySelector('.ew-top')?.getBoundingClientRect().bottom || 0) + 8;
+      const mid = a.top + a.height / 2;
+      // (the room below the lane, or above it: lo..hi; the window goes as near the arranger's middle as it fits)
+      if (r.top + r.height / 2 < mid) { const lo = Math.round(r.bottom + 8), hi = vh - 12; return hi - lo >= 240 ? { lo, hi, at: (n) => Math.max(lo, Math.min(Math.round(mid), hi - n)) } : null; }
+      const lo = Math.round(top), hi = Math.round(r.top - 8);
+      return hi - lo >= 240 ? { lo, hi, at: () => lo } : null;
+    }
     function place({ fit = false } = {}) {
       if (!alive) return;
       el.classList.toggle('pw-phone', phone());
       arrange();
       if (phone()) { for (const k of ['left', 'top', 'width', 'height', 'min-width', 'max-width', 'max-height']) el.style.removeProperty(k); return; }
       const g = geo(), vw = window.innerWidth, vh = window.innerHeight;
+      // (only when the whole window fits beside the lane: a deep synth that needs the screen takes its usual place)
+      let sp = null;
+      if (fit && !g.placed) { spareMax = null; sp = g.auto ? spare() : null; if (!sp) g.y = 84; }
       g.y = clamp(g.y ?? 84, 0, Math.max(0, vh - 56));
       if (g.auto) {
-        Object.assign(el.style, { width: 'max-content', minWidth: Math.min(680, vw - 16) + 'px', maxWidth: Math.min(1120, vw - 16) + 'px', height: 'auto', maxHeight: Math.max(240, vh - g.y - 12) + 'px' });
+        Object.assign(el.style, { width: 'max-content', minWidth: Math.min(680, vw - 16) + 'px', maxWidth: Math.min(1120, vw - 16) + 'px', height: 'auto', maxHeight: Math.max(240, Math.min(spareMax ?? Infinity, vh - g.y - 12)) + 'px' });
       } else {
         g.w = clamp(g.w, Math.min(520, vw - 16), vw - 16); g.h = clamp(g.h, Math.min(300, vh - 16), vh - 16);
         Object.assign(el.style, { width: g.w + 'px', height: g.h + 'px', minWidth: '', maxWidth: '', maxHeight: '' });
       }
+      if (sp) { const n = el.scrollHeight; if (n <= sp.hi - sp.lo) { g.y = sp.at(n); spareMax = sp.hi - g.y; el.style.top = g.y + 'px'; el.style.maxHeight = spareMax + 'px'; } }
       const w = el.offsetWidth || g.w || 680;
       if (g.x == null) g.x = Math.round((vw - w) / 2);
       // a window just opened (or rebuilt) is all on screen when it fits; one being dragged keeps 160 px in view
@@ -376,7 +402,7 @@ export default function (app) {
       if (phone() || e.button !== 0 || e.target.closest('button, a, input, select')) return;
       const g = geo(), x0 = e.clientX, y0 = e.clientY, gx = g.x, gy = g.y;
       head.setPointerCapture(e.pointerId); head.classList.add('pw-dragging');
-      const mv = (ev) => { g.x = gx + ev.clientX - x0; g.y = gy + ev.clientY - y0; place(); };
+      const mv = (ev) => { g.x = gx + ev.clientX - x0; g.y = gy + ev.clientY - y0; g.placed = true; spareMax = null; place(); };
       const up = () => { head.removeEventListener('pointermove', mv); head.removeEventListener('pointerup', up); head.removeEventListener('pointercancel', up); head.classList.remove('pw-dragging'); };
       head.addEventListener('pointermove', mv); head.addEventListener('pointerup', up); head.addEventListener('pointercancel', up);
       e.preventDefault();
@@ -470,6 +496,7 @@ export default function (app) {
     function setParams(patch = {}, { gesture = 'end', label = null, fresh = false } = {}) {
       const keys = Object.keys(patch).filter((k) => specs.has(k) && fin(+patch[k]));
       if (!keys.length) return { ok: false, error: `no such param (${Object.keys(patch).join(', ') || 'none given'}); this device has ${[...specs.keys()].join(', ')}` };
+      keepTrial();
       const params = {};
       for (const k of keys) params[k] = kit.snap(specs.get(k), +patch[k]);
       const op = isInst ? { type: 'instrument.set', track, params } : { type: 'insert.set', track, insert: slot, patch: { params } };
@@ -545,6 +572,10 @@ export default function (app) {
     const onTog = isInst ? null : kit.toggle({ label: 'On', name, title: 'On, or bypassed (the sound passes through)', onChange: (on) => { const r = store.dispatch({ type: 'insert.set', track, insert: slot, patch: { on } }, { by: 'you', label: `${name} ${on ? 'on' : 'off'}` }); if (!r.ok) ui.toast(r.error, { kind: 'bad' }); } });
     const codeBtn = typeof def.kernel === 'string' ? h('button.btn.btn-txt.pw-code', { type: 'button', title: 'Its kernel source, read-only', onclick: () => app.rack?.openCode?.(devId) }, 'Code') : null;
     const askBtn = h('button.btn.ew-btn-agent.pw-ask', { type: 'button', title: 'Describe a sound; the agent tunes this device', onclick: () => { const s = slotNow(); ui.emit('agent:compose', { text: `${quotedName(name)} on ${quotedName(s?.trackName || 'the master')}: `, attach: { track, device: devId } }); } }, icon('agent', { size: 14 }), 'Ask');
+    // the sound card for this track (trying another instrument rebuilds this window onto it: what you see is what you
+    // hear), and the effects after it, in the Devices tab
+    const soundsBtn = isInst && track !== 'master' && app.sounds ? h('button.btn.btn-txt.pw-sounds', { type: 'button', title: 'Hear this track on other instruments', onclick: (e) => app.sounds?.offer?.({ track, from: 'window', anchor: e.currentTarget }) }, 'Sounds') : null;
+    const fxBtn = track !== 'master' ? h('button.btn.btn-txt.pw-fx', { type: 'button', title: `The effects on ${s0.trackName}, in the Devices tab`, onclick: () => { ui.select({ track, insert: isInst ? null : slot }); ui.show('rack'); } }, 'Effects') : null;
     const statusEl = h('p.pw-status');
     const peakEl = h('span.pw-peak', { 'aria-hidden': 'true' }, 'silent');
     const scopeCv = kit.canvas({ className: 'pw-scope', label: `${name}'s output: scope and spectrum` });
@@ -552,7 +583,7 @@ export default function (app) {
     // the studio's notes while the window is open, when there's no room for them beside it (ui.dockToasts: a phone's
     // window always): a line of the bar, so a note never sits over the controls
     const toastBox = h('div.pw-toasts', { role: 'status', 'aria-live': 'polite' });
-    barItems = [presets, ab, ...[onTog?.el, codeBtn, askBtn].filter(Boolean)];
+    barItems = [presets, ab, ...[onTog?.el, codeBtn, askBtn, soundsBtn, fxBtn].filter(Boolean)];
     bar.append(...barItems, statusEl, toastBox);
     head.insertBefore(live, playKey);
     arrange();
@@ -575,6 +606,7 @@ export default function (app) {
       preBtn.setAttribute('aria-label', `${name} preset: ${st.label}${st.edited ? ', edited' : ''}. Choose a preset`);
     }
     function applyPreset(pname) {
+      keepTrial();
       const params = pname === null ? Object.fromEntries((def.params || []).map((p) => [p.key, p.def])) : presetParams(def, pname);
       if (!params) return { ok: false };
       const op = isInst ? { type: 'instrument.set', track, params } : { type: 'insert.set', track, insert: slot, patch: { params } };
@@ -628,6 +660,7 @@ export default function (app) {
     function flip(to) {
       const st = AB();
       if (st.on === to) return;
+      keepTrial();
       const from = st.on;
       st[from] = { ...stored };
       if (!st[to]) { st[to] = { ...stored }; st.on = to; syncAB(); status(`${to} starts as a copy of ${from}. Change it, then flip back to compare.`, { about: 'ab' }); return; }
@@ -756,6 +789,12 @@ export default function (app) {
     const octDown = h('button.pw-key', { type: 'button', 'aria-label': 'Octave down', title: 'Octave down', onclick: () => shiftOct(-12) }, icon('chevron', { size: 14 }));
     octDown.querySelector('svg').style.transform = 'scaleX(-1)';
     const octUp = h('button.pw-key', { type: 'button', 'aria-label': 'Octave up', title: 'Octave up', onclick: () => shiftOct(12) }, icon('chevron', { size: 14 }));
+    // musical typing, from here: the home row plays this track (` does the same anywhere); a lamp, lit while it's on
+    const qwBtn = h('button.tog.pw-qw', { type: 'button', title: 'Play it from the computer keys: A S D F… (` turns it on or off anywhere)', onclick: () => { try { if (ui.state.selection.track !== track && track !== 'master') ui.select({ track }); app.input?.qwerty?.toggle?.(); } catch (e) { console.error(e); } paintQw(); } }, 'Computer keys');
+    const paintQw = () => qwBtn.setAttribute('aria-pressed', String(!!app.input?.qwerty?.on));
+    paintQw();
+    const offQw = app.input?.on?.('qwerty', paintQw) || null;
+    const offMode = app.input?.on?.('mode', paintQw) || null;
     const octBox = h('div.pw-oct', octDown, octLabel, octUp);
     const span = () => (phone() ? 12 : body.clientWidth > 900 ? 48 : body.clientWidth > 640 ? 36 : 24);
     function setKbRange() {
@@ -780,7 +819,8 @@ export default function (app) {
             try { if (isOn) app.engine.liveNoteOn(track, p, v); else app.engine.liveNoteOff(track, p); } catch (e) { /* no audio yet */ }
             for (const fn of [...kbListeners]) { try { fn({ p, v, on: isOn }); } catch (e) { console.error(e); } }
           } });
-          keysBox.replaceChildren(octBox, kb.el);
+          // (the lamp at the keyboard's right end: beside it, so the window grows no taller)
+          keysBox.replaceChildren(octBox, kb.el, qwBtn);
           setKbRange();
         }
         if (!on && kb) kb.clear();
@@ -912,7 +952,10 @@ export default function (app) {
       const s = slotNow();
       if (!s || s.devId !== devId) {
         if (!s) { close({ restore: false }); ui.announce?.(`${name} is gone; its window closed`); return; }
-        rebuild(); return;
+        // (rebuilt once the task is over: a sound on trial let go and kept in one task leaves the window as it was,
+        // and a knob being turned keeps its drag)
+        if (!swapSoon) { swapSoon = true; queueMicrotask(() => { swapSoon = false; if (!alive) return; const s2 = slotNow(); if (!s2) { close({ restore: false }); return; } if (s2.devId !== devId) rebuild(); else update(evt); }); }
+        return;
       }
       if (!s.def || s.held) { close({ restore: false }); return; }
       if (s.def !== def) { rebuild(); return; }
@@ -941,7 +984,7 @@ export default function (app) {
         if (!isInst && (evt.ops || []).some((o) => o.type === 'insert.set' && o.insert === slot && o.patch && 'on' in o.patch) && onTog) { flash(onTog.el); status([byline(evt.by, { app, cap: true }), on ? ' switched it on.' : ' bypassed it.']); }
       }
     }
-    let lastLv = -1, liveAt = 0;
+    let lastLv = -1, liveAt = 0, swapSoon = false;
     function frame(now) {
       if (!alive) return;
       if (flashes.length) flashes = flashes.filter((f) => { if (now > f.until) { f.el.classList.remove('pk-flash'); return false; } return true; });
@@ -980,6 +1023,7 @@ export default function (app) {
       editor = null;
       kb?.destroy();
       kbRo?.disconnect();
+      try { offQw?.(); offMode?.(); } catch (e) { /* ok */ }
       scopeCv.destroy();
       if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch (e) { /* gone */ } }
       for (const t of taps.values()) if (t.node && t.an) { try { t.node.disconnect(t.an); } catch (e) { /* gone */ } }
@@ -1014,7 +1058,8 @@ const CSS = `
 .pw:not(.pw-off) .pw-led { background: var(--pw-led); box-shadow: 0 0 calc(2px + 9px * var(--pw-lv, 0)) color-mix(in srgb, var(--pw-led) 70%, transparent); }
 /* (who made it keeps its room: the scope beside it gives way first) */
 .pw-credit { flex: 1 0 auto; display: grid; gap: 1px; min-width: 0; max-width: 360px; font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
-.pw-where, .pw-who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-where, .pw-who, .pw-what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-what { color: var(--text-2); }
 .pw-who { color: var(--text-3); }
 .pw-ib { display: inline-grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--r-press); background: transparent; color: var(--text-3); cursor: pointer; }
 .pw-ib:hover { background: var(--bg-3); color: var(--text); }
@@ -1037,6 +1082,7 @@ const CSS = `
 .pw-pre-e { flex: none; color: var(--text-3); font-weight: 400; white-space: nowrap; }
 .pw-pre-n .ico { margin-left: 4px; color: var(--text-3); }
 .pw-ab-copy { font-size: 12px; }
+.pw-sounds, .pw-fx { font-size: 12px; }
 .pw-status { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the studio's notes, when there's no room for them beside the window (ui/shell.js keeps them clear of it): a ruled
    line of the bar, its action an underlined word, never over a control */
@@ -1057,6 +1103,9 @@ const CSS = `
 /* the octave: ‹ › over the range it plays */
 .pw-oct { display: grid; grid-template-columns: auto auto; align-content: center; gap: 6px 4px; }
 .pw-oct-l { grid-column: 1 / -1; grid-row: 2; font: 400 11px/1.2 var(--font-mono); color: var(--text-3); white-space: nowrap; text-align: center; }
+.pw-qw { flex: none; align-self: center; white-space: nowrap; font-size: 11.5px; }
+.pw-phone .pw-qw, .pw-short .pw-qw { display: none; }
+@media (pointer: coarse) { .pw-qw { display: none; } }
 .pw-grip { position: absolute; right: 0; bottom: 0; display: grid; place-items: end; width: 18px; height: 18px; padding: 0 2px 2px 0; border: 0; background: none; color: var(--text-3); cursor: nwse-resize; }
 .pw-grip svg { display: block; }
 .pw-pres { inset: -3px; }

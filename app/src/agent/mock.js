@@ -107,6 +107,9 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
   // the studio's own asks first ("where is the mixer", "show me everything"): they're about the screen, not the song
   const studio = studioAsk(app, t);
   if (studio) { await sceneStudio(app, { say, tool, emit, turn }, studio); setStatus(''); emit('end', { turn }); return; }
+  // a track's sound ("what should this sound like", "make it a Choir Loft"): the sound card, or the instrument named
+  const sounds = soundsAsk(app, t);
+  if (sounds) { await sceneSounds(app, { say, tool }, sounds); setStatus(''); emit('end', { turn }); return; }
   const { scene, rest, clauses } = route(t);
   const ctx = { say, fine, tool, think, st, t, emit, turn, clauses, offer, ask, pick };
   // a prompt that asked for more than the script knows: say so first, with the closest thing it can do, then the part
@@ -170,6 +173,111 @@ export function studioAsk(app, t) {
   return null;
 }
 const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* ------------------------------------------------------------------ a track's sound (docs/INSTRUMENTS-UX.md 2.6) */
+// "What should this sound like?", "other sounds", "try some sounds", "a different instrument": suggest_sounds on the
+// selected track (else the newest track a take made) with the next four from core/sounds.js's sets that aren't on the
+// card already, each with its blurb as the why. "Make it a Choir Loft" / "use Light Table", where the words are an
+// instrument's name: instrument.set, said with what it was. Words that name no instrument ("make it warmer") aren't
+// this, and fall through to the script.
+const SOUNDS_ASK = /\b(?:what (?:should|could|would|does|might) (?:this|it|that|the \w+(?: \w+)?|[a-z]+) sound like|(?:some |any |a few )?other sounds|(?:try|hear|suggest|find) (?:some|other|a few|more|new|different) sounds|(?:a |another )?different instrument|another instrument|other instruments)\b/;
+const SOUND_NAMED = /^(?:(?:hey|ok|okay|so|please|claude|can you|could you)[\s,]+)*(?:make (?:it|this|that|the \w+)|use|switch (?:it |this )?to|turn (?:it|this) into|put it on|play it on|change (?:it|this) to)\s+(?:a |an |the )?(.+?)(?:\s+instead)?[\s?.!]*$/;
+// -> { kind: 'suggest' } | { kind: 'set', device } | null
+export function soundsAsk(app, t) {
+  t = String(t).toLowerCase().replace(/[‘’]/g, "'").trim();
+  if (SOUNDS_ASK.test(t)) return { kind: 'suggest' };
+  const m = SOUND_NAMED.exec(t);
+  if (!m) return null;
+  const want = m[1].trim();
+  const list = app?.devices?.listDevices?.({ kind: 'instrument' }) || [];
+  const hit = list.find((d) => d.name.toLowerCase() === want) || list.find((d) => d.id.toLowerCase() === want);
+  return hit ? { kind: 'set', device: hit.id } : null;
+}
+// the sets the card draws from, as the spec's table has them, when core/sounds.js isn't here to say
+const SETS_TABLE = {
+  hum: ['core.keys', 'core.wavetable', 'core.strings', 'claude.choir-loft', 'core.mallets', 'core.choir', 'core.pluck'],
+  played: ['core.keys', 'core.wavetable', 'core.mallets', 'core.brass', 'core.piano', 'core.pluck'],
+  chords: ['core.keys', 'core.pad', 'core.strings', 'core.ep', 'core.piano', 'core.organ', 'core.poly2'],
+  bass: ['core.bassguitar', 'core.bass', 'claude.sub-basement', { device: 'core.wavetable', preset: 'Low Key' }, { device: 'core.poly2', preset: 'Ladder bass' }],
+  drums: [{ device: 'core.drums', preset: 'Studio kit' }, 'core.drumroom', { device: 'core.drums', preset: 'Boom bap' }, { device: 'core.drums', preset: 'Trap' }, { device: 'core.drums', preset: 'Live room' }],
+};
+const rowOf = (r) => (typeof r === 'string' ? { device: r, preset: null } : r && (r.device || r.id) ? { device: r.device || r.id, preset: r.preset || null } : null);
+async function setsOrder(app, track) {
+  let S = null, kindOf = null;
+  try { const m = await import('../core/sounds.js'); S = m.SOUND_SETS || null; kindOf = m.kindOfTake || null; } catch (e) { /* the table above */ }
+  const rows = (v) => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.map(rowOf).filter(Boolean);
+    return [...(v.rows || v.sounds || v.list || []), ...(v.fallbacks || v.fallback || [])].map(rowOf).filter(Boolean);
+  };
+  const sets = S && typeof S === 'object' && Object.keys(S).length ? Object.fromEntries(Object.entries(S).map(([k, v]) => [k, rows(v)])) : Object.fromEntries(Object.entries(SETS_TABLE).map(([k, v]) => [k, rows(v)]));
+  const def = app.devices.getDevice(track.instrument?.device);
+  const drums = def?.cat === 'drums';
+  let first = drums ? 'drums' : 'played';
+  if (!drums) {
+    const notes = track.clips.flatMap((c) => (c.kind === 'notes' ? c.notes : []));
+    const hummed = (app.input?.recorder?.last?.take?.src === 'hum') || /^melody\b/i.test(track.name);
+    try { first = kindOf ? kindOf({ kind: 'notes', src: hummed ? 'hum' : 'keys', notes }) : hummed ? 'hum' : 'played'; } catch (e) { first = hummed ? 'hum' : 'played'; }
+    if (!sets[first] || first === 'drums') first = hummed ? 'hum' : 'played';
+  }
+  const order = [first, ...Object.keys(sets).filter((k) => k !== first && (k === 'drums') === drums)];
+  const out = order.flatMap((k) => sets[k] || []);
+  // then the rest of the studio's instruments of the same kind, in the browser's order
+  for (const d of app.devices.listDevices({ kind: 'instrument' })) if ((d.cat === 'drums') === drums) out.push({ device: d.id, preset: null });
+  return out;
+}
+const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four'];
+const listed = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] || '');
+async function sceneSounds(app, { say, tool }, ask) {
+  const p = app.store.get();
+  const selId = coherentSelection(app).track;
+  let track = selId ? p.tracks.find((x) => x.id === selId) : null;
+  if (!track) { try { track = (await import('./sounds-tool.js')).newestNewTrack(app); } catch (e) { /* none */ } }
+  if (!track) { await say('Which track? Click its name, then ask again.'); return; }
+  if (track.kind === 'audio') { await say(`${track.name} is an audio track: sounds are for instrument tracks. Its effects are in the Devices tab.`); return; }
+  const was = app.devices.getDevice(track.instrument?.device);
+  if (ask.kind === 'set') {
+    const def = app.devices.getDevice(ask.device);
+    if (track.instrument?.device === ask.device) { await say(`${track.name} plays ${def.name} already.`); return; }
+    const r = await tool('apply_ops', { label: `${track.name}: ${def.name}`, reason: `they asked for ${def.name}`, ops: [{ type: 'instrument.set', track: track.id, device: ask.device }] });
+    if (r.error) { await say(r.error === 'recording' || /recording/.test(r.error) ? `After the take: ${track.name} is recording.` : `I couldn't change it: ${r.error}.`); return; }
+    await say(`${track.name} plays ${def.name} now (was ${was?.name || 'nothing'}). Undo takes it back.`);
+    return;
+  }
+  // the next four that aren't on the card (or, with no card on this track, the house's four the card would show)
+  const now = { device: track.instrument?.device, preset: app.devices.presetOf?.(was, track.instrument?.params)?.name || null };
+  const key = (r) => `${r.device}|${String(r.preset || '').toLowerCase()}`;
+  const order = await setsOrder(app, track);
+  const seen = new Set([key(now), `${now.device}|`]);
+  const cur = app.sounds?.current;
+  // (what the card shows on this track, and the house's rows it would show: both are on screen or about to be)
+  let house = null;
+  try { house = app.sounds?.setsFor?.(track.id) || null; } catch (e) { house = null; }
+  const onCard = [...(cur && cur.track === track.id && Array.isArray(cur.rows) ? cur.rows : []), ...(Array.isArray(house) ? house : [])];
+  for (const r of onCard) { const x = rowOf(r); if (x) seen.add(key(x)); }
+  // (no card to ask: the house's four from the sets, as the card would show them)
+  if (!Array.isArray(house)) { let n = 0; for (const r of order) { if (n >= 4) break; if (!app.devices.getDevice(r.device) || seen.has(key(r))) continue; seen.add(key(r)); n++; } }
+  const pick = [];
+  for (const r of order) {
+    if (pick.length >= 4) break;
+    const def = app.devices.getDevice(r.device);
+    if (!def || def.kind !== 'instrument' || seen.has(key(r))) continue;
+    if (r.preset && !(def.presets || []).some((x) => x.name.toLowerCase() === String(r.preset).toLowerCase())) continue;
+    seen.add(key(r));
+    const why = String(def.blurb || def.kindLabel || def.name).replace(/\s+/g, ' ').trim();
+    pick.push({ device: r.device, ...(r.preset ? { preset: r.preset } : {}), why: why.length > 60 ? why.slice(0, 59).replace(/[\s,;:]+\S*$/, '') + '…' : why });
+  }
+  if (!pick.length) { await say(`That's every sound I know for ${track.name}. More sounds on the card opens the browser.`); return; }
+  const r = await tool('suggest_sounds', { track: track.id, sounds: pick, reason: 'they asked for other sounds' });
+  if (r.error) {
+    if (r.error === 'the person is recording') { await say('After the take: the card holds still while you record.'); return; }
+    await say(`I couldn't put them on the card (${r.error}). Try ${listed(pick.map((x) => app.devices.getDevice(x.device).name))} from the browser.`);
+    return;
+  }
+  const names = (r.sounds || []).map((x) => x.name);
+  const tapOrClick = globalThis.matchMedia?.('(max-width: 899px)')?.matches ? 'Tap' : 'Click';
+  await say(`${COUNT_WORDS[names.length] || names.length} more for ${r.track?.name || track.name}: ${listed(names)}. ${tapOrClick} one to hear it.`);
+}
 async function sceneStudio(app, { say, tool }, ask) {
   const ws = app.ui.workspace;
   if (ask.kind === 'view') {

@@ -191,8 +191,9 @@ for (const start of [0, 1.5]) {
     for (const t of app.store.get().tracks) out[t.name] = measure(await app.engine.render({ from: 0, to: 16, tracks: [t.id], tail: 0.3 })).lufs;
     return out;
   });
-  const seedL = lv.Hum, rest = Object.entries(lv).filter(([k]) => k !== 'Hum');
-  T.ok(rest.every(([, v]) => v < seedL - 1), `the seed leads by loudness in the render (Hum ${seedL.toFixed(1)} LUFS; ${rest.map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')})`);
+  // (a kept hum's new track is Melody: core/sounds.js newPartFor, docs/INSTRUMENTS-UX.md 1.2)
+  const seedL = lv.Melody, rest = Object.entries(lv).filter(([k]) => k !== 'Melody');
+  T.ok(rest.every(([, v]) => v < seedL - 1), `the seed leads by loudness in the render (Melody ${seedL.toFixed(1)} LUFS; ${rest.map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')})`);
   T.ok(rest.every(([, v]) => v > seedL - 14), 'and the band is there to be heard (no part more than 14 LU under it)');
   await E(() => window.overdub.store.undo());
   T.ok((await E(() => JSON.stringify(window.overdub.store.get().tracks))) === tracks0, 'one undo takes the whole band back');
@@ -209,7 +210,7 @@ for (const start of [0, 1.5]) {
   T.ok(!(await page.$('.band-pop')), 'Escape closes it');
 
   // the agent tool: applies as one step by the agent, says the person's notes are untouched, undoes cleanly
-  const a = await E((s) => window.overdub.tools.run('arrange_around', { target: { track: 'Hum', clip: s.clip }, style: 'house', parts: ['chords', 'bass', 'drums', 'pad'], reason: 'a band to sing over' }, { by: 'claude' }), seed);
+  const a = await E((s) => window.overdub.tools.run('arrange_around', { target: { track: 'Melody', clip: s.clip }, style: 'house', parts: ['chords', 'bass', 'drums', 'pad'], reason: 'a band to sing over' }, { by: 'claude' }), seed);
   const last = await E(() => { const h = window.overdub.store.history.at(-1); return { by: h.by, reason: h.reason, tracks: window.overdub.store.get().tracks.length, signed: window.overdub.store.get().tracks.slice(1).every((t) => t.by === 'claude') }; });
   T.ok(a.ok && last.by === 'claude' && last.tracks === 5 && last.signed && last.reason === 'a band to sing over', `the agent's arrange_around: one step by claude (${a.summary})`);
   T.ok(a.touches_human_notes === false && /untouched/.test(a.note) && a.checks.in_key && a.checks.strong_beat_rubs === 0 && a.checks.bass_on_roots && a.checks.drums_on_grid, `it says what it left alone ("${a.note}") and its checks pass`);

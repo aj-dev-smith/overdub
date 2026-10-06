@@ -71,11 +71,14 @@ newcomer starts there. Nothing is removed, and everything is one step away.
 
 ## Record into the song
 
-Select a track and press `R` (on a phone, the ● at the top). Beside the record key the top bar says where it goes
-(*Onto* Bass; a click there picks another track), and the track stays the target until you select or arm another: a
-click on empty space to move the marker doesn't change it. In Hum it, *Onto* names the track your hum goes onto: a
-hum never goes onto a drum track unless you armed it, so with Drums selected it says Bass (or *new track*). It
-records from the start marker, after one bar of count-in: the bar before the marker plays with the click (below bar
+Press `R` (on a phone, the ● at the top). **A new idea goes on a new track**: a hum, a tune on the keys or a beat on
+a song that has tracks lands on a track of its own (Melody, Keys or Drums) unless you picked one, and that track is
+selected, so your next take of the same kind goes onto it. To record onto a track that's already there, pick it in
+**Onto** (in Sketch's record strip, always shown; **A new track** is first) or select it after your last take. A hum
+never goes onto a drum track unless you picked it. The track R records onto has its R lit in the arranger, and a new
+one shows as a faint lane at the foot, *A new track, Lamp Tines*, until the take is in. In the full studio the armed
+track still comes first, as it always has: arm a track and R records onto it; **A new track** in Onto disarms them,
+and arming one by hand again wins. It records from the start marker, after one bar of count-in: the bar before the marker plays with the click (below bar
 1, the click alone), the position counts −1.4 to −1.1 in red, and a big numeral over the track counts 4 3 2 1. `R`
 or `Space` during the count calls it off. With the song already playing, `R` waits for the next bar line and counts
 the beats left in this one. Then whatever you play, tap or hum lands on that track at the bars where you played it;
@@ -115,7 +118,34 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
 - **First time?** **Tap a beat** on the Take one card, or on a new song's first screen, adds a Drums track if
   there is none, loops two bars with the click and starts them: press `R` and tap `F` `J` `K` `L`. While the song is
   shorter than 8 bars, **Make it 8 bars** (beside a kept take, and on the tour's last card) repeats it to 8: parts
-  that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase.
+  that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase. The coach's next
+  card offers **Hum over it**: it makes the beat 8 bars so a tune has room, turns the click off while you hum, and
+  puts Sketch on Hum it, onto a new track.
+
+## Pick a sound
+
+A take on a new track starts on a plain sound (Lamp Tines for a hum or the keys, Gobo Kit for a beat). Its sound is
+yours to pick by ear:
+
+- **What should this sound like?** After the first take on a track, a card plays your take straight away and lists
+  the track's sound and up to four others that suit what you did (a hum gets Lamp Tines, Light Table, Music Stands
+  and Choir Loft; a beat gets kits). `↓` and `↑` try the next one, `Enter` keeps it, `Esc` goes back. Trying isn't an
+  edit: nothing is in History until you keep one, and one `⌘Z` takes the kept sound back. In the simple view the card
+  opens by itself (under the track's name, before you even keep it); in the full studio the take's note says
+  *What should it sound like?* with **Sounds**.
+- **In tune.** A hum on a new track, in a song whose key nobody chose, moves into the key you hummed in, and says how
+  many notes moved, with **Undo**. On the card, **In tune** turns it off (*as sung*).
+- **Sounds** on a track's header opens the card for that track any time; it's lit on a new track until you've opened
+  it once. The track's instrument is on its header too: click the name to open it big, with its own controls, presets
+  and a keyboard to play.
+- **The browser tries before it changes anything.** A click on an instrument tries it on the selected track, with
+  **Keep** and **Back**, and a double-click keeps it. A melodic instrument clicked with a drum track selected offers
+  **New track with Light Table** instead of replacing the kit. Shift-click makes a new track; a drop onto a track
+  keeps it at once, with Undo. Trying never moves your loop.
+- **Ask the agent** (*"other sounds for Melody?"*, or **Ask Claude for others** on the card): it puts its suggestions on the
+  card, each saying why, signed *suggested by Claude*. Nothing changes until you keep one, and the kept sound is yours.
+  Name an instrument (*"make it a Choir Loft"*) and it sets it, and says what it was.
+- Recording on a track while you're trying a sound keeps that sound first, and says so before the take starts.
 
 ## Shape the song
 
