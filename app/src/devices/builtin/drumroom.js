@@ -35,6 +35,7 @@
 // built from. Deterministic: every per-hit variation comes from the instance's seed, drawn in the order hits arrive.
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
+import { metalSource } from './metal.js';
 
 export const PIECES = ['kick', 'snare', 'hat', 'tom1', 'tom2', 'tom3', 'tom4', 'crash1', 'crash2', 'ride', 'china', 'splash', 'tamb', 'cowbell', 'shaker', 'clap'];
 // articulations, by piece (index = the code the kernel uses)
@@ -149,6 +150,7 @@ export default defineDevice({
     { key: 'view', label: 'VIEW', opts: ['DRUMMER', 'AUDIENCE'], def: 0, role: 'width', group: 'mics', desc: "the stereo picture from the drummer's seat (hat left) or from out front (hat right)" },
     { key: 'humanize', label: 'HUMAN', min: 0, max: 1, def: 0.5, role: 'depth', group: 'kit', desc: 'how much each hit varies (where the stick lands, how hard, how long it touches); 0 every hit alike' },
     { key: 'velocity', label: 'VEL', min: -1, max: 1, def: 0, role: 'sens', group: 'kit', desc: 'how velocity maps to force: below 0 a light touch (more ghosts), above 0 a heavy hand' },
+    { key: 'cym_model', label: 'CYMBALS', opts: ['CLASSIC', 'FDN', 'MODAL'], def: 0, role: 'shape', group: 'kit', desc: "the crashes, ride (bow, bell, edge), china and splash: CLASSIC is the kit's own; FDN and MODAL are new models built against real cymbals" },
     ...pieceParams('kick', 'the kick', 'K'),
     ...pieceParams('snare', 'the snare', 'S'),
     { key: 'snare_wires', label: 'WIRES', min: 0, max: 1, def: 0.6, role: 'tone', group: 'snare', desc: 'the snare wires: 0 off (a tom-like snare), 1 loose and buzzy (more sympathetic buzz from the toms and kick)' },
@@ -177,7 +179,7 @@ export default defineDevice({
   ],
   look: { color: '#2f3a33', ink: '#e9e0c8', shape: 'wide', finish: 'brushed', knob: 'cream', label: 'plate', led: '#ff8a3d' },
   tail: 6,
-  kernel: kernel(String.raw`
+  kernel: kernel(metalSource() + String.raw`
 // ------------------------------------------------------------------------------------------------ the map, the pieces
 const NOTES = __NOTES__;                 // MIDI note -> [piece, articulation]
 const KICK = 0, SNARE = 1, HAT = 2, TOM1 = 3, TOM4 = 6, CRASH1 = 7, CRASH2 = 8, RIDE = 9, CHINA = 10, SPLASH = 11, TAMB = 12, COW = 13, SHAKER = 14, CLAP = 15, NP = 16;
@@ -200,6 +202,12 @@ const CS = 343, LN1000 = 6.907755278982137;
 // relative piece levels, balanced by measurement: each piece's loudness 400 ms after a 0.8 stroke against a mixed kit's
 // balance (docs/research/STUDIO-A.md has the table)
 const GAIN = [0.555, 0.62, 0.143, 0.335, 0.187, 0.218, 0.298, 0.191, 0.19, 0.0313, 0.112, 0.223, 0.105, 0.121, 0.105, 0.455];
+// cym_model 1 (FDN), 2 (MODAL), by kit: crash 1, crash 2, ride, china, splash, against GAIN, each matched to the CLASSIC
+// cymbal's loudness (the first second after a 0.7 stroke)
+const MTRIM = [
+  [[0.414, 0.461, 0.759, 1.29, 0.645], [0.406, 0.44, 1.21, 0.904, 0.569], [0.49, 0.418, 1.4, 0.969, 0.545], [0.474, 0.454, 1.27, 0.776, 0.623], [0.537, 0.465, 1.69, 1.1, 0.83]],
+  [[0.848, 0.918, 0.52, 2.1, 0.792], [0.812, 0.824, 0.755, 1.47, 0.699], [1.08, 0.909, 0.929, 1.88, 0.921], [0.87, 0.856, 0.876, 1.32, 0.767], [1.52, 1.17, 1.08, 2.14, 1.4]],
+];
 // The kits. A membrane: f0 (Hz), t60 (s, the fundamental), damp (0..1: how much faster the overtones die), split (the
 // other head's mode, a ratio above f0), glide (how far a hard hit bends the head), shell [Hz, s, level], tc [hard, soft]
 // (ms of stick or beater contact), r (where it lands, 0 centre .. 1 edge), nz [Hz, Q, ms, level] (the crack or the
@@ -993,6 +1001,11 @@ return {
     P[CHINA] = new Cym(sr, seed ^ 0x58, 2); P[SPLASH] = new Cym(sr, seed ^ 0x59, 3);
     P[TAMB] = new Perc(sr, seed ^ 0x61, 0); P[COW] = new Perc(sr, seed ^ 0x62, 1); P[SHAKER] = new Perc(sr, seed ^ 0x63, 2); P[CLAP] = new Perc(sr, seed ^ 0x64, 3);
     const ORDER = [KICK, TOM1, TOM1 + 1, TOM1 + 2, TOM4, SNARE, HAT, CRASH1, CRASH2, RIDE, CHINA, SPLASH, TAMB, COW, SHAKER, CLAP];
+    // cym_model 1 (FDN) and 2 (MODAL): the same five cymbals as models of their own (metal.js), with their own seeds, so
+    // nothing the CLASSIC kit draws moves; P holds whichever set is playing
+    const CYM0 = [P[CRASH1], P[CRASH2], P[RIDE], P[CHINA], P[SPLASH]], MKIND = [0, 0, 1, 2, 3], MET = [CYM0, [], []];
+    for (let e = 1; e <= 2; e++) for (let k = 0; k < 5; k++) MET[e].push(new Metal(sr, (seed ^ (0x6d2b + 131 * k + 7919 * e)) >>> 0, MKIND[k], e));
+    let cmOn = 0;
 
     // ---- the mics: each piece's pan in the close mics, its time of flight and level at each overhead, room mic and the
     // crush mic, and how it leaks into the other close mics
@@ -1091,7 +1104,8 @@ return {
       P[SNARE].configure(K.snare, K.snare.f0, K.snare.t60);
       for (let k = 0; k < 4; k++) P[TOM1 + k].configure(K.tom, K.toms[k], K.tomT[k]);
       hat1.configure(K.hat, S); hat2.configure(K.hat);
-      for (let k = 0; k < 5; k++) P[CRASH1 + k].configure(K.cym[k], S);
+      for (let k = 0; k < 5; k++) CYM0[k].configure(K.cym[k], S);
+      for (let e = 1; e <= 2; e++) for (let k = 0; k < 5; k++) MET[e][k].configure(K.cym[k]);
     }
     function push(p, at, art, F, r, tc, w) {
       const pc = P[p];
@@ -1157,12 +1171,23 @@ return {
       process(L, R, n, Pm) {
         if (CL.length < n) {
           CL = new Float64Array(n); CR = new Float64Array(n); SY = new Float64Array(n);
-          for (const pc of P.concat([P[HAT] === hat1 ? hat2 : hat1])) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
+          // every piece, and the hat and the cymbal set that are resting (so switching back finds buffers this size)
+          for (const pc of new Set(P.concat([hat1, hat2], CYM0))) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
         }
         const kt = Pm.kit | 0;
         if (kt !== kit) { kit = kt; configure(kt); }
         const hw = (Pm.hat_model | 0) === 1 ? hat2 : hat1;
         if (P[HAT] !== hw) { P[HAT].silence(); hw.silence(); hw.tm = -1; P[HAT] = hw; }
+        const cm = Pm.cym_model | 0;
+        if (cm !== cmOn) {
+          // another cymbal model: what was ringing stops, the new set takes the pieces
+          for (let k = 0; k < 5; k++) {
+            const o = MET[cmOn][k];
+            if (cmOn) o.clear(); else { o.bank.clear(); o.I.fill(0); o.Bw.fill(0); o.T = 0; o.pulse.n = 0; o.nev = 0; o.on = false; o.grabAt = -1; }
+            P[CRASH1 + k] = MET[cm][k]; P[CRASH1 + k].lvl = -1;
+          }
+          cmOn = cm;
+        }
         const K = KITS[kit];
         // ---- per-block params: each piece's tuning and ring
         const tg = Math.pow(2, Pm.tune / 12), dg = Pm.decay;
@@ -1217,7 +1242,9 @@ return {
         let any = false, symp = false;
         const kitG = K.gain;
         for (let oi = 0; oi < NP; oi++) {
-          const p = ORDER[oi], pc = P[p], g1 = dbx(Pm[LKEY[p]]) * GAIN[p] * kitG;
+          const p = ORDER[oi], pc = P[p];
+          let g1 = dbx(Pm[LKEY[p]]) * GAIN[p] * kitG;
+          if (cmOn && p >= CRASH1 && p <= SPLASH) g1 *= MTRIM[cmOn - 1][kit][p - CRASH1];
           // (a piece that wakes starts at its level: no fade-in on the first stroke)
           if (!pc.on && !pc.nev && !(p === SNARE && symp)) { pc.lvl = g1; continue; }
           if (p === SNARE) pc.render(n, symp ? SY : null); else pc.render(n);
@@ -1226,16 +1253,16 @@ return {
           any = true;
           const g0 = pc.lvl < 0 ? g1 : pc.lvl, dg2 = (g1 - g0) / n;
           pc.lvl = g1;
-          const near = pc.near, far = pc.far, cl = CLOSE[p] ? 1 : 0, pl = clL[p], pr = clR[p];
+          const near = pc.near, far = pc.far, farR = pc.farR || far, cl = CLOSE[p] ? 1 : 0, pl = clL[p], pr = clR[p];   // (a model with a pair of its own: farR)
           const dOL = ohD[2 * p], dOR = ohD[2 * p + 1], iOL = Math.floor(dOL), iOR = Math.floor(dOR), fOL = dOL - iOL, fOR = dOR - iOR, gOL = ohG[2 * p], gOR = ohG[2 * p + 1];
           const iML = rmD[2 * p], iMR = rmD[2 * p + 1], gML = rmG[2 * p], gMR = rmG[2 * p + 1], iX = crD[p], gXp = crG[p], iB = blD[p], gBL = blL[p], gBR = blR[p];
           let g = g0;
           for (let i = 0; i < n; i++) {
             g += dg2;
-            const x = near[i] * g, y = far[i] * g, wi = wp + i;
+            const x = near[i] * g, y = far[i] * g, yr = farR[i] * g, wi = wp + i;
             if (cl) { const xs = HRC * sat(x * iHRC); CL[i] += xs * pl; CR[i] += xs * pr; }
             let j = (wi + iOL) & RM; oL[j] += y * gOL * (1 - fOL); oL[(j + 1) & RM] += y * gOL * fOL;
-            j = (wi + iOR) & RM; oR[j] += y * gOR * (1 - fOR); oR[(j + 1) & RM] += y * gOR * fOR;
+            j = (wi + iOR) & RM; oR[j] += yr * gOR * (1 - fOR); oR[(j + 1) & RM] += yr * gOR * fOR;
             if (roomOn) { mL[(wi + iML) & RM] += y * gML; mR[(wi + iMR) & RM] += y * gMR; }
             if (crushOn) cR[(wi + iX) & RM] += y * gXp;
             bL[(wi + iB) & RM] += y * gBL; bR[(wi + iB) & RM] += y * gBR;

@@ -22,6 +22,7 @@
 //              brass partials and noise, not six squares).
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
+import { metalSource } from './metal.js';
 
 export default defineDevice({
   id: 'core.drums', name: 'Gobo Kit', kind: 'instrument', cat: 'drums', by: 'overdub',
@@ -36,6 +37,7 @@ export default defineDevice({
     { key: 'width', label: 'WIDTH', min: 0, max: 1, def: 0.6, role: 'width', desc: 'how far the hats, toms and cymbals spread' },
     { key: 'room', label: 'ROOM', min: 0, max: 1, def: 0.3, role: 'mix', desc: 'the room around the kit: dry booth to big live room' },
     { key: 'hat_model', label: 'HATS', opts: ['ORIGINAL', 'PLATES', 'BANDS', 'SQUARES'], def: 0, role: 'shape', desc: "the hi-hat's model: each kit's original, two struck plates, banded noise, or six squares with a body (a note's mod opens the hats on all but the original)" },
+    { key: 'cym_model', label: 'CYMBALS', opts: ['CLASSIC', 'FDN', 'MODAL'], def: 0, role: 'shape', desc: "the crashes, ride, bell, china and splash: CLASSIC is the kit's own; FDN and MODAL are new models built against real cymbals (808 keeps its own)" },
   ],
   presets: [
     { name: 'Studio kit', params: {} },
@@ -46,7 +48,7 @@ export default defineDevice({
   ],
   look: { color: '#33302b', ink: '#f1dc8a', shape: 'wide', finish: 'sparkle', knob: 'chrome', label: 'block', led: '#ffb347' },
   tail: 4,
-  kernel: kernel(String.raw`
+  kernel: kernel(metalSource() + String.raw`
 // piece types
 const KICK = 0, SNARE = 1, CLAP = 2, RIM = 3, HAT = 4, TOM = 5, CYM = 6, COW = 7, SHAKE = 8, TAMB = 9;
 // membrane modes of an ideal circular drum head (Bessel zeros), relative to the fundamental
@@ -94,6 +96,8 @@ const HXP = {
   // and the foot -5 LU against a closed stroke
   hOpen: 1, lvl: [0.275, 0.458, 0.716], go: [0.726, 0.653, 0.684], gp: [1.72, 0.616, 0.656] };
 LEVEL[XHP] = HXP.lvl[0]; LEVEL[XHB] = HXP.lvl[1]; LEVEL[XHS] = HXP.lvl[2];
+// cym_model 1 (FDN), 2 (MODAL): each kind's level (crash, ride, china, splash), matched to the CLASSIC cymbals' loudness
+const MTRIM = [[0.376, 0.462, 0.505, 0.747], [0.82, 0.389, 1.02, 1.16]];
 // lib's svf() and onepole(), op for op, as classes: one shared tick() a call site can inline, where lib's closures are a
 // fresh function per voice (so every voice's filters would be a different callee to the same line)
 class SV {
@@ -248,6 +252,16 @@ return {
       }
     }
     const voices = [];
+    // cym_model 1 (FDN) and 2 (MODAL): one model per cymbal, kept between strokes, run in process() (metal.js). A
+    // cymbal note's voice is then only a probe that times the stroke (the frames it renders before process() runs give
+    // its offset in the block). Their own seeds: nothing the CLASSIC kit draws moves.
+    // [crash 1, crash 2, ride (bow, bell, edge), china, splash]: [kind, size ("), t60 (s), bright, pan note]
+    const MKIT = [[0, 17, 3.6, 1, 49], [0, 18.5, 4.0, 0.95, 57], [1, 20, 5.5, 1, 51], [2, 18, 2.5, 1, 52], [3, 10, 1.3, 1, 55]];
+    const MET = [null, [], []], MDL = [], MDR = [];
+    for (let e = 1; e <= 2; e++) for (let k = 0; k < 5; k++) { const m = new Metal(sr, (seed ^ (0x3e7a1 + 977 * k + 7919 * e)) >>> 0, MKIT[k][0], e); m.configure([MKIT[k][1], 0, MKIT[k][2], MKIT[k][3]]); MET[e].push(m); }
+    for (let k = 0; k < 5; k++) { MDL.push(new MSV(sr).set(9000, 0.6)); MDR.push(new MSV(sr).set(9000, 0.6)); }
+    const mpend = []; for (let i = 0; i < 64; i++) mpend.push({ p: 0, v: 0, probe: null });
+    let nMp = 0, metOn = 0;
     return {
       voice() {
         // state, preallocated
@@ -267,6 +281,7 @@ return {
         const NS = new Uint32Array(1);   // the hit's noise (rnd)
         let pitchN = 36;
         let tone = 0, xa = 0.1, xb = 0.1, xk = 1, x2 = 0, acc = 1;
+        let probe = 0, pfr = 0;   // cym_model > 0: this cymbal note is a probe (1 counting its frames, 2 done)
         // the appended kits' voices: set-up (kits 3-5; the first three never reach here)
         function setupX(p) {
           const tt = (tone + 1) / 2;
@@ -900,11 +915,16 @@ return {
               for (let k = 0; k < 4; k++) { const f = (6200 + 900 * k + r() * 300) * tn, w = TAU * Math.min(f, sr * 0.45) / sr, rr = coef(0.18 * dec, sr); c1[k] = 2 * rr * Math.cos(w); c2[k] = rr * rr; y1[k] = 0; y2[k] = 0; amp[k] = 0.25; }
               len = 0.6 * dec * sr;
             } else if (type >= K8) setupX(p);
+            probe = 0;
+            if (type === CYM && (P.cym_model | 0) > 0 && nMp < 64) { probe = 1; pfr = 0; const h = mpend[nMp++]; h.p = p; h.v = v; h.probe = me; }
           },
+          get pfr() { return pfr; },
+          done() { probe = 2; },
           release() {},
           stop() { gone = true; },
           render(L, R, n, P, tx) {
             if (gone) return false;
+            if (probe) { if (probe === 1) { pfr += n; return true; } return false; }
             if (stereo) {
               // a hat model's openness: the note's mod (or the wheel), while it plays; else the note's own
               const hm = !pedal && tx && tx.mod > 0.02 ? Math.min(1, tx.mod) : hD;
@@ -971,6 +991,43 @@ return {
       // the bus: the room, a tilt around 1 kHz, the drive, and (DUST) the old sampler
       process(L, R, n, P) {
         const kit = P.kit | 0;
+        // the new cymbals (cym_model 1, 2), into the kit before the bus
+        const cm = kit === 3 ? 0 : P.cym_model | 0;
+        if (cm !== metOn) { if (metOn) for (const m of MET[metOn]) m.clear(); metOn = cm; }
+        if (cm) {
+          const set = MET[cm], tm = Math.pow(2, P.tune / 12) * (kit === 1 ? 1.1 : 1), dm = P.decay;
+          for (let k = 0; k < 5; k++) set[k].params(tm, dm);
+          for (let h = 0; h < nMp; h++) {
+            const e = mpend[h], pr = e.probe, p = e.p, at = clamp(n - pr.pfr, 0, n - 1), vel = e.v;
+            pr.done();
+            const k = p === 49 ? 0 : p === 57 ? 1 : p === 52 ? 3 : p === 55 ? 4 : 2, m = set[k];
+            if (m.nev >= m.ev.length) continue;
+            let j = m.nev++;
+            while (j > 0 && m.ev[j - 1].at > at) { const t = m.ev[j]; m.ev[j] = m.ev[j - 1]; m.ev[j - 1] = t; j--; }
+            const ev = m.ev[j];
+            // force from velocity (Studio A's law, so brightness follows it the same way), the rest of Gobo's level law
+            // (vel^1.4) as the stroke's amplitude; the contact shortens as it hits harder
+            ev.at = at; ev.art = p === 53 ? 1 : p === 59 ? 2 : 0; ev.F = Math.pow(clamp(vel, 0.01, 1), 1.15); ev.w = Math.pow(clamp(vel, 0.01, 1), 0.25);
+            ev.r = 0.3; ev.tc = 0.15 + 0.45 * Math.pow(1 - clamp(vel, 0, 1), 1.3);
+          }
+          const pw = P.width, side = clamp(pw / 0.6, 0, 1.4);
+          for (let k = 0; k < 5; k++) {
+            const m = set[k];
+            if (!m.on && !m.nev) continue;
+            m.render(n);
+            const a = (clamp((PAN[MKIT[k][4]] || 0) * pw, -1, 1) + 1) * Math.PI / 4, g = LEVEL[CYM] * MTRIM[cm - 1][MKIT[k][0]];
+            const gl = Math.cos(a) * Math.SQRT2 * g, gr = Math.sin(a) * Math.SQRT2 * g, fl = m.far, fr = m.farR, dl = MDL[k], dr = MDR[k];
+            for (let i = 0; i < n; i++) {
+              let l = fl[i], r = fr[i];
+              const mm = 0.5 * (l + r), ss = 0.5 * (l - r) * side;
+              l = mm + ss; r = mm - ss;
+              if (kit === 2) { l = dl.tick(l); r = dr.tick(r); }   // DUST: the old sampler's top end
+              L[i] += l * gl; R[i] += r * gr;
+            }
+          }
+        }
+        for (let h = 0; h < nMp; h++) mpend[h].probe.done();
+        nMp = 0;
         tl.shelfLo(900, 0.6, -P.tone * 4); tr.shelfLo(900, 0.6, -P.tone * 4);
         hl.shelfHi(2500, 0.6, P.tone * 5 - (kit === 2 ? 4 : 0)); hr.shelfHi(2500, 0.6, P.tone * 5 - (kit === 2 ? 4 : 0));
         const dg = 1 + P.drive * P.drive * 9 + (kit === 2 ? 1.2 : 0), comp = Math.pow(dg, -0.55), OUT = 0.48;

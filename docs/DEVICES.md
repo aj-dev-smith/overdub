@@ -277,6 +277,12 @@ track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 
+**Cymbal models.** Both kits take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
+built in `app/src/devices/builtin/metal.js` and measured against real cymbal recordings. Each cymbal is one model that
+keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its `process()`, with its cymbal voices as
+probes (below). Gobo's 808 keeps its own.
+
 **The note map.** Both kits play General MIDI. Studio A plays these articulations GM has no note for:
 
 | notes | piece | what they play |
@@ -332,7 +338,8 @@ is the same layout `drumroom.js` builds the mics from, so the picture and the st
 
 **Studio A's params.**
 
-- The kit: `kit` (MAPLE BIRCH JAZZ ARENA DEAD), `tune`, `decay`, `humanize`, and `velocity` (the velocity curve).
+- The kit: `kit` (MAPLE BIRCH JAZZ ARENA DEAD), `tune`, `decay`, `humanize`, `velocity` (the velocity curve), and
+  `cym_model` (CLASSIC FDN MODAL).
 - The mic mix: `mix_close`, `mix_oh`, `mix_room`, `mix_crush` (dB faders, -40 off), `bleed`, `room_size`, and `view`
   (DRUMMER or AUDIENCE).
 - Each piece's `<piece>_tune`, `<piece>_decay` and `<piece>_level` for kick, snare, hat, tom1-tom4, ride, crash1,

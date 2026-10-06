@@ -327,6 +327,11 @@ a hat note's <code>mod</code> (0..1) sets how open the hats are, and moves them 
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
 </ul>
+<p><strong>Cymbal models.</strong> Both kits take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
+built in <code>app/src/devices/builtin/metal.js</code> and measured against real cymbal recordings. Each cymbal is one model that
+keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its <code>process()</code>, with its cymbal voices as
+probes (below). Gobo's 808 keeps its own.</p>
 <p><strong>The note map.</strong> Both kits play General MIDI. Studio A plays these articulations GM has no note for:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>notes</th><th>piece</th><th>what they play</th></tr></thead>
@@ -376,7 +381,8 @@ the bottom, the mic mix is laid out as channel strips.</li>
 </ul>
 <p><strong>Studio A's params.</strong></p>
 <ul>
-<li>The kit: <code>kit</code> (MAPLE BIRCH JAZZ ARENA DEAD), <code>tune</code>, <code>decay</code>, <code>humanize</code>, and <code>velocity</code> (the velocity curve).</li>
+<li>The kit: <code>kit</code> (MAPLE BIRCH JAZZ ARENA DEAD), <code>tune</code>, <code>decay</code>, <code>humanize</code>, <code>velocity</code> (the velocity curve), and
+<code>cym_model</code> (CLASSIC FDN MODAL).</li>
 <li>The mic mix: <code>mix_close</code>, <code>mix_oh</code>, <code>mix_room</code>, <code>mix_crush</code> (dB faders, -40 off), <code>bleed</code>, <code>room_size</code>, and <code>view</code>
 (DRUMMER or AUDIENCE).</li>
 <li>Each piece's <code>&lt;piece&gt;_tune</code>, <code>&lt;piece&gt;_decay</code> and <code>&lt;piece&gt;_level</code> for kick, snare, hat, tom1-tom4, ride, crash1,
