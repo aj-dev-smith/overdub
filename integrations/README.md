@@ -33,7 +33,7 @@ Requirements for the local route: a clone of this repo and Node 22 or later. The
 server has no dependencies.
 
 ```sh
-git clone https://github.com/aj-dev-smith/overdub.git ~/Code/overdub
+git clone https://github.com/overdubstudio/overdub.git ~/Code/overdub
 ```
 
 ## Claude Code
@@ -46,11 +46,11 @@ write a part, offer takes, build a device, check the mix, and turn a hum into a 
 From GitHub, inside Claude Code:
 
 ```text
-/plugin marketplace add aj-dev-smith/overdub
+/plugin marketplace add overdubstudio/overdub
 /plugin install overdub@overdub
 ```
 
-Or from your shell: `claude plugin marketplace add aj-dev-smith/overdub` then `claude plugin install overdub@overdub`.
+Or from your shell: `claude plugin marketplace add overdubstudio/overdub` then `claude plugin install overdub@overdub`.
 Claude Code copies the repo into its plugin cache and runs the server from there, so you don't need a separate clone.
 
 From a clone you're working on, so your edits apply on the next session or `/reload-plugins`:
@@ -208,7 +208,7 @@ If you already run `node server/serve.js` yourself, the MCP server uses that ser
 ## For maintainers
 
 **The marketplace file lives at the repo root**, `<repo>/.claude-plugin/marketplace.json`, because that is the only
-place Claude Code looks for one (`/plugin marketplace add aj-dev-smith/overdub`). It was staged under
+place Claude Code looks for one (`/plugin marketplace add overdubstudio/overdub`). It was staged under
 `integrations/repo-root/` at first and has since moved; `check.js` still finds it in either place.
 
 Why the plugin's source is the repo root and not `integrations/claude-code`: an installed plugin is copied into

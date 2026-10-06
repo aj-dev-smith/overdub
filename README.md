@@ -11,7 +11,7 @@ Live at **[overdubstudio.com](https://overdubstudio.com)** (the studio is at
 To run your own copy:
 
 ```sh
-git clone https://github.com/aj-dev-smith/overdub.git && cd overdub
+git clone https://github.com/overdubstudio/overdub.git && cd overdub
 node server/serve.js      # then open http://localhost:3279/ (the pitch) or http://localhost:3279/app/ (the studio)
 ```
 

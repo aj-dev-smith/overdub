@@ -463,9 +463,9 @@ undoable on its own. On Team and Enterprise plans an Owner may have to allow cus
 <h2 id="bring-claude-code"><a class="h-link" href="#bring-claude-code">Bring Claude Code</a></h2>
 <p>Claude Code (or any agent that speaks MCP) can drive the studio too, with the same tools as the agent in the page.
 It needs a copy of the studio running on your own computer: the public site can't be driven from outside. Clone
-<a href="https://github.com/aj-dev-smith/overdub">https://github.com/aj-dev-smith/overdub</a>, or install the plugin, which fetches it for you.</p>
+<a href="https://github.com/overdubstudio/overdub">https://github.com/overdubstudio/overdub</a>, or install the plugin, which fetches it for you.</p>
 <p>The plugin brings the server and a skill that teaches Claude the room's rules. Inside Claude Code:</p>
-<div class="code" data-lang="text"><pre><code>/plugin marketplace add aj-dev-smith/overdub
+<div class="code" data-lang="text"><pre><code>/plugin marketplace add overdubstudio/overdub
 /plugin install overdub@overdub</code></pre></div>
 <p>Or, from a clone, add the server alone:</p>
 <div class="code" data-lang="sh"><pre><code>claude mcp add overdub -- node &lt;repo&gt;/server/mcp.js</code></pre></div>

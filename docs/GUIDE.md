@@ -411,12 +411,12 @@ undoable on its own. On Team and Enterprise plans an Owner may have to allow cus
 
 Claude Code (or any agent that speaks MCP) can drive the studio too, with the same tools as the agent in the page.
 It needs a copy of the studio running on your own computer: the public site can't be driven from outside. Clone
-<https://github.com/aj-dev-smith/overdub>, or install the plugin, which fetches it for you.
+<https://github.com/overdubstudio/overdub>, or install the plugin, which fetches it for you.
 
 The plugin brings the server and a skill that teaches Claude the room's rules. Inside Claude Code:
 
 ```text
-/plugin marketplace add aj-dev-smith/overdub
+/plugin marketplace add overdubstudio/overdub
 /plugin install overdub@overdub
 ```
 

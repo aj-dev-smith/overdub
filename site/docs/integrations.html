@@ -89,15 +89,15 @@ separate. To move a song across, save the song file (âŒ˜S) on one and open it (â
 in the browser they were made in.</p>
 <p>Requirements for the local route: a clone of this repo and Node 22 or later. There is nothing to <code>npm install</code>; the
 server has no dependencies.</p>
-<div class="code" data-lang="sh"><pre><code>git clone https://github.com/aj-dev-smith/overdub.git ~/Code/overdub</code></pre></div>
+<div class="code" data-lang="sh"><pre><code>git clone https://github.com/overdubstudio/overdub.git ~/Code/overdub</code></pre></div>
 <h2 id="claude-code"><a class="h-link" href="#claude-code">Claude Code</a></h2>
 <h3 id="option-a-the-plugin-recommended"><a class="h-link" href="#option-a-the-plugin-recommended">Option A: the plugin (recommended)</a></h3>
 <p>The plugin bundles the MCP server and the <code>overdub</code> skill, which teaches Claude the room's rules and five recipes:
 write a part, offer takes, build a device, check the mix, and turn a hum into a part.</p>
 <p>From GitHub, inside Claude Code:</p>
-<div class="code" data-lang="text"><pre><code>/plugin marketplace add aj-dev-smith/overdub
+<div class="code" data-lang="text"><pre><code>/plugin marketplace add overdubstudio/overdub
 /plugin install overdub@overdub</code></pre></div>
-<p>Or from your shell: <code>claude plugin marketplace add aj-dev-smith/overdub</code> then <code>claude plugin install overdub@overdub</code>.
+<p>Or from your shell: <code>claude plugin marketplace add overdubstudio/overdub</code> then <code>claude plugin install overdub@overdub</code>.
 Claude Code copies the repo into its plugin cache and runs the server from there, so you don't need a separate clone.</p>
 <p>From a clone you're working on, so your edits apply on the next session or <code>/reload-plugins</code>:</p>
 <div class="code" data-lang="sh"><pre><code>claude plugin marketplace add ~/Code/overdub          <span class="c"># loads the plugin in place from the clone</span>
@@ -209,7 +209,7 @@ ask, unless you allow them.</li>
 </ul>
 <h2 id="for-maintainers"><a class="h-link" href="#for-maintainers">For maintainers</a></h2>
 <p><strong>The marketplace file lives at the repo root</strong>, <code>&lt;repo&gt;/.claude-plugin/marketplace.json</code>, because that is the only
-place Claude Code looks for one (<code>/plugin marketplace add aj-dev-smith/overdub</code>). It was staged under
+place Claude Code looks for one (<code>/plugin marketplace add overdubstudio/overdub</code>). It was staged under
 <code>integrations/repo-root/</code> at first and has since moved; <code>check.js</code> still finds it in either place.</p>
 <p>Why the plugin's source is the repo root and not <code>integrations/claude-code</code>: an installed plugin is copied into
 Claude Code's cache, and only the plugin's own directory is copied. A plugin rooted at <code>integrations/claude-code</code>
