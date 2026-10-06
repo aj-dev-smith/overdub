@@ -4,7 +4,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -113,7 +113,7 @@ async function loadExtras() {
   for (const f of ['bridge.js', 'local-claude.js']) {
     const abs = path.join(path.dirname(fileURLToPath(import.meta.url)), f);
     if (fs.existsSync(abs)) {
-      try { const m = await import(abs); if (m.register) m.register({ addRoute }); } catch (e) { console.error('overdub: could not load', f, e); }
+      try { const m = await import(pathToFileURL(abs).href); if (m.register) m.register({ addRoute }); } catch (e) { console.error('overdub: could not load', f, e); }
     }
   }
 }
