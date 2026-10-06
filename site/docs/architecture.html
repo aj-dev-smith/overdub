@@ -152,7 +152,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
   tools/                 pw.js (browser harness, fixed), &lt;area&gt;-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
-  deploy/                setup.sh (one time), deploy.sh (ships the committed tree), relay/, analytics/
+  deploy/                setup.sh (one time), deploy.sh (ships the committed tree; --next REF ships it to the preview,
+                         next.overdubstudio.com, set up once by next/setup.sh), relay/, analytics/; README.md
   docs/                  ARCHITECTURE.md (this), DEVICES.md, AGENTS.md, GUIDE.md, BENCH.md, REMOTE-MCP.md, BRAND.md,
                          VISION.md, UX-RESEARCH.md, SECURITY.md, research/</code></pre></div>
 <p>Only touch files your area owns. If you need something from another area that doesn't exist yet, code against the
@@ -1392,8 +1393,8 @@ of this version trusts the kept songs' devices, once), decodes a share link if t
 shell, then starts each module in <code>MODULES</code> (each <code>export default function (app)</code>) in order; one failing never stops
 the rest. Audio starts on the first gesture. URL switches: <code>?new</code>, <code>?demo=&lt;id&gt;</code>, <code>?device=&lt;id&gt;</code>, <code>?agent=mock</code>,
 <code>?coach</code>, <code>?autostart</code>, <code>#s=…</code>.</p>
-<p>The app object (<code>window.overdub</code>): <code>{ store, engine, ui, devices, music, summarize, version, opened, trust, agent, tools, input, presence, bridge, remote, share, onboard, devicesIO, importers, reference, band, provenance, exporter, analytics, plugin, jam }</code> plus the panels that publish an API (<code>arranger</code>, <code>pianoroll</code>, <code>drumgrid</code>, <code>rack</code>, <code>mixer</code>,
-<code>browser</code>, <code>transport</code>).</p>
+<p>The app object (<code>window.overdub</code>): <code>{ store, engine, ui, devices, music, summarize, version, opened, trust, agent, tools, input, presence, bridge, remote, share, onboard, devicesIO, importers, reference, band, provenance, exporter, analytics, plugin, jam, site }</code> plus the panels that publish an API (<code>arranger</code>, <code>pianoroll</code>, <code>drumgrid</code>, <code>rack</code>, <code>mixer</code>,
+<code>browser</code>, <code>transport</code>). <code>app.site</code> is which site this is (<code>ui/preview.js</code> reads <code>app/site-config.json</code>; deploy/README.md).</p>
 <h2 id="testing"><a class="h-link" href="#testing">Testing</a></h2>
 <p><code>tools/pw.js</code> opens the studio in Chromium (WebKit and Firefox too, for <code>compat-test</code> and <code>phone-test</code>) on its own
 server on a free port (<code>open('/app/')</code>), with fake media and autoplay allowed, so suites run in parallel. Each area

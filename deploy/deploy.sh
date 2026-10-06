@@ -1,14 +1,44 @@
 #!/usr/bin/env bash
 # Deploy Overdub to https://overdubstudio.com (the bucket keeps its first name): the landing page (site/), the studio (app/) and the public docs.
 # Text files revalidate every time (no-cache + ETag, so a deploy is live at once); media caches for a day.
-# Run deploy/setup.sh once first. Usage: deploy/deploy.sh [--skip-tests]
+# Run deploy/setup.sh once first. Usage:
+#   deploy/deploy.sh [--skip-tests]                  the live site, from REF (default HEAD)
+#   deploy/deploy.sh [--skip-tests] --next [REF]     the preview, https://next.overdubstudio.com (deploy/next/setup.sh
+#                                                    once first), from REF (default HEAD): any committed ref; one
+#                                                    older than the ribbon (app/src/ui/preview.js) ships without it
+#   DRY_RUN=1 deploy/deploy.sh ...                   stage the files and print the plan; no AWS calls
+# app/site-config.json, the deploy's switches, is never committed: this script is its one writer, for both sites. It
+# starts from deploy/site-config.json (gitignored; SITE_CONFIG=<file> reads another), else {}. The preview's copy adds
+# "env": "preview", "preview": true and the commit, so the studio wears the Preview ribbon (app/src/ui/preview.js); every
+# other key is kept as it is. With no "preview" key a studio is the live site.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BUCKET=overdub.ajsmithhq.com
-DIST=$(cat "$ROOT/deploy/.distribution-id")
+TARGET=live TESTS=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --skip-tests) TESTS= ;;
+    --next) TARGET=next; if [ $# -gt 1 ] && [ "${2#--}" = "$2" ]; then REF=$2; shift; fi ;;
+    *) echo "deploy.sh: unknown argument $1 (usage: deploy/deploy.sh [--skip-tests] [--next [REF]])"; exit 2 ;;
+  esac
+  shift
+done
+DRY=${DRY_RUN:-}
+if [ "$TARGET" = next ]; then
+  BUCKET=next.overdubstudio.com HOST=next.overdubstudio.com IDFILE="$ROOT/deploy/.next-distribution-id" SETUP=deploy/next/setup.sh
+else
+  BUCKET=overdub.ajsmithhq.com HOST=overdubstudio.com IDFILE="$ROOT/deploy/.distribution-id" SETUP=deploy/setup.sh
+fi
+if [ -n "$DRY" ]; then DIST=EDRYRUN
+elif [ -f "$IDFILE" ]; then DIST=$(cat "$IDFILE")
+else
+  DIST=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items && contains(Aliases.Items, '$HOST')].Id | [0]" --output text)
+  [ "$DIST" != "None" ] && [ -n "$DIST" ] || { echo "no CloudFront distribution for $HOST: run $SETUP"; exit 1; }
+fi
+# a change: run it, or in a dry run print it
+x() { if [ -z "$DRY" ]; then "$@"; else echo "+ $*"; fi; }
 cd "$ROOT"
 
-if [ "${1:-}" != "--skip-tests" ]; then
+if [ -n "$TESTS" ]; then
   node tools/core-test.js | tail -1
 fi
 
@@ -21,12 +51,21 @@ for f in AGENTS ARCHITECTURE DEVICES UX-RESEARCH VISION BRAND REMOTE-MCP GUIDE B
   git cat-file -e "$REF:docs/$f.md" 2>/dev/null && DOCS="$DOCS docs/$f.md"
 done
 git archive "$REF" site app $DOCS | tar -x -C "$STAGE"
-# The deploy's switches (app/src/site-config.js), never committed: deploy/site-config.json when there is one, else {}
-# (the hosted agent off). The studio reads it once per load.
-if [ -f "$ROOT/deploy/site-config.json" ]; then cp "$ROOT/deploy/site-config.json" "$STAGE/app/site-config.json"; else echo '{}' > "$STAGE/app/site-config.json"; fi
-echo "staging $(git rev-parse --short "$REF"): $(find "$STAGE" -type f | wc -l | tr -d ' ') files"
+SHORT=$(git rev-parse --short "$REF^{commit}")
+# The deploy's switches (app/src/ui/preview.js reads env, preview and ref; other modules may read other keys), never
+# committed: deploy/site-config.json when there is one, else {}. The preview's copy adds its three keys and keeps the rest.
+SITE_CONFIG=${SITE_CONFIG:-$ROOT/deploy/site-config.json}
+if [ -f "$SITE_CONFIG" ]; then cp "$SITE_CONFIG" "$STAGE/app/site-config.json"; else echo '{}' > "$STAGE/app/site-config.json"; fi
+if [ "$TARGET" = next ]; then
+  node -e 'const fs = require("fs"), [file, ref] = process.argv.slice(1);
+    const c = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!c || typeof c !== "object" || Array.isArray(c)) throw new Error(file + " is not a JSON object");
+    fs.writeFileSync(file, JSON.stringify({ ...c, env: "preview", preview: true, ref }, null, 2) + "\n");' "$STAGE/app/site-config.json" "$SHORT"
+fi
+echo "$TARGET: $SHORT ($REF): $(find "$STAGE" -type f | wc -l | tr -d ' ') files -> s3://$BUCKET, distribution $DIST"
+echo "app/site-config.json: $(tr -d '\n ' < "$STAGE/app/site-config.json")"
 
-up() { aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --exclude '*' "$@"; }
+up() { x aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --exclude '*' "$@"; }
 TEXT='no-cache'
 MEDIA='public, max-age=86400'
 up --include '*.html' --content-type 'text/html; charset=utf-8' --cache-control "$TEXT"
@@ -44,8 +83,13 @@ up --include '*.mp4' --content-type 'video/mp4' --cache-control "$MEDIA"
 up --include '*.woff2' --content-type 'font/woff2' --cache-control "$MEDIA"
 up --include '*.wav' --content-type 'audio/wav' --cache-control "$MEDIA"
 # anything else, and remove what's gone
-aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --delete
+x aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --delete
 
-ID=$(aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*' --query Invalidation.Id --output text)
-echo "deployed $(find "$STAGE" -type f | wc -l | tr -d ' ') files to s3://$BUCKET; invalidation $ID"
-echo "https://$BUCKET/  ·  https://$BUCKET/app/"
+if [ -n "$DRY" ]; then
+  x aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*'
+  echo "dry run: nothing sent"
+else
+  ID=$(aws cloudfront create-invalidation --distribution-id "$DIST" --paths '/*' --query Invalidation.Id --output text)
+  echo "deployed $(find "$STAGE" -type f | wc -l | tr -d ' ') files to s3://$BUCKET; invalidation $ID"
+fi
+echo "https://$HOST/  ·  https://$HOST/app/"

@@ -92,7 +92,8 @@ overdub/
                          on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
   tools/                 pw.js (browser harness, fixed), <area>-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
-  deploy/                setup.sh (one time), deploy.sh (ships the committed tree), relay/, analytics/
+  deploy/                setup.sh (one time), deploy.sh (ships the committed tree; --next REF ships it to the preview,
+                         next.overdubstudio.com, set up once by next/setup.sh), relay/, analytics/; README.md
   docs/                  ARCHITECTURE.md (this), DEVICES.md, AGENTS.md, GUIDE.md, BENCH.md, REMOTE-MCP.md, BRAND.md,
                          VISION.md, UX-RESEARCH.md, SECURITY.md, research/
 ```
@@ -1474,8 +1475,8 @@ the rest. Audio starts on the first gesture. URL switches: `?new`, `?demo=<id>`,
 
 The app object (`window.overdub`): `{ store, engine, ui, devices, music, summarize, version, opened, trust, agent,
 tools, input, presence, bridge, remote, share, onboard, devicesIO, importers, reference, band, provenance, exporter,
-analytics, plugin, jam }` plus the panels that publish an API (`arranger`, `pianoroll`, `drumgrid`, `rack`, `mixer`,
-`browser`, `transport`).
+analytics, plugin, jam, site }` plus the panels that publish an API (`arranger`, `pianoroll`, `drumgrid`, `rack`, `mixer`,
+`browser`, `transport`). `app.site` is which site this is (`ui/preview.js` reads `app/site-config.json`; deploy/README.md).
 
 ## Testing
 

@@ -12,6 +12,9 @@ tools/.out/
 deploy/.env
 deploy/.distribution-id
 
-# The deploy's switches (app/src/site-config.js): the hosted agent's origin, never committed
+# The preview site's distribution id (deploy/next/setup.sh writes it)
+deploy/.next-distribution-id
+
+# The deploy's switches (deploy/deploy.sh writes app/site-config.json from deploy/site-config.json, else {}), never committed
 app/site-config.json
 deploy/site-config.json

@@ -18,6 +18,7 @@ node tools/docs-build.js             # rebuild site/docs/ after editing GUIDE, A
                                      # ARCHITECTURE or integrations/README.md (pages-test fails on a stale page)
 node tools/render.js song.json --hash   # the canonical render
 deploy/deploy.sh                     # ships the committed tree (git archive, never the working tree) to the live site
+deploy/deploy.sh --next [REF]        # ships a committed ref to the preview, next.overdubstudio.com (deploy/README.md)
 ```
 
 The browser checks use `tools/pw.js` (playwright-core + a cached Chromium; override with `PLAYWRIGHT_CORE`,
