@@ -22,6 +22,25 @@ import { holdToMove } from './touch.js';
 // core/automation.js's: a gain lane is drawn and played on the same travel, so a line on it is a hand on the fader.
 export { dbToPos, posToDb };
 const TICKS = [6, 0, -6, -12, -24, -48];
+// which marks a short fader keeps first: 0 dB, the floor, the middle, then the rest
+const TICK_RANK = [0, -48, -12, 6, -24, -6];
+// a touch screen's narrowest strip: M, S and ● in a row at 44 px each, 2 px apart, inside the strip's 6 px edges
+const STRIP_MIN = 3 * 44 + 2 * 2 + 2 * 6;
+// how much of the next strip shows when only one fits: its left edge and its M, up to its S
+const PEEK = 6 + 44 + 2;
+// a fader's scale shows a mark only where it clears its neighbours (the law packs −12 to −48 into the bottom third)
+function fitScale(s) {
+  if (!s.scale) return;
+  const span = s.scale.clientHeight - 14, marks = [...s.scale.children];
+  if (span <= 0) return;
+  const gap = (parseFloat(getComputedStyle(marks[0]).fontSize) || 9) + 3, kept = [];
+  for (const d of TICK_RANK) {
+    const y = dbToPos(d) * span, el = marks.find((m) => +m.dataset.db === d);
+    const ok = kept.every((k) => Math.abs(k - y) >= gap);
+    if (ok) kept.push(y);
+    if (el) el.hidden = !ok;
+  }
+}
 const panText = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
 const roundDb = (db) => (db <= -95.9 ? -96 : Math.round(db * 10) / 10);
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
@@ -49,6 +68,24 @@ export default function (app) {
       let loud = null; // the master loudness tap
 
       root.addEventListener('pointerdown', () => { ui.state.focus = 'mixer'; }, true);
+      // the strips' fit (a touch screen: whole strips beside the master, or one and the next one's edge where only one
+      // fits; the master over no strip's S or ●) and each fader's scale
+      // (only the marks that have room at this height), measured whenever the pane changes size
+      const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit()) : null;
+      if (ro) ro.observe(root);
+      function fit() {
+        if (!root.isConnected) return;
+        const ms = strips.get('master')?.el;
+        if (coarse() && ms) {
+          const cs = getComputedStyle(ms), mw = ms.offsetWidth + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
+          const box = lane.querySelector('.mx-strips'), pl = box ? parseFloat(getComputedStyle(box).paddingLeft) || 0 : 0;
+          // (room for one strip only, a 360 px phone: the next one shows its edge up to its M beside it, so the mixer
+          // reads as a row to swipe, not one strip stretched across the screen; its S and ● stay clear of the master)
+          const room = root.clientWidth - mw - pl, n = Math.floor(room / STRIP_MIN);
+          root.style.setProperty('--mx-sw', `${n < 2 ? Math.max(STRIP_MIN, room - PEEK) : Math.floor(room / n)}px`);
+        } else root.style.removeProperty('--mx-sw');
+        for (const s of strips.values()) fitScale(s);
+      }
 
       const structure = () => store.get().tracks.map((t) => [t.id, t.name, t.color, t.kind, t.by, t.inserts.length, t.instrument?.device || ''].join(':')).join('|') + '|m' + store.get().master.inserts.length;
 
@@ -61,6 +98,7 @@ export default function (app) {
         lane.replaceChildren(h('div.mx-strips', kids), strip(null));
         update();
         presence();
+        fit();
       }
 
       function strip(t) {
@@ -90,7 +128,7 @@ export default function (app) {
           : h('div.mx-btns.mx-loud', { title: 'Momentary loudness: K-weighted over the last 400 ms, measured here in the browser (close to a loudness meter’s, not certified)' }, s.loudL = h('span', 'Loudness'), s.lufsEl = h('b.ew-mono', '—'), h('small', 'LUFS, momentary'));
         const cv = canvas('mx-meter');
         const thumb = h('div.mx-thumb', { role: 'slider', tabindex: 0, 'aria-label': `${t ? t.name : 'Master'} level`, 'aria-valuemin': -96, 'aria-valuemax': 6 }, h('i'));
-        const scale = h('div.mx-scale', TICKS.map((d) => h('span', { style: { bottom: `calc(7px + ${dbToPos(d)} * (100% - 14px))` } }, d > 0 ? '+' + d : String(d))));
+        const scale = h('div.mx-scale', { 'aria-hidden': 'true' }, TICKS.map((d) => h('span', { dataset: { db: d }, style: { bottom: `calc(7px + ${dbToPos(d)} * (100% - 14px))` } }, d > 0 ? '+' + d : String(d))));
         const track = h('div.mx-track', h('div.mx-groove'), scale, thumb);
         const peakEl = h('button.mx-peak.ew-mono', { title: 'Peak hold (click to reset)', onclick: () => { s.hold = -120; s.clip = false; s.maxPeak = -120; } }, '—');
         const out = h('button.mx-db.ew-mono', { title: 'Level in dB (click to type; double-click the fader: 0 dB)', onclick: () => typeDb(s) }, '');
@@ -100,7 +138,7 @@ export default function (app) {
         const fader = h('div.mx-fader', track, h('div.mx-mwrap', peakEl, cv.cv));
         s.el = h('div.mx-strip' + (t ? '' : '.mx-master'), { dataset: { track: id, author: ak }, style: { '--tc': color, '--ae': authorVar(ak) }, title: t ? `${t.name}, last shaped by ${authorName(app, t.by)}` : '' },
           head, fx, t ? h('div.mx-pan', pan, panOut, pMark) : null, btns, fader, h('div.mx-dbrow', out, gMark));
-        Object.assign(s, { thumb, track, cv, peakEl, out, pan, panOut, btns, gMark, pMark, name: t ? t.name : 'Master' });
+        Object.assign(s, { scale, thumb, track, cv, peakEl, out, pan, panOut, btns, gMark, pMark, name: t ? t.name : 'Master' });
         // a finger: a drag scrolls the strips, a hold picks the control up (a fader by its cap, so it never jumps)
         holdToMove(track, { name: 'fader', pick: () => thumb, scroller: root, heldClass: 'mx-held', hintKey: HOLD_HINT });
         if (pan) holdToMove(pan, { name: 'pan knob', scroller: root, heldClass: 'mx-held', hintKey: HOLD_HINT });
@@ -395,7 +433,7 @@ export default function (app) {
           if (mst?.loudL && mst.loudL.textContent !== lt) { mst.loudL.textContent = lt; mst.loudL.classList.toggle('mx-over', ov > 0); }
           follow();
         },
-        unmount() { offPres(); offSel(); },
+        unmount() { offPres(); offSel(); ro?.disconnect(); },
       };
     },
   });
@@ -461,10 +499,13 @@ const MIXER_CSS = `
 .mx-loud small { font-size: 9px; color: var(--text-3); }
 .mx-fader { flex: 1; min-height: 60px; display: grid; grid-template-columns: 1fr 12px; gap: 6px; }
 .mx-track { position: relative; cursor: ns-resize; touch-action: none; }
-.mx-groove { position: absolute; left: 30px; top: 19px; bottom: 7px; width: 4px; margin-left: -2px; border-radius: 3px; background: #13110e; box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(255,255,255,.05); }
-.mx-scale { position: absolute; left: 0; top: 12px; bottom: 0; width: 24px; pointer-events: none; }
-.mx-scale span { position: absolute; left: 0; transform: translateY(50%); font: 9px/1 var(--font-mono); color: var(--text-3); }
-.mx-thumb { position: absolute; left: 17px; width: 26px; height: 14px; border-radius: 3px; outline: none;
+.mx-groove { position: absolute; left: calc(var(--mx-sl) + 15px); top: 19px; bottom: 7px; width: 4px; margin-left: -2px; border-radius: 3px; background: #13110e; box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(255,255,255,.05); }
+/* the scale is a column of its own left of the cap (--mx-sl wide, the marks set flush right against the groove's side),
+   so a mark never sits under the cap; fitScale() keeps only the marks a short fader has room for */
+.mx-track { --mx-sl: 20px; }
+.mx-scale { position: absolute; left: 0; top: 12px; bottom: 0; width: var(--mx-sl); pointer-events: none; }
+.mx-scale span { position: absolute; right: 0; transform: translateY(50%); font: 9px/1 var(--font-mono); color: var(--text-3); white-space: nowrap; }
+.mx-thumb { position: absolute; left: calc(var(--mx-sl) + 2px); width: 26px; height: 14px; border-radius: 3px; outline: none;
   background: linear-gradient(180deg, #e1deda 0%, #b3afa9 45%, #85817b 55%, #c6c2bc 100%); box-shadow: 0 3px 6px rgba(0,0,0,.6), inset 0 1px 0 #fff8; }
 .mx-thumb i { position: absolute; left: 3px; right: 3px; top: 6px; height: 2px; background: var(--tc); border-radius: 1px; }
 .mx-thumb:focus-visible { box-shadow: 0 0 0 2px var(--accent-2), 0 3px 6px rgba(0,0,0,.6); }

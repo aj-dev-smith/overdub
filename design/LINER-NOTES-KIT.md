@@ -215,10 +215,10 @@ leader, the byline); the house line is plain `--ink-2`, unsigned.
 ## Patterns from the mockup
 
 - **Top bar**: lockup, the song title (display upright) with "played by Claude and you" under it, transport glyphs
-  (square, triangle in a leader-green button, ring in record red), the position as a big `.num` with the time in mono
-  beside it, spec-sheet labels (small pencil label over a value), the click lamps (beat squares, bar 1 wider, the
-  current beat cream), All off (`.btn.btn-rec`), the meter and LUFS in mono. Regions are separated by `--rule`
-  vertical hairlines, not boxes.
+  (back as a bar and a triangle, play's triangle in a leader-green button that is the only square while the song
+  plays, ring in record red), the position as a big `.num` with the time in mono beside it, spec-sheet labels (small
+  pencil label over a value), the click lamps (beat squares, bar 1 wider, the current beat cream), All off
+  (`.btn.btn-rec`), the meter and LUFS in mono. Regions are separated by `--rule` vertical hairlines, not boxes.
 - **Arranger**: a header column (track number `.num` 17 px pencil, the name, an 8 px swatch and the device name with
   "by Claude" when an agent built it, M S R as 19 px 2 px-corner keys), the ruler with section names in `.disp-s`
   and bar numbers in `.num`, clips as track-colour fills at 13% with a 42% outline and a label line. On phones the

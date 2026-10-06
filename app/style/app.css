@@ -242,13 +242,13 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
   .ew-pop .sm-i kbd { display: none; }       /* no keyboard to press them on */
 }
 /* Devices and the mixer on a phone: the chain still runs left to right (swipe along it), with bigger buttons;
-   the mixer's dB scale keeps three marks (0, −12, −48) so 12 px numbers don't collide. */
+   the mixer's dB scale is wider for its 12 px marks (ui/mixer.js keeps only the marks that clear each other). */
 @media (max-width: 900px) {
   .ew-shell .rk-track { height: 40px; }
   .ew-shell .rk-ib { width: 32px; height: 32px; }
   .ew-shell .rk-chip { height: 36px; padding: 0 12px; }
   .ew-shell .mx-b { height: 32px; }
-  .ew-shell .mx-scale span:nth-child(odd) { display: none; }
+  .ew-shell .mx-track { --mx-sl: 26px; }
 }
 /* Devices on a phone (ui/rack.js adds .rk-phone and sets --rk-bw, the board's width, and --rkz, each face's zoom): one
    device per page at the sheet's width, at the top of the board, snapping whole; the ‹ › sit in a row under it. The
@@ -328,8 +328,10 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
 }
 /* On a touch screen (a coarse pointer) the small keys a finger lands on are 44 px: the items of a clip's or a lane's
    menu, the Devices track picker's rows, a device's i, ⌄ and × keys, the mixer's M, S and ● and its pan knob (a strip
-   widens to hold them in a row, and the mixer scrolls down when the sheet is shorter than a strip), the Follow lamp,
-   and the welcome card's links. tools/phone-test.js measures each one. */
+   widens to hold them in a row, as many whole strips as fit beside the master and snapping whole, so the master never
+   sits over one's S or ●, and where only one fits the next shows its edge up to its M; the mixer scrolls down when the
+   sheet is shorter than a strip), the Follow lamp, and the welcome card's links. tools/phone-test.js measures each one
+   and that the master covers no strip's S or ●. */
 @media (pointer: coarse) {
   .ek-pop .ek-item { min-height: 44px; }
   .ek-pop .ek-sub, .ek-pop .ek-head, .ek-pop .ek-kbd { font-size: 12px; }
@@ -342,7 +344,10 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
   .ew-shell .ar-welcome .ar-cr-what .ar-link::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
   .ew-shell .mx { overflow: auto; }
   .ew-shell .mx-lane { min-height: 300px; }
-  .ew-shell .mx-strip:not(.mx-master) { width: 152px; }
+  .ew-shell .mx-strips { padding-left: 0; }
+  .ew-shell .mx-strip:not(.mx-master) { width: var(--mx-sw, 148px); padding: 0 6px 7px; scroll-snap-align: start; }
+  .ew-shell .mx { scroll-snap-type: x mandatory; }
+  .ew-shell .mx-master { width: 84px; margin: 6px 0 6px 0; padding: 0 6px 7px; }
   .ew-shell .mx-btns { gap: 2px; }
   .ew-shell .mx-b { height: 44px; }
 }
@@ -401,4 +406,19 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
    still counts in, in record ink) */
 @media (max-width: 819px) and (max-height: 500px) {
   .ew-shell .tp-ball { display: none; }
+}
+/* The keys a finger lands on that were under 44 px: the logo, the transport's back and record keys (40 wide), undo and
+   redo (28 wide, shown on a tablet), the blank sheet's doors and its two links (16 tall). Drawn sizes stay where a
+   reach does the job: the logo and the links get their 44 px from a min-width or a ::before, not from a bigger look.
+   A phone on its side keeps its 40 px keys (the title needs the room). tools/phone-test.js measures the transport's
+   keys and the logo. */
+@media (pointer: coarse) {
+  .ew-shell .ew-brand { min-width: 44px; justify-content: center; }
+  .ew-shell .tp-g-edit .tp-btn { width: 44px; height: 44px; }
+  .ew-shell .ar-empty-actions .btn { min-height: 44px; }
+  .ew-shell .ar-empty-foot .ar-link { position: relative; }
+  .ew-shell .ar-empty-foot .ar-link::before { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); }
+}
+@media (pointer: coarse) and (min-height: 501px) {
+  .ew-shell .tp-g-play .tp-btn:not(.tp-play) { width: 44px; }
 }

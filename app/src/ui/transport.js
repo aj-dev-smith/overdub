@@ -468,7 +468,10 @@ function mountTransport(el, app) {
   /* ------------------------------------------------ buttons */
   const btn = (ic, label, run, cls = '') => h('button.tp-btn' + cls, { title: label, 'aria-label': label, onclick: run }, icon(ic, { size: 16 }));
   const mk = app.transport.marker;
-  const stopB = btn('stop', 'Stop, back to the marker (Space). Stopped: the marker to bar 1 (Home)', () => { if (engine.playing || engine.starting) engine.stop(); else app.transport.home(); });
+  // the first key goes back: playing, it stops at the marker; stopped, it takes the marker to bar 1. It draws a bar and a
+  // triangle, not a square, so the one square on screen is play's while the song plays (FRESH-EYES-5: two stop squares;
+  // design/LINER-NOTES-KIT.md records it)
+  const stopB = btn('back', 'Back: stop and go to the marker (Space). Stopped: the marker to bar 1 (Home)', () => { if (engine.playing || engine.starting) engine.stop(); else app.transport.home(); });
   const playB = h('button.tp-btn.tp-play', { title: 'Play from the marker (Space)', 'aria-label': 'Play (Space)', onclick: () => app.transport.playStop() },
     h('span.ico-play', icon('play', { size: 16 })), h('span.ico-stop', icon('stop', { size: 16 })));
   // the record key: a round lamp (the one round thing: it is a lamp), its state drawn in frame() (see the header)
@@ -790,7 +793,7 @@ function mountTransport(el, app) {
     const base = parseFloat(getComputedStyle(title).fontSize) || 18;
     for (let fs = base; fs > 13 && title.scrollWidth > title.clientWidth + 1;) { fs -= 1; title.style.fontSize = fs + 'px'; }
   }
-  const refit = () => fitTitle();
+  const refit = () => { fitTitle(); fitCredits(); };
   window.addEventListener('resize', refit);
   const offFit = ui.on('resize', refit);
   try { document.fonts?.ready?.then(refit); document.fonts?.addEventListener?.('loadingdone', refit); } catch (e) { /* no font loading API */ }
@@ -878,13 +881,29 @@ function mountTransport(el, app) {
     const sig = (houseLeads ? 'f:' : 'p:') + who.join('|');
     if (sig === last.credits) return;
     last.credits = sig;
-    if (!who.length) { credits.replaceChildren(); credits.hidden = true; return; }
-    const names = who.slice(0, 3), more = who.length - names.length;
-    const parts = [houseLeads ? 'featuring ' : 'played by '];
-    names.forEach((by, i) => { if (i) parts.push(i === names.length - 1 && !more ? ' and ' : ', '); parts.push(byline(by, { app })); });
-    if (more) parts.push(` and ${more} more`);
+    if (!who.length) { credits.replaceChildren(); credits.hidden = true; credits.removeAttribute('title'); last.who = null; return; }
     credits.hidden = false;
-    credits.replaceChildren(...parts);
+    last.who = { who, lead: houseLeads ? 'featuring ' : 'played by ' };
+    fitCredits();
+  }
+  // the credits run to two lines under the title, like a sleeve's, and name as many as fit there, then "and 2 more" (they
+  // never widen the title, and never cut a name off: "featuring Claude, cursor and y…" was the old line); the whole
+  // list is the line's title when some are left out
+  function fitCredits() {
+    const w = last.who;
+    if (!w || credits.hidden) return;
+    const line = (k) => {
+      const names = w.who.slice(0, k), more = w.who.length - names.length, parts = [w.lead];
+      names.forEach((by, i) => { if (i) parts.push(i === names.length - 1 && !more ? ' and ' : ', '); parts.push(byline(by, { app })); });
+      if (more) parts.push(` and ${more} more`);
+      credits.replaceChildren(...parts);
+    };
+    let k = Math.min(3, w.who.length);
+    line(k);
+    const over = () => credits.clientHeight > 0 && credits.scrollHeight > credits.clientHeight + 1;
+    while (k > 1 && over()) line(--k);
+    if (w.who.length > k) { const all = w.who.map((by) => byline(by, { app })?.textContent || authorOf(by, app).name); credits.title = w.lead + all.slice(0, -1).join(', ') + ' and ' + all.at(-1); }
+    else credits.removeAttribute('title');
   }
   function syncPlay() {
     const playing = !!engine.playing;
@@ -1119,7 +1138,7 @@ const CSS = `
   padding: 1px 6px; margin-left: -6px; border-radius: var(--r-press); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; outline: none; color: var(--text); min-width: 40px; }
 .tp-title:hover { background: var(--bg-3); }
 .tp-title[contenteditable="true"] { background: var(--bg); box-shadow: 0 0 0 1.5px var(--accent-2); text-overflow: clip; }
-.tp-credits { font-size: 11px; line-height: 1.2; color: var(--text-3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-credits { font-size: 11px; line-height: 1.2; color: var(--text-3); margin-top: 3px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
 .tp-credits[hidden] { display: none; }
 /* the credit line takes the title's width and never widens it: a take that adds a name to the credits moves nothing on
    the bar. The keys lamp in its place reads whole ("Keys play Bass  Esc"): the title's group widens to it when the
@@ -1311,7 +1330,7 @@ const CSS = `
   .ew-shell .tp-group { border-left: 0; padding: 0; height: auto; }
   .ew-shell .tp-g-title { order: 2; flex: 1 1 0; min-width: 0; max-width: none; padding-left: 4px; }
   .ew-shell .tp-title { padding: 2px 6px; font-size: 17px; }
-  .ew-shell .tp-credits { display: block; font-size: 12px; margin-top: 1px; }
+  .ew-shell .tp-credits { display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; font-size: 12px; margin-top: 1px; }
   .ew-shell .tp-credits[hidden] { display: none; }
   .ew-shell .tp-g-pos { order: 7; margin-left: 4px; }
   .ew-shell .tp-pos { height: 44px; min-width: 0; padding: 0 6px; }
@@ -1339,7 +1358,7 @@ const CSS = `
   .ew-shell .tp-pos-six { display: none; }
   .ew-shell .tp-pos-bar[data-digits="3"] { font-size: 21px; } .ew-shell .tp-pos-bar[data-digits="4"] { font-size: 17px; }
   .ew-shell .tp-take { display: none; }
-  .ew-shell .tp-hold { display: none; } .ew-shell .tp-has-hold .tp-credits:not([hidden]) { display: block; }   /* (a phone's keys are on screen) */
+  .ew-shell .tp-hold { display: none; } .ew-shell .tp-has-hold .tp-credits:not([hidden]) { display: -webkit-box; }   /* (a phone's keys are on screen) */
 }
 @media (max-width: 460px) {
   .ew-shell .tp-g-edit, .ew-shell .tp-g-tempo { display: none; }
