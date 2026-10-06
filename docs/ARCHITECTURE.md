@@ -30,7 +30,7 @@ overdub/
   server/bridge.js       agent bridge routes (/bridge/*): MCP <-> the open studio tab, localhost only  [agent layer]
   server/mcp.js          MCP stdio server: Claude Code / Desktop / any MCP client drive the studio    [agent layer]
   server/local-claude.js Claude Code behind the Agent panel (/local/*): `claude -p` per turn, localhost [agent layer]
-  server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; built, not switched on)       [agent layer]
+  server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; live)                         [agent layer]
                          relay-catalog.json: the tools it lists, generated (tools/relay-catalog.js)
   site/                  landing page, press/, docs/ (built by tools/docs-build.js), llms.txt         [brand]
   app/index.html         the studio page; app/library.html the device shelf; app/gallery.html          [core]
@@ -739,7 +739,7 @@ top     transport bar and the Song menu
 left    Browser, Inspector (tabs)
 center  Arrange, Jam (tabs; ui/jam.js puts them in the arranger's toolbar row, so they cost the song no height)
 bottom  detail (tabs: Sketch, Notes, Beat, Grooves, Devices, Mixer, Reference)
-right   Agent, Connect (hidden until the relay is live), History (tabs)
+right   Agent, Connect, History (tabs)
 ```
 
 ```js
@@ -1381,9 +1381,9 @@ overdub-relay.ajsmithhq.com. It serves MCP Streamable HTTP at `/s/<token>/mcp` t
 over `/s/<token>/{hello,events,result}`. The tab side takes the tab's secret in a header (the token in the URL is a
 one-way hash of it, so the connector URL alone can't pose as the tab), and `tools/list` is the relay's own catalog
 (`server/relay-catalog.json`), never the tab's. `agent/remote.js` (`app.remote`, the right-region "Connect" tab) is
-the page side; its calls run with `by: 'claude.ai'` (`kind: 'agent'`, added with `store.addAuthor`). It is built and
-tested (`tools/relay-test.js`) but not deployed, so `RELAY_LIVE` in `agent/remote.js` is off and the Connect tab is
-hidden.
+the page side; its calls run with `by: 'claude.ai'` (`kind: 'agent'`, added with `store.addAuthor`). It is live at
+overdub-relay.ajsmithhq.com and tested by `tools/relay-test.js`; `RELAY_LIVE` in `agent/remote.js` is on, so every
+studio shows the Connect tab (off, it shows only on a local studio with `?relay=` or after `?connect=1`).
 
 ## Songs in and out
 

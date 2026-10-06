@@ -234,10 +234,11 @@ claude plugin validate integrations/claude-code                    # the --plugi
 
 `claude plugin validate integrations/claude-code` warns that `version` is unset. That's on purpose.
 
-### Not switched on yet
+### claude.ai, through the hosted relay
 
 Our landscape research noted that a browser-hosted MCP that works
 from claude.ai would be an advantage no local-socket desktop bridge can match. The local bridge stays local by design.
-A hosted relay for claude.ai is written and tested (`server/relay.js`, `tools/relay-test.js`; the design, limits and
-hosting are in [REMOTE-MCP.md](../docs/REMOTE-MCP.md)), but it isn't deployed, so the studio's Connect tab stays
-hidden on the public site. Until it is, claude.ai can't drive a studio.
+A hosted relay for claude.ai is live (`server/relay.js`, `tools/relay-test.js`; the design, limits and hosting are in
+[REMOTE-MCP.md](../docs/REMOTE-MCP.md)). Open the studio's **Connect** tab, press **Turn on**, and add the connector
+URL in claude.ai under Settings → Connectors → Add custom connector. claude.ai says it has no sign-in; that's
+expected, the URL is the key.

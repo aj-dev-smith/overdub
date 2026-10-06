@@ -52,7 +52,8 @@
 <li><a href="#jam">Jam</a><ol><li><a href="#tab">Tab</a></li></ol></li>
 <li><a href="#on-a-phone">On a phone</a></li>
 <li><a href="#bring-your-own-claude">Bring your own Claude</a></li>
-<li><a href="#bring-claude-code">Bring Claude Code</a></li>
+<li><a href="#bring-claudeai">Bring claude.ai</a></li>
+<li><a href="#bring-claude-code">Bring Claude Code</a><ol><li><a href="#your-own-api-key-on-your-own-server">Your own API key, on your own server</a></li></ol></li>
 <li><a href="#build-a-device">Build a device</a></li>
 <li><a href="#share-and-fork">Share and fork</a></li>
 <li><a href="#bring-material-in">Bring material in</a></li>
@@ -63,7 +64,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">The guide</a></h1>
-    <p class="doc-meta">From <code>docs/GUIDE.md</code> (<a href="/docs/GUIDE.md">the Markdown</a>), about 39 min to read</p>
+    <p class="doc-meta">From <code>docs/GUIDE.md</code> (<a href="/docs/GUIDE.md">the Markdown</a>), about 40 min to read</p>
     <article class="prose">
 <p>Overdub is a studio for you and your agents. You lay down a take, your agent plays over it, you play over that, and
 every take is signed: warm for you, cool for it. This page gets you from the door to a kept take in five minutes,
@@ -94,8 +95,8 @@ A MIDI keyboard's notes stay as you play them.</li>
 by you. <strong>Band</strong> on a kept take (or <code>⇧B</code> on a selected clip) builds chords, bass and drums around it in a style
 you pick, on new tracks; your notes stay as they are, and one undo takes the band back.</li>
 <li><strong>Ask the agent for a take.</strong> Open the <strong>Agent</strong> tab (<code>A</code>; <code>⌘/</code> or <code>Ctrl+/</code> to type) and ask for something over
-it: <em>&quot;Give me a bassline under this.&quot;</em> No key? Press <strong>Try the demo agent (no key)</strong>, or just type: what you
-type stays in the box, and <strong>Ask the demo agent</strong> sends it. The demo agent is a scripted session, not a live
+it: <em>&quot;Give me a bassline under this.&quot;</em> No agent on yet? Press <strong>Try the demo agent (free)</strong>, or just type: what
+you type stays in the box, and <strong>Ask the demo agent</strong> sends it. The demo agent is a scripted session, not a live
 model, but it uses the real tools, so everything it does is signed and undoable. It answers what it can, and when
 something is past its script it says so first, then offers the nearest thing it can on the part and bars you named.</li>
 <li><strong>Keep one.</strong> Its takes arrive as cards. <strong>Hold to hear</strong> plays one over yours; let go to go back. Keep the one
@@ -435,15 +436,30 @@ of what the selected track plays, so a look never swaps a sound out. Two notes s
 is counted (×2), not stacked. In <strong>Jam</strong> the chord sits on one line above the neck, the neck scrolls sideways, and a
 tap on it plays that note; the tab scrolls sideways with the playhead.</p>
 <h2 id="bring-your-own-claude"><a class="h-link" href="#bring-your-own-claude">Bring your own Claude</a></h2>
-<p>The demo agent is a script. For the real thing, open the <strong>Agent</strong> tab, paste an Anthropic API key and pick a model:
-Opus 5.5 (the default), Sonnet 5.5 or Haiku 4.5.</p>
-<p>The key stays in that browser and goes only to <code>api.anthropic.com</code>. The page calls the API directly, with no Overdub
-server in the middle, and you pay Anthropic for what you use.</p>
+<p>The demo agent is a script. For the real thing, bring your own Claude, on your Claude plan: <strong>claude.ai</strong> (on the
+web or in the Claude apps) through the <strong>Connect</strong> tab, or <strong>Claude Code</strong> on your computer, in the Agent tab's own
+box or over MCP (both below). Pick Claude Code's model in the Agent tab's settings: Opus 5.5 (the default),
+Sonnet 5.5 or Haiku 4.5.</p>
+<p>The studio keeps no API key. It used to take one in the Agent tab and keep it in the browser; that field is gone, and
+a key saved there is deleted the next time the studio opens, with a note saying so. If you saved one, you may want to
+revoke it in the Anthropic Console.</p>
 <p>Ask it the way you'd ask a session player: <em>&quot;darker&quot;</em>, <em>&quot;half-time in the bridge&quot;</em>, <em>&quot;two takes on the hats&quot;</em>. It
 acts on what you've selected, says what it changed and the number, and asks which one you mean when a word like
 &quot;warm&quot; could go two ways. Anything that rewrites your notes comes as takes for you to pick from.</p>
 <p>When it asks, you hear both readings and pick one. Your picks are kept under <strong>Your words</strong> in the Agent tab's
 settings (the gear), in that browser, so next time &quot;warm&quot; means what you picked and the agent says it used it.</p>
+<h2 id="bring-claudeai"><a class="h-link" href="#bring-claudeai">Bring claude.ai</a></h2>
+<p>claude.ai can play in the studio you have open, on the public site, with nothing to install:</p>
+<ol>
+<li>Open the <strong>Connect</strong> tab (in the right pane, next to Agent and History) and press <strong>Turn on</strong>.</li>
+<li>Copy the <strong>connector URL</strong>.</li>
+<li>In claude.ai, open <strong>Settings → Connectors → Add custom connector</strong>, name it Overdub and paste the URL.</li>
+<li>In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. Keep the studio tab open.</li>
+</ol>
+<p>claude.ai will say the connector has no sign-in. That's expected: the link is the key. Anyone with it can edit the
+song in that tab while Connect is on, so keep it to yourself; <strong>New link</strong> swaps it for a fresh one and the old one
+stops working at once, and <strong>Turn off</strong> disconnects the tab. Claude's edits are signed <code>claude.ai</code>, and every one is
+undoable on its own. On Team and Enterprise plans an Owner may have to allow custom connectors first.</p>
 <h2 id="bring-claude-code"><a class="h-link" href="#bring-claude-code">Bring Claude Code</a></h2>
 <p>Claude Code (or any agent that speaks MCP) can drive the studio too, with the same tools as the agent in the page.
 It needs a copy of the studio running on your own computer: the public site can't be driven from outside. Clone
@@ -464,6 +480,14 @@ conversation; <strong>New</strong> starts it over.</p>
 <p>Songs are kept per site, so a song on the public studio and one on <code>localhost</code> are separate. Move one across with
 the Song menu: <strong>Save the project file</strong> (<code>⌘S</code>) on one, open it (<code>⌘O</code>) on the other. More, for Claude Desktop,
 Cursor, VS Code and Codex too: <a href="integrations.html">Connect an agent</a>.</p>
+<h3 id="your-own-api-key-on-your-own-server"><a class="h-link" href="#your-own-api-key-on-your-own-server">Your own API key, on your own server</a></h3>
+<p>Self-hosting, with an Anthropic API key rather than a Claude plan? Give the key to the server, not the page:</p>
+<div class="code" data-lang="sh"><pre><code>OVERDUB_ANTHROPIC_KEY=sk-ant-… node server/serve.js</code></pre></div>
+<p>The Agent tab's box then talks to Claude through that server: the page sends its request to the server, the server
+adds the key and passes it to the Messages API, and the key never reaches the browser. Anthropic bills you for what
+you use. It is its own variable, not <code>ANTHROPIC_API_KEY</code>, so a key that happens to be set in your shell is never
+spent unasked. When Claude Code is on (or the demo agent), that answers instead. The server listens on <code>127.0.0.1</code>
+only: put it on a public address and anyone who reaches it spends your key.</p>
 <h2 id="build-a-device"><a class="h-link" href="#build-a-device">Build a device</a></h2>
 <p>Ask for an instrument or an effect that doesn't exist yet: <em>&quot;Build me a pedal that makes my guitar sound like it's
 underwater in a cathedral.&quot;</em> The agent writes it as a small piece of audio code.</p>

@@ -377,9 +377,10 @@ tap on it plays that note; the tab scrolls sideways with the playhead.
 
 ## Bring your own Claude
 
-The demo agent is a script. For the real thing, bring your own Claude: **Claude Code** on your computer, on your
-Claude plan (next section), in the Agent tab's own box or over MCP. Pick its model in the Agent tab's settings:
-Opus 5.5 (the default), Sonnet 5.5 or Haiku 4.5.
+The demo agent is a script. For the real thing, bring your own Claude, on your Claude plan: **claude.ai** (on the
+web or in the Claude apps) through the **Connect** tab, or **Claude Code** on your computer, in the Agent tab's own
+box or over MCP (both below). Pick Claude Code's model in the Agent tab's settings: Opus 5.5 (the default),
+Sonnet 5.5 or Haiku 4.5.
 
 The studio keeps no API key. It used to take one in the Agent tab and keep it in the browser; that field is gone, and
 a key saved there is deleted the next time the studio opens, with a note saying so. If you saved one, you may want to
@@ -391,6 +392,20 @@ acts on what you've selected, says what it changed and the number, and asks whic
 
 When it asks, you hear both readings and pick one. Your picks are kept under **Your words** in the Agent tab's
 settings (the gear), in that browser, so next time "warm" means what you picked and the agent says it used it.
+
+## Bring claude.ai
+
+claude.ai can play in the studio you have open, on the public site, with nothing to install:
+
+1. Open the **Connect** tab (in the right pane, next to Agent and History) and press **Turn on**.
+2. Copy the **connector URL**.
+3. In claude.ai, open **Settings → Connectors → Add custom connector**, name it Overdub and paste the URL.
+4. In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. Keep the studio tab open.
+
+claude.ai will say the connector has no sign-in. That's expected: the link is the key. Anyone with it can edit the
+song in that tab while Connect is on, so keep it to yourself; **New link** swaps it for a fresh one and the old one
+stops working at once, and **Turn off** disconnects the tab. Claude's edits are signed `claude.ai`, and every one is
+undoable on its own. On Team and Enterprise plans an Owner may have to allow custom connectors first.
 
 ## Bring Claude Code
 

@@ -13,8 +13,8 @@ the agent asking before it takes anything out of a song from a link.
   (`overdub:anthropic-key`) and send it from the browser; any script that got onto the page could have read it. That
   option is gone: the page holds no key and never calls the Messages API itself (`connect-src` doesn't name it), and a
   key an older version saved is deleted on load, with a note saying so. The other ways in hold no key either: Claude Code
-  runs on the person's own Claude plan, and the claude.ai connector (built, not switched on yet) would run on their
-  claude.ai account.
+  runs on the person's own Claude plan, and the claude.ai connector (the Connect tab, through the hosted relay) runs
+  on their claude.ai account.
 - **A self-hoster's API key, on their own server.** `OVERDUB_ANTHROPIC_KEY`, read by the local server
   (`server/local-claude.js`, `/local/messages`), which adds it to the in-app agent's requests: the page never sees it,
   and `/local/status` says only whether one is set. The route refuses another site's page and any name but an
@@ -92,13 +92,13 @@ runs; and text in a song written to steer an agent.
 | The policy allowed `data:` scripts (for worklets): markup that got into the page could run script on the key's origin through an `<iframe srcdoc>` (Chromium, WebKit, Firefox) | Low (no injection point known: the backstop) | Fixed (`de084c1`) |
 | A shared song's text can steer the in-app agent, whose tools act without the person | Medium | Names escaped, quoted and capped (`e53e3a9`, `2e39267`); on a song from a link its deletions, rewrites and new devices wait for the person's Keep; a budget per turn is AJ's call |
 | A shared song's text reaches outside agents with stronger tools (Claude Code has a shell) | Medium | Results carry the `about` note and rule 8 says so (`62f4c8a`); in the studio their deletions, rewrites and new devices on a song from a link wait for the person's Keep too; what a shell does outside the studio is the agent's own |
-| The relay (not deployed): one token unlocks both the MCP side and the tab side | Medium before it ships | Fixed: the tab proves a 256-bit secret the connector URL doesn't carry (the token is a one-way hash of it), in a header, never a URL; `tools/list` is the relay's own catalog, not the tab's, and other names are refused |
+| The relay (before it shipped): one token unlocks both the MCP side and the tab side | Medium before it ships | Fixed: the tab proves a 256-bit secret the connector URL doesn't carry (the token is a one-way hash of it), in a header, never a URL; `tools/list` is the relay's own catalog, not the tab's, and other names are refused |
 | The relay echoed request text at length in errors, logged error messages (which can quote a request), compared its origin secret in variable time, and took any nesting or batch size | Low | Fixed: names cut to 64 safe characters, bad ids refused, only an error's kind logged, constant-time compares, 64 levels and 16 messages at most |
 | In the Node renderer a song's kernel could read the whole checkout | Medium | Reads narrowed (`62f4c8a`); the network is still open (Node 24 has no network permission) |
 | In Node the device check ran the kernel in the process that writes the report, so a kernel could rewrite it or print its own | Medium | The kernel runs in a child process that reads `app/src` only, writes no files and starts no processes; the parent measures the samples it sends (`engine/node/check.js`). The network is still open, and the samples are still the kernel's, so a kernel written to fool the check can |
 | A kernel that never returns: the agent waited until reload, and live audio stops with no recovery | Medium (availability) | Checks have a deadline and Stop works (`62f4c8a`); renders don't queue behind a held one (`289ad3d`); live playback is open |
 | Song size limits weren't applied to a link | Low to medium | Fixed (`2e39267`) |
-| `?relay=` worked on the live site (shows Connect; could send a tab's token to a local port) | Low | Fixed (`e53e3a9`); the relay's trial switch, `?connect=1`, shows Connect for the hosted relay only |
+| `?relay=` worked on the live site (shows Connect; could send a tab's token to a local port) | Low | Fixed (`e53e3a9`); the relay's trial switch, `?connect=1`, showed Connect for the hosted relay only, and now the relay is live Connect shows for everyone, still pointed only at the hosted relay |
 | The bridge took any request without an Origin, so a page could take over the live tab (denial of service) | Low | Fixed (`62f4c8a`) |
 | `Infinity` from a song file reached clip positions; a deeply nested link threw | Low | Fixed (`2e39267`) |
 | Kernels in one audio context share the worklet's built-in prototypes | Low | Open |
@@ -134,8 +134,8 @@ Code, no decision needed:
    is the relay's own catalog (`server/relay-catalog.json`, generated from `tools.js` and checked), and other names
    are refused; caps on bytes, sessions and streams, and a rate limit per address or /64, answer `429` or `503` with
    `Retry-After` (a call one too many in flight is a tool error that says when to retry); the instance reads the
-   origin secret from Parameter Store; and its host is in the policy's `connect-src`. Left: deploying it (AJ's call, about $7.40 a month) and the plain-HTTP hop from CloudFront
-   to the instance (REMOTE-MCP.md, "Known gap").
+   origin secret from Parameter Store; and its host is in the policy's `connect-src`. It is deployed (about $7.40 a month) and
+   on for everyone. Left: the plain-HTTP hop from CloudFront to the instance (REMOTE-MCP.md, "Known gap").
 6. **Smaller:** the engine's timer Worker as a file (so `worker-src` can be `'self'`); warn when sharing a song a link can't carry (past the limits); make the loop's values finite at load;
    give the landing and docs pages a policy (their inline scripts need hashes).
 

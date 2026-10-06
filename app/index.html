@@ -18,7 +18,7 @@
        - style-src 'unsafe-inline': the panels inject their own <style> elements.
        - connect-src https://overdub-relay.ajsmithhq.com : the hosted relay behind Connect to Claude (RELAY in
          src/agent/remote.js; docs/REMOTE-MCP.md). The tab talks to it only while Connect is on, and its own key travels
-         in a request header, never in a URL. (Until the relay is deployed, RELAY_LIVE keeps Connect hidden here.)
+         in a request header, never in a URL. (The relay is live: RELAY_LIVE shows Connect here.)
        - connect-src http://localhost:* http://127.0.0.1:* : a relay on this machine (?relay=, which the studio honours
          only when it is itself on localhost; tools/relay-test.js, node server/relay.js). A meta policy can't depend on
          the host, so the live site carries these two as well, but nothing there connects to them.

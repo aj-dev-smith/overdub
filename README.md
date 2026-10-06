@@ -65,7 +65,8 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
 - **In the studio:** a scripted demo agent, free, on the real tools. The studio keeps no API key; self-hosting with
   one, set `OVERDUB_ANTHROPIC_KEY` on your local server and the page never sees it
   ([GUIDE.md](docs/GUIDE.md#your-own-api-key-on-your-own-server)).
-- **claude.ai:** a hosted relay is built and tested ([docs/REMOTE-MCP.md](docs/REMOTE-MCP.md)) but not switched on.
+- **claude.ai:** open the studio's **Connect** tab, turn it on and add the URL to claude.ai as a custom connector;
+  Claude plays in that tab through a hosted relay, on your Claude plan ([docs/REMOTE-MCP.md](docs/REMOTE-MCP.md)).
 
 [`docs/AGENTS.md`](docs/AGENTS.md) covers all 38 tools, the op format and the etiquette.
 
@@ -110,7 +111,7 @@ app/vendor/    verbatim sources from Claw'd-o-Matic (pedals, amps, presets); too
 server/        serve.js (static + agent bridge), mcp.js (MCP stdio server), relay.js (the claude.ai relay)
 tools/         checks (node tools/run-all.js), the Node renderer, OverdubBench, screenshot and film scripts
 integrations/  the Claude Code plugin and skill, configs for other MCP clients
-deploy/        the static site's setup and deploy scripts, and the (not yet run) relay and analytics infrastructure
+deploy/        the static site's setup and deploy scripts, and the relay and analytics infrastructure
 docs/          guide, agents, devices, architecture, bench, remote MCP, vision, research, brand
 ```
 

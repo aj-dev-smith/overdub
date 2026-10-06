@@ -176,6 +176,7 @@ function mountPanel(el, app) {
       case 'note': return h(`div.ag-note.ag-note-${e.kind || 'info'}`, { dataset: e.action ? { action: e.action } : {} }, h('div.ag-spk'), h('div.ag-body', h('p', e.action === 'retired' ? retiredText() : e.text),
         e.action === 'key' ? h('button.btn', { type: 'button', onclick: () => { showKey = true; renderAll(); } }, 'Open settings') : null,
         e.action === 'retired' ? h('div.ag-kc-acts',
+          app.remote ? h('button.btn', { type: 'button', onclick: () => ui.show('connect') }, 'Open Connect') : null,
           h('button.btn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
           h('button.btn.btn-txt.ag-link.ag-note-x', { type: 'button', onclick: () => { agent.retiredSeen(); feed.splice(feed.indexOf(e), 1); mark(e); saveFeed(); flush(); input.focus(); } }, 'Dismiss')) : null));
       case 'request': return requestCard(e);
@@ -465,7 +466,7 @@ function mountPanel(el, app) {
       return h('div.ag-keycard.ag-kc-firstlook', ccLead, mcpLead, demoSec,
         h('div.ag-kc-own',
           h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
-          h('p.ag-kc-small', 'A live model that reads every word: Claude Code, on your Claude plan.')));
+          h('p.ag-kc-small', `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)));
     }
     // a self-hoster's own API key lives on the local server, never on this page (server/local-claude.js)
     const keySec = isLocalHost() ? h('div.ag-kc-sec.ag-kc-server',
@@ -477,10 +478,15 @@ function mountPanel(el, app) {
         : ['Self-hosting with an API key? Start the server with OVERDUB_ANTHROPIC_KEY set and this panel uses it. The key stays on the server, never in the page. ', h('a', { href: GUIDE_SERVER_KEY, target: '_blank', rel: 'noopener' }, 'Your own API key'), ', in the guide, says how.'])) : null;
     return h('div.ag-keycard',
       h('header.sheet-head', h('h3', { tabindex: '-1' }, 'Bring your own Claude')),
-      h('p.ag-kc-p', `Your own Claude works the studio from outside this page, on your Claude plan: Claude Code on your computer${app.remote ? ', or claude.ai through the Connect tab' : ''}. The studio keeps no API key.`),
+      h('p.ag-kc-p', `Your own Claude works the studio from outside this page, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code on your computer. The studio keeps no API key.`),
       cc || serverKey ? [h('div.ag-kc-label', 'Model'), models] : null,
       wordsList(),
       demoSec,
+      // claude.ai (the web and the Claude apps) through the hosted relay: the Connect tab has the link and the steps
+      app.remote ? h('div.ag-kc-sec.ag-kc-remote',
+        h('p.head', 'claude.ai'),
+        h('p.ag-kc-small', 'Add this studio to claude.ai as a custom connector; Claude then plays in this tab. The Connect tab has the link and the three steps.'),
+        h('div.ag-kc-acts', h('button.btn', { type: 'button', onclick: () => ui.show('connect') }, 'Open Connect'))) : null,
       h('div.ag-kc-sec',
         h('p.head', 'Claude Code'),
         ...(cc ? [
@@ -617,7 +623,7 @@ function mountPanel(el, app) {
       h('div.ag-held-acts',
         h('button.btn.ag-held-demo', { type: 'button', onclick: () => useDemo() }, icon('agent', { size: 12 }), 'Ask the demo agent'),
         h('button.btn.btn-txt.ag-link.ag-held-own', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude')),
-      h('p.ag-kc-small', 'The demo agent is a script: it answers what it can, with the real tools. Your own Claude (Claude Code, on your Claude plan) reads every word.'),
+      h('p.ag-kc-small', `The demo agent is a script: it answers what it can, with the real tools. Your own Claude (${app.remote ? 'claude.ai through Connect, or ' : ''}Claude Code, on your Claude plan) reads every word.`),
     ] : []));
   }
   // the demo agent on, and what's in the box goes to it as typed; an empty box sends nothing
@@ -695,10 +701,10 @@ function mountPanel(el, app) {
   function retiredText() {
     const guide = (href, label) => h('a', { href, target: '_blank', rel: 'noopener' }, label);
     const cc = isLocalHost()
-      ? ['Claude Code on your Claude plan, on this computer, in this panel or over MCP; your own API key, set on this server as OVERDUB_ANTHROPIC_KEY (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')']
-      : ['Claude Code on your Claude plan, with a local copy of the studio (', guide(GUIDE_CLAUDE_CODE, 'Bring Claude Code'), '); your own API key on your own local server (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')'];
+      ? ['Claude Code on this computer, on your Claude plan, in this panel or over MCP; your own API key, set on this server as OVERDUB_ANTHROPIC_KEY (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')']
+      : ['Claude Code on this computer, on your Claude plan, with a local copy of the studio (', guide(GUIDE_CLAUDE_CODE, 'Bring Claude Code'), '); your own API key on your own local server (', guide(GUIDE_SERVER_KEY, 'the guide says how'), ')'];
     return ['Your saved API key is deleted from this browser: the studio no longer keeps a key on the page, so nothing on it can read one. You may want to revoke it in the Anthropic Console. Ways to keep an agent with no key on this page: ',
-      ...cc, app.remote ? '; claude.ai through the Connect tab' : '', '; or the demo agent, which is free.'];
+      app.remote ? 'claude.ai, through the Connect tab (on your Claude plan); ' : '', ...cc, '; or the demo agent, which is free.'];
   }
   /* ---------------------------------------------------------------- agent events (in-app) */
   const offs = [];

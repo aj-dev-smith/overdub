@@ -16,16 +16,17 @@ claude.ai (Anthropic's cloud)                     relay (server/relay.js)       
 
 ## For the human
 
-**On trial.** The relay is deployed, and the live site shows Connect only to a browser that asks for it, until AJ
-decides to keep it: open <https://overdubstudio.com/app/?connect=1> once (the browser remembers; `?connect=0`
-hides it again). The switch reveals Connect for the hosted relay and nothing else (`relayPreview` in
-`app/src/agent/remote.js`; `?relay=` stays local-only). Making it public is `RELAY_LIVE = true` and a site deploy.
+**Live.** The relay runs at `https://overdub-relay.ajsmithhq.com`, and every studio shows the Connect tab
+(`RELAY_LIVE = true` in `app/src/agent/remote.js`). Turning that off again hides the tab on the live site except for a
+browser that opened `/app/?connect=1` (`relayPreview`, the switch from the relay's trial; `?connect=0` undoes it). It
+reveals Connect for the hosted relay and nothing else; `?relay=` stays local-only.
 
 1. Open the studio, then the **Connect** tab in the right pane (next to Agent and History), and press **Turn on**.
 2. Copy the **connector URL**, `https://overdub-relay.ajsmithhq.com/s/<token>/mcp`.
 3. In claude.ai, open **Settings → Connectors → Add custom connector**, name it Overdub, paste the URL and add it.
    In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. On Team and Enterprise plans an
-   Owner may have to add custom connectors.
+   Owner may have to add custom connectors. claude.ai warns that the connector has no sign-in: that's expected, the
+   URL is the key (below).
 
 Keep the tab open: Claude plays in it. Its edits are signed `claude.ai`, drawn cool like every agent's, and undoable
 on their own. Its `say` messages land in the Agent panel, and its presence shows as a pill there.
@@ -192,8 +193,8 @@ Sessions live for 24 hours idle.
 `RELAY = 'https://overdub-relay.ajsmithhq.com'`. `?relay=http://localhost:<port>` overrides it for tests and local
 work, and only when the studio itself runs on localhost (`relayOverride`): on the live site it is ignored, so a
 crafted link can't show the Connect tab or point someone's tab at another relay. The studio's Content Security
-Policy allows the hosted relay's origin in `connect-src`, and loopback for local work; `RELAY_LIVE` keeps the
-Connect tab hidden on the live site until the relay is deployed.
+Policy allows the hosted relay's origin in `connect-src`, and loopback for local work; `RELAY_LIVE` (on) shows the
+Connect tab on the live site.
 
 ## Limits
 
@@ -332,7 +333,8 @@ text marked as content; public docs; an icon.
 
 **What's missing**
 
-1. A deployed relay, run as a custom connector in claude.ai.
+1. ~~A deployed relay, run as a custom connector in claude.ai.~~ Done: the relay is live and AJ has used it from
+   claude.ai.
 2. **Descriptions that steer**: the sentences in tool descriptions that tell Claude what to do rather than what the
    tool does are listed below, each with where it would go, for a pass with AJ.
 3. A **privacy policy** that says what the relay sees (calls pass through it, nothing is kept, counts are logged), a
@@ -347,7 +349,7 @@ Destructive tools always prompt in Claude, so `apply_ops`, `adjust`, `transform`
 additive moves prompt-free would mean tools that only add (the directory's own advice is to split create, update and
 delete), which is a design call for AJ, not a hint to flip.
 
-**Recommended order**: deploy, and use it from claude.ai and the Claude apps; the description pass (every MCP client
+**Recommended order**: deploy, and use it from claude.ai and the Claude apps (done); the description pass (every MCP client
 gains); write the privacy page, the contact and the Connect page; AJ asks mcp-review@anthropic.com the two questions;
 build OAuth with CIMD only if they ask for it; submit with a URL pattern.
 

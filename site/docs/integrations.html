@@ -52,7 +52,7 @@
 <li><a href="#settings">Settings</a></li>
 <li><a href="#when-it-doesnt-work">When it doesn't work</a></li>
 <li><a href="#safety">Safety</a></li>
-<li><a href="#for-maintainers">For maintainers</a><ol><li><a href="#not-switched-on-yet">Not switched on yet</a></li></ol></li>
+<li><a href="#for-maintainers">For maintainers</a><ol><li><a href="#claudeai-through-the-hosted-relay">claude.ai, through the hosted relay</a></li></ol></li>
       </ol></nav>
     </details>
   </aside>
@@ -226,12 +226,13 @@ users to stay on a release until you bump it.</p>
 claude plugin validate .                                           <span class="c"># the marketplace</span>
 claude plugin validate integrations/claude-code                    <span class="c"># the --plugin-dir plugin</span></code></pre></div>
 <p><code>claude plugin validate integrations/claude-code</code> warns that <code>version</code> is unset. That's on purpose.</p>
-<h3 id="not-switched-on-yet"><a class="h-link" href="#not-switched-on-yet">Not switched on yet</a></h3>
+<h3 id="claudeai-through-the-hosted-relay"><a class="h-link" href="#claudeai-through-the-hosted-relay">claude.ai, through the hosted relay</a></h3>
 <p>Our landscape research noted that a browser-hosted MCP that works
 from claude.ai would be an advantage no local-socket desktop bridge can match. The local bridge stays local by design.
-A hosted relay for claude.ai is written and tested (<code>server/relay.js</code>, <code>tools/relay-test.js</code>; the design, limits and
-hosting are in <a href="remote-mcp.html">REMOTE-MCP.md</a>), but it isn't deployed, so the studio's Connect tab stays
-hidden on the public site. Until it is, claude.ai can't drive a studio.</p>
+A hosted relay for claude.ai is live (<code>server/relay.js</code>, <code>tools/relay-test.js</code>; the design, limits and hosting are in
+<a href="remote-mcp.html">REMOTE-MCP.md</a>). Open the studio's <strong>Connect</strong> tab, press <strong>Turn on</strong>, and add the connector
+URL in claude.ai under Settings → Connectors → Add custom connector. claude.ai says it has no sign-in; that's
+expected, the URL is the key.</p>
     </article>
     <nav class="pager" aria-label="Next and previous">
       <a class="pager-prev" href="agents.html"><small>Previous</small>For agents</a>

@@ -44,11 +44,11 @@ there), the next result starts with `song_changed`, naming the song now open.
 
 ### claude.ai and the Claude apps (a custom connector)
 
-Not live yet: the relay is built and tested, but the public one isn't switched on, so the studio's Connect tab stays
-hidden for now. When it is on: open the **Connect** tab in the studio, press **Turn on** and copy the connector URL
-(`https://overdub-relay.ajsmithhq.com/s/<token>/mcp`). In claude.ai, go to Settings → Connectors → Add custom
-connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed `claude.ai`.
-Anyone with the URL can drive the tab while Connect is on, and **New link** revokes the old one. How it works,
+Open the **Connect** tab in the studio (on the public site or a local copy), press **Turn on** and copy the
+connector URL (`https://overdub-relay.ajsmithhq.com/s/<token>/mcp`). In claude.ai, go to Settings → Connectors →
+Add custom connector and paste it. Claude then plays in that tab through the hosted relay. Its edits are signed
+`claude.ai`. claude.ai says the connector has no sign-in; that's expected, since the URL is the key. Anyone with the
+URL can drive the tab while Connect is on, and **New link** revokes the old one. How it works,
 limits and hosting: [REMOTE-MCP.md](REMOTE-MCP.md).
 
 ### The in-app agent
