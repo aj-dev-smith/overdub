@@ -401,6 +401,7 @@ try {
   t.ok(card.url === `${base}/s/${tok}/mcp`, 'the card shows the connector URL, in the same form as before: ' + card.url.replace(tok, '<token>'));
   t.ok(/Settings → Connectors/.test(card.text) && /Add custom connector/.test(card.text) && /Anyone with this link/.test(card.text), 'the card has the three steps and the security note');
   t.ok(!/new link/i.test(card.text.split('Connector URL')[0]), 'a browser with nothing to migrate gets no "new link" note');
+  t.ok(/says? this connector has no sign-in\. That's expected: the link is your key, and New link swaps it for a fresh one, so the old one stops reaching this tab\./.test(card.text), 'the card says claude.ai\'s no-sign-in warning is expected and what New link does');
   await page.click('.rc-toggle');
   await page.waitForFunction(() => window.overdub.remote.state === 'on', null, { timeout: 10000 });
   t.ok(true, 'Turn on connects the tab to the relay');

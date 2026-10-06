@@ -281,6 +281,7 @@ function mountCard(el, app, R) {
         h('li', 'In claude.ai, open ', h('b', 'Settings → Connectors'), '.'),
         h('li', 'Choose ', h('b', 'Add custom connector'), ', name it Overdub and paste the URL.'),
         h('li', 'In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. Keep this tab open.')),
+      h('p.rc-p', 'claude.ai will say this connector has no sign-in. That\'s expected: the link is your key, and ', h('b', 'New link'), ' swaps it for a fresh one, so the old one stops reaching this tab.'),
       h('p.rc-note', icon('bolt', { size: 12 }), h('span', h('b', 'Anyone with this link can edit the song in this tab while Connect is on. '), 'Keep it to yourself. A new link turns the old one off.')),
       h('div.rc-row.rc-foot',
         h('button.rc-rotate', { onclick: async () => { await R.rotate(); ui.toast('New link made. Paste it into claude.ai: the old one no longer reaches this studio.'); } }, 'New link'),
