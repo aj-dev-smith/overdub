@@ -273,6 +273,8 @@ track with one gets the drum grid.
   ACOUSTIC+. `hat_model` picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
   plates of struck modes that chatter), BANDS (banded noise) or SQUARES (six squares with a body). On the last three
   a hat note's `mod` (0..1) sets how open the hats are, and moves them while the note plays.
+  `snare_voice` and `clap_voice` swap in a candidate snare (MODAL, TWO HEADS, SNAPPY) or clap (HANDS, CIRCUIT, ROOM)
+  on any character; 0 (KIT) is each character's own, as before.
 - **Studio A** (`core.drumroom`): an acoustic kit in a big tracking room, miked like a recording. It has
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.

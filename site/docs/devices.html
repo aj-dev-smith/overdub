@@ -322,7 +322,9 @@ track with one gets the drum grid.</p>
 <li><strong>Gobo Kit</strong> (<code>core.drums</code>): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
 ACOUSTIC+. <code>hat_model</code> picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
 plates of struck modes that chatter), BANDS (banded noise) or SQUARES (six squares with a body). On the last three
-a hat note's <code>mod</code> (0..1) sets how open the hats are, and moves them while the note plays.</li>
+a hat note's <code>mod</code> (0..1) sets how open the hats are, and moves them while the note plays.
+<code>snare_voice</code> and <code>clap_voice</code> swap in a candidate snare (MODAL, TWO HEADS, SNAPPY) or clap (HANDS, CIRCUIT, ROOM)
+on any character; 0 (KIT) is each character's own, as before.</li>
 <li><strong>Studio A</strong> (<code>core.drumroom</code>): an acoustic kit in a big tracking room, miked like a recording. It has
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
