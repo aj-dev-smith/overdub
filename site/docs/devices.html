@@ -331,11 +331,20 @@ this browser hasn't trusted are held, and the studio asks before they run.</p>
 track with one gets the drum grid.</p>
 <ul>
 <li><strong>Gobo Kit</strong> (<code>core.drums</code>): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
-ACOUSTIC+.</li>
+ACOUSTIC+. <code>hat_model</code> picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
+plates of struck modes that chatter), BANDS (banded noise) or SQUARES (six squares with a body). On the last three
+a hat note's <code>mod</code> (0..1) sets how open the hats are, and moves them while the note plays.
+<code>snare_voice</code> and <code>clap_voice</code> swap in a candidate snare (MODAL, TWO HEADS, SNAPPY) or clap (HANDS, CIRCUIT, ROOM)
+on any character; 0 (KIT) is each character's own, as before.</li>
 <li><strong>Studio A</strong> (<code>core.drumroom</code>): an acoustic kit in a big tracking room, miked like a recording. It has
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
 </ul>
+<p><strong>Cymbal models.</strong> Both kits take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
+built in <code>app/src/devices/builtin/metal.js</code> and measured against real cymbal recordings. Each cymbal is one model that
+keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its <code>process()</code>, with its cymbal voices as
+probes (below). Gobo's 808 keeps its own.</p>
 <p><strong>The note map.</strong> Both kits play General MIDI. Studio A plays these articulations GM has no note for:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>notes</th><th>piece</th><th>what they play</th></tr></thead>
@@ -385,12 +394,14 @@ the bottom, the mic mix is laid out as channel strips.</li>
 </ul>
 <p><strong>Studio A's params.</strong></p>
 <ul>
-<li>The kit: <code>kit</code> (MAPLE BIRCH JAZZ ARENA DEAD), <code>tune</code>, <code>decay</code>, <code>humanize</code>, and <code>velocity</code> (the velocity curve).</li>
+<li>The kit: <code>kit</code> (MAPLE BIRCH JAZZ ARENA DEAD), <code>tune</code>, <code>decay</code>, <code>humanize</code>, <code>velocity</code> (the velocity curve), and
+<code>cym_model</code> (CLASSIC FDN MODAL).</li>
 <li>The mic mix: <code>mix_close</code>, <code>mix_oh</code>, <code>mix_room</code>, <code>mix_crush</code> (dB faders, -40 off), <code>bleed</code>, <code>room_size</code>, and <code>view</code>
 (DRUMMER or AUDIENCE).</li>
 <li>Each piece's <code>&lt;piece&gt;_tune</code>, <code>&lt;piece&gt;_decay</code> and <code>&lt;piece&gt;_level</code> for kick, snare, hat, tom1-tom4, ride, crash1,
 crash2, china and splash.</li>
 <li><code>snare_wires</code> (0 is snares off) and <code>perc_level</code>.</li>
+<li><code>hat_model</code>: ORIGINAL (the default) or PLATES (two plates of dense modes that chatter as they ring).</li>
 <li>Every param carries a <code>group</code> (its piece, <code>mics</code>, <code>kit</code> or <code>perc</code>), so an editor can lay them out by piece.</li>
 </ul>
 <p><strong>A kernel technique it uses: probes.</strong> A voice renders into one stereo pair and doesn't know where in the block it

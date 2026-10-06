@@ -35,6 +35,7 @@
 // built from. Deterministic: every per-hit variation comes from the instance's seed, drawn in the order hits arrive.
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
+import { metalSource } from './metal.js';
 
 export const PIECES = ['kick', 'snare', 'hat', 'tom1', 'tom2', 'tom3', 'tom4', 'crash1', 'crash2', 'ride', 'china', 'splash', 'tamb', 'cowbell', 'shaker', 'clap'];
 // articulations, by piece (index = the code the kernel uses)
@@ -149,10 +150,12 @@ export default defineDevice({
     { key: 'view', label: 'VIEW', opts: ['DRUMMER', 'AUDIENCE'], def: 0, role: 'width', group: 'mics', desc: "the stereo picture from the drummer's seat (hat left) or from out front (hat right)" },
     { key: 'humanize', label: 'HUMAN', min: 0, max: 1, def: 0.5, role: 'depth', group: 'kit', desc: 'how much each hit varies (where the stick lands, how hard, how long it touches); 0 every hit alike' },
     { key: 'velocity', label: 'VEL', min: -1, max: 1, def: 0, role: 'sens', group: 'kit', desc: 'how velocity maps to force: below 0 a light touch (more ghosts), above 0 a heavy hand' },
+    { key: 'cym_model', label: 'CYMBALS', opts: ['CLASSIC', 'FDN', 'MODAL'], def: 0, role: 'shape', group: 'kit', desc: "the crashes, ride (bow, bell, edge), china and splash: CLASSIC is the kit's own; FDN and MODAL are new models built against real cymbals" },
     ...pieceParams('kick', 'the kick', 'K'),
     ...pieceParams('snare', 'the snare', 'S'),
     { key: 'snare_wires', label: 'WIRES', min: 0, max: 1, def: 0.6, role: 'tone', group: 'snare', desc: 'the snare wires: 0 off (a tom-like snare), 1 loose and buzzy (more sympathetic buzz from the toms and kick)' },
     ...pieceParams('hat', 'the hi-hat', 'H'),
+    { key: 'hat_model', label: 'HAT MODEL', opts: ['ORIGINAL', 'PLATES'], def: 0, role: 'shape', group: 'hat', desc: 'the hi-hat model: the original, or two plates of dense modes that chatter as they ring (fuller under 3 kHz, never pitched)' },
     ...pieceParams('tom1', 'rack tom 1 (high)', 'T1'),
     ...pieceParams('tom2', 'rack tom 2', 'T2'),
     ...pieceParams('tom3', 'floor tom 1', 'T3'),
@@ -176,7 +179,7 @@ export default defineDevice({
   ],
   look: { color: '#2f3a33', ink: '#e9e0c8', shape: 'wide', finish: 'brushed', knob: 'cream', label: 'plate', led: '#ff8a3d' },
   tail: 6,
-  kernel: kernel(String.raw`
+  kernel: kernel(metalSource() + String.raw`
 // ------------------------------------------------------------------------------------------------ the map, the pieces
 const NOTES = __NOTES__;                 // MIDI note -> [piece, articulation]
 const KICK = 0, SNARE = 1, HAT = 2, TOM1 = 3, TOM4 = 6, CRASH1 = 7, CRASH2 = 8, RIDE = 9, CHINA = 10, SPLASH = 11, TAMB = 12, COW = 13, SHAKER = 14, CLAP = 15, NP = 16;
@@ -199,6 +202,12 @@ const CS = 343, LN1000 = 6.907755278982137;
 // relative piece levels, balanced by measurement: each piece's loudness 400 ms after a 0.8 stroke against a mixed kit's
 // balance (docs/research/STUDIO-A.md has the table)
 const GAIN = [0.555, 0.62, 0.143, 0.335, 0.187, 0.218, 0.298, 0.191, 0.19, 0.0313, 0.112, 0.223, 0.105, 0.121, 0.105, 0.455];
+// cym_model 1 (FDN), 2 (MODAL), by kit: crash 1, crash 2, ride, china, splash, against GAIN, each matched to the CLASSIC
+// cymbal's loudness (the first second after a 0.7 stroke)
+const MTRIM = [
+  [[0.414, 0.461, 0.759, 1.29, 0.645], [0.406, 0.44, 1.21, 0.904, 0.569], [0.49, 0.418, 1.4, 0.969, 0.545], [0.474, 0.454, 1.27, 0.776, 0.623], [0.537, 0.465, 1.69, 1.1, 0.83]],
+  [[0.848, 0.918, 0.52, 2.1, 0.792], [0.812, 0.824, 0.755, 1.47, 0.699], [1.08, 0.909, 0.929, 1.88, 0.921], [0.87, 0.856, 0.876, 1.32, 0.767], [1.52, 1.17, 1.08, 2.14, 1.4]],
+];
 // The kits. A membrane: f0 (Hz), t60 (s, the fundamental), damp (0..1: how much faster the overtones die), split (the
 // other head's mode, a ratio above f0), glide (how far a hard hit bends the head), shell [Hz, s, level], tc [hard, soft]
 // (ms of stick or beater contact), r (where it lands, 0 centre .. 1 edge), nz [Hz, Q, ms, level] (the crack or the
@@ -519,6 +528,8 @@ class Hat {
     this.s1.set(4800, 0.7); this.s2.set(8600, 0.9); this.c1.set(1900, 1.4); this.c2.set(420, 0.8); this.tk.set(9500, 0.8);
   }
   params(tm, dm) { if (tm !== this.tm || dm !== this.dm) { this.tm = tm; this.dm = dm; this.hset = -1; } }
+  // the other hat model took over: stop ringing, so switching back starts from silence
+  silence() { this.bank.clear(); this.pulse.n = 0; this.nev = 0; this.se = 0; this.C = 0; this.T = 0; this.h = 0; this.ht = 0; this.hset = -1; this.on = false; this.lvl = -1; }
   // each partial's ring at openness h (between the plates clamped and wide open)
   open(h) {
     const B = this.bank, sr = this.sr, dm = this.dm, e = Math.pow(h, 0.65), top = sr * 0.45;
@@ -596,6 +607,96 @@ class Hat {
     const live = this.bank.prune();
     this.on = live > 0 || this.pulse.n > 0 || this.se > 1e-7 || this.C > 1e-7 || this.T > 1e-7;
     return this.on;
+  }
+}
+
+// PLATES (hat_model 1): the same hat (strokes, openness, the foot, the chick and the tick), with two plates of 48 modes
+// each, evenly dense from the plates' body to the top (stratified: no two modes beat, none line up into a pitch), and in
+// place of the sizzle, the chatter of the plates touching: noise that follows the plates' own motion, a little more
+// held shut (cC). Fitted to real one-shots by measurement (overdub-private tools/drum-room/hat-models.mjs and
+// tune-hats.mjs; clash, a lower slap half open, and thud, the stick on the stand, came out 0), and as loud in a groove
+// as the original (g). Its own seeded draws, so the original hat and the cymbals draw exactly what they did.
+const HAT2 = { nm: 48, lo: 119.8, hi: 17000, warp: 1, tilt: 0.014, ampExp: -0.3097, p2: 0.9294, edge: 0.0527, tC: 0.4319, tO: 2.643, hExp: 0.35, tcK: 0.6239, chatter: 7.37, cbF: 5860, cbQ: 0.5, chp: 1378, fol: 87.83, cC: 0.5, clash: 0, clF: 900, thud: 0, thF: 160, tick: 2.687, chick: 2.177, g: 0.955, go: 1.56, gp: 0.763 };
+class Hat2 extends Hat {
+  constructor(sr, seed) {
+    super(sr, seed);
+    const N = 2 * HAT2.nm;
+    this.bank = new Bank(N); this.N = N;
+    this.tO = new Float64Array(N); this.tC = new Float64Array(N); this.wT = new Float64Array(N); this.wE = new Float64Array(N); this.amp = new Float64Array(N);
+    this.cb = new SV(sr); this.ch = new SV(sr); this.cl = new SV(sr); this.th = new SV(sr); this.folA = Math.exp(-TAU * HAT2.fol / sr);
+    this.D = 0; this.dK = Math.exp(-1 / (0.006 * sr));
+    this.S2 = new Uint32Array(1); this.seed2 = seed >>> 0;
+  }
+  configure(s) {
+    const X = HAT2, B = this.bank, S2 = this.S2, N = this.N;
+    S2[0] = (this.seed2 ^ 0x5eed ^ Math.round(s.peak)) >>> 0 || 1;
+    this.spec = s; this.sizzle = s.sizzle;
+    const kc = s.closed / 0.07, ko = s.open / 1.8;   // each kit's hats: its own closed and open rings, against BIRCH-ish
+    for (let pl = 0; pl < 2; pl++) {
+      const lo = X.lo * (1 + 0.07 * pl);
+      for (let k = 0; k < X.nm; k++) {
+        const j = pl * X.nm + k, f = lo + (X.hi - lo) * Math.pow((k + 0.15 + 0.7 * draw(S2)) / X.nm, X.warp), tf = Math.pow(f / 4000, X.tilt) * (0.7 + 0.6 * draw(S2));
+        B.f[j] = f; this.tC[j] = X.tC * kc * tf; this.tO[j] = X.tO * ko * tf;
+        this.amp[j] = (0.4 + 0.6 * draw(S2)) * Math.pow(f / 1000, X.ampExp) / Math.sqrt(X.nm) * (pl ? X.p2 : 1);
+        this.wT[j] = 1; this.wE[j] = Math.min(1.5, Math.pow(f / 3000, X.edge));
+      }
+    }
+    B.n = N; this.hset = -1;
+    this.c1.set(1900, 1.4); this.c2.set(420, 0.8); this.tk.set(9500, 0.8); this.cb.set(X.cbF, X.cbQ); this.ch.set(X.chp, 0.7);
+    this.cl.set(X.clF, 0.7); this.th.set(X.thF, 0.7);
+  }
+  open(h) {
+    const B = this.bank, sr = this.sr, dm = this.dm, e = Math.pow(h, HAT2.hExp), top = sr * 0.45;
+    for (let k = 0; k < B.n; k++) {
+      const t = this.tC[k] * Math.pow(this.tO[k] / this.tC[k], e) * dm, r = Math.exp(-LN1000 / (Math.max(0.004, t) * sr));
+      let f = B.f[k] * this.tm; if (f > top) f = top;
+      const w = TAU * f / sr;
+      B.r[k] = r; B.a2[k] = r * r; B.w[k] = w; B.s[k] = Math.sin(w); B.a1[k] = 2 * r * Math.cos(w);
+    }
+    this.hset = h;
+  }
+  // a shorter push reaches higher: the plates' stick is a touch quicker than the original's
+  strike(e) {
+    // the balance (go, gp: an open stroke +4 LU and the foot -5 LU against a closed one, measured), the stick's contact
+    const X = HAT2, art = e.art;
+    let h = H_OPEN[art]; if (e.w > 0.02 && art !== H_PEDAL && art !== H_SPLASH) h = e.w;
+    e.F *= art === H_PEDAL ? X.gp : 1 + (X.go - 1) * h;
+    e.tc *= X.tcK; if (art !== H_PEDAL) this.D += X.thud * e.F;
+    super.strike(e);
+  }
+  silence() { super.silence(); this.D = 0; }
+  seg(a, e) {
+    const B = this.bank, E = this.E, body = this.body, near = this.near, far = this.far;
+    for (let i = a; i < e; i++) body[i] = 0;
+    for (let p = a; p < e; p += 32) {
+      const q = Math.min(e, p + 32);
+      if (this.h !== this.ht) {
+        this.h = this.ht + (this.h - this.ht) * Math.exp(-(q - p) / (0.003 * this.sr));
+        if (Math.abs(this.h - this.ht) < 1e-3) this.h = this.ht;
+      }
+      if (this.h !== this.hset) this.open(this.h);
+      const drive = this.pulse.fill(E, p, q);
+      B.run(body, E, p, q, drive);
+    }
+    // the chatter (the plates touching, as much as they move), the chick (the plates meeting), the tick (the stick)
+    const X = HAT2, h = this.h, cg = X.chatter * this.sizzle * (1 + X.cC * (1 - h)), clg = X.clash * this.sizzle * 4 * h * (1 - h);
+    const fa = this.folA, cK = this.cK, tK = this.tK, dK = this.dK, cb = this.cb, ch = this.ch, cl = this.cl, th = this.th, c1 = this.c1, c2 = this.c2, tk = this.tk;
+    const tg = 1.1 * X.tick, chg = X.chick, G = X.g;
+    let ns = this.ns, se = this.se, C = this.C, T = this.T, D = this.D;
+    for (let i = a; i < e; i++) {
+      ns = (Math.imul(ns, 1664525) + 1013904223) >>> 0; const w = ns * 4.656612873077393e-10 - 1;
+      const b = body[i], ab = b < 0 ? -b : b;
+      se = ab + (se - ab) * fa;
+      cb.tick(w); ch.tick(cb.bp);
+      const chick = C > 1e-7 ? (c1.tick(w * C), c2.tick(w * C), (c1.bp * 5 + c2.lp * 2.6) * chg) : 0;
+      tk.tick(w * T);
+      let x = b + ch.hp * cg * se + tk.bp * tg;
+      if (clg > 0) { cl.tick(w); x += cl.bp * clg * se; }
+      if (D > 1e-7) { x += th.tick(w) * D; D *= dK; }
+      near[i] = (x + chick) * G; far[i] = (x + chick * 0.4) * G;
+      C *= cK; T *= tK;
+    }
+    this.ns = ns; this.se = se < 1e-9 ? 0 : se; this.C = C < 1e-9 ? 0 : C; this.T = T < 1e-9 ? 0 : T; this.D = D < 1e-9 ? 0 : D;
   }
 }
 
@@ -894,11 +995,17 @@ return {
     P[KICK] = new Drum(sr, 0, seed ^ 0x11);
     P[SNARE] = new Drum(sr, 1, seed ^ 0x22);
     P[HAT] = new Hat(sr, seed ^ 0x33);
+    const hat1 = P[HAT], hat2 = new Hat2(sr, seed ^ 0x34);   // hat_model: 0 the original, 1 PLATES
     for (let k = 0; k < 4; k++) P[TOM1 + k] = new Drum(sr, 2, seed ^ (0x44 + k));
     P[CRASH1] = new Cym(sr, seed ^ 0x55, 0); P[CRASH2] = new Cym(sr, seed ^ 0x56, 0); P[RIDE] = new Cym(sr, seed ^ 0x57, 1);
     P[CHINA] = new Cym(sr, seed ^ 0x58, 2); P[SPLASH] = new Cym(sr, seed ^ 0x59, 3);
     P[TAMB] = new Perc(sr, seed ^ 0x61, 0); P[COW] = new Perc(sr, seed ^ 0x62, 1); P[SHAKER] = new Perc(sr, seed ^ 0x63, 2); P[CLAP] = new Perc(sr, seed ^ 0x64, 3);
     const ORDER = [KICK, TOM1, TOM1 + 1, TOM1 + 2, TOM4, SNARE, HAT, CRASH1, CRASH2, RIDE, CHINA, SPLASH, TAMB, COW, SHAKER, CLAP];
+    // cym_model 1 (FDN) and 2 (MODAL): the same five cymbals as models of their own (metal.js), with their own seeds, so
+    // nothing the CLASSIC kit draws moves; P holds whichever set is playing
+    const CYM0 = [P[CRASH1], P[CRASH2], P[RIDE], P[CHINA], P[SPLASH]], MKIND = [0, 0, 1, 2, 3], MET = [CYM0, [], []];
+    for (let e = 1; e <= 2; e++) for (let k = 0; k < 5; k++) MET[e].push(new Metal(sr, (seed ^ (0x6d2b + 131 * k + 7919 * e)) >>> 0, MKIND[k], e));
+    let cmOn = 0;
 
     // ---- the mics: each piece's pan in the close mics, its time of flight and level at each overhead, room mic and the
     // crush mic, and how it leaks into the other close mics
@@ -996,8 +1103,9 @@ return {
       P[KICK].configure(K.kick, K.kick.f0, K.kick.t60);
       P[SNARE].configure(K.snare, K.snare.f0, K.snare.t60);
       for (let k = 0; k < 4; k++) P[TOM1 + k].configure(K.tom, K.toms[k], K.tomT[k]);
-      P[HAT].configure(K.hat, S);
-      for (let k = 0; k < 5; k++) P[CRASH1 + k].configure(K.cym[k], S);
+      hat1.configure(K.hat, S); hat2.configure(K.hat);
+      for (let k = 0; k < 5; k++) CYM0[k].configure(K.cym[k], S);
+      for (let e = 1; e <= 2; e++) for (let k = 0; k < 5; k++) MET[e][k].configure(K.cym[k]);
     }
     function push(p, at, art, F, r, tc, w) {
       const pc = P[p];
@@ -1063,10 +1171,23 @@ return {
       process(L, R, n, Pm) {
         if (CL.length < n) {
           CL = new Float64Array(n); CR = new Float64Array(n); SY = new Float64Array(n);
-          for (const pc of P) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
+          // every piece, and the hat and the cymbal set that are resting (so switching back finds buffers this size)
+          for (const pc of new Set(P.concat([hat1, hat2], CYM0))) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
         }
         const kt = Pm.kit | 0;
         if (kt !== kit) { kit = kt; configure(kt); }
+        const hw = (Pm.hat_model | 0) === 1 ? hat2 : hat1;
+        if (P[HAT] !== hw) { P[HAT].silence(); hw.silence(); hw.tm = -1; P[HAT] = hw; }
+        const cm = Pm.cym_model | 0;
+        if (cm !== cmOn) {
+          // another cymbal model: what was ringing stops, the new set takes the pieces
+          for (let k = 0; k < 5; k++) {
+            const o = MET[cmOn][k];
+            if (cmOn) o.clear(); else { o.bank.clear(); o.I.fill(0); o.Bw.fill(0); o.T = 0; o.pulse.n = 0; o.nev = 0; o.on = false; o.grabAt = -1; }
+            P[CRASH1 + k] = MET[cm][k]; P[CRASH1 + k].lvl = -1;
+          }
+          cmOn = cm;
+        }
         const K = KITS[kit];
         // ---- per-block params: each piece's tuning and ring
         const tg = Math.pow(2, Pm.tune / 12), dg = Pm.decay;
@@ -1121,7 +1242,9 @@ return {
         let any = false, symp = false;
         const kitG = K.gain;
         for (let oi = 0; oi < NP; oi++) {
-          const p = ORDER[oi], pc = P[p], g1 = dbx(Pm[LKEY[p]]) * GAIN[p] * kitG;
+          const p = ORDER[oi], pc = P[p];
+          let g1 = dbx(Pm[LKEY[p]]) * GAIN[p] * kitG;
+          if (cmOn && p >= CRASH1 && p <= SPLASH) g1 *= MTRIM[cmOn - 1][kit][p - CRASH1];
           // (a piece that wakes starts at its level: no fade-in on the first stroke)
           if (!pc.on && !pc.nev && !(p === SNARE && symp)) { pc.lvl = g1; continue; }
           if (p === SNARE) pc.render(n, symp ? SY : null); else pc.render(n);
@@ -1130,16 +1253,16 @@ return {
           any = true;
           const g0 = pc.lvl < 0 ? g1 : pc.lvl, dg2 = (g1 - g0) / n;
           pc.lvl = g1;
-          const near = pc.near, far = pc.far, cl = CLOSE[p] ? 1 : 0, pl = clL[p], pr = clR[p];
+          const near = pc.near, far = pc.far, farR = pc.farR || far, cl = CLOSE[p] ? 1 : 0, pl = clL[p], pr = clR[p];   // (a model with a pair of its own: farR)
           const dOL = ohD[2 * p], dOR = ohD[2 * p + 1], iOL = Math.floor(dOL), iOR = Math.floor(dOR), fOL = dOL - iOL, fOR = dOR - iOR, gOL = ohG[2 * p], gOR = ohG[2 * p + 1];
           const iML = rmD[2 * p], iMR = rmD[2 * p + 1], gML = rmG[2 * p], gMR = rmG[2 * p + 1], iX = crD[p], gXp = crG[p], iB = blD[p], gBL = blL[p], gBR = blR[p];
           let g = g0;
           for (let i = 0; i < n; i++) {
             g += dg2;
-            const x = near[i] * g, y = far[i] * g, wi = wp + i;
+            const x = near[i] * g, y = far[i] * g, yr = farR[i] * g, wi = wp + i;
             if (cl) { const xs = HRC * sat(x * iHRC); CL[i] += xs * pl; CR[i] += xs * pr; }
             let j = (wi + iOL) & RM; oL[j] += y * gOL * (1 - fOL); oL[(j + 1) & RM] += y * gOL * fOL;
-            j = (wi + iOR) & RM; oR[j] += y * gOR * (1 - fOR); oR[(j + 1) & RM] += y * gOR * fOR;
+            j = (wi + iOR) & RM; oR[j] += yr * gOR * (1 - fOR); oR[(j + 1) & RM] += yr * gOR * fOR;
             if (roomOn) { mL[(wi + iML) & RM] += y * gML; mR[(wi + iMR) & RM] += y * gMR; }
             if (crushOn) cR[(wi + iX) & RM] += y * gXp;
             bL[(wi + iB) & RM] += y * gBL; bR[(wi + iB) & RM] += y * gBR;

@@ -282,10 +282,20 @@ Two built-in kits sit on the drums shelf (`cat: 'drums'`). Every kit plays the d
 track with one gets the drum grid.
 
 - **Gobo Kit** (`core.drums`): one hit, one voice. It has six characters: FIELD, MACHINE, DUST, 808, 909 and
-  ACOUSTIC+.
+  ACOUSTIC+. `hat_model` picks the hi-hats' model: ORIGINAL (each character's own, the default), PLATES (two
+  plates of struck modes that chatter), BANDS (banded noise) or SQUARES (six squares with a body). On the last three
+  a hat note's `mod` (0..1) sets how open the hats are, and moves them while the note plays.
+  `snare_voice` and `clap_voice` swap in a candidate snare (MODAL, TWO HEADS, SNAPPY) or clap (HANDS, CIRCUIT, ROOM)
+  on any character; 0 (KIT) is each character's own, as before.
 - **Studio A** (`core.drumroom`): an acoustic kit in a big tracking room, miked like a recording. It has
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
+
+**Cymbal models.** Both kits take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
+play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
+built in `app/src/devices/builtin/metal.js` and measured against real cymbal recordings. Each cymbal is one model that
+keeps ringing between strokes, so a ride's wash builds; Gobo runs them in its `process()`, with its cymbal voices as
+probes (below). Gobo's 808 keeps its own.
 
 **The note map.** Both kits play General MIDI. Studio A plays these articulations GM has no note for:
 
@@ -342,12 +352,14 @@ is the same layout `drumroom.js` builds the mics from, so the picture and the st
 
 **Studio A's params.**
 
-- The kit: `kit` (MAPLE BIRCH JAZZ ARENA DEAD), `tune`, `decay`, `humanize`, and `velocity` (the velocity curve).
+- The kit: `kit` (MAPLE BIRCH JAZZ ARENA DEAD), `tune`, `decay`, `humanize`, `velocity` (the velocity curve), and
+  `cym_model` (CLASSIC FDN MODAL).
 - The mic mix: `mix_close`, `mix_oh`, `mix_room`, `mix_crush` (dB faders, -40 off), `bleed`, `room_size`, and `view`
   (DRUMMER or AUDIENCE).
 - Each piece's `<piece>_tune`, `<piece>_decay` and `<piece>_level` for kick, snare, hat, tom1-tom4, ride, crash1,
   crash2, china and splash.
 - `snare_wires` (0 is snares off) and `perc_level`.
+- `hat_model`: ORIGINAL (the default) or PLATES (two plates of dense modes that chatter as they ring).
 - Every param carries a `group` (its piece, `mics`, `kit` or `perc`), so an editor can lay them out by piece.
 
 **A kernel technique it uses: probes.** A voice renders into one stereo pair and doesn't know where in the block it

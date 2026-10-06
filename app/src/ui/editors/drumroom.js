@@ -219,7 +219,7 @@ export function mount(el, ctx) {
   const panels = {};
   const metaEls = {};
   const knob = (key, label, aria) => {
-    const c = ctx.control(key, { size: 48, label });
+    const c = ctx.control(key, key === 'hat_model' ? { kind: 'select', label } : { size: 48, label });   // a switch: a select keeps the row one line
     const d = c?.querySelector('[role=slider]');
     if (d && aria) d.setAttribute('aria-label', aria);
     return c;
@@ -237,11 +237,14 @@ export function mount(el, ctx) {
     side.append(sec);
   }
   panel('kit', `${def.name}, the whole kit`, [['tune', 'TUNE', `${def.name} tune, every piece`], ['decay', 'DECAY', `${def.name} decay, every piece`], ['humanize', 'HUMAN', `${def.name} humanize`], ['velocity', 'VEL', `${def.name} velocity curve`]], []);
+  // the cymbal model, with the whole kit (CLASSIC is the kit's own cymbals; FDN and MODAL the new ones)
+  panels.kit.append(h('div.dr-kit.dr-cym', h('span.dr-lbl', 'Cymbals'), ctx.control('cym_model', { label: false })));
   for (const piece of PIECES) {
     if (PERC.includes(piece)) continue;
     const nm = NAME[piece];
     const keys = [[`${piece}_tune`, 'TUNE', `${nm} tune`], [`${piece}_decay`, 'DECAY', `${nm} decay`], [`${piece}_level`, 'LEVEL', `${nm} level`]];
     if (piece === 'snare') keys.push(['snare_wires', 'WIRES', 'Snare wires']);
+    if (piece === 'hat') keys.push(['hat_model', 'MODEL', 'Hi-hat model']);
     panel(piece, nm, keys, notesOf(piece).map((p) => [p, piece]));
   }
   panel('perc', 'Percussion', [['perc_level', 'LEVEL', 'Percussion level: tambourine, cowbell, shaker and claps']], PERC.flatMap((piece) => notesOf(piece).map((p) => [p, piece])));
@@ -1032,6 +1035,7 @@ const CSS = `
 .dr-kit { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 10px; }
 .dr-lbl { font: 600 12px/1.2 var(--font-ui); color: var(--text-2); }
 .dr-kit .pk-seg { justify-self: start; }
+.dr-cym { margin-top: 14px; }
 .dr-kitline { grid-column: 1 / -1; margin: 0; min-height: 2.9em; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
 .dr-kitline.dr-preview { color: var(--text-3); }
 .dr-sel { min-width: 0; }
