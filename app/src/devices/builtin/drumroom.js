@@ -153,6 +153,7 @@ export default defineDevice({
     ...pieceParams('snare', 'the snare', 'S'),
     { key: 'snare_wires', label: 'WIRES', min: 0, max: 1, def: 0.6, role: 'tone', group: 'snare', desc: 'the snare wires: 0 off (a tom-like snare), 1 loose and buzzy (more sympathetic buzz from the toms and kick)' },
     ...pieceParams('hat', 'the hi-hat', 'H'),
+    { key: 'hat_model', label: 'HAT MODEL', opts: ['ORIGINAL', 'PLATES'], def: 0, role: 'shape', group: 'hat', desc: 'the hi-hat model: the original, or two plates of dense modes that chatter as they ring (fuller under 3 kHz, never pitched)' },
     ...pieceParams('tom1', 'rack tom 1 (high)', 'T1'),
     ...pieceParams('tom2', 'rack tom 2', 'T2'),
     ...pieceParams('tom3', 'floor tom 1', 'T3'),
@@ -519,6 +520,8 @@ class Hat {
     this.s1.set(4800, 0.7); this.s2.set(8600, 0.9); this.c1.set(1900, 1.4); this.c2.set(420, 0.8); this.tk.set(9500, 0.8);
   }
   params(tm, dm) { if (tm !== this.tm || dm !== this.dm) { this.tm = tm; this.dm = dm; this.hset = -1; } }
+  // the other hat model took over: stop ringing, so switching back starts from silence
+  silence() { this.bank.clear(); this.pulse.n = 0; this.nev = 0; this.se = 0; this.C = 0; this.T = 0; this.h = 0; this.ht = 0; this.hset = -1; this.on = false; this.lvl = -1; }
   // each partial's ring at openness h (between the plates clamped and wide open)
   open(h) {
     const B = this.bank, sr = this.sr, dm = this.dm, e = Math.pow(h, 0.65), top = sr * 0.45;
@@ -596,6 +599,96 @@ class Hat {
     const live = this.bank.prune();
     this.on = live > 0 || this.pulse.n > 0 || this.se > 1e-7 || this.C > 1e-7 || this.T > 1e-7;
     return this.on;
+  }
+}
+
+// PLATES (hat_model 1): the same hat (strokes, openness, the foot, the chick and the tick), with two plates of 48 modes
+// each, evenly dense from the plates' body to the top (stratified: no two modes beat, none line up into a pitch), and in
+// place of the sizzle, the chatter of the plates touching: noise that follows the plates' own motion, a little more
+// held shut (cC). Fitted to real one-shots by measurement (overdub-private tools/drum-room/hat-models.mjs and
+// tune-hats.mjs; clash, a lower slap half open, and thud, the stick on the stand, came out 0), and as loud in a groove
+// as the original (g). Its own seeded draws, so the original hat and the cymbals draw exactly what they did.
+const HAT2 = { nm: 48, lo: 119.8, hi: 17000, warp: 1, tilt: 0.014, ampExp: -0.3097, p2: 0.9294, edge: 0.0527, tC: 0.4319, tO: 2.643, hExp: 0.35, tcK: 0.6239, chatter: 7.37, cbF: 5860, cbQ: 0.5, chp: 1378, fol: 87.83, cC: 0.5, clash: 0, clF: 900, thud: 0, thF: 160, tick: 2.687, chick: 2.177, g: 0.955, go: 1.56, gp: 0.763 };
+class Hat2 extends Hat {
+  constructor(sr, seed) {
+    super(sr, seed);
+    const N = 2 * HAT2.nm;
+    this.bank = new Bank(N); this.N = N;
+    this.tO = new Float64Array(N); this.tC = new Float64Array(N); this.wT = new Float64Array(N); this.wE = new Float64Array(N); this.amp = new Float64Array(N);
+    this.cb = new SV(sr); this.ch = new SV(sr); this.cl = new SV(sr); this.th = new SV(sr); this.folA = Math.exp(-TAU * HAT2.fol / sr);
+    this.D = 0; this.dK = Math.exp(-1 / (0.006 * sr));
+    this.S2 = new Uint32Array(1); this.seed2 = seed >>> 0;
+  }
+  configure(s) {
+    const X = HAT2, B = this.bank, S2 = this.S2, N = this.N;
+    S2[0] = (this.seed2 ^ 0x5eed ^ Math.round(s.peak)) >>> 0 || 1;
+    this.spec = s; this.sizzle = s.sizzle;
+    const kc = s.closed / 0.07, ko = s.open / 1.8;   // each kit's hats: its own closed and open rings, against BIRCH-ish
+    for (let pl = 0; pl < 2; pl++) {
+      const lo = X.lo * (1 + 0.07 * pl);
+      for (let k = 0; k < X.nm; k++) {
+        const j = pl * X.nm + k, f = lo + (X.hi - lo) * Math.pow((k + 0.15 + 0.7 * draw(S2)) / X.nm, X.warp), tf = Math.pow(f / 4000, X.tilt) * (0.7 + 0.6 * draw(S2));
+        B.f[j] = f; this.tC[j] = X.tC * kc * tf; this.tO[j] = X.tO * ko * tf;
+        this.amp[j] = (0.4 + 0.6 * draw(S2)) * Math.pow(f / 1000, X.ampExp) / Math.sqrt(X.nm) * (pl ? X.p2 : 1);
+        this.wT[j] = 1; this.wE[j] = Math.min(1.5, Math.pow(f / 3000, X.edge));
+      }
+    }
+    B.n = N; this.hset = -1;
+    this.c1.set(1900, 1.4); this.c2.set(420, 0.8); this.tk.set(9500, 0.8); this.cb.set(X.cbF, X.cbQ); this.ch.set(X.chp, 0.7);
+    this.cl.set(X.clF, 0.7); this.th.set(X.thF, 0.7);
+  }
+  open(h) {
+    const B = this.bank, sr = this.sr, dm = this.dm, e = Math.pow(h, HAT2.hExp), top = sr * 0.45;
+    for (let k = 0; k < B.n; k++) {
+      const t = this.tC[k] * Math.pow(this.tO[k] / this.tC[k], e) * dm, r = Math.exp(-LN1000 / (Math.max(0.004, t) * sr));
+      let f = B.f[k] * this.tm; if (f > top) f = top;
+      const w = TAU * f / sr;
+      B.r[k] = r; B.a2[k] = r * r; B.w[k] = w; B.s[k] = Math.sin(w); B.a1[k] = 2 * r * Math.cos(w);
+    }
+    this.hset = h;
+  }
+  // a shorter push reaches higher: the plates' stick is a touch quicker than the original's
+  strike(e) {
+    // the balance (go, gp: an open stroke +4 LU and the foot -5 LU against a closed one, measured), the stick's contact
+    const X = HAT2, art = e.art;
+    let h = H_OPEN[art]; if (e.w > 0.02 && art !== H_PEDAL && art !== H_SPLASH) h = e.w;
+    e.F *= art === H_PEDAL ? X.gp : 1 + (X.go - 1) * h;
+    e.tc *= X.tcK; if (art !== H_PEDAL) this.D += X.thud * e.F;
+    super.strike(e);
+  }
+  silence() { super.silence(); this.D = 0; }
+  seg(a, e) {
+    const B = this.bank, E = this.E, body = this.body, near = this.near, far = this.far;
+    for (let i = a; i < e; i++) body[i] = 0;
+    for (let p = a; p < e; p += 32) {
+      const q = Math.min(e, p + 32);
+      if (this.h !== this.ht) {
+        this.h = this.ht + (this.h - this.ht) * Math.exp(-(q - p) / (0.003 * this.sr));
+        if (Math.abs(this.h - this.ht) < 1e-3) this.h = this.ht;
+      }
+      if (this.h !== this.hset) this.open(this.h);
+      const drive = this.pulse.fill(E, p, q);
+      B.run(body, E, p, q, drive);
+    }
+    // the chatter (the plates touching, as much as they move), the chick (the plates meeting), the tick (the stick)
+    const X = HAT2, h = this.h, cg = X.chatter * this.sizzle * (1 + X.cC * (1 - h)), clg = X.clash * this.sizzle * 4 * h * (1 - h);
+    const fa = this.folA, cK = this.cK, tK = this.tK, dK = this.dK, cb = this.cb, ch = this.ch, cl = this.cl, th = this.th, c1 = this.c1, c2 = this.c2, tk = this.tk;
+    const tg = 1.1 * X.tick, chg = X.chick, G = X.g;
+    let ns = this.ns, se = this.se, C = this.C, T = this.T, D = this.D;
+    for (let i = a; i < e; i++) {
+      ns = (Math.imul(ns, 1664525) + 1013904223) >>> 0; const w = ns * 4.656612873077393e-10 - 1;
+      const b = body[i], ab = b < 0 ? -b : b;
+      se = ab + (se - ab) * fa;
+      cb.tick(w); ch.tick(cb.bp);
+      const chick = C > 1e-7 ? (c1.tick(w * C), c2.tick(w * C), (c1.bp * 5 + c2.lp * 2.6) * chg) : 0;
+      tk.tick(w * T);
+      let x = b + ch.hp * cg * se + tk.bp * tg;
+      if (clg > 0) { cl.tick(w); x += cl.bp * clg * se; }
+      if (D > 1e-7) { x += th.tick(w) * D; D *= dK; }
+      near[i] = (x + chick) * G; far[i] = (x + chick * 0.4) * G;
+      C *= cK; T *= tK;
+    }
+    this.ns = ns; this.se = se < 1e-9 ? 0 : se; this.C = C < 1e-9 ? 0 : C; this.T = T < 1e-9 ? 0 : T; this.D = D < 1e-9 ? 0 : D;
   }
 }
 
@@ -894,6 +987,7 @@ return {
     P[KICK] = new Drum(sr, 0, seed ^ 0x11);
     P[SNARE] = new Drum(sr, 1, seed ^ 0x22);
     P[HAT] = new Hat(sr, seed ^ 0x33);
+    const hat1 = P[HAT], hat2 = new Hat2(sr, seed ^ 0x34);   // hat_model: 0 the original, 1 PLATES
     for (let k = 0; k < 4; k++) P[TOM1 + k] = new Drum(sr, 2, seed ^ (0x44 + k));
     P[CRASH1] = new Cym(sr, seed ^ 0x55, 0); P[CRASH2] = new Cym(sr, seed ^ 0x56, 0); P[RIDE] = new Cym(sr, seed ^ 0x57, 1);
     P[CHINA] = new Cym(sr, seed ^ 0x58, 2); P[SPLASH] = new Cym(sr, seed ^ 0x59, 3);
@@ -996,7 +1090,7 @@ return {
       P[KICK].configure(K.kick, K.kick.f0, K.kick.t60);
       P[SNARE].configure(K.snare, K.snare.f0, K.snare.t60);
       for (let k = 0; k < 4; k++) P[TOM1 + k].configure(K.tom, K.toms[k], K.tomT[k]);
-      P[HAT].configure(K.hat, S);
+      hat1.configure(K.hat, S); hat2.configure(K.hat);
       for (let k = 0; k < 5; k++) P[CRASH1 + k].configure(K.cym[k], S);
     }
     function push(p, at, art, F, r, tc, w) {
@@ -1063,10 +1157,12 @@ return {
       process(L, R, n, Pm) {
         if (CL.length < n) {
           CL = new Float64Array(n); CR = new Float64Array(n); SY = new Float64Array(n);
-          for (const pc of P) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
+          for (const pc of P.concat([P[HAT] === hat1 ? hat2 : hat1])) { pc.E = new Float64Array(n); pc.near = new Float64Array(n); pc.far = new Float64Array(n); pc.body = new Float64Array(n); }
         }
         const kt = Pm.kit | 0;
         if (kt !== kit) { kit = kt; configure(kt); }
+        const hw = (Pm.hat_model | 0) === 1 ? hat2 : hat1;
+        if (P[HAT] !== hw) { P[HAT].silence(); hw.silence(); hw.tm = -1; P[HAT] = hw; }
         const K = KITS[kit];
         // ---- per-block params: each piece's tuning and ring
         const tg = Math.pow(2, Pm.tune / 12), dg = Pm.decay;
