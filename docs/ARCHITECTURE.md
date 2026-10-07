@@ -74,6 +74,7 @@ overdub/
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
                          timing.js (forgiving time: the gentle grid, a take's steady lean, the pulse in free playing),
+                         rounds.js (Start a song: the loop, folding rounds, the 1, the readings, the timing words),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
@@ -87,6 +88,7 @@ overdub/
                          drumroom.js: Studio A's drawn kit)                                             [ui-mix]
                          sketch.js (capture UI), spiral.js (pitch spiral)                               [input]
                          export.js (the Song menu, files out), provenance.js, share.js, onboard.js, reference.js,
+                         start.js (Start a song: the blank song's door and its stage, app.start),
                          devices-io.js                                                                  [core / ui]
                          community.js (From the community in the Browser: previews, Try and its prompt; off
                          unless on localhost, COMMUNITY_LIVE)                                           [shelf]
@@ -893,6 +895,24 @@ app.sounds = { setHost(fn), offer({ track, from, anchor?, take? }), try(track, {
                suggest(track, rows, { by, id, reason, done }) → { id }, close(), current → { track, rows, from } | null,
                setsFor(track) }
 ```
+
+**Start a song** (`ui/start.js`, `app.start`; the pure parts `input/rounds.js` and `core/start.js`): the blank song's
+empty state is its door (`arranger.js` `syncEmpty` draws `doorOf(app)`), on every blank song. **Tap a beat** opens a
+stage over `.ew-main` (the arranger and the bottom pane `inert` under it; the whole screen on a phone). The pads play on
+a `store.preview` Drums track (never in History, released before any landing and on `pagehide`, ahead of the autosave),
+and each hit (`e.timeStamp`) goes through `rounds.js` `takeOf`: `timing.js` `fitHits` on the free-time hits, the tempo's
+octave, `loopOf` (1, 2 or 4 bars, the smallest that agrees nearly as well as the best), `foldRounds` (per drum sound: in
+the only round, in both of two, in half or more of three or more; the rest strays), `downbeatOf` (kicks on 1 and 3,
+snares on 2 and 4) and `readingsOf` (the other 1, the tempo halved or doubled within 60 to 180). **Done** dispatches
+`core/start.js` `planStart` once, by `'you'`: on a blank song the rounded tempo and a loop over the take, a new track
+named by `newPartFor`, one clip. The Timing words (`atLevel`) and the readings are `notes.replace` (and `clip.set`,
+`project.set`) dispatched with `join` on that transaction, so one undo takes the lot. **Hum a tune** previews a groove
+(`agent/grooves-tool.js` `putGroove` dry run) at a chosen speed; **Hum** dispatches it with the tempo and loop, then
+`app.onboard.humOver()` and `recorder.record()`. While the stage is on its play steps, `app.start.busy` is true and
+`agent/tools.js` refuses song-changing tools with `recording`. Its keys are `ui.keys` declarations with `first: true`,
+and while it's open the studio's single keys are held under it. `app.start = { open({ kind: 'tap' | 'hum' }), close(),
+step ('play' | 'hum' | 'in' | 'readings' | null), kind, busy, tap(row, perfMs), done(), again(), setLevel(level),
+readings(), useReading(i), humNow(), humFree(), leave(), landed(), take(), on('step' | 'land' | 'close', fn) }`.
 
 **Take one** (`ui/onboard.js`, `app.onboard`): the first-run coach (hear it, take one, keep it, ask the agent, keep
 its take). Each step advances on the real event (transport, capture `add`, a kept clip by you, an agent's request or

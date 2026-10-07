@@ -151,7 +151,9 @@ export function downbeatOf(notes, { bpb = 4, length = null } = {}) {
   const best = ranked[0], next = ranked[1];
   const margin = next && best.score > 0 ? r4((best.score - next.score) / best.score) : 1;
   const first = rotate(notes, best.shift, L).find((n) => n.t === 0);
-  return { shift: best.shift, sure: best.score > 0 && margin > 0.15, margin, why: first && SNARES.has(first.p) ? 'snare' : first && KICKS.has(first.p) ? 'kick' : 'first', alt: next && margin <= 0.15 ? next.shift : null };
+  // (sure: a clear winner, or a near tie the first hit settles: the take began on a kick and that reading keeps it the 1)
+  const kickFirst = best.shift === 0 && notes.some((n) => n.t === 0 && KICKS.has(n.p));
+  return { shift: best.shift, sure: best.score > 0 && (margin > 0.15 || (kickFirst && margin > 0)), margin, why: first && SNARES.has(first.p) ? 'snare' : first && KICKS.has(first.p) ? 'kick' : 'first', alt: next && margin <= 0.15 ? next.shift : null };
 }
 
 export function readingsOf({ notes, length, bpm }, { bpb = 4, lo = 60, hi = 180 } = {}) {

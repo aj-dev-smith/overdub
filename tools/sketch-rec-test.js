@@ -961,7 +961,14 @@ async function blank({ fakeAudio = null } = {}) {
   await s.page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   await s.page.evaluate(async () => { await window.overdub.engine.start(); });
   const ev = (f, a) => s.page.evaluate(f, a);
-  const door = (label) => ev((l) => [...document.querySelectorAll('.ar-empty-actions button')].find((b) => b.textContent.trim() === l)?.click(), label);
+  // the blank song's door (ui/start.js): Tap a beat with a click is the stage's "Play to a click instead", and Hum it in
+  // your own time is Hum a tune's "No beat; I'll hum freely" (Sketch's Hum)
+  const VIA = { 'Tap a beat': ['Tap a beat', 'Play to a click instead'], 'Hum it': ['Hum a tune', 'No beat; I’ll hum freely'] };
+  const door = async (label) => {
+    const [way, then] = VIA[label] || [label, null];
+    await ev((l) => [...document.querySelectorAll('.ar-empty-actions button')].find((b) => b.textContent.trim() === l)?.click(), way);
+    if (then) { await s.page.waitForTimeout(250); await ev((l) => [...document.querySelectorAll('.st-stage button')].find((b) => b.textContent.trim() === l)?.click(), then); }
+  };
   const song = () => ev(() => { const a = window.overdub, p = a.store.get(); return { tempo: p.tempo, hist: a.store.history.length, labels: a.store.history.map((x) => x.label), tracks: p.tracks.map((t) => ({ name: t.name, device: t.instrument?.device, clips: t.clips.filter((c) => !c.mute).map((c) => ({ start: c.start, length: c.length, notes: c.notes.map((n) => ({ p: n.p, t: n.t, d: n.d })) })) })) }; });
   return { ...s, ev, door, song };
 }

@@ -16,8 +16,8 @@ then shows where everything else lives. In the studio, `?` shows every key.
    any of it.
 2. **Hear it first, if you like.** Press `Space` (on a phone, ▶ at the top). Warm parts were played by a person,
    cool ones by an agent. **New song** in the Song menu gives you a blank one.
-3. **Lay down take one.** Open the **Sketch** tab under the song (on a blank song, its ways in open it too) and pick
-   a way in:
+3. **Lay down take one.** On a blank song the empty space is the door: [**Start a song**](#start-a-song) takes your
+   first idea at any speed and keeps time for you. Or open the **Sketch** tab under the song and pick a way in:
    - **Hum it.** The **Hum** button (the browser asks for the mic first) counts in a bar with the click, then records
      your hum into the song; press it again (or `Space`) and it's in, on a track of its own (Melody), at the bars you
      sang it. The notes are drawn as you sing, gently on the grid: a note near an eighth goes there, one well off it
@@ -49,6 +49,41 @@ That's an overdub. Take one is yours, take two is the agent's, and the **History
 agent gave. `⌘Z` undoes the latest edit.
 **Revert all Claude's changes (keep mine)** takes back everything the agent did and leaves your edits alone, and
 `⇧⌘Z` puts it back, as it does after **Undo** on one of the agent's lines there.
+
+## Start a song
+
+Every blank song (**New song**, **Make your own**) opens on its door: **Tap a beat**, **Hum a tune** or **Play the
+keys**, and, with no playing in time, **Draw a beat**, **Pick a groove** or **Ask** your agent. `↑` `↓` walk the three
+ways. Nothing sounds until you press one, and the door never shows over a song with tracks in it.
+
+**Tap a beat** opens a stage over the song. There's no click: tap `F` `J` `K` `L` (or the four pads; on a phone they
+fire as your finger lands) at whatever speed feels right, and keep going round. Your first hit starts the clock and
+the pads sound straight away. After six hits or so the BPM shows; after two bars' worth the bar lines fade in under
+your hits; once you've played the same thing twice it counts the rounds. What you play most often is what's kept: a
+hit you played in one round of three is left out, one you played in both of two rounds stays. **Done** (`Space`) puts
+it in the song at once: the tempo, a Drums track, the clip and a loop over it, one undo step, signed by you.
+**Start again** (`⌫`) clears it (the take stays in **Takes**). **Play to a click instead** is the older way: a Drums
+track, two bars looping with the click, `R` to record.
+
+Then it loops while you decide:
+
+- **Timing**: **Tight** puts each hit where you meant it (an eighth when you're near one), **Loose** half way, **As
+  played** keeps your feel, evened out to the tempo. `←` `→` step through them, the line says how many hits moved and
+  by how much, and it's all still one undo step with the take.
+- **Not quite?** If the studio isn't sure where the 1 is, it says so. The other ways your beat could go (the bar
+  starting on another kick, or twice as slow) are listed, and picking one plays it at once. **Use this one** keeps it;
+  `Esc` puts back what was there.
+- **Hum over it** (`Enter`) is the next part: the stage folds away, the beat keeps looping and Sketch is on Hum.
+  **Back to the song** (`Esc`) just folds it away.
+
+**Hum a tune** starts a simple beat looping at 100 BPM so you have something to hum against. **Speed** (Slow 80, Easy
+100, Upbeat 120) and **Beat** (Simple, Rock, Lo-fi) change what you hear, not the song. **Hum** (`H`) puts the beat in
+the song and records your hum over it from the next bar line; `Space` stops, and the tune lands on a new Melody track.
+**No beat; I'll hum freely** is Sketch's Hum in your own time. Headphones keep the beat out of your hum.
+
+`Esc` before you've played anything closes the stage; after, it asks once (*Leave without keeping this take? It stays
+in Takes.*). **Skip to the studio** is always top right. While you play on the stage, an agent's changes to the song
+wait until it's in.
 
 ## Find anything
 
@@ -140,7 +175,7 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
 - **The letter keys.** While musical typing or Tap has them, the line under the song's title says so ("Keys play
   Bass", with the key that stops it), and the keys they play on are notes: `K` and `L` aren't the click and the loop
   then, nor `S` solo in musical typing. Click that line to hand the keys back.
-- **First time?** **Tap a beat** on the Take one card, or on a new song's first screen, adds a Drums track if
+- **First time?** **Tap a beat** on the Take one card, or **Play to a click instead** on Start a song's stage, adds a Drums track if
   there is none, loops two bars with the click and starts them: press `R`, a bar counts in, and tap `F` `J` `K` `L`. While the song is
   shorter than 8 bars, **Make it 8 bars** (beside a kept take, and on the tour's last card) repeats it to 8: parts
   that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase. The coach's next
@@ -446,6 +481,8 @@ An agent can read the room, make a jam track, set a tone, point at the neck, and
 ([the tools](AGENTS.md#the-tools)).
 
 ## On a phone
+
+**Start a song**'s stage is the whole screen: four pads, each a thumb's width tall, and **Done** at the bottom.
 
 **Find anything** is a row of the Song menu, and the end of the agent sheet's tabs; it comes up as a sheet from the
 bottom.

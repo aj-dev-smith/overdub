@@ -428,10 +428,13 @@ try {
     T.ok(forced.coach && forced.view === 'simple', `?coach still starts the tour in the simple view (${JSON.stringify(forced)})`);
     await pg.evaluate(() => window.overdub.onboard.stop());
     await boot('/app/?view=simple');
+    // (Tap a beat opens Start a song's stage; its "Play to a click instead" is the first minute)
     await pg.evaluate(() => [...document.querySelectorAll('.ar-empty-actions button')].find((b) => b.textContent.trim() === 'Tap a beat')?.click());
+    await sleep(300);
+    await pg.evaluate(() => [...document.querySelectorAll('.st-stage button')].find((b) => b.textContent.trim() === 'Play to a click instead')?.click());
     await sleep(900);
     const door = await pg.evaluate(() => { const o = window.overdub; return { minute: !!o.onboard?.minute, tracks: o.store.get().tracks.map((t) => t.name) }; });
-    T.ok(door.minute && door.tracks.includes('Drums'), `Tap a beat on the blank sheet still starts the first minute (${JSON.stringify(door)})`);
+    T.ok(door.minute && door.tracks.includes('Drums'), `Tap a beat on the blank sheet, then Play to a click instead, starts the first minute (${JSON.stringify(door)})`);
     await pg.evaluate(() => { const o = window.overdub; o.engine.stop?.(); o.onboard?.stop?.(); });
     await ctx.close();
   }

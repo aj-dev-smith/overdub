@@ -396,10 +396,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await sleep(400);
     const blank = await E(() => { const c = document.querySelector('.ar-empty-card'); const b = c && [...c.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Tap a beat'); return { card: !!c && c.getClientRects().length > 0, primary: b?.classList.contains('btn-go') }; });
     T.ok(blank.card && blank.primary, `a blank song's first screen offers Tap a beat first (${JSON.stringify(blank)})`);
+    // (Tap a beat opens Start a song's stage, ui/start.js; its "Play to a click instead" is the first minute)
     await E(() => [...document.querySelectorAll('.ar-empty-card button')].find((x) => x.textContent.trim() === 'Tap a beat')?.click());
+    await sleep(300);
+    await E(() => [...document.querySelectorAll('.st-stage button')].find((x) => x.textContent.trim() === 'Play to a click instead')?.click());
     await sleep(900);
     const nb = await E(() => { const o = window.overdub, p = o.store.get(); return { tracks: p.tracks.map((t) => t.name), loop: p.loop, playing: o.engine.playing, click: o.engine.metronome, step: o.onboard.step, card: !!document.querySelector('.ob') }; });
-    T.ok(nb.tracks.includes('Drums') && nb.loop.on && nb.loop.end - nb.loop.start === 8 && nb.playing && nb.click && nb.card && nb.step === 'take', `and it starts the first minute on a new Drums track (${JSON.stringify(nb)})`);
+    T.ok(nb.tracks.includes('Drums') && nb.loop.on && nb.loop.end - nb.loop.start === 8 && nb.playing && nb.click && nb.card && nb.step === 'take', `and, with a click, it starts the first minute on a new Drums track (${JSON.stringify(nb)})`);
     await E(() => { const o = window.overdub; o.engine.stop(); o.onboard.stop(); });
 
     const errs = errors.filter((e) => !ignorable(e));

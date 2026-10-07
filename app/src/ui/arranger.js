@@ -55,6 +55,7 @@
 // lanesFollow(on?), recLanes([{ track, insert?, param, from, to }]) (the lanes being written, in record ink; while R
 // records the arranger also reads app.input.autorec.writes()) }.
 
+import { doorOf } from './start.js';
 import { h, css, icon, canvas, clamp, byline } from './dom.js';
 import {
   palette, resolveColor, rgba, authorKind, authorName, authorColor, isDrumTrack, deviceName, touched, flasher,
@@ -2569,24 +2570,13 @@ function mountArranger(el, app) {
     if (!isEmpty) emptyTake = '';
     if (!isEmpty || empty.childElementCount) return;
     empty.append(takeNote);
-    const sketch = () => (ui.panels.has('sketch') ? ui.show('sketch') : ui.toast('Sketch is still loading. It listens while you hum, tap or play.'));
-    const pr = store.get();
-    // the blank sheet before the first take: a head, a sentence, one primary (Tap a beat: the first minute is built
-    // around it, and a beat gives a hum a tempo and a grid), the other ways in as plain buttons
-    empty.append(h('div.ar-empty-card',
-      h('h2.ar-empty-title.disp', 'Take 1 is yours.'),
-      h('p.ar-empty-text', `Hum it, tap it, play it, or ask your agent. Every take is kept and signed with who played it, at ${pr.tempo || 120} BPM until you change it.`),
-      h('div.ar-empty-actions',
-        // Tap a beat is the first minute (app.onboard.firstMinute: Drums, a 2-bar loop with the click, R and tap)
-        h('button.btn.btn-go', { type: 'button', onclick: () => (typeof app.onboard?.firstMinute === 'function' ? app.onboard.firstMinute('tap') : sketch()) }, 'Tap a beat'),
-        // (no playing in time: a beat clicked in square by square, in the Beat tab: ui/drumgrid.js app.beat.draw)
-        h('button.btn', { type: 'button', title: 'Click squares in the Beat tab: nothing to play in time', onclick: () => (app.beat?.draw ? app.beat.draw() : ui.show('drumgrid')) }, 'Draw a beat'),
-        h('button.btn', { type: 'button', onclick: sketch }, 'Hum it'),
-        h('button.btn', { type: 'button', onclick: () => addTrack({ kind: 'instrument', name: 'Keys', instrument: { device: app.devices.getDevice('core.keys') ? 'core.keys' : 'core.poly', params: {} } }) }, 'Play it'),
-        h('button.btn.ar-empty-agent', { type: 'button', onclick: () => { if (!showAgent(ui)) ui.toast('The agent panel is loading'); } }, icon('agent', { size: 15 }), 'Ask your agent')),
-      // the foot: a finished song to hear; "add a track" is Track tools, so the simple view reads "Or hear a finished
-      // one: Night Shift." and the full studio "Or add a track yourself, or hear a finished one: Night Shift."
-      h('p.ar-empty-foot', 'Or ', h('span', { dataset: { feature: 'tracks' } }, h('button.ar-link', { type: 'button', onclick: (e) => addTrackMenu(e.currentTarget) }, 'add a track'), ' yourself, or '), 'hear a finished one: ', h('button.ar-link.ar-empty-demo', { type: 'button', onclick: async () => { if (app.exporter?.openDemo) { app.exporter.openDemo(); return; } const m = await import('../core/demo.js'); store.load(m.demoProject(), { by: 'overdub' }); } }, 'Night Shift'), '.')));
+    // the blank song's door (ui/start.js): Tap a beat (the primary), Hum a tune, Play the keys, the ways with no playing
+    // in time, and a finished song to hear
+    empty.append(doorOf(app, {
+      addTrackMenu: (el) => addTrackMenu(el),
+      showAgent: () => { if (!showAgent(ui)) ui.toast('The agent panel is loading'); },
+      openDemo: async () => { if (app.exporter?.openDemo) { app.exporter.openDemo(); return; } const m = await import('../core/demo.js'); store.load(m.demoProject(), { by: 'overdub' }); },
+    }));
   }
 
   /* ======================================================= drawing */

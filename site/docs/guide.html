@@ -45,6 +45,7 @@
       <summary>On this page</summary>
       <nav aria-label="On this page"><ol>
 <li><a href="#your-first-overdub-in-five-minutes">Your first overdub in five minutes</a></li>
+<li><a href="#start-a-song">Start a song</a></li>
 <li><a href="#find-anything">Find anything</a></li>
 <li><a href="#record-into-the-song">Record into the song</a></li>
 <li><a href="#pick-a-sound">Pick a sound</a></li>
@@ -66,7 +67,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">The guide</a></h1>
-    <p class="doc-meta">From <code>docs/GUIDE.md</code> (<a href="/docs/GUIDE.md">the Markdown</a>), about 47 min to read</p>
+    <p class="doc-meta">From <code>docs/GUIDE.md</code> (<a href="/docs/GUIDE.md">the Markdown</a>), about 50 min to read</p>
     <article class="prose">
 <p>Overdub is a studio for you and your agents. You lay down a take, your agent plays over it, you play over that, and
 every take is signed: warm for you, cool for it. This page gets you from the door to a kept take in five minutes,
@@ -83,8 +84,8 @@ it opens where you left off. Everything is on screen, and <a href="#find-anythin
 any of it.</li>
 <li><strong>Hear it first, if you like.</strong> Press <code>Space</code> (on a phone, ▶ at the top). Warm parts were played by a person,
 cool ones by an agent. <strong>New song</strong> in the Song menu gives you a blank one.</li>
-<li><p><strong>Lay down take one.</strong> Open the <strong>Sketch</strong> tab under the song (on a blank song, its ways in open it too) and pick
-a way in:</p>
+<li><p><strong>Lay down take one.</strong> On a blank song the empty space is the door: <a href="#start-a-song"><strong>Start a song</strong></a> takes your
+first idea at any speed and keeps time for you. Or open the <strong>Sketch</strong> tab under the song and pick a way in:</p>
 <ul>
 <li><strong>Hum it.</strong> The <strong>Hum</strong> button (the browser asks for the mic first) counts in a bar with the click, then records
 your hum into the song; press it again (or <code>Space</code>) and it's in, on a track of its own (Melody), at the bars you
@@ -117,6 +118,36 @@ you like.</li>
 agent gave. <code>⌘Z</code> undoes the latest edit.
 <strong>Revert all Claude's changes (keep mine)</strong> takes back everything the agent did and leaves your edits alone, and
 <code>⇧⌘Z</code> puts it back, as it does after <strong>Undo</strong> on one of the agent's lines there.</p>
+<h2 id="start-a-song"><a class="h-link" href="#start-a-song">Start a song</a></h2>
+<p>Every blank song (<strong>New song</strong>, <strong>Make your own</strong>) opens on its door: <strong>Tap a beat</strong>, <strong>Hum a tune</strong> or <strong>Play the
+keys</strong>, and, with no playing in time, <strong>Draw a beat</strong>, <strong>Pick a groove</strong> or <strong>Ask</strong> your agent. <code>↑</code> <code>↓</code> walk the three
+ways. Nothing sounds until you press one, and the door never shows over a song with tracks in it.</p>
+<p><strong>Tap a beat</strong> opens a stage over the song. There's no click: tap <code>F</code> <code>J</code> <code>K</code> <code>L</code> (or the four pads; on a phone they
+fire as your finger lands) at whatever speed feels right, and keep going round. Your first hit starts the clock and
+the pads sound straight away. After six hits or so the BPM shows; after two bars' worth the bar lines fade in under
+your hits; once you've played the same thing twice it counts the rounds. What you play most often is what's kept: a
+hit you played in one round of three is left out, one you played in both of two rounds stays. <strong>Done</strong> (<code>Space</code>) puts
+it in the song at once: the tempo, a Drums track, the clip and a loop over it, one undo step, signed by you.
+<strong>Start again</strong> (<code>⌫</code>) clears it (the take stays in <strong>Takes</strong>). <strong>Play to a click instead</strong> is the older way: a Drums
+track, two bars looping with the click, <code>R</code> to record.</p>
+<p>Then it loops while you decide:</p>
+<ul>
+<li><strong>Timing</strong>: <strong>Tight</strong> puts each hit where you meant it (an eighth when you're near one), <strong>Loose</strong> half way, <strong>As
+played</strong> keeps your feel, evened out to the tempo. <code>←</code> <code>→</code> step through them, the line says how many hits moved and
+by how much, and it's all still one undo step with the take.</li>
+<li><strong>Not quite?</strong> If the studio isn't sure where the 1 is, it says so. The other ways your beat could go (the bar
+starting on another kick, or twice as slow) are listed, and picking one plays it at once. <strong>Use this one</strong> keeps it;
+<code>Esc</code> puts back what was there.</li>
+<li><strong>Hum over it</strong> (<code>Enter</code>) is the next part: the stage folds away, the beat keeps looping and Sketch is on Hum.
+<strong>Back to the song</strong> (<code>Esc</code>) just folds it away.</li>
+</ul>
+<p><strong>Hum a tune</strong> starts a simple beat looping at 100 BPM so you have something to hum against. <strong>Speed</strong> (Slow 80, Easy
+100, Upbeat 120) and <strong>Beat</strong> (Simple, Rock, Lo-fi) change what you hear, not the song. <strong>Hum</strong> (<code>H</code>) puts the beat in
+the song and records your hum over it from the next bar line; <code>Space</code> stops, and the tune lands on a new Melody track.
+<strong>No beat; I'll hum freely</strong> is Sketch's Hum in your own time. Headphones keep the beat out of your hum.</p>
+<p><code>Esc</code> before you've played anything closes the stage; after, it asks once (<em>Leave without keeping this take? It stays
+in Takes.</em>). <strong>Skip to the studio</strong> is always top right. While you play on the stage, an agent's changes to the song
+wait until it's in.</p>
 <h2 id="find-anything"><a class="h-link" href="#find-anything">Find anything</a></h2>
 <p>Everything is on screen: the song, the transport, the detail tabs under the song (Sketch, Notes, Beat, Grooves,
 Devices, Mixer, Reference) and the Agent with History beside it. The Browser and the Inspector wait on the left: <code>B</code>
@@ -203,7 +234,7 @@ marker's bar.</li>
 <li><strong>The letter keys.</strong> While musical typing or Tap has them, the line under the song's title says so (&quot;Keys play
 Bass&quot;, with the key that stops it), and the keys they play on are notes: <code>K</code> and <code>L</code> aren't the click and the loop
 then, nor <code>S</code> solo in musical typing. Click that line to hand the keys back.</li>
-<li><strong>First time?</strong> <strong>Tap a beat</strong> on the Take one card, or on a new song's first screen, adds a Drums track if
+<li><strong>First time?</strong> <strong>Tap a beat</strong> on the Take one card, or <strong>Play to a click instead</strong> on Start a song's stage, adds a Drums track if
 there is none, loops two bars with the click and starts them: press <code>R</code>, a bar counts in, and tap <code>F</code> <code>J</code> <code>K</code> <code>L</code>. While the song is
 shorter than 8 bars, <strong>Make it 8 bars</strong> (beside a kept take, and on the tour's last card) repeats it to 8: parts
 that don't fit evenly, like a 3-bar hum over a 2-bar beat, each come round on their own phrase. The coach's next
@@ -506,6 +537,7 @@ time; the lane says so under a part with chords.</li>
 <p>An agent can read the room, make a jam track, set a tone, point at the neck, and read and write tab
 (<a href="agents.html#the-tools">the tools</a>).</p>
 <h2 id="on-a-phone"><a class="h-link" href="#on-a-phone">On a phone</a></h2>
+<p><strong>Start a song</strong>'s stage is the whole screen: four pads, each a thumb's width tall, and <strong>Done</strong> at the bottom.</p>
 <p><strong>Find anything</strong> is a row of the Song menu, and the end of the agent sheet's tabs; it comes up as a sheet from the
 bottom.</p>
 <p>The detail pane is a sheet under the song: drag its handle to size it, or tap the handle to tuck the sheet down to its

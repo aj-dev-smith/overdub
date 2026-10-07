@@ -786,6 +786,8 @@ const NEVER_BLOCKED = new Set(['get_project', 'get_guide', 'get_selection', 'get
 const TIME_OPS = new Set(['time.insert', 'time.remove', 'section.add', 'section.set', 'section.remove', 'section.duplicate']);
 const TIME_ARRANGE = new Set(['duplicate_section', 'insert_bars', 'remove_bars']);
 function recordingBlock(app, name, input, by) {
+  // (a take being played on Start a song's stage, ui/start.js: nothing in the song changes under it until it lands)
+  if (app.start?.busy && !NEVER_BLOCKED.has(name)) return err('recording', 'The human is playing their first idea on the Start a song stage. Try again in a moment, once it is in the song.', { recording: { state: 'start', tracks: [], blocked: 'the song' } });
   const rec = app.input?.recorder;
   if (!rec || rec.state === 'idle' || NEVER_BLOCKED.has(name)) return null;
   const p = P(app);

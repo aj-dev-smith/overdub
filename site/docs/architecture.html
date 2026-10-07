@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub architecture (v0.1 contracts)</a></h1>
-    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 108 min to read</p>
+    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 109 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other. This document is the contract every
 module is built against. If code and this document disagree, fix one of them in the same change.</p>
@@ -134,6 +134,7 @@ are covered by <code>tools/compat-test.js</code>.</li>
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
                          timing.js (forgiving time: the gentle grid, a take's steady lean, the pulse in free playing),
+                         rounds.js (Start a song: the loop, folding rounds, the 1, the readings, the timing words),
                          recorder.js (R: takes into the song), autorec.js (knob moves into lanes), latency.js
                          (calibration), capture.js (never lose an idea), importers.js (MIDI and audio files in),
                          index.js (app.input)                                                           [input]
@@ -147,6 +148,7 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          drumroom.js: Studio A's drawn kit)                                             [ui-mix]
                          sketch.js (capture UI), spiral.js (pitch spiral)                               [input]
                          export.js (the Song menu, files out), provenance.js, share.js, onboard.js, reference.js,
+                         start.js (Start a song: the blank song's door and its stage, app.start),
                          devices-io.js                                                                  [core / ui]
                          community.js (From the community in the Browser: previews, Try and its prompt; off
                          unless on localhost, COMMUNITY_LIVE)                                           [shelf]
@@ -845,6 +847,21 @@ line); a melodic instrument on a drum track, or a kit on a pitched track with no
                trying() → { track, device, preset?, was, newTrack? } | null, pending(track), toastLine(made),
                suggest(track, rows, { by, id, reason, done }) → { id }, close(), current → { track, rows, from } | null,
                setsFor(track) }</code></pre></div>
+<p><strong>Start a song</strong> (<code>ui/start.js</code>, <code>app.start</code>; the pure parts <code>input/rounds.js</code> and <code>core/start.js</code>): the blank song's
+empty state is its door (<code>arranger.js</code> <code>syncEmpty</code> draws <code>doorOf(app)</code>), on every blank song. <strong>Tap a beat</strong> opens a
+stage over <code>.ew-main</code> (the arranger and the bottom pane <code>inert</code> under it; the whole screen on a phone). The pads play on
+a <code>store.preview</code> Drums track (never in History, released before any landing and on <code>pagehide</code>, ahead of the autosave),
+and each hit (<code>e.timeStamp</code>) goes through <code>rounds.js</code> <code>takeOf</code>: <code>timing.js</code> <code>fitHits</code> on the free-time hits, the tempo's
+octave, <code>loopOf</code> (1, 2 or 4 bars, the smallest that agrees nearly as well as the best), <code>foldRounds</code> (per drum sound: in
+the only round, in both of two, in half or more of three or more; the rest strays), <code>downbeatOf</code> (kicks on 1 and 3,
+snares on 2 and 4) and <code>readingsOf</code> (the other 1, the tempo halved or doubled within 60 to 180). <strong>Done</strong> dispatches
+<code>core/start.js</code> <code>planStart</code> once, by <code>'you'</code>: on a blank song the rounded tempo and a loop over the take, a new track
+named by <code>newPartFor</code>, one clip. The Timing words (<code>atLevel</code>) and the readings are <code>notes.replace</code> (and <code>clip.set</code>,
+<code>project.set</code>) dispatched with <code>join</code> on that transaction, so one undo takes the lot. <strong>Hum a tune</strong> previews a groove
+(<code>agent/grooves-tool.js</code> <code>putGroove</code> dry run) at a chosen speed; <strong>Hum</strong> dispatches it with the tempo and loop, then
+<code>app.onboard.humOver()</code> and <code>recorder.record()</code>. While the stage is on its play steps, <code>app.start.busy</code> is true and
+<code>agent/tools.js</code> refuses song-changing tools with <code>recording</code>. Its keys are <code>ui.keys</code> declarations with <code>first: true</code>,
+and while it's open the studio's single keys are held under it. <code>app.start = { open({ kind: 'tap' | 'hum' }), close(), step ('play' | 'hum' | 'in' | 'readings' | null), kind, busy, tap(row, perfMs), done(), again(), setLevel(level), readings(), useReading(i), humNow(), humFree(), leave(), landed(), take(), on('step' | 'land' | 'close', fn) }</code>.</p>
 <p><strong>Take one</strong> (<code>ui/onboard.js</code>, <code>app.onboard</code>): the first-run coach (hear it, take one, keep it, ask the agent, keep
 its take). Each step advances on the real event (transport, capture <code>add</code>, a kept clip by you, an agent's request or
 notes). State in <code>overdub:onboard</code>; never starts under <code>navigator.webdriver</code> unless <code>?coach</code> or <code>start({ force })</code>.
