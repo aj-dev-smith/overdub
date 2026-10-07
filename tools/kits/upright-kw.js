@@ -1,0 +1,101 @@
+// Upright Piano KW (FreePats), the melodic kit Parlour Upright (core.upright) plays: what tools/fetch-kits.js downloads
+// and how it lays the samples out. Pinned to one upstream commit of the GitHub repo FreePats publishes it from (the
+// full build: 66 stereo samples, 2 velocity layers, 24-bit, 44.1 kHz), every file by SHA-256; the mapping comes from
+// the upstream SFZ (pinned too), read by fetch-kits.js. The "small" build is a single layer in mono, published only
+// as a .7z archive, so the full build is the one used: it fits the piano budget once packed (see docs/SOUNDS.md).
+//
+// What the build does to it (also in docs/SOUNDS.md): 24-bit to 16-bit by rounding; each tail cut after the last
+// 20 ms window at or above -70 dBFS (the samples are peak-normalized to 0 dBFS, so that is -70 dB under each one's
+// peak) and faded over 10 ms, except a looped sample, which is kept to its loop's end; each sample's start set 2 ms
+// before its attack. Kept at 44.1 kHz (the kernel resamples on the way, as it moves the pitch anyway). Nothing else:
+// the SFZ's loops, filters (fil_type=lpf_2p, cutoff) and release time go into the kit's header as they are.
+export const RECIPE = {
+  name: "Upright Piano KW",
+  repo: "freepats/upright-piano-KW",
+  commit: "570f6c60ed2eff67accad3b85d5b452e57a3ad28",
+  source: "https://github.com/freepats/upright-piano-KW",
+  home: "http://freepats.zenvoid.org/Piano/acoustic-grand-piano.html#UprightKW",
+  licence: "CC0-1.0",
+  // LICENSE at that commit: the full CC0 1.0 Universal text (the same file as Virtuosity Drums'); the README says
+  // "Published under the terms of Creative Commons CC0 public domain dedication"
+  licenceFile: { path: "LICENSE", sha256: "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499" },
+  readme: { path: "README.md", sha256: "6cd95a20c43ebe8c9abb899137afd72bfc17120c07f073890a3692eaf99def3f" },
+  sfz: { path: "UprightPianoKW-20220221.sfz", sha256: "c820c9442e9c1852e5a4f265b52085eddf311b31b5c4ddfe3a84ba9d8929217e" },
+  credit: "Upright Piano KW by FreePats: a Kawai upright in Inma Martinez de Miguel's living room, recorded by Gonzalo and Roberto (zenvoid.org) in January 2017 (CC0 1.0).",
+  sr: 44100,
+  trimDb: -70,
+  // the QA rubric's checks this source doesn't pass as written, and why it ships anyway (fetch-kits prints them all;
+  // the numbers are in tools/.out/library/freepats_upright-piano-KW/qa.json)
+  waive: [
+    { check: "9 velocity loudness", why: "every file is peak-normalized; the source's own SFZ makes the dynamics with SFZ's default velocity tracking (40 log10(vel/127)), and so does the kit, with each sample set on one smooth curve across the keys" },
+    { check: "11 tuning", why: "a piano is stretch-tuned: the bass reads flat and the treble sharp of equal temperament on purpose, and is kept as recorded; the few notes off their neighbours are named for the listening room" },
+  ],
+  files: {
+    "samples/A0vH.flac": "1f45f97db950585373723a551cbefa493e27a11df4c3213252563cd9310b08b6",
+    "samples/A0vL.flac": "51b13328355cc2a58986fdbb2b796b703965a2c6b592b44faf6c987f1327fd93",
+    "samples/A1vH.flac": "92dd7c7af24bb5789aadadcfb9baa99627c341eaae808849cce0ac72f0ee23b7",
+    "samples/A1vL.flac": "6816269cb220eb52aa6880b9cc3ed221440dd1f2e76bb3129b49ed6dcd8b4290",
+    "samples/A2vL.flac": "91d8f90471403494595211ac05e0e1bab92cbdeefea38ea4513466d016e39ce6",
+    "samples/A3vH.flac": "0dd04df799269779ea705dffec0ca8a2c304209cd5ee0d70c95ea79b1c753566",
+    "samples/A3vL.flac": "498682c53eb222dd88692a21ffdf48641873df63287d93dd43cd814544874372",
+    "samples/A4vH.flac": "4a7acdcb5e3fb41a165414e86afbceb74d7417b28c566b65fd7f836b2cc4535d",
+    "samples/A4vL.flac": "1eb7f53be83b4fb86a5fb5f2e8b2cebd6e1da3c1a7e8c3305b20533e6ac63d86",
+    "samples/A5vH.flac": "849570ec5bda68318cf1598230d6f3d922cfa8673fa199aa64d41ce2349e9bff",
+    "samples/A5vL.flac": "1f68815ff745a1968a706916586a5d4a96b39aeca1c444a8d75dc2b6a5555ef3",
+    "samples/A6vH.flac": "16a8249a8f42efe1102b9f852efc4c0376c9a742f7ba1b7bd63516f79184bc84",
+    "samples/A6vL.flac": "d029b2c12ec7f85ef42494e13748fcb7aa254dc9d9bae2f0b392a07d0aec3902",
+    "samples/A7vH.flac": "b3190d9854c7d052bd26985b1a1190cb52df3927fa588cae8b0ce30e14000081",
+    "samples/A7vL.flac": "b1a76f8594a900454ecf8c08357c8703a96e9fb12761f7470fa38089a4b27010",
+    "samples/B0vH.flac": "b665f8274050c7a45dbb82589144c2420da4c7138fe3e68c3c5c87fb94d6c616",
+    "samples/B1vH.flac": "eac636ee0e23c53ec17ed206d46364b566aeb62093bd197ea1f0f43f917a9b93",
+    "samples/B2vH.flac": "5786f8bb2fe9bae5e3f127b975f2320c5d90e109d5337170b3758a35892f920d",
+    "samples/B3vH.flac": "3af7b68b9f680000e375cac482246047ba0a75459e36869ae721525422a54276",
+    "samples/B4vH.flac": "1c5f3229666eebb84e0c873b6a52111ffd9411f5455f6f1fb6a5be1ad626a287",
+    "samples/B5vH.flac": "2300c08469c598ceb7f4d591d449640d95feedfa647df22e14912657776331dc",
+    "samples/B6vH.flac": "01d5a16030a91b500001dcbddd61a30c80696c7f37cf18c83dd114810893eb49",
+    "samples/B7vH.flac": "030e4f4b05b7b04ffdda85cec3faf7bf7ff3e6952cd310a2154cd836936edcb3",
+    "samples/C1vH.flac": "35de21fbffc810347b2749172dd61c017aa615cdb6d218388aab4f589a6e8a5b",
+    "samples/C1vL.flac": "7b3fecfc0a58f8d4936ee1db0f17c52ee5df2e041bb6299e10d564253d0a7e40",
+    "samples/C2vH.flac": "ef8cf8a9015b95a94b6c92a748a74bbe9af56a052bb784c2d77f9cb66e346b33",
+    "samples/C2vL.flac": "992dc386e8687e1d2e58b44e523d0961d80a98dcd113432c761c636cf9db02dd",
+    "samples/C3vH.flac": "9cc9ac393a70282d5dedc97dd886794bbc3118a752fdc400da3763027488fcd2",
+    "samples/C3vL.flac": "501f7703e1006f1afd37f8dcc438906057e6f7dc84c0952237cf84d8ebaec6cb",
+    "samples/C4vL.flac": "4382a54ffbb731cc8c7d8d88e322b1d669d6d44ccdca71eb17860d3c81967b4f",
+    "samples/C5vH.flac": "a8098d1a4e14b19becbd224e3978d3232759681a545f237d54269a231e43d88a",
+    "samples/C5vL.flac": "b6c6948fdc8b4f0a35d260229de051d912077123ce4a4c19e2a41edca9d4214d",
+    "samples/C6vH.flac": "1dbdb14f7d81b1b6ad78820ad6bd70b6c20e052ce25a801de3386daf6277e7fb",
+    "samples/C6vL.flac": "56c6f17c3b63f273ccb69c406c030a8715aa847607ebecc56f992fda2aad7813",
+    "samples/C7vH.flac": "f8c6a694884d70fed9ba41eeb0095573ac5f4189be30eed803bcc49cd744f251",
+    "samples/C7vL.flac": "5e5c802ee5bb1b04eedc8e9b6e7d53ffbcc1337c01e7f4426c2f3c5eb80b92de",
+    "samples/C8vH.flac": "2ee1d210beb846177ccb27c2e1dd163e275cb09ac2fdc5d861cd3b497dcedbc6",
+    "samples/C8vL.flac": "18b408d7ce283ae157ac972f6a2c130034a4f3bc87796810436665c8c2f0af48",
+    "samples/D#1vH.flac": "66eebb7c9b2b50eff7d5c41f47297fbac8b6d44d43d28ef2f8a539ab20ec7327",
+    "samples/D#1vL.flac": "80c36562b822a8de216cc43c0b35226fbd2d43f6edf5c99c028796588eb01337",
+    "samples/D#2vH.flac": "99beb94950194f0cc2352de4eb35e4a27bfcb2f530e9a2732c065bad0fdbf7c6",
+    "samples/D#2vL.flac": "93637b18629e6d48aa5ecc87c11e6e00114a4984353b325c8c45d908efe3ac46",
+    "samples/D#3vH.flac": "e6f54bb7aef81e4e7995d5ff5b7cadd4dc4c3502f6c29fdacc0a6eb56e65f725",
+    "samples/D#3vL.flac": "c34359c5561bc71a53bce1c24ebd62fa335be5098feb63ab9eaa57af51b57521",
+    "samples/D#4vH.flac": "b09be129c8bdc8f3ce076f8fe6d168bf8984c44a8343cf9fc4424f18680b73e4",
+    "samples/D#4vL.flac": "105074540a60b82228cc6d9defb84b37aaab2a18d7526ccbf197500529040ff7",
+    "samples/D#5vH.flac": "6e36f5fa2401c9da199bcacbde98a6860082d983e53649db5cc2013fb3ad2e00",
+    "samples/D#5vL.flac": "6730be1a4ccc3747d46535fc64b6bfccd725a433ef10c122a688cf643ef0eb17",
+    "samples/D#6vH.flac": "4df6a469f6faae438004a6b5913463024d532cab809039b72520d3b657d1accb",
+    "samples/D#6vL.flac": "a53e8a97c15d1be0af7d0e86b49b582bf5f1360ca9f468f3940ac8341c4a232c",
+    "samples/D#7vH.flac": "51d87c2008326ad5a0936300187bb7b2741c1b600f947e6bd26bf304b2d45c2a",
+    "samples/D#7vL.flac": "4f2a8c4bdc59a15004859a5978dbbe25b44c6f3bc6d41049c7894e5938ab1e50",
+    "samples/F#1vH.flac": "ef5418e17c62ef1efa10f872798d2cc540abaabe2360620e05dc50cbaaf8b337",
+    "samples/F#1vL.flac": "5b1dc3ef99433e0f9fa37f2da57d3cad121358cc21894a78ecfb13eb2c81ad1e",
+    "samples/F#2vH.flac": "32ebdd497e49cda9383924560e3a7a87d202c6d062981ae270970051d2a7aaf1",
+    "samples/F#2vL.flac": "d5f7f5b399982e8aab0db2fc419c4e6ab39dd8bf3b4a67acac13bd5a473b7b4b",
+    "samples/F#3vH.flac": "98e2301025525d6db84c6eafe49ffa9b4605222a7af68b156a4b5eef5971ec9c",
+    "samples/F#3vL.flac": "5a39e7f31344425491c439847a009d0859aaeaf51737dbe952d47bd86d0d4998",
+    "samples/F#4vH.flac": "c290966dcd889ed05614fbec9505b2f2ad5df8210dd372691026233ae8b7983a",
+    "samples/F#4vL.flac": "157fa02c06d4cc768f059ae1954c11f8dabf0dae65da1f94f120570d7d6a50e5",
+    "samples/F#5vH.flac": "f78a906e5066694496ce244c2a1c2a6b3c266228fa573e2ce4a07ada2c82b90a",
+    "samples/F#5vL.flac": "2df9d8a44724bb7c2c9bbbd05d6b459c76ce9c7af35eac925bba1b0ab7878ca7",
+    "samples/F#6vH.flac": "22aace81e2fa976f42b8fcf1ad1a1e900baca0edf8c99eee2e84fd6d68e785b9",
+    "samples/F#6vL.flac": "3d40cf0ed33a4de9ce417bf9f140527b4ef1506d056536a47e6cd3af34b6f9d5",
+    "samples/F#7vH.flac": "93be19832569c124e4c74f7bccaefea69e392e6f22799c389c045356f51086aa",
+    "samples/F#7vL.flac": "71f2ea9054d169f029da8cbb8f4d3a9ae8e0836f71854727e46a46b040909277",
+  },
+};

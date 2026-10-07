@@ -26,6 +26,9 @@ import { packOdk, unpackOdk } from '../app/src/kernel/odkz.js';
 import zlib from 'node:zlib';
 import { KIT_HASH } from '../app/src/devices/builtin/drumkit.js';
 import { RECIPE as KIT_RECIPE } from './kits/virtuosity.js';
+import { RECIPE as UPRIGHT_RECIPE } from './kits/upright-kw.js';
+import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
+import { qaSample, qaInstrument } from './kits/qa.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -66,8 +69,8 @@ async function fetchFile(recipe, file, want = recipe.files[file]) {
 }
 
 // 24-bit stereo in, trimmed (above), 16-bit out. Integer samples, IEEE doubles in a fixed order: the same bytes on any
-// engine.
-function trim16(d) {
+// engine. keep: frames that stay whatever their level (a loop's end); no fade then, as the loop never reaches it.
+function trim16(d, keep = 0) {
   const [L, R] = d.channels.length > 1 ? d.channels : [d.channels[0], d.channels[0]];
   const shift = 24 - d.bits; // (a 16-bit source is scaled up to 24 bits first)
   const at = (x, i) => x[i] * (1 << shift);
@@ -78,7 +81,8 @@ function trim16(d) {
     for (let i = a; i < Math.min(d.frames, a + WIN); i++) { const l = at(L, i), r = at(R, i); el += l * l; er += r * r; }
     if (el >= T2 || er >= T2) end = Math.min(d.frames, a + WIN);
   }
-  const frames = Math.min(d.frames, end + FADE), fade = frames - end;
+  if (keep > 0) end = Math.max(end, Math.min(d.frames, keep));
+  const frames = keep > 0 && end === Math.min(d.frames, keep) ? end : Math.min(d.frames, end + FADE), fade = frames - end;
   const out = [new Int16Array(frames), new Int16Array(frames)];
   [L, R].forEach((x, c) => {
     for (let i = 0; i < frames; i++) {
@@ -132,6 +136,125 @@ async function build(recipe) {
   return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames, outFrames };
 }
 
+// ------------------------------------------------------------------------------------------------ melodic kits
+// The plain SFZ a melodic recipe names: <global>, <group> and <region> headers (each inheriting the one above),
+// `opcode=value` pairs (a sample's path runs to the end of its line), // comments. -> [{ opcode: value }] per region
+export function parseSfz(text) {
+  const regions = [], scope = { global: {}, group: {}, region: null };
+  let cur = scope.global;
+  const close = () => { if (scope.region) regions.push({ ...scope.global, ...scope.group, ...scope.region }); scope.region = null; };
+  for (let line of text.split(/\r?\n/)) {
+    line = line.replace(/\/\/.*$/, '');
+    const re = /<(\w+)>|([a-z0-9_]+)=/g;
+    let m, pending = null, last = 0;
+    const put = (end) => { if (pending) { cur[pending] = (pending === 'sample' ? line.slice(last, end) : line.slice(last, end).trim().split(/\s+/)[0]).trim(); pending = null; } };
+    while ((m = re.exec(line))) {
+      if (pending === 'sample') break;
+      put(m.index);
+      if (m[1]) {
+        const h = m[1];
+        if (h === 'global' || h === 'control') { close(); cur = scope.global; }
+        else if (h === 'group' || h === 'master') { close(); scope.group = {}; cur = scope.group; }
+        else if (h === 'region') { close(); scope.region = {}; cur = scope.region; }
+        else { close(); cur = {}; }
+      } else { pending = m[2]; last = re.lastIndex; }
+    }
+    put(line.length);
+  }
+  close();
+  return regions;
+}
+
+const NOTE_NUM = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const noteOf = (v) => { if (/^-?\d+$/.test(v)) return +v; const m = /^([a-gA-G])(#|b)?(-?\d+)$/.exec(v); if (!m) throw new Error('sfz: a note I can\'t read: ' + v); return 12 * (+m[3] + 1) + NOTE_NUM[m[1].toUpperCase()] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); };
+// the opcodes a region's mapping comes from; anything else is reported, never silently dropped
+const USED = new Set(['sample', 'key', 'lokey', 'hikey', 'pitch_keycenter', 'lovel', 'hivel', 'loop_mode', 'loop_start', 'loop_end', 'fil_type', 'cutoff', 'ampeg_release']);
+
+async function buildMelodic(recipe) {
+  const lic = await fetchFile(recipe, recipe.licenceFile.path, recipe.licenceFile.sha256);
+  if (!/CC0 1\.0 Universal/.test(lic.toString('utf8'))) throw new Error('the pinned LICENSE is not CC0 1.0 Universal');
+  const readme = await fetchFile(recipe, recipe.readme.path, recipe.readme.sha256);
+  if (!/Creative Commons CC0 public domain dedication/.test(readme.toString('utf8'))) throw new Error('the pinned README no longer dedicates it to CC0');
+  const regions = parseSfz((await fetchFile(recipe, recipe.sfz.path, recipe.sfz.sha256)).toString('utf8'));
+  const ignored = new Set();
+  for (const r of regions) for (const k of Object.keys(r)) if (!USED.has(k)) ignored.add(`${k}=${r[k]}`);
+  const rows = [], out = [];
+  let inFrames = 0, outFrames = 0, release = null;
+  for (const [n, r] of regions.entries()) {
+    const file = r.sample.replace(/\\/g, '/');
+    if (!recipe.files[file]) throw new Error(`the SFZ names ${file}, which the recipe doesn't pin`);
+    const key = noteOf(r.pitch_keycenter ?? r.key ?? r.lokey);
+    const lo = noteOf(r.lokey ?? r.key ?? key), hi = noteOf(r.hikey ?? r.key ?? key);
+    const vlo = +(r.lovel ?? 0), vhi = +(r.hivel ?? 127);
+    const looped = (r.loop_mode === 'loop_continuous' || r.loop_mode === 'loop_sustain') && r.loop_start != null && r.loop_end != null;
+    if (r.ampeg_release != null) release = +r.ampeg_release;
+    const d = decodeFlac(await fetchFile(recipe, file));
+    if (d.sr !== recipe.sr) throw new Error(`${file}: ${d.sr} Hz, the kit is ${recipe.sr} Hz`);
+    const qa = qaSample({ ch: d.channels, bits: d.bits, sr: d.sr }, { key, looped });
+    // (SFZ loop_end is the loop's last frame; ours is one past it)
+    const loop = looped ? { s: +r.loop_start, e: +r.loop_end + 1, mode: r.loop_mode === 'loop_sustain' ? 'sustain' : 'continuous' } : undefined;
+    if (loop && loop.e > d.frames) throw new Error(`${file}: the loop ends at ${loop.e}, after the sample (${d.frames})`);
+    const t = trim16(d, loop ? loop.e : 0);
+    inFrames += d.frames; outFrames += t.frames;
+    const layer = vlo > 0 ? 1 : 0;
+    const id = `${file.replace(/^.*\//, '').replace(/\.flac$/, '')}`;
+    rows.push({ id, key, layer, src: file, qa });
+    out.push({ id, key, lo, hi, vlo, vhi, ...(loop ? { loop } : {}), ...(r.fil_type === 'lpf_2p' && r.cutoff ? { cutoff: +r.cutoff } : {}),
+      tune: 0, gain: 0, start: startOf(t.ch, t.frames, recipe.sr), src: file, ch: t.ch });
+    if (process.stdout.isTTY) process.stdout.write(`\r  ${n + 1}/${regions.length} ${file.slice(-44).padEnd(44)}`);
+  }
+  if (process.stdout.isTTY) process.stdout.write('\n');
+  // the layers of one key, aligned: a soft attack crosses the start threshold later than a hard one, so each soft
+  // sample's start moves to where it lines up best with the hard sample of the same key (the lag, within 10 ms, that
+  // maximizes their correlation over the first half second, mono). Two aligned layers add like one sound, so the
+  // kernel crossfades them linearly instead of cancelling (measured: 0.8 to 0.97 correlated aligned, as low as -0.5
+  // as they were). Integer arithmetic on the 16-bit samples.
+  for (const a of out) {
+    if (a.vlo !== 0) continue;
+    const h = out.find((c) => c !== a && c.key === a.key && c.vlo > 0);
+    if (!h) continue;
+    const N = Math.min(Math.round(0.5 * recipe.sr), a.ch[0].length - a.start - 1000, h.ch[0].length - h.start - 1000), M = Math.round(0.01 * recipe.sr);
+    let best = 0, lag = 0;
+    for (let l = -M; l <= M; l++) {
+      if (a.start + l < 0) continue;
+      let xy = 0, xx = 0, yy = 0;
+      for (let i = 0; i < N; i++) { const x = a.ch[0][a.start + l + i] + a.ch[1][a.start + l + i], y = h.ch[0][h.start + i] + h.ch[1][h.start + i]; xy += x * y; xx += x * x; yy += y * y; }
+      const r = xy / Math.sqrt(xx * yy || 1);
+      if (r > best) { best = r; lag = l; }
+    }
+    a.start += lag;
+    a.align = Math.round(100 * best) / 100;
+  }
+  // gain: the files are peak-normalized, so their attacks sit at whatever level that left them. Each sample is set on
+  // one smooth curve across the keyboard (a least-squares quadratic in the key through the hard layer's attack
+  // levels), so neighbouring zones and the two layers of a key meet at one level; the velocity curve then makes the
+  // dynamics (the SFZ's own default: 40 log10(vel / 127)). Rounded to 0.01 dB.
+  const hard = rows.filter((r) => r.layer === 1);
+  const fit = quadFit(hard.map((r) => r.key), hard.map((r) => r.qa.attack));
+  rows.forEach((r, i) => { out[i].gain = Math.round(100 * (fit(r.key) - r.qa.attack)) / 100; r.gain = out[i].gain; });
+  const qa = qaInstrument(rows, recipe.waive || []);
+  const meta = { kind: 'melodic', source: recipe.source, repo: recipe.repo, commit: recipe.commit, licence: recipe.licence, credit: recipe.credit,
+    sfz: recipe.sfz.path, env: { r: release ?? 0.6 },
+    trim: 'after the last 20 ms window at or above -70 dBFS RMS, then a 10 ms linear fade (a looped sample: kept to its loop end); 24-bit to 16-bit by rounding; kept at 44.1 kHz',
+    gain: 'each sample set on one quadratic across the keys through the hard layer\'s attack levels (RMS of 150 ms from the onset)',
+    ignored: [...ignored].sort() };
+  const bytes = encodeOdk({ name: recipe.name, sr: recipe.sr, bits: 16, channels: 2, meta, samples: out });
+  return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames, outFrames, qa };
+}
+
+// y ~ a + b x + c x^2, least squares (normal equations, Cramer's rule): the fitted function
+function quadFit(xs, ys) {
+  let n = 0, sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
+  xs.forEach((x0, i) => { const x = (x0 - 64) / 32, y = ys[i]; n++; sx += x; sx2 += x * x; sx3 += x ** 3; sx4 += x ** 4; sy += y; sxy += x * y; sx2y += x * x * y; });
+  const det3 = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const M = [[n, sx, sx2], [sx, sx2, sx3], [sx2, sx3, sx4]], D = det3(M), Y = [sy, sxy, sx2y];
+  const col = (k) => det3(M.map((row, i) => row.map((v, j) => (j === k ? Y[i] : v)))) / D;
+  const a = col(0), b = col(1), c = col(2);
+  return (x0) => { const x = (x0 - 64) / 32; return a + b * x + c * x * x; };
+}
+
+const printQa = (qa) => { for (const [c, v, why] of qa.verdicts) console.log(`  qa ${c.padEnd(22)} ${v.padEnd(7)} ${why}`); };
+
 // the packed twin of an .odk (kernel/odkz.js), written beside it; returns its size and both gzipped sizes
 function writePacked(file, bytes) {
   const z = packOdk(bytes);
@@ -143,7 +266,7 @@ const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
 const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
 
 // every kit a device names: [recipe, the hash the device pins, how it's built]
-const KITS = [[KIT_RECIPE, KIT_HASH, build]];
+const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
@@ -168,6 +291,14 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
     return 0;
   }
   const r = await make(recipe);
+  if (r.qa) {
+    printQa(r.qa);
+    // the report, one row per sample with every number (tools/.out/library/<repo>/qa.json)
+    const dir = path.join(HERE, '.out', 'library', recipe.repo.replace(/\//g, '_'));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'qa.json'), JSON.stringify({ kit: recipe.name, commit: recipe.commit, verdicts: r.qa.verdicts, rows: r.qa.rows }, null, 1) + '\n');
+    console.log(`  the QA report: ${path.relative(ROOT, path.join(dir, 'qa.json'))}`);
+  }
   fs.mkdirSync(KITS_DIR, { recursive: true });
   const outFile = path.join(ROOT, 'app', dataFile(r.hash));
   fs.writeFileSync(outFile, r.bytes);
