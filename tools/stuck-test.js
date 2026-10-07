@@ -183,6 +183,10 @@ const SEED = +process.env.STUCK_SEED || 20261001;
 
 /* ------------------------------------------------------------------ 2. the studio */
 const { page, errors, close } = await open('/app/');
+// (a sampled kit that isn't on this checkout, app/kits/ being gitignored, is a 404 the studio expects and plays nothing
+// for; only those are left out of "no page errors" below, and only while a kit is missing)
+const kit404 = [];
+page.on('response', (r) => { if (r.status() === 404 && /\/kits\/[0-9a-f]{64}\.odk$/.test(new URL(r.url()).pathname)) kit404.push(r.url()); });
 await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
 
 // 3a. a live note let go while the engine is still starting never sounds (and is not held)
@@ -469,6 +473,11 @@ const wdBad = every.ids.filter((id) => !noData.includes(id)).filter((id) => { co
 const wdSlow = Math.max(0, ...every.ids.filter((id) => wd[id]).map((id) => wd[id].at || 0));
 t.ok(every.ids.length >= 14 && !wdBad.length, `live, the watchdog lets go of a held voice nobody holds open while stopped, on all ${every.ids.length - noData.length} kernel instruments${noData.length ? ` with their samples here (${noData.length} left out)` : ''} (the slowest caught ${Math.round(wdSlow)} ms after it started${wdBad.length ? '; ' + wdBad.map((id) => `${devOf(id)}: caught ${wd[id].at == null ? 'never' : Math.round(wd[id].at) + ' ms'}, reported ${wd[id].seen.join(', ') || 'nothing'}, ${wd[id].after} held after a second`).join('; ') : ''})`);
 
-t.ok(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
+{
+  // as many 404 lines as missing kit files, no more, and only when the kit was missing (noData above)
+  let left = noData.length ? kit404.length : 0;
+  const real = errors.filter((e) => !(left > 0 && /status of 404/.test(e) && left--));
+  t.ok(!real.length, 'no page errors' + (real.length ? ': ' + real.slice(0, 3).join(' | ') : '') + (errors.length > real.length ? ` (${errors.length - real.length} 404 for a sampled kit not on this checkout left out)` : ''));
+}
 await close();
 t.done();

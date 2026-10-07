@@ -74,18 +74,22 @@ echo "$TARGET: $SHORT ($REF): $(find "$STAGE" -type f | wc -l | tr -d ' ') files
 echo "app/site-config.json: $(tr -d '\n ' < "$STAGE/app/site-config.json")"
 
 # the sampled kits the shipped devices name (data: { kit: 'sha256-<hex>' }): each must be here and be its own hash
+# (a dry run names a missing kit and plans without it, so the plan can be read on a checkout that hasn't built them)
 KITS=$( (grep -rhoE "sha256-[0-9a-f]{64}" "$STAGE/app/src/devices" || true) | sort -u | cut -c8-)
+HAVE=""
 for name in $KITS; do
   f="app/kits/$name.odk"
+  if [ ! -e "$f" ] && [ -n "$DRY" ]; then echo "dry run: $f isn't here, so a real deploy would stop (node tools/fetch-kits.js builds it)"; continue; fi
   if [ ! -e "$f" ]; then echo "not deploying: $f isn't here (node tools/fetch-kits.js builds it)"; exit 1; fi
   sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
   if [ "$sum" != "$name" ]; then echo "not deploying: $f's SHA-256 is $sum"; exit 1; fi
+  HAVE="$HAVE $name"
 done
 
 # the kits first, so no page names one that isn't up yet (uploaded once each: a file named by its hash never changes)
 KITTMP=$(mktemp -d)
 trap 'rm -rf "$STAGE" "$KITTMP"' EXIT
-for name in $KITS; do
+for name in $HAVE; do
   if [ -z "$DRY" ] && aws s3api head-object --bucket "$BUCKET" --key "app/kits/$name.odk" >/dev/null 2>&1; then echo "kit $name: already up"; continue; fi
   gzip -9 -n -c "app/kits/$name.odk" > "$KITTMP/$name.odk"
   x aws s3 cp "$KITTMP/$name.odk" "s3://$BUCKET/app/kits/$name.odk" --only-show-errors \
