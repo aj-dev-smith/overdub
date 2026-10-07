@@ -52,13 +52,14 @@
 <li><a href="#limits">Limits</a></li>
 <li><a href="#hosting">Hosting</a><ol><li><a href="#the-origin-secret">The origin secret</a></li><li><a href="#known-gap-the-origin-hop-is-plain-http">Known gap: the origin hop is plain HTTP</a></li></ol></li>
 <li><a href="#listing-in-claudes-directory">Listing in Claude's directory</a><ol><li><a href="#descriptions-that-steer">Descriptions that steer</a></li></ol></li>
+<li><a href="#accounts-one-url-signed-in-with-overdub">Accounts: one URL, signed in with Overdub</a></li>
 <li><a href="#files">Files</a><ol><li><a href="#trying-it-locally">Trying it locally</a></li></ol></li>
       </ol></nav>
     </details>
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Remote MCP: claude.ai plays in your studio</a></h1>
-    <p class="doc-meta">From <code>docs/REMOTE-MCP.md</code> (<a href="/docs/REMOTE-MCP.md">the Markdown</a>), about 25 min to read</p>
+    <p class="doc-meta">From <code>docs/REMOTE-MCP.md</code> (<a href="/docs/REMOTE-MCP.md">the Markdown</a>), about 27 min to read</p>
     <p class="doc-note">Status: The relay is live: open the studio’s Connect tab, turn it on, and add the URL to claude.ai as a custom connector.</p>
     <article class="prose">
 <p>Claude Code reaches the studio through the <strong>local bridge</strong>: <code>server/mcp.js</code> (stdio) → <code>server/bridge.js</code> on
@@ -430,6 +431,53 @@ them play&quot;, &quot;the human's edits are never touched&quot;). Those describ
 <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/tools">https://modelcontextprotocol.io/specification/2025-06-18/server/tools</a>, and
 <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning">https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning</a> (the newer, stateless revision: a client
 that speaks both it and the older ones falls back to <code>initialize</code> with a server like the relay).</p>
+<h2 id="accounts-one-url-signed-in-with-overdub"><a class="h-link" href="#accounts-one-url-signed-in-with-overdub">Accounts: one URL, signed in with Overdub</a></h2>
+<p>Built and tested, not deployed, and off unless configured. With it, every Claude app adds the same connector URL,
+<code>https://relay.overdubstudio.com/mcp</code>, and the person signs in with a free Overdub account (email, then a 6-digit
+code) instead of copying a private link per browser. The account service is the OAuth authorization server; the relay
+is the resource server and keeps no database.</p>
+<ul>
+<li><strong>Claude's side.</strong> A request to <code>/mcp</code> without a good access token gets <code>401</code> with
+<code>WWW-Authenticate: Bearer resource_metadata=&quot;&lt;relay&gt;/.well-known/oauth-protected-resource/mcp&quot;, scope=&quot;studio&quot;</code>.
+The client reads that document, finds the account service, and signs in there (PKCE, Client ID Metadata Documents
+or Dynamic Client Registration). Access tokens are Ed25519 JWS, 15 minutes, checked here with the service's public
+keys; once a minute per grant the relay asks the service whether the grant is still live, so <strong>Disconnect</strong> takes
+effect within a minute (within seconds from the studio's Connect tab, which asks the relay to check at once). Grants
+still showing as connected are checked on the relay's sweep too, so one disconnected elsewhere leaves the studio's
+presence without its client calling. If the service can't be reached, a good signature stands until it expires,
+except for a grant this relay has already seen revoked; if it answers <code>429</code>, the last answer is kept a minute more.</li>
+<li><strong>The studio's side.</strong> A signed-in tab trades its session for a 5-minute tab ticket (<code>POST /v1/relay/ticket</code> on the
+account service) and talks to <code>/tab/hello</code>, <code>/tab/events</code> and <code>/tab/result</code> with <code>Authorization: Bearer &lt;ticket&gt;</code>,
+renewed every 2 minutes. The ticket lives in the tab's memory only. Signing out stops the stream at once; signing
+out everywhere, from another browser, stops it within a minute.</li>
+<li><strong>Which tab.</strong> Each call goes to the account's live tab: the one that said hello for focus last (load, visible,
+focused, <strong>Play here</strong>). A renewal from a background tab doesn't move it, and focus hellos are capped per tab (10 a
+minute, one every 2 seconds), so other tabs can't use up the one you're in. A tab that loses it hears so (&quot;Claude
+moved to another tab.&quot;); three times in two minutes and the Connect tab offers <strong>Sign out everywhere</strong>. A tab id
+belongs to the studio session that opened it, at most 4 tabs per account are connected (a fifth is refused, never
+the one in use pushed out), and a known tab reconnects on its own allowance.</li>
+<li><strong>Who signs.</strong> The service decides the agent at consent and puts it in the token: <code>claude.ai</code> for the hosted Claude
+apps, <code>mcp:claude-code</code> for Claude Code, <code>mcp:&lt;name&gt;</code> for others. The tab accepts only those shapes and edits nothing
+for a call signed by anything else. Private links still sign <code>claude.ai</code>.</li>
+<li><strong>Both at once.</strong> Private links (<code>/s/&lt;token&gt;/mcp</code>) keep working beside it and never answer <code>401</code>. An account's tabs
+are never reached through a private link, or the other way round. <code>RELAY_OAUTH_HOSTS</code> keeps the old host on private
+links only.</li>
+</ul>
+<p>Claude Code needs no checkout: <code>claude mcp add --transport http overdub &lt;relay&gt;/mcp</code>, then <code>/mcp</code> to sign in.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>env (relay)</th><th>meaning</th></tr></thead>
+<tbody>
+<tr><td><code>RELAY_OAUTH_ISSUER</code></td><td>the account service's origin. Unset: accounts are off and the relay is the private-link relay</td></tr>
+<tr><td><code>RELAY_OAUTH_RESOURCE</code></td><td><code>&lt;relay&gt;/mcp</code>, already canonical (the relay refuses to start otherwise)</td></tr>
+<tr><td><code>RELAY_OAUTH_HOSTS</code></td><td>the Host names that serve the account routes; others get <code>404</code> there</td></tr>
+<tr><td><code>RELAY_OAUTH_JWKS_URL</code>, <code>RELAY_OAUTH_INTROSPECT_URL</code></td><td>default <code>&lt;issuer&gt;/oauth/jwks</code> and <code>&lt;issuer&gt;/oauth/introspect</code></td></tr>
+<tr><td><code>RELAY_INTROSPECT_SECRET</code></td><td>shared with the service for introspection</td></tr>
+<tr><td><code>RELAY_OAUTH_DEV</code></td><td><code>1</code> allows <code>http://localhost</code> for the URLs above; never in a deploy</td></tr>
+</tbody></table></div>
+<p>The browser's mode is kept in <code>overdub:remote-mode</code> from the first load, so a reload or a new tab stays in account
+mode. In the studio, account mode turns on with <code>ACCOUNT_LIVE</code> in <code>app/src/agent/remote.js</code>, or locally with both
+<code>?relay=http://localhost:&lt;port&gt;</code> and <code>?cloud=http://localhost:&lt;port&gt;</code>. <code>tools/relay-test.js</code> covers it with a fake
+account service.</p>
 <h2 id="files"><a class="h-link" href="#files">Files</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th>file</th><th>what</th></tr></thead>

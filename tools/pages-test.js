@@ -215,7 +215,7 @@ for (const width of [1440, 390]) {
 {
   const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
   const sk = rd('app/src/ui/sketch.js'), pedal = rd('site/assets/pedal.js');
-  t.ok(/nothing leaves this device/.test(sk) && !/leaves this computer/.test(sk + rd('site/index.html')), 'the hum says nothing leaves this device (not "this computer")');
+  t.ok(/The sound stays on this device; an agent you’ve connected can read the notes/.test(sk) && !/nothing leaves this device/.test(sk) && !/leaves this computer/.test(sk + rd('site/index.html')), 'the hum says the sound stays on this device and a connected agent can read the notes (never "nothing leaves": get_capture reads them)');
   t.ok(/Drag the knobs, or tab to one and use the arrow keys/.test(pedal), 'the landing pedal\'s hint reads on a phone too ("Drag the knobs, or tab to one…")');
 }
 

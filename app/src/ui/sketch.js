@@ -791,7 +791,7 @@ function mount(el, app) {
     const roll = canvas('sk-roll');
     const rollWrap = h('div.sk-rollwrap', h('div.sk-cv', roll.cv));
     const explain = h('div.sk-explain',
-      h('p.sk-more', h('b', 'Hum something.'), ' Nothing is recorded until you press the button, and nothing leaves this device.'),
+      h('p.sk-more', h('b', 'Hum something.'), ' Nothing is recorded until you press the button. The sound stays on this device; an agent you’ve connected can read the notes.'),
       h('p.sk-short', h('b', 'Hum something.')),
       h('button.btn.btn-go', { onclick: () => go() }, 'Allow the mic and hum'),
       h('p.sk-small', 'The browser asks once. Its voice processing stays off, so Overdub hears your pitch, not a phone call.'));

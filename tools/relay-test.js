@@ -128,7 +128,149 @@ function stalledTab(base, p) {
   });
 }
 
-const relays = [];
+/* ------------------------------------------------------------------ Sign in with Overdub: a fake account service */
+// It holds an Ed25519 key, serves its public half at /oauth/jwks and answers /oauth/introspect (Basic overdub-relay:
+// <secret>) from what the test tells it: which grants are revoked (and why), which studio sessions ended, or that it is
+// down. Tokens are signed here, the way the real service signs them (docs/OAUTH.md in overdub-cloud).
+const OA_RESOURCE = 'http://localhost:8790/mcp';
+const OA_SECRET = crypto.randomBytes(32).toString('base64url');
+const b64j = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+function fakeAccounts() {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+  const pub = publicKey.export({ format: 'jwk' });
+  const S = { kid: 'k-test', jwks: 0, introspections: [], revoked: new Map(), ended: new Set(), down: false, throttle: false, keys: [{ ...pub, kid: 'k-test', use: 'sig', alg: 'EdDSA' }] };
+  S.sign = (payload, header = {}, key = privateKey) => {
+    const h = b64j({ alg: 'EdDSA', typ: 'at+jwt', kid: S.kid, ...header });
+    const p = b64j(payload);
+    return `${h}.${p}.${crypto.sign(null, Buffer.from(`${h}.${p}`), key).toString('base64url')}`;
+  };
+  S.server = http.createServer((rq, rs) => {
+    let body = '';
+    rq.on('data', (d) => { body += d; });
+    rq.on('end', () => {
+      const send = (code, obj) => { rs.writeHead(code, { 'content-type': 'application/json' }); rs.end(JSON.stringify(obj)); };
+      if (rq.url === '/oauth/jwks') { S.jwks++; return send(200, { keys: S.keys }); }
+      if (rq.url.startsWith('/v1/')) return S.cloudApi(rq, rs, body);
+      if (rq.url !== '/oauth/introspect' || rq.method !== 'POST') return send(404, {});
+      if (S.down) return send(503, {});
+      if (S.throttle) { S.throttled = (S.throttled || 0) + 1; return send(429, { error: 'slow_down' }); }
+      if (rq.headers.authorization !== 'Basic ' + Buffer.from('overdub-relay:' + OA_SECRET).toString('base64')) return send(401, { error: 'invalid_client' });
+      const f = new URLSearchParams(body);
+      let c = {};
+      try { c = JSON.parse(Buffer.from(String(f.get('token')).split('.')[1], 'base64url').toString()); } catch (e) { return send(200, { active: false }); }
+      S.introspections.push({ hint: f.get('token_type_hint'), gid: c.gid, sid: c.sid });
+      if (f.get('token_type_hint') === 'tab_ticket') return send(200, S.ended.has(c.sid) ? { active: false } : { active: true, sub: c.sub, sid: c.sid, exp: c.exp });
+      if (S.revoked.has(c.gid)) return send(200, { active: false, revoke_reason: S.revoked.get(c.gid) });
+      return send(200, { active: true, sub: c.sub, gid: c.gid, client_id: c.client_id, scope: c.scope, aud: c.aud, exp: c.exp });
+    });
+  });
+  // The account API the studio's Connect tab talks to (the same service, in production): sign in by code, tab
+  // tickets, connected apps. One person, no cookies: enough to drive the sheet.
+  S.cloud = { signedIn: false, email: '', code: '246810', grants: [], tickets: 0, ticket429: false, everywhere: 0 };
+  S.cloudApi = (rq, rs, body) => {
+    const o = rq.headers.origin;
+    const h = { 'content-type': 'application/json', ...(o ? { 'access-control-allow-origin': o, 'access-control-allow-credentials': 'true', vary: 'Origin' } : {}) };
+    const send = (code, obj) => { rs.writeHead(code, h); rs.end(obj === undefined ? '' : JSON.stringify(obj)); };
+    if (rq.method === 'OPTIONS') { rs.writeHead(204, { ...h, 'access-control-allow-methods': 'GET, POST, DELETE', 'access-control-allow-headers': 'content-type' }); return rs.end(); }
+    let b = {}; try { b = body ? JSON.parse(body) : {}; } catch (e) { /* */ }
+    const C = S.cloud, signedOut = () => send(401, { error: { code: 'not_signed_in', message: 'Sign in first.' } });
+    const path = rq.url.split('?')[0];
+    if (path === '/v1/config') return send(200, { botCheck: { kind: 'stub' } });
+    if (path === '/v1/me') return C.signedIn ? send(200, { user: { id: 'usr_web', email: C.email } }) : signedOut();
+    if (path === '/v1/auth/email') { C.email = String(b.email || ''); return send(202, { sent: true }); }
+    if (path === '/v1/auth/code') { if (b.code !== C.code) return send(400, { error: { code: 'bad_code', message: 'That code didn’t match. Check the email and try again.' } }); C.signedIn = true; return send(200, { signedIn: true }); }
+    if (path === '/v1/auth/logout') { C.signedIn = false; return send(204); }
+    if (path === '/v1/auth/logout-all') { C.signedIn = false; C.everywhere++; return send(204); }
+    if (!C.signedIn) return signedOut();
+    if (path === '/v1/relay/ticket' && C.ticket429) return send(429, { error: { code: 'rate_limited', message: 'Slow down.' } });
+    if (path === '/v1/relay/ticket') { C.tickets++; return send(200, { ticket: tabTicket(S, { sub: 'usr_web', sid: 'ses_web' }), expiresAt: Date.now() + 300e3, relay: 'http://localhost:8790' }); }
+    if (path === '/v1/oauth/grants' && rq.method === 'GET') { C.grantLoads = (C.grantLoads || 0) + 1; return send(200, { grants: C.grants }); }
+    if (path === '/v1/oauth/grants' && rq.method === 'DELETE') { for (const g of C.grants) S.revoked.set(g.id, 'user'); C.grants = []; return send(204); }
+    const m = /^\/v1\/oauth\/grants\/([^/]+)$/.exec(path);
+    if (m && rq.method === 'DELETE') { const id = decodeURIComponent(m[1]); S.revoked.set(id, 'user'); C.grants = C.grants.filter((g) => g.id !== id); return send(204); }
+    return send(404, { error: { code: 'not_found' } });
+  };
+  return new Promise((r) => S.server.listen(0, '127.0.0.1', () => { S.url = `http://127.0.0.1:${S.server.address().port}`; r(S); }));
+}
+let oaN = 0;
+// An access token as the service mints it; over: claims to change, header: header fields to change.
+function accessToken(A, { sub = 'usr_alice', gid = 'grt_' + (++oaN), agent = 'mcp:claude-code', agentName = 'Claude Code', over = {}, header = {}, key } = {}) {
+  const iat = Math.floor(Date.now() / 1000);
+  used.push(sub, gid);
+  const tok = A.sign({ iss: A.url, aud: OA_RESOURCE, sub, client_id: 'https://claude.ai/oauth/claude-code-client-metadata', scope: 'studio', gid, agent, agent_name: agentName, iat, exp: iat + 900, jti: crypto.randomUUID(), ...over }, header, key);
+  used.push(tok);
+  return tok;
+}
+function tabTicket(A, { sub = 'usr_alice', sid = 'ses_' + (++oaN), over = {}, header = {} } = {}) {
+  const iat = Math.floor(Date.now() / 1000);
+  used.push(sid);
+  const tok = A.sign({ iss: A.url, aud: 'http://localhost:8790/tab', sub, sid, iat, exp: iat + 300, jti: crypto.randomUUID(), ...over }, { typ: 'overdub-tab+jwt', ...header });
+  used.push(tok);
+  return tok;
+}
+const accountRelay = (A, more = {}) => startRelay({ port: 0, log: logTo, ...more, oauth: { issuer: A.url, resource: OA_RESOURCE, introspectSecret: OA_SECRET, dev: true, ...(more.oauth || {}) } });
+// MCP over /mcp with a bearer token
+async function apost(base, token, body, { sid, headers = {}, path = '/mcp' } = {}) {
+  const r = await fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream',
+    ...(token ? { authorization: `Bearer ${token}` } : {}), ...(sid ? { 'mcp-session-id': sid, 'mcp-protocol-version': '2025-06-18' } : {}), ...headers }, body: JSON.stringify(body) });
+  const text = await r.text();
+  let data = null;
+  if ((r.headers.get('content-type') || '').includes('event-stream')) { const d = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).join(''); try { data = JSON.parse(d); } catch (e) { /* */ } }
+  else { try { data = JSON.parse(text); } catch (e) { data = text; } }
+  return { status: r.status, headers: r.headers, data, text };
+}
+async function asession(base, token) {
+  const r = await apost(base, token, req('initialize', INIT));
+  const sid = r.headers.get('mcp-session-id');
+  if (sid) { used.push(sid); await apost(base, token, note('notifications/initialized'), { sid }); }
+  return { r, sid };
+}
+async function acall(base, token, sid, name, args = {}) {
+  const r = await apost(base, token, req('tools/call', { name, arguments: args }), { sid });
+  const texts = (r.data?.result?.content || []).filter((c) => c.type === 'text').map((c) => c.text);
+  let data = null; for (const s of texts) { try { data = JSON.parse(s); } catch (e) { /* a note */ } }
+  return { ...r, isError: !!r.data?.result?.isError, texts, data };
+}
+// A studio tab signed in to an account: its stream and hellos carry the ticket. It answers `say` with who it is.
+async function accountTab(base, ticket, { tab = 'tab_acct' + Math.floor(Math.random() * 1e6), origin } = {}) {
+  const T = { tab, ticket, events: [] };
+  const hdr = () => ({ authorization: `Bearer ${T.ticket}`, 'content-type': 'application/json', ...(origin ? { origin } : {}) });
+  T.hello = async (renew = false) => { const r = await fetch(`${base}/tab/hello`, { method: 'POST', headers: hdr(), body: JSON.stringify({ tab, ...(renew ? { renew: true } : {}) }) }); let j = null; try { j = await r.json(); } catch (e) { /* */ } return { status: r.status, body: j }; };
+  const ac = new AbortController();
+  const res = await fetch(`${base}/tab/events?tab=${tab}`, { headers: hdr(), signal: ac.signal }).catch(() => null);
+  T.status = res?.status || 0;
+  T.closed = false;
+  if (res?.ok && res.body) {
+    (async () => {
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = '';
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n\n')) >= 0) {
+            const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+            const data = chunk.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('');
+            if (!data) continue;
+            const ev = JSON.parse(data);
+            T.events.push(ev);
+            if (ev.type === 'call' && ev.tool === 'say') {
+              fetch(`${base}/tab/result`, { method: 'POST', headers: hdr(), body: JSON.stringify({ id: ev.id, result: { ok: true, tab, by: ev.agent } }) }).catch(() => {});
+            }
+          }
+        }
+      } catch (e) { /* aborted */ }
+      T.closed = true;
+    })();
+  } else res?.body?.cancel().catch(() => {});
+  T.close = () => ac.abort();
+  return T;
+}
+const ASCII_HDR = /^[\x20-\x21\x23-\x5B\x5D-\x7E]*$/;
+
+const relays = [], fakes = [];
 let studio = null, stub = null;
 try {
   /* ================================================================== without a relay: catalog, policy, deploy */
@@ -854,6 +996,501 @@ try {
       `idle sessions, links and addresses are forgotten (before ${JSON.stringify(before)}, after ${JSON.stringify(after)}; the old session gets ${gone.status})`);
   }
 
+  /* ================================================================== accounts: Sign in with Overdub (OAuth config) */
+  {
+    const AS = await fakeAccounts();
+    fakes.push(AS);
+    // off: without OAuth config the account routes don't exist
+    {
+      const off = await startRelay({ port: 0, log: logTo });
+      relays.push(off);
+      const codes = [];
+      for (const [m, p] of [['POST', '/mcp'], ['POST', '/tab/hello'], ['GET', '/.well-known/oauth-protected-resource'], ['GET', '/.well-known/oauth-protected-resource/mcp']]) {
+        codes.push((await fetch(off.url + p, { method: m, headers: { 'content-type': 'application/json' }, ...(m === 'POST' ? { body: '{}' } : {}) })).status);
+      }
+      t.ok(codes.every((c) => c === 404) && !off.oauth, `without RELAY_OAUTH_ISSUER, /mcp, /tab/hello and both metadata paths are 404 (${codes.join(', ')})`);
+    }
+    // boot refusals
+    {
+      const bad = [];
+      for (const [why, o] of [['a trailing slash', { resource: OA_RESOURCE + '/' }], ['an uppercase scheme', { resource: 'HTTP://localhost:8790/mcp' }],
+        ['a default port', { resource: 'https://relay.example:443/mcp' }], ['an http issuer without dev', { dev: false }], ['no secret', { introspectSecret: '' }]]) {
+        try { const r = await accountRelay(AS, { oauth: o }); relays.push(r); bad.push(why); } catch (e) { /* refused, as it should */ }
+      }
+      t.ok(!bad.length, `the relay refuses to start on a non-canonical resource, an http issuer without RELAY_OAUTH_DEV, or no introspection secret${bad.length ? ': started with ' + bad.join(', ') : ''}`);
+    }
+
+    const R = await accountRelay(AS, { oauth: { checkMs: 300 }, rate: { ...relayMod.DEFAULTS.rate, mcp: 100000, perAddress: 100000 } });
+    relays.push(R);
+    const META = `http://localhost:8790/.well-known/oauth-protected-resource/mcp`;
+    // discovery
+    {
+      const r = await apost(R.url, null, req('initialize', INIT));
+      const slash = await apost(R.url, null, req('initialize', INIT), { path: '/mcp/' });
+      const want = `Bearer resource_metadata="${META}", scope="studio"`;
+      const m1 = await (await fetch(R.url + '/.well-known/oauth-protected-resource/mcp')).json();
+      const m2r = await fetch(R.url + '/.well-known/oauth-protected-resource');
+      const m2 = await m2r.json();
+      t.ok(r.status === 401 && r.headers.get('www-authenticate') === want && !('error' in (r.data || {})) && /Sign in to Overdub/.test(r.data?.error_description)
+        && slash.status === 401 && slash.headers.get('www-authenticate') === want,
+      `no token: 401 with exactly ${want}, no error in the header or the body; /mcp/ the same, never a redirect (${r.status}, ${slash.status})`);
+      t.ok(same(m1, m2) && m1.resource === OA_RESOURCE && same(m1.authorization_servers, [AS.url]) && same(m1.scopes_supported, ['studio']) && same(m1.bearer_methods_supported, ['header'])
+        && m2r.headers.get('access-control-allow-origin') === '*', 'both protected resource metadata paths give the same document, resource = RELAY_OAUTH_RESOURCE, readable from any origin');
+      const pre = await fetch(R.url + '/mcp', { method: 'OPTIONS', headers: { origin: 'https://claude.ai', 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization' } });
+      t.ok(pre.status === 204 && /authorization/.test(pre.headers.get('access-control-allow-headers')) && /mcp-session-id/.test(pre.headers.get('access-control-allow-headers'))
+        && /WWW-Authenticate/i.test(r.headers.get('access-control-expose-headers') || ''), `OPTIONS /mcp is answered before the sign-in check (${pre.status}), and the 401 exposes WWW-Authenticate`);
+      const kinds = ['missing', 'expired', 'revoked', 'audience', 'unreadable', 'scope'].map((k) => R.auth.challenge(k));
+      t.ok(kinds.every((v) => [...v.matchAll(/="([^"]*)"/g)].every((m) => ASCII_HDR.test(m[1]))) && kinds.every((v) => ASCII_HDR.test(v.replace(/"/g, ''))),
+        'every WWW-Authenticate the relay can send is plain ASCII inside its quotes (RFC 6750 §3)');
+    }
+    // rejections
+    {
+      const good = accessToken(AS);
+      const [h, p] = good.split('.');
+      const { privateKey: evil, publicKey: evilPub } = crypto.generateKeyPairSync('ed25519');
+      const old = Math.floor(Date.now() / 1000) - 1000;
+      const flip = good.slice(0, -3) + (good.at(-3) === 'A' ? 'B' : 'A') + good.slice(-2);
+      const cases = [
+        ['expired by 31 s', accessToken(AS, { over: { iat: old, exp: Math.floor(Date.now() / 1000) - 31 } }), 'expired'],
+        ['another audience', accessToken(AS, { over: { aud: 'https://other.example/mcp' } }), 'another server'],
+        ['an array audience with ours in it', accessToken(AS, { over: { aud: [OA_RESOURCE] } }), 'another server'],
+        ['another issuer', accessToken(AS, { over: { iss: 'https://evil.example' } }), 'another server'],
+        ['a tab ticket as an access token', tabTicket(AS), 'another server'],
+        ['alg none', `${b64j({ alg: 'none', typ: 'at+jwt', kid: AS.kid })}.${p}.`, 'could not be read'],
+        ['alg HS256', `${b64j({ alg: 'HS256', typ: 'at+jwt', kid: AS.kid })}.${p}.${good.split('.')[2]}`, 'could not be read'],
+        ['a crit header', accessToken(AS, { header: { crit: ['exp'] } }), 'could not be read'],
+        ['a jwk header with the attacker\'s key', accessToken(AS, { header: { jwk: evilPub.export({ format: 'jwk' }) }, key: evil }), 'could not be read'],
+        ['a flipped signature byte', flip, 'could not be read'],
+      ];
+      const bad = [];
+      for (const [why, tok, desc] of cases) {
+        const r = await apost(R.url, tok, req('initialize', INIT));
+        const w = r.headers.get('www-authenticate') || '';
+        if (r.status !== 401 || !/error="invalid_token"/.test(w) || !w.toLowerCase().includes(desc.toLowerCase()) || r.data?.error !== 'invalid_token') bad.push(`${why}: ${r.status} ${w}`);
+      }
+      const jwksBefore = AS.jwks;
+      await sleep(10);
+      const unknown = await apost(R.url, accessToken(AS, { header: { kid: 'k-unknown' } }), req('initialize', INIT));
+      const fetched = AS.jwks - jwksBefore;
+      const q = await fetch(R.url + '/mcp?access_token=' + encodeURIComponent(good), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req('initialize', INIT)) });
+      t.ok(!bad.length && unknown.status === 401 && fetched <= 1 && q.status === 401,
+        `each bad token is 401 invalid_token with the right ASCII description (${cases.length} kinds); an unknown kid re-fetches the keys at most once (${fetched}); a token in the query string isn't read${bad.length ? ': ' + bad.join(' | ') : ''}`);
+      const scope = await apost(R.url, accessToken(AS, { over: { scope: 'other' } }), req('initialize', INIT));
+      t.ok(scope.status === 403 && /error="insufficient_scope"/.test(scope.headers.get('www-authenticate')) && /scope="studio"/.test(scope.headers.get('www-authenticate')),
+        `a token without the studio scope gets 403 insufficient_scope, scope="studio" (${scope.status})`);
+    }
+    // keys: an entry that isn't an Ed25519 public key isn't used; a set with a private part is refused whole
+    {
+      const { publicKey } = crypto.generateKeyPairSync('ed25519');
+      const rsa = crypto.generateKeyPairSync('rsa', { modulusLength: 1024 }).publicKey.export({ format: 'jwk' });
+      const x = crypto.generateKeyPairSync('x25519').publicKey.export({ format: 'jwk' });
+      const priv = crypto.generateKeyPairSync('ed25519').privateKey.export({ format: 'jwk' });
+      const okKey = AS.keys[0];
+      const K1 = await accountRelay(AS, { oauth: { jwks: { keys: [{ ...rsa, kid: AS.kid }, { ...x, kid: 'kx' }, { ...publicKey.export({ format: 'jwk' }), kid: 'other' }] } } });
+      const K2 = await accountRelay(AS, { oauth: { jwks: { keys: [okKey, { ...priv, kid: 'kp' }] } } });
+      const K3 = await accountRelay(AS, { oauth: { jwks: { keys: [okKey] } } });
+      relays.push(K1, K2, K3);
+      const tok = accessToken(AS);
+      const [a, b, c] = await Promise.all([K1, K2, K3].map((k) => apost(k.url, tok, req('initialize', INIT))));
+      t.ok(a.status === 401 && b.status === 401 && c.status === 200, `RSA and X25519 entries under our kid aren't used (${a.status}); a JWKS carrying a private part is refused whole (${b.status}); a good one works (${c.status})`);
+    }
+    // the grant check: inactive -> 401 and the grant's sessions go; one introspection per grant per check window; down ->
+    // the signature stands; seen revoked once -> refused even when the service is down
+    {
+      const tok = accessToken(AS, { gid: 'grt_one' });
+      const { sid } = await asession(R.url, tok);
+      const n0 = AS.introspections.filter((x) => x.gid === 'grt_one').length;
+      const many = await Promise.all(Array.from({ length: 50 }, () => apost(R.url, tok, req('ping'), { sid })));
+      const n1 = AS.introspections.filter((x) => x.gid === 'grt_one').length;
+      t.ok(sid && many.every((r) => r.status === 200) && n1 - n0 <= 1, `50 concurrent calls on one grant: all answered, introspected ${n1 - n0} time(s) (cached ${R.oauth.checkMs} ms here, 60 s live)`);
+      AS.down = true;
+      const tok2 = accessToken(AS, { gid: 'grt_down' });
+      const downOk = await asession(R.url, tok2);
+      const unreachable = R.auth.stats.grantUnreachable;
+      AS.down = false;
+      t.ok(downOk.r.status === 200 && unreachable >= 1, `the service down: a good signature still works until it expires, and it's counted (${downOk.r.status}, unreachable ${unreachable})`);
+      AS.revoked.set('grt_one', 'user');
+      await sleep(350);
+      const after = await apost(R.url, tok, req('ping'), { sid });
+      const S = R.tokens.get('u:usr_alice');
+      const gone = ![...S.sessions.values()].some((s) => s.gid === 'grt_one');
+      AS.down = true;
+      await sleep(350);
+      const still = await apost(R.url, tok, req('initialize', INIT));
+      AS.down = false;
+      t.ok(after.status === 401 && /Disconnected in Overdub/.test(after.headers.get('www-authenticate')) && gone && still.status === 401,
+        `Disconnect: 401 within one check, the grant's sessions dropped, and refused again while the service is down (fail closed) (${after.status}, ${still.status})`);
+      AS.revoked.set('grt_reuse', 'reuse');
+      const reuse = await apost(R.url, accessToken(AS, { gid: 'grt_reuse' }), req('initialize', INIT));
+      t.ok(reuse.status === 401 && R.auth.stats.reuseRevoked >= 1, 'a grant revoked for refresh-token reuse is counted as such');
+      const I = await accountRelay(AS, { oauth: { introspectUrl: AS.url + '/oauth/introspect' } });
+      relays.push(I);
+      const k0 = AS.introspections.length;
+      await asession(I.url, accessToken(AS));
+      t.ok(AS.introspections.length === k0 + 1, 'RELAY_OAUTH_INTROSPECT_URL is the one asked');
+    }
+    // session binding: a session made with one grant is 404 under another grant, the same person's included
+    {
+      const a1 = accessToken(AS, { gid: 'grt_a1' });
+      const { sid } = await asession(R.url, a1);
+      const bob = await apost(R.url, accessToken(AS, { sub: 'usr_bob' }), req('ping'), { sid });
+      const other = await apost(R.url, accessToken(AS, { gid: 'grt_a2' }), req('ping'), { sid });
+      const refreshed = await apost(R.url, accessToken(AS, { gid: 'grt_a1' }), req('ping'), { sid });
+      t.ok(bob.status === 404 && other.status === 404 && refreshed.status === 200, `a session id is bound to its grant: another person ${bob.status}, another grant of the same person ${other.status}, the same grant's refreshed token ${refreshed.status}`);
+    }
+    // tickets and the studio side
+    {
+      const STUDIO_O = 'https://overdubstudio.com';
+      const none = await fetch(R.url + '/tab/hello', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"tab":"tab_x"}' });
+      const withAt = await fetch(R.url + '/tab/hello', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + accessToken(AS) }, body: '{"tab":"tab_x"}' });
+      const pre = await fetch(R.url + '/tab/hello', { method: 'OPTIONS', headers: { origin: STUDIO_O, 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization, content-type' } });
+      const evil = await fetch(R.url + '/tab/hello', { method: 'OPTIONS', headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' } });
+      t.ok(none.status === 401 && withAt.status === 401 && pre.status === 204 && /authorization/.test(pre.headers.get('access-control-allow-headers') || '') && evil.status === 403,
+        `/tab/*: no ticket ${none.status}, an access token ${withAt.status}; a preflight from the studio allows authorization (${pre.status}), from elsewhere ${evil.status}`);
+
+      // routing: Alice's calls reach Alice's tabs and never Bob's; the later focus wins; a renewal doesn't move it
+      const t1 = await accountTab(R.url, tabTicket(AS), { tab: 'tab_alice1' });
+      await sleep(30);
+      const t2 = await accountTab(R.url, tabTicket(AS), { tab: 'tab_alice2' });
+      const tb = await accountTab(R.url, tabTicket(AS, { sub: 'usr_bob' }), { tab: 'tab_bob' });
+      const alice = accessToken(AS, { gid: 'grt_route' });
+      const { sid } = await asession(R.url, alice);
+      await until(() => t1.events.some((e) => e.type === 'ready') && t2.events.some((e) => e.type === 'ready'));
+      const c1 = await acall(R.url, alice, sid, 'say', { text: 'hi' });
+      await sleep(2100);   // the per-tab focus gap
+      const h1 = await t1.hello();
+      const c2 = await acall(R.url, alice, sid, 'say', { text: 'hi' });
+      const r2 = await t2.hello(true);
+      const c3 = await acall(R.url, alice, sid, 'say', { text: 'hi' });
+      const lostLive = t2.events.some((e) => e.type === 'live' && e.live === false);
+      t.ok(c1.data?.tab === 'tab_alice2' && h1.body?.live === true && c2.data?.tab === 'tab_alice1' && c2.data?.studio_tab && r2.body?.live === false && c3.data?.tab === 'tab_alice1'
+        && !tb.events.some((e) => e.type === 'call') && lostLive,
+      `routing: the later tab gets the call (${c1.data?.tab}), a focus hello moves it (${c2.data?.tab}, with studio_tab), a renewal from the background doesn't (${c3.data?.tab}); the tab that lost it is told; Bob's tab gets nothing`);
+      const call = t1.events.find((e) => e.type === 'call');
+      t.ok(call && call.agent === 'mcp:claude-code' && call.agentName === 'Claude Code' && c1.data?.by === 'mcp:claude-code', `each call carries the agent from the token (${call?.agent}, ${call?.agentName})`);
+
+      // the focus cap: past 10 focus hellos a minute from one tab, its hello renews but doesn't take the calls
+      const S = R.tokens.get('u:usr_alice');
+      S.tabs.get('tab_alice2').focus = Array(10).fill(Date.now());
+      await sleep(2100);
+      const capped = await t2.hello();
+      const c4 = await acall(R.url, alice, sid, 'say', { text: 'hi' });
+      t.ok(capped.status === 200 && capped.body?.live === false && c4.data?.tab === 'tab_alice1', `the 11th focus hello in a minute from one tab is a renewal only (${c4.data?.tab} keeps the calls)`);
+
+      // the ticket's session ends: the stream closes within a check, and hellos with it are 401
+      const sid1 = 'ses_end1';
+      const t3 = await accountTab(R.url, tabTicket(AS, { sid: sid1, sub: 'usr_carol' }), { tab: 'tab_carol' });
+      await until(() => t3.events.some((e) => e.type === 'ready'));
+      AS.ended.add(sid1);
+      await sleep(350);
+      R.sweep();
+      const closed = await until(() => t3.closed, 3000);
+      const h3 = await t3.hello();
+      t.ok(closed && h3.status === 401, `a ticket whose studio session ended: its stream closes within one check (${closed}) and its hellos get ${h3.status}`);
+
+      // no tab for the account: the account-mode words
+      const dave = accessToken(AS, { sub: 'usr_dave' });
+      const ds = await asession(R.url, dave);
+      const no = await acall(R.url, dave, ds.sid, 'say', { text: 'hi' });
+      t.ok(no.isError && no.texts.some((x) => /signed in as the account you connected/.test(x)) && /signed in to the Overdub account they connected/.test(ds.r.data?.result?.instructions || ''),
+        'no reachable tab: the error and the instructions speak of signing in to the connected account');
+      for (const x of [t1, t2, tb, t3]) x.close();
+    }
+    // an expired ticket: the stream is let go a grace after exp, and its calls fail as a dropped tab's do
+    {
+      const E = await accountRelay(AS, { ticketGraceMs: 100 });
+      relays.push(E);
+      const now0 = Math.floor(Date.now() / 1000);
+      const te = await accountTab(E.url, tabTicket(AS, { sub: 'usr_erin', over: { iat: now0, exp: now0 + 2 } }), { tab: 'tab_erin' });
+      await until(() => te.events.some((e) => e.type === 'ready'));
+      await sleep(2300);
+      E.sweep();
+      const went = await until(() => te.closed, 3000);
+      t.ok(te.status === 200 && went, `a tab whose ticket ran out is let go after the grace (${went})`);
+      te.close();
+    }
+    // Review 2026-10-05, the relay's findings. Each failed before its fix.
+    {
+      const V = await accountRelay(AS, { rate: { ...relayMod.DEFAULTS.rate, mcp: 100000, perAddress: 100000 } });
+      relays.push(V);
+      const sid = 'ses_victim';
+      // a stolen ticket's tabs used up the account's focus budget, so the owner's Play here never won the calls back
+      const owner = await accountTab(V.url, tabTicket(AS, { sub: 'usr_vic', sid }), { tab: 'tab_owner' });
+      await until(() => owner.events.some((e) => e.type === 'ready'));
+      const thieves = [];
+      for (let i = 0; i < 3; i++) thieves.push(await accountTab(V.url, tabTicket(AS, { sub: 'usr_vic', sid }), { tab: 'tab_thief' + i }));
+      // they snatch the calls for real: 15 focus hellos in under ten seconds, more than an account's old budget of 10
+      for (let round = 0; round < 4; round++) { await sleep(2100); for (const x of thieves) await x.hello(); }
+      await sleep(2100);
+      const back = await owner.hello();
+      const vat = accessToken(AS, { sub: 'usr_vic', gid: 'grt_vic' });
+      const vs = await asession(V.url, vat);
+      const won = await acall(V.url, vat, vs.sid, 'say', { text: 'hi' });
+      t.ok(back.body?.live === true && won.data?.tab === 'tab_owner', `the focus cap is per tab: with a stolen ticket's tabs snatching all minute, the owner's Play here still takes the calls back (${won.data?.tab})`);
+
+      // the tab cap let the oldest tab go, the person's own included: on an account only a closed tab goes, and with
+      // every slot connected a new tab is refused
+      const cap = [];
+      for (let i = 0; i < 4; i++) cap.push(await accountTab(V.url, tabTicket(AS, { sub: 'usr_vic', sid }), { tab: 'tab_cap' + i }));
+      await sleep(100);
+      const stillThere = V.tokens.get('u:usr_vic').tabs.has('tab_owner') && !owner.closed;
+      t.ok(stillThere && cap.every((x) => x.status === 409), `four more tabs from a ticket holder are refused (${cap.map((x) => x.status).join(', ')}) and the person's tab stays connected`);
+      for (const x of [...thieves, ...cap]) x.close();
+      await until(() => [...V.tokens.get('u:usr_vic').tabs.values()].filter((x) => x.connected).length === 1);
+      await sleep(2100);   // (the link's new-tab allowance refills)
+      const after = await accountTab(V.url, tabTicket(AS, { sub: 'usr_vic', sid }), { tab: 'tab_after' });
+      t.ok(after.status === 200, `once the others close, a new tab connects again (${after.status}), the closed ones making room`);
+      after.close();
+
+      // a bad tab id spent the link's reconnect allowance, and new tabs could use it all: reconnects of a known tab have
+      // their own, and a malformed request costs nothing
+      const fl = await accountTab(V.url, tabTicket(AS, { sub: 'usr_fl', sid: 'ses_fl' }), { tab: 'tab_fl' });
+      const bad = [];
+      for (let i = 0; i < 40; i++) bad.push((await fetch(`${V.url}/tab/events?tab=`, { headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_fl', sid: 'ses_fl' }) } })).status);
+      const flood = [];
+      for (let i = 0; i < 12; i++) { const r = await fetch(`${V.url}/tab/events?tab=tab_new${i}`, { headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_fl', sid: 'ses_fl' }) } }); flood.push(r.status); r.body?.cancel().catch(() => {}); }
+      const re = await fetch(`${V.url}/tab/events?tab=tab_fl`, { headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_fl', sid: 'ses_fl' }) } });
+      re.body?.cancel().catch(() => {});
+      fl.close();
+      t.ok(bad.every((c) => c === 400) && flood.includes(429) && re.status === 200,
+        `40 malformed event requests are all 400 and spend nothing; new tabs run out (${flood.filter((c) => c === 429).length} refused) while the known tab still reconnects (${re.status})`);
+
+      // a tab id taken over by another session's ticket was replaced silently; now it's refused, and the same session
+      // taking it tells the open stream first
+      const v2 = await accountTab(V.url, tabTicket(AS, { sub: 'usr_tid', sid: 'ses_v2' }), { tab: 'tab_v2' });
+      await until(() => v2.events.some((e) => e.type === 'ready'));
+      const other = await fetch(`${V.url}/tab/events?tab=tab_v2`, { headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_tid', sid: 'ses_else' }) } });
+      other.body?.cancel().catch(() => {});
+      const otherHello = await fetch(`${V.url}/tab/hello`, { method: 'POST', headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_tid', sid: 'ses_else' }), 'content-type': 'application/json' }, body: '{"tab":"tab_v2"}' });
+      await sleep(100);
+      const kept = !v2.closed;
+      const same = await accountTab(V.url, tabTicket(AS, { sub: 'usr_tid', sid: 'ses_v2' }), { tab: 'tab_v2' });
+      const told = await until(() => v2.events.some((e) => e.type === 'replaced') && v2.closed, 3000);
+      t.ok(other.status === 409 && otherHello.status === 409 && kept && same.status === 200 && told,
+        `a tab id belongs to its studio session: another session's ticket gets ${other.status} (hello ${otherHello.status}) and the stream stays; the same session reusing it tells the open stream "replaced" first (${told})`);
+      same.close(); v2.close();
+
+      // Disconnect in the studio: the tab asks the relay to recheck the grant now; its sessions and presence go at once
+      AS.revoked.set('grt_vic', 'user');
+      const n0 = owner.events.filter((e) => e.type === 'agent' && e.state === 'leave').length;
+      const rh = await fetch(`${V.url}/tab/hello`, { method: 'POST', headers: { authorization: 'Bearer ' + tabTicket(AS, { sub: 'usr_vic', sid }), 'content-type': 'application/json' }, body: JSON.stringify({ tab: 'tab_owner', renew: true, recheck: 'grt_vic' }) });
+      const rj = await rh.json();
+      const left = await until(() => owner.events.filter((e) => e.type === 'agent' && e.state === 'leave').length > n0, 2000);
+      const dead = await apost(V.url, vat, req('ping'), { sid: vs.sid });
+      t.ok(rh.status === 200 && !(rj.agents || []).some((x) => x.agent === 'mcp:claude-code') && left && dead.status === 401,
+        `hello with recheck: the relay asks about the grant now, drops its sessions, the tab sees it leave, and its next call is 401 (${dead.status})`);
+
+      // and without the studio (disconnected at /oauth/apps): the sweep rechecks grants still showing as connected
+      const W2 = await accountRelay(AS, { oauth: { checkMs: 200 } });
+      relays.push(W2);
+      const ot = await accountTab(W2.url, tabTicket(AS, { sub: 'usr_sw' }), { tab: 'tab_sw' });
+      const st = accessToken(AS, { sub: 'usr_sw', gid: 'grt_sw' });
+      await asession(W2.url, st);
+      await until(() => ot.events.some((e) => e.type === 'agent' && e.state === 'join'));
+      AS.revoked.set('grt_sw', 'user');
+      await sleep(250);
+      W2.sweep();
+      const swept = await until(() => ot.events.some((e) => e.type === 'agent' && e.state === 'leave'), 3000);
+      t.ok(swept, 'a grant disconnected anywhere leaves the studio\'s presence on the next sweep, with no call from its client');
+      ot.close();
+
+      // a 429 from introspection made every request ask again (and failed open each time): the last answer is kept
+      const Z = await accountRelay(AS, { oauth: { checkMs: 200 } });
+      relays.push(Z);
+      const zt = accessToken(AS, { sub: 'usr_z', gid: 'grt_z' });
+      const zs = await asession(Z.url, zt);
+      await sleep(250);
+      AS.throttle = true; AS.throttled = 0;
+      await Promise.all(Array.from({ length: 20 }, () => apost(Z.url, zt, req('ping'), { sid: zs.sid })));
+      const asked = AS.throttled;
+      for (let i = 0; i < 10; i++) await apost(Z.url, zt, req('ping'), { sid: zs.sid });
+      AS.throttle = false;
+      t.ok(asked <= 1 && AS.throttled <= 1 && Z.auth.stats.grantThrottled >= 1, `introspection answering 429: one ask per grant per window (${AS.throttled} across 30 requests), counted as throttled`);
+      owner.close();
+    }
+    // both modes on one relay; a private link never answers 401, with or without an Authorization header
+    {
+      const P = pair();
+      const ft = await fakeTab(R.url, P);
+      const at = await accountTab(R.url, tabTicket(AS, { sub: 'usr_fay' }), { tab: 'tab_fay' });
+      const s1 = await session(R.url, P.token);
+      const s2 = await session(R.url, P.token, { authorization: 'Bearer ' + accessToken(AS, { sub: 'usr_fay' }) });
+      const s3 = await session(R.url, P.token, { authorization: 'Bearer garbage' });
+      const linkCall = await call(R.url, P.token, s1.sid, 'say', { text: 'x' });
+      await until(() => ft.events.some((e) => e.type === 'call'));
+      const linkEv = ft.events.find((e) => e.type === 'call');
+      t.ok(s1.r.status === 200 && s2.r.status === 200 && s3.r.status === 200 && linkCall.status === 200 && !at.events.some((e) => e.type === 'call') && linkEv?.agent === 'claude.ai'
+        && !R.tokens.has('u:' + P.token) && ![...R.tokens.keys()].some((k) => k.startsWith('u:') && k.slice(2) === P.token),
+      'a private link and an account on one relay: each reaches only its own tabs; /s/<token>/mcp never answers 401; private links still sign claude.ai');
+      ft.close(); at.close();
+    }
+    // hosts: with RELAY_OAUTH_HOSTS, another Host gets 404 on the account routes and keeps its private links
+    {
+      const H2 = await accountRelay(AS, { oauth: { hosts: ['relay.example'] } });
+      relays.push(H2);
+      const hreq = (path, host, body) => new Promise((resolve) => {
+        const u = new URL(H2.url);
+        const r = http.request({ host: u.hostname, port: u.port, path, method: 'POST', headers: { host, 'content-type': 'application/json', accept: 'application/json, text/event-stream' } }, (res) => { res.resume(); resolve(res.statusCode); });
+        r.on('error', () => resolve(0));
+        r.end(JSON.stringify(body));
+      });
+      const P = pair();
+      const other = await hreq('/mcp', 'other.example', req('initialize', INIT));
+      const mine = await hreq('/mcp', 'relay.example', req('initialize', INIT));
+      const link = await hreq(`/s/${P.token}/mcp`, 'other.example', req('initialize', INIT));
+      t.ok(other === 404 && mine === 401 && link === 200, `RELAY_OAUTH_HOSTS: another host gets 404 on /mcp (${other}), the named host the 401 (${mine}), and private links work on any host (${link})`);
+    }
+
+    // the studio: "Connect with your Overdub account" in the Connect sheet, signed in by code, one URL, calls signed by
+    // the agent the person allowed, Connected apps with Disconnect, the live tab, and the private link one press away
+    {
+      const W = await accountRelay(AS, { rate: { ...relayMod.DEFAULTS.rate, mcp: 100000, perAddress: 100000 } });
+      relays.push(W);
+      AS.cloud.grants = [{ id: 'grt_web1', agent: 'mcp:claude-code', agentName: 'Claude Code', label: 'Claude Code · this computer', clientKind: 'cimd', createdAt: Date.now() - 86400e3, lastUsedAt: Date.now() },
+        { id: 'grt_old', agent: 'claude.ai', agentName: 'claude.ai', label: 'Claude · claude.ai', clientKind: 'cimd', createdAt: Date.now() - 40 * 86400e3, lastUsedAt: Date.now() - 20 * 86400e3 }];
+      const pg = await open('/app/', { query: `demo&relay=${encodeURIComponent(W.url)}&cloud=${encodeURIComponent(AS.url)}` });
+      try {
+        const { page, errors } = pg;
+        await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+        await page.click('.ew-tab[title="Connect"]');
+        await page.waitForSelector('.rc-card', { timeout: 5000 });
+        const signedOutText = await page.textContent('.rc-card');
+        t.ok(/Sign in to connect/.test(signedOutText) && /No card, no credits/.test(signedOutText) && /Use a private link instead/.test(signedOutText) && !/Anyone with this link/.test(signedOutText),
+          'with ?relay= and ?cloud=, the Connect sheet offers the Overdub account first, with the private link one press away');
+        await page.fill('.rc-email', 'jess@example.com');
+        await page.click('.rc-send');
+        await page.waitForSelector('.rc-code', { timeout: 5000 });
+        await page.fill('.rc-code', '000000');
+        await page.click('.rc-enter');
+        await page.waitForSelector('.rc-err', { timeout: 5000 });
+        const wrong = await page.textContent('.rc-err');
+        await page.fill('.rc-code', AS.cloud.code);
+        await page.click('.rc-enter');
+        await page.waitForSelector('.rc-toggle', { timeout: 5000 });
+        const signedIn = await page.textContent('.rc-card');
+        const url = await page.evaluate(() => document.querySelector('.rc-url').value);
+        t.ok(/didn’t match/.test(wrong) && url === `${W.url}/mcp` && signedIn.includes(`claude mcp add --transport http overdub ${W.url}/mcp`) && /Customize → Connectors/.test(signedIn)
+          && /jess@example\.com/.test(signedIn) && /Claude Code/.test(signedIn) && /this computer/.test(signedIn),
+        `signed in by code (a wrong one says so): one connector URL for every app (${url.replace(W.url, '<relay>')}), the Claude Code line, and Connected apps`);
+        await page.click('.rc-toggle');
+        await page.waitForFunction(() => window.overdub.remote.state === 'on', null, { timeout: 10000 });
+        const ticketHdr = await page.evaluate(() => Object.keys(localStorage).filter((k) => /ticket/i.test(k) || /eyJ/.test(localStorage.getItem(k) || '')));
+        t.ok(W.tokens.has('u:usr_web') && W.tokens.get('u:usr_web').tabs.size === 1 && !ticketHdr.length, 'Turn on: the tab reaches the relay as the account with a ticket, kept in memory only');
+
+        // Connected apps, as the sheet first showed it: how long ago (never a date), and a row idle for 20 days under Older
+        const rows = await page.evaluate(() => ({ text: document.querySelector('.rc-apps')?.textContent || '', older: document.querySelector('.rc-older')?.textContent || '', all: !!document.querySelector('.rc-all') }));
+        t.ok(/connected 24 hours ago · last used just now/.test(rows.text) && !/claude\.ai/.test(rows.text) && rows.older === 'Older (1)' && rows.all,
+          `Connected apps say how long ago, fold a row idle for 20 days under ${rows.older || 'nothing'}, and offer Disconnect all (review 2026-10-05)`);
+        // someone presses Allow in Claude: the new app is in the list as soon as it joins, with no reload (review 2026-10-05)
+        AS.cloud.grants.unshift({ id: 'grt_new', agent: 'claude.ai', agentName: 'claude.ai', label: 'Claude · claude.ai', clientKind: 'cimd', createdAt: Date.now(), lastUsedAt: Date.now() });
+        const cc = accessToken(AS, { sub: 'usr_web', gid: 'grt_web1' });
+        const { sid } = await asession(W.url, cc);
+        await page.waitForFunction(() => window.overdub.remote.agent, null, { timeout: 5000 }).catch(() => {});
+        const st = await page.textContent('.rc-state');
+        const c = await acall(W.url, cc, sid, 'apply_ops', { label: 'cc pad', reason: 'from Claude Code', ops: [
+          { type: 'track.add', ref: 'pad', track: { name: 'CC Pad', instrument: { device: 'core.pad' } } }] });
+        const signed = await page.evaluate((id) => { const s = window.overdub.store; const tr = s.track(id); const last = s.history[s.history.length - 1];
+          return { by: tr?.by, last: last.by, agent: s.isAgent('mcp:claude-code'), name: s.author('mcp:claude-code')?.name }; }, c.data?.created?.pad);
+        const fresh = await page.waitForSelector('.rc-app[data-grant="grt_new"]', { timeout: 8000 }).then(() => true, () => false);
+        t.ok(fresh, 'an agent joining reloads Connected apps: the app just allowed is listed, with its Disconnect');
+        t.ok(/Claude Code is connected/.test(st) && !c.isError && signed.by === 'mcp:claude-code' && signed.last === 'mcp:claude-code' && signed.agent && signed.name === 'Claude Code',
+          `a call through the account is signed by the agent in the token: mcp:claude-code, "Claude Code", an agent author (${st.trim()})`);
+        const evil = accessToken(AS, { sub: 'usr_web', gid: 'grt_web1', agent: 'evil', agentName: 'Evil' });
+        const before = await page.evaluate(() => window.overdub.store.history.length);
+        const es = await asession(W.url, evil);
+        const bad = await acall(W.url, evil, es.sid, 'apply_ops', { label: 'x', ops: [{ type: 'track.add', track: { name: 'Nope' } }] });
+        const after = await page.evaluate(() => window.overdub.store.history.length);
+        t.ok(bad.isError && bad.texts.some((x) => /author couldn’t be read/.test(x)) && before === after, 'a call whose author isn\'t claude.ai or mcp:<name> edits nothing and says why');
+
+        // another tab of the same account takes focus: this one is told, and Play here takes it back
+        const other = await accountTab(W.url, tabTicket(AS, { sub: 'usr_web', sid: 'ses_other' }), { tab: 'tab_other' });
+        await page.waitForFunction(() => window.overdub.remote.live === false, null, { timeout: 5000 }).catch(() => {});
+        const elsewhere = await page.evaluate(() => ({ live: window.overdub.remote.live, text: document.querySelector('.rc-card').textContent, toast: document.body.textContent.includes('Claude moved to another tab.') }));
+        await sleep(2100);
+        await page.evaluate(() => window.overdub.remote.playHere());
+        await page.waitForFunction(() => window.overdub.remote.live === true, null, { timeout: 5000 }).catch(() => {});
+        const back = await page.evaluate(() => window.overdub.remote.live);
+        t.ok(elsewhere.live === false && /Claude is playing in another tab/.test(elsewhere.text) && /Play here/.test(elsewhere.text) && elsewhere.toast && back === true,
+          'another tab of the account takes the calls: this one says "Claude moved to another tab." and Play here takes them back');
+        other.close();
+
+        // Connected apps: Disconnect asks once; the relay rechecks the grant at once, so Claude Code leaves this studio and
+        // its next call is refused within seconds, not a minute (review 2026-10-05)
+        await page.click('.rc-app[data-grant="grt_web1"] .rc-app-off');
+        const ask = await page.textContent('.rc-app-ask');
+        const t0 = Date.now();
+        await page.click('.rc-app-yes');
+        await page.waitForFunction(() => !document.querySelector('.rc-app[data-grant="grt_web1"]'), null, { timeout: 5000 }).catch(() => {});
+        const left = await page.waitForFunction(() => !window.overdub.remote.agents.has('mcp:claude-code'), null, { timeout: 5000 }).then(() => true, () => false);
+        const secs = ((Date.now() - t0) / 1000).toFixed(1);
+        const refused = await apost(W.url, cc, req('ping'), { sid });
+        t.ok(/Disconnect Claude Code\? It loses access to your studio, usually within a minute/.test(ask) && !AS.cloud.grants.some((g) => g.id === 'grt_web1') && left && refused.status === 401,
+          `Disconnect asks once, then the app is gone here and at the service; Claude Code leaves the studio in ${secs} s and its next call is ${refused.status}`);
+        await page.click('.rc-all');
+        await page.click('.rc-all-yes');
+        await page.waitForFunction(() => !document.querySelector('.rc-app'), null, { timeout: 5000 }).catch(() => {});
+        t.ok(!AS.cloud.grants.length && /Nothing is connected/.test(await page.textContent('.rc-card')), 'Disconnect all asks once and clears the list');
+
+        // a reload keeps account mode: Connect on in account mode used to come back as a private link (review 2026-10-05)
+        await page.reload({ waitUntil: 'load' });
+        await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+        const reloaded = await page.waitForFunction(() => window.overdub.remote?.mode === 'account' && window.overdub.remote.state === 'on', null, { timeout: 10000 }).then(() => true, () => false);
+        const kept = await page.evaluate(() => ({ mode: window.overdub.remote?.mode, stored: localStorage.getItem('overdub:remote-mode'), url: window.overdub.remote?.url }));
+        t.ok(reloaded && kept.stored === 'account' && kept.url === `${W.url}/mcp`, `after a reload the tab is still in account mode and on (${kept.mode}, stored ${kept.stored})`);
+        // a second tab in the same browser: account mode too; and when the service refuses a ticket (429) the sheet says so
+        AS.cloud.ticket429 = true;
+        const p2 = await pg.context.newPage();
+        await p2.goto(pg.url, { waitUntil: 'load' });
+        await p2.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
+        await p2.click('.ew-tab[title="Connect"]');
+        const said = await p2.waitForFunction(() => /Too many studio tabs are connecting/.test(document.querySelector('.rc-err')?.textContent || ''), null, { timeout: 8000 }).then(() => true, () => false);
+        const m2 = await p2.evaluate(() => window.overdub.remote?.mode);
+        AS.cloud.ticket429 = false;
+        await p2.close();
+        t.ok(m2 === 'account' && said, `a new tab in the same browser starts in account mode (${m2}), and a refused ticket is said in the sheet, not just retried`);
+
+        // the private link instead, and back; sign out stops at once
+        await page.click('.rc-to-link');
+        const link = await page.evaluate(() => ({ url: document.querySelector('.rc-url')?.value, mode: localStorage.getItem('overdub:remote-mode'), text: document.querySelector('.rc-card').textContent }));
+        t.ok(/\/s\/[A-Za-z0-9_-]{22}\/mcp$/.test(link.url || '') && link.mode === 'link' && /Anyone with this link/.test(link.text), 'Use a private link instead shows today\'s card, remembered in overdub:remote-mode');
+        await page.click('.rc-to-account');
+        await page.waitForFunction(() => window.overdub.remote.state === 'on' && window.overdub.remote.mode === 'account', null, { timeout: 10000 }).catch(() => {});
+        // Claude keeps leaving this tab (a stolen ticket's tabs, say): after three moves in two minutes the sheet says so and
+        // offers Sign out everywhere (review 2026-10-05)
+        const thief = await accountTab(W.url, tabTicket(AS, { sub: 'usr_web', sid: 'ses_web' }), { tab: 'tab_thief' });
+        for (let i = 0; i < 3; i++) {
+          await page.waitForFunction(() => window.overdub.remote.live === false, null, { timeout: 5000 }).catch(() => {});
+          await sleep(2100);
+          await page.evaluate(() => window.overdub.remote.playHere());
+          await page.waitForFunction(() => window.overdub.remote.live === true, null, { timeout: 5000 }).catch(() => {});
+          await thief.hello();
+        }
+        const note = await page.waitForSelector('.rc-moving', { timeout: 5000 }).then((x) => x.textContent(), () => '');
+        await page.click('.rc-everywhere');
+        const confirmEv = await page.textContent('.rc-moving');
+        await page.click('.rc-everywhere-yes');
+        const outAll = await page.waitForFunction(() => window.overdub.remote.account.state === 'signed-out', null, { timeout: 5000 }).then(() => true, () => false);
+        t.ok(/Claude keeps moving to another tab/.test(note) && /Every browser signed in as you is signed out, this one too/.test(confirmEv) && outAll && AS.cloud.everywhere === 1,
+          'the live tab moving away three times in two minutes: the sheet says so, and Sign out everywhere (asked once) signs every browser out');
+        thief.close();
+        await page.fill('.rc-email', 'jess@example.com');
+        await page.click('.rc-send');
+        await page.waitForSelector('.rc-code', { timeout: 5000 });
+        await page.fill('.rc-code', AS.cloud.code);
+        await page.click('.rc-enter');
+        await page.waitForFunction(() => window.overdub.remote.state === 'on', null, { timeout: 10000 }).catch(() => {});
+        await page.click('.rc-signout');
+        await page.waitForFunction(() => window.overdub.remote.state === 'off', null, { timeout: 5000 }).catch(() => {});
+        const gone = await until(() => !W.tokens.get('u:usr_web') || ![...W.tokens.get('u:usr_web').tabs.values()].some((x) => x.connected), 5000);
+        t.ok(gone && /Sign in to connect/.test(await page.textContent('.rc-card')), 'Sign out stops the stream and goes back to the sign-in card');
+        t.ok(!realErrors(errors).length, `no page errors in account mode${realErrors(errors).length ? ': ' + realErrors(errors)[0].slice(0, 160) : ''}`);
+      } finally { await pg.close(); }
+    }
+    for (const x of [R]) x.statLine?.();
+    const leak = logs.filter((l) => /usr_|grt_|ses_end|eyJ/.test(l));
+    t.ok(!leak.length, `the account relays logged no token, sub, grant id or session id${leak.length ? ': ' + leak[0].slice(0, 160) : ''}`);
+  }
+
   /* ================================================================== relay M: the origin secret (CloudFront only) */
   {
     const M = await startRelay({ port: 0, log: logTo, originSecret: 's3cret-origin-value' });
@@ -883,6 +1520,7 @@ try {
 } finally {
   if (studio) await studio.close().catch(() => {});
   for (const r of relays) await r.close().catch(() => {});
+  for (const f of fakes) await new Promise((r) => { f.server.closeAllConnections?.(); f.server.close(r); });
   if (stub) fs.rmSync(stub, { recursive: true, force: true });
 }
 t.done();
