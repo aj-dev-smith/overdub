@@ -1176,6 +1176,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
     await sleep(500);
     await page.getByRole('button', { name: 'Tap a beat' }).click();
+    // (on a blank song Tap a beat opens Start a song's stage, ui/start.js: its "Play to a click instead" is the first
+    // minute, a Drums track selected)
+    await sleep(300);
+    if (await page.evaluate(() => !!window.overdub.start?.step)) await page.getByRole('button', { name: 'Play to a click instead' }).click();
     await sleep(1200);
     const pre = await page.evaluate(() => {
       const a = window.overdub;

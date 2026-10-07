@@ -183,8 +183,21 @@ const STATE = () => {
     playing: !!o.engine.playing,
   };
 };
+// Hum it in your own time on a blank song: Sketch's Hum is on screen under the door in the studio's default layout;
+// when it isn't, the door's Hum a tune, then "No beat; I'll hum freely" (ui/start.js). -> the presses it took
+const humIt = async (P) => {
+  if (await P.E(() => !!window.overdub.ui.isOpen?.('bottom') && !!document.querySelector('.sk-hum')?.getClientRects().length)) return 0;
+  await P.page.getByRole('button', { name: 'Hum a tune' }).click();
+  await sleep(300);
+  await P.page.getByRole('button', { name: 'No beat; I’ll hum freely' }).click();
+  return 2;
+};
 const tapABeat = async (P) => {
   await P.page.getByRole('button', { name: 'Tap a beat' }).click();
+  // (on a blank song Tap a beat opens Start a song's stage, ui/start.js: "Play to a click instead" is the first minute,
+  // R to record, as this path has always been)
+  await sleep(300);
+  if (await P.E(() => !!window.overdub.start?.step)) await P.page.getByRole('button', { name: 'Play to a click instead' }).click();
   await sleep(1500);
   await P.page.keyboard.press('r');
   await sleep(2300);
@@ -477,7 +490,7 @@ try {
     // (capture-timing: a take from Hum it lands in the song by itself, so the card is on the landed take's track, Melody;
     // the uncommitted take's ghost lane and its In tune lamp are gone with the wait for Keep)
     const K = await fresh();
-    await K.page.getByRole('button', { name: 'Hum it' }).click();
+    await humIt(K);
     await sleep(600);
     await K.page.locator('.sk-hum').click();
     await K.until(() => window.overdub.input.recorder.state === 'rec' || window.overdub.input.recorder.free, null, 6000);
@@ -627,20 +640,21 @@ try {
 
   /* ---------------------------------------------------------------- 17a: from the blank song */
   await section('17 time to a pretty sound', async () => {
+    // (the door's way in now, ui/start.js: Hum a tune, then Hum (H) records over a simple beat, Space keeps it)
     const Z = await fresh();
     let actions = 0;
-    await Z.page.getByRole('button', { name: 'Hum it' }).click(); actions++;
+    await Z.page.getByRole('button', { name: 'Hum a tune' }).click(); actions++;
     await sleep(700);
-    await Z.page.locator('.sk-hum').click(); actions++;
-    await sleep(5000);
-    await Z.page.locator('.sk-hum').click(); actions++;
+    await Z.page.keyboard.press('KeyH'); actions++;
+    await sleep(6000);
+    await Z.page.keyboard.press('Space'); actions++;
     await sleep(1800);
-    // (a take not kept yet isn't in the song: Sketch plays it on the track its Keep would make, not the transport)
-    const playing = await Z.E(() => !!window.overdub.engine.playing || !!window.overdub.sketch?.hearing?.());
+    // (Space ended the take and the transport with it: the card's ↓ plays the take on the sound it tries)
     await Z.page.keyboard.press('ArrowDown'); actions++;
     await sleep(900);
+    const playing = await Z.E(() => !!window.overdub.engine.playing || !!window.overdub.sketch?.hearing?.());
     const hear = await Z.E(() => window.overdub.sounds?.trying?.()?.device || null);
-    T.ok(actions <= 4 && playing && hear && hear !== 'core.keys', `17: from the blank song, Hum it, Hum, stop, ↓: the take plays at once and is heard on a second instrument in ${actions} actions (${hear}; playing ${playing})`);
+    T.ok(actions <= 4 && playing && hear && hear !== 'core.keys', `17: from the blank song, Hum a tune, H, Space, ↓: the take plays at once and is heard on a second instrument in ${actions} actions (${hear}; playing ${playing})`);
     await Z.shot('17-blank-to-pretty');
 
     /* 18: liner notes, on this card */
