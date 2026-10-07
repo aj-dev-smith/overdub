@@ -38,8 +38,9 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
   Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but eight, which play samples: Virtuosity Kit, a real
   jazz-club kit, Parlour Upright, a real upright piano, Rusty Brushes, a real kit played with brushes and mallets,
-  Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string section, Damper Bar, a real vibraphone, and Roundwound, a real five-string
-  bass. (Light Table's AKWF tables are recorded too: 108 single cycles, nine to a table.)
+  Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string section, Damper Bar, a
+  real vibraphone, and Roundwound, a real five-string bass. (Light Table's AKWF tables are recorded too: 108 single
+  cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The

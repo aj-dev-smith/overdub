@@ -574,13 +574,14 @@ and drops its duplicate (same device and preset). The sets, all real ids (`devic
 
 The hum set is chosen to sing: AJ named only Light Table, so the set is ours to tune and to check with him. A bass
 guitar playing a C4-A4 hummed line reads as a mistake, so Flatwound moved to the bass set only, and Music Stands
-(slow bows, a hall around it: the one row with a room) took its place. The sampled instruments sit second in the sets
-they fit: Parlour Upright in played and chords, Virtuosity Kit in drums, and Rusty Brushes and Hand Crate first among
-the drums' fallbacks, so an agent asked for other kits offers them next. A preset makes a row its own sound: the row's
-name is "Gobo Kit, Trap" and Keep dispatches `instrument.set { device, preset }`. "More sounds" searches the browser
-by the set's category (`keys`, `synth`, `bass`, `drums`). The sampled instruments sit at the head of the fallbacks,
-not in the rows: the first trial of one is silent until its kit lands (several MB), so they come up when a row is
-already the track's sound (in the hum set Rosin comes after Mallet Bag, which stands in for Choir Loft).
+(slow bows, a hall around it: the one row with a room) took its place. Two sampled instruments sit second in the sets
+they fit: Parlour Upright in played and chords, Virtuosity Kit in drums. The others sit at the head of the fallbacks,
+not in the rows: Full Stick and Damper Bar for played, Full Stick and Rosin for chords, Rosin for hum (after Mallet Bag,
+which stands in for Choir Loft), Roundwound for bass, and Rusty Brushes and Hand Crate for drums, so an agent asked for
+other kits offers them next. The first trial of one is silent until its kit lands (several MB), so they come up when a
+row is already the track's sound. A preset makes a row its own sound: the row's name is "Gobo Kit, Trap" and Keep
+dispatches `instrument.set { device, preset }`. "More sounds" searches the browser by the set's category (`keys`,
+`synth`, `bass`, `drums`).
 
 The agent's rows (2.6) come after the house's on the card and replace them from the bottom, so the card holds the
 current sound and at most four others.
