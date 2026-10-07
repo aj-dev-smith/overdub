@@ -202,7 +202,7 @@ const SETS_TABLE = {
   played: ['core.keys', 'core.upright', 'core.wavetable', 'core.mallets', 'core.brass', 'core.piano', 'core.pluck'],
   chords: ['core.keys', 'core.upright', 'core.pad', 'core.strings', 'core.ep', 'core.piano', 'core.organ', 'core.poly2'],
   bass: ['core.bassguitar', 'core.bass', 'claude.sub-basement', { device: 'core.wavetable', preset: 'Low Key' }, { device: 'core.poly2', preset: 'Ladder bass' }],
-  drums: [{ device: 'core.drums', preset: 'Studio kit' }, 'core.drumkit', 'core.drumroom', { device: 'core.drums', preset: 'Boom bap' }, { device: 'core.drums', preset: 'Trap' }, { device: 'core.drums', preset: 'Live room' }],
+  drums: [{ device: 'core.drums', preset: 'Studio kit' }, 'core.drumkit', 'core.drumroom', { device: 'core.drums', preset: 'Boom bap' }, 'core.brushkit', { device: 'core.drums', preset: 'Trap' }, { device: 'core.drums', preset: 'Live room' }],
 };
 const rowOf = (r) => (typeof r === 'string' ? { device: r, preset: null } : r && (r.device || r.id) ? { device: r.device || r.id, preset: r.preset || null } : null);
 async function setsOrder(app, track) {

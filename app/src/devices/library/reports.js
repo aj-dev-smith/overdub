@@ -25,6 +25,7 @@ export const REPORTS = {
   "core.wavetable": {"hash":"w84hvt","kind":"instrument","ok":true,"lufs":-15.9,"deltaLU":-1.9,"truePeak":-1.7,"cpu":2.4,"tail":0.7,"warnings":0,"measured":"2026-10-06"},
   "core.drumkit": {"hash":"1t6o7oi","kind":"instrument","ok":true,"lufs":-18.1,"deltaLU":-4.1,"truePeak":-1.5,"cpu":1,"tail":4,"warnings":0,"measured":"2026-10-06"},
   "core.upright": {"hash":"1wsuxfw","kind":"instrument","ok":true,"lufs":-15.5,"deltaLU":-1.5,"truePeak":-1.1,"cpu":1.5,"tail":0.4,"warnings":0,"measured":"2026-10-06"},
+  "core.brushkit": {"hash":"1owd0k7","kind":"instrument","ok":true,"lufs":-17.8,"deltaLU":-3.8,"truePeak":-1.5,"cpu":1.1,"tail":5.1,"warnings":0,"measured":"2026-10-07"},
   "core.eq": {"hash":"1osp0l7","kind":"effect","ok":true,"lufs":-20.9,"deltaLU":0,"truePeak":-5.8,"cpu":0.4,"tail":0,"warnings":1},
   "core.comp": {"hash":"1piirlg","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-4.9,"cpu":0.3,"tail":0,"warnings":1},
   "core.verb": {"hash":"imnhbr","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-6.4,"cpu":0.6,"tail":1.1,"warnings":0},

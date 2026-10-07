@@ -304,9 +304,11 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's two sampled
-  instruments; the other is Parlour Upright (`core.upright`), a real upright piano
-  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)).
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's three sampled
+  instruments; the others are Parlour Upright (`core.upright`), a real upright piano
+  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), and Rusty Brushes.
+- **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
+  (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
 
 **Cymbal models.** Gobo Kit and Studio A take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
@@ -429,6 +431,45 @@ of overheads. `app/src/devices/builtin/drumkit.js`; the samples come by [kernel 
 - **At other sample rates** the kernel converts from 48 kHz with the same interpolator.
 
 `tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.drumkit#e590dc685420` pins its render.
+
+## Rusty Brushes (`core.brushkit`): brushes and mallets
+
+Big Rusty Drums (Karoryfer Samples, CC0 1.0): a big kit Zygmunt Szpaderski made in Poland, probably in the early
+1980s, recorded with brushes, mallets and sticks. Overdub plays the brushes and mallets, which Virtuosity Kit doesn't
+have, through one stereo pair of overheads. `app/src/devices/builtin/brushkit.js`; the samples come by
+[kernel data](#kernel-data-samples-a-kernel-plays), built from `tools/kits/big-rusty.js`.
+
+- **What it plays.** Thirteen articulations, two to four velocity layers of two strokes each: the kick (a felt
+  beater); on the snare, brush taps (four layers), digs (the brush pressed into the head: an accent), a stir and the
+  brush lifting off; on the hi-hat, brushed closed, quarter-open and open strokes and the pedal; the brushed ride; a
+  mallet on the crash, a 14" rack tom and an 18" floor tom. 68 samples, 106.7 s of 16-bit, 44.1 kHz stereo (the
+  source's own rate: the kernel converts as Virtuosity Kit's does), 7.06 MB over the wire as `.odkz`.
+- **The note map** is General MIDI: 35 and 36 kick, 38 brush snare, 40 dig, 42 hat closed, 44 pedal, 46 open, 49 and 57
+  crash, 51 and 59 ride; 50, 48 and 47 the rack tom, 45, 43 and 41 the floor tom. Studio A's notes play what they
+  name: 23 and 24 the quarter-open hat, 22 and 26 closed and open, 33 (its held roll) the stir. Big Rusty's own notes
+  play too: 73 and 74 the stir, 76 the dig; 77 is the brush lifting off. Any other note plays nothing.
+- **The stir rings while its note is held.** A brush stirs the snare for as long as the note lasts: three seconds of
+  the recording loop (the last 0.3 s crossfaded at equal power into the loop's start, baked into the file, so the
+  jump back is seamless and bit-exact), fading in over 40 ms and out over 150 ms after the note ends. Two layers: a
+  soft stir and a hard one.
+- **Everything else is Virtuosity Kit's.** The same kernel (`drumsampler.js`, Virtuosity Kit's with the kit's shape
+  passed in): velocity crossfades between layers along their measured levels (the brushes, like the cymbals, at equal
+  power: two brush strokes are noise to each other), strokes from the instance's seed, the hats choking each other,
+  three strokes per piece at most, the same params (`tune`, `decay`, `tone`, `level`) and a level for the kick,
+  snare, swirl, hats, toms, ride and crash.
+- **Levels.** The defaults ease the kick back 4 dB and the toms 3, lift the snare 4, the stir 6 and the ride 8 (a
+  brushed ride is quiet), with the crash at -2; **As recorded** is the pair's own balance. At the defaults the device
+  check's drum phrase measures -17.8 LUFS and -1.5 dBTP, and the limiter eases only the hardest strokes (velocity 0.95
+  and up: the snare by 4 to 5.5 dB, the rack tom by 2 to 3.5, the kick by 1 to 2).
+- **The QA rubric** (`tools/kits/qa.js`, run by `fetch-kits.js` on every stroke) accepts clipping, DC and the heads.
+  Every piece's velocity layers climb, 10.3 to 21.9 dB soft to hard, but the stir's two (a soft and a hard stir)
+  are 5.6 dB apart, so that check is for review. It waives three checks in the
+  recipe, each with its reason: the noise floor and the tails (every file sits on the same room at -91 dBFS: the
+  soft brush strokes are quiet, not noisy) and phase coherence (a spaced pair over brushed hats and cymbals, whose
+  noise is uncorrelated between the mics, about -3 dB summed to mono, not a mic out of phase). Its round robins are
+  for the listening room: four layers' two strokes are 1.6 to 2.2 dB apart.
+
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.brushkit#653ce5fbd513` pins its render.
 
 ## Kernel data: samples a kernel plays
 

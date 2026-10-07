@@ -285,6 +285,10 @@ yours to pick by ear:
   they land) and the studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
   below hard ones, **RELEASE** how long a note takes to die once you let go, and a sustain pedal holds notes as on
   a piano. Its sources and licence are in [`docs/SOUNDS.md`](https://github.com/overdubstudio/overdub/blob/main/docs/SOUNDS.md).
+- **Brushes.** Rusty Brushes, under Drums in **Add a track**, is a recorded kit played with brushes and mallets:
+  brush taps on the snare, digs for accents, brushed hats and ride, a mallet crash and toms. Hold the swirl's note
+  (33 or 73) and the brush stirs the snare for as long as you hold it. It fetches its samples the first time, as
+  Parlour Upright does.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -604,7 +608,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 46 devices: the 33 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 47 devices: the 34 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

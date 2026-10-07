@@ -45,7 +45,7 @@ export const SOUND_SETS = {
   drums: {
     category: 'drums',
     rows: [row('core.drums', 'Drum kit', 'Studio kit'), row('core.drumkit', 'Jazz kit'), row('core.drumroom', 'Acoustic kit'), row('core.drums', 'Drum kit', 'Boom bap')],
-    fallbacks: [row('core.drums', 'Drum kit', 'Trap'), row('core.drums', 'Drum kit', 'Live room')],
+    fallbacks: [row('core.brushkit', 'Brushes'), row('core.drums', 'Drum kit', 'Trap'), row('core.drums', 'Drum kit', 'Live room')],
   },
 };
 

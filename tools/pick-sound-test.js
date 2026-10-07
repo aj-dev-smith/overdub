@@ -91,8 +91,9 @@ await section('2 soundsFor', async () => {
   // the sampled instruments are offered where they fit: Parlour Upright for played lines and chords, Virtuosity Kit for a beat
   const pl = sf({ kind: 'notes', src: 'qwerty', notes: line([60, 62, 64, 65]) }, { has });
   const ch = sf('chords', { has }), dr = sf({ kind: 'drums', src: 'tap', notes: [] }, { has });
-  T.ok(ids(pl)[1] === 'core.upright' && ids(ch)[1] === 'core.upright' && ids(dr)[1] === 'core.drumkit' && !ids(sf(hum, { has })).includes('core.upright'),
-    `2: the sampled instruments are offered: Parlour Upright second for what you played (${ids(pl).join(', ')}) and for chords (${ids(ch).join(', ')}), Virtuosity Kit second for a beat (${ids(dr).join(', ')}); a hum keeps the voices that sing`);
+  const noKit = sf({ kind: 'drums', src: 'tap', notes: [] }, { has: (id) => id !== 'core.drumroom' && has(id) });
+  T.ok(ids(pl)[1] === 'core.upright' && ids(ch)[1] === 'core.upright' && ids(dr)[1] === 'core.drumkit' && !ids(sf(hum, { has })).includes('core.upright') && ids(noKit)[3] === 'core.brushkit',
+    `2: the sampled instruments are offered: Parlour Upright second for what you played (${ids(pl).join(', ')}) and for chords (${ids(ch).join(', ')}), Virtuosity Kit second for a beat (${ids(dr).join(', ')}), Rusty Brushes the first fallback (${ids(noKit).join(', ')}); a hum keeps the voices that sing`);
   // every device and preset the sets name is real: walk SOUND_SETS whatever its shape
   const named = [];
   const walk = (x, depth = 0) => {

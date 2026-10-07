@@ -27,6 +27,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-e590dc685420513ebec06fc8ddaa233d8f2db7535f9c5245c38468dd18ef8eac` |
 | Verified | 2026-10-06 |
 
+## Big Rusty Drums: Rusty Brushes (`core.brushkit`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.big-rusty-drums |
+| Pinned | commit `f07ce00df34a46b6b08375be56fe116cf15782bc`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`; 64 FLAC and 4 WAV files, each by sha256, in [`tools/kits/big-rusty.js`](../tools/kits/big-rusty.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text, and GitHub reads it as CC0-1.0) |
+| Author | Karoryfer Samples: a kit Zygmunt Szpaderski made in Poland, probably in the early 1980s. Brought to SFZ by sfzinstruments. |
+| Modifications | A subset: the overhead pair only, the brush and mallet articulations (and the kick), 13 in all, 2 to 4 velocity layers of 2 strokes each. Kept at 44.1 kHz and 16 bits. Each tail cut after the last 960-frame window at or above -70 dBFS RMS (-64 on the open hat and the crash), then a 480-frame linear fade; the open hat and the ride cut at 4 s and the crash at 6 s with a fade. The stirs looped: 3 s from 0.5 s in, the loop's last 0.3 s crossfaded at equal power into its start. Each stroke's start set 2 ms before its attack. |
+| Kit | `sha256-653ce5fbd513951101d8c0b81d2a11e9177b89e8588ca403074003b1eb917ba3` |
+| Verified | 2026-10-07 |
+
 ## Upright Piano KW: Parlour Upright (`core.upright`)
 
 | | |

@@ -12,6 +12,7 @@
 //                                       unpacks to it), build nothing: exit 0 here, 1 missing or wrong
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
+//   node tools/fetch-kits.js ... rusty  any of the above for the kits whose name or repo has that word in it
 //
 // The downloads are cached in tools/.out/kits-cache/ (by SHA-256), so a rebuild is offline. The build is deterministic:
 // the same upstream bytes give the same .odk bytes (integer arithmetic only, fixed key order), so the hash a device
@@ -28,6 +29,8 @@ import { KIT_HASH } from '../app/src/devices/builtin/drumkit.js';
 import { RECIPE as KIT_RECIPE } from './kits/virtuosity.js';
 import { RECIPE as UPRIGHT_RECIPE } from './kits/upright-kw.js';
 import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
+import { RECIPE as BRUSH_RECIPE } from './kits/big-rusty.js';
+import { BRUSH_HASH } from '../app/src/devices/builtin/brushkit.js';
 import { qaSample, qaInstrument } from './kits/qa.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -68,13 +71,35 @@ async function fetchFile(recipe, file, want = recipe.files[file]) {
   return b;
 }
 
+// A WAV file (integer PCM, 16 or 24-bit, any channel count) -> { sr, bits, frames, channels: [Int32Array, ...] }, as
+// decodeFlac gives. Some upstream sets keep their long samples as WAV (Big Rusty's brush stirs).
+export function decodeWav(b) {
+  if (b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new Error('not a WAV file');
+  let o = 12, fmt = null, data = null;
+  while (o + 8 <= b.length) {
+    const id = b.toString('ascii', o, o + 4), n = b.readUInt32LE(o + 4);
+    if (id === 'fmt ') fmt = b.subarray(o + 8, o + 8 + n);
+    else if (id === 'data') data = b.subarray(o + 8, Math.min(b.length, o + 8 + n));
+    o += 8 + n + (n & 1);
+  }
+  if (!fmt || !data) throw new Error('a WAV file without fmt or data');
+  const tag = fmt.readUInt16LE(0), ch = fmt.readUInt16LE(2), sr = fmt.readUInt32LE(4), bits = fmt.readUInt16LE(14);
+  if ((tag !== 1 && tag !== 0xfffe) || (bits !== 16 && bits !== 24)) throw new Error(`a WAV file I can't read (format ${tag}, ${bits}-bit)`);
+  const bps = bits / 8, frames = Math.floor(data.length / (bps * ch));
+  const channels = Array.from({ length: ch }, () => new Int32Array(frames));
+  for (let i = 0; i < frames; i++) for (let c = 0; c < ch; c++) { const p = (i * ch + c) * bps; channels[c][i] = bits === 24 ? data.readIntLE(p, 3) : data.readInt16LE(p); }
+  return { sr, bits, frames, channels };
+}
+const decodeAny = (file, b) => (/\.wav$/i.test(file) ? decodeWav(b) : decodeFlac(b));
+
 // 24-bit stereo in, trimmed (above), 16-bit out. Integer samples, IEEE doubles in a fixed order: the same bytes on any
 // engine. keep: frames that stay whatever their level (a loop's end); no fade then, as the loop never reaches it.
-function trim16(d, keep = 0) {
+// thr: the trim threshold on the 24-bit scale (a recipe's piece may set its own, `trim` in dBFS).
+function trim16(d, keep = 0, thr = TRIM_24) {
   const [L, R] = d.channels.length > 1 ? d.channels : [d.channels[0], d.channels[0]];
   const shift = 24 - d.bits; // (a 16-bit source is scaled up to 24 bits first)
   const at = (x, i) => x[i] * (1 << shift);
-  const T2 = TRIM_24 * TRIM_24 * WIN;
+  const T2 = thr * thr * WIN;
   let end = 0;
   for (let a = Math.floor(d.frames / WIN) * WIN; a >= 0 && !end; a -= WIN) {
     let el = 0, er = 0;
@@ -108,6 +133,12 @@ function startOf(ch, frames, sr) {
   return Math.max(0, on - Math.round(0.002 * sr));
 }
 
+// A drum kit: each piece's velocity layers of strokes, in the recipe's order. A piece may set its own trim (`trim`, dBFS:
+// the default is -70), a longest stroke (`max`, seconds: cut there with a `fadeMs` linear fade, default 50 ms), or a
+// loop (`loop: { at, len, xfade }`, seconds: a sustained articulation such as a brush stir, rung while its note is
+// held; the loop's last `xfade` seconds are crossfaded at equal power with what came before its start, so the jump
+// back is seamless, and the four frames after the loop's end repeat its start for the interpolator). A recipe with
+// `qa: true` runs the QA rubric on every stroke (tools/kits/qa.js) before anything is processed.
 async function build(recipe) {
   // the licence first: the kit is built only from the commit whose LICENSE is the CC0 text pinned here
   const lic = await fetchFile(recipe, recipe.licenceFile.path, recipe.licenceFile.sha256);
@@ -116,24 +147,50 @@ async function build(recipe) {
   let n = 0, inFrames = 0, outFrames = 0;
   for (const piece of recipe.pieces) {
     piece.layers.forEach((layer, li) => {
-      layer.files.forEach((file, rr) => samples.push({ piece: piece.id, layer: li, rr, vel: layer.vel, file }));
+      layer.files.forEach((file, rr) => samples.push({ piece: piece.id, layer: li, rr, vel: layer.vel, file, opts: piece }));
     });
   }
-  const out = [];
+  const out = [], rows = [];
   for (const s of samples) {
     const b = await fetchFile(recipe, s.file);
-    const d = decodeFlac(b);
+    const d = decodeAny(s.file, b);
     if (d.sr !== recipe.sr) throw new Error(`${s.file}: ${d.sr} Hz, the kit is ${recipe.sr} Hz`);
-    const t = trim16(d);
+    if (recipe.qa) rows.push({ id: `${s.piece}.${s.layer}.${s.rr}`, key: recipe.pieces.findIndex((p) => p.id === s.piece), layer: s.layer, rr: s.rr, hash: sha256(b), qa: qaSample({ ch: d.channels, bits: d.bits, sr: d.sr }, { key: 60, tuning: false, looped: !!s.opts.loop }) });
+    const o = s.opts, sr = recipe.sr;
+    const thr = o.trim != null ? Math.round(8388608 * Math.pow(10, o.trim / 20)) : TRIM_24;
+    let t, loop;
+    if (o.loop) {
+      const S = Math.round(o.loop.at * sr), E = S + Math.round(o.loop.len * sr), X = Math.round(o.loop.xfade * sr);
+      if (S < X || E + 4 > d.frames) throw new Error(`${s.file}: the loop (${S}-${E}, crossfade ${X}) doesn't fit its ${d.frames} frames`);
+      t = trim16(d, E + 4, thr);
+      const ch = t.ch.map((c) => c.slice(0, E + 4));
+      for (const c of ch) {
+        const a = c.slice();
+        for (let i = 0; i < X; i++) { const w = (i + 0.5) / X, j = E - X + i; c[j] = Math.round(a[j] * Math.sqrt(1 - w) + a[S - X + i] * Math.sqrt(w)); }
+        for (let k = 0; k < 4; k++) c[E + k] = a[S + k];
+      }
+      t = { ch, frames: E + 4 };
+      loop = { s: S, e: E };
+    } else {
+      t = trim16(d, 0, thr);
+      const M = o.max ? Math.round(o.max * sr) : 0;
+      if (M && t.frames > M) {
+        const F = Math.round((o.fadeMs ?? 50) * sr / 1000);
+        const ch = t.ch.map((c) => c.slice(0, M));
+        for (const c of ch) for (let i = M - F; i < M; i++) c[i] = Math.round(c[i] * (M - i) / (F + 1));
+        t = { ch, frames: M };
+      }
+    }
     inFrames += d.frames; outFrames += t.frames;
-    out.push({ id: `${s.piece}.${s.layer}.${s.rr}`, piece: s.piece, layer: s.layer, rr: s.rr, vel: s.vel, start: startOf(t.ch, t.frames, recipe.sr), src: s.file, ch: t.ch });
+    out.push({ id: `${s.piece}.${s.layer}.${s.rr}`, piece: s.piece, layer: s.layer, rr: s.rr, vel: s.vel, start: startOf(t.ch, t.frames, recipe.sr), ...(loop ? { loop } : {}), src: s.file, ch: t.ch });
     ++n;
     if (process.stdout.isTTY) process.stdout.write(`\r  ${n}/${samples.length} ${s.file.slice(-44).padEnd(44)}`);
   }
   if (process.stdout.isTTY) process.stdout.write('\n');
-  const meta = { source: recipe.source, repo: recipe.repo, commit: recipe.commit, licence: recipe.licence, credit: recipe.credit, trim: 'after the last 20 ms window at or above -70 dBFS RMS, then a 10 ms linear fade; 24-bit to 16-bit by rounding' };
+  const meta = { ...(recipe.kind ? { kind: recipe.kind } : {}), source: recipe.source, repo: recipe.repo, commit: recipe.commit, licence: recipe.licence, credit: recipe.credit,
+    trim: recipe.trimNote || 'after the last 20 ms window at or above -70 dBFS RMS, then a 10 ms linear fade; 24-bit to 16-bit by rounding' };
   const bytes = encodeOdk({ name: recipe.name, sr: recipe.sr, bits: 16, channels: 2, meta, samples: out });
-  return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames, outFrames };
+  return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames, outFrames, ...(recipe.qa ? { qa: qaInstrument(rows, recipe.waive || [], { drums: true }) } : {}) };
 }
 
 // ------------------------------------------------------------------------------------------------ melodic kits
@@ -266,7 +323,7 @@ const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
 const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
 
 // every kit a device names: [recipe, the hash the device pins, how it's built]
-const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic]];
+const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
@@ -316,7 +373,12 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
 async function main() {
   const flags = { check: process.argv.includes('--check'), verify: process.argv.includes('--verify'), rebuild: process.argv.includes('--rebuild') };
   let code = 0;
-  for (const [recipe, pinned, make] of KITS) code = Math.max(code, await one(recipe, pinned, make, flags));
+  // (names after the flags pick kits: `node tools/fetch-kits.js --verify rusty` is Rusty Brushes alone)
+  const only = process.argv.slice(2).filter((a) => !a.startsWith('--')).map((a) => a.toLowerCase());
+  for (const [recipe, pinned, make] of KITS) {
+    if (only.length && !only.some((w) => recipe.name.toLowerCase().includes(w) || recipe.repo.toLowerCase().includes(w))) continue;
+    code = Math.max(code, await one(recipe, pinned, make, flags));
+  }
   process.exitCode = code;
 }
 

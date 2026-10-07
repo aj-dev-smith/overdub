@@ -31,19 +31,19 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 33 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 34 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
-  Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit and
-  Parlour Upright;
+  Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit,
+  Parlour Upright and Rusty Brushes;
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
-  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but two, which play samples: Virtuosity Kit, a real
-  jazz-club kit, and Parlour Upright, a real upright piano. (Light Table's AKWF tables are recorded too: 108 single
+  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but three, which play samples: Virtuosity Kit, a real
+  jazz-club kit, Parlour Upright, a real upright piano, and Rusty Brushes, a real kit played with brushes and mallets. (Light Table's AKWF tables are recorded too: 108 single
   cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 33 built-ins.
+  behind it, next to the 34 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano
@@ -128,7 +128,9 @@ AJ's earlier synthesis experiments (Karplus-Strong strings, modal drums, tube am
 on the house kit at Virtuosity Musical Instruments, Boston (CC0 1.0; the samples at commit `9f04cf9`, listed in
 `tools/kits/virtuosity.js`). Parlour Upright plays FreePats'
 [Upright Piano KW](https://github.com/freepats/upright-piano-KW), a Kawai upright recorded by Gonzalo and Roberto
-(CC0 1.0; at commit `570f6c6`, listed in `tools/kits/upright-kw.js`). [`docs/SOUNDS.md`](docs/SOUNDS.md) is the
+(CC0 1.0; at commit `570f6c6`, listed in `tools/kits/upright-kw.js`). Rusty Brushes plays Karoryfer Samples'
+[Big Rusty Drums](https://github.com/sfzinstruments/karoryfer.big-rusty-drums), a kit Zygmunt Szpaderski made in
+Poland (CC0 1.0; at commit `f07ce00`, listed in `tools/kits/big-rusty.js`). [`docs/SOUNDS.md`](docs/SOUNDS.md) is the
 record of every sound set: source, pin, licence, author and what the build changed.
 
 Light Table's AKWF tables play 108 single cycles from [AKWF](https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE)

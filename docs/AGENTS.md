@@ -374,9 +374,11 @@ anything else.
 (`X` accent, `x` hit, `o` ghost, `.` rest; rows kick snare clap rim hat pedal open tom1 tom2 tom3 crash ride cowbell
 shaker), in `clip.add` (`clip.grid`) or `notes.replace` (`grid`). A row may also be a MIDI number.
 
-**Drum kits.** Gobo Kit (`core.drums`), Studio A (`core.drumroom`) and Virtuosity Kit (`core.drumkit`, a real kit
+**Drum kits.** Gobo Kit (`core.drums`), Studio A (`core.drumroom`), Virtuosity Kit (`core.drumkit`, a real kit
 from samples: kick, snare, hats closed, half open, open and pedal, ride and bell, crash, two toms; `get_device` gives
-its note names) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
+its note names) and Rusty Brushes (`core.brushkit`, a real kit played with brushes and mallets: brush taps on 38,
+digs for accents on 40, a stir that rings while its note is held on 33 or 73, brushed hats and ride, a mallet crash and
+toms) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
 these extra row names:
 
 | rows | notes | what they play |
