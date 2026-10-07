@@ -56,6 +56,7 @@
 <li><a href="#drum-kits-and-the-note-map">Drum kits and the note map</a></li>
 <li><a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit (core.drumkit): a sampled kit</a></li>
 <li><a href="#kernel-data-samples-a-kernel-plays">Kernel data: samples a kernel plays</a></li>
+<li><a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits: a sampled instrument across the keyboard</a></li>
 <li><a href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (core.wavetable)</a></li>
 <li><a href="#for-agents">For agents</a></li>
 <li><a href="#the-definition">The definition</a></li>
@@ -70,7 +71,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 41 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 43 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -507,6 +508,41 @@ it and say so.</li>
 kit: anything worked out from all of the audio belongs in the file, written once by the tool that builds it (Virtuosity
 Kit's stroke starts are). A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
 <code>data</code> only if its def names a file this server has.</p>
+<h2 id="melodic-kits-a-sampled-instrument-across-the-keyboard"><a class="h-link" href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits: a sampled instrument across the keyboard</a></h2>
+<p>A melodic kit is an ordinary <code>.odk</code> whose samples carry a few more header fields. They are optional, so every older
+kit parses exactly as before, under the same format string:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>field</th><th>what</th><th>from SFZ</th></tr></thead>
+<tbody>
+<tr><td><code>key</code></td><td>the note it was recorded at</td><td><code>pitch_keycenter</code></td></tr>
+<tr><td><code>lo</code>, <code>hi</code></td><td>the keys it plays</td><td><code>lokey</code>, <code>hikey</code></td></tr>
+<tr><td><code>vlo</code>, <code>vhi</code></td><td>the velocities it plays, 0-127</td><td><code>lovel</code>, <code>hivel</code></td></tr>
+<tr><td><code>rr</code></td><td>its round robin among the samples sharing its keys and velocities</td><td><code>seq_position</code></td></tr>
+<tr><td><code>trig</code></td><td><code>'attack'</code> (default) or <code>'release'</code></td><td><code>trigger</code></td></tr>
+<tr><td><code>tune</code>, <code>gain</code></td><td>cents and dB, measured or from the source; applied by the kernel, never baked in</td><td><code>tune</code>, <code>volume</code></td></tr>
+<tr><td><code>start</code></td><td>the frame it starts from</td><td><code>offset</code></td></tr>
+<tr><td><code>loop</code></td><td><code>{ s, e, mode }</code> in frames; <code>'sustain'</code> loops while the key is down, <code>'continuous'</code> always</td><td><code>loop_*</code></td></tr>
+<tr><td><code>cutoff</code></td><td>Hz, a 2-pole low pass on that sample</td><td><code>fil_type=lpf_2p</code>, <code>cutoff</code></td></tr>
+</tbody></table></div>
+<p>The kit's <code>meta</code> may add <code>kind: 'melodic'</code>, <code>velcurve: [[vel, dB], ...]</code> (default: the SFZ curve, 40 log10(vel/127)),
+<code>env: { a, r }</code> and <code>rt: { decay }</code> (dB per second held, off a release sample).</p>
+<p><code>samplerKernel(opts)</code> in <code>app/src/devices/builtin/sampler.js</code> plays one. A device is that kernel, its params
+(<code>samplerParams()</code>) and a kit hash; Upright (<code>core.upright</code>) is the first.</p>
+<ul>
+<li><strong>Pitch by resampling</strong>, through a 16-tap Kaiser-windowed sinc with 512 phases. The table is built in <code>create()</code>
+from <code>+ - * /</code> and <code>sqrt</code> alone (its own sine and Bessel series), so it is the same numbers on every engine. A
+15 kHz tone moved up 3 semitones keeps everything else 72 dB down (the drum kit's Hermite: 16.5 dB). The limit:
+the cut is fixed at 0.44 of the kit's rate, so a sample moved up folds its top octave's last few kHz back below
+Nyquist. Within a zone of a few semitones that stays above 20 kHz.</li>
+<li><strong>Velocity</strong> picks the layer; near a boundary both layers play, crossfaded. The level follows the curve, scaled by
+DYNAMICS.</li>
+<li><strong>Round robins</strong> come from the instance's seed and never repeat back to back.</li>
+<li><strong>An envelope:</strong> a 1 ms ramp in, then an exponential release (RELEASE, seconds to -60 dB) at note-off. A release
+sample, where the kit has one, sounds at the level the note had decayed to.</li>
+<li><strong>Voices and the pedal are the host's:</strong> <code>poly</code> of them, the oldest stolen; note-offs wait while the sustain pedal
+is down.</li>
+<li><code>tools/sampler-test.js</code> holds every one of those to a kit of sine waves.</li>
+</ul>
 <h2 id="a-big-instrument-light-table-corewavetable"><a class="h-link" href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (<code>core.wavetable</code>)</a></h2>
 <p>Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
 a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a

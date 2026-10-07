@@ -469,6 +469,43 @@ kit: anything worked out from all of the audio belongs in the file, written once
 Kit's stroke starts are). A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
 `data` only if its def names a file this server has.
 
+## Melodic kits: a sampled instrument across the keyboard
+
+A melodic kit is an ordinary `.odk` whose samples carry a few more header fields. They are optional, so every older
+kit parses exactly as before, under the same format string:
+
+| field | what | from SFZ |
+|---|---|---|
+| `key` | the note it was recorded at | `pitch_keycenter` |
+| `lo`, `hi` | the keys it plays | `lokey`, `hikey` |
+| `vlo`, `vhi` | the velocities it plays, 0-127 | `lovel`, `hivel` |
+| `rr` | its round robin among the samples sharing its keys and velocities | `seq_position` |
+| `trig` | `'attack'` (default) or `'release'` | `trigger` |
+| `tune`, `gain` | cents and dB, measured or from the source; applied by the kernel, never baked in | `tune`, `volume` |
+| `start` | the frame it starts from | `offset` |
+| `loop` | `{ s, e, mode }` in frames; `'sustain'` loops while the key is down, `'continuous'` always | `loop_*` |
+| `cutoff` | Hz, a 2-pole low pass on that sample | `fil_type=lpf_2p`, `cutoff` |
+
+The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (default: the SFZ curve, 40 log10(vel/127)),
+`env: { a, r }` and `rt: { decay }` (dB per second held, off a release sample).
+
+`samplerKernel(opts)` in `app/src/devices/builtin/sampler.js` plays one. A device is that kernel, its params
+(`samplerParams()`) and a kit hash; Upright (`core.upright`) is the first.
+
+- **Pitch by resampling**, through a 16-tap Kaiser-windowed sinc with 512 phases. The table is built in `create()`
+  from `+ - * /` and `sqrt` alone (its own sine and Bessel series), so it is the same numbers on every engine. A
+  15 kHz tone moved up 3 semitones keeps everything else 72 dB down (the drum kit's Hermite: 16.5 dB). The limit:
+  the cut is fixed at 0.44 of the kit's rate, so a sample moved up folds its top octave's last few kHz back below
+  Nyquist. Within a zone of a few semitones that stays above 20 kHz.
+- **Velocity** picks the layer; near a boundary both layers play, crossfaded. The level follows the curve, scaled by
+  DYNAMICS.
+- **Round robins** come from the instance's seed and never repeat back to back.
+- **An envelope:** a 1 ms ramp in, then an exponential release (RELEASE, seconds to -60 dB) at note-off. A release
+  sample, where the kit has one, sounds at the level the note had decayed to.
+- **Voices and the pedal are the host's:** `poly` of them, the oldest stolen; note-offs wait while the sustain pedal
+  is down.
+- `tools/sampler-test.js` holds every one of those to a kit of sine waves.
+
 ## A big instrument: Light Table (`core.wavetable`)
 
 Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
