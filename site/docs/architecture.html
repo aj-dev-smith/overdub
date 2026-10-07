@@ -436,8 +436,8 @@ function to draw them, so the editor shows exactly what plays. The bank (<code>a
 is a literal in the kernel's source, packed so the kernel stays under its 256 KB. Its design note, with the param map its editor works from, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <p>Param <code>role</code> (for agents and semantic controls): <code>tone level drive mix time feedback rate depth size decay attack release pitch shape width gate sens</code> (or omit). <code>unit</code>: <code>Hz dB ms s % st note x</code>.</p>
-<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 36 built-ins, five of
-them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate and Full Stick, whose samples come as kernel
+<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 37 built-ins, six of
+them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick and Rosin, whose samples come as kernel
 data),
 <code>devices/guitar/</code> (the Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its
 156 rigs as device chains) and <code>devices/library/</code> (the house shelf: ten kernels Claude wrote, <code>claude.*</code>, <code>source: 'library'</code>, each with its <code>request</code>; also loaded by the Node renderer). <code>devices/showcase.js</code> holds the three devices

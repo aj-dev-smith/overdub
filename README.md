@@ -31,20 +31,20 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 36 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 37 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
   Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit,
-  Parlour Upright, Rusty Brushes, Hand Crate and Full Stick;
+  Parlour Upright, Rusty Brushes, Hand Crate, Full Stick and Rosin;
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
-  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but five, which play samples: Virtuosity Kit, a real
+  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but six, which play samples: Virtuosity Kit, a real
   jazz-club kit, Parlour Upright, a real upright piano, Rusty Brushes, a real kit played with brushes and mallets,
-  Hand Crate, real hand percussion, and Full Stick, a real concert grand. (Light Table's AKWF tables are recorded too:
-  108 single cycles, nine to a table.)
+  Hand Crate, real hand percussion, Full Stick, a real concert grand, and Rosin, a real string section. (Light Table's AKWF tables are recorded
+  too: 108 single cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 36 built-ins.
+  behind it, next to the 37 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano
@@ -136,7 +136,10 @@ Poland (CC0 1.0; at commit `f07ce00`, listed in `tools/kits/big-rusty.js`). Hand
 commit `c1ea7bc`, listed in `tools/kits/vcsl-hand.js`). Full Stick plays
 [Salamander Grand Piano V3](https://github.com/sfzinstruments/SalamanderGrandPiano) by Alexander Holm, a Yamaha C5
 (public domain since 2022, released before that as CC-BY 3.0; at commit `3382bf9`, listed in
-`tools/kits/salamander.js`). [`docs/SOUNDS.md`](docs/SOUNDS.md) is the record of every sound set: source, pin,
+`tools/kits/salamander.js`). Rosin plays the string sections of
+[VS Chamber Orchestra 2: Community Edition](https://vis.versilstudios.com/vsco-community.html) by Versilian Studios
+(Sam Gossner) and Ivy Audio (Simon Dalzell) (CC0 1.0; at commit `4403009`, listed in `tools/kits/vsco-strings.js`).
+[`docs/SOUNDS.md`](docs/SOUNDS.md) is the record of every sound set: source, pin,
 licence, author and what the build changed.
 
 Light Table's AKWF tables play 108 single cycles from [AKWF](https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE)

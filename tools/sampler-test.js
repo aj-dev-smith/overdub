@@ -34,6 +34,8 @@ import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
 import { RECIPE } from './kits/upright-kw.js';
 import { GRAND_HASH } from '../app/src/devices/builtin/grand.js';
 import { RECIPE as GRAND_RECIPE } from './kits/salamander.js';
+import { ENSEMBLE_HASH } from '../app/src/devices/builtin/ensemble.js';
+import { RECIPE as ENSEMBLE_RECIPE } from './kits/vsco-strings.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 import { unpackOdk } from '../app/src/kernel/odkz.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -368,6 +370,9 @@ console.log('Parlour Upright: the studio');
 // Node's, and an agent finding it.
 const MORE = [
   { id: 'core.grand', hash: GRAND_HASH, recipe: GRAND_RECIPE, only: 'salamander', mb: 15, keys: [21, 108], layers: [[1, 58], [59, 100], [101, 127]], preset: 'Half stick' },
+  // (a bowed note swells for its first seconds: its velocity is read once it has settled; the solo bass's two layers
+  // are partly alike, so its equal-power crossfade can sit 1 dB over the loud layer alone)
+  { id: 'core.ensemble', hash: ENSEMBLE_HASH, recipe: ENSEMBLE_RECIPE, only: 'vsco', mb: 8, keys: [24, 96], layers: [[0, 72], [73, 127]], preset: 'Soft bows', velWin: [2.9, 3.4], velTol: 1 },
 ];
 const fetched = MORE.filter((x) => fs.existsSync(dataPath(x.hash)));
 for (const x of MORE) if (!fetched.includes(x)) t.note(`${x.id}: its kit isn't fetched (node tools/fetch-kits.js), skipped`);
@@ -435,13 +440,14 @@ for (const x of fetched) {
   for (const k of kk) {
     let prev = null;
     for (let v = 4; v <= 127; v += 3) {
-      const r = dplay([on(k, v / 127)], { secs: 0.25, params: { release: 6 } });
-      const lv = db(rms(r.channels[0], 0.01, 0.2) + rms(r.channels[1], 0.01, 0.2));
-      if (prev != null) { if (lv < prev - 0.5) down++; if ([...seams].some((sv) => v - 3 < sv && v >= sv)) seam = Math.max(seam, Math.abs(lv - prev)); }
+      const [w0, w1] = x.velWin || [0.01, 0.2];
+      const r = dplay([on(k, v / 127)], { secs: w1 + 0.05, params: { release: 6 } });
+      const lv = db(rms(r.channels[0], w0, w1) + rms(r.channels[1], w0, w1));
+      if (prev != null) { if (lv < prev - (x.velTol || 0.5)) down++; if ([...seams].some((sv) => v - 3 < sv && v >= sv)) seam = Math.max(seam, Math.abs(lv - prev)); }
       prev = lv;
     }
   }
-  t.ok(down === 0 && seam < 3, `${d.name}: the level climbs with velocity on ${kk.length} keys (never down by more than 0.5 dB; at most ${seam.toFixed(2)} dB in a step across a layer seam)`);
+  t.ok(down === 0 && seam < 3, `${d.name}: the level climbs with velocity on ${kk.length} keys (never down by more than ${x.velTol || 0.5} dB; at most ${seam.toFixed(2)} dB in a step across a layer seam)`);
   // a looped kit: a note held for 8 s keeps sounding at a steady level, and stops when let go
   if (att.some((sm) => sm.loop)) {
     let worstHold = 0;

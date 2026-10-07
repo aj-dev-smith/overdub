@@ -304,10 +304,10 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's five sampled
-  instruments; the others are Parlour Upright (`core.upright`, a real upright piano) and Full Stick (`core.grand`, a
-  real concert grand) ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and
-  Hand Crate.
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's six sampled
+  instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
+  concert grand) and Rosin (`core.ensemble`, a real string section)
+  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
 - **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would
@@ -586,6 +586,7 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 |---|---|---|
 | Parlour Upright (`core.upright`) | FreePats Upright Piano KW: 2 layers, 66 zones, the source's own SFZ | `tools/kits/upright-kw.js` |
 | Full Stick (`core.grand`) | Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB | `tools/kits/salamander.js` |
+| Rosin (`core.ensemble`) | VSCO 2 CE: four string sections' sustains, 15 zones, 2 layers, looped | `tools/kits/vsco-strings.js` |
 
 **Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
 Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,

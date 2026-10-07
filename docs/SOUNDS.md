@@ -75,6 +75,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-15cab44d14055d312f55e04bee8f54ca1cc99d6bc8e78ba9f1c1cb34a73eb58e` |
 | Verified | 2026-10-07 |
 
+## VS Chamber Orchestra 2: Community Edition: Rosin (`core.ensemble`)
+
+| | |
+|---|---|
+| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios: https://vis.versilstudios.com/vsco-community.html) |
+| Pinned | commit `440300901dfe9275fd84e0b7763af1f8443ae62e`; LICENSE sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`, Readme.txt by sha256; 30 WAV files, each by sha256, in [`tools/kits/vsco-strings.js`](../tools/kits/vsco-strings.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text). Its Readme.txt: "You are permitted to use these samples for ANY purpose. We ask that you do not sell the samples directly ... Please provide credit to Versilian Studios/Sam Gossner, and/or Ivy Audio/Simon Dalzell where applicable, and link to the VSCO: CE homepage." We don't sell them, and credit them here, in the README and on the device. |
+| Author | Versilian Studios: recorded by Sam Gossner and Simon Dalzell (Ivy Audio); sample cutting by Elan Hickler (Soundemote). |
+| Modifications | A subset: the sustained, vibrato articulation of the solo contrabass (one note), the cello section (five), the viola section (three) and the violin section (six), one section per register; VSCO's softest and loudest dynamic for each. 16-bit by rounding (the 24-bit files), kept at 44.1 kHz. Each note looped where it has settled (a loop of 1.5 to 1.9 s ending by 2.8 s, or 4.3 s for the soft notes, which swell), its 0.4 s crossfade baked into the samples, and the sample cut at the loop's end. Each start 2 ms before the note first comes within 40 dB of its peak. A gain per sample, so every note plays at one level (VSCO recorded the sections at different gains); the dynamics come from a velocity curve set from the two layers' recorded distance. |
+| Kit | `sha256-2eb3cfbd8fd7aca225201abc1b20eeb0d830029037d92ac5318941d05472a39b` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

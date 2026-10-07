@@ -15,14 +15,17 @@
 //                      neither keeps its recording, cut after its last 20 ms over -70 dBFS and faded over 10 ms
 //   head               dB under the peak where a sample's start sits (2 ms before it first gets there; default -20, as
 //                      the drum kit); a slow attack (a bow) wants it low, so the start isn't late
-//   loop               { from, min, max?, xfade }: seconds. A sustain loop for every attack sample: the period-aligned
-//                      search (the end of the loop and the 100 ms before it against the 100 ms before its start), its
+//   loop               { from, min, max?, by?, xfade }: seconds. A sustain loop for every attack sample, starting at
+//                      least `from` after the onset and ending by `by`: the search (the 100 ms before the loop's end
+//                      against the 100 ms before its start, on a 20 ms grid, then to the frame), its
 //                      crossfade baked into the samples (linear, integers), the sample cut at the loop's end
 //   level              { mode: 'key' | 'flat', measure: 'attack' | 'body' }: the gain each sample gets. 'key': every
 //                      layer of a key moves by the same dB, onto one quadratic across the keys through the top layer's
 //                      levels (the layers keep their recorded distance: the source has its dynamics). 'flat': each
 //                      sample onto that curve (a normalized source: the velocity curve makes the dynamics).
-//                      'attack' measures the 150 ms from the onset, 'body' the second after the first 0.3 s
+//                      'attack' measures the 150 ms from the onset, 'body' the second after the first 0.3 s, 'loop'
+//                      the sustain loop (a looped sample's steady level); across: 'even' sets every key to one level
+//                      instead of the quadratic (an ensemble whose sections were recorded at different gains)
 //   align              true: each layer's start lined up with the next layer up of its key (and `align` kept), for
 //                      the kernel's 'aligned' crossfade
 //   meta               merged into the kit's meta (velcurve, env, rt ...)
@@ -128,18 +131,21 @@ function cutAt(L, R, n, sr, on, key, cut) {
 
 // The sustain loop: the end e and start s (e - s >= min) whose 100 ms before each match best (the correlation of the
 // mono sums, what a crossfade there needs), searched on a 20 ms grid, then to the frame around the best ten.
-export function findLoop(L, R, n, sr, on, { from, min, max = 1e9, xfade }) {
+export function findLoop(L, R, n, sr, on, { from, min, max = 1e9, by = 1e9, xfade }) {
   const m = new Float64Array(n);
   for (let i = 0; i < n; i++) m[i] = L[i] + R[i];
   const W = Math.round(0.1 * sr), X = Math.round(xfade * sr), G = Math.round(0.02 * sr);
   const lo = on + Math.round(from * sr), MIN = Math.round(min * sr), MAX = Math.round(max * sr);
+  // the score: the correlation of the 100 ms before each end, less 0.1 per dB the loop's last 100 ms and its first
+  // differ (the level step at every pass: a loop that pulses is worse than one that blurs)
   const corr = (a, b, step) => {
-    let xy = 0, xx = 0, yy = 0;
-    for (let i = 0; i < W; i += step) { const x = m[a - W + i], y = m[b - W + i]; xy += x * y; xx += x * x; yy += y * y; }
-    return xy / Math.sqrt(xx * yy || 1);
+    let xy = 0, xx = 0, yy = 0, ee = 0, ss = 0;
+    for (let i = 0; i < W; i += step) { const x = m[a - W + i], y = m[b - W + i], z = m[b + i]; xy += x * y; xx += x * x; yy += y * y; ss += z * z; }
+    ee = xx;
+    return xy / Math.sqrt(xx * yy || 1) - 0.1 * Math.abs(10 * Math.log10((ee || 1) / (ss || 1)));
   };
   const cands = [];
-  for (let e = n - G; e - MIN >= lo + Math.max(W, X); e -= G) {
+  for (let e = Math.min(n, on + Math.round(by * sr)) - G; e - MIN >= lo + Math.max(W, X); e -= G) {
     for (let s = e - MIN; s >= lo + Math.max(W, X) && e - s <= MAX; s -= G) cands.push([corr(e, s, 3), s, e]);
   }
   if (!cands.length) throw new Error('loop: the sample is too short for a loop of ' + min + ' s after ' + from + ' s');
@@ -153,16 +159,21 @@ export function findLoop(L, R, n, sr, on, { from, min, max = 1e9, xfade }) {
       if (!best || c > best[0]) best = [c, s, e];
     }
   }
-  return { s: best[1], e: best[2], corr: best[0] };
+  const [, s, e] = best;
+  let xy = 0, xx = 0, yy = 0;
+  for (let i = 0; i < W; i++) { const x = m[e - W + i], y = m[s - W + i]; xy += x * y; xx += x * x; yy += y * y; }
+  return { s, e, corr: xy / Math.sqrt(xx * yy || 1) };
 }
 
-// bake the loop's crossfade: the X frames before e fade from themselves into the X frames before s (linear,
-// integers), so a jump from e to s is seamless
-function bakeLoop(ch, s, e, X) {
+// bake the loop's crossfade: the X frames before e fade from themselves into the X frames before s, so a jump from e
+// to s is seamless. The weights keep the sum's power constant for the two ends' correlation rho (linear when they are
+// alike, equal power when they are unrelated: the kernel's 'aligned' law), from + - * / and sqrt only
+function bakeLoop(ch, s, e, X, rho) {
+  const r = rho < 0 ? 0 : rho > 1 ? 1 : rho;
   for (const x of ch) {
     for (let i = 0; i < X; i++) {
-      const p = e - X + i, q = s - X + i;
-      x[p] = Math.round((x[p] * (X - i) + x[q] * i) / X);
+      const p = e - X + i, q = s - X + i, b = i / X, a = 1 - b, k = 1 / Math.sqrt(a * a + b * b + 2 * a * b * r);
+      x[p] = Math.round((x[p] * a + x[q] * b) * k);
     }
   }
 }
@@ -205,14 +216,17 @@ export async function buildInstrument(recipe, fetchFile) {
     const on = onsetOf(L, R, N, recipe.head ?? -20);
     let end, fade = 0, how = 'end', loop;
     if (looped) {
-      const f = findLoop(L, R, N, sr, on, recipe.loop);
+      // (a region may move its loop: a soft layer that swells for longer loops later)
+      const lp = { ...recipe.loop, ...(r.loop || {}) };
+      const f = findLoop(L, R, N, sr, on, lp);
       qa.loop = loopQa(L, R, sr, f.s, f.e, r.key, f.corr);
-      bakeLoop([L, R].slice(0, C), f.s, f.e, Math.round(recipe.loop.xfade * sr));
+      bakeLoop([L, R].slice(0, C), f.s, f.e, Math.round(lp.xfade * sr), f.corr);
       loop = { s: f.s, e: f.e, mode: 'continuous' };
       end = f.e; how = 'loop';
     } else [end, fade, how] = cutAt(L, R, N, sr, on, r.key, recipe.cut || { db: -200, fade: 0.01 });
     // the level the gain is set from
-    const lv = recipe.level && recipe.level.measure === 'body'
+    const lv = recipe.level && recipe.level.measure === 'loop' && loop ? rmsDb(L, R, loop.s, loop.e)
+      : recipe.level && recipe.level.measure === 'body'
       ? rmsDb(L, R, Math.min(end - 1, on + Math.round(0.3 * sr)), Math.min(end, on + Math.round(1.3 * sr)))
       : rmsDb(L, R, on, Math.min(end, on + Math.round(0.15 * sr)));
     const ch = [L, R].slice(0, C).map((x) => {
@@ -268,7 +282,11 @@ export async function buildInstrument(recipe, fetchFile) {
   const att = rows.map((r, i) => [r, out[i]]).filter(([, o]) => !o.trig);
   const top = Math.max(...att.map(([r]) => r.layer));
   const tops = att.filter(([r]) => r.layer === top);
-  const fit = quadFit(tops.map(([r]) => r.key), tops.map(([r]) => r.qa.attack));
+  // (across: 'even' puts every key at the top layer's mean level instead: sections recorded at different gains, which
+  // an ensemble patch evens out)
+  const fit = recipe.level && recipe.level.across === 'even'
+    ? ((m) => () => m)(tops.reduce((a, [r]) => a + r.qa.attack, 0) / tops.length)
+    : quadFit(tops.map(([r]) => r.key), tops.map(([r]) => r.qa.attack));
   const mode = (recipe.level && recipe.level.mode) || 'flat';
   for (const [r, o] of att) {
     // 'key': the gain the key's top-layer sample gets (its round robins' mean), for every layer of the key
