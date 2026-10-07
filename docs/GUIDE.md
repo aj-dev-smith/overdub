@@ -280,6 +280,11 @@ yours to pick by ear:
     Click one to tune it, or to play every stroke it has from the keys beside the kit (hold **Roll** to roll). The
     mics are faders along the bottom, and **VIEW** turns the picture round with the stereo image. On a phone, tap the
     kit and scroll for the rest.
+- **A real piano.** Parlour Upright, under Keys in **Add a track**, plays a recorded upright piano, every key from
+  samples. The first song that uses it fetches them (the device says **Loading samples…** beside its name until
+  they land) and the studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
+  below hard ones, **RELEASE** how long a note takes to die once you let go, and a sustain pedal holds notes as on
+  a piano. Its sources and licence are in [`docs/SOUNDS.md`](https://github.com/overdubstudio/overdub/blob/main/docs/SOUNDS.md).
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -599,7 +604,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 45 devices: the 32 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 46 devices: the 33 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

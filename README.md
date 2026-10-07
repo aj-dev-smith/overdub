@@ -31,17 +31,19 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 32 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 33 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
-  Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table and Virtuosity Kit;
+  Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit and
+  Parlour Upright;
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
-  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but one: Virtuosity Kit plays a real jazz-club kit
-  from samples. (Light Table's AKWF tables are recorded too: 108 single cycles, nine to a table.)
+  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but two, which play samples: Virtuosity Kit, a real
+  jazz-club kit, and Parlour Upright, a real upright piano. (Light Table's AKWF tables are recorded too: 108 single
+  cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 32 built-ins.
+  behind it, next to the 33 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano
@@ -100,7 +102,7 @@ node server/serve.js                 # the site and the studio on http://localho
 node server/mcp.js                   # the MCP stdio server (MCP clients start it themselves)
 node tools/run-all.js                # every check (PAR=3 at a time); each tools/*-test.js also runs on its own
 node tools/render.js song.json --hash   # the canonical render (Node), and its hash
-node tools/fetch-kits.js             # fetch and build the sampled kit's samples into app/kits/ (not in git)
+node tools/fetch-kits.js             # fetch and build the sampled kits into app/kits/ (not in git)
 node tools/bench/run.js              # OverdubBench
 ```
 
