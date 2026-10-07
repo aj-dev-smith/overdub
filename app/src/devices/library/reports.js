@@ -27,6 +27,7 @@ export const REPORTS = {
   "core.upright": {"hash":"1wsuxfw","kind":"instrument","ok":true,"lufs":-15.5,"deltaLU":-1.5,"truePeak":-1.1,"cpu":1.5,"tail":0.4,"warnings":0,"measured":"2026-10-06"},
   "core.grand": {"hash":"xl46yy","kind":"instrument","ok":true,"lufs":-16.8,"deltaLU":-2.8,"truePeak":-1.1,"cpu":1.5,"tail":0.4,"warnings":0,"measured":"2026-10-07"},
   "core.ensemble": {"hash":"6x6eu1","kind":"instrument","ok":true,"lufs":-15.3,"deltaLU":-1.3,"truePeak":-1.1,"cpu":1.6,"tail":0.3,"warnings":0,"measured":"2026-10-07"},
+  "core.vibes": {"hash":"3yg6q2","kind":"instrument","ok":true,"lufs":-16.1,"deltaLU":-2.1,"truePeak":-1.1,"cpu":1.6,"tail":0.7,"warnings":0,"measured":"2026-10-07"},
   "core.eq": {"hash":"1osp0l7","kind":"effect","ok":true,"lufs":-20.9,"deltaLU":0,"truePeak":-5.8,"cpu":0.4,"tail":0,"warnings":1},
   "core.comp": {"hash":"1piirlg","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-4.9,"cpu":0.3,"tail":0,"warnings":1},
   "core.verb": {"hash":"imnhbr","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-6.4,"cpu":0.6,"tail":1.1,"warnings":0},
