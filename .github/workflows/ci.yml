@@ -41,16 +41,17 @@ concurrency:
 env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
   # The real-time suites: they time things against the wall clock (count-in clicks, frame rates, tap tempo, timers,
-  # touch drags, the feedback guard, a 60 s render timeout, "Stop ends the turn at once"). They pass on a Mac but fail
-  # on GitHub's slow macOS VMs, a different few each run, even one suite at a time. So they run in the realtime job,
-  # which shows its result but blocks neither the merge nor the deploy; every other suite runs in the test job, which
-  # does. Whole file names, space-separated. Move a suite here only for timing failures, never a deterministic one.
+  # touch drags, the feedback guard, a 60 s render timeout, "Stop ends the turn at once", a knob gesture or keys
+  # recorded against the running transport). They pass on a Mac but fail on GitHub's slow macOS VMs, a different few
+  # each run, even one suite at a time. So they run in the realtime job, which shows its result but blocks neither the
+  # merge nor the deploy; every other suite runs in the test job, which does. Whole file names, space-separated. Move
+  # a suite here only for timing failures, never a deterministic one.
   REALTIME_SUITES: >-
-    agent-test.js arrange-test.js engine-test.js grooves-test.js input-test.js jam-test.js mcp-e2e-test.js
-    phone-test.js plugin-test.js sketch-rec-test.js sounds-test.js
+    agent-test.js arrange-test.js autorec-test.js brand-test.js engine-test.js grooves-test.js input-test.js
+    jam-test.js mcp-e2e-test.js phone-test.js plugin-test.js record-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # Every suite but the real-time ones, about 45 minutes one suite at a time, split four ways: each lands in exactly
+  # Every suite but the real-time ones, about 40 minutes one suite at a time, split four ways: each lands in exactly
   # one shard (round-robin by name), and each shard runs its suites one at a time.
   test:
     name: test (${{ matrix.shard }}/4)
