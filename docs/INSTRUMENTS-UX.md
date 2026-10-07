@@ -792,8 +792,7 @@ Each package fixes the existing checks its own change breaks, in the test files 
 ### 6.3 Counts (CLAUDE.md: every public number is counted)
 
 - **Tools 39 → 40:** `README.md:69`, `docs/BRAND.md:76`, `site/index.html:488` and `site/press/index.html:101,114`
-  (`data-tool-count`), `docs/AGENTS.md`'s table plus a `suggest_sounds` section, and in `overdub-private` the deck and
-  launch drafts (flag to the orchestrator; not edited from this repo).
+  (`data-tool-count`), `docs/AGENTS.md`'s table plus a `suggest_sounds` section, and the launch drafts.
 - **Suites +1** (`pick-sound-test.js`) and **checks**: after a full `node tools/run-all.js`, update every stated suite
   and check count to `tools/.out/run-all.json`; `tools/pages-test.js` holds them.
 - `node tools/docs-build.js` after GUIDE, AGENTS and ARCHITECTURE change.
@@ -811,8 +810,6 @@ Each package fixes the existing checks its own change breaks, in the test files 
   its `where` stays "Sketch, and each track’s header" (the header's R, `arranger.js:868`, and the top bar's Onto are
   still tagged `record-options`); "record onto" leaves its aliases, so asking where to pick the track finds Sketch's
   Onto, not a put-away feature. The Sound and Instruments and effects features (`:31-32`) are unchanged.
-- The private `overdub-private/docs/ux/2026-10-04/SPEC.md` still describes Recording options with "which track you
-  record onto": flag it to the orchestrator; not edited from this repo.
 
 ## 8. Work packages
 
@@ -870,8 +867,7 @@ recording many ideas in a session (B), and a check of the spec against the code 
 
 **Not taken, or taken differently:**
 
-- *The blank sheet's primary becomes Hum it* (A14): no. The simple view's spec (`overdub-private`, 2026-10-04 SPEC,
-  line 58) makes Tap a beat the primary and the first minute is built around it. The wrong comment is fixed, and Hum it
+- *The blank sheet's primary becomes Hum it* (A14): no. The simple view's spec makes Tap a beat the primary and the first minute is built around it. The wrong comment is fixed, and Hum it
   from the blank sheet meets the same 4-action budget.
 - *Detect headphones and warn only without them* (A13): browsers can't tell reliably (device labels need permission
   and don't say "headphones"), so the line is said once a session on the first Hum over it.
