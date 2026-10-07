@@ -40,6 +40,8 @@ import { RECIPE as GRAND_RECIPE } from './kits/salamander.js';
 import { GRAND_HASH } from '../app/src/devices/builtin/grand.js';
 import { RECIPE as ENSEMBLE_RECIPE } from './kits/vsco-strings.js';
 import { ENSEMBLE_HASH } from '../app/src/devices/builtin/ensemble.js';
+import { RECIPE as VIBES_RECIPE } from './kits/vcsl-vibes.js';
+import { VIBES_HASH } from '../app/src/devices/builtin/vibes.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -339,7 +341,7 @@ async function buildLaidOut(recipe) {
 // every kit a device names: [recipe, the hash the device pins, how it's built]
 const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build], [HAND_RECIPE, HAND_HASH, build],
   [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
-  [ENSEMBLE_RECIPE, ENSEMBLE_HASH, buildLaidOut]];
+  [ENSEMBLE_RECIPE, ENSEMBLE_HASH, buildLaidOut], [VIBES_RECIPE, VIBES_HASH, buildLaidOut]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));

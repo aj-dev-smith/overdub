@@ -87,6 +87,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-2eb3cfbd8fd7aca225201abc1b20eeb0d830029037d92ac5318941d05472a39b` |
 | Verified | 2026-10-07 |
 
+## VCSL Vibraphone: Damper Bar (`core.vibes`)
+
+| | |
+|---|---|
+| Source | https://github.com/sgossner/VCSL (Versilian Studios: https://versilian-studios.com/vcsl/) |
+| Pinned | commit `c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`, README.md by sha256; 44 WAV files, each by sha256, in [`tools/kits/vcsl-vibes.js`](../tools/kits/vcsl-vibes.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text; the README: "you can do whatever you want with these sounds (even make commercial software), no royalties, no credit, no special terms") |
+| Author | Versilian Studios (the Versilian Community Sample Library). |
+| Modifications | A subset: all 11 bars VCSL recorded (F3 to E6), soft mallets at two dynamics and hard mallets at two. Kept at 44.1 kHz, 16-bit, stereo. Each note cut where its 100 ms RMS falls 50 dB under its attack, or at 6 s, with a squared fade over its last 1.5 s. Each start 2 ms before its attack, each layer lined up with the next layer up. A gain per sample, so every note plays at one level; the dynamics come from a velocity curve set from the layers' recorded levels. Chosen over VCSL's marimba and concert harp by the QA rubric (the harp fails its noise floor and tails, the marimba its phase). |
+| Kit | `sha256-e41ad6c162933d1dcc259cd6b3a6e3ca5c7567dd2a38cc96fd60cc1d0207f751` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |
