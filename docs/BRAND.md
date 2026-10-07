@@ -73,7 +73,7 @@ Rules of thumb:
 - **No buzzwords.** Not "revolutionary", "AI-powered", "unleash", "supercharge", "seamless", "magic",
   "co-producer". If it is good, show it.
 - **Never invent proof.** No made-up users, numbers, testimonials or quotes. Use real counts or none: 32 built-in
-  devices, 38 agent tools, and from the Guitar Studio 101 pedals, 27 amps, 16 cabinets, 5 mics and 156 rigs.
+  devices, 40 agent tools, and from the Guitar Studio 101 pedals, 27 amps, 16 cabinets, 5 mics and 156 rigs.
 - **Errors give direction, not mood.** What went wrong, how to fix it. No apologies.
 - **Whimsy goes in device names and on the tape box, never on buttons.** A reverb can be called Stairwell and the
   tape box can say "Tails out". The button that stops recording says "Stop".
