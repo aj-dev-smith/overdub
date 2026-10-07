@@ -1,6 +1,7 @@
 // Run every check in tools/ (each *-test.js prints ok/FAIL lines and exits 1 on failure) and summarise.
 //   node tools/run-all.js            all of them, three at a time
 //   node tools/run-all.js core mix   only those whose name contains one of the words
+//   node tools/run-all.js round-test.js   a whole file name picks that file alone (not arrange-around-test.js)
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const only = process.argv.slice(2);
-const tests = fs.readdirSync(HERE).filter((f) => /-test\.js$/.test(f)).filter((f) => !only.length || only.some((w) => f.includes(w))).sort();
+const tests = fs.readdirSync(HERE).filter((f) => /-test\.js$/.test(f)).filter((f) => !only.length || only.some((w) => (/-test\.js$/.test(w) ? f === w : f.includes(w)))).sort();
 const PAR = Number(process.env.PAR || 3);
 
 function run(file) {
