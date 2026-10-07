@@ -51,39 +51,85 @@ env:
     jam-test.js mcp-e2e-test.js phone-test.js plugin-test.js record-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # TEMPORARY: what the runner gives a test browser, headless and headed
+  # TEMPORARY: macOS headed (full Chromium on the runner's display), probe and the real-time suites
   diag:
     runs-on: macos-15
     timeout-minutes: 50
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [headless, headed]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/suite-setup
-      - name: Quiet the machine, and the display
+      - name: Quiet the machine
         run: |
           sudo mdutil -a -i off || true
-          system_profiler SPDisplaysDataType || true
           node node_modules/playwright-core/cli.js install chromium
       - name: Probe
-        run: |
-          [ "${{ matrix.mode }}" = headed ] && export HEADED=1
-          node tools/ci-probe.js
-      - name: Suites
-        if: always()
+        timeout-minutes: 5
         env:
+          HEADED: 1
+        run: node tools/ci-probe.js
+      - name: Suites
+        timeout-minutes: 30
+        env:
+          HEADED: 1
           PAR: 1
           CPU: 0
         run: |
-          [ "${{ matrix.mode }}" = headed ] && export HEADED=1
-          top -l 0 -s 15 -o cpu -n 8 -stats command,cpu,threads > top.log &
-          node tools/run-all.js arrange-test.js brand-test.js engine-test.js input-test.js stopping-test.js plugin-test.js phone-test.js sounds-test.js || true
-          kill %1 || true
-          grep -A9 '^COMMAND' top.log | awk '{print $1, $2}' | sort | awk '{a[$1]+=$2; n[$1]++} END {for (k in a) printf "%s %.1f\n", k, a[k]/n[k]}' | sort -k2 -nr | head -15
+          mkdir -p tools/.out
+          node tools/run-all.js arrange-test.js brand-test.js engine-test.js input-test.js stopping-test.js plugin-test.js \
+            | tee tools/.out/diag.log
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: diag-mac-headed
+          path: tools/.out/diag.log
+          retention-days: 7
+
+  # TEMPORARY: every suite on Linux, four shards
+  linux:
+    name: linux (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: ./.github/actions/suite-setup
+        with:
+          previous-kit: true
+      - name: The machine
+        run: |
+          nproc; free -g; echo "CHROMIUM=$CHROMIUM"
+          node tools/ci-probe.js || true
+      - name: This shard's suites
+        timeout-minutes: 50
+        env:
+          SHARD: ${{ matrix.shard }}
+          REQUIRE_ALL: 1
+          PAR: 1
+          CPU: 0
+        run: |
+          names=()
+          while IFS= read -r f; do names+=("$f"); done < <(
+            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
+          echo "shard $SHARD: ${names[*]}"
+          mkdir -p tools/.out
+          set -o pipefail
+          node tools/run-all.js "${names[@]}" | tee tools/.out/shard.log
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: linux-${{ matrix.shard }}
+          path: |
+            tools/.out/
+            !tools/.out/kits-cache/
+          retention-days: 7
 
   # Every suite but the real-time ones, about 40 minutes one suite at a time, split four ways: each lands in exactly
   # one shard (round-robin by name), and each shard runs its suites one at a time.

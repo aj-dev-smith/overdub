@@ -14,14 +14,22 @@ runs:
     - name: Cache the browsers playwright-core drives
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/Library/Caches/ms-playwright
+        path: ${{ runner.os == 'macOS' && '~/Library/Caches/ms-playwright' || '~/.cache/ms-playwright' }}
         key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
 
     - name: Install playwright-core and its browsers (not saved to package.json)
       shell: bash
       run: |
         npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
-        node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
+        if [ "$RUNNER_OS" = Linux ]; then
+          # the browsers' system libraries too (apt), and the Chromium path: tools/pw.js only knows macOS's cache
+          node node_modules/playwright-core/cli.js install --with-deps chromium-headless-shell webkit firefox
+          shell=$(find ~/.cache/ms-playwright -path '*chromium_headless_shell-*' -name chrome-headless-shell -type f | head -1)
+          [ -x "$shell" ] || { echo "::error::no chrome-headless-shell under ~/.cache/ms-playwright"; exit 1; }
+          echo "CHROMIUM=$shell" >> "$GITHUB_ENV"
+        else
+          node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
+        fi
 
     - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
