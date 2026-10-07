@@ -304,11 +304,13 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's three sampled
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's four sampled
   instruments; the others are Parlour Upright (`core.upright`), a real upright piano
-  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), and Rusty Brushes.
+  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
+- **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would
+  (below: [Hand Crate](#hand-crate-corehandkit-hand-percussion)).
 
 **Cymbal models.** Gobo Kit and Studio A take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
@@ -470,6 +472,41 @@ have, through one stereo pair of overheads. `app/src/devices/builtin/brushkit.js
   for the listening room: four layers' two strokes are 1.6 to 2.2 dB apart.
 
 `tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.brushkit#653ce5fbd513` pins its render.
+
+## Hand Crate (`core.handkit`): hand percussion
+
+VCSL's hand and aux percussion (the Versilian Community Sample Library, Versilian Studios, CC0 1.0), through VCSL's
+stereo pair. `app/src/devices/builtin/handkit.js` on the same kernel as Rusty Brushes (`drumsampler.js`); the samples
+come by [kernel data](#kernel-data-samples-a-kernel-plays), built from `tools/kits/vcsl-hand.js`.
+
+- **What it plays.** Sixteen pieces, one to three velocity layers of one or two strokes: a cajon's bass and slap, an
+  open, a muted and a low conga, high and low bongos, a small and a big shaker, tambourine strokes and a tambourine
+  roll, a cowbell, claves, a woodblock, a high agogo and a guiro. 66 samples, 39.0 s of 16-bit, 44.1 kHz stereo,
+  2.56 MB over the wire as `.odkz`.
+- **The note map.** General MIDI's percussion where it is: 54 tambourine, 56 cowbell, 60 and 61 bongos, 62 muted,
+  63 open and 64 low conga, 67 agogo, 69 and 70 the big shaker, 73 guiro, 75 claves, 76 and 77 woodblock, 82 shaker.
+  A kit's notes play as a hand player would: 35 and 36 the cajon's bass, 38 and 40 its slap, 42 and 44 the shaker,
+  46 the tambourine, the high toms (50, 48, 47) the conga and the low ones (45, 43, 41) the low conga. So any beat
+  written for a kit plays on it. 33 (Studio A's held roll) is the tambourine roll, which rings while its note is
+  held (a 3 s loop, as Rusty Brushes' stir). Cymbal notes play nothing ("Not in this kit").
+- **Even strokes.** VCSL's two strokes of one layer were recorded up to 6.6 dB apart (the low bongo), so each stroke
+  plays at its layer's level, measured from its own first 150 ms (`even` in `drumSamplerKernel`): a run of one note
+  at one velocity is level whichever stroke plays. A few pieces VCSL recorded quieter than their neighbours on one
+  knob sit higher by a fixed `offset` (the small shaker 10 dB, the guiro 12, the agogo 6, the claves 4, the low
+  conga 3).
+- **A muted conga stops the open one** (within 30 ms), and an open stroke the muted one (60 ms).
+- **Params:** `tune`, `decay`, `tone` and `level`, as the other kits, and a level for the cajon, congas, bongos,
+  shakers (with the tambourines and guiro) and bells (cowbell, agogo, claves, woodblock). The defaults ease the cajon
+  back 3 dB and lift the congas and bongos 6, the shakers 6 and the bells 3. At the defaults the drum phrase
+  measures -18.1 LUFS and -1.5 dBTP; the limiter eases only the hardest strokes, by 2.2 dB at most (the low bongo).
+- **The QA rubric** accepts clipping (the cajon's loudest bass pairs one stroke of hit 3 with one of hit 2, as the
+  other of hit 3 is clipped), DC and the heads. For review: the small shaker's floor and tail (VCSL's files stop while
+  it sounds; the build cuts it at 0.24 s with a 30 ms fade), the softest woodblock's floor, the round robins (the
+  kernel evens them) and the tambourine roll's two layers, 8.3 dB apart (the rubric asks 10). Waived in the recipe, with its reason:
+  phase coherence (a spaced pair over small, bright percussion, the high bongo, the tambourines and the woodblock:
+  r from -0.2 to 0.2, not a mic out of phase).
+
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.handkit#a449e40fb8b4` pins its render.
 
 ## Kernel data: samples a kernel plays
 

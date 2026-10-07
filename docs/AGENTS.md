@@ -378,7 +378,8 @@ shaker), in `clip.add` (`clip.grid`) or `notes.replace` (`grid`). A row may also
 from samples: kick, snare, hats closed, half open, open and pedal, ride and bell, crash, two toms; `get_device` gives
 its note names) and Rusty Brushes (`core.brushkit`, a real kit played with brushes and mallets: brush taps on 38,
 digs for accents on 40, a stir that rings while its note is held on 33 or 73, brushed hats and ride, a mallet crash and
-toms) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
+toms) and Hand Crate (`core.handkit`, real hand percussion on General MIDI's percussion notes, with a kit's kick,
+snare and hats played as cajon and shakers and a tambourine roll held on 33) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
 these extra row names:
 
 | rows | notes | what they play |

@@ -10,7 +10,9 @@
 // gates and tilts as its params say, renders at 44.1 kHz, and the studio loads it once (IndexedDB), says "loading"
 // while it does, and renders the same samples as Node. Rusty Brushes (drumsampler.js, the same kernel with the kit's
 // shape passed in) is held to its pinned file, its 8 MB budget, the house level, velocity without jumps, its hats'
-// choke, and its stir: it rings, looped without a click, for as long as its note is held, then fades.
+// choke, and its stir: it rings, looped without a click, for as long as its note is held, then fades. Hand Crate (the
+// same kernel) to its pinned file and budget, the house level, a drum beat played on it, its congas' choke and its
+// held tambourine roll.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -31,6 +33,8 @@ import { KIT_HASH, NOTE_MAP, PIECES } from '../app/src/devices/builtin/drumkit.j
 import { RECIPE } from './kits/virtuosity.js';
 import { BRUSH_HASH, NOTE_MAP as BRUSH_MAP, PIECES as BRUSH_PIECES } from '../app/src/devices/builtin/brushkit.js';
 import { RECIPE as BRUSH_RECIPE } from './kits/big-rusty.js';
+import { HAND_HASH, NOTE_MAP as HAND_MAP, PIECES as HAND_PIECES } from '../app/src/devices/builtin/handkit.js';
+import { RECIPE as HAND_RECIPE } from './kits/vcsl-hand.js';
 import { createProject } from '../app/src/core/project.js';
 import { drumPhrase, PHRASE_BPM, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
@@ -323,6 +327,46 @@ else {
   // the levels: each piece answers to its knob; notes it has no samples for are silent
   t.ok(peak(brender([{ p: 73, t: 0, v: 0.8, d: 2 }], { swirl_level: -40 }, { to: 2, tail: 1 })) === 0 && peak(brender([{ p: 51, t: 0, v: 0.8 }], { ride_level: -40 }, { to: 1, tail: 1 })) === 0, 'the stir and the ride at -40 dB are off');
   t.ok(peak(brender([{ p: 37, t: 0 }, { p: 53, t: 1 }, { p: 60, t: 2 }], {}, { to: 3, tail: 1 })) === 0 && bdef.notes.other === 'Not in this kit', 'notes it has no samples for (side stick, ride bell, 60) are silent, and named "Not in this kit"');
+}
+
+// ---------------------------------------------------------------------------------------------- Hand Crate
+console.log('Hand Crate (core.handkit)');
+const hdef = getDevice('core.handkit');
+if (!fs.existsSync(dataPath(HAND_HASH))) t.note(`Hand Crate's kit isn't fetched (${path.relative(path.join(HERE, '..'), dataPath(HAND_HASH))}): node tools/fetch-kits.js, then this runs in full`);
+else {
+  const hb = fs.readFileSync(dataPath(HAND_HASH));
+  const hk = decodeOdk(new Uint8Array(hb.buffer, hb.byteOffset, hb.length));
+  const hrender = (notes, params, opts = {}) => renderSong(song(notes, params, 'core.handkit'), { from: 0, to: opts.to || 4, tail: opts.tail ?? 4, sr: opts.sr || 48000 });
+  const want = HAND_RECIPE.pieces.reduce((n, p) => n + p.layers.reduce((m, l) => m + l.files.length, 0), 0);
+  const zb = fs.existsSync(dataPath(HAND_HASH) + 'z') ? fs.readFileSync(dataPath(HAND_HASH) + 'z') : null, gz = zb ? zlib.gzipSync(zb, { level: 9 }).length : Infinity;
+  t.ok('sha256-' + crypto.createHash('sha256').update(hb).digest('hex') === HAND_HASH && hk.sr === 44100 && hk.samples.length === want && HAND_PIECES.every((p) => hk.samples.some((s) => s.piece === p)) && hk.meta.licence === 'CC0-1.0' && hk.meta.commit === HAND_RECIPE.commit,
+    `the file is the pinned kit (${HAND_HASH.slice(0, 19)}...): ${hk.samples.length} samples over ${HAND_PIECES.length} pieces, 44.1 kHz, with its source and licence (${hk.meta.repo}@${hk.meta.commit.slice(0, 12)})`);
+  t.ok(zb && 'sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === HAND_HASH && gz <= 8e6, `its .odkz unpacks to it, and goes over the wire in ${(gz / 1e6).toFixed(2)} MB (the budget is 8 MB)`);
+  t.ok(HAND_MAP.every(([, piece]) => HAND_PIECES.includes(piece)) && Object.values(hdef.notes).every((x) => typeof x === 'string' && x.length <= 40) && [36, 38, 42, 46, 54, 56, 60, 61, 62, 63, 64, 75].every((n) => HAND_MAP.some(([m]) => m === n)), `every mapped note (${HAND_MAP.length}) plays a piece and names it: General MIDI's percussion, and a kit's kick, snare and hats as cajon and shakers`);
+  if (fs.existsSync(path.join(HERE, '.out', 'kits-cache'))) {
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', 'crate'], { encoding: 'utf8' });
+    if (v.status === 2) t.note('the download cache is incomplete: Hand Crate\'s byte-for-byte rebuild was not run');
+    else t.ok(v.status === 0, `it rebuilds byte for byte from the pinned upstream files (${(v.stdout.trim().split('\n').pop() || '').trim()})`);
+  }
+  const rep = await checkDeviceNode(hdef, {});
+  t.ok(rep.ok && !rep.warnings.length && rep.deterministic === true && rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1, `checkDevice (Node) passes with no warnings, bit-identical twice: ${rep.level.lufs} LUFS on the drum phrase, ${rep.truePeak} dBTP${rep.ok ? '' : ': ' + rep.errors.join('; ')}`);
+  // a kit's beat plays on it: the drum phrase's kick, snare and hats are the cajon and the shakers
+  const ph = hrender(drumPhrase(), {}, { to: DRUM_PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(ph) === sha256(hrender(drumPhrase(), {}, { to: DRUM_PHRASE_BEATS, tail: 2 })) && !ph.warnings.length && db(rms(ph, 0, 2)) > -40, `the drum phrase plays on it (${db(rms(ph, 0, 2)).toFixed(1)} dB over its first bar), bit-exact twice`);
+  // velocity: the open conga climbs without jumps; its strokes play at their layer's level (VCSL's are up to 6.6 dB apart)
+  const lv = [];
+  for (let v = 0.1; v <= 1.0001; v += 0.02) lv.push(db(rms(hrender([{ p: 63, t: 0, v }], {}, { to: 1, tail: 0.6 }), 0, 0.3)));
+  let down = 0, jump = 0;
+  for (let i = 1; i < lv.length; i++) { const d = lv[i] - lv[i - 1]; if (d < -0.5) down++; if (Math.abs(d) > jump) jump = Math.abs(d); }
+  t.ok(down === 0 && jump < 2, `the open conga's level follows velocity (${lv[0].toFixed(1)} to ${lv[lv.length - 1].toFixed(1)} dB; biggest step ${jump.toFixed(2)} dB per 0.02)`);
+  const eight = Array.from({ length: 8 }, (_, k) => ({ p: 61, t: 2 * k, v: 0.6 }));
+  const r8 = hrender(eight, {}, { to: 16, tail: 1 }), lvl = eight.map((n) => db(rms(r8, n.t / 2, n.t / 2 + 0.15)));
+  t.ok(Math.max(...lvl) - Math.min(...lvl) < 1.5, `eight low bongos at one velocity land within ${(Math.max(...lvl) - Math.min(...lvl)).toFixed(2)} dB of each other, whichever stroke plays`);
+  const op = hrender([{ p: 63, t: 0, v: 0.9 }], {}, { to: 1, tail: 1 }), mu = hrender([{ p: 63, t: 0, v: 0.9 }, { p: 62, t: 0.5, v: 0.01 }], {}, { to: 1, tail: 1 });
+  t.ok(db(rms(op, 0.4, 0.6)) - db(rms(mu, 0.4, 0.6)) > 6, `a muted stroke stops the open conga (${db(rms(op, 0.4, 0.6)).toFixed(1)} dB open, ${db(rms(mu, 0.4, 0.6)).toFixed(1)} dB stopped)`);
+  const roll = hrender([{ p: 33, t: 0, v: 0.8, d: 12 }], {}, { to: 16, tail: 1 });
+  t.ok(db(rms(roll, 5, 5.9)) > -45 && db(rms(roll, 6.3, 7)) < -90, `the tambourine roll rings while its note is held, looped (${db(rms(roll, 5, 5.9)).toFixed(1)} dB at 5 s, from a 3 s loop), and stops after it (${db(rms(roll, 6.3, 7)).toFixed(0)} dB)`);
+  t.ok(peak(hrender([{ p: 49, t: 0 }, { p: 51, t: 1 }, { p: 57, t: 2 }], {}, { to: 3, tail: 1 })) === 0 && hdef.notes.other === 'Not in this kit', 'cymbal notes are silent (it has none), and named "Not in this kit"');
 }
 
 // ---------------------------------------------------------------------------------------------- the studio

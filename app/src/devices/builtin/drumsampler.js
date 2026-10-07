@@ -13,6 +13,9 @@
 //   held      piece -> [attack ms, release ms]: it rings while its note is held (looping where the kit file loops it:
 //             a brush stir), fading in over the attack and out over the release once the note ends
 //   makeup    the linear gain that brings the kit to the house's level, measured
+//   offset    piece -> dB: a piece's level against the others under one knob (a quiet shaker beside a tambourine)
+//   even      true: each stroke plays at its layer's level (its own measured level, not the layer's mean), for a source
+//             whose strokes of one layer were recorded several dB apart
 //
 // Velocity picks the layer and crossfades across each boundary (within 0.06 of it); the level follows a curve through
 // each layer's measured level (the RMS of its first 150 ms; a held piece's first second), so the level doesn't jump
@@ -21,7 +24,7 @@
 // the words for them). The output runs through Studio A's stereo-linked true-peak limiter (-1.5 dBTP, 1.5 ms ahead).
 import { kernel } from './lib.js';
 
-export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24 }) {
+export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24, even = false, offset = null }) {
   return kernel(String.raw`
 const PIECES = ${JSON.stringify(pieces)};
 const LEVEL_OF = ${JSON.stringify(levelOf)};
@@ -30,7 +33,8 @@ const CHOKE = ${JSON.stringify(choke)};    // piece -> [group, ms]
 const METAL = ${JSON.stringify(metal)};    // cymbals and hats: velocity layers crossfade at equal power
 const HELD = ${JSON.stringify(held)};      // piece -> [attack ms, release ms]: rings while held
 const XF = 0.06;            // the crossfade half-width around a layer boundary (velocity, 0..1)
-const MAKEUP = ${makeup};
+const MAKEUP = ${makeup};${offset ? `
+const OFFSET = ${JSON.stringify(offset)};   // piece -> dB` : ''}
 const KN = 1 / 32768;       // 16-bit to float, exactly
 const dbx = (d) => (d <= -39.9 ? 0 : Math.pow(10, d / 20));
 const ceil = (x) => { const a = x < 0 ? -x : x; if (a <= 0.89) return x; const y = 0.89 + 0.1 * Math.tanh((a - 0.89) / 0.1); return x < 0 ? -y : y; };
@@ -59,7 +63,7 @@ return {
     for (const p in K) for (const l of K[p]) {
       let sum = 0;
       const win = HELD[p] ? 1 : 0.15;
-      for (const r of l.rr) { let e = 1; const m = Math.min(r.n - r.at, Math.round(win * kit.sr)); for (let i = r.at; i < r.at + m; i++) e += r.L[i] * r.L[i] + r.R[i] * r.R[i]; sum += 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN); }
+      for (const r of l.rr) { let e = 1; const m = Math.min(r.n - r.at, Math.round(win * kit.sr)); for (let i = r.at; i < r.at + m; i++) e += r.L[i] * r.L[i] + r.R[i] * r.R[i]; sum += 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);${even ? ' r.lv = 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);' : ''} }
       l.peak = sum / l.rr.length;
     }
     const FI = Math.round(0.001 * sr);
@@ -110,14 +114,14 @@ return {
           if (lo > 0 && v < L[lo - 1].top + XF) { const u = (v - (L[lo - 1].top - XF)) / (2 * XF); picks.push([lo - 1, xf(1 - u)], [lo, xf(u)]); }
           else if (lo < L.length - 1 && v > L[lo].top - XF) { const u = (v - (L[lo].top - XF)) / (2 * XF); picks.push([lo, xf(1 - u)], [lo + 1, xf(u)]); }
           else picks.push([lo, 1]);
-          const want = levelAt(L, v);
+          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)' : ''};
           const r = draw();
           for (const [li, w] of picks) {
             const lay = L[li], key = piece + ':' + li, n = lay.rr.length;
             let q = last[key] == null ? (r < 0.5 ? 0 : 1) % n : (r < 0.75 ? (last[key] + 1) % n : last[key]);
             last[key] = q;
             const R = rd[nr++];
-            R.r = lay.rr[q]; R.g = w * Math.pow(10, (want - lay.peak) / 20); R.pos = R.r.at; R.fi = 0;
+            R.r = lay.rr[q]; R.g = w * Math.pow(10, (want - ${even ? 'R.r.lv' : 'lay.peak'}) / 20); R.pos = R.r.at; R.fi = 0;
           }
           rate = RATE * Math.pow(2, p.tune / 12);
           FIn = HELD[piece] ? Math.max(FI, Math.round(HELD[piece][0] * 0.001 * sr)) : FI;

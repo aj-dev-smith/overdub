@@ -881,7 +881,7 @@ export const FALLBACK = (() => {
     played: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.upright', null, 'Upright piano'], ['core.wavetable', null, 'Synth'], ['core.mallets', null, 'Mallets']], fallbacks: [['core.brass', null, 'Brass'], ['core.piano', null, 'Piano'], ['core.pluck', null, 'Pluck']] },
     chords: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.upright', null, 'Upright piano'], ['core.pad', null, 'Pad'], ['core.strings', null, 'Strings']], fallbacks: [['core.ep', null, 'Electric piano'], ['core.piano', null, 'Piano'], ['core.organ', null, 'Organ'], ['core.poly2', null, 'Synth']] },
     bass: { cat: 'bass', sounds: [['core.bassguitar', null, 'Bass guitar'], ['core.bass', null, 'Synth bass'], ['claude.sub-basement', null, 'Sub bass'], ['core.wavetable', 'Low Key', 'Synth bass']], fallbacks: [['core.poly2', 'Ladder bass', 'Synth bass']] },
-    drums: { cat: 'drums', sounds: [['core.drums', 'Studio kit', 'Drum kit'], ['core.drumkit', null, 'Jazz kit'], ['core.drumroom', null, 'Acoustic kit'], ['core.drums', 'Boom bap', 'Drum kit']], fallbacks: [['core.brushkit', null, 'Brushes'], ['core.drums', 'Trap', 'Drum kit'], ['core.drums', 'Live room', 'Drum kit']] },
+    drums: { cat: 'drums', sounds: [['core.drums', 'Studio kit', 'Drum kit'], ['core.drumkit', null, 'Jazz kit'], ['core.drumroom', null, 'Acoustic kit'], ['core.drums', 'Boom bap', 'Drum kit']], fallbacks: [['core.brushkit', null, 'Brushes'], ['core.handkit', null, 'Hand percussion'], ['core.drums', 'Trap', 'Drum kit'], ['core.drums', 'Live room', 'Drum kit']] },
   };
   const FAMILY = new Map();
   for (const s of Object.values(SOUND_SETS)) for (const [d, p, f] of [...s.sounds, ...s.fallbacks]) FAMILY.set(`${d}|${p || ''}`, f);

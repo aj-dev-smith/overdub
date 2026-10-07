@@ -31,6 +31,8 @@ import { RECIPE as UPRIGHT_RECIPE } from './kits/upright-kw.js';
 import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
 import { RECIPE as BRUSH_RECIPE } from './kits/big-rusty.js';
 import { BRUSH_HASH } from '../app/src/devices/builtin/brushkit.js';
+import { RECIPE as HAND_RECIPE } from './kits/vcsl-hand.js';
+import { HAND_HASH } from '../app/src/devices/builtin/handkit.js';
 import { qaSample, qaInstrument } from './kits/qa.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -323,7 +325,7 @@ const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
 const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
 
 // every kit a device names: [recipe, the hash the device pins, how it's built]
-const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build]];
+const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build], [HAND_RECIPE, HAND_HASH, build]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));

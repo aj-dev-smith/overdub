@@ -39,6 +39,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-653ce5fbd513951101d8c0b81d2a11e9177b89e8588ca403074003b1eb917ba3` |
 | Verified | 2026-10-07 |
 
+## VCSL hand and aux percussion: Hand Crate (`core.handkit`)
+
+| | |
+|---|---|
+| Source | https://github.com/sgossner/VCSL |
+| Pinned | commit `c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`; 66 WAV files, each by sha256, in [`tools/kits/vcsl-hand.js`](../tools/kits/vcsl-hand.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text, and GitHub reads it as CC0-1.0; the README: "This collection is under a Creative Commons 0 license") |
+| Author | Versilian Studios (Sam Gossner): the Versilian Community Sample Library. |
+| Modifications | A subset: 16 hand and aux percussion pieces (cajon, congas, bongos, shakers, tambourines, cowbell, claves, woodblock, agogo, guiro), 1 to 3 velocity layers of 1 or 2 strokes, VCSL's stereo pair. Kept at 44.1 kHz; 24-bit sources rounded to 16. Each tail cut after the last 960-frame window at or above -70 dBFS RMS, then a 480-frame linear fade; the small shaker cut at 0.24 s with a 30 ms fade. The tambourine roll looped: 3 s from 1 s in, the loop's last 0.3 s crossfaded at equal power into its start. Each stroke's start set 2 ms before its attack. |
+| Kit | `sha256-a449e40fb8b4140342b680823a4d0fbcfae079e2baf03d286b17f2b1cfec1ec7` |
+| Verified | 2026-10-07 |
+
 ## Upright Piano KW: Parlour Upright (`core.upright`)
 
 | | |
