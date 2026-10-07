@@ -10,7 +10,7 @@
 //                                                     this page is on localhost (the studio's rule)
 //   ?kind=instrument|effect  ?cat=<cat>  ?q=<words>   the filters, kept in the address so a view can be linked
 //
-// Held back: no page links here and deploy/deploy.sh leaves the folder out (HELD_BACK) until AJ decides.
+// Shipped with the site (deploy/deploy.sh), but no page links here yet.
 // On any host but localhost / 127.0.0.1 the page reads nothing (COMMUNITY_LIVE below, as the studio's is).
 import { renderFace } from '/app/src/ui/faces.js';
 import { DEVICE_CATS } from '/app/src/devices/registry.js';

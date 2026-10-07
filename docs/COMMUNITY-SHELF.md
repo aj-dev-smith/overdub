@@ -3,7 +3,7 @@
 *Draft 2, 2026-10-05, branch `community-shelf`. Built on that branch, and held back: the reader
 (`app/src/devices/community.js`), the Browser's **From the community** with previews, the trust prompt and Try
 (`app/src/ui/community.js`), `find_community_device` and its card (`app/src/agent/community-tool.js`), the site gallery
-(`site/community/`, left out of deploy) and `tools/community-test.js`. Held back: the whole shelf is off unless the
+(`site/community/`, deployed since 2026-10-06 but unlinked) and `tools/community-test.js`. Held back: the whole shelf is off unless the
 page is on localhost (`COMMUNITY_LIVE`), and Try is off even there (`TRY_ON`) until the worklet's prototypes are frozen
 (section 6). Not built yet, all Work package 3: that freeze, the `credit` cleaning in `ops.js` and `project.js`, the
 knob escape in `faces.js` and the frame headers in `serve.js`. The spec answers AJ's question ("do we have a marketplace
@@ -64,8 +64,11 @@ It ships **off on the live site** until AJ turns it on, and "off" means off, wha
   already allows `localhost:*`.
 - The bundled snapshot (`app/community/`) is **gitignored**, so `deploy/deploy.sh`, which ships `git archive`, never
   carries community devices or clips to overdubstudio.com.
-- `site/community/` is committed, but `deploy.sh` leaves it out (a `HELD_BACK` list) and no page links to it until
-  AJ decides. `pages-test` checks both.
+- `site/community/` is committed and, since AJ approved it on 2026-10-06, `deploy.sh` ships it (its `HELD_BACK` list
+  is empty). No page links to it yet. The page keeps the studio's switch: while `COMMUNITY_LIVE` is false it reads
+  nothing away from localhost, and on overdubstudio.com it says *"The community shelf isn't on here yet."* It has
+  nothing to read there anyway: the index it reads by default is the studio's snapshot, which never ships. `pages-test`
+  checks all of this.
 - Nothing from the shelf runs before the trust prompt. A plain file import doesn't ask today; making it ask touches
   every import, not just the shelf, so it's a separate change.
 - **The API key in origin storage is not dealt with by this spec.** The prompt says plainly that the code runs in the
@@ -677,8 +680,8 @@ hairline, sections under a heavy rule. No cards and no stripes.
   free to play, change and use in songs you sell."* For an index that isn't the bundled one, the lede drops the
   "checked … read" clause and names the source. The licence explainer links to the repo's LICENSING.md once it has a
   URL.
-- **Held back:** not linked from `site/index.html`, `site/docs/` or `llms.txt`, and excluded by `deploy.sh`
-  `HELD_BACK` until AJ decides (this page takes no uploads).
+- **Shipped, not linked:** `deploy.sh` carries it (AJ, 2026-10-06), but nothing in `site/index.html`, `site/docs/` or
+  `llms.txt` links to it yet (this page takes no uploads). Off localhost it reads nothing until `COMMUNITY_LIVE` is on.
 
 ---
 
@@ -924,7 +927,7 @@ WP6 in parallel; WP7 last. WP4's Try stays behind a flag until WP3's worklet fre
 | **2. Generator** (community repo) | checks, previews in the container, clips, the index, `revoked` | + `overdub-devices/tools/index.js`, + `tools/lib/devices.js`, + `tools/preview.js` (song builders, loudness match, WAV/MP3), + `tools/index-test.js`, + `picks.json`, + `revoked.json`, `tools/check.js` (refactor only), `tools/check-pr.sh` (a render entry point in the same container), `.gitignore`, `package.json` (`index` script), `SPEC.md` (an "Index" section and the `preview` provenance field), `.github/workflows/check.yml` (index current) | 21 devices in, deterministic twice, clips at -18 LUFS, dirty trees refused, `index-test` green; nothing pushed |
 | **3. Studio plumbing** | the hooks and the hardening the shelf needs | `app/src/devices/trust.js` (`forget(hashes) -> n`, `allowForNow(hashes)`, `has` covering both), `app/src/core/ops.js` (`device.define` drops a `credit` that doesn't match the kernel), `app/src/core/project.js` (load-time cleaning of `credit`: text capped, unknown keys dropped, `sha256` hex), `app/src/ui/dom.js` (`authorOf`: `author:<handle>` is human, `agent:<name>` is agent; display only), `app/src/ui/faces.js` (escape `p.min`, `p.max`), `app/src/kernel/worklet.js` (freeze built-in prototypes; label messages by known device id), `app/src/ui/rack.js` (`placeOps(app, def, { track })`, used by `addDevice` too), `app/src/ui/devices-io.js` (`importDevice` options `trusted`, `credit`; `openWith(id, { def })`), `server/serve.js` (frame and nosniff headers), `app/src/main.js` (`app.trust.forget`, `allowForNow`; `ui/community.js` in `MODULES`), `.gitignore` (`app/community/`) | core-test, provenance-test, library-test and golden-test unchanged and green; new unit checks for `credit`, `forget`, `allowForNow`, the knob escape and the headers |
 | **4. The shelf** | the Browser section, previews, Try and Keep, the prompt, revocation, `?community-device=`, reaching it in Simple view | + `app/src/ui/community.js`, `app/src/ui/browser.js` (the one `section()` call and its keyboard rows), `app/src/ui/workspace.js` (the `browser` aliases while the shelf is on), `app/src/ui/share.js` (the shelf credit and taken-off lines on the held strip), `app/src/ui/plugin.js` (only if `app.plugin` can't open a project device from a toast today), + `tools/community-test.js`, `tools/phone-test.js` (the shelf assertions) | community-test, phone-test and compat-test green; screenshots read in the liner-notes look |
-| **5. Site gallery** | the page | + `site/community/index.html`, + `site/community/community.css`, + `site/community/community.js`, `deploy/deploy.sh` (`HELD_BACK`), `tools/pages-test.js` (the gallery checks) | pages-test and brand-test green; held back from deploy |
+| **5. Site gallery** | the page | + `site/community/index.html`, + `site/community/community.css`, + `site/community/community.js`, `deploy/deploy.sh` (`HELD_BACK`), `tools/pages-test.js` (the gallery checks) | pages-test and brand-test green; deployed, unlinked |
 | **6. Agent tool** | `find_community_device`, the card, the side door, the demo agent's scene | + `app/src/agent/community-tool.js`, `app/src/agent/extra-schemas.js`, `app/src/agent/tools.js` (`define_device` refusal by `kernelPrint`; device output marked in results), `app/src/agent/prompt.js` (rule 8's half line), `app/src/agent/keep.js` (a card kind whose Keep runs the shelf's Try path; one per song; the decline count), `app/src/agent/mock.js` (the `shelf` scene), `server/relay-catalog.json` (regenerated), `tools/agent-test.js`, `tools/relay-test.js` | agent-test and relay-test green; 40 tools in the catalog |
 | **7. Docs and counts** | the contract and every stated number | `docs/ARCHITECTURE.md` (the shelf, the index, `credit`, `forget`, `allowForNow`, the tool), `docs/DEVICES.md` (Trying a community device), `docs/AGENTS.md` (the tool; what the side door does and doesn't stop), `docs/GUIDE.md` (what to press, Simple view included), `docs/SECURITY.md` (a shelf row: what runs and when, what stays open; item 3 marked done), `README.md`, `docs/VISION.md` and `docs/BRAND.md` (39 → 40 tools), `site/docs/*` (rebuilt with `tools/docs-build.js`), `llms.txt` (unchanged: held back), `tools/pages-test.js` (claims); the private launch drafts in `overdub-private` get the new tool count in the same change | `node tools/run-all.js` green, and `pages-test` holds the counts to `tools/.out/run-all.json` |
 

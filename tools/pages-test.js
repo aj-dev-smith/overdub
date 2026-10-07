@@ -241,8 +241,8 @@ for (const width of [1440, 390]) {
 
 // ---- the community shelf's gallery (site/community/, docs/COMMUNITY-SHELF.md section 4): it reads the index through
 // the reader's rules, draws faces from checked values only, plays a clip as a blob, fetches no device file, links into
-// the studio, says less about a shelf that isn't the studio's own, reads nothing off a local host, and is held back
-// (no page links to it; deploy.sh leaves it out). The index is a fixture made here and served from memory, hostile
+// the studio, says less about a shelf that isn't the studio's own, reads nothing off a local host, and ships
+// unlinked (deploy.sh carries it; no page links to it yet). The index is a fixture made here and served from memory, hostile
 // entries included, so nothing real is committed and the bundled path (/app/community/) can be played too.
 {
   console.log('\ncommunity shelf (site gallery)');
@@ -446,14 +446,14 @@ for (const width of [1440, 390]) {
   }
   served = false;
 
-  // held back: nothing links to it, the deploy leaves it out, the studio's snapshot is never committed, and the page's
-  // switch is the studio's
+  // shipped but quiet: the deploy carries the page (AJ, 2026-10-06), nothing links to it yet, the studio's snapshot is
+  // never committed, and the page's switch is the studio's (off: away from localhost it reads nothing)
   const sitePages = fs.readdirSync(path.join(ROOT, 'site'), { recursive: true }).filter((f) => /\.(html|txt|js|md)$/.test(f) && !f.startsWith('community')).map((f) => `site/${f}`);
   const linking = [...sitePages, 'README.md', 'app/index.html', 'app/library.html'].filter((f) => /site\/community|\/community\/["'#?]/.test(read(f)));
-  t.ok(!linking.length, `no page links to the gallery while it's held back${linking.length ? ' (' + linking.join(', ') + ')' : ''}`);
+  t.ok(!linking.length, `no page links to the gallery yet${linking.length ? ' (' + linking.join(', ') + ')' : ''}`);
   const deploy = read('deploy/deploy.sh');
   const held = (deploy.match(/^HELD_BACK=\(([^)]*)\)/m) || [])[1] || '';
-  t.ok(/\bsite\/community\b/.test(held) && /for p in "\$\{HELD_BACK\[@\]\}"[\s\S]*rm -rf "\$STAGE\/\$p"/.test(deploy), `deploy.sh holds site/community back (HELD_BACK: ${held.trim() || 'none'})`);
+  t.ok(/^HELD_BACK=\(/m.test(deploy) && !/\bsite\/community\b/.test(held), `deploy.sh ships site/community: it isn't in HELD_BACK (${held.trim() || 'empty'})`);
   t.ok(/^\/?app\/community\/?$/m.test(read('.gitignore')), 'app/community/ (the studio\'s built snapshot) is in .gitignore');
   const ui = path.join(ROOT, 'app/src/ui/community.js');
   const pageLive = /export const COMMUNITY_LIVE = (true|false)/.exec(read('site/community/community.js'))?.[1];

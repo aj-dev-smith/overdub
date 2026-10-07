@@ -33,7 +33,7 @@ overdub/
   server/relay.js        the hosted relay for claude.ai (REMOTE-MCP.md; live)                         [agent layer]
                          relay-catalog.json: the tools it lists, generated (tools/relay-catalog.js)
   site/                  landing page, press/, docs/ (built by tools/docs-build.js), llms.txt         [brand]
-                         community/ (the community shelf's gallery; held back from deploy, unlinked)
+                         community/ (the community shelf's gallery; deployed, unlinked, reads nothing off localhost)
   app/community/         the community shelf's bundled snapshot: gitignored, built by overdub-devices'
                          tools/index.js --out (docs/COMMUNITY-SHELF.md)                              [shelf]
   app/index.html         the studio page; app/library.html the device shelf; app/gallery.html          [core]

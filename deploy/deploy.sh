@@ -65,11 +65,11 @@ if [ "$TARGET" = next ]; then
     if (!c || typeof c !== "object" || Array.isArray(c)) throw new Error(file + " is not a JSON object");
     fs.writeFileSync(file, JSON.stringify({ ...c, env: "preview", preview: true, ref }, null, 2) + "\n");' "$STAGE/app/site-config.json" "$SHORT"
 fi
-# Held back from the live site until AJ decides (docs/COMMUNITY-SHELF.md, "Where it's on"): the community shelf's
-# gallery is committed but not shipped. (The studio's built snapshot, app/community/, is gitignored, so it never is.)
-# The sync below runs with --delete, so taking a path off this list is what puts it live.
-HELD_BACK=(site/community)
-for p in "${HELD_BACK[@]}"; do rm -rf "$STAGE/$p"; done
+# Paths committed but held back from both sites until AJ decides (empty now: the community gallery, site/community/,
+# ships since 2026-10-06; docs/COMMUNITY-SHELF.md, "Where it's on"). The studio's built snapshot, app/community/, is
+# gitignored, so it never ships. The sync below runs with --delete, so taking a path off this list is what puts it live.
+HELD_BACK=()
+for p in ${HELD_BACK[@]+"${HELD_BACK[@]}"}; do rm -rf "$STAGE/$p"; done
 echo "$TARGET: $SHORT ($REF): $(find "$STAGE" -type f | wc -l | tr -d ' ') files -> s3://$BUCKET, distribution $DIST"
 echo "app/site-config.json: $(tr -d '\n ' < "$STAGE/app/site-config.json")"
 
