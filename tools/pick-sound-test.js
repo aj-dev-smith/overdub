@@ -88,6 +88,11 @@ await section('2 soundsFor', async () => {
   T.ok(c.length === 4 && c[0].device === 'core.wavetable' && c.filter((r) => r.device === 'core.wavetable' && !r.preset).length === 1, `2: the current sound comes first, once, and there are still four (${ids(c).join(', ')})`);
   T.ok(d.filter((r) => r.device === 'core.drums' && /^studio kit$/i.test(r.preset || '')).length + d.filter((r) => r.device === 'core.drums' && !r.preset).length <= 1, `2: Gobo Kit on Studio kit isn't listed twice (${ids(d).join(', ')})`);
   T.ok([a, b, c, d].flat().every((r) => typeof r.family === 'string' && r.family.length > 1), '2: every row has a family word');
+  // the sampled instruments are offered where they fit: Parlour Upright for played lines and chords, Virtuosity Kit for a beat
+  const pl = sf({ kind: 'notes', src: 'qwerty', notes: line([60, 62, 64, 65]) }, { has });
+  const ch = sf('chords', { has }), dr = sf({ kind: 'drums', src: 'tap', notes: [] }, { has });
+  T.ok(ids(pl)[1] === 'core.upright' && ids(ch)[1] === 'core.upright' && ids(dr)[1] === 'core.drumkit' && !ids(sf(hum, { has })).includes('core.upright'),
+    `2: the sampled instruments are offered: Parlour Upright second for what you played (${ids(pl).join(', ')}) and for chords (${ids(ch).join(', ')}), Virtuosity Kit second for a beat (${ids(dr).join(', ')}); a hum keeps the voices that sing`);
   // every device and preset the sets name is real: walk SOUND_SETS whatever its shape
   const named = [];
   const walk = (x, depth = 0) => {

@@ -29,13 +29,13 @@ export const SOUND_SETS = {
   },
   played: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.wavetable', 'Synth'), row('core.mallets', 'Mallets'), row('core.brass', 'Brass')],
-    fallbacks: [row('core.piano', 'Piano'), row('core.pluck', 'Pluck')],
+    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.wavetable', 'Synth'), row('core.mallets', 'Mallets')],
+    fallbacks: [row('core.brass', 'Brass'), row('core.piano', 'Piano'), row('core.pluck', 'Pluck')],
   },
   chords: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.pad', 'Pad'), row('core.strings', 'Strings'), row('core.ep', 'Electric piano')],
-    fallbacks: [row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
+    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.pad', 'Pad'), row('core.strings', 'Strings')],
+    fallbacks: [row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
   },
   bass: {
     category: 'bass',
@@ -44,8 +44,8 @@ export const SOUND_SETS = {
   },
   drums: {
     category: 'drums',
-    rows: [row('core.drums', 'Drum kit', 'Studio kit'), row('core.drumroom', 'Acoustic kit'), row('core.drums', 'Drum kit', 'Boom bap'), row('core.drums', 'Drum kit', 'Trap')],
-    fallbacks: [row('core.drums', 'Drum kit', 'Live room')],
+    rows: [row('core.drums', 'Drum kit', 'Studio kit'), row('core.drumkit', 'Jazz kit'), row('core.drumroom', 'Acoustic kit'), row('core.drums', 'Drum kit', 'Boom bap')],
+    fallbacks: [row('core.drums', 'Drum kit', 'Trap'), row('core.drums', 'Drum kit', 'Live room')],
   },
 };
 
