@@ -4,9 +4,9 @@
 // regular notes), from its low B (B0) to D4, a zone every third semitone, all four of its dynamics (p, mp, mf, f) and
 // two of its four round robins each.
 //
-// Why this bass: the sample-library research picked Karoryfer's basses as the deep CC0 electric basses, Black And Blue
-// first (the 2023 KVRDC entry, from the team behind the Virtuosity kit). It is recorded dry, mono, 24-bit, every
-// chromatic note at four dynamics with four round robins.
+// Why this bass: Karoryfer's are the most deeply sampled CC0 electric basses, and Black And Blue (their 2023 KVRDC
+// entry; the same team as the Virtuosity kit) is the newest: recorded dry, mono, 24-bit, every chromatic note at four
+// dynamics with four round robins.
 //
 // The licence: the repository's license file is the full CC0 1.0 Universal text. Credited anyway.
 //
