@@ -24,7 +24,7 @@ import { kernel } from './lib.js';
 
 // The kit this device plays: the SHA-256 of app/kits/<hex>.odk, built by tools/fetch-kits.js. A different kit is a new
 // hash (and a new golden scene); songs carry only this.
-export const KIT_HASH = 'sha256-902ab780bd60ccdc0fc23257d16007924469fed4f3a74a340aafe127bff54d72';
+export const KIT_HASH = 'sha256-e590dc685420513ebec06fc8ddaa233d8f2db7535f9c5245c38468dd18ef8eac';
 
 // The note map: [MIDI note, piece, name]. General MIDI, two toms for six, and Studio A's half-open hat notes.
 export const NOTE_MAP = [
@@ -78,8 +78,8 @@ export default defineDevice({
 const PIECES = ${JSON.stringify(PIECES)};
 const LEVEL_OF = ${JSON.stringify(LEVEL_OF)};
 const NOTE = ${JSON.stringify(Object.fromEntries(NOTE_MAP.map(([n, piece]) => [n, piece])))};
-const HATS = { hat: 1, hathalf: 2, hatopen: 2, hatpedal: 1 };
-const METAL = { hat: 1, hathalf: 1, hatopen: 1, hatpedal: 1, ride: 1, bell: 1, crash: 1 };   // 1: closes the hats (30 ms), 2: strikes them again (80 ms)
+const HATS = { hat: 1, hathalf: 2, hatopen: 2, hatpedal: 1 };   // the hats' choke: 1 closes what rang (30 ms), 2 strikes the plates again (80 ms)
+const METAL = { hat: 1, hathalf: 1, hatopen: 1, hatpedal: 1, ride: 1, bell: 1, crash: 1 };   // cymbals: velocity layers crossfade at equal power
 const XF = 0.06;            // the crossfade half-width around a layer boundary (velocity, 0..1)
 const MAKEUP = 2.66;        // +8.5 dB: the overheads brought to the house's level (-18 LUFS on the drum phrase, measured)
 const KN = 1 / 32768;       // 16-bit to float, exactly
@@ -107,14 +107,10 @@ return {
     for (const s of kit.samples) {
       const k = K[s.piece] || (K[s.piece] = []);
       const l = k[s.layer] || (k[s.layer] = { top: s.vel / 127, rr: [], peak: 0 });
-      // where the stroke starts: 2 ms before it first comes within 20 dB of its peak (the overheads' flight time and,
-      // on the pedal, the foot's travel before the plates meet, are skipped, so every stroke lands on its note)
-      const L0 = s.ch[0], R0 = s.ch[1] || s.ch[0];
-      let pk = 0;
-      for (let i = 0; i < s.frames; i++) { const a = Math.abs(L0[i]), b = Math.abs(R0[i]); if (a > pk) pk = a; if (b > pk) pk = b; }
-      let on = 0;
-      while (on < s.frames && Math.abs(L0[on]) * 10 < pk && Math.abs(R0[on]) * 10 < pk) on++;
-      l.rr[s.rr] = { L: L0, R: R0, n: s.frames, at: Math.max(0, on - Math.round(0.002 * kit.sr)) };
+      // where the stroke starts: the kit file says (fetch-kits.js works it out once: 2 ms before the stroke first comes
+      // within 20 dB of its peak), so create() reads no audio but the first 150 ms of each stroke, below
+      const at = Number.isInteger(s.start) && s.start > 0 ? Math.min(s.start, s.frames) : 0;
+      l.rr[s.rr] = { L: s.ch[0], R: s.ch[1] || s.ch[0], n: s.frames, at };
     }
     // each layer's level: the mean over its strokes of the RMS of their first 150 ms (dB), what the velocity curve
     // passes through

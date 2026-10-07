@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-w2WsJYGaMjVczwKbdcAAq4Ks85Q19SqLSAFCCdNqTP4=' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-cnoyo7zyYuqYRJlPLzazkH5k9hF+nLA1D6DOWNgRqRI=' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta charset="utf-8">
 <!-- The studio's policy (index.html says why each part is there) less what this page doesn't use (the API, a relay),
      and its one inline script allowed by its hash. The page shares the studio's origin, and so its localStorage (songs,
@@ -319,7 +319,7 @@
         ${d.request ? `<blockquote class="lb-req"><small>Asked for</small><q>${esc(d.request)}</q></blockquote>` : ''}
         <p class="lb-blurb">${esc(d.blurb)}</p>
         <div class="lb-statbox"></div>
-        <p class="lb-meas">${stored ? `Measured by the device check${MEASURED ? ` on ${esc(MEASURED)}` : ''}.` : 'Not measured yet: press Check.'}</p>
+        <p class="lb-meas">${stored ? `Measured by the device check${(stored.measured || MEASURED) ? ` on ${esc(stored.measured || MEASURED)}` : ''}.` : 'Not measured yet: press Check.'}</p>
         <div class="lb-wave"><canvas></canvas><i></i></div>
         <div class="lb-actions">
           <button class="lb-btn lb-play" type="button" aria-label="Play a demo of ${esc(d.name)}">${PLAY}<span>Play</span></button>

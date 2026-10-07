@@ -467,7 +467,7 @@ const wd = await page.evaluate(async ({ ids, pitch }) => {
 }, { ids: every.ids.filter((id) => !noData.includes(id)), pitch: Object.fromEntries(every.ids.map((id) => [id, wdPitch(id)])) });
 const wdBad = every.ids.filter((id) => !noData.includes(id)).filter((id) => { const r = wd[id]; return !(r.after === 0 && r.seen.join() === 'held:' + wdPitch(id) && r.stuck >= 1 && r.at != null && r.at < 600); });
 const wdSlow = Math.max(0, ...every.ids.filter((id) => wd[id]).map((id) => wd[id].at || 0));
-t.ok(every.ids.length >= 14 && !wdBad.length, `live, the watchdog lets go of a held voice nobody holds open while stopped, on all ${every.ids.length} kernel instruments (the slowest caught ${Math.round(wdSlow)} ms after it started${wdBad.length ? '; ' + wdBad.map((id) => `${devOf(id)}: caught ${wd[id].at == null ? 'never' : Math.round(wd[id].at) + ' ms'}, reported ${wd[id].seen.join(', ') || 'nothing'}, ${wd[id].after} held after a second`).join('; ') : ''})`);
+t.ok(every.ids.length >= 14 && !wdBad.length, `live, the watchdog lets go of a held voice nobody holds open while stopped, on all ${every.ids.length - noData.length} kernel instruments${noData.length ? ` with their samples here (${noData.length} left out)` : ''} (the slowest caught ${Math.round(wdSlow)} ms after it started${wdBad.length ? '; ' + wdBad.map((id) => `${devOf(id)}: caught ${wd[id].at == null ? 'never' : Math.round(wd[id].at) + ' ms'}, reported ${wd[id].seen.join(', ') || 'nothing'}, ${wd[id].after} held after a second`).join('; ') : ''})`);
 
 t.ok(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
 await close();

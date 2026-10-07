@@ -617,7 +617,7 @@ async function gatherChecks(app, model) {
     if (ses[d.id]?.check) { out[d.id] = normCheck(ses[d.id].check, 'built', ses[d.id].at); continue; }
     const def = app.devices?.getDevice?.(d.id);
     const house = REPORTS?.[d.id];
-    if (house && def && (!house.hash || house.hash === def.hash)) { out[d.id] = normCheck(house, 'house', MEASURED); continue; }
+    if (house && def && (!house.hash || house.hash === def.hash)) { out[d.id] = normCheck(house, 'house', house.measured || MEASURED); continue; }
     if (!def || !def.kernel) continue;
     if (!checkDevice) { try { checkDevice = (await import('../kernel/check.js')).checkDevice; } catch (e) { break; } }
     try {

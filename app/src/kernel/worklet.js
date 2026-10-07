@@ -7,8 +7,9 @@
 //                     transport?: { bpm, playing, beat, time }, idle?: bool, tail?: seconds, data? }
 //   data (kernel data, docs/DEVICES.md "Kernel data"): { [name]: { hash, bytes? } | null }, what the def's `data`
 //   names. The processor decodes each file once per audio context (kernel/odk.js; bytes come with the first node that
-//   needs them, the hash alone after) and the kernel's create() gets { [name]: decoded | null }. KernelCore itself takes
-//   the decoded objects (the Node renderer reads the same files from disk).
+//   needs them, the hash alone after; a node whose hash comes before those bytes is created again when they land) and
+//   the kernel's create() gets { [name]: decoded | null }. KernelCore itself takes the decoded objects (the Node
+//   renderer reads the same files from disk).
 //   idle (live only; renders never set it): a kernel with nothing coming in (an effect fed exact silence, an
 //   instrument with no voices and no notes due) whose output has stayed under -100 dBFS for max(0.5 s, min(tail, 10 s))
 //   dozes: it outputs silence without running until something comes in again (the same block). Silence costs nothing.
@@ -659,24 +660,52 @@ export function overdubKernelWorklet(overdubDsp, kernelCompiler, kernelCore) {
   const KernelCore = kernelCore(sampleRate, overdubDsp(sampleRate), kernelCompiler);
   // kernel data, decoded once in this audio context: hash -> the decoded file (or null: it didn't decode)
   const DATA = new Map();
-  const open = (d) => {
-    if (!d || typeof d !== 'object') return null;
+  // Processors that were handed a hash whose bytes haven't landed: the first node to need a file carries its bytes, the
+  // rest only its hash, and messages on different nodes' ports keep no order between them, so a second kit track's
+  // hash can arrive before the first one's bytes. hash -> the processors waiting; each is given its data again (its
+  // kernel created again) when the bytes land.
+  const WAIT = new Map();
+  // { out: { [name]: decoded | null }, fresh: [hashes decoded just now] }
+  const open = (d, proc) => {
+    const fresh = [];
+    if (!d || typeof d !== 'object') return { out: null, fresh };
     const out = {};
     for (const k of Object.keys(d)) {
       const v = d[k];
       if (!v || typeof v.hash !== 'string') { out[k] = null; continue; }
-      if (!DATA.has(v.hash) && v.bytes) { let x = null; try { x = decodeOdk(v.bytes); } catch (e) { /* not a kit file: nothing */ } DATA.set(v.hash, x); }
+      if (!DATA.has(v.hash)) {
+        if (v.bytes) { let x = null; try { x = decodeOdk(v.bytes); } catch (e) { /* not a kit file: nothing */ } DATA.set(v.hash, x); fresh.push(v.hash); }
+        else if (proc) { let w = WAIT.get(v.hash); if (!w) WAIT.set(v.hash, (w = new Set())); w.add(proc); }
+      }
       out[k] = DATA.get(v.hash) || null;
     }
-    return out;
+    return { out, fresh };
+  };
+  const landed = (hashes) => {
+    for (const h of hashes) {
+      const w = WAIT.get(h);
+      if (!w) continue;
+      WAIT.delete(h);
+      for (const p of w) p.give(p.raw);
+    }
   };
   class OverdubKernel extends AudioWorkletProcessor {
     constructor(options) {
       super();
       const port = this.port;
       const o = (options && options.processorOptions) || {};
-      this.core = new KernelCore(o.data ? { ...o, data: open(o.data) } : o, (m) => port.postMessage(m));
-      port.onmessage = (e) => { const d = e.data; this.core.msg(d && d.type === 'data' ? { type: 'data', data: open(d.data) } : d); };
+      this.raw = o.data || null;
+      const r = o.data ? open(o.data, this) : null;
+      this.core = new KernelCore(r ? { ...o, data: r.out } : o, (m) => port.postMessage(m));
+      if (r) landed(r.fresh);
+      port.onmessage = (e) => { const d = e.data; if (d && d.type === 'data') this.give(d.data); else this.core.msg(d); };
+    }
+    // (new) kernel data: decode what came with it, create the kernel again with it, and wake whoever waited on it
+    give(raw) {
+      this.raw = raw || null;
+      const r = open(this.raw, this);
+      this.core.msg({ type: 'data', data: r.out });
+      landed(r.fresh);
     }
     process(inputs, outputs) {
       const core = this.core;

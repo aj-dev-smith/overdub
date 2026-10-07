@@ -25,6 +25,7 @@ import { getDevice, heldDevice, instantiate, paramValues, seedOf } from '../devi
 import { fallbackSynth, passThrough, silentInstrument } from './fallback.js';
 import { dbToGain, ramp, setNow, afterAudio, isOffline, within, sig, soon } from './util.js';
 import { laneValue, FADER, PAN } from './schedule.js';
+import { loadData } from '../kernel/data.js';
 
 const READY_MS = 8000;   // a device that isn't ready by then is treated as broken
 const DIP = 0.008;       // seconds to dip a strip out (and back in) around a rewire
@@ -57,6 +58,10 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
   let inst = null;
   try {
     const values = paramValues(def, params || {});
+    // kernel data (a sampled kit): an export waits for the files before READY_MS starts counting, since 23 MB on a slow
+    // line can take longer than that, and a stand-in synth must never play in an export for want of a download. (Live,
+    // the instance starts at once and plays nothing until they land: kernel/host.js.)
+    if (def.data && isOffline(c)) await Promise.all(Object.values(def.data).map((h) => loadData(h)));
     inst = await within(instantiate(c, def, { uid, seed: seedOf(uid), clock, params: values, on }), READY_MS, deviceId);
     await within(inst.ready, READY_MS, deviceId);
     if (!inst.output) throw new Error('instance has no output');

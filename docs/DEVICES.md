@@ -402,19 +402,22 @@ of overheads. `app/src/devices/builtin/drumkit.js`; the samples come by [kernel 
 - **The hats are one instrument.** A hat note chokes what the hats were ringing: a closed or pedal note within 30 ms,
   an open or half-open one within 80 ms. A piece keeps at most three strokes ringing; the oldest fades in 50 ms.
 - **Each stroke lands on its note.** It starts 2 ms before it first comes within 20 dB of its peak (the overheads'
-  flight time, and the foot's travel before a pedal hat closes, are skipped), with a 1 ms fade in.
+  flight time, and the foot's travel before a pedal hat closes, are skipped), with a 1 ms fade in. `fetch-kits.js`
+  works that point out once, into each sample's `start` in the kit file, so building an instance reads no more of the
+  kit than the first 150 ms of each stroke.
 - **Params.** `tune` (±12 semitones, by resampling with the kernel's own 4-point Hermite interpolator, fixed at each
   stroke: lower is longer; at 0 a stroke is its recorded samples, scaled), `decay` (100% is the recording; lower
   holds part of each stroke, then lets it go), `tone` (a tilt around 900 Hz, ±6 dB at the ends; at 0 it is bypassed),
   `level`, and a level for the kick, snare, hats, toms, ride and crash (-40 is off). The defaults lift the kick 8 dB
   and ease the snare back 5 and the hats 3; the **As recorded** preset is the pair's own balance.
 - **Levels.** The overheads' snare peaks sit about 18 dB over the kit's loudness, so the output runs into Studio A's
-  stereo-linked true-peak limiter (1.5 ms look-ahead, declared as 80 samples of latency). At the defaults the drum
-  phrase measures -17.8 LUFS and -1.6 dBTP. The hardest snare and tom strokes (velocity 0.95 and up) are eased by
+  stereo-linked true-peak limiter (1.5 ms look-ahead, declared as 80 samples of latency). At the defaults the device
+  check's drum phrase measures -18.1 LUFS and -1.5 dBTP (the library card's figures; the golden scene, which
+  plays the phrase on a track through the mixer, -17.8 and -1.6). The hardest snare and tom strokes (velocity 0.95 and up) are eased by
   4 to 6 dB, the hardest open hat by 3; anything under 0.7 passes untouched.
 - **At other sample rates** the kernel converts from 48 kHz with the same interpolator.
 
-`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.drumkit#902ab780bd60` pins its render.
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.drumkit#e590dc685420` pins its render.
 
 ## Kernel data: samples a kernel plays
 
@@ -432,9 +435,10 @@ frames, ch: [Int16Array, ...] }] }`.
 - **Loaded lazily, once.** Nothing is fetched until a track uses the device (`kernel/host.js` asks when it builds an
   instance). `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
   (`overdub-kits`, beside the audio assets), so the next visit never fetches it. Each audio context's worklet decodes
-  it once: the first node that needs it carries the bytes, and every node after names the hash.
+  it once: the first node that needs it carries the bytes, and every node after names the hash (a node whose hash
+  arrives before those bytes do gets its kit when they land).
 - **Nothing streams mid-render.** An offline render (an export, the device check, the preview) waits for the file
-  before it starts. A live instance starts at once with `data.kit = null` (silence). When the file arrives,
+  before it starts, however long the download takes (an export never swaps in a stand-in for want of it). A live instance starts at once with `data.kit = null` (silence). When the file arrives,
   `create()` runs again with it, crossfading from that silence. While it loads, the device's card says **Loading
   samples…**.
 - **A missing file plays nothing, and says so.** A hash this server doesn't have (never fetched, or a song from
@@ -447,11 +451,14 @@ frames, ch: [Int16Array, ...] }] }`.
 - **The audio stays out of git.** `node tools/fetch-kits.js` downloads the pinned upstream files (by commit, each
   checked by SHA-256, with the upstream licence checked too), decodes them with `tools/flac.js` (held to each file's
   MD5), trims and converts them in integer arithmetic, and writes the `.odk`. The same files always build the same
-  bytes: `--verify` rebuilds from the download cache and compares. `deploy/deploy.sh` uploads `app/kits/`, gzipped,
-  cached for good (`immutable`: a file named by its hash never changes). Without the kit, the tests that need it skip
+  bytes: `--verify` rebuilds from the download cache and compares. `deploy/deploy.sh` refuses to deploy unless every
+  kit the shipped devices name is in `app/kits/` and is its own hash, and uploads them, gzipped and cached for good
+  (`immutable`: a file named by its hash never changes), before the code that names them. Without the kit, the tests that need it skip
   it and say so.
 
-A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
+`create()` runs on the audio thread (live, on every new instance and when the file lands), so it mustn't read a whole
+kit: anything worked out from all of the audio belongs in the file, written once by the tool that builds it (Virtuosity
+Kit's stroke starts are). A kernel can only name data the studio hosts, so this is for built-in devices for now: an agent's kernel gets
 `data` only if its def names a file this server has.
 
 ## A big instrument: Light Table (`core.wavetable`)

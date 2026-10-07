@@ -350,6 +350,26 @@ for (const width of [1440, 390]) {
   const unlisted = live.filter((n) => !table.includes('`' + n + '`'));
   t.ok(!unlisted.length, `docs/AGENTS.md's tool table lists all ${live.length} tools${unlisted.length ? ' (missing: ' + unlisted.join(', ') + ')' : ''}`);
 
+  // Built-in device counts: every number stated for the built-ins ("32 built-in instruments and effects", "32
+  // built-ins", the press kit's counts, "19 instruments and 13 effects") is the shelf's. The launch drafts are noted.
+  {
+    const B = await import('../app/src/devices/builtin/index.js');
+    const want = { all: B.BUILTINS.length, inst: B.INSTRUMENTS.length + B.SAMPLED.length, fx: B.EFFECTS.length };
+    const said = (f) => {
+      const x = text[f], out = [];
+      for (const m of x.matchAll(/\b(\d+)(?:\s|&nbsp;)+built-in(?:s\b|\s+(?:instruments and effects|devices))/g)) out.push([+m[1], want.all, m[0]]);
+      for (const m of x.matchAll(/<dt>Built-in (?:devices|instruments and effects)<\/dt><dd>(\d+)/g)) out.push([+m[1], want.all, m[0]]);
+      for (const m of x.matchAll(/\b(\d+) instruments and (\d+) effects/g)) out.push([+m[1] + '+' + m[2], want.inst + '+' + want.fx, m[0]]);
+      return out.filter(([n, w]) => n !== w).map(([, , m]) => `${f}: "${m.replace(/\s+/g, ' ')}"`);
+    };
+    const pub = COPY.filter((f) => !PRIVATE.includes(f)), priv = COPY.filter((f) => PRIVATE.includes(f));
+    const n = pub.reduce((k, f) => k + [...text[f].matchAll(/built-in/gi)].length, 0);
+    const bad = pub.flatMap(said);
+    t.ok(n >= 5 && !bad.length, `every stated count of built-in devices is the shelf's ${want.all} (${want.inst} instruments, ${want.fx} effects)${say(bad)}`);
+    const stale = priv.flatMap(said);
+    if (stale.length) t.note(`launch drafts with another built-in count (overdub-private):\n       ${stale.join('\n       ')}`);
+  }
+
   // The bench slide's device check is Tidal Cathedral's real report: the one the device library shows (reports.js,
   // kernel/check.js in full mode), not a separate render. A warning on the slide only if the check gave one.
   if (HAS_PRIV) {

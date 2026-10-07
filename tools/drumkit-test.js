@@ -26,6 +26,10 @@ import { KIT_HASH, NOTE_MAP, PIECES } from '../app/src/devices/builtin/drumkit.j
 import { RECIPE } from './kits/virtuosity.js';
 import { createProject } from '../app/src/core/project.js';
 import { drumPhrase, PHRASE_BPM, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
+import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
+import { kernelSpecs } from '../app/src/kernel/host.js';
+import { makeDsp } from '../app/src/kernel/dsp.js';
+import { paramValues } from '../app/src/devices/registry.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const t = tally('drumkit');
@@ -99,6 +103,15 @@ const kit = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.lengt
   for (const s of kit.samples) (by[s.piece] ??= new Set()).add(`${s.layer}.${s.rr}`);
   t.ok(kit.samples.length === want && PIECES.every((p) => by[p] && by[p].size === 6), `${kit.samples.length} samples: ${PIECES.length} articulations x 3 velocity layers x 2 strokes`);
   t.ok(kit.meta.licence === 'CC0-1.0' && kit.meta.commit === RECIPE.commit && kit.meta.source === RECIPE.source, `it carries its source and licence (${kit.meta.licence}, ${kit.meta.repo}@${kit.meta.commit.slice(0, 12)})`);
+  // each stroke's start is in the file (create() reads it instead of scanning the kit on the audio thread): 2 ms
+  // before the stroke first comes within 20 dB of its peak
+  const wrong = kit.samples.filter((s) => {
+    const [L0, R0] = s.ch; let pk = 0;
+    for (let i = 0; i < s.frames; i++) pk = Math.max(pk, Math.abs(L0[i]), Math.abs(R0[i]));
+    let on = 0; while (on < s.frames && Math.abs(L0[on]) * 10 < pk && Math.abs(R0[on]) * 10 < pk) on++;
+    return s.start !== Math.max(0, on - Math.round(0.002 * kit.sr));
+  });
+  t.ok(!wrong.length, `every stroke's start is in the file, 2 ms before its attack${wrong.length ? ' (wrong: ' + wrong.map((s) => s.id).join(', ') + ')' : ''}`);
   t.ok(NOTE_MAP.every(([, piece]) => PIECES.includes(piece)) && Object.values(def.notes).every((s) => typeof s === 'string' && s.length <= 40), `every mapped note (${NOTE_MAP.length}) plays a piece in the kit, and names it`);
   const cache = path.join(HERE, '.out', 'kits-cache');
   if (fs.existsSync(cache)) {
@@ -117,6 +130,21 @@ console.log('the device');
   t.ok(rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1, `checkDevice: ${rep.level.lufs} LUFS on the drum phrase, ${rep.truePeak} dBTP`);
   t.ok(rep.latency && rep.latency.samples >= rep.latency.declared && rep.latency.samples <= rep.latency.declared + 96, `a stroke sounds ${rep.latency && rep.latency.samples} samples after its note: the limiter's declared look-ahead (${rep.latency && rep.latency.declared}) and at most the 2 ms each stroke starts before its attack`);
   t.ok(rep.cpu && rep.cpu.pct < 25, `cpu ${rep.cpu && rep.cpu.pct}% of real time`);
+  // create() runs on the audio thread (a new kit track, an undo, the samples arriving for a live one): it reads only
+  // the first 150 ms of each stroke, not the whole kit. Best of five, with the kit already decoded, as the worklet has it.
+  {
+    const data = { kit }, specs = kernelSpecs(def), values = paramValues({ params: specs }, {});
+    for (const sr of [48000, 44100]) {
+      const K = kernelCore(sr, makeDsp(sr), kernelCompiler);
+      let best = Infinity, ready = 0;
+      for (let i = 0; i < 5; i++) {
+        const t0 = performance.now();
+        new K({ source: def.kernel, kind: 'instrument', params: specs, values, poly: def.poly, seed: 1, tail: def.tail, data }, (m) => { if (m && m.type === 'ready') ready++; });
+        best = Math.min(best, performance.now() - t0);
+      }
+      t.ok(ready === 5 && best < 10, `building a kit instance at ${sr / 1000} kHz takes ${best.toFixed(1)} ms (best of 5; under 10, not a scan of the whole kit)`);
+    }
+  }
 
   const phrase = drumPhrase();
   const a = render(phrase, {}, { to: DRUM_PHRASE_BEATS, tail: 2 }), b = render(phrase, {}, { to: DRUM_PHRASE_BEATS, tail: 2 });

@@ -4,7 +4,8 @@
 // (gitignored), named by the SHA-256 of its bytes. deploy/deploy.sh uploads app/kits/.
 //
 //   node tools/fetch-kits.js            fetch and build every kit a device names; fails unless the build is the pinned one
-//   node tools/fetch-kits.js --check    say which kits are here, build nothing
+//   node tools/fetch-kits.js --check    say whether the pinned kit is here (and is its own hash), build nothing:
+//                                       exit 0 here, 1 missing or wrong
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
 //
@@ -84,6 +85,19 @@ function trim16(d) {
   return { ch: out, frames, cut: d.frames - frames };
 }
 
+// Where a stroke starts, for the kernel (each sample's `start` in the header): 2 ms before it first comes within 20 dB
+// of its peak, so the overheads' flight time and, on the pedal, the foot's travel before the plates meet, are skipped
+// and every stroke lands on its note. Worked out here, once per kit, so a kernel's create() doesn't scan 6 million
+// frames on the audio thread. Integers only.
+function startOf(ch, frames, sr) {
+  const [L, R] = [ch[0], ch[1] || ch[0]];
+  let pk = 0;
+  for (let i = 0; i < frames; i++) { const a = L[i] < 0 ? -L[i] : L[i], b = R[i] < 0 ? -R[i] : R[i]; if (a > pk) pk = a; if (b > pk) pk = b; }
+  let on = 0;
+  while (on < frames && Math.abs(L[on]) * 10 < pk && Math.abs(R[on]) * 10 < pk) on++;
+  return Math.max(0, on - Math.round(0.002 * sr));
+}
+
 async function build(recipe) {
   // the licence first: the kit is built only from the commit whose LICENSE is the CC0 text pinned here
   const lic = await fetchFile(recipe, recipe.licenceFile.path, recipe.licenceFile.sha256);
@@ -102,7 +116,7 @@ async function build(recipe) {
     if (d.sr !== recipe.sr) throw new Error(`${s.file}: ${d.sr} Hz, the kit is ${recipe.sr} Hz`);
     const t = trim16(d);
     inFrames += d.frames; outFrames += t.frames;
-    out.push({ id: `${s.piece}.${s.layer}.${s.rr}`, piece: s.piece, layer: s.layer, rr: s.rr, vel: s.vel, src: s.file, ch: t.ch });
+    out.push({ id: `${s.piece}.${s.layer}.${s.rr}`, piece: s.piece, layer: s.layer, rr: s.rr, vel: s.vel, start: startOf(t.ch, t.frames, recipe.sr), src: s.file, ch: t.ch });
     ++n;
     if (process.stdout.isTTY) process.stdout.write(`\r  ${n}/${samples.length} ${s.file.slice(-44).padEnd(44)}`);
   }
@@ -116,7 +130,9 @@ async function main() {
   const check = process.argv.includes('--check'), verify = process.argv.includes('--verify');
   const file = path.join(ROOT, 'app', dataFile(KIT_HASH));
   if (check) {
-    console.log(`${KIT_RECIPE.name}: ${fs.existsSync(file) ? 'here' : 'not fetched'} (${path.relative(ROOT, file)})`);
+    const here = fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === KIT_HASH;
+    console.log(`${KIT_RECIPE.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)})`);
+    if (!here) process.exitCode = 1;
     return;
   }
   console.log(`${KIT_RECIPE.name}: ${KIT_RECIPE.repo} at ${KIT_RECIPE.commit.slice(0, 12)} (${KIT_RECIPE.licence})`);

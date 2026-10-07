@@ -4,6 +4,9 @@
 //   node tools/library-test.js            the checks
 //   WRITE=1 node tools/library-test.js    also re-measure every device on the page (built-ins, showcase, library) and
 //                                         write app/src/devices/library/reports.js, the summaries the page shows
+//   WRITE=1 ONLY=core.drumkit,... node tools/library-test.js
+//                                         re-measure only those (and the library's own checks) and rewrite their
+//                                         lines, each dated (`measured`); every other line stays as it was
 //
 // 1. Every library device passes checkDevice (full) at house levels: instruments -14..-18 LUFS on the test phrase,
 //    effects within 1.5 LU of bypass, true peak <= -1 dBTP, tails that die, bit-exact renders; signed by claude,
@@ -19,13 +22,14 @@ import { open, tally } from './pw.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const t = tally('library');
 const WRITE = !!process.env.WRITE;
+const ONLY = WRITE && process.env.ONLY ? process.env.ONLY.split(',').map((s) => s.trim()).filter(Boolean) : null;
 const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|favicon/.test(e));
 
 /* ------------------------------------------------------------------------------------------ 1. the devices */
 {
   const { page, errors, close } = await open('/app/library.html', { width: 1440, height: 900 });
   await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
-  const res = await page.evaluate(async (all) => {
+  const res = await page.evaluate(async ({ all, only }) => {
     const reg = await import('/app/src/devices/registry.js');
     const { checkDevice } = await import('/app/src/kernel/check.js');
     const { LIBRARY_DEFS, LIBRARY } = await import('/app/src/devices/library/index.js');
@@ -38,7 +42,8 @@ const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|fa
     const names = new Map();
     for (const d of reg.listDevices()) { const k = d.name.toLowerCase(); names.set(k, (names.get(k) || []).concat(d.id)); }
     const rows = [];
-    for (const d of all ? shelf : LIBRARY_DEFS) {
+    const missingOnly = only ? only.filter((id) => !shelf.some((d) => d.id === id)) : [];
+    for (const d of all ? (only ? shelf.filter((x) => only.includes(x.id) || LIBRARY_DEFS.includes(x)) : shelf) : LIBRARY_DEFS) {
       const r = await checkDevice(d);
       rows.push({ id: d.id, hash: d.hash, kind: d.kind, ok: r.ok, lufs: r.level?.lufs, deltaLU: r.level?.deltaLU, truePeak: r.truePeak, cpu: r.cpu?.pct, tail: r.tail?.seconds, decays: r.tail?.decays, deterministic: r.deterministic, errors: r.errors, warnings: r.warnings, worst: r.extremes?.worstPeak });
     }
@@ -48,8 +53,8 @@ const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|fa
       collide: names.get(d.name.toLowerCase()).filter((id) => id !== d.id),
     }));
     const stale = shelf.filter((d) => !REPORTS[d.id] || REPORTS[d.id].hash !== d.hash).map((d) => d.id);
-    return { rows, meta, stale, shelf: shelf.map((d) => d.id) };
-  }, WRITE);
+    return { rows, meta, stale, shelf: shelf.map((d) => d.id), missingOnly };
+  }, { all: WRITE, only: ONLY });
 
   const lib = new Set(res.meta.map((m) => m.id));
   for (const r of res.rows.filter((x) => lib.has(x.id))) {
@@ -74,18 +79,29 @@ const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|fa
   if (WRITE) {
     const day = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local
     const r1 = (x) => (Number.isFinite(x) ? Math.round(x * 10) / 10 : null);
-    const lines = res.rows.map((r) => `  ${JSON.stringify(r.id)}: ${JSON.stringify({ hash: r.hash, kind: r.kind, ok: r.ok, lufs: r1(r.lufs), deltaLU: r1(r.deltaLU), truePeak: r1(r.truePeak), cpu: r1(r.cpu), tail: r1(r.tail), warnings: r.warnings.length })},`);
+    const line = (r) => ({ hash: r.hash, kind: r.kind, ok: r.ok, lufs: r1(r.lufs), deltaLU: r1(r.deltaLU), truePeak: r1(r.truePeak), cpu: r1(r.cpu), tail: r1(r.tail), warnings: r.warnings.length });
+    let entries = res.rows.map((r) => [r.id, line(r)]), measured = day;
+    if (ONLY) {
+      // only the named devices are re-measured (each line dated); the rest keep their lines and the file keeps its date
+      t.ok(!res.missingOnly.length, `ONLY names devices on the shelf${res.missingOnly.length ? ' (not: ' + res.missingOnly.join(', ') + ')' : ''}`);
+      const old = await import('../app/src/devices/library/reports.js');
+      const fresh = new Map(res.rows.filter((r) => ONLY.includes(r.id)).map((r) => [r.id, { ...line(r), measured: day }]));
+      entries = res.shelf.filter((id) => fresh.has(id) || old.REPORTS[id]).map((id) => [id, fresh.get(id) || old.REPORTS[id]]);
+      measured = old.MEASURED;
+    }
+    const lines = entries.map(([id, e]) => `  ${JSON.stringify(id)}: ${JSON.stringify(e)},`);
     const src = `// The device-check summaries the library page (app/library.html) shows, one per device on the shelf. GENERATED by
 // \`WRITE=1 node tools/library-test.js\` (kernel/check.js, full mode, in headless Chromium); don't edit by hand. A
 // summary counts only while its hash matches the device's kernel (registry def.hash); the page offers a live check
-// otherwise. CPU is that machine's render time for 4 s of audio, as a share of real time.
-export const MEASURED = ${JSON.stringify(day)};
+// otherwise. CPU is that machine's render time for 4 s of audio, as a share of real time. MEASURED is the day of the
+// last full run; a line with its own \`measured\` was re-measured alone that day (WRITE=1 ONLY=<id,...>).
+export const MEASURED = ${JSON.stringify(measured)};
 export const REPORTS = {
 ${lines.join('\n')}
 };
 `;
     fs.writeFileSync(path.join(HERE, '../app/src/devices/library/reports.js'), src);
-    t.note(`wrote app/src/devices/library/reports.js (${res.rows.length} devices)`);
+    t.note(`wrote app/src/devices/library/reports.js (${ONLY ? 're-measured ' + ONLY.join(', ') + '; ' : ''}${entries.length} devices)`);
   } else {
     // the library's own summaries must be current; a built-in changed by its owner just shows "press Check" on the page
     const staleLib = res.stale.filter((id) => lib.has(id)), staleOther = res.stale.filter((id) => !lib.has(id));

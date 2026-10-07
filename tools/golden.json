@@ -7,7 +7,7 @@
     "v8": "13.6.233.17-node.49",
     "arch": "arm64",
     "platform": "darwin",
-    "date": "2026-10-06"
+    "date": "2026-10-07"
   },
   "scenes": {
     "inst:core.poly": {
@@ -353,14 +353,14 @@
       "truePeak": -1.1,
       "peak": -1.36
     },
-    "inst:core.drumkit#902ab780bd60": {
+    "inst:core.drumkit#e590dc685420": {
       "sha256": "0f1f5581d750d2822500e83db1a34f9da6e1d6f4b871dd74c23ea3ecadaaee54",
       "frames": 672000,
       "lufs": -17.77,
       "truePeak": -1.62,
       "peak": -1.63,
       "data": {
-        "kit": "sha256-902ab780bd60ccdc0fc23257d16007924469fed4f3a74a340aafe127bff54d72"
+        "kit": "sha256-e590dc685420513ebec06fc8ddaa233d8f2db7535f9c5245c38468dd18ef8eac"
       }
     }
   }

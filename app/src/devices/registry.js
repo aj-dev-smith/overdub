@@ -145,7 +145,9 @@ export function defineDevice(def, { replace = false } = {}) {
     params,
     look: def.look || {},
     version: prev ? (prev.version || 1) + 1 : (def.version || 1),
-    hash: def.kernel ? hashStr(def.kernel) : (def.hash || null),
+    // (a device with kernel data plays its files too: their hashes are in its own, so a new kit is a new device hash and
+    // its stored check summary stops counting)
+    hash: def.kernel ? hashStr(def.kernel + (normData(def.data) ? '\n' + JSON.stringify(normData(def.data)) : '')) : (def.hash || null),
     flavour: def.build ? 'graph' : 'kernel',
     source: def.source || 'builtin',
   };
