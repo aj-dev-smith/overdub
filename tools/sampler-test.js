@@ -32,6 +32,8 @@ import { getDevice } from '../app/src/devices/registry.js';
 import '../app/src/devices/builtin/index.js';
 import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
 import { RECIPE } from './kits/upright-kw.js';
+import { GRAND_HASH } from '../app/src/devices/builtin/grand.js';
+import { RECIPE as GRAND_RECIPE } from './kits/salamander.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 import { unpackOdk } from '../app/src/kernel/odkz.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -237,7 +239,7 @@ const up = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length
   t.ok(flat === 0 && dc <= -60 && tail <= -60, `the samples: no flat tops, DC ${dc.toFixed(1)} dBFS at worst, every unlooped sample ending ${(-tail).toFixed(0)} dB or more under its peak (trimmed at -70 dBFS and faded)`);
   const cache = path.join(HERE, '.out', 'kits-cache');
   if (fs.existsSync(cache)) {
-    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify'], { encoding: 'utf8' });
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', '--only', 'upright'], { encoding: 'utf8' });
     const line = v.stdout.split('\n').filter((l) => /rebuilt|cache/.test(l)).pop() || '';
     if (/Upright[^]*isn't in the download cache/.test(v.stdout)) t.note('the download cache is incomplete: the byte-for-byte rebuild was not run');
     else t.ok(/ok rebuilt from the cache: sha256-c9b7|ok rebuilt from the cache: /.test(v.stdout.split('Upright Piano KW')[1] || ''), `the kit rebuilds byte for byte from the pinned upstream files (${line.trim()})`);
@@ -358,4 +360,135 @@ console.log('Parlour Upright: the studio');
   } finally { await close(); }
 }
 
+
+// ------------------------------------------------------------------------------------------------ the other sampled instruments
+// Each held to the same bar as Parlour Upright, from one table: the kit file and its budget, the keys and layers it
+// covers, the rebuild from the cache, checkDevice, renders bit-exact twice, every key's pitch, the level climbing
+// with velocity, a held note holding (a looped kit), and in the studio: fetched packed, the page's render against
+// Node's, and an agent finding it.
+const MORE = [
+  { id: 'core.grand', hash: GRAND_HASH, recipe: GRAND_RECIPE, only: 'salamander', mb: 15, keys: [21, 108], layers: [[1, 58], [59, 100], [101, 127]], preset: 'Half stick' },
+];
+const fetched = MORE.filter((x) => fs.existsSync(dataPath(x.hash)));
+for (const x of MORE) if (!fetched.includes(x)) t.note(`${x.id}: its kit isn't fetched (node tools/fetch-kits.js), skipped`);
+for (const x of fetched) {
+  const d = getDevice(x.id);
+  console.log(`${d.name} (${x.id}): the kit file`);
+  const kb = fs.readFileSync(dataPath(x.hash));
+  const kit = decodeOdk(new Uint8Array(kb.buffer, kb.byteOffset, kb.length));
+  t.ok('sha256-' + crypto.createHash('sha256').update(kb).digest('hex') === x.hash, `${d.name}: the file is the pinned kit (${x.hash.slice(0, 19)}...)`);
+  const zf = dataPath(x.hash) + 'z', zb = fs.existsSync(zf) ? fs.readFileSync(zf) : null;
+  t.ok(zb && 'sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === x.hash, `${d.name}: its .odkz unpacks to it, byte for byte`);
+  if (zb) { const g = zlib.gzipSync(zb, { level: 9 }).length; t.ok(g <= x.mb * 1e6, `${d.name}: ${(g / 1e6).toFixed(2)} MB on the wire, packed and gzipped (its budget is ${x.mb} MB)`); }
+  t.ok(kit.sr === x.recipe.sr && kit.bits === 16 && kit.channels === (x.recipe.channels || 2) && kit.samples.length === x.recipe.regions.length, `${d.name}: ${kit.samples.length} samples, ${kit.sr / 1000} kHz, 16-bit, ${kit.channels === 1 ? 'mono' : 'stereo'}`);
+  t.ok(kit.meta.commit === x.recipe.commit && kit.meta.source === x.recipe.source && kit.meta.credit === x.recipe.credit && kit.meta.kind === 'melodic', `${d.name}: it carries its source, licence and credit (${kit.meta.repo}@${String(kit.meta.commit).slice(0, 12)})`);
+  const att = kit.samples.filter((sm) => sm.trig !== 'release');
+  const gaps = [];
+  for (let k = x.keys[0]; k <= x.keys[1]; k++) for (const [lo, hi] of x.layers) { const n = new Set(att.filter((sm) => k >= sm.lo && k <= sm.hi && sm.vlo === lo && sm.vhi === hi).map((sm) => sm.rr | 0)).size, m = att.filter((sm) => k >= sm.lo && k <= sm.hi && sm.vlo === lo && sm.vhi === hi).length; if (!n || n !== m) gaps.push(`${k}@${lo}:${m}`); }
+  t.ok(!gaps.length, `${d.name}: every key ${x.keys[0]}..${x.keys[1]} has one zone in each of its ${x.layers.length} layers${gaps.length ? ' (not: ' + gaps.slice(0, 8).join(', ') + ')' : ''}`);
+  let flat = 0, dc = -200;
+  for (const sm of kit.samples) for (const c of sm.ch) { let s0 = 0, run = 0; for (let i = 0; i < c.length; i++) { s0 += c[i]; if (Math.abs(c[i]) >= 32400 && i && c[i] === c[i - 1]) { if (++run === 2) flat++; } else run = 0; } dc = Math.max(dc, db(Math.abs(s0 / c.length) / 32768)); }
+  t.ok(flat === 0 && dc <= -60, `${d.name}: no flat tops, DC ${dc.toFixed(1)} dBFS at worst`);
+  if (fs.existsSync(path.join(HERE, '.out', 'kits-cache'))) {
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', '--only', x.only], { encoding: 'utf8' });
+    if (/isn't in the download cache/.test(v.stdout)) t.note(`${d.name}: the download cache is incomplete, the byte-for-byte rebuild was not run`);
+    else t.ok(v.status === 0 && /ok rebuilt from the cache/.test(v.stdout), `${d.name}: the kit rebuilds byte for byte from the pinned upstream files`);
+  }
+
+  console.log(`${d.name} (${x.id}): the device`);
+  const specs2 = d.params.map(normParam);
+  const dplay = (events, o = {}) => play(events, { kit, src: d.kernel, poly: d.poly || 32, specs: specs2, ...o });
+  const dsong = (notes, params = {}) => ({ ...usong(notes, params), tracks: usong(notes, params).tracks.map((tr) => ({ ...tr, instrument: { device: x.id, params } })) });
+  const rep = await checkDeviceNode(d, {});
+  t.ok(rep.ok && !rep.warnings.length && rep.deterministic === true, `${d.name}: checkDevice (Node) passes, no warnings, bit-identical twice${rep.ok ? '' : ': ' + rep.errors.join('; ')}${rep.warnings.length ? ' (' + rep.warnings.join('; ') + ')' : ''}`);
+  t.ok(rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1 && rep.cpu.pct < 25, `${d.name}: ${rep.level.lufs} LUFS on the test phrase, ${rep.truePeak} dBTP, ${rep.cpu.pct}% cpu`);
+  const ph = testPhrase();
+  const a = renderSong(dsong(ph), { from: 0, to: PHRASE_BEATS, tail: 2 }), b = renderSong(dsong(ph), { from: 0, to: PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(a) === sha256(b) && !a.warnings.length, `${d.name}: the test phrase renders bit-exact twice (${sha256(a).slice(0, 16)})`);
+  const pre = renderSong(dsong(ph, d.presets.find((q) => q.name === x.preset).params), { from: 0, to: PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(pre) !== sha256(a), `${d.name}: the ${x.preset} preset changes the sound`);
+  // pitch: every key plays its zone's sample moved by the right ratio (its strongest partial of the first four)
+  const mono = (L, R) => { const y = new Float64Array(L.length); for (let i = 0; i < L.length; i++) y[i] = (L[i] + R[i]) / 2; return y; };
+  // (the middle of the top layer: near its edge the layer below crossfades in, another recording of the note)
+  const vTop = Math.round((x.layers[x.layers.length - 1][0] + x.layers[x.layers.length - 1][1]) / 2);
+  let worst = 0, wk = x.keys[0];
+  const monos = new Map(), unread = [];
+  for (let k = x.keys[0]; k <= x.keys[1]; k++) {
+    const sm = att.find((q) => k >= q.lo && k <= q.hi && vTop >= q.vlo && vTop <= q.vhi && !(q.rr | 0)), ratio = Math.pow(2, (k - sm.key + (sm.tune || 0) / 100) / 12);
+    if (!monos.has(sm)) monos.set(sm, mono(sm.ch[0], sm.ch[1] || sm.ch[0]));
+    const src = monos.get(sm), r = dplay([on(k, vTop / 127)], { secs: 0.8, params: { release: 6 } }), y = mono(r.channels[0], r.channels[1]);
+    const a0 = 0.15, len = Math.min(0.25, (sm.frames - sm.start) / kit.sr / ratio - a0 - 0.02), fs0 = 440 * Math.pow(2, (sm.key - 69) / 12);
+    const sa = sm.start + Math.round(a0 * ratio * kit.sr), sl = Math.round(len * ratio * kit.sr);
+    let n = 1, best = null;
+    for (let h = 1; h <= 4; h++) { if (h * fs0 * Math.max(1, ratio) > 9000) break; const q = pitchAt(src, kit.sr, sa, sl, h * fs0); if (!best || q.amp > best.amp) { best = q; n = h; } }
+    const got = pitchAt(y, SR, Math.round(a0 * SR), Math.round(len * SR), n * fs0 * ratio);
+    // (a sample whose strongest partial sits 100 cents or more from its note can't be read this way: counted, skipped)
+    if (best.edge || got.edge) { unread.push(k); continue; }
+    const dd = Math.abs(got.cents - best.cents);
+    if (dd > worst) { worst = dd; wk = k; }
+  }
+  t.ok(worst < 1 && unread.length <= 4, `${d.name}: every key ${x.keys[0]}..${x.keys[1]} plays its zone's sample moved by the right ratio, tune included (the worst, key ${wk}, ${worst.toFixed(2)} cents off${unread.length ? '; unreadable: ' + unread.join(', ') : ''})`);
+  // velocity: the level climbs, across every layer seam too
+  let down = 0, seam = 0;
+  const seams = new Set(x.layers.slice(1).map(([lo]) => lo));
+  const kk = []; for (let k = x.keys[0]; k <= x.keys[1]; k += Math.max(1, Math.floor((x.keys[1] - x.keys[0]) / 7))) kk.push(k);
+  for (const k of kk) {
+    let prev = null;
+    for (let v = 4; v <= 127; v += 3) {
+      const r = dplay([on(k, v / 127)], { secs: 0.25, params: { release: 6 } });
+      const lv = db(rms(r.channels[0], 0.01, 0.2) + rms(r.channels[1], 0.01, 0.2));
+      if (prev != null) { if (lv < prev - 0.5) down++; if ([...seams].some((sv) => v - 3 < sv && v >= sv)) seam = Math.max(seam, Math.abs(lv - prev)); }
+      prev = lv;
+    }
+  }
+  t.ok(down === 0 && seam < 3, `${d.name}: the level climbs with velocity on ${kk.length} keys (never down by more than 0.5 dB; at most ${seam.toFixed(2)} dB in a step across a layer seam)`);
+  // a looped kit: a note held for 8 s keeps sounding at a steady level, and stops when let go
+  if (att.some((sm) => sm.loop)) {
+    let worstHold = 0;
+    for (const k of kk) {
+      const r = dplay([on(k, 0.8), off(k, 8)], { secs: 9.5 });
+      const l1 = db(rms(r.channels[0], 2, 3)), l2 = db(rms(r.channels[0], 6.5, 7.5)), gone = db(rms(r.channels[0], 9.2, 9.5));
+      worstHold = Math.max(worstHold, Math.abs(l2 - l1), gone > -60 ? 99 : 0);
+    }
+    t.ok(worstHold < 3, `${d.name}: a note held 8 s holds its level (within ${worstHold.toFixed(1)} dB from 2 s to 7.5 s) and dies once let go`);
+  }
+}
+
+if (fetched.length) {
+  console.log('the other sampled instruments: the studio');
+  const { page, close, errors } = await open('/app/', { query: 'new' });
+  try {
+    await page.waitForFunction(() => window.overdub && window.overdub.store, null, { timeout: 30000 });
+    for (const x of fetched) {
+      const d = getDevice(x.id);
+      const ph = testPhrase().slice(0, 16);
+      const sng = { ...usong(ph), tracks: usong(ph).tracks.map((tr) => ({ ...tr, instrument: { device: x.id, params: {} } })) };
+      const node = renderSong(sng, { from: 0, to: 8, tail: 2 });
+      const reqs = [];
+      const onReq = (rq) => { if (/\.odkz?$/.test(rq.url())) reqs.push(rq.url().endsWith('z') ? 'odkz' : 'odk'); };
+      page.on('request', onReq);
+      const out = await page.evaluate(async ({ p }) => {
+        const { renderProject } = await import('/app/src/engine/render.js');
+        const { cleanProject } = await import('/app/src/core/project.js');
+        const buf = await renderProject(cleanProject(p), { from: 0, to: 8, tail: 2, assets: { get: async () => null } });
+        const enc = (f) => { const u = new Uint8Array(f.buffer.slice(0)); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+        return { ch: [enc(buf.getChannelData(0)), enc(buf.getChannelData(1))], len: buf.length };
+      }, { p: sng });
+      page.off('request', onReq);
+      const unb = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+      const ch = out.ch.map(unb);
+      let worst = 0;
+      for (let c = 0; c < 2; c++) for (let i = 0; i < Math.min(ch[c].length, node.channels[c].length); i++) worst = Math.max(worst, Math.abs(ch[c][i] - node.channels[c][i]));
+      t.ok(reqs.join() === 'odkz', `${d.name}: the studio fetched the kit once, packed (${reqs.join(', ')})`);
+      t.ok(out.len === node.length && db(worst) <= -90, `${d.name}: the page's render matches Node's within -90 dBFS (worst ${worst ? db(worst).toFixed(1) : '-inf'} dBFS${worst ? '' : ': bit-identical'})`);
+      const ag = await page.evaluate(async ({ id, cat }) => {
+        const l = await window.overdub.tools.run('list_devices', { kind: 'instrument', cat }, { by: 'claude' });
+        const g = await window.overdub.tools.run('get_device', { id }, { by: 'claude' });
+        return { list: JSON.stringify(l), get: JSON.stringify(g) };
+      }, { id: x.id, cat: d.cat });
+      t.ok(ag.list.includes(x.id) && ag.list.includes(d.name) && /dynamics/.test(ag.get) && ag.get.includes(x.preset), `${d.name}: an agent finds it (list_devices names it among the ${d.cat}, get_device gives its params and presets)`);
+    }
+    t.ok(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  } finally { await close(); }
+}
 t.done();

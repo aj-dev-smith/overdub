@@ -12,6 +12,7 @@
 //                                       unpacks to it), build nothing: exit 0 here, 1 missing or wrong
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
+//   ... --only <name>                   just the kits whose recipe name contains <name> (any case), with any of the above
 //
 // The downloads are cached in tools/.out/kits-cache/ (by SHA-256), so a rebuild is offline. The build is deterministic:
 // the same upstream bytes give the same .odk bytes (integer arithmetic only, fixed key order), so the hash a device
@@ -29,6 +30,9 @@ import { RECIPE as KIT_RECIPE } from './kits/virtuosity.js';
 import { RECIPE as UPRIGHT_RECIPE } from './kits/upright-kw.js';
 import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
 import { qaSample, qaInstrument } from './kits/qa.js';
+import { buildInstrument } from './kits/build.js';
+import { RECIPE as GRAND_RECIPE } from './kits/salamander.js';
+import { GRAND_HASH } from '../app/src/devices/builtin/grand.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -265,8 +269,14 @@ function writePacked(file, bytes) {
 const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
 const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
 
+// a recipe that lays out its own regions (tools/kits/build.js)
+async function buildLaidOut(recipe) {
+  const r = await buildInstrument(recipe, fetchFile);
+  return { ...r, hash: 'sha256-' + sha256(r.bytes) };
+}
+
 // every kit a device names: [recipe, the hash the device pins, how it's built]
-const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic]];
+const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [GRAND_RECIPE, GRAND_HASH, buildLaidOut]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
@@ -294,7 +304,7 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
   if (r.qa) {
     printQa(r.qa);
     // the report, one row per sample with every number (tools/.out/library/<repo>/qa.json)
-    const dir = path.join(HERE, '.out', 'library', recipe.repo.replace(/\//g, '_'));
+    const dir = path.join(HERE, '.out', 'library', recipe.qaName || recipe.repo.replace(/\//g, '_'));
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'qa.json'), JSON.stringify({ kit: recipe.name, commit: recipe.commit, verdicts: r.qa.verdicts, rows: r.qa.rows }, null, 1) + '\n');
     console.log(`  the QA report: ${path.relative(ROOT, path.join(dir, 'qa.json'))}`);
@@ -303,7 +313,7 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const outFile = path.join(ROOT, 'app', dataFile(r.hash));
   fs.writeFileSync(outFile, r.bytes);
   const s = writePacked(outFile, r.bytes);
-  console.log(`  ${r.count} samples, ${(r.outFrames / recipe.sr).toFixed(1)} s of stereo (trimming cut ${(100 * (1 - r.outFrames / r.inFrames)).toFixed(0)}%), ${mb(r.bytes.length)}; ${sizes(s)}`);
+  console.log(`  ${r.count} samples, ${(r.outFrames / recipe.sr).toFixed(1)} s of ${recipe.channels === 1 ? 'mono' : 'stereo'} (trimming cut ${(100 * (1 - r.outFrames / r.inFrames)).toFixed(0)}%), ${mb(r.bytes.length)}; ${sizes(s)}`);
   console.log(`  wrote ${path.relative(ROOT, outFile)} and its .odkz`);
   if (r.hash !== pinned) {
     console.log(`  FAIL the build is ${r.hash}; the device pins ${pinned}`);
@@ -316,7 +326,9 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
 async function main() {
   const flags = { check: process.argv.includes('--check'), verify: process.argv.includes('--verify'), rebuild: process.argv.includes('--rebuild') };
   let code = 0;
-  for (const [recipe, pinned, make] of KITS) code = Math.max(code, await one(recipe, pinned, make, flags));
+  // (--only <name fragment>: just the kits whose recipe name has it)
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].toLowerCase() : null;
+  for (const [recipe, pinned, make] of KITS) if (!only || recipe.name.toLowerCase().includes(only)) code = Math.max(code, await one(recipe, pinned, make, flags));
   process.exitCode = code;
 }
 

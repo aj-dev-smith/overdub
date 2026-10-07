@@ -71,7 +71,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 44 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 45 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -355,9 +355,9 @@ on any character; 0 (KIT) is each character's own, as before.</li>
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
 <li><strong>Virtuosity Kit</strong> (<code>core.drumkit</code>): a real jazz-club kit, recorded through a pair of overheads and played from
-samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's two sampled
-instruments; the other is Parlour Upright (<code>core.upright</code>), a real upright piano
-(<a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits</a>).</li>
+samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's three sampled
+instruments; the others are Parlour Upright (<code>core.upright</code>, a real upright piano) and Full Stick (<code>core.grand</code>, a
+real concert grand) (<a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits</a>).</li>
 </ul>
 <p><strong>Cymbal models.</strong> Gobo Kit and Studio A take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
@@ -538,6 +538,26 @@ kit parses exactly as before, under the same format string:</p>
 <code>env: { a, r }</code> and <code>rt: { decay }</code> (dB per second held, off a release sample).</p>
 <p><code>samplerKernel(opts)</code> in <code>app/src/devices/builtin/sampler.js</code> plays one. A device is that kernel, its params
 (<code>samplerParams()</code>) and a kit hash; Upright (<code>core.upright</code>) is the first.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>device</th><th>kit</th><th>recipe</th></tr></thead>
+<tbody>
+<tr><td>Parlour Upright (<code>core.upright</code>)</td><td>FreePats Upright Piano KW: 2 layers, 66 zones, the source's own SFZ</td><td><code>tools/kits/upright-kw.js</code></td></tr>
+<tr><td>Full Stick (<code>core.grand</code>)</td><td>Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB</td><td><code>tools/kits/salamander.js</code></td></tr>
+</tbody></table></div>
+<p><strong>Building one.</strong> <code>node tools/fetch-kits.js</code> builds every kit a device names (<code>--only &lt;name&gt;</code> for one). Parlour
+Upright's recipe names an upstream SFZ; the others lay out their own regions (<code>file, key, lo, hi, vlo, vhi, layer, tune, trig</code>) and <code>tools/kits/build.js</code> builds them. A recipe also says:</p>
+<ul>
+<li><strong><code>cut</code></strong>: where each note ends. A level (<code>db</code> dBFS, or <code>rel</code> dB under its own attack) or a length by register
+(<code>cap</code>), whichever comes first, then a squared fade, so a note cut for size dies a little early instead of stopping.</li>
+<li><strong><code>level</code></strong>: <code>'flat'</code> puts every sample on one smooth curve across the keys, and the kit's <code>velcurve</code> makes the
+dynamics; <code>'key'</code> keeps the layers' recorded distance. <strong><code>align</code></strong> lines each layer's start up with the next layer
+of its key, for the kernel's <code>'aligned'</code> crossfade.</li>
+<li><strong><code>loop</code></strong>: a sustain loop for each note, found by searching for the loop whose two ends match best, with the
+crossfade baked into the samples (check 14 of the QA rubric reads it).</li>
+<li><strong><code>channels: 1</code></strong> stores the mid of a stereo source.</li>
+</ul>
+<p>Every build runs the QA rubric (<code>tools/kits/qa.js</code>) and writes <code>tools/.out/library/&lt;name&gt;/qa.json</code>; a check that fails
+ships only with a written waiver in the recipe.</p>
 <ul>
 <li><strong>Pitch by resampling</strong>, through a 16-tap Kaiser-windowed sinc with 512 phases. The table is built in <code>create()</code>
 from <code>+ - * /</code> and <code>sqrt</code> alone (its own sine and Bessel series), so it is the same numbers on every engine. A

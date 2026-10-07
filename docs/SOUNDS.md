@@ -39,6 +39,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-cc1e7ab496aafa7f73b44b45fa0f9bdb96015c6b3ca2ff1fe29d6565a17ece86` |
 | Verified | 2026-10-06 |
 
+## Salamander Grand Piano V3: Full Stick (`core.grand`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/SalamanderGrandPiano (the sfzinstruments FLAC edition; the author's page: https://rytmenpinne.wordpress.com/sounds-and-such/salamander-grandpiano/) |
+| Pinned | commit `3382bf9496bba2486f5ab0de55a264d1dfc38404`; LICENSE sha256 `e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76`, README.md, Data/region.txt, Data/tune_ret.txt and Data/hammer.txt by sha256; 120 FLAC files, each by sha256, in [`tools/kits/salamander.js`](../tools/kits/salamander.js) |
+| Licence | Public domain. The author dedicated all his sampled instruments to the public domain on 2022-03-04 (https://rytmenpinne.wordpress.com/2022/03/04/good-news-everyone/: "I've decided to public domain all my sampled instruments! yay! They are all yours now and you may do whatever you wish!"; the product page: "As of 4.3.2022, this is now public domain!"). The repository's LICENSE is still the [CC-BY-3.0](https://creativecommons.org/licenses/by/3.0/) it was released under before, which would cover us too: he is credited either way. |
+| Author | Alexander Holm: a Yamaha C5 grand, recorded at 48 kHz/24-bit with two AKG C414s in AB about 12 cm above the strings. Mapped to SFZ by kinwie; the Retuned set by Markus Fiedler. |
+| Modifications | A subset: velocity layers 4, 10 and 16 of 16 at all 30 notes (a minor third apart), and the dampers' release noise at the same 30 keys (A4's is clipped at the source, so that zone uses A#4's). 24-bit to 16-bit by rounding, kept at 48 kHz. Each note cut where its 100 ms RMS falls 50 dB under its attack, or at 4.6 s (to F#2), 3.7 s (to F#4), 3 s (to F#5) or 2.6 s (above) from its onset, whichever is sooner, with a squared fade over its last 1.5 s: the files run 3 to 25 s, and whole they would be about 45 MB. Each sample's start set 2 ms before its attack, and each layer's lined up with the next layer up. A gain per sample, so every sample sits on one smooth curve across the keys; the dynamics come from a velocity curve measured from all 16 layers and the source's own velocity tracking. Tuned by the source's Retuned table (cents per note). |
+| Kit | `sha256-15cab44d14055d312f55e04bee8f54ca1cc99d6bc8e78ba9f1c1cb34a73eb58e` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

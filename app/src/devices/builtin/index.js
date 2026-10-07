@@ -5,7 +5,7 @@
 //                core.strings (Music Stands), core.bassguitar (Flatwound), core.guitar (DI Box), core.ep (Suitcase),
 //                core.mallets (Mallet Bag), core.poly2 (Step Ladder), core.brass (Brass Rail), core.choir (Risers),
 //                core.drumroom (Studio A), core.wavetable (Light Table)
-//   sampled:     core.drumkit (Virtuosity Kit), core.upright (Parlour Upright): instruments that play recorded samples
+//   sampled:     core.drumkit (Virtuosity Kit), core.upright (Parlour Upright), core.grand (Full Stick): instruments that play recorded samples
 //                (kernel data, fetched by tools/fetch-kits.js; without them they play nothing). Not in INSTRUMENTS, whose
 //                every member is synthesized and checked as such everywhere; tools/drumkit-test.js and
 //                tools/sampler-test.js hold them to the same bar
@@ -35,6 +35,7 @@ import drumroom from './drumroom.js';
 import wavetable from './wavetable.js';
 import drumkit from './drumkit.js';
 import upright from './upright.js';
+import grand from './grand.js';
 import eq from './eq.js';
 import comp from './comp.js';
 import verb from './verb.js';
@@ -51,6 +52,6 @@ import multiband from './multiband.js';
 
 export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable];
 export const EFFECTS = [eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter, eq8, shaper, multiband];
-export const SAMPLED = [drumkit, upright];
+export const SAMPLED = [drumkit, upright, grand];
 export const BUILTINS = [...INSTRUMENTS, ...SAMPLED, ...EFFECTS];
 export default BUILTINS;
