@@ -2,8 +2,9 @@
 //
 //   node tools/drumkit-test.js
 //
-// Always: the .odk container round-trips, a device's `data` field keeps only hashes, and a kit that isn't here plays
-// nothing and says so (Node renderer and studio). With the kit fetched (node tools/fetch-kits.js): the file is the
+// Always: the .odk container round-trips, so does its packed transfer (.odkz) and a wrong byte in it is caught, a
+// device's `data` field keeps only hashes, and a kit that isn't here plays nothing and says so (Node renderer and
+// studio). With the kit fetched (node tools/fetch-kits.js): the file is the
 // pinned one (and rebuilds byte for byte from the download cache), the device passes checkDevice in Node and in the
 // page, renders bit-exact twice, follows velocity without jumps, chokes its hats, varies its strokes by seed, tunes,
 // gates and tilts as its params say, renders at 44.1 kHz, and the studio loads it once (IndexedDB), says "loading"
@@ -15,6 +16,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tally, open } from './pw.js';
 import { encodeOdk, decodeOdk, normData } from '../app/src/kernel/odk.js';
+import { packOdk, unpackOdk, isPacked } from '../app/src/kernel/odkz.js';
+import zlib from 'node:zlib';
 import { renderSong } from '../app/src/engine/node/render.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -73,6 +76,30 @@ console.log('the .odk container');
   t.ok(JSON.stringify(proj.data) === JSON.stringify({ kit: KIT_HASH }), 'a song\'s device keeps its kit by hash, and nothing else of `data`');
 }
 
+// ---------------------------------------------------------------------------------------------- the packed transfer
+console.log('the packed transfer (.odkz)');
+{
+  // a sample built to overflow a 16-bit second-order residual (full-scale square waves), silence, odd lengths, one frame
+  const sq = Int16Array.from({ length: 999 }, (_, i) => (i & 1 ? 32767 : -32768));
+  const ramp = Int16Array.from({ length: 1001 }, (_, i) => ((i * 977) % 65536) - 32768);
+  const src = encodeOdk({ name: 'p', sr: 48000, bits: 16, channels: 2, meta: { m: 'x' }, samples: [
+    { id: 'sq', ch: [sq, ramp.subarray(0, 999)] }, { id: 'zero', ch: [new Int16Array(7), new Int16Array(7)] }, { id: 'one', ch: [Int16Array.of(-1), Int16Array.of(32767)] }, { id: 'none', ch: [new Int16Array(0), new Int16Array(0)] }] });
+  const z = packOdk(src), back = unpackOdk(z);
+  t.ok(isPacked(z) && !isPacked(src) && Buffer.compare(Buffer.from(back), Buffer.from(src)) === 0, `a kit round-trips through .odkz byte for byte (full-scale squares that overflow the residual, silence, a one-frame and an empty sample: ${src.length} -> ${z.length} -> ${back.length} bytes)`);
+  t.ok(Buffer.compare(Buffer.from(packOdk(src)), Buffer.from(z)) === 0, 'packing is deterministic');
+  let threw = null; try { packOdk(encodeOdk({ name: 'y', sr: 48000, bits: 24, channels: 1, samples: [{ id: 'c', ch: [Int32Array.of(1, 2)] }] })); } catch (e) { threw = e.message; }
+  t.ok(threw && /16-bit/.test(threw), `a 24-bit kit isn't packed (${threw}): it ships as .odk alone`);
+  // a wrong byte: in the planes it unpacks to other audio, which the hash check refuses; in the header or at the end
+  // the unpacker refuses it itself
+  const flip = (at) => { const c = z.slice(); c[at] ^= 0x10; return c; };
+  const h = (b) => crypto.createHash('sha256').update(b).digest('hex');
+  const planes = flip(z.length - 5);
+  t.ok(h(unpackOdk(planes)) !== h(src), 'a wrong byte in the audio unpacks to a different file, so its hash no longer matches');
+  let refused = 0;
+  for (const bad of [z.subarray(0, z.length - 1), flip(9), Uint8Array.from([...z, 0]), z.subarray(0, 10)]) { try { unpackOdk(bad); } catch (e) { refused++; } }
+  t.ok(refused === 4, 'a truncated, padded or header-damaged .odkz is refused, not read past its end');
+}
+
 // ---------------------------------------------------------------------------------------------- a missing kit
 console.log('a kit that is not here');
 {
@@ -112,6 +139,14 @@ const kit = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.lengt
     return s.start !== Math.max(0, on - Math.round(0.002 * kit.sr));
   });
   t.ok(!wrong.length, `every stroke's start is in the file, 2 ms before its attack${wrong.length ? ' (wrong: ' + wrong.map((s) => s.id).join(', ') + ')' : ''}`);
+  // the packed transfer of the real kit: present, lossless, and smaller on the wire
+  const zf = dataPath(KIT_HASH) + 'z';
+  if (fs.existsSync(zf)) {
+    const zb = fs.readFileSync(zf);
+    t.ok('sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === KIT_HASH, `its .odkz unpacks to the pinned kit, byte for byte`);
+    const g1 = zlib.gzipSync(bytes, { level: 9 }).length, g2 = zlib.gzipSync(zb, { level: 9 }).length;
+    t.ok(g2 < g1 * 0.7, `gzipped, the .odkz is ${(g2 / 1e6).toFixed(2)} MB against the .odk's ${(g1 / 1e6).toFixed(2)} MB (${(100 * (1 - g2 / g1)).toFixed(0)}% less)`);
+  } else t.ok(false, `${path.relative(path.join(HERE, '..'), zf)} isn't here (node tools/fetch-kits.js writes it)`);
   t.ok(NOTE_MAP.every(([, piece]) => PIECES.includes(piece)) && Object.values(def.notes).every((s) => typeof s === 'string' && s.length <= 40), `every mapped note (${NOTE_MAP.length}) plays a piece in the kit, and names it`);
   const cache = path.join(HERE, '.out', 'kits-cache');
   if (fs.existsSync(cache)) {
@@ -236,8 +271,8 @@ console.log('the studio');
     // the browser's render of the phrase against Node's
     const phrase = drumPhrase();
     const node = render(phrase, {}, { to: DRUM_PHRASE_BEATS, tail: 2 });
-    let fetched = 0;
-    page.on('request', (rq) => { if (rq.url().endsWith('.odk')) fetched++; });
+    let fetched = 0, plain = 0;
+    page.on('request', (rq) => { if (/\.odkz?$/.test(rq.url())) fetched++; if (rq.url().endsWith('.odk')) plain++; });
     const out = await page.evaluate(async ({ p }) => {
       const { renderProject } = await import('/app/src/engine/render.js');
       const { cleanProject } = await import('/app/src/core/project.js');
@@ -256,7 +291,7 @@ console.log('the studio');
     for (let c = 0; c < 2; c++) for (let i = 0; i < Math.min(ch[c].length, node.channels[c].length); i++) worst = Math.max(worst, Math.abs(ch[c][i] - node.channels[c][i]));
     t.ok(out.before === 'none' && out.after === 'ready', `nothing is fetched until a render needs the kit (${out.before} -> ${out.after})`);
     t.ok(out.len === node.length && db(worst) <= -90, `the page's render matches Node's within -90 dBFS (worst ${worst ? db(worst).toFixed(1) : '-inf'} dBFS${worst ? '' : ': bit-identical'})`);
-    t.ok(fetched === 1, `the kit was fetched once for a render and a device check (${fetched} requests)`);
+    t.ok(fetched === 1 && plain === 0, `the kit was fetched once, packed (.odkz), for a render and a device check (${fetched} requests, ${plain} for the plain .odk)`);
     t.ok(out.ok, `checkDevice in the page passes (${out.lufs} LUFS)${out.ok ? '' : ': ' + out.errors.join('; ')}`);
     // cached: a reload takes it from IndexedDB, not the network
     await page.reload({ waitUntil: 'load' });
@@ -267,11 +302,46 @@ console.log('the studio');
     t.ok(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   } finally { await close(); }
 
+  // the transfer: a wrong byte in the .odkz is caught by the hash (the plain .odk is fetched instead, or, without it,
+  // the kit plays nothing and the console says which file was wrong); a server with only the .odk still serves it; a
+  // plain copy an earlier visit cached still loads
+  for (const mode of ['corrupt', 'corrupt-only', 'plain-only', 'old-cache']) {
+    const o = await open('/app/', { query: 'new' });
+    const warns = [];
+    o.page.on('console', (m) => { if (m.type() === 'warning') warns.push(m.text()); });
+    const reqs = [];
+    try {
+      await o.page.route('**/*.odkz', async (route) => {
+        reqs.push('odkz');
+        if (mode === 'plain-only' || mode === 'old-cache') return route.fulfill({ status: 404, body: 'not found' });
+        const r = await route.fetch(), b = Buffer.from(await r.body());
+        b[b.length - 1000] ^= 0x01;   // one bit of one sample
+        return route.fulfill({ status: 200, body: b, headers: { 'content-type': 'application/octet-stream' } });
+      });
+      await o.page.route('**/*.odk', async (route) => { reqs.push('odk'); if (mode === 'corrupt-only') return route.fulfill({ status: 404, body: 'not found' }); return route.continue(); });
+      await o.page.waitForFunction(() => window.overdub && window.overdub.store, null, { timeout: 30000 });
+      if (mode === 'old-cache') {
+        // an earlier visit's IndexedDB record holds the plain .odk; nothing is fetched
+        await o.page.evaluate(async (b64) => {
+          const h = (await import('/app/src/devices/registry.js')).getDevice('core.drumkit').data.kit;
+          const r = await fetch('/app/kits/' + h.slice(7) + '.odk'); const bytes = await r.arrayBuffer();
+          await new Promise((res, rej) => { const q = indexedDB.open('overdub-kits', 1); q.onupgradeneeded = () => q.result.createObjectStore('kits', { keyPath: 'hash' }); q.onsuccess = () => { const tx = q.result.transaction('kits', 'readwrite'); tx.objectStore('kits').put({ hash: h, bytes }); tx.oncomplete = res; tx.onerror = rej; }; q.onerror = rej; });
+        });
+        reqs.length = 0;
+      }
+      const st = await o.page.evaluate(async () => { const D = await import('/app/src/kernel/data.js'); const h = (await import('/app/src/devices/registry.js')).getDevice('core.drumkit').data.kit; const b = await D.loadData(h); return { n: b ? b.length : 0, s: D.dataState(h) }; });
+      if (mode === 'corrupt') t.ok(st.s === 'ready' && st.n === bytes.length && reqs.join() === 'odkz,odk' && warns.some((w) => /\.odkz is not the file its name says/.test(w)), `a wrong byte in the .odkz: caught ("${(warns[0] || '').slice(0, 90)}"), and the plain .odk is used (${reqs.join(', ')})`);
+      if (mode === 'corrupt-only') t.ok(st.s === 'missing' && st.n === 0 && warns.some((w) => /\.odkz is not the file its name says/.test(w)), `a wrong byte and no .odk: the kit plays nothing (${st.s}) and the console says which file was wrong`);
+      if (mode === 'plain-only') t.ok(st.s === 'ready' && st.n === bytes.length && reqs.join() === 'odkz,odk', `a server with only the .odk: it loads from there (${reqs.join(', ')})`);
+      if (mode === 'old-cache') t.ok(st.s === 'ready' && st.n === bytes.length && reqs.length === 0, `a plain .odk an earlier visit cached in IndexedDB still loads, with nothing fetched (${reqs.length} requests)`);
+    } finally { await o.close(); }
+  }
+
   // live: a track with the kit says it's loading until the samples arrive, then plays; a kit the server hasn't got says so
   for (const mode of ['slow', 'missing']) {
     const o = await open('/app/', { query: 'new' });
     try {
-      await o.page.route('**/*.odk', async (route) => {
+      await o.page.route('**/*.{odk,odkz}', async (route) => {
         if (mode === 'missing') return route.fulfill({ status: 404, body: 'not found' });
         await new Promise((r) => setTimeout(r, 2500));
         return route.continue();

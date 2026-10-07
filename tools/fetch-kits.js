@@ -1,11 +1,15 @@
 // Fetch and build the sampled kits (kernel data: docs/DEVICES.md, "Kernel data"). The audio stays out of git: this
 // downloads the pinned upstream files (by commit), checks each one's SHA-256, decodes them (tools/flac.js, held to each
 // file's own MD5), trims and converts them the same way every time, and writes the .odk container to app/kits/
-// (gitignored), named by the SHA-256 of its bytes. deploy/deploy.sh uploads app/kits/.
+// (gitignored), named by the SHA-256 of its bytes, and beside it the packed transfer copy, <hex>.odkz (kernel/odkz.js:
+// lossless, about two thirds the size once gzipped; the studio fetches it first and unpacks it back to the .odk).
+// deploy/deploy.sh uploads app/kits/.
 //
 //   node tools/fetch-kits.js            fetch and build every kit a device names; fails unless the build is the pinned one
-//   node tools/fetch-kits.js --check    say whether the pinned kit is here (and is its own hash), build nothing:
-//                                       exit 0 here, 1 missing or wrong
+//                                       (a pinned kit already here is not rebuilt: only its .odkz is written again)
+//   node tools/fetch-kits.js --rebuild  build every kit from its upstream files even when it is here
+//   node tools/fetch-kits.js --check    say whether each pinned kit is here (and is its own hash) with its .odkz (which
+//                                       unpacks to it), build nothing: exit 0 here, 1 missing or wrong
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
 //
@@ -18,12 +22,14 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { decodeFlac } from './flac.js';
 import { encodeOdk, dataFile } from '../app/src/kernel/odk.js';
+import { packOdk, unpackOdk } from '../app/src/kernel/odkz.js';
+import zlib from 'node:zlib';
 import { KIT_HASH } from '../app/src/devices/builtin/drumkit.js';
 import { RECIPE as KIT_RECIPE } from './kits/virtuosity.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const KITS = path.join(ROOT, 'app', 'kits');
+const KITS_DIR = path.join(ROOT, 'app', 'kits');
 const CACHE = path.join(HERE, '.out', 'kits-cache');
 const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
@@ -126,35 +132,61 @@ async function build(recipe) {
   return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames, outFrames };
 }
 
-async function main() {
-  const check = process.argv.includes('--check'), verify = process.argv.includes('--verify');
-  const file = path.join(ROOT, 'app', dataFile(KIT_HASH));
+// the packed twin of an .odk (kernel/odkz.js), written beside it; returns its size and both gzipped sizes
+function writePacked(file, bytes) {
+  const z = packOdk(bytes);
+  fs.writeFileSync(file + 'z', z);
+  const gz = (b) => zlib.gzipSync(b, { level: 9 }).length;
+  return { odk: bytes.length, odkz: z.length, gzOdk: gz(bytes), gzOdkz: gz(z) };
+}
+const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
+const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
+
+// every kit a device names: [recipe, the hash the device pins, how it's built]
+const KITS = [[KIT_RECIPE, KIT_HASH, build]];
+
+async function one(recipe, pinned, make, { check, verify, rebuild }) {
+  const file = path.join(ROOT, 'app', dataFile(pinned));
   if (check) {
-    const here = fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === KIT_HASH;
-    console.log(`${KIT_RECIPE.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)})`);
-    if (!here) process.exitCode = 1;
-    return;
+    const here = fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === pinned;
+    let packed = false;
+    try { packed = here && 'sha256-' + sha256(unpackOdk(fs.readFileSync(file + 'z'))) === pinned; } catch (e) { /* missing or bad */ }
+    console.log(`${recipe.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)}), .odkz ${packed ? 'here' : 'missing or wrong'}`);
+    return here && packed ? 0 : 1;
   }
-  console.log(`${KIT_RECIPE.name}: ${KIT_RECIPE.repo} at ${KIT_RECIPE.commit.slice(0, 12)} (${KIT_RECIPE.licence})`);
+  console.log(`${recipe.name}: ${recipe.repo} at ${recipe.commit.slice(0, 12)} (${recipe.licence})`);
   if (verify) {
     OFFLINE = true;
     let r;
-    try { r = await build(KIT_RECIPE); } catch (e) { console.log('  ' + e.message); process.exitCode = e.code === 'NOCACHE' ? 2 : 1; return; }
-    console.log(r.hash === KIT_HASH ? `  ok rebuilt from the cache: ${r.hash}, the pinned kit` : `  FAIL rebuilt ${r.hash}; the device pins ${KIT_HASH}`);
-    process.exitCode = r.hash === KIT_HASH ? 0 : 1;
-    return;
+    try { r = await make(recipe); } catch (e) { console.log('  ' + e.message); return e.code === 'NOCACHE' ? 2 : 1; }
+    console.log(r.hash === pinned ? `  ok rebuilt from the cache: ${r.hash}, the pinned kit` : `  FAIL rebuilt ${r.hash}; the device pins ${pinned}`);
+    return r.hash === pinned ? 0 : 1;
   }
-  const r = await build(KIT_RECIPE);
-  fs.mkdirSync(KITS, { recursive: true });
+  if (!rebuild && fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === pinned) {
+    const s = writePacked(file, fs.readFileSync(file));
+    console.log(`  here already (${path.relative(ROOT, file)}): wrote its .odkz; ${sizes(s)}`);
+    return 0;
+  }
+  const r = await make(recipe);
+  fs.mkdirSync(KITS_DIR, { recursive: true });
   const outFile = path.join(ROOT, 'app', dataFile(r.hash));
   fs.writeFileSync(outFile, r.bytes);
-  const mb = (x) => (x / 1048576).toFixed(1) + ' MB';
-  console.log(`  ${r.count} samples, ${(r.outFrames / KIT_RECIPE.sr).toFixed(1)} s of stereo (trimming cut ${(100 * (1 - r.outFrames / r.inFrames)).toFixed(0)}%), ${mb(r.bytes.length)}`);
-  console.log(`  wrote ${path.relative(ROOT, outFile)}`);
-  if (r.hash !== KIT_HASH) {
-    console.log(`  FAIL the build is ${r.hash}; the device pins ${KIT_HASH}`);
-    process.exitCode = 1;
-  } else console.log('  ok the build is the pinned kit, byte for byte');
+  const s = writePacked(outFile, r.bytes);
+  console.log(`  ${r.count} samples, ${(r.outFrames / recipe.sr).toFixed(1)} s of stereo (trimming cut ${(100 * (1 - r.outFrames / r.inFrames)).toFixed(0)}%), ${mb(r.bytes.length)}; ${sizes(s)}`);
+  console.log(`  wrote ${path.relative(ROOT, outFile)} and its .odkz`);
+  if (r.hash !== pinned) {
+    console.log(`  FAIL the build is ${r.hash}; the device pins ${pinned}`);
+    return 1;
+  }
+  console.log('  ok the build is the pinned kit, byte for byte');
+  return 0;
+}
+
+async function main() {
+  const flags = { check: process.argv.includes('--check'), verify: process.argv.includes('--verify'), rebuild: process.argv.includes('--rebuild') };
+  let code = 0;
+  for (const [recipe, pinned, make] of KITS) code = Math.max(code, await one(recipe, pinned, make, flags));
+  process.exitCode = code;
 }
 
 main().catch((e) => { console.error('fetch-kits: ' + e.message); process.exitCode = 1; });

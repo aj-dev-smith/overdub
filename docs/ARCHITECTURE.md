@@ -70,8 +70,8 @@ overdub/
                          community.js (the one reader of a community shelf index: allow-list, types, URL policy) [shelf]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
                          worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
-                         odk.js + data.js (kernel data: the .odk container; fetched once, checked, kept in IndexedDB)  [dsp]
-  app/kits/              kernel data files, <sha256>.odk (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
+                         odk.js + odkz.js + data.js (kernel data: the .odk container, its packed transfer; fetched once, checked, kept in IndexedDB)  [dsp]
+  app/kits/              kernel data files, <sha256>.odk and its packed <sha256>.odkz (gitignored: tools/fetch-kits.js builds them; deploy uploads them)
   app/src/input/         pitch.js (YIN, pYIN), hum.js, tap.js, midi.js, qwerty.js, audioin.js (interface input) + cap-worklet.js (its capture processor),
                          onsets.js (each note's onset and pitch in a guitar's raw input, for the tab lane),
                          timing.js (forgiving time: the gentle grid, a take's steady lean, the pulse in free playing),

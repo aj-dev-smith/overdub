@@ -477,11 +477,18 @@ decoded, as <code>create({ sr, seed, dsp, data })</code>: <code>data.kit = { sr,
 small. <code>defineDevice</code> keeps only <code>{ name: 'sha256-&lt;hex&gt;' }</code> (up to four) and drops anything else in <code>data</code>.</li>
 <li><strong>The container is ours, and integer.</strong> <code>kernel/odk.js</code>: <code>'ODK1'</code>, a JSON header, then 16- or 24-bit PCM, planar,
 little-endian, at 48 kHz. Every engine reads the same integers, and <code>x / 32768</code> is exact anywhere, so a render is
-bit-exact everywhere. There's no <code>decodeAudioData</code>, which resamples by each browser's own method. The server
-gzips the file for transfer; the format itself is never compressed.</li>
+bit-exact everywhere. There's no <code>decodeAudioData</code>, which resamples by each browser's own method. The format
+itself is never compressed.</li>
+<li><strong>Packed for the trip.</strong> Beside each <code>.odk</code> sits <code>&lt;hex&gt;.odkz</code> (<code>kernel/odkz.js</code>): the same header, then each
+sample's second-order differences, zigzagged and split into a plane of high bytes and one of low bytes. It is
+lossless and gzips far better: Virtuosity Kit goes over the wire in 7.10 MB instead of 11.05. The studio fetches
+the <code>.odkz</code>, unpacks it and checks the rebuilt <code>.odk</code> against the hash, so the worklet, Node and the golden hashes
+never see it, and the pinned hash is still the <code>.odk</code>'s. A wrong byte fails that check: the studio says which file
+in the console and fetches the plain <code>.odk</code> instead, and without one the device plays nothing. Plain copies an
+earlier visit cached still load.</li>
 <li><strong>Loaded lazily, once.</strong> Nothing is fetched until a track uses the device (<code>kernel/host.js</code> asks when it builds an
 instance). <code>kernel/data.js</code> fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
-(<code>overdub-kits</code>, beside the audio assets), so the next visit never fetches it. Each audio context's worklet decodes
+(<code>overdub-kits</code>, beside the audio assets; the packed bytes, which are smaller), so the next visit never fetches it. Each audio context's worklet decodes
 it once: the first node that needs it carries the bytes, and every node after names the hash (a node whose hash
 arrives before those bytes do gets its kit when they land).</li>
 <li><strong>Nothing streams mid-render.</strong> An offline render (an export, the device check, the preview) waits for the file
@@ -497,9 +504,10 @@ its name (<code>inst:core.drumkit#&lt;12 hex&gt;</code>) and its entry pins the 
 scene, never a moved one.</li>
 <li><strong>The audio stays out of git.</strong> <code>node tools/fetch-kits.js</code> downloads the pinned upstream files (by commit, each
 checked by SHA-256, with the upstream licence checked too), decodes them with <code>tools/flac.js</code> (held to each file's
-MD5), trims and converts them in integer arithmetic, and writes the <code>.odk</code>. The same files always build the same
-bytes: <code>--verify</code> rebuilds from the download cache and compares. <code>deploy/deploy.sh</code> refuses to deploy unless every
-kit the shipped devices name is in <code>app/kits/</code> and is its own hash, and uploads them, gzipped and cached for good
+MD5), trims and converts them in integer arithmetic, and writes the <code>.odk</code> and its <code>.odkz</code>. The same files always
+build the same bytes: <code>--verify</code> rebuilds from the download cache and compares. <code>deploy/deploy.sh</code> refuses to deploy
+unless every kit the shipped devices name is in <code>app/kits/</code>, is its own hash and has an <code>.odkz</code> that unpacks to it,
+and uploads both, gzipped and cached for good
 (<code>immutable</code>: a file named by its hash never changes), before the code that names them. Without the kit, the tests that need it skip
 it and say so.</li>
 </ul>
