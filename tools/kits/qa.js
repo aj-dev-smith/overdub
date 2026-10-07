@@ -128,7 +128,8 @@ export function qaInstrument(rows, waive = [], { drums = false } = {}) {
   const spans = [];
   for (const rs of by.values()) if (rs.length > 1) { rs.sort((a, b) => a.layer - b.layer); spans.push(rs[rs.length - 1].qa.attack - rs[0].qa.attack); }
   let v9 = peaks.size === 1 ? 'review' : spans.every((s) => s >= 0) ? 'accept' : 'reject';
-  let w9 = `every file peaks at ${[...peaks].join(' / ')} dBFS: peak-normalized, so the recorded levels are gone (hard minus soft attack, ${spans.length} notes with both: ${Math.min(...spans).toFixed(1)} to ${Math.max(...spans).toFixed(1)} dB)`;
+  const span = spans.length ? `hard minus soft attack, ${spans.length} notes with both: ${Math.min(...spans).toFixed(1)} to ${Math.max(...spans).toFixed(1)} dB` : 'one layer: nothing to compare';
+  let w9 = peaks.size === 1 ? `every file peaks at ${[...peaks][0]} dBFS: peak-normalized, so the recorded levels are gone (${span})` : `the recorded levels kept (peaks ${Math.min(...[...peaks].map(Number)).toFixed(1)} to ${Math.max(...[...peaks].map(Number)).toFixed(1)} dBFS; ${span})`;
   if (drums) {
     // a kit: each piece's layers (the mean attack level of their strokes) climb, soft to hard, and span 10 dB or more
     const per = [];

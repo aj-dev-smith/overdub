@@ -304,9 +304,10 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's four sampled
-  instruments; the others are Parlour Upright (`core.upright`), a real upright piano
-  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's five sampled
+  instruments; the others are Parlour Upright (`core.upright`, a real upright piano) and Full Stick (`core.grand`, a
+  real concert grand) ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and
+  Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
 - **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would
@@ -580,6 +581,27 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 
 `samplerKernel(opts)` in `app/src/devices/builtin/sampler.js` plays one. A device is that kernel, its params
 (`samplerParams()`) and a kit hash; Upright (`core.upright`) is the first.
+
+| device | kit | recipe |
+|---|---|---|
+| Parlour Upright (`core.upright`) | FreePats Upright Piano KW: 2 layers, 66 zones, the source's own SFZ | `tools/kits/upright-kw.js` |
+| Full Stick (`core.grand`) | Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB | `tools/kits/salamander.js` |
+
+**Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
+Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,
+tune, trig`) and `tools/kits/build.js` builds them. A recipe also says:
+
+- **`cut`**: where each note ends. A level (`db` dBFS, or `rel` dB under its own attack) or a length by register
+  (`cap`), whichever comes first, then a squared fade, so a note cut for size dies a little early instead of stopping.
+- **`level`**: `'flat'` puts every sample on one smooth curve across the keys, and the kit's `velcurve` makes the
+  dynamics; `'key'` keeps the layers' recorded distance. **`align`** lines each layer's start up with the next layer
+  of its key, for the kernel's `'aligned'` crossfade.
+- **`loop`**: a sustain loop for each note, found by searching for the loop whose two ends match best, with the
+  crossfade baked into the samples (check 14 of the QA rubric reads it).
+- **`channels: 1`** stores the mid of a stereo source.
+
+Every build runs the QA rubric (`tools/kits/qa.js`) and writes `tools/.out/library/<name>/qa.json`; a check that fails
+ships only with a written waiver in the recipe.
 
 - **Pitch by resampling**, through a 16-tap Kaiser-windowed sinc with 512 phases. The table is built in `create()`
   from `+ - * /` and `sqrt` alone (its own sine and Bessel series), so it is the same numbers on every engine. A

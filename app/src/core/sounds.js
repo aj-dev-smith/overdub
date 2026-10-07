@@ -30,12 +30,12 @@ export const SOUND_SETS = {
   played: {
     category: 'keys',
     rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.wavetable', 'Synth'), row('core.mallets', 'Mallets')],
-    fallbacks: [row('core.brass', 'Brass'), row('core.piano', 'Piano'), row('core.pluck', 'Pluck')],
+    fallbacks: [row('core.grand', 'Piano'), row('core.brass', 'Brass'), row('core.piano', 'Piano'), row('core.pluck', 'Pluck')],
   },
   chords: {
     category: 'keys',
     rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.pad', 'Pad'), row('core.strings', 'Strings')],
-    fallbacks: [row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
+    fallbacks: [row('core.grand', 'Piano'), row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
   },
   bass: {
     category: 'bass',

@@ -399,6 +399,16 @@
       "data": {
         "kit": "sha256-a449e40fb8b4140342b680823a4d0fbcfae079e2baf03d286b17f2b1cfec1ec7"
       }
+    },
+    "inst:core.grand#15cab44d1405": {
+      "sha256": "0aeefdea9e9953da93ae4d2d538e648e0ec23a40e552822eadc5b6b447506276",
+      "frames": 864000,
+      "lufs": -16.79,
+      "truePeak": -1.88,
+      "peak": -1.88,
+      "data": {
+        "kit": "sha256-15cab44d14055d312f55e04bee8f54ca1cc99d6bc8e78ba9f1c1cb34a73eb58e"
+      }
     }
   }
 }
