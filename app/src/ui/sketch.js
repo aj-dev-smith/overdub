@@ -1072,6 +1072,8 @@ function mount(el, app) {
     head.replaceChildren(blurbEl);
     body.replaceChildren(); foot.replaceChildren();
     body.dataset.mode = m;
+    // a new way in starts at its top: the ways in, its line and its grid (a scroll left from the last one hid the ways in)
+    if (scroll.scrollTop) scroll.scrollTop = 0;
     view = (m === 'hum' ? humView : m === 'tap' ? tapView : m === 'play' ? playView : recView)();
     // (Tap it and Hum it: the beat band is the head's line, the blurb's place)
     if (view.band) { blurbEl.replaceWith(view.band); view.band.title = blurb; }
@@ -2350,7 +2352,8 @@ const CSS = `
 /* the first-visit explainer covers the roll; its caption waits underneath until the mic is open */
 .sk-explain ~ .sk-cap { display: none; }
 .sk-narrow { display: none; }
-@container sketch (max-width: 1000px) { .sk-wide { display: none; } .sk-narrow { display: inline; } }
+/* (the footer is the sheet less the Takes column: under 1200 px of sheet the long labels wrap Keep onto a row of its own) */
+@container sketch (max-width: 1200px) { .sk-wide { display: none; } .sk-narrow { display: inline; } }
 .sk-acts[hidden] { display: none; }
 .sk-destwrap .sk-select { max-width: 160px; }
 .sk-destwrap:empty { display: none; }
@@ -2534,7 +2537,7 @@ const CSS = `
 .sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap { flex: none; min-height: 0; }
 .sk.sk-split[data-mode="tap"] .sk-body > .sk-rollwrap > .sk-cv { flex: none; height: 76px; }   /* (four 14.75 px rows under a 14 px band of bar numbers; a pass's line goes under it) */
 .sk.sk-split[data-mode="tap"] .sk-padcol { gap: 4px; }
-.sk.sk-split[data-mode="tap"] .sk-pad { min-height: 48px; justify-content: center; }
+.sk.sk-split[data-mode="tap"] .sk-pad { min-height: 44px; justify-content: center; }   /* (44: a thumb's target, and the ways in, the line, the grid and the pads fit over the pinned row with a take's Keep row under them) */
 .sk.sk-split[data-mode="tap"] .sk-pad small { display: none; }
 /* the line a take records onto, on a phone: over the pads (or the dial), in record ink while it records */
 .sk.sk-split .sk-body > .sk-recnote { flex: none; font-size: 13px; line-height: 1.35; color: var(--text-2); }

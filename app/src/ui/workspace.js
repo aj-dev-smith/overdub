@@ -126,10 +126,11 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   const has = (id) => view === 'full' || !known(id) || added[id] != null;
   const hidden = () => (view === 'full' ? [] : FEATURES.filter((f) => added[f.id] == null).map((f) => f.id));
 
-  // the simple view's stylesheet (generated only for it) and the root's classes
-  if (view === 'simple') css('workspace-off', FEATURES.map((f) => `.ws-off-${f.id} [data-feature~="${f.id}"] { display: none !important; }`).join('\n'));
+  // the simple view's stylesheet (generated only once something opens it: ?view=simple, or setView) and the root's
+  // classes
   css('workspace', WS_CSS);
   function apply() {
+    if (view === 'simple') css('workspace-off', FEATURES.map((f) => `.ws-off-${f.id} [data-feature~="${f.id}"] { display: none !important; }`).join('\n'));
     for (const c of [...html.classList]) if (c.startsWith('ws-')) html.classList.remove(c);
     html.classList.add(view === 'full' ? 'ws-full' : 'ws-simple');
     for (const id of hidden()) html.classList.add('ws-off-' + id);
@@ -139,10 +140,10 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   // Find sits at the end of the top bar. While the agent pane is open on a wide screen it sits at the end of that
   // pane's tab row (ui.wsSide) instead, so the top bar keeps its room (at 1280 px it pushes out the title, Loop, the
   // meter and Redo); with the pane closed it comes back to the top bar. From 641 to 900 px the agent is a sheet that
-  // is mostly closed, so Find stays in the top bar. A phone's top bar has no room left (Find would take a row of its
-  // own): it is the first row of the Song menu there, and sits at the end of the agent sheet's tab row. The simple
-  // view keeps it, and Full studio, in the top bar.
-  const NARROW = window.matchMedia?.('(max-width: 900px)'), PHONE_W = window.matchMedia?.('(max-width: 640px)');
+  // is mostly closed, so Find stays in the top bar. A phone's top bar, upright or on its side, has no room left (Find
+  // would take a row of its own, or push Stop out): it is a row of the Song menu there, and sits at the end of the
+  // agent sheet's tab row. The simple view keeps it, and Full studio, in the top bar.
+  const NARROW = window.matchMedia?.('(max-width: 900px)'), PHONE_W = window.matchMedia?.('(max-width: 640px), (max-height: 500px) and (max-width: 900px)');
   function placeButtons() {
     const side = view === 'full' && ui.wsSide && (PHONE_W?.matches || (ui.isOpen?.('right') && !NARROW?.matches));
     const host = side ? ui.wsSide : box;
