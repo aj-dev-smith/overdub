@@ -13,7 +13,7 @@
 # NEXT_DISTRIBUTION (the preview's distribution id).
 #
 #   deploy/next/github-oidc.sh                          needs AWS credentials for the Overdub account (AWS_PROFILE=overdub)
-#   BRANCHES="main next" deploy/next/github-oidc.sh     the branches whose runs may deploy (default: main next)
+#   BRANCHES=main deploy/next/github-oidc.sh            the branches whose runs may deploy (default: main, the one ci.yml deploys)
 #   DRY_RUN=1 deploy/next/github-oidc.sh                prints the plan, calls nothing that changes anything
 set -euo pipefail
 export AWS_DEFAULT_REGION=us-east-1 AWS_REGION=us-east-1 AWS_PAGER=""
@@ -23,7 +23,7 @@ BUCKET=next.overdubstudio.com
 HERE=$(cd "$(dirname "$0")" && pwd)
 DIST=${NEXT_DISTRIBUTION:-$(cat "$HERE/../.next-distribution-id" 2>/dev/null || true)}
 [ -n "$DIST" ] || { echo "no distribution id: set NEXT_DISTRIBUTION, or write it to deploy/.next-distribution-id"; exit 1; }
-BRANCHES=${BRANCHES:-main next}
+BRANCHES=${BRANCHES:-main}
 ISSUER=token.actions.githubusercontent.com
 DRY=${DRY_RUN:-}
 TMP=$(mktemp -d)

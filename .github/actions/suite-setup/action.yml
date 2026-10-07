@@ -1,0 +1,48 @@
+# What the suite needs that the repo doesn't carry (zero dependencies, no build), for both test jobs in ci.yml. Run it
+# after actions/checkout.
+name: suite setup
+description: Node from mise.toml, playwright-core and its browsers, and the sampled kits
+inputs:
+  previous-kit:
+    description: Also build the kit HEAD~1 names (analytics-test dry-runs deploy.sh --next HEAD~1; needs fetch-depth 2)
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+    - name: Cache the browsers playwright-core drives
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/Library/Caches/ms-playwright
+        key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
+
+    - name: Install playwright-core and its browsers (not saved to package.json)
+      shell: bash
+      run: |
+        npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
+        node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
+
+    - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: tools/.out/kits-cache
+        key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
+        restore-keys: kits-cache-
+
+    - name: Build the sampled kits this commit names
+      shell: bash
+      run: node tools/fetch-kits.js
+
+    - name: Build the sampled kits HEAD~1 names
+      if: inputs.previous-kit == 'true'
+      shell: bash
+      run: |
+        PREV="$RUNNER_TEMP/prev"
+        git worktree add --detach "$PREV" HEAD~1
+        mkdir -p "$PREV/tools/.out"
+        ln -s "$PWD/tools/.out/kits-cache" "$PREV/tools/.out/kits-cache"
+        (cd "$PREV" && node tools/fetch-kits.js)
+        cp -n "$PREV"/app/kits/*.odk app/kits/ || true
+        git worktree remove --force "$PREV"
+        ls -l app/kits

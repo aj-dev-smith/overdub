@@ -1,18 +1,21 @@
-# The full suite (node tools/run-all.js, in four shards) on every pull request and every push to main, and a staging deploy you start
-# by hand (Actions > ci > Run workflow, on main or next). Node comes from mise.toml, as it does locally.
+# The suite (node tools/run-all.js) on every pull request and every push to main, and on a push to main (a merge) whose
+# suite passes, a deploy of that commit to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the
+# same by hand; on any other branch it runs nothing. Node comes from mise.toml, as it does locally.
 #
 # macOS on Apple Silicon, on purpose: tools/golden.json was made on Apple Silicon with Node 24, and another V8 rounds
 # Math.exp/sin differently in the last bit (CLAUDE.md), so the golden renders only match there.
 #
-# The suite needs three things the repo doesn't carry (zero dependencies, no build):
+# The suite needs three things the repo doesn't carry (zero dependencies, no build), set up by
+# .github/actions/suite-setup:
 #   - playwright-core and its Chromium, WebKit and Firefox for the browser checks (tools/pw.js, compat-test), installed
 #     with --no-save;
 #   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files;
 #   - the kit HEAD~1 names as well: analytics-test dry-runs deploy.sh --next HEAD~1, and deploy.sh refuses a ref
 #     whose kit isn't built.
 # The deploy job reaches AWS through GitHub's OIDC token: no keys are stored anywhere. The role it assumes can only
-# write the next.overdubstudio.com bucket and invalidate its distribution (deploy/next/github-oidc.sh makes it). Its
-# ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE, NEXT_DISTRIBUTION), never committed.
+# write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
+# (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
+# NEXT_DISTRIBUTION), never committed.
 # Actions are pinned to a commit; the comment names the release.
 name: ci
 
@@ -23,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy to https://next.overdubstudio.com once the suite passes (main or next only)
+        description: Deploy to https://next.overdubstudio.com once the suite passes (main only)
         type: boolean
         default: true
 
@@ -31,19 +34,27 @@ permissions:
   contents: read
 
 concurrency:
-  # by event too, so a later push to the same branch can't replace a queued by-hand deploy
+  # by event too, so a by-hand run and a merge to main don't replace each other
   group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
+  # The real-time suites: they time things against the wall clock (count-in clicks, frame rates, tap tempo, timers,
+  # touch drags, the feedback guard, a 60 s render timeout, "Stop ends the turn at once"). They pass on a Mac but fail
+  # on GitHub's slow macOS VMs, a different few each run, even one suite at a time. So they run in the realtime job,
+  # which shows its result but blocks neither the merge nor the deploy; every other suite runs in the test job, which
+  # does. Whole file names, space-separated. Move a suite here only for timing failures, never a deterministic one.
+  REALTIME_SUITES: >-
+    agent-test.js arrange-test.js engine-test.js grooves-test.js input-test.js jam-test.js mcp-e2e-test.js
+    phone-test.js plugin-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # The suite is about 70 minutes of work one suite at a time, and its real-time checks (frame rates, tap tempo, live
-  # meters) fail when suites share a 3-vCPU runner. So it's split four ways: every *-test.js file lands in exactly one
-  # shard (round-robin by name), and each shard runs its suites one at a time.
+  # Every suite but the real-time ones, about 45 minutes one suite at a time, split four ways: each lands in exactly
+  # one shard (round-robin by name), and each shard runs its suites one at a time.
   test:
     name: test (${{ matrix.shard }}/4)
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: macos-15
     timeout-minutes: 45
     strategy:
@@ -56,50 +67,28 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
-
-      - name: Cache the Chromium playwright-core drives
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: ./.github/actions/suite-setup
         with:
-          path: ~/Library/Caches/ms-playwright
-          key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
-
-      - name: Install playwright-core and its browsers (not saved to package.json)
-        run: |
-          npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
-          node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
-
-      - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: tools/.out/kits-cache
-          key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
-          restore-keys: kits-cache-
-
-      - name: Build the sampled kits HEAD and HEAD~1 name
-        run: |
-          node tools/fetch-kits.js
-          PREV="$RUNNER_TEMP/prev"
-          git worktree add --detach "$PREV" HEAD~1
-          mkdir -p "$PREV/tools/.out"
-          ln -s "$PWD/tools/.out/kits-cache" "$PREV/tools/.out/kits-cache"
-          (cd "$PREV" && node tools/fetch-kits.js)
-          cp -n "$PREV"/app/kits/*.odk app/kits/ || true
-          git worktree remove --force "$PREV"
-          ls -l app/kits
+          previous-kit: true
 
       - name: This shard's suites (node tools/run-all.js <names>)
         env:
           SHARD: ${{ matrix.shard }}
           REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
-          PAR: 1           # one suite at a time: the real-time checks need the runner to themselves
+          PAR: 1           # one suite at a time, so timings measure the suite and not its neighbours
           # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
           # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
           CPU: 0
         run: |
-          # file names are unique and none contains another, so run-all's name filter picks exactly these
+          read -ra realtime <<< "$REALTIME_SUITES"
+          for f in "${realtime[@]}"; do
+            [ -f "tools/$f" ] || { echo "::error::REALTIME_SUITES names $f, which isn't in tools/"; exit 1; }
+          done
+          # run-all takes a whole file name as exactly that file
           names=()
-          while IFS= read -r f; do names+=("$f"); done < <(cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
+          while IFS= read -r f; do names+=("$f"); done < <(
+            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | grep -vxF -f <(printf '%s\n' "${realtime[@]}") \
+              | awk -v k="$SHARD" '(NR - 1) % 4 == k')
           echo "shard $SHARD: ${names[*]}"
           node tools/run-all.js "${names[@]}"
 
@@ -108,6 +97,39 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tools-out-${{ matrix.shard }}
+          path: |
+            tools/.out/
+            !tools/.out/kits-cache/
+          retention-days: 7
+
+  # The real-time suites (REALTIME_SUITES), one at a time. continue-on-error, and neither suite nor deploy-staging
+  # needs it: its result is there to read, not to gate on.
+  realtime:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/suite-setup
+
+      - name: The real-time suites (node tools/run-all.js <names>)
+        env:
+          REQUIRE_ALL: 1
+          PAR: 1
+          CPU: 0
+        run: |
+          read -ra realtime <<< "$REALTIME_SUITES"
+          node tools/run-all.js "${realtime[@]}"
+
+      - name: Keep the screenshots and reports when it fails
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tools-out-realtime
           path: |
             tools/.out/
             !tools/.out/kits-cache/
@@ -126,10 +148,11 @@ jobs:
 
   deploy-staging:
     needs: test
-    # the role trusts only these branches (deploy/next/github-oidc.sh, BRANCHES)
+    # a merge to main, or a by-hand run on main that asked for it; the role trusts main only
+    # (deploy/next/github-oidc.sh, BRANCHES)
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.deploy
-      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next')
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -168,7 +191,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: us-east-1
 
-      - name: Deploy to https://next.overdubstudio.com (the suite already passed in the test job)
+      - name: Deploy to https://next.overdubstudio.com (the test job already passed)
         run: |
           echo "$NEXT_DISTRIBUTION" > deploy/.next-distribution-id
           deploy/deploy.sh --skip-tests --next "$GITHUB_SHA"
