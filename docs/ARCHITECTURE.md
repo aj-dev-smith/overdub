@@ -88,7 +88,8 @@ overdub/
                          (Messages API via the local server's key), prompt.js, mock.js (the demo agent),
                          lexicon.js + lexicon-personal.js, panel.js (chat UI), history.js, presence.js, diff.js,
                          keep.js (a song from a link: what waits for Keep), bridge.js (page side of MCP),
-                         remote.js (page side of the relay)                                             [agent layer]
+                         remote.js (page side of the relay), cloud.js, cloud-kind.js, cloud-panel.js (Claude
+                         on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
   tools/                 pw.js (browser harness, fixed), <area>-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
   deploy/                setup.sh (one time), deploy.sh (ships the committed tree), relay/, analytics/
@@ -1375,6 +1376,39 @@ self-hoster's own API key (provider `'claude'`): the server holds `OVERDUB_ANTHR
 from the shell), adds it and the API version to the page's Messages API request, and streams the answer back;
 `/local/status` says `key: true` when one is set, never the key. The page keeps no key: `overdub:anthropic-key`, the
 old in-browser key, is deleted on load and noted once (`overdub:agent:key-retired`). The public site has no `/local/`.
+
+**Claude on Overdub credits** (provider `'cloud'`; built, not switched on): Claude run by Overdub's own service and
+paid for with credits, for people without a Claude of their own. It's off unless the deploy names the service in
+`app/site-config.json` (gitignored; `app/src/site-config.js` reads it once per load, `server/serve.js` answers it from
+`OVERDUB_CLOUD_ORIGIN` when there's no file, `deploy/deploy.sh` ships `deploy/site-config.json` or `{}`); `?cloud=`
+points a local studio at a local service only. No prices live here: the rate card, plans and packs come from the
+service's `GET /v1/config`.
+
+- `agent/cloud.js` (`app.agent.cloud`) is the account: the sign-in (an email link, or its 6-digit code in a tab the
+  link wasn't opened in; the tab polls `/v1/me` while it waits), the balance, top up, credits back, where the credits
+  went, deleting the account. Every request is `credentials: 'include'`; the session is an httpOnly cookie on the
+  service's origin. `canonicalBundle` and `bundleVersion` give the prompt bundle's version, the same on both sides.
+- `agent/claude.js` decides the provider in this order: the demo agent if it's on, Claude Code if chosen, a server
+  key, then credits only if the person chose them (`overdub:agent-provider`). An ask on credits is
+  `POST /v1/agent/actions { kind, moreTime, promptVersion }` (one `Idempotency-Key` per Send), then one
+  `…/calls` per step of the tool loop (the first sends a text-only recap of the last two exchanges and the opening
+  message, each later one only `{ toolResults }`; the service holds the conversation and builds the request), then
+  `…/finish { outcome, cardPending, deviceWritten }`. The tools run in the page, signed `claude`; a `…/wait`
+  heartbeat keeps an ask open while it waits on the person. Only `503 upstream_busy` and a retryable
+  `502 upstream_error` (or the same as an error event mid-stream) are retried, twice at most, with the same body.
+  The page keeps which History entries each ask made (`overdub:cloud:takes`) and asks for its credits back when all
+  of them are undone (or its card is declined, or its device still fails its check) inside the window finish gave.
+- **The send gate.** While credits are on, nothing opens an ask until its price was on screen for that exact text:
+  `agent.quote(text)` names the kind (`agent/cloud-kind.js classify`, open rules) and its price from the rate card,
+  the panel shows it beside Send ("A new part · N credits ▾", the ▾ lists the other kinds) and marks it
+  `agent.shown(quote)`; `agent.send` with anything else emits `quote` and returns. A suggestion, the tour's ask or a
+  move offered in the log lands in the box with its price and needs a second press. A quick move typed as one word
+  ("warmer", "make it brighter") or "use <device>" by its exact name (`freeMove`) runs in the page, free, signed
+  `you`, and is never sent.
+- `agent/cloud-panel.js` draws it in the Agent tab: a row in settings, the sign-in sheet, the balance in the presence
+  line, out of credits (Top up and Use your own Claude, the same size), paused, top up, the account.
+- `tools/agent-bundle.js` exports the bundle (`{ version, source, system, tools }`) from a running studio for the
+  service to import; `tools/cloud-test.js` runs all of this against a fake of the service.
 
 **Remote MCP** ([REMOTE-MCP.md](REMOTE-MCP.md)): `server/relay.js` is the hosted relay for
 overdub-relay.ajsmithhq.com. It serves MCP Streamable HTTP at `/s/<token>/mcp` to claude.ai and hands calls to the tab

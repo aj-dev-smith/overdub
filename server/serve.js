@@ -56,6 +56,15 @@ export function byteRange(header, size) {
   return [start, end];
 }
 
+// The deploy's switches (app/src/site-config.js). With no app/site-config.json in the checkout, the studio's hosted
+// agent is off ({}), unless OVERDUB_CLOUD_ORIGIN names a service to try it against (a local overdub-cloud, say):
+// `OVERDUB_CLOUD_ORIGIN=http://localhost:8787 node server/serve.js`. Read on each request, so a test can set it.
+function siteConfig(res) {
+  const api = String(process.env.OVERDUB_CLOUD_ORIGIN || '').trim();
+  res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(api ? { cloud: { api } } : {}));
+}
+
 export function startServer({ port = Number(process.env.PORT) || 3279, host = '127.0.0.1', quiet = false } = {}) {
   const server = http.createServer(async (req, res) => {
     try {
@@ -65,6 +74,7 @@ export function startServer({ port = Number(process.env.PORT) || 3279, host = '1
       }
       const url = new URL(req.url, 'http://localhost');
       for (const r of routes) if (url.pathname.startsWith(r.prefix) && (await r.handler(req, res, url))) return;
+      if (url.pathname === '/app/site-config.json' && !fs.existsSync(path.join(ROOT, 'app/site-config.json'))) return siteConfig(res);
       const abs = resolvePath(url.pathname);
       if (!abs || !fs.existsSync(abs) || fs.statSync(abs).isDirectory()) {
         res.writeHead(404, { 'content-type': 'text/plain' });

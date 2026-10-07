@@ -21,6 +21,19 @@ the agent asking before it takes anything out of a song from a link.
   address, like the bridge, and the server binds to 127.0.0.1; on a public address anyone who reaches it spends the
   key. A key that happens to be in the shell (`ANTHROPIC_API_KEY`) is never used, and is dropped from Claude Code's
   environment.
+- **The hosted agent, off in this repo.** Claude on Overdub credits (Claude run by Overdub's own service, paid for
+  with credits, for people without a Claude of their own) is built and not switched on. A deploy names the service in
+  `app/site-config.json`, which is never committed (`app/src/site-config.js`); with none, as here, in a fork and on
+  a self-hosted copy, the studio shows nothing of it and asks no cloud origin anything. Where it's on, it runs only
+  once the person chooses it and signs in, and a Claude of their own always comes first. While an ask runs, the
+  person's words and what the agent's tools read from the song go to the service and on to Anthropic; the service
+  holds the conversation in memory for that ask only, and keeps no prompts, songs or take ids, only what each ask
+  cost in credits and tokens. The sign-in is a session cookie, httpOnly on the service's own origin, so the page holds
+  no token; the browser keeps only the person's choice, which History entries each ask made (for credits back, so
+  the service never learns a take) and an 80% notice seen. The service owns the system prompt and the tools: the page
+  sends their version, never its own. `?cloud=` works only from a studio on this machine to a service on this machine,
+  so a link can't point anyone's song at another server; a checkout address from the service opens only if it's
+  `https:`. Nothing opens an ask before its price is on screen (`tools/cloud-test.js`).
 - **Their songs.** A song lives in the browser; a share link carries it in the URL hash, which never reaches a server.
 - **Their machine**, when they run the local server, the MCP server or the Node renderer.
 - **Who made what**: bylines, History and the provenance report.
@@ -55,7 +68,8 @@ runs; and text in a song written to steer an agent.
   in the head; `app/index.html` says why each allowance is there). Scripts come from the site itself, worklet modules
   included: each is a file there (`kernel/processor.js`, `devices/worklets/`, `vendor/clawd/worklets/`,
   `input/cap-worklet.js`), so no script comes from a `data:` or `blob:` URL (`blob:` stays in `worker-src` for the
-  engine's timer Worker). Connections go to the site and the relay (and loopback, for local work),
+  engine's timer Worker). Connections go to the site and the relay (and loopback, for local work; a deploy that
+  switches on the hosted agent adds its service, and the frame of its sign-in check),
   images to the site, `data:` and `blob:`, media to the site and `blob:`, and fonts and stylesheets to the site alone:
   the faces are files there (`app/style/fonts.css`, each family beside its licence), so no other host's CSS is on the
   studio's pages and no visitor's address goes to a font host, from any page. Inline scripts (but the

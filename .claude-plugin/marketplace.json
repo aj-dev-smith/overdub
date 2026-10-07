@@ -7,7 +7,7 @@
       "name": "overdub",
       "displayName": "Overdub",
       "source": "./",
-      "description": "Drive the Overdub studio from Claude Code: the Overdub MCP server (20 tools) and a skill for running a session (write parts, offer takes, build devices, measure the mix, turn a hum into a part).",
+      "description": "Drive the Overdub studio from Claude Code: the Overdub MCP server (38 tools) and a skill for running a session (write parts, offer takes, build devices, measure the mix, turn a hum into a part).",
       "author": { "name": "AJ Smith", "url": "https://ajsmithhq.com" },
       "homepage": "https://overdubstudio.com",
       "repository": "https://github.com/overdubstudio/overdub",

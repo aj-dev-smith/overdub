@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub architecture (v0.1 contracts)</a></h1>
-    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 93 min to read</p>
+    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 96 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other. This document is the contract every
 module is built against. If code and this document disagree, fix one of them in the same change.</p>
@@ -148,7 +148,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          (Messages API via the local server's key), prompt.js, mock.js (the demo agent),
                          lexicon.js + lexicon-personal.js, panel.js (chat UI), history.js, presence.js, diff.js,
                          keep.js (a song from a link: what waits for Keep), bridge.js (page side of MCP),
-                         remote.js (page side of the relay)                                             [agent layer]
+                         remote.js (page side of the relay), cloud.js, cloud-kind.js, cloud-panel.js (Claude
+                         on Overdub credits; off unless app/site-config.json names it)                  [agent layer]
   tools/                 pw.js (browser harness, fixed), &lt;area&gt;-test.js checks, run-all.js, render.js, bench/
   integrations/          the Claude Code plugin and skill, configs for other MCP clients, check.js
   deploy/                setup.sh (one time), deploy.sh (ships the committed tree), relay/, analytics/
@@ -1299,6 +1300,39 @@ self-hoster's own API key (provider <code>'claude'</code>): the server holds <co
 from the shell), adds it and the API version to the page's Messages API request, and streams the answer back;
 <code>/local/status</code> says <code>key: true</code> when one is set, never the key. The page keeps no key: <code>overdub:anthropic-key</code>, the
 old in-browser key, is deleted on load and noted once (<code>overdub:agent:key-retired</code>). The public site has no <code>/local/</code>.</p>
+<p><strong>Claude on Overdub credits</strong> (provider <code>'cloud'</code>; built, not switched on): Claude run by Overdub's own service and
+paid for with credits, for people without a Claude of their own. It's off unless the deploy names the service in
+<code>app/site-config.json</code> (gitignored; <code>app/src/site-config.js</code> reads it once per load, <code>server/serve.js</code> answers it from
+<code>OVERDUB_CLOUD_ORIGIN</code> when there's no file, <code>deploy/deploy.sh</code> ships <code>deploy/site-config.json</code> or <code>{}</code>); <code>?cloud=</code>
+points a local studio at a local service only. No prices live here: the rate card, plans and packs come from the
+service's <code>GET /v1/config</code>.</p>
+<ul>
+<li><code>agent/cloud.js</code> (<code>app.agent.cloud</code>) is the account: the sign-in (an email link, or its 6-digit code in a tab the
+link wasn't opened in; the tab polls <code>/v1/me</code> while it waits), the balance, top up, credits back, where the credits
+went, deleting the account. Every request is <code>credentials: 'include'</code>; the session is an httpOnly cookie on the
+service's origin. <code>canonicalBundle</code> and <code>bundleVersion</code> give the prompt bundle's version, the same on both sides.</li>
+<li><code>agent/claude.js</code> decides the provider in this order: the demo agent if it's on, Claude Code if chosen, a server
+key, then credits only if the person chose them (<code>overdub:agent-provider</code>). An ask on credits is
+<code>POST /v1/agent/actions { kind, moreTime, promptVersion }</code> (one <code>Idempotency-Key</code> per Send), then one
+<code>…/calls</code> per step of the tool loop (the first sends a text-only recap of the last two exchanges and the opening
+message, each later one only <code>{ toolResults }</code>; the service holds the conversation and builds the request), then
+<code>…/finish { outcome, cardPending, deviceWritten }</code>. The tools run in the page, signed <code>claude</code>; a <code>…/wait</code>
+heartbeat keeps an ask open while it waits on the person. Only <code>503 upstream_busy</code> and a retryable
+<code>502 upstream_error</code> (or the same as an error event mid-stream) are retried, twice at most, with the same body.
+The page keeps which History entries each ask made (<code>overdub:cloud:takes</code>) and asks for its credits back when all
+of them are undone (or its card is declined, or its device still fails its check) inside the window finish gave.</li>
+<li><strong>The send gate.</strong> While credits are on, nothing opens an ask until its price was on screen for that exact text:
+<code>agent.quote(text)</code> names the kind (<code>agent/cloud-kind.js classify</code>, open rules) and its price from the rate card,
+the panel shows it beside Send (&quot;A new part · N credits ▾&quot;, the ▾ lists the other kinds) and marks it
+<code>agent.shown(quote)</code>; <code>agent.send</code> with anything else emits <code>quote</code> and returns. A suggestion, the tour's ask or a
+move offered in the log lands in the box with its price and needs a second press. A quick move typed as one word
+(&quot;warmer&quot;, &quot;make it brighter&quot;) or &quot;use &lt;device&gt;&quot; by its exact name (<code>freeMove</code>) runs in the page, free, signed
+<code>you</code>, and is never sent.</li>
+<li><code>agent/cloud-panel.js</code> draws it in the Agent tab: a row in settings, the sign-in sheet, the balance in the presence
+line, out of credits (Top up and Use your own Claude, the same size), paused, top up, the account.</li>
+<li><code>tools/agent-bundle.js</code> exports the bundle (<code>{ version, source, system, tools }</code>) from a running studio for the
+service to import; <code>tools/cloud-test.js</code> runs all of this against a fake of the service.</li>
+</ul>
 <p><strong>Remote MCP</strong> (<a href="remote-mcp.html">REMOTE-MCP.md</a>): <code>server/relay.js</code> is the hosted relay for
 overdub-relay.ajsmithhq.com. It serves MCP Streamable HTTP at <code>/s/&lt;token&gt;/mcp</code> to claude.ai and hands calls to the tab
 over <code>/s/&lt;token&gt;/{hello,events,result}</code>. The tab side takes the tab's secret in a header (the token in the URL is a

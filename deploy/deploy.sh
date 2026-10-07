@@ -21,6 +21,9 @@ for f in AGENTS ARCHITECTURE DEVICES UX-RESEARCH VISION BRAND REMOTE-MCP GUIDE B
   git cat-file -e "$REF:docs/$f.md" 2>/dev/null && DOCS="$DOCS docs/$f.md"
 done
 git archive "$REF" site app $DOCS | tar -x -C "$STAGE"
+# The deploy's switches (app/src/site-config.js), never committed: deploy/site-config.json when there is one, else {}
+# (the hosted agent off). The studio reads it once per load.
+if [ -f "$ROOT/deploy/site-config.json" ]; then cp "$ROOT/deploy/site-config.json" "$STAGE/app/site-config.json"; else echo '{}' > "$STAGE/app/site-config.json"; fi
 echo "staging $(git rev-parse --short "$REF"): $(find "$STAGE" -type f | wc -l | tr -d ' ') files"
 
 up() { aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --exclude '*' "$@"; }

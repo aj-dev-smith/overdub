@@ -11,3 +11,7 @@ tools/.out/
 # Deploy ids for this account (deploy/env.example lists them; setup.sh writes .distribution-id)
 deploy/.env
 deploy/.distribution-id
+
+# The deploy's switches (app/src/site-config.js): the hosted agent's origin, never committed
+app/site-config.json
+deploy/site-config.json

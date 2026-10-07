@@ -26,7 +26,7 @@ export const BEACON = '/app/e.gif';
 export const EVENTS = {
   open: ['demo', 'new', 'saved', 'device', 'link'],
   play: null,
-  agent: ['demo', 'local', 'mcp', 'claude.ai'],
+  agent: ['demo', 'local', 'mcp', 'claude.ai', 'hosted'],
   device: ['you', 'agent'],
   export: ['wav', 'stems', 'midi', 'song', 'log', 'device', 'video', 'other'],
   share: ['link', 'agent', 'fork', 'embed', 'file', 'post', 'other'],
@@ -119,7 +119,8 @@ export default function (app) {
   engine?.on?.('transport', (t) => { if (t && t.playing) count('play'); });
 
   // agents: each message you send the in-app one; an outside agent's first tool call
-  app.agent?.on?.('user', () => count('agent', app.agent.provider === 'mock' ? 'demo' : 'local'));
+  // (asks on Claude on Overdub credits count as 'hosted', never as the person's own Claude)
+  app.agent?.on?.('user', () => count('agent', app.agent.provider === 'mock' ? 'demo' : app.agent.provider === 'cloud' ? 'hosted' : 'local'));
   const outside = new Set();
   ui?.on?.('agent:tool', (d) => {
     if (!d || d.phase !== 'start' || typeof d.by !== 'string') return;

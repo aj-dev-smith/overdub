@@ -16,6 +16,8 @@ import { createAgent, MODELS } from './claude.js';
 import { moveOn } from './mock.js';
 import * as personal from './lexicon-personal.js';
 import { isLocalHost } from './bridge.js';
+import { cloudPanel } from './cloud-panel.js';
+import { HOSTED_NAME } from './cloud.js';
 
 const FEED_KEY = 'overdub:agent:feed:';
 const FEED_MAX = 140;
@@ -68,10 +70,13 @@ function mountPanel(el, app) {
   const sendBtn = h('button.btn.ag-send', { type: 'button', title: 'Send (Enter)', onclick: () => send() }, 'Send');
   const stopBtn = h('button.btn.btn-rec.ag-stop', { type: 'button', title: 'Stop (Esc)', 'aria-label': 'Stop the agent', onclick: () => agent.stop(), hidden: true }, icon('stop', { size: 12 }), h('span', 'Stop'));
   const hint = h('div.ag-hint', h('kbd', /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘/' : 'Ctrl /'), ' asks from anywhere, ', h('kbd', 'Enter'), ' sends, ', h('kbd', '⇧Enter'), ' new line');
-  const box = h('div.ag-box', ctxRow, h('div.ag-inrow', input, sendBtn, stopBtn));
+  // Claude on Overdub credits (agent/cloud-panel.js): only when the deploy names its service
+  const cu = cloudPanel({ app, agent, h, byline, input, grow, push, renderAll, renderHead, openOwn, useDemo, closeSettings: () => { showKey = false; held = false; } });
+  const box = h('div.ag-box', ctxRow, h('div.ag-inrow', input, sendBtn, stopBtn), cu.row);
   const heldEl = h('div.ag-held', { hidden: true, role: 'status', 'aria-live': 'polite' });
   const composer = h('div.ag-composer', statusEl, sugRow, heldEl, box, hint);
   el.append(head, feedEl, composer);
+  let lastAsk = '';               // what was last sent, for the box to get it back when credits stop it (sign in, top up)
 
   feedEl.addEventListener('scroll', () => { stickBottom = feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 30; });
 
@@ -114,10 +119,14 @@ function mountPanel(el, app) {
   // only add or remove the key card and the welcome; the entries stay the same nodes.
   function renderAll() {
     for (const x of [...feedEl.children]) if (x.matches('.ag-keycard, .ag-welcome')) x.remove();
+    // the hosted agent's sheet stays the same node while nothing on it changed, so a field keeps its focus and words
+    const cs = cu.sheet();
+    for (const x of [...feedEl.children]) if (x.matches('.ag-cl') && x !== cs) x.remove();
+    if (cs && feedEl.firstChild !== cs) feedEl.prepend(cs);
     const top = [];
     if (showKey || !agent.provider) top.push(keyCard());
-    if (!feed.length && agent.provider && !showKey) top.push(welcome());
-    feedEl.prepend(...top);
+    if (!feed.length && agent.provider && !showKey && !cs) top.push(welcome());
+    if (cs) cs.after(...top); else feedEl.prepend(...top);
     const keep = new Set(feed);
     for (const [e, n] of nodes) if (!keep.has(e)) { n.remove(); nodes.delete(e); }
     for (const e of feed) {
@@ -466,7 +475,8 @@ function mountPanel(el, app) {
       return h('div.ag-keycard.ag-kc-firstlook', ccLead, mcpLead, demoSec,
         h('div.ag-kc-own',
           h('button.btn.btn-txt.ag-link.ag-kc-ownbtn', { type: 'button', onclick: () => openOwn() }, 'Use your own Claude'),
-          h('p.ag-kc-small', `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)));
+          h('p.ag-kc-small', `A live model that reads every word, on your Claude plan: ${app.remote ? 'claude.ai through the Connect tab, or ' : ''}Claude Code.`)),
+        cu.setupRow(true));
     }
     // a self-hoster's own API key lives on the local server, never on this page (server/local-claude.js)
     const keySec = isLocalHost() ? h('div.ag-kc-sec.ag-kc-server',
@@ -482,6 +492,7 @@ function mountPanel(el, app) {
       cc || serverKey ? [h('div.ag-kc-label', 'Model'), models] : null,
       wordsList(),
       demoSec,
+      cu.setupRow(),
       // claude.ai (the web and the Claude apps) through the hosted relay: the Connect tab has the link and the steps
       app.remote ? h('div.ag-kc-sec.ag-kc-remote',
         h('p.head', 'claude.ai'),
@@ -541,8 +552,16 @@ function mountPanel(el, app) {
   function renderHead() {
     const pills = [];
     const p = agent.provider;
-    const how = p === 'mock' ? 'demo agent' : p === 'local' ? `${modelName(agent.model)} in Claude Code` : p ? modelName(agent.model) : 'no agent yet';
+    const how = p === 'mock' ? 'demo agent' : p === 'local' ? `${modelName(agent.model)} in Claude Code` : p === 'cloud' ? 'on credits' : p ? modelName(agent.model) : 'no agent yet';
     const st = agent.busy ? `${how}, ${app.presence?.waiting?.('claude') ? 'waiting for you' : 'working'}` : how;
+    // Claude on Overdub credits: the balance, in credits and in asks (no counter ticking during playback)
+    const ch = cu.head();
+    if (ch) {
+      pills.push(h(`button.ag-pill.ag-pill-cloud${agent.busy ? '.busy' : ''}`, { type: 'button', title: ch.title, onclick: () => cu.show(cu.view === 'account' ? null : 'account') }, h('span.ag-pill-dot'), byline('claude', { cap: true }), h('span', ch.words)));
+      for (const a of bridge.agents.filter((x) => x.connected)) pills.push(h(`span.ag-pill.mcp${a.status ? '.busy' : ''}`, { title: `${a.name} over MCP${a.status ? ': ' + a.status : ''}` }, h('span.ag-pill-dot'), byline(a.by || 'mcp:' + a.name, { app, name: a.name }), h('span', a.status ? (app.presence?.waiting?.(a.by) ? 'waiting for you' : 'working') : 'over MCP')));
+      who.replaceChildren(...pills);
+      return;
+    }
     pills.push(h(`button.ag-pill${agent.busy ? '.busy' : ''}${p ? '' : '.off'}`, { type: 'button', title: p ? `Claude in this tab (${p === 'mock' ? 'scripted demo' : modelName(agent.model)}): settings` : 'Choose an agent to talk to here', onclick: () => { showKey = !showKey; renderAll(); } }, h('span.ag-pill-dot'), byline('claude', { cap: true }), h('span', st)));
     if (p === 'local' && agent.plan) pills.push(planLine(agent.plan));
     for (const a of bridge.agents.filter((x) => x.connected)) pills.push(h(`span.ag-pill.mcp${a.status ? '.busy' : ''}`, { title: `${a.name} over MCP${a.status ? ': ' + a.status : ''}` }, h('span.ag-pill-dot'), byline(a.by || 'mcp:' + a.name, { app, name: a.name }), h('span', a.status ? (app.presence?.waiting?.(a.by) ? 'waiting for you' : 'working') : 'over MCP')));
@@ -608,6 +627,7 @@ function mountPanel(el, app) {
     statusEl.replaceChildren(...(s ? [h('span.ag-lamp'), h('span', s)] : []));
     statusEl.classList.toggle('on', !!s);
     renderHeld();
+    cu.update();
   }
   function grow() { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; }
 
@@ -637,7 +657,7 @@ function mountPanel(el, app) {
   // Claude Code on (or off); what's in the box goes to it as typed
   function useLocal(on) {
     agent.useLocal(on); showKey = false; held = false;
-    push({ k: 'note', kind: on ? 'agent' : 'ok', text: on ? `Claude Code is on: ${modelName(agent.model)}, on this computer, on your Claude plan.${input.value.trim() ? '' : ' Ask it something.'}` : `Claude Code is off.${agent.provider === 'claude' ? ` Your server’s API key is back: ${modelName(agent.model)}.` : ''}` });
+    push({ k: 'note', kind: on ? 'agent' : 'ok', text: on ? `Claude Code is on: ${modelName(agent.model)}, on this computer, on your Claude plan.${input.value.trim() ? '' : ' Ask it something.'}` : `Claude Code is off.${agent.provider === 'claude' ? ` Your server’s API key is back: ${modelName(agent.model)}.` : agent.provider === 'cloud' ? ` ${HOSTED_NAME} is back.` : ''}` });
     renderAll(); input.focus();
     if (on && input.value.trim() && !agent.busy) send();
   }
@@ -656,11 +676,16 @@ function mountPanel(el, app) {
       held = true; renderHeld(); input.focus();
       return;
     }
+    // Claude on Overdub credits: a free move runs here; otherwise sign in first, and the price is on screen before it goes
+    if (agent.provider === 'cloud' && cu.gate(text) !== 'go') return;
     const scope = contextOff ? '' : scopeLabel(app);
     const ctx = scope ? contextText(scope) : null;
+    lastAsk = text;
     input.value = ''; grow();
     contextOff = false;
-    await agent.send(text, { context: ctx, scope });
+    const going = agent.send(text, { context: ctx, scope });   // (it takes the price shown before anything else)
+    cu.sent();
+    await going;
   }
   // until the agent's turn is over (or ms pass)
   function idle(ms) {
@@ -693,7 +718,7 @@ function mountPanel(el, app) {
       if (k) { e.preventDefault(); e.stopPropagation(); k.run(e); }
     }
   });
-  input.addEventListener('input', () => { grow(); renderHeld(); });
+  input.addEventListener('input', () => { grow(); renderHeld(); cu.update(); });
 
   // The in-browser API key is gone: agent/claude.js deleted one this browser had saved. loadFeed() adds the note to the
   // open song's feed until it is dismissed; its text is built when it draws, so the Connect tab (app.remote, set up after
@@ -737,8 +762,13 @@ function mountPanel(el, app) {
     turnLive = false;
     saveFeed();
   }));
-  offs.push(agent.on('error', ({ message, retrying, code }) => {
+  offs.push(agent.on('error', (e) => {
+    const { message, retrying, code } = e;
     if (retrying) return;
+    // Claude on Overdub credits: an ask stopped before it ran (sign in, out of credits, paused, a limit) goes back in
+    // the box, and the sheet answers what it can
+    if (e.cloud && ['not_signed_in', 'insufficient_credits', 'hosted_paused', 'trial_paused', 'daily_limit', 'rate_limited', 'prompt_version_unknown'].includes(code) && !input.value.trim() && lastAsk) { input.value = lastAsk; grow(); cu.update(); }
+    if (cu.onError(e)) return;
     push({ k: 'note', text: message, kind: 'bad', action: code === 'noagent' || code === 'badkey' ? 'key' : null });
   }));
   offs.push(agent.on('status', () => renderComposer()));

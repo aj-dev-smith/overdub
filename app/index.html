@@ -22,6 +22,10 @@
        - connect-src http://localhost:* http://127.0.0.1:* : a relay on this machine (?relay=, which the studio honours
          only when it is itself on localhost; tools/relay-test.js, node server/relay.js). A meta policy can't depend on
          the host, so the live site carries these two as well, but nothing there connects to them.
+       - Not here yet: a deploy that switches on Claude on Overdub credits (app/site-config.json, app/src/site-config.js)
+         adds its service's origin to connect-src and to frame-src (the sign-in's bot check is a frame of the
+         service's own page). Without it the studio asks no cloud origin anything; on a local studio the loopback
+         entries above already let it reach a local service.
        tools/compat-test.js checks that a session raises no violation in each browser, and tools/relay-test.js that
        connect-src names RELAY. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
