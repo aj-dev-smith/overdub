@@ -64,7 +64,8 @@ overdub/
                          bypass, glide, the PFX kit), worklets/ (the kit's END and envelope follower modules),
                          guitar/ (ported pedals, amps, cabs, rigs)                                     [guitar]
                          builtin/ (Overdub's own kernels: synths, drums, pluck, bass, eq, comp, verb...;
-                         wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
+                         wavetables.js is Light Table's tables, which its kernel embeds and its face imports;
+                         akwf.js the AKWF single cycles they carry),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
                          community.js (the one reader of a community shelf index: allow-list, types, URL policy) [shelf]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
@@ -408,9 +409,10 @@ and `quantum` (a window control's smallest step); DEVICES.md, "Params that aren'
 
 **Data a kernel and the page share.** A kernel sees only `dsp`, so a device whose face draws the same data its
 sound plays keeps that data in one self-contained function and embeds the function's source in its kernel. Light
-Table (`core.wavetable`) does this with its wavetables (`devices/builtin/wavetables.js`, `lightTables()`): the kernel
-evaluates `(${lightTables})()` and builds the tables lazily in the worklet, and the page imports the same function to
-draw them, so the editor shows exactly what plays. Its design note, with the param map its editor works from, is
+Table (`core.wavetable`) does this with its wavetables (`devices/builtin/wavetables.js`, `lightTables(bank)`): the
+kernel evaluates `(${lightTables})(bank)` and builds the tables lazily in the worklet, and the page imports the same
+function to draw them, so the editor shows exactly what plays. The bank (`akwf.js`, 108 recorded single cycles, CC0)
+is a literal in the kernel's source, packed so the kernel stays under its 256 KB. Its design note, with the param map its editor works from, is
 `docs/research/LIGHT-TABLE.md`.
 
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack

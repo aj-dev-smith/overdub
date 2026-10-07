@@ -2,7 +2,8 @@
 // them; a wavetable is a strip of single-cycle frames.) docs/research/LIGHT-TABLE.md is the design note: the engine,
 // the param map an editor and an agent work from, the tables, the CPU numbers and what the editor wave builds.
 //
-//   OSC A, OSC B  a table from wavetables.js (14, built in code: the kernel and the page share lightTables), POS
+//   OSC A, OSC B  a table from wavetables.js (14 built in code, then 12 of recorded AKWF single cycles, nine each:
+//                 the kernel and the page share lightTables, and the kernel carries the bank in its source), POS
 //                 morphing between its 49 frames, a WARP (SYNC, BEND, PW, MIRROR, FM from the other oscillator) with
 //                 its amount, UNISON 1-8 with DETUNE, BLEND and SPREAD, OCT / SEMI / FINE, LEVEL and PAN. Each frame
 //                 is held at 11 band limits and the oscillator reads the one whose top harmonic stays under the
@@ -27,7 +28,8 @@
 // preset. tools/wavetable-test.js holds it to all of this.
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
-import { lightTables, TABLE_NAMES } from './wavetables.js';
+import { lightTables, TABLE_NAMES, AKWF_FAMILIES } from './wavetables.js';
+import { AKWF } from './akwf.js';
 
 // Switch options. Songs store indexes: append new options at the end, never reorder.
 export const WARPS = ['OFF', 'SYNC', 'BEND', 'PW', 'MIRROR', 'FM'];
@@ -53,13 +55,22 @@ export const DEST_SCALE = {
   DRIVE: 'the drive\'s travel (global: the newest note\'s value)', 'CHORUS MIX': 'the mix\'s travel (global)', 'DELAY MIX': 'the mix\'s travel (global)', 'VERB MIX': 'the mix\'s travel (global)',
 };
 
+// the tables built in code come first (14); the AKWF families follow them in the switch
+const BUILT_IN = TABLE_NAMES.length - AKWF_FAMILIES.length;
+// The AKWF library as get_device lists it (library: a family or a wave's name): every wave with the two params that play it
+export const LIBRARY = {
+  about: `AKWF (Adventure Kid Waveforms, CC0): ${AKWF_FAMILIES.reduce((n, f) => n + f.waves.length, 0)} recorded single cycles in ${AKWF_FAMILIES.length} families, a table each. A wave plays on osc A with its params; for osc B use b_table and b_pos. Between two waves POS morphs`,
+  groups: AKWF_FAMILIES.map((f) => ({ name: f.label, table: f.table, count: f.waves.length })),
+  items: AKWF_FAMILIES.flatMap((f) => f.waves.map((name, i) => ({ name, group: f.label, params: { a_table: f.table, a_pos: +(i / (f.waves.length - 1)).toFixed(6) } }))),
+};
+
 /* ------------------------------------------------------------------------------------------------ the params */
 const P = [];
 const sw = (key, label, opts, def, role, desc) => P.push({ key, label, opts, def, role, desc });
 const kn = (key, label, min, max, def, role, desc, x = {}) => P.push({ key, label, min, max, def, role, desc, ...x });
 function osc(o, d) {
   const O = o.toUpperCase(), K = o + '_';
-  sw(K + 'table', `${O} TABLE`, TABLE_NAMES, d.table, 'shape', `osc ${O}'s wavetable: ${TABLE_NAMES.join(', ')} (what each sounds like: docs/research/LIGHT-TABLE.md)`);
+  sw(K + 'table', `${O} TABLE`, TABLE_NAMES, d.table, 'shape', `osc ${O}'s wavetable: ${TABLE_NAMES.slice(0, BUILT_IN).join(', ')} (built in code; what each sounds like: docs/research/LIGHT-TABLE.md), then ${TABLE_NAMES.slice(BUILT_IN).join(', ')} (recorded single cycles from AKWF, nine a table: POS i/8 plays wave i exactly, between them it morphs)`);
   kn(K + 'pos', `${O} POS`, 0, 1, d.pos, 'shape', 'where in the table: 0 is the first frame, 1 the last; it morphs smoothly between');
   sw(K + 'warp', `${O} WARP`, WARPS, 0, 'shape', `bends the wave: SYNC (hard sync up to 8x), BEND (the cycle pushed to its middle), PW (squeezed into a shorter pulse), MIRROR (played forward then back), FM (phase-modulated by osc ${O === 'A' ? 'B' : 'A'}, even at its level 0)`);
   kn(K + 'warp_amt', `${O} WARP AMT`, 0, 1, 0, 'depth', 'how far the warp bends it (0 is the plain wave)');
@@ -136,7 +147,7 @@ const Q_LIT = '{ ' + P.map((q) => `${q.key}: ${q.def}`).join(', ') + ' }';
 const Q_LOAD = P.map((q) => `Q.${q.key} = P.${q.key};`).join(' ');
 
 const BODY = String.raw`
-const LT = (${lightTables})();
+const LT = (${lightTables})(${JSON.stringify(AKWF)});
 const F = LT.F, FS = LT.FS, MN = LT.MN, MO = LT.MO, TB = LT.TABLES;
 const CR = 16;                            // modulation and coefficients every 16 samples, ramped between
 const SYNC_BEATS = [0, 0.125, 1 / 6, 0.25, 0.375, 1 / 3, 0.5, 0.75, 2 / 3, 1, 1.5, 2, 3, 4, 8, 16];
@@ -1536,9 +1547,10 @@ export default defineDevice({
   id: 'core.wavetable', name: 'Light Table', kind: 'instrument', cat: 'synth', by: 'overdub',
   editor: 'wavetable',
   blurb: 'Wavetable synth: two morphing tables, a filter, mod matrix',
-  nod: 'the modern software wavetable synth: two oscillators scanning tables of single-cycle frames, warped, stacked in unison and modulated freely',
+  nod: 'the modern software wavetable synth: two oscillators scanning tables of single-cycle frames, warped, stacked in unison and modulated freely; the AKWF tables are Adventure Kid Waveforms by Kristoffer Ekstrand (CC0)',
   params: PARAMS,
   presets: PRESETS,
+  library: LIBRARY,
   look: { color: '#1d2a33', ink: '#ece6d6', shape: 'rack', finish: 'brushed', knob: 'black', label: 'plate', led: '#fff1cc' },
   tail: 8,
   kernel: kernel(BODY),

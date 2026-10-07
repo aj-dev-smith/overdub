@@ -46,7 +46,7 @@
 
 import { h, css, clamp } from '../dom.js';
 import { popover, gestureLabel } from '../rack.js';
-import { lightTables } from '../../devices/builtin/wavetables.js';
+import { tables, AKWF_FAMILIES } from '../../devices/builtin/wavetables.js';
 import {
   SOURCES, DESTS, FILTERS, LFO_SYNCS, DEST_TARGETS, warpCycle, filterResponse, cutoffAt, driveCurve,
   envSegment, envAt, lfoShape, lfoFree, lfoHz, unisonVoices, modMatrix,
@@ -73,8 +73,25 @@ const MARKS = [
   [[0, 'clarinet'], [1, 'oboe']],
   [[0, '12.5%'], [1 / 3, '25%'], [2 / 3, '50%'], [1, '4-bit']],
 ];
+// the AKWF families (recorded single cycles, after the 14 built in code): a few words, and the first, middle and last
+// waves as landmarks
+const AKWF_BY_T = new Map();
+for (const f of AKWF_FAMILIES) {
+  AKWF_BY_T.set(f.t, f);
+  WORDS[f.t] = `AKWF ${f.label.toLowerCase()}, recorded`;
+  const n = f.waves.length - 1;
+  MARKS[f.t] = [[0, f.waves[0]], [Math.round(n / 2) / n, f.waves[Math.round(n / 2)]], [1, f.waves[n]]];
+}
+// an AKWF table's wave at POS x: its name when POS sits on it, else the two it is between
+function waveAt(t, x) {
+  const f = AKWF_BY_T.get(t);
+  if (!f) return null;
+  const n = f.waves.length - 1, q = clamp(x, 0, 1) * n, i = Math.round(q);
+  if (Math.abs(q - i) < 1e-6) return { name: f.waves[i], at: i };
+  return { name: `${f.waves[Math.floor(q)]} to ${f.waves[Math.ceil(q)]}`, at: -1 };
+}
 let LTS = null;
-const LT = () => (LTS ||= lightTables());
+const LT = () => (LTS ||= tables());
 const FR = 49, VIEW_N = 128, SRC_N = 256, HI_N = 1024;
 // every frame of a table at n points (LT.frames: a few milliseconds a table, so each is built once a page)
 const framesCache = new Map();
@@ -103,6 +120,8 @@ function thumbFrames(t) {
   if (!thumbCache.has(t)) { const out = []; for (let i = 0; i <= 8; i++) out.push(LT().frame(t, i / 8, 64)); thumbCache.set(t, out); }
   return thumbCache.get(t);
 }
+// an AKWF wave's thumbnail: its one cycle at 64 points (the family's thumbnail frames are its nine waves)
+const waveThumb = (t, i) => thumbFrames(t)[Math.round(i * 8 / (AKWF_BY_T.get(t).waves.length - 1))];
 
 /* ================================================================ sources and destinations */
 const spaced = (s) => String(s).replace(/^(ENV|LFO)(\d)/, '$1 $2');
@@ -239,6 +258,9 @@ export function mount(el, ctx) {
       return `${SRC_WORD[src]} → ${DEST_WORD[dst]}, ${dst ? amountWords(dst, amt) : pct(amt)}`;
     }
     if (keys.length > 3) return `${keys.length} controls`;
+    // a wave from the AKWF library: its table and POS, said as the wave
+    const wo = /^([ab])_table$/.exec(keys[0])?.[1];
+    if (keys.length === 2 && wo && keys[1] === `${wo}_pos`) { const w = waveAt(patch[keys[0]] | 0, patch[keys[1]]); if (w) return `osc ${wo.toUpperCase()} on ${w.name}`; }
     let head = null;
     return keys.map((k) => {
       const v = patch[k], sp = p(k);
@@ -888,10 +910,10 @@ export function mount(el, ctx) {
     st.pickBtn.replaceChildren(h('span.lt-pick-n', tname), h('span.lt-pick-w', WORDS[t]));
     st.pickBtn.setAttribute('aria-label', `${name} osc ${st.O} table: ${tname}, ${WORDS[t]}. Choose a table`);
     st.pickBtn.title = LT().TABLES[t].desc;
-    const f = Math.round(pos * 48) + 1;
-    st.where.textContent = `frame ${f} of ${FR}`;
+    const f = Math.round(pos * 48) + 1, w = waveAt(t, pos);
+    st.where.textContent = w ? `${w.name} · frame ${f} of ${FR}` : `frame ${f} of ${FR}`;
     st.view.el.setAttribute('aria-valuenow', String(+(+pos).toFixed(4)));
-    st.view.el.setAttribute('aria-valuetext', `frame ${f} of ${FR}, ${tname}`);
+    st.view.el.setAttribute('aria-valuetext', `frame ${f} of ${FR}, ${tname}${w ? ', ' + w.name : ''}`);
     st.quiet.hidden = !(P[`${o}_level`] <= 0);
     st.sec.classList.toggle('lt-silent', P[`${o}_level`] <= 0);
   }
@@ -900,8 +922,8 @@ export function mount(el, ctx) {
   let picker = null;
   function openPicker(st) {
     if (picker) { picker.close(); return; }
-    const key = `${st.o}_table`, cur = P[key] | 0;
-    const items = LT().TABLES.map((tb, i) => {
+    const key = `${st.o}_table`, posKey = `${st.o}_pos`, cur = P[key] | 0;
+    const items = LT().TABLES.slice(0, LT().TABLES.length - AKWF_FAMILIES.length).map((tb, i) => {
       const th = cv({ className: 'lt-thumb', label: '' });
       th.el.setAttribute('aria-hidden', 'true'); th.el.removeAttribute('role');
       th.set({ draw: (g, sz) => drawThumb(i, g, sz) });
@@ -922,11 +944,62 @@ export function mount(el, ctx) {
       items[j].b.focus();
     });
     st.pickBtn.setAttribute('aria-expanded', 'true');
-    picker = popover(st.pickBtn, h('div.lt-picker', h('p.lt-picker-h', `Osc ${st.O}: a table`), grid), { className: 'lt-pop', label: `Osc ${st.O}'s table`, onClose: () => { st.pickBtn.setAttribute('aria-expanded', 'false'); for (const x of items) x.th.destroy(); picker = null; } });
-    picker.items = items;
-    items[cur].b.focus({ preventScroll: true });
+    // the AKWF library: its families (the upstream folders, named plainly), then the family's waves, each drawn
+    const lib = akwfLibrary(st, key, posKey);
+    picker = popover(st.pickBtn, h('div.lt-picker', h('p.lt-picker-h', `Osc ${st.O}: a table`), grid, lib.el), { className: 'lt-pop', label: `Osc ${st.O}'s table`, onClose: () => { st.pickBtn.setAttribute('aria-expanded', 'false'); for (const x of items) x.th.destroy(); lib.destroy(); picker = null; } });
+    picker.items = items; picker.lib = lib;
+    (items[cur] ? items[cur].b : lib.focusEl()).focus({ preventScroll: true });
     // thumbnails build a few a frame, so opening never stalls
-    thumbQueue = items.map((x, i) => [i, x.th]);
+    thumbQueue = items.map((x, i) => [i, x.th]).concat(lib.queue());
+  }
+  // The library under the tables: a row of families, and the chosen family's waves, each a button that plays it (the
+  // family's table and the POS that lands on the wave). Opens on the family playing, else the first.
+  function akwfLibrary(st, key, posKey) {
+    const curT = P[key] | 0, playing = waveAt(curT, P[posKey]);
+    let fam = AKWF_BY_T.get(curT) || AKWF_FAMILIES[0], waves = [];
+    const famBtns = AKWF_FAMILIES.map((f) => h('button.lt-fam', { type: 'button', 'aria-pressed': String(f === fam), dataset: { t: String(f.t) }, title: LT().TABLES[f.t].desc, onclick: () => show(f, true) }, f.label));
+    const famRow = h('div.lt-fams', { role: 'group', 'aria-label': 'AKWF families' }, famBtns);
+    const wgrid = h('div.lt-waves', { role: 'listbox', 'aria-label': `Osc ${st.O}: AKWF waves` });
+    wgrid.addEventListener('keydown', (e) => {
+      const i = waves.findIndex((x) => x.b === document.activeElement);
+      if (i < 0) return;
+      const cols = phone() ? 3 : 5;
+      const d = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+      const j = d != null ? clamp(i + d, 0, waves.length - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? waves.length - 1 : null;
+      if (j == null) return;
+      e.preventDefault(); e.stopPropagation();
+      waves.forEach((x, k) => { x.b.tabIndex = k === j ? 0 : -1; });
+      waves[j].b.focus();
+    });
+    function show(f, focus = false) {
+      for (const x of waves) x.th.destroy();
+      fam = f;
+      famBtns.forEach((b) => { const on = +b.dataset.t === f.t; b.setAttribute('aria-pressed', String(on)); b.classList.toggle('sel-print', on); });
+      const n = f.waves.length - 1, sel = (P[key] | 0) === f.t && playing ? playing.at : -1;
+      waves = f.waves.map((wname, i) => {
+        const th = cv({ className: 'lt-wthumb', label: '' });
+        th.el.setAttribute('aria-hidden', 'true'); th.el.removeAttribute('role');
+        th.set({ draw: (g, sz) => drawWave(f.t, i, g, sz) });
+        const on = i === sel;
+        const b = h('button.lt-wave' + (on ? '.sel-print' : ''), { type: 'button', role: 'option', 'aria-selected': String(on), tabindex: on || (sel < 0 && i === 0) ? 0 : -1, title: `${wname}: AKWF ${f.label.toLowerCase()}, POS ${+(i / n).toFixed(3)}`,
+          onclick: () => { picker?.close(); put({ [key]: f.t, [posKey]: i / n }); } }, th.el, h('span', wname));
+        return { b, th };
+      });
+      wgrid.replaceChildren(...waves.map((x) => x.b));
+      if (focus) { thumbQueue = thumbQueue.concat(queue()); (waves.find((x) => x.b.tabIndex === 0) || waves[0]).b.focus({ preventScroll: true }); }
+    }
+    const queue = () => [[fam.t, null]].concat(waves.map((x) => [fam.t, x.th]));
+    show(fam);
+    const el = h('div.lt-lib', h('p.lt-picker-h', 'AKWF single cycles ', h('small', 'Adventure Kid Waveforms, CC0')), famRow, wgrid);
+    return { el, queue, destroy: () => { for (const x of waves) x.th.destroy(); }, focusEl: () => (waves.find((x) => x.b.tabIndex === 0) || waves[0]).b, show: (t) => show(AKWF_BY_T.get(t)), waves: () => waves, fams: famBtns };
+  }
+  function drawWave(t, i, g, { w, h: hh }) {
+    g.fillStyle = INK.ground; g.fillRect(0, 0, w, hh);
+    if (!thumbCache.has(t)) return;
+    const fr = waveThumb(t, i);
+    g.beginPath();
+    for (let k = 0; k <= fr.length; k++) { const x = 3 + (w - 6) * k / fr.length, y = hh / 2 - fr[k % fr.length] * (hh / 2 - 4); if (k) g.lineTo(x, y); else g.moveTo(x, y); }
+    g.strokeStyle = INK.ink; g.lineWidth = 1.25; g.stroke();
   }
   let thumbQueue = [];
   function drawThumb(t, g, { w, h: hh }) {
@@ -1545,7 +1618,7 @@ export function mount(el, ctx) {
       if (patch.y > r.bottom - 28) el.scrollTop += 8; else if (patch.y < r.top + 28) el.scrollTop -= 8;
     }
     // the picker's thumbnails, a few a frame
-    if (thumbQueue.length) { const t1 = performance.now(); while (thumbQueue.length && performance.now() - t1 < 4) { const [t, th] = thumbQueue.shift(); thumbFrames(t); th.dirty(); } }
+    if (thumbQueue.length) { const t1 = performance.now(); while (thumbQueue.length && performance.now() - t1 < 4) { const [t, th] = thumbQueue.shift(); thumbFrames(t); th?.dirty(); } }
     const ms = performance.now() - t0;
     acc += ms; tally_('frame', ms);
   }
@@ -1815,6 +1888,19 @@ const CSS = `
 .lt-opt-t b { font: 700 12px/1.1 var(--font-ui); letter-spacing: .02em; }
 .lt-opt-t small { font: 400 11px/1.25 var(--font-ui); color: var(--text-3); }
 .lt-opt.sel-print small { color: var(--bg); }
+/* the AKWF library: the families as a row of small chips, the family's waves as a grid of drawn cycles */
+.lt-lib { margin-top: 10px; padding-top: 8px; border-top: var(--rule); }
+.lt-lib .lt-picker-h small { font-weight: 400; color: var(--text-3); }
+.lt-fams { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+.lt-fam { min-height: 28px; padding: 3px 8px; border: 1px solid var(--line, var(--text-3)); border-radius: var(--r-press); background: none; color: var(--text-2); font: 600 11.5px/1 var(--font-ui); cursor: pointer; }
+.lt-fam:hover { color: var(--text); background: var(--bg-2); }
+.lt-fam.sel-print { border-color: var(--text); }
+.lt-fam:focus-visible, .lt-wave:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.lt-waves { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.lt-wave { display: grid; gap: 2px; justify-items: center; min-height: 44px; padding: 4px; border: 0; border-radius: var(--r-press); background: none; color: var(--text-2); font: 500 10.5px/1.1 var(--font-mono, var(--font-ui)); cursor: pointer; }
+.lt-wave:hover { background: var(--bg-2); color: var(--text); }
+.lt-wave.sel-print:hover { background: var(--text); }
+.lt-wave canvas { display: block; width: 100%; max-width: 96px; height: 30px; }
 /* the phone's section tabs (on a phone only) */
 .lt-ptabs { display: none; }
 /* a narrower window: the second band wraps under the sub and noise */
@@ -1892,6 +1978,8 @@ const CSS = `
 .pw-phone .lt-macros { gap: 8px; }
 .pw-phone .lt-perf-s { font-size: 12px; }
 .pw-phone .lt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pw-phone .lt-waves { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pw-phone .lt-fam { min-height: 44px; }
 .pw-phone .lt[data-tab="mod"] .lt-mxs { display: block; }
 .pw-phone .lt[data-tab="mod"] .lt-fx, .pw-phone .lt[data-tab="mod"] .lt-voice, .pw-phone .lt[data-tab="fx"] .lt-mxs { display: none; }
 .pw-phone .lt[data-tab="fx"] .lt-fx, .pw-phone .lt[data-tab="fx"] .lt-voice { display: flex; flex-wrap: wrap; gap: 14px 28px; margin-bottom: 18px; }

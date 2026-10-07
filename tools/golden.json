@@ -362,6 +362,13 @@
       "data": {
         "kit": "sha256-e590dc685420513ebec06fc8ddaa233d8f2db7535f9c5245c38468dd18ef8eac"
       }
+    },
+    "inst:core.wavetable:akwf": {
+      "sha256": "04d84733c4176c173512e78a534c23a7c0caa3cdc4c70a4818b509be0f07dd8f",
+      "frames": 864000,
+      "lufs": -16.82,
+      "truePeak": -3.86,
+      "peak": -3.86
     }
   }
 }

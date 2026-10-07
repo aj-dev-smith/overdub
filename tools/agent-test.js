@@ -758,6 +758,15 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
       && lt.presets.length >= 20 && lt.presets.every((x) => x.name && x.blurb && !x.changes) && /preset: "<name>"/.test(lt.preset_hint || '') && full.presets.every((x) => x.changes) && full.params.length === 114
       && ![...lines, ...full.params].some((l) => /docs\/|research\//.test(l)),
     `node: get_device on Light Table is ${ltSize} chars (it was 33 KB: the mod slots and LFOs told once, presets by name and blurb), detail "full" ${fullSize}, no repo paths`);
+    // Light Table's AKWF library: the families, a family's waves with their params, one picked and played by name
+    const fams = await run(app, 'get_device', { id: 'core.wavetable', library: '' }), voice = await run(app, 'get_device', { id: 'core.wavetable', library: 'human voice' }), noLib = await run(app, 'get_device', { id: 'core.wavetable', library: 'zzqx' });
+    const pickA = voice.waves && voice.waves[2];
+    if (pickA) await run(app, 'apply_ops', { label: 'a wave', ops: [{ type: 'instrument.set', track: 'Arp', params: pickA.params }] });
+    const arp = app.store.get().tracks.find((x) => x.name === 'Arp'), ip = arp.instrument.params;
+    t.ok(/AKWF/.test(lt.library_hint || '') && fams.families?.length === 12 && /^Human voice \(AKWF VOICE\): hvoice_\d{4}/.test(fams.families[1]) && voice.waves?.length === 9 && pickA.params.a_table === 'AKWF VOICE' && pickA.params.a_pos === 0.25
+      && ip.a_table === LT.params.find((q) => q.key === 'a_table').opts.indexOf('AKWF VOICE') && ip.a_pos === 0.25 && noLib.error && /Human voice/.test(noLib.hint || ''),
+    `node: get_device lists Light Table's AKWF library (${fams.families?.length} families; "human voice" gives ${voice.waves?.length} waves), and a wave's params play it (${pickA && pickA.name}: table ${ip.a_table}, POS ${ip.a_pos})`);
+    await run(app, 'apply_ops', { label: 'back', ops: [{ type: 'instrument.set', track: 'Arp', params: { a_table: 'BASIC', a_pos: 0.62 } }] });
     const synth = await run(app, 'list_devices', { cat: 'synth' }), one = await run(app, 'list_devices', { query: 'wavetable' }), gtr = await run(app, 'list_devices', { cat: 'guitar' }), none = await run(app, 'list_devices', { query: 'zzqx' });
     t.ok(JSON.stringify(synth).length < 8000 && /core\.wavetable "Light Table"/.test(synth.devices) && /get_device gives one device's params/.test(synth.hint || '') && JSON.stringify(one).length < 12000 && /\[also m\{2-8\}_src/.test(one.devices)
       && /core\.guitar "DI Box"/.test(gtr.devices || '') && /no device is filed under "guitar"; these mention it\. The categories: instrument synth: \d+/.test(gtr.note || '') && none.devices === 'none match' && /instrument synth/.test(none.categories || ''),

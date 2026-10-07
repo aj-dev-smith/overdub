@@ -479,12 +479,13 @@ worked example of three things a big kernel needs. The design note, with every p
 
 - **Data the page and the kernel share.** A kernel sees only `dsp`. So when a face needs the same data as the sound,
   put the data in one self-contained function (no imports, nothing from the module's scope) and paste the function's
-  source into the kernel: `const LT = (${lightTables})();`. The page imports the same function
+  source into the kernel: `const LT = (${lightTables})(bank);`, with any data it needs as a literal (the AKWF bank,
+  packed to keep the kernel under 256 KB). The page imports the same function
   (`app/src/devices/builtin/wavetables.js`) to draw what plays. `tools/wavetable-test.js` checks that the kernel
   carries it verbatim.
 - **Big data, built lazily.** The tables are built in the worklet. The frames nearest the playing position are built
   first, at once, and the rest four a block, so changing a table never holds the audio thread. Each instance holds
-  14.1 MB.
+  14.9 MB.
 - **Many params.**
   - **Keys** are grouped by prefix: `a_*`, `b_*`, `sub_*`, `noise_*`, `flt_*`, `env1_*`, `lfo1_*`, `m1_*`, `macro1`,
     `fx_*` and `voice_*`. Each has a role and a desc.
@@ -494,8 +495,11 @@ worked example of three things a big kernel needs. The design note, with every p
 
 To drive it, as an agent or by hand:
 - **Start from a preset.** Each preset's blurb opens with its family, as in "Bass: a Reese, …".
-- **Pick a table.** `a_table` is a switch over 14 tables. `list_devices` with `detail: "params"` lists them, and the
+- **Pick a table.** `a_table` is a switch over 26 tables: 14 built in code, then 12 of recorded single cycles from
+  AKWF (Adventure Kid Waveforms, CC0), nine waves each. `list_devices` with `detail: "params"` lists them, and the
   design note says what each sounds like. `a_pos` moves through the table.
+- **Pick a wave.** `get_device` with `library: ""` lists the AKWF families and their waves; `library: "<family or
+  wave>"` gives each one's params (`{ "a_table": "AKWF VOICE", "a_pos": 0.25 }`): wave i of a family is at POS i/8.
 - **Wire a mod slot.** Slot n is `mn_src` (an index into `SOURCES`), `mn_dst` (an index into `DESTS`) and `mn_amt`,
   from −1 to 1.
   - The amount is in the destination knob's travel. At CUTOFF, 1 is 10 octaves, so 0.1 is an octave. PITCH is 24

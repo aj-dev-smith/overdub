@@ -36,7 +36,7 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table and Virtuosity Kit;
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
   Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but one: Virtuosity Kit plays a real jazz-club kit
-  from samples.
+  from samples. (Light Table's AKWF tables are recorded too: 108 single cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
@@ -126,11 +126,17 @@ AJ's earlier synthesis experiments (Karplus-Strong strings, modal drums, tube am
 on the house kit at Virtuosity Musical Instruments, Boston (CC0 1.0; the samples at commit `9f04cf9`, listed in
 `tools/kits/virtuosity.js`).
 
+Light Table's AKWF tables play 108 single cycles from [AKWF](https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE)
+(Adventure Kid Waveforms) by Kristoffer Ekstrand (CC0 1.0; the files at commit `8de90bf`, each listed with its
+SHA-256 in `tools/kits/akwf.js`).
+
 ## Licence
 
 MIT: see [LICENSE](LICENSE). The fonts in `app/style/fonts/` are under the SIL Open Font License, each with its
 `OFL.txt`. The kit samples `tools/fetch-kits.js` fetches aren't in this repository; they are CC0 1.0 (public domain
-dedication), and the tool checks the upstream LICENSE before it builds them.
+dedication), and the tool checks the upstream LICENSE before it builds them. The AKWF single cycles in
+`app/src/devices/builtin/akwf.js` are in it, also CC0 1.0; `tools/akwf-bank.js` checks the upstream LICENSE.md and
+every file's SHA-256 when it rebuilds them.
 
 ## Contributing
 
