@@ -355,10 +355,11 @@ on any character; 0 (KIT) is each character's own, as before.</li>
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
 <li><strong>Virtuosity Kit</strong> (<code>core.drumkit</code>): a real jazz-club kit, recorded through a pair of overheads and played from
-samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's five sampled
+samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's six sampled
 instruments; the others are Parlour Upright (<code>core.upright</code>, a real upright piano), Full Stick (<code>core.grand</code>, a real
-concert grand), Rosin (<code>core.ensemble</code>, a real string section) and Damper Bar (<code>core.vibes</code>, a real vibraphone)
-(<a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits</a>).</li>
+concert grand), Rosin (<code>core.ensemble</code>, a real string section), Damper Bar (<code>core.vibes</code>, a real vibraphone) and
+Roundwound (<code>core.ebass</code>, a real five-string bass) (<a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic
+kits</a>).</li>
 </ul>
 <p><strong>Cymbal models.</strong> Gobo Kit and Studio A take <code>cym_model</code> (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
@@ -546,6 +547,7 @@ kit parses exactly as before, under the same format string:</p>
 <tr><td>Full Stick (<code>core.grand</code>)</td><td>Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB</td><td><code>tools/kits/salamander.js</code></td></tr>
 <tr><td>Rosin (<code>core.ensemble</code>)</td><td>VSCO 2 CE: four string sections' sustains, 15 zones, 2 layers, looped</td><td><code>tools/kits/vsco-strings.js</code></td></tr>
 <tr><td>Damper Bar (<code>core.vibes</code>)</td><td>VCSL Vibraphone: 11 bars, soft and hard mallets, 4 layers</td><td><code>tools/kits/vcsl-vibes.js</code></td></tr>
+<tr><td>Roundwound (<code>core.ebass</code>)</td><td>Karoryfer Black And Blue Basses, dark black: 14 zones, 4 layers, 2 round robins, mono</td><td><code>tools/kits/karoryfer-bass.js</code></td></tr>
 </tbody></table></div>
 <p><strong>Building one.</strong> <code>node tools/fetch-kits.js</code> builds every kit a device names (<code>--only &lt;name&gt;</code> for one). Parlour
 Upright's recipe names an upstream SFZ; the others lay out their own regions (<code>file, key, lo, hi, vlo, vhi, layer, tune, trig</code>) and <code>tools/kits/build.js</code> builds them. A recipe also says:</p>

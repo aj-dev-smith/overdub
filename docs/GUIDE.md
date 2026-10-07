@@ -294,6 +294,9 @@ yours to pick by ear:
   the bow takes to leave the string, and the **Long hall** preset lets every note ring on.
 - **A vibraphone.** Damper Bar, under Keys, is a recorded vibraphone with the motor off: soft mallets for soft notes,
   hard mallets for hard ones. **RELEASE** is the damper bar; the **Pedal down** preset lets every bar ring.
+- **A bass guitar.** Roundwound, under Bass, is a recorded five-string bass played with the fingers, down to the low
+  B. A repeated note alternates between two plucks, so a line of eighths doesn't sound like a machine. Flatwound
+  beside it is the synthesized one.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -613,7 +616,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 49 devices: the 36 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 50 devices: the 37 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

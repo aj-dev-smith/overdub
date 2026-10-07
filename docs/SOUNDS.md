@@ -75,6 +75,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-e41ad6c162933d1dcc259cd6b3a6e3ca5c7567dd2a38cc96fd60cc1d0207f751` |
 | Verified | 2026-10-07 |
 
+## Black And Blue Basses: Roundwound (`core.ebass`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.black-and-blue-basses (Karoryfer Samples) |
+| Pinned | commit `6e7d674cdb41be7a54dbccb15472401ad01099b9`; license sha256 `6d489af6292662d9e36d34ce49423784984a5f6e41d7b58f49b01264df59fa03`, Programs/05-darkblack_pluck.sfz and Programs/maps/darkblack_reg_f_map.sfz by sha256; 112 WAV files, each by sha256, in [`tools/kits/karoryfer-bass.js`](../tools/kits/karoryfer-bass.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's license file is the full CC0 1.0 Universal text) |
+| Author | Karoryfer Samples (Black And Blue Basses, 2023). |
+| Modifications | A subset: the "dark black" five-string's regular finger plucks, a zone every third semitone from B0 to D4 (14), all four dynamics, round robins 1 and 2 of 4. Mono as recorded, 24-bit to 16-bit by rounding, kept at 44.1 kHz. Each sample placed at the key it sounds (Karoryfer names the files an octave up, as bass parts are written). Each note cut where its 100 ms RMS falls 50 dB under its attack, or at 3.4 s, with a squared fade over its last 1.2 s. A `tune` field on a note read 5 to 25 cents off (the upper frets run flat). Each start 2 ms before its attack, each layer lined up with the next layer up. A gain per sample, so every note plays at one level; the dynamics come from a velocity curve set from the layers' recorded levels. |
+| Kit | `sha256-9ecd56b866304181640c5cb0bd12a1ab88057a107bbaf2143ca46fd867a09e10` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

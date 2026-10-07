@@ -40,7 +40,7 @@ export const SOUND_SETS = {
   bass: {
     category: 'bass',
     rows: [row('core.bassguitar', 'Bass guitar'), row('core.bass', 'Synth bass'), row('claude.sub-basement', 'Sub bass'), row('core.wavetable', 'Synth bass', 'Low Key')],
-    fallbacks: [row('core.poly2', 'Synth bass', 'Ladder bass')],
+    fallbacks: [row('core.ebass', 'Bass guitar'), row('core.poly2', 'Synth bass', 'Ladder bass')],
   },
   drums: {
     category: 'drums',

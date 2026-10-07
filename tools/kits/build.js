@@ -26,6 +26,8 @@
 //                      'attack' measures the 150 ms from the onset, 'body' the second after the first 0.3 s, 'loop'
 //                      the sustain loop (a looped sample's steady level); across: 'even' sets every key to one level
 //                      instead of the quadratic (an ensemble whose sections were recorded at different gains)
+//   tune               'measure': a sample read 5 to 25 cents off its note (both windows agreeing) gets a `tune`
+//                      that puts it back; otherwise each region's own `tune`, if any
 //   align              true: each layer's start lined up with the next layer up of its key (and `align` kept), for
 //                      the kernel's 'aligned' crossfade
 //   meta               merged into the kit's meta (velcurve, env, rt ...)
@@ -199,7 +201,7 @@ export async function buildInstrument(recipe, fetchFile) {
   }
   const C = recipe.channels || 2, sr = recipe.sr, out = [], rows = [];
   let inFrames = 0, outFrames = 0;
-  for (const [n, r] of recipe.regions.entries()) {
+  for (let [n, r] of recipe.regions.entries()) {
     if (!recipe.files[r.file]) throw new Error(`the recipe maps ${r.file} without pinning it`);
     const d = decode(r.file, await fetchFile(recipe, r.file));
     if (d.sr !== sr) throw new Error(`${r.file}: ${d.sr} Hz, the kit is ${sr} Hz`);
@@ -211,6 +213,12 @@ export async function buildInstrument(recipe, fetchFile) {
     if (C === 1) { const M = new Int32Array(N); for (let i = 0; i < N; i++) M[i] = Math.round((L[i] + R[i]) / 2); L = M; R = M; }
     const looped = !!recipe.loop && (r.trig || 'attack') === 'attack';
     const qa = qaSample({ ch: [L, R], bits: 24, sr }, { key: r.key, looped });
+    // recipe.tune 'measure': a note read off pitch by 5 to 25 cents, both windows agreeing within 3, is tuned back by
+    // a `tune` field (the rubric's check 11: never by resampling); anything else is left as recorded
+    if (recipe.tune === 'measure' && !r.trig) {
+      const [a, b] = qa.cents;
+      if (a != null && b != null && Math.abs(a - b) <= 3 && Math.abs((a + b) / 2) > 5 && Math.abs((a + b) / 2) <= 25) r = { ...r, tune: Math.round(-10 * (a + b) / 2) / 10 };
+    }
     // tuning is judged as it plays: the recording's cents plus the recipe's `tune` (the raw reading kept beside it)
     if (r.tune) { qa.centsRaw = qa.cents; qa.cents = qa.cents.map((c) => (c == null ? null : +(c + r.tune).toFixed(1))); }
     const on = onsetOf(L, R, N, recipe.head ?? -20);
