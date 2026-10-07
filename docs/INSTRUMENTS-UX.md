@@ -566,9 +566,9 @@ and drops its duplicate (same device and preset). The sets, all real ids (`devic
 
 | Set | Sounds, in order (family) | Fallbacks |
 |---|---|---|
-| hum | `core.keys` Lamp Tines (Electric piano), `core.wavetable` Light Table (Synth), `core.strings` Music Stands (Strings), `claude.choir-loft` Choir Loft (Choir) | `core.mallets` Mallet Bag (Mallets), `core.choir` Risers (Choir), `core.pluck` Pinch Roller (Pluck) |
+| hum | `core.keys` Lamp Tines (Electric piano), `core.wavetable` Light Table (Synth), `core.strings` Music Stands (Strings), `claude.choir-loft` Choir Loft (Choir) | `core.mallets` Mallet Bag (Mallets), `core.ensemble` Rosin (Strings), `core.choir` Risers (Choir), `core.pluck` Pinch Roller (Pluck) |
 | played | `core.keys` Lamp Tines (Electric piano), `core.wavetable` Light Table (Synth), `core.mallets` Mallet Bag (Mallets), `core.brass` Brass Rail (Brass) | `core.grand` Full Stick (Piano), `core.piano` Baby Grand (Piano), `core.pluck` Pinch Roller (Pluck) |
-| chords | `core.keys` Lamp Tines (Electric piano), `core.pad` Room Tone (Pad), `core.strings` Music Stands (Strings), `core.ep` Suitcase (Electric piano) | `core.grand` Full Stick (Piano), `core.piano` Baby Grand (Piano), `core.organ` Rotor Cabinet (Organ), `core.poly2` Step Ladder (Synth) |
+| chords | `core.keys` Lamp Tines (Electric piano), `core.pad` Room Tone (Pad), `core.strings` Music Stands (Strings), `core.ep` Suitcase (Electric piano) | `core.grand` Full Stick (Piano), `core.ensemble` Rosin (Strings), `core.piano` Baby Grand (Piano), `core.organ` Rotor Cabinet (Organ), `core.poly2` Step Ladder (Synth) |
 | bass | `core.bassguitar` Flatwound (Bass guitar), `core.bass` Capstan (Synth bass), `claude.sub-basement` Sub Basement (Sub bass), `core.wavetable` preset "Low Key" (Synth bass) | `core.poly2` preset "Ladder bass" (Synth bass) |
 | drums | `core.drums` preset "Studio kit" (Drum kit), `core.drumroom` Studio A (Acoustic kit), `core.drums` preset "Boom bap" (Drum kit), `core.drums` preset "Trap" (Drum kit) | `core.drums` preset "Live room" (Drum kit) |
 
@@ -578,7 +578,7 @@ guitar playing a C4-A4 hummed line reads as a mistake, so Flatwound moved to the
 name is "Gobo Kit, Trap" and Keep dispatches `instrument.set { device, preset }`. "More sounds" searches the browser
 by the set's category (`keys`, `synth`, `bass`, `drums`). The sampled instruments sit at the head of the fallbacks,
 not in the rows: the first trial of one is silent until its kit lands (several MB), so they come up when a row is
-already the track's sound.
+already the track's sound (in the hum set Rosin comes after Mallet Bag, which stands in for Choir Loft).
 
 The agent's rows (2.6) come after the house's on the card and replace them from the bottom, so the card holds the
 current sound and at most four others.

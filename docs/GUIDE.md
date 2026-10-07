@@ -289,6 +289,9 @@ yours to pick by ear:
   Grand. Every note is cut to fit a 15 MB download, so a chord held under the pedal dies after three or four seconds;
   for long held chords, Parlour Upright rings longer. **DYNAMICS**, **RELEASE** and the pedal work as on the upright,
   and the **Half stick** preset is the lid lowered.
+- **Strings.** Rosin, under Keys, is a recorded string section: double bass at the bottom, then cellos, violas and
+  violins, each note held for as long as you hold the key. Soft notes swell in as a bow does; **RELEASE** is how long
+  the bow takes to leave the string, and the **Long hall** preset lets every note ring on.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -608,7 +611,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 47 devices: the 34 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 48 devices: the 35 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

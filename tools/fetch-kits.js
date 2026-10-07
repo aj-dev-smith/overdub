@@ -33,6 +33,8 @@ import { qaSample, qaInstrument } from './kits/qa.js';
 import { buildInstrument } from './kits/build.js';
 import { RECIPE as GRAND_RECIPE } from './kits/salamander.js';
 import { GRAND_HASH } from '../app/src/devices/builtin/grand.js';
+import { RECIPE as ENSEMBLE_RECIPE } from './kits/vsco-strings.js';
+import { ENSEMBLE_HASH } from '../app/src/devices/builtin/ensemble.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -276,7 +278,8 @@ async function buildLaidOut(recipe) {
 }
 
 // every kit a device names: [recipe, the hash the device pins, how it's built]
-const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [GRAND_RECIPE, GRAND_HASH, buildLaidOut]];
+const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
+  [ENSEMBLE_RECIPE, ENSEMBLE_HASH, buildLaidOut]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));

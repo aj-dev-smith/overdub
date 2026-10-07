@@ -25,7 +25,7 @@ export const SOUND_SETS = {
   hum: {
     category: 'keys',
     rows: [row('core.keys', 'Electric piano'), row('core.wavetable', 'Synth'), row('core.strings', 'Strings'), row('claude.choir-loft', 'Choir')],
-    fallbacks: [row('core.mallets', 'Mallets'), row('core.choir', 'Choir'), row('core.pluck', 'Pluck')],
+    fallbacks: [row('core.mallets', 'Mallets'), row('core.ensemble', 'Strings'), row('core.choir', 'Choir'), row('core.pluck', 'Pluck')],
   },
   played: {
     category: 'keys',
@@ -35,7 +35,7 @@ export const SOUND_SETS = {
   chords: {
     category: 'keys',
     rows: [row('core.keys', 'Electric piano'), row('core.pad', 'Pad'), row('core.strings', 'Strings'), row('core.ep', 'Electric piano')],
-    fallbacks: [row('core.grand', 'Piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
+    fallbacks: [row('core.grand', 'Piano'), row('core.ensemble', 'Strings'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
   },
   bass: {
     category: 'bass',
