@@ -507,12 +507,13 @@ worked example of three things a big kernel needs. The design note, with every p
 <ul>
 <li><strong>Data the page and the kernel share.</strong> A kernel sees only <code>dsp</code>. So when a face needs the same data as the sound,
 put the data in one self-contained function (no imports, nothing from the module's scope) and paste the function's
-source into the kernel: <code>const LT = (${lightTables})();</code>. The page imports the same function
+source into the kernel: <code>const LT = (${lightTables})(bank);</code>, with any data it needs as a literal (the AKWF bank,
+packed to keep the kernel under 256 KB). The page imports the same function
 (<code>app/src/devices/builtin/wavetables.js</code>) to draw what plays. <code>tools/wavetable-test.js</code> checks that the kernel
 carries it verbatim.</li>
 <li><strong>Big data, built lazily.</strong> The tables are built in the worklet. The frames nearest the playing position are built
 first, at once, and the rest four a block, so changing a table never holds the audio thread. Each instance holds
-14.1 MB.</li>
+14.9 MB.</li>
 <li><strong>Many params.</strong>
 <ul>
 <li><strong>Keys</strong> are grouped by prefix: <code>a_*</code>, <code>b_*</code>, <code>sub_*</code>, <code>noise_*</code>, <code>flt_*</code>, <code>env1_*</code>, <code>lfo1_*</code>, <code>m1_*</code>, <code>macro1</code>,
@@ -525,8 +526,10 @@ of reads a block cost little.</li>
 <p>To drive it, as an agent or by hand:</p>
 <ul>
 <li><strong>Start from a preset.</strong> Each preset's blurb opens with its family, as in &quot;Bass: a Reese, …&quot;.</li>
-<li><strong>Pick a table.</strong> <code>a_table</code> is a switch over 14 tables. <code>list_devices</code> with <code>detail: &quot;params&quot;</code> lists them, and the
+<li><strong>Pick a table.</strong> <code>a_table</code> is a switch over 26 tables: 14 built in code, then 12 of recorded single cycles from
+AKWF (Adventure Kid Waveforms, CC0), nine waves each. <code>list_devices</code> with <code>detail: &quot;params&quot;</code> lists them, and the
 design note says what each sounds like. <code>a_pos</code> moves through the table.</li>
+<li><strong>Pick a wave.</strong> <code>get_device</code> with <code>library: &quot;&quot;</code> lists the AKWF families and their waves; <code>library: &quot;&lt;family or wave&gt;&quot;</code> gives each one's params (<code>{ &quot;a_table&quot;: &quot;AKWF VOICE&quot;, &quot;a_pos&quot;: 0.25 }</code>): wave i of a family is at POS i/8.</li>
 <li><strong>Wire a mod slot.</strong> Slot n is <code>mn_src</code> (an index into <code>SOURCES</code>), <code>mn_dst</code> (an index into <code>DESTS</code>) and <code>mn_amt</code>,
 from −1 to 1.
 <ul>

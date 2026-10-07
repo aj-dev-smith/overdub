@@ -1,10 +1,11 @@
 // Light Table's wavetables (core.wavetable): one source of truth for the kernel and the page. The kernel carries
-// `lightTables` as text (wavetable.js puts `(${lightTables})()` into its source, since a kernel sees only `dsp`), and
-// the page imports the same function to draw them, so what the editor shows is exactly what plays.
+// `lightTables` as text (wavetable.js puts `(${lightTables})(<the AKWF bank>)` into its source, since a kernel sees only
+// `dsp`), and the page imports the same function to draw them, so what the editor shows is exactly what plays.
 //
-//   const LT = lightTables();
+//   const LT = tables();    (lightTables(AKWF): the 14 tables built in code, then a table per AKWF family, akwf.js)
 //   LT.F                    frames per table (49: a frame every 1/48 of POS, so 0, 1/4, 1/3, 1/2 ... land on frames)
-//   LT.TABLES               [{ name, cycles, desc }]: the tables, in the order of the a_table / b_table switch
+//   LT.TABLES               [{ name, cycles, desc, akwf? }]: the tables, in the order of the a_table / b_table switch
+//                           (an AKWF family's has akwf: { label, first, waves }, its waves' names)
 //   LT.frame(t, x, n = 256) one table cycle of table t at position x (0..1), n points, normalised exactly as the kernel
 //                           plays it (a whole number of note cycles: `cycles`, 1 for most tables, 2 ORGAN, 4 BELL)
 //   LT.frames(t, n = 256)   every frame of table t, for the 3D view: [Float32Array(n)] x F
@@ -21,12 +22,18 @@
 // millisecond and a table about ten: the kernel builds a table's frames nearest the playing position first, at once,
 // and the rest four a block (about half a millisecond), so changing tables never holds the audio thread.
 //
+// The AKWF tables are recorded single cycles (Adventure Kid Waveforms, CC0; the bank is app/src/devices/builtin/akwf.js,
+// built by tools/akwf-bank.js): nine a family, wave i at POS i/8 (a frame of its own), crossfaded between. Each cycle's
+// spectrum is its own DFT, so it is band-limited per octave like every other table.
+//
 // Each table is a function of position x (0..1) filling a frame's harmonic amplitudes, analytic wherever a wave has
 // edges (pulses, the hard-synced saw and the stepped waves are summed in closed form, so they are exactly band-limited
 // however bright), sampled and transformed only where the wave is smooth (FM). Each frame is scaled so its full-band
 // peak is 1. Nothing here allocates after store() and nothing reads Math.random: the same frames every time, here, in
 // the AudioWorklet and in the Node renderer.
-export function lightTables() {
+import { AKWF } from './akwf.js';
+
+export function lightTables(bank) {
   'use strict';
   const PI = Math.PI, TAU = 2 * Math.PI;
   const F = 49;                        // frames a table
@@ -133,6 +140,70 @@ export function lightTables() {
   // CHIP's keyframes: pulses 4, 8 and 16 steps wide of 32, then the 4-bit triangle
   function chip(i, w, a, b, K) { if (i < 3) pulse32(i === 0 ? 4 : i === 1 ? 8 : 16, w, a, b, K); else steps(TRI4, 32, w, a, b, K); }
   const GLASS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32];
+
+  /* ---------------------------------------------------------------- AKWF: recorded single cycles (bank: akwf.js) */
+  // The bank's cycles (N samples each, 16-bit, packed: tools/akwf-bank.js) are unpacked once. A cycle's spectrum is its
+  // own DFT (harmonics 1 to N/2 - 1: the cycle's whole band), worked out the first time a frame needs it and kept:
+  // turned in time so its fundamental is in sine phase (neighbours in a family then morph without cancelling) and
+  // scaled to an RMS of 1.
+  const AKN = bank && bank.n ? bank.n : 0, AKK = AKN ? AKN / 2 - 1 : 0, AKS = 2 * (AKK + 1);
+  let AKP = null, AKSP = null, AKD = null, AKC = null;
+  if (AKN) {
+    // each sample is its prediction from the two before it (2 x[i-1] - x[i-2]) plus a zigzagged residual written five
+    // bits a character, low first, in the base64 alphabet (32 and up: more to come)
+    const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', D = new Int16Array(128), t = bank.code;
+    for (let i = 0; i < 64; i++) D[B64.charCodeAt(i)] = i;
+    let W = 0;
+    for (const fam of bank.families) W += fam.waves.length;
+    AKP = new Float32Array(W * AKN);   // (a 16-bit sample over 32768 is exact in a float)
+    for (let i = 0, c = 0, p1 = 0, p2 = 0; i < W * AKN; i++) {
+      let z = 0, m = 1, d;
+      do { d = D[t.charCodeAt(c++)]; z += (d & 31) * m; m *= 32; } while (d >= 32);
+      const j = i % AKN, x = (z % 2 ? -(z + 1) / 2 : z / 2) + (j > 1 ? 2 * p1 - p2 : j ? p1 : 0);
+      p2 = j ? p1 : x; p1 = x;
+      AKP[i] = x / 32768;
+    }
+    AKSP = new Float64Array(W * AKS); AKD = new Uint8Array(W);
+    AKC = new Float64Array(AKN); for (let j = 0; j < AKN; j++) AKC[j] = Math.cos(TAU * j / AKN);
+  }
+  // wave w's spectrum into AKSP at w * AKS: sine amplitudes [0, AKK], then cosine amplitudes
+  function akwf(w) {
+    const o = w * AKS;
+    if (AKD[w]) return o;
+    const x0 = w * AKN, Q = AKN / 4;
+    for (let k = 1; k <= AKK; k++) {
+      let c = 0, s = 0;
+      for (let n = 0, j = 0; n < AKN; n++, j += k) { if (j >= AKN) j -= AKN; const v = AKP[x0 + n]; c += v * AKC[j]; s += v * AKC[j >= Q ? j - Q : j + AKN - Q]; }
+      AKSP[o + k] = 2 * s / AKN; AKSP[o + AKK + 1 + k] = 2 * c / AKN;
+    }
+    // into sine phase: the fundamental b1 cos + a1 sin = r sin(u + ph); every harmonic k turned by -k ph
+    const a1 = AKSP[o + 1], b1 = AKSP[o + AKK + 2], r1 = Math.sqrt(a1 * a1 + b1 * b1), ph = Math.atan2(b1, a1);
+    let e = 0;
+    for (let k = 1; k <= AKK; k++) {
+      const a = AKSP[o + k], b = AKSP[o + AKK + 1 + k];
+      if (r1 > 1e-9) { const c = Math.cos(k * ph), s = Math.sin(k * ph); AKSP[o + k] = a * c + b * s; AKSP[o + AKK + 1 + k] = b * c - a * s; }
+      e += (a * a + b * b) / 2;
+    }
+    const g = e > 1e-18 ? 1 / Math.sqrt(e) : 0;
+    for (let k = 1; k <= AKK; k++) { AKSP[o + k] *= g; AKSP[o + AKK + 1 + k] *= g; }
+    AKD[w] = 1;
+    return o;
+  }
+  // a family's table: POS scans its waves (n of them, at POS i / (n - 1), each on a frame since n - 1 divides 48),
+  // crossfading between neighbours
+  function akTable(fam, first) {
+    const n = fam.waves.length;
+    return { name: fam.table, cycles: 1, akwf: { label: fam.label, first, waves: fam.waves },
+      desc: `AKWF ${fam.label.toLowerCase()}: ${n} single cycles of ${fam.about}, recorded by Adventure Kid, POS scanning them from the darkest to the brightest`,
+      fill(x, a, b, K) {
+        const p = x * (n - 1), seg = Math.min(n - 2, Math.floor(p + 1e-9)), u = Math.max(0, Math.min(1, p - seg));
+        const o0 = akwf(first + seg), o1 = akwf(first + seg + 1), top = Math.min(K, AKK);
+        for (let k = 1; k <= top; k++) {
+          a[k] = AKSP[o0 + k] * (1 - u) + AKSP[o1 + k] * u;
+          b[k] = AKSP[o0 + AKK + 1 + k] * (1 - u) + AKSP[o1 + AKK + 1 + k] * u;
+        }
+      } };
+  }
 
   // The tables. fill(x, a, b, K) adds harmonic k's sine (a[k]) and cosine (b[k]) amplitudes for position x; a and b
   // arrive zeroed. The order is the switch's: append new tables at the end, never reorder (songs store the index).
@@ -241,6 +312,8 @@ export function lightTables() {
         if (u > 1e-9) chip(seg + 1, u, a, b, K);
       } },
   ];
+  // then the AKWF families, a table each (the bank's order; appended, so a new family goes at the end)
+  if (AKN) { let w = 0; for (const fam of bank.families) { TABLES.push(akTable(fam, w)); w += fam.waves.length; } }
 
   /* ---------------------------------------------------------------- spectra and frames */
   const SA = new Float64Array(KMAX + 1), SB = new Float64Array(KMAX + 1);
@@ -357,8 +430,14 @@ export function lightTables() {
   return { F, FS, MIPS, MK, MN, MO, KMAX, TABLES, NAMES: TABLES.map((d) => d.name), store, frame, frames, spectrum, gain, fft };
 }
 
+// The tables as Light Table plays them: lightTables with the AKWF bank (the kernel gets the same: wavetable.js).
+export const tables = () => lightTables(AKWF);
 // The table names, in switch order (a_table / b_table), and what each sounds like (docs/research/LIGHT-TABLE.md).
-const META = lightTables();
+const META = tables();
 export const TABLE_NAMES = META.NAMES;
 export const TABLE_INFO = META.TABLES.map((d) => ({ name: d.name, cycles: d.cycles, desc: d.desc }));
 export const FRAMES = META.F;
+// The AKWF library, wave by wave: its name (the upstream file's, without AKWF_), its family, and the two params that
+// play it on an oscillator (the family's table, and the POS that lands on it exactly: a frame of its own).
+export const AKWF_FAMILIES = META.TABLES.map((d, t) => (d.akwf ? { table: d.name, t, label: d.akwf.label, waves: d.akwf.waves } : null)).filter(Boolean);
+export const AKWF_WAVES = AKWF_FAMILIES.flatMap((f) => f.waves.map((name, i) => ({ name, family: f.label, table: f.table, t: f.t, pos: i / (f.waves.length - 1) })));

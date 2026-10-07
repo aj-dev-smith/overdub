@@ -193,6 +193,10 @@
       "full"
      ],
      "description": "a device with over 40 params: \"brief\" (default) or \"full\""
+    },
+    "library": {
+     "type": "string",
+     "description": "a device with a library (Light Table's AKWF waves): \"\" lists its families, a family or part of a wave's name lists those waves, each with the params that play it"
     }
    },
    "required": [

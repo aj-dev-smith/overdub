@@ -21,7 +21,7 @@ import { renderSong } from '../app/src/engine/node/render.js';
 import { createProject } from '../app/src/core/project.js';
 import { getDevice } from '../app/src/devices/registry.js';
 import '../app/src/devices/builtin/index.js';
-import { lightTables, TABLE_NAMES } from '../app/src/devices/builtin/wavetables.js';
+import { tables, TABLE_NAMES } from '../app/src/devices/builtin/wavetables.js';
 import { WARPS, FILTERS, SYNC_BEATS, DELAY_BEATS, warpCycle, warpValue, filterResponse, envAt } from '../app/src/devices/builtin/wavetable.js';
 
 const t = tally('wavetable-ui');
@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : String(x));
 const ID = 'core.wavetable', SR = 48000;
 const def = getDevice(ID);
-const LT = lightTables();
+const LT = tables();
 const ours = (errors) => errors.filter((e) => !/Failed to load resource|favicon|net::ERR|fonts\.g|AudioContext|getUserMedia/.test(e));
 
 /* ======================================================================== Node: the page's maths, held to the kernel */
@@ -155,8 +155,8 @@ async function openLT(page) {
 
     /* -------- the 3D table: the current table, the lit frame where POS is */
     const draws = await E(async () => {
-      const { lightTables } = await import('/app/src/devices/builtin/wavetables.js');
-      const LTp = lightTables(), L = document.querySelector('.lt').__lt, st = L.osc('a');
+      const { tables } = await import('/app/src/devices/builtin/wavetables.js');
+      const LTp = tables(), L = document.querySelector('.lt').__lt, st = L.osc('a');
       const fr = LTp.frames(st.table, 256), fp = st.pos * 48, f0 = Math.min(47, Math.floor(fp)), w = fp - f0;
       let worst = 0;
       for (let i = 0; i < 128; i++) { const want = fr[f0][2 * i] + (fr[f0 + 1][2 * i] - fr[f0][2 * i]) * w; worst = Math.max(worst, Math.abs(want - st.lit[i])); }
@@ -192,9 +192,9 @@ async function openLT(page) {
     await set({ a_warp_amt: 0.6 });
     await sleep(150);
     const warped = await E(async () => {
-      const { lightTables } = await import('/app/src/devices/builtin/wavetables.js');
+      const { tables } = await import('/app/src/devices/builtin/wavetables.js');
       const W = await import('/app/src/devices/builtin/wavetable.js');
-      const LTp = lightTables(), L = document.querySelector('.lt').__lt, st = L.osc('a');
+      const LTp = tables(), L = document.querySelector('.lt').__lt, st = L.osc('a');
       const fr = LTp.frames(st.table, 256), fp = st.pos * 48, f0 = Math.min(47, Math.floor(fp)), w = fp - f0;
       const src = fr[f0].map((v, i) => v + (fr[f0 + 1][i] - v) * w);
       const want = W.warpCycle(src, 2, 0.6, { cycles: LTp.TABLES[st.table].cycles, out: new Float32Array(128) });
@@ -212,7 +212,7 @@ async function openLT(page) {
     await page.click('.lt-osc[data-sec="osca"] .lt-pick');
     await page.waitForSelector('.lt-pop .lt-opt');
     await sleep(500);
-    const pick = await E(() => ({ n: document.querySelectorAll('.lt-pop .lt-opt').length, words: [...document.querySelectorAll('.lt-pop .lt-opt small')].every((x) => x.textContent.trim().split(/\s+/).length >= 2), drawn: [...document.querySelectorAll('.lt-pop canvas')].filter((c) => c.width > 0).length, focus: document.activeElement?.dataset.t, sel: document.querySelector('.lt-pop [aria-selected="true"]')?.dataset.t }));
+    const pick = await E(() => ({ n: document.querySelectorAll('.lt-pop .lt-opt').length, words: [...document.querySelectorAll('.lt-pop .lt-opt small')].every((x) => x.textContent.trim().split(/\s+/).length >= 2), drawn: [...document.querySelectorAll('.lt-pop .lt-opt canvas')].filter((c) => c.width > 0).length, focus: document.activeElement?.dataset.t, sel: document.querySelector('.lt-pop [aria-selected="true"]')?.dataset.t }));
     await shot('wavetable-ui-picker');
     for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Enter');
@@ -221,6 +221,28 @@ async function openLT(page) {
     const pickLabel = await E(() => document.querySelector('.lt-osc[data-sec="osca"] .lt-pick-n').textContent);
     ok(pick.n === 14 && pick.words && pick.drawn === 14 && pick.focus === pick.sel, `the picker shows all ${pick.n} tables, each drawn small (${pick.drawn}) with a few words on its sound, the current one focused`);
     ok(picked.a_table === 3 && pickLabel === 'VOWEL' && hk1.n - hk0.n === 1 && hk1.by === 'you', `the arrow keys and Enter pick one: a_table ${picked.a_table} (${pickLabel}), one undo step ("${hk1.label}")`);
+
+    /* -------- the AKWF library under the tables: a family, its waves drawn, one picked */
+    await page.click('.lt-osc[data-sec="osca"] .lt-pick');
+    await page.waitForSelector('.lt-pop .lt-fam');
+    const fams = await E(() => [...document.querySelectorAll('.lt-pop .lt-fam')].map((b) => b.textContent));
+    await page.click('.lt-pop .lt-fam:nth-child(2)');
+    await sleep(500);
+    const lib = await E(() => {
+      const ws = [...document.querySelectorAll('.lt-pop .lt-wave')];
+      const ink = ws.map((b) => { const c = b.querySelector('canvas'), g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data; let lit = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 450) lit++; return lit; });
+      return { n: ws.length, names: ws.map((b) => b.textContent), ink, focus: document.activeElement?.classList.contains('lt-wave'), pressed: document.querySelector('.lt-pop .lt-fam[aria-pressed="true"]')?.textContent };
+    });
+    await shot('wavetable-ui-akwf');
+    const hw0 = await hist();
+    await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('Enter');
+    await sleep(150);
+    const wv = await P(), hw1 = await hist(), wLabel = await E(() => [document.querySelector('.lt-osc[data-sec="osca"] .lt-pick-n').textContent, document.querySelector('.lt-osc[data-sec="osca"] .lt-where').textContent]);
+    ok(fams.length === 12 && fams[1] === 'Human voice' && lib.pressed === 'Human voice' && lib.n === 9 && lib.names.every((x) => /^hvoice_\d{4}$/.test(x)) && lib.ink.every((v) => v > 20) && lib.focus,
+      `the picker lists the AKWF library by family (${fams.length}: ${fams.slice(0, 4).join(', ')}...); Human voice shows its ${lib.n} waves by name, each drawn (${Math.min(...lib.ink)} lit pixels at the least)`);
+    ok(wv.a_table === TABLE_NAMES.indexOf('AKWF VOICE') && wv.a_pos === 0.25 && wLabel[0] === 'AKWF VOICE' && wLabel[1] === `${lib.names[2]} · frame 13 of 49` && hw1.n - hw0.n === 1 && hw1.label === `Light Table: osc A on ${lib.names[2]}`,
+      `the arrow keys and Enter play a wave: its family's table at the POS that lands on it (table ${wv.a_table}, POS ${wv.a_pos}, "${wLabel[1]}"), one undo step ("${hw1.label}")`);
+    await set({ a_table: 3, a_pos: picked.a_pos });
 
     /* -------- an envelope drag is one undo step */
     const p0 = await P(), he0 = await hist();

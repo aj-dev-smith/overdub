@@ -10,6 +10,8 @@
 //               the lanes both renderers play (docs/research/AUTOMATION.md 3.5)
 //   demo:<id>   a song from the demo shelf (only those listed in SHELF_SCENES), whole, as demoById builds it (its ids
 //               are stable already), its timestamps pinned. Each scene is pinned on purpose, not the whole shelf.
+//   inst:core.wavetable:akwf   Light Table on two of its AKWF tables (the bank in app/src/devices/builtin/akwf.js),
+//               osc A's POS swept by an LFO across its waves
 //   inst:<id>#<12 hex>   a sampled instrument (kernel data) on its phrase: the name carries the first 12 hex digits of
 //               the kit it plays, so a different kit is a different scene, never a moved hash. Only when the kit has
 //               been fetched (node tools/fetch-kits.js); otherwise it is listed by missingScenes() and skipped.
@@ -119,6 +121,12 @@ export function scenes() {
   // core.drums' appended kits, each pinned on its own (the scene above plays the default, FIELD)
   const kit = INSTRUMENTS.find((d) => d.id === 'core.drums');
   if (kit) for (const [k, tag] of [[3, '808'], [4, '909'], [5, 'acoustic-plus']]) out.push(instrumentScene(kit, {}, { kit: k }, ':' + tag));
+  // Light Table on two AKWF tables (recorded single cycles: wavetables.js's bank), osc A's POS swept between waves
+  const lt = INSTRUMENTS.find((d) => d.id === 'core.wavetable');
+  if (lt) {
+    const ti = (name) => lt.params.find((q) => q.key === 'a_table').opts.indexOf(name);
+    out.push(instrumentScene(lt, {}, { a_table: ti('AKWF VOICE'), a_pos: 0.3, b_table: ti('AKWF BASS'), b_pos: 0.5, b_oct: -1, b_level: 0.35, m1_src: 5, m1_dst: 1, m1_amt: 0.25 }, ':akwf'));
+  }
   for (const d of showcase('instrument')) out.push(instrumentScene(d, asDevices([d])));
   for (const d of EFFECTS) out.push(effectScene(d));
   for (const d of showcase('effect')) out.push(effectScene(d, asDevices([d])));

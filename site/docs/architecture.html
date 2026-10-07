@@ -120,7 +120,8 @@ are covered by <code>tools/compat-test.js</code>.</li>
                          bypass, glide, the PFX kit), worklets/ (the kit's END and envelope follower modules),
                          guitar/ (ported pedals, amps, cabs, rigs)                                     [guitar]
                          builtin/ (Overdub's own kernels: synths, drums, pluck, bass, eq, comp, verb...;
-                         wavetables.js is Light Table's tables, which its kernel embeds and its face imports),
+                         wavetables.js is Light Table's tables, which its kernel embeds and its face imports;
+                         akwf.js the AKWF single cycles they carry),
                          library/ (the house shelf, with reports.js), showcase.js (the demo's agent devices) [dsp]
   app/src/kernel/        host.js (main thread), worklet.js (the processor, KernelCore), processor.js (the
                          worklet's module), dsp.js (the kernels' stdlib), check.js (device check), guide.js (the agent's device guide), examples.js,
@@ -411,9 +412,10 @@ core/project.js <code>summarize</code>), and a param <code>hidden</code> (not on
 and <code>quantum</code> (a window control's smallest step); DEVICES.md, &quot;Params that aren't knobs&quot;.</p>
 <p><strong>Data a kernel and the page share.</strong> A kernel sees only <code>dsp</code>, so a device whose face draws the same data its
 sound plays keeps that data in one self-contained function and embeds the function's source in its kernel. Light
-Table (<code>core.wavetable</code>) does this with its wavetables (<code>devices/builtin/wavetables.js</code>, <code>lightTables()</code>): the kernel
-evaluates <code>(${lightTables})()</code> and builds the tables lazily in the worklet, and the page imports the same function to
-draw them, so the editor shows exactly what plays. Its design note, with the param map its editor works from, is
+Table (<code>core.wavetable</code>) does this with its wavetables (<code>devices/builtin/wavetables.js</code>, <code>lightTables(bank)</code>): the
+kernel evaluates <code>(${lightTables})(bank)</code> and builds the tables lazily in the worklet, and the page imports the same
+function to draw them, so the editor shows exactly what plays. The bank (<code>akwf.js</code>, 108 recorded single cycles, CC0)
+is a literal in the kernel's source, packed so the kernel stays under its 256 KB. Its design note, with the param map its editor works from, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <p>Param <code>role</code> (for agents and semantic controls): <code>tone level drive mix time feedback rate depth size decay attack release pitch shape width gate sens</code> (or omit). <code>unit</code>: <code>Hz dB ms s % st note x</code>.</p>
 <p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 32 built-ins, one of

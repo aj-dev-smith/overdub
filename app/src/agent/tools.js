@@ -414,7 +414,7 @@ With detail "params" (the default while the list stays short; one device always 
     name: 'get_device',
     annotations: { title: 'Read a device', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     description: 'One device: params (ranges, units, roles, descriptions), presets, look, flavour, and — for kernel devices written in this project — the kernel source (set source: true to also read a built-in kernel, e.g. core.testfilter, as a worked example to fork). A device the song brought whose code hasn\'t been allowed on this computer comes back with held: true (kept off; only the person can let it play). A device with over 40 params tells the params that repeat by number (mod slots, LFOs, bands) once and names its presets with their blurbs; detail "full" gives every param on its own line and what each preset changes. preset: "<name>" returns one preset\'s whole params.',
-    input_schema: { type: 'object', properties: { id: { type: 'string' }, source: { type: 'boolean' }, preset: { type: 'string', description: 'a preset\'s name: returns that preset\'s whole params' }, detail: { type: 'string', enum: ['brief', 'full'], description: 'a device with over 40 params: "brief" (default) or "full"' } }, required: ['id'], additionalProperties: false },
+    input_schema: { type: 'object', properties: { id: { type: 'string' }, source: { type: 'boolean' }, preset: { type: 'string', description: 'a preset\'s name: returns that preset\'s whole params' }, detail: { type: 'string', enum: ['brief', 'full'], description: 'a device with over 40 params: "brief" (default) or "full"' }, library: { type: 'string', description: 'a device with a library (Light Table\'s AKWF waves): "" lists its families, a family or part of a wave\'s name lists those waves, each with the params that play it' } }, required: ['id'], additionalProperties: false },
     run(input, { app }) {
       const kept = app.devices.heldDevice?.(input.id);
       if (kept) {
@@ -443,6 +443,16 @@ With detail "params" (the default while the list stays short; one device always 
       // told once, and its presets are named with their blurbs (preset: "<name>" in an op sets one). detail "full":
       // every param on its own line, and each preset by what it changes from the defaults (FRESH-EYES-6: Light Table
       // was 38 KB, 10,000 tokens)
+      // a device's library (Light Table's AKWF single cycles): its families, or the waves that match, with their params
+      if (input.library != null) {
+        const lib = d.library;
+        if (!lib || !Array.isArray(lib.items)) return err(`${d.name} has no library`, 'only a device with one (Light Table: AKWF waves) lists it');
+        const q = String(input.library).trim().toLowerCase();
+        if (!q) return { id: d.id, library: lib.about, families: lib.groups.map((g) => `${g.name} (${g.table}): ${lib.items.filter((x) => x.group === g.name).map((x) => x.name).join(', ')}`), hint: 'library: "<family or wave>" gives each wave\'s params; set them with instrument.set' };
+        const hits = lib.items.filter((x) => x.group.toLowerCase() === q || x.params.a_table?.toLowerCase?.() === q || x.name.toLowerCase().includes(q) || x.group.toLowerCase().includes(q));
+        if (!hits.length) return err(`no wave in ${d.name}'s library matches "${String(input.library).slice(0, 60)}"`, `its families: ${lib.groups.map((g) => g.name).join(', ')}`);
+        return { id: d.id, library: lib.about, waves: hits.slice(0, 60).map((x) => ({ name: x.name, family: x.group, params: x.params })), ...(hits.length > 60 ? { more: hits.length - 60 } : {}), hint: `play one: { "type": "instrument.set", "track": "…", "params": ${JSON.stringify(hits[0].params)} }` };
+      }
       const big = d.params.length > BIG_DEVICE, full = input.detail === 'full';
       const shown = big ? d.params.filter((q) => !q.hidden) : d.params;
       const out = { id: d.id, name: d.name, kind: d.kind, cat: d.cat, blurb: d.blurb, nod: d.nod, by: d.by, flavour: d.flavour, source: d.source, version: d.version, params: big && !full ? groupedLines(shown) : shown.map(paramLine), look: d.look, tail: d.tail, latency: d.latency };
@@ -450,6 +460,7 @@ With detail "params" (the default while the list stays short; one device always 
       // (Studio A's window, 2026-10-03) a drum kit's own names for its notes, so an agent writes its articulations
       const kn = kitNotes(d);
       if (kn) { out.notes = kn; out.notes_hint = NOTES_HINT; }
+      if (d.library && Array.isArray(d.library.items)) out.library_hint = `${d.library.about}. get_device { "id": "${d.id}", "library": "" } lists the families and their waves; "library": "<family or wave>" gives each one's params`;
       if (d.presets && d.presets.length) {
         if (big && !full) {
           out.presets = d.presets.map((x) => ({ name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}) }));

@@ -37,7 +37,9 @@ import { measure } from '../app/src/audio/measure.js';
 import { phrase, bassPhrase, PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 import { INSTRUMENTS } from '../app/src/devices/builtin/index.js';
 import { getDevice, presetOf } from '../app/src/devices/registry.js';
-import { lightTables, TABLE_NAMES } from '../app/src/devices/builtin/wavetables.js';
+import { lightTables, tables, TABLE_NAMES, AKWF_FAMILIES, AKWF_WAVES } from '../app/src/devices/builtin/wavetables.js';
+import { AKWF } from '../app/src/devices/builtin/akwf.js';
+import { unpack } from './akwf-bank.js';
 import { SOURCES, DESTS, BASS_PRESETS, PRESETS } from '../app/src/devices/builtin/wavetable.js';
 import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
 import { makeDsp } from '../app/src/kernel/dsp.js';
@@ -47,7 +49,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const t = tally('wavetable');
 const ID = 'core.wavetable', SR = 48000, BPM = 120, BEAT = 60 / BPM, STAMP = '2026-10-02T00:00:00.000Z';
 const def = getDevice(ID);
-const LT = lightTables();
+const LT = tables();
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const dB = (x) => 20 * Math.log10(Math.max(1e-12, x));
 const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : String(x));
@@ -179,7 +181,7 @@ console.log('the device: params, groups, presets');
   const bad = def.params.filter((p) => !ROLES.includes(p.role) || !(typeof p.desc === 'string' && p.desc.length >= 12) || !GROUPS.some((g) => g.test(p.key)));
   t.ok(def.params.length === 114 && !bad.length, `${def.params.length} params, each with a role from the list, a meaning an agent can act on, and a group prefix${bad.length ? ': not ' + bad.map((p) => p.key).join(', ') : ''}`);
   const sw = (k) => def.params.find((p) => p.key === k).opts;
-  t.ok(JSON.stringify(sw('a_table')) === JSON.stringify(TABLE_NAMES) && JSON.stringify(sw('b_table')) === JSON.stringify(TABLE_NAMES) && TABLE_NAMES.length === 14, `both oscillators' TABLE switch is the generator's list (${TABLE_NAMES.length}: ${TABLE_NAMES.join(' ')})`);
+  t.ok(JSON.stringify(sw('a_table')) === JSON.stringify(TABLE_NAMES) && JSON.stringify(sw('b_table')) === JSON.stringify(TABLE_NAMES) && TABLE_NAMES.length === 26 && TABLE_NAMES.slice(0, 14).join() === 'BASIC,PULSE,HARMONICS,VOWEL,SYNC,BELL,ORGAN,FM,HOLLOW,GRIT,GLASS,GROWL,REED,CHIP', `both oscillators' TABLE switch is the generator's list, the 14 built in code first, in their order, then the AKWF families (${TABLE_NAMES.length}: ${TABLE_NAMES.join(' ')})`);
   t.ok(JSON.stringify(sw('m1_src')) === JSON.stringify(SOURCES) && JSON.stringify(sw('m8_dst')) === JSON.stringify(DESTS) && DESTS.length === 38, `the matrix: ${SOURCES.length - 1} sources, ${DESTS.length - 1} destinations, 8 slots`);
   const fams = { Poly: 0, Bass: 0, Lead: 0, Pad: 0, Pluck: 0, Keys: 0, Arp: 0, FX: 0 };
   for (const pr of def.presets) { const f = /^(\w+):/.exec(pr.blurb || '')?.[1]; if (f in fams) fams[f]++; }
@@ -213,6 +215,29 @@ console.log('the tables: one source, band limits, the spectra');
   t.ok(worstOut < -120, `each band limit holds nothing above its harmonics (worst ${fmt(worstOut)} dB out of band, mips 0 / 3 / 6 / 9)`);
   t.ok(ms < 60, `a whole table builds in ${fmt(ms)} ms (49 frames x 11 band limits; the kernel spreads it, four frames a block)`);
   t.ok(LT.F * LT.FS * 4 <= 2.9e6, `a table holds ${fmt(LT.F * LT.FS * 4 / 1e6, 2)} MB`);
+  // the AKWF bank: the pinned bytes, each wave's spectrum its own cycle's (an independent DFT), on a frame of its own
+  {
+    const n = AKWF.n, W = AKWF.families.reduce((k, f) => k + f.waves.length, 0), pcm = unpack(AKWF.code, W * n, n);
+    const sha = crypto.createHash('sha256').update(pcm).digest('hex');
+    t.ok(sha === AKWF.sha256 && W === 108 && AKWF_WAVES.length === W && AKWF_FAMILIES.length === 12 && AKWF_FAMILIES.every((f) => f.waves.length === 9) && /^[0-9a-f]{40}$/.test(AKWF.commit) && AKWF.licence === 'CC0-1.0',
+      `the AKWF bank is the pinned one: ${W} cycles of ${n} samples in ${AKWF_FAMILIES.length} families of nine, CC0, unpacked (the tool's own decoder) to bytes whose SHA-256 is ${sha.slice(0, 16)} as recorded`);
+    let worst = 0, phase = 0, onFrame = 0;
+    for (let w = 0; w < W; w++) {
+      const x = new Float64Array(n); for (let i = 0; i < n; i++) x[i] = pcm.readInt16LE(2 * (w * n + i)) / 32768;
+      const mag = new Float64Array(n / 2); let e = 0;
+      for (let k = 1; k < n / 2; k++) { let c = 0, q = 0; for (let i = 0; i < n; i++) { const th = 2 * Math.PI * k * i / n; c += x[i] * Math.cos(th); q += x[i] * Math.sin(th); } mag[k] = 2 * Math.hypot(c, q) / n; e += mag[k] ** 2 / 2; }
+      const wv = AKWF_WAVES[w], fp = wv.pos * (LT.F - 1);
+      if (Math.abs(fp - Math.round(fp)) > 1e-9) onFrame++;
+      const { a, b } = LT.spectrum(wv.t, wv.pos);
+      for (let k = 1; k < n / 2; k++) worst = Math.max(worst, Math.abs(Math.hypot(a[k], b[k]) - mag[k] / Math.sqrt(e)));
+      for (let k = n / 2; k < a.length; k++) worst = Math.max(worst, Math.abs(a[k]) + Math.abs(b[k]));
+      phase = Math.max(phase, Math.abs(b[1]) + (a[1] > 0 ? 0 : 1));
+    }
+    t.ok(worst < 1e-9 && phase < 1e-9 && !onFrame, `each AKWF wave plays its own cycle's harmonics 1-${n / 2 - 1} and nothing above (worst ${worst.toExponential(1)} off an independent DFT), its fundamental turned to sine phase, each on a frame of its own`);
+    const lib = def.library, it = lib && lib.items.find((x) => x.name === 'hvoice_0004');
+    t.ok(lib && lib.items.length === W && lib.groups.length === 12 && it && it.params.a_table === 'AKWF VOICE' && it.params.a_pos === 0.25 && /b_table and b_pos/.test(lib.about),
+      `the library lists every wave by family with the params that play it (hvoice_0004: ${JSON.stringify(it && it.params)})`);
+  }
   // the closed-form spectra against the waves themselves (a DFT of the naive wave at 2^16 points)
   const brute = (fn, K = 40, N = 1 << 16) => { const a = new Float64Array(K + 1), b = new Float64Array(K + 1); for (let i = 0; i < N; i++) { const x = (i + 0.5) / N, v = fn(x); for (let k = 1; k <= K; k++) { a[k] += 2 * v * Math.sin(2 * Math.PI * k * x) / N; b[k] += 2 * v * Math.cos(2 * Math.PI * k * x) / N; } } return { a, b }; };
   const err = (ti, x, fn) => { const sp = LT.spectrum(ti, x), br = brute(fn); let e = 0, r = 0; for (let k = 1; k <= 40; k++) { e = Math.max(e, Math.hypot(sp.a[k] - br.a[k], sp.b[k] - br.b[k])); r = Math.max(r, Math.hypot(br.a[k], br.b[k])); } return e / r; };

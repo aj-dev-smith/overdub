@@ -163,7 +163,9 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
     mics are faders along the bottom, and **VIEW** turns the picture round with the stereo image. On a phone, tap the
     kit and scroll for the rest.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
-  waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. A filter, three
+  waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
+  are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
+  nine waves each. A filter, three
   envelopes, four LFOs and eight mod slots move almost any knob for you. Start from a preset: its description begins
   with what it's for (Bass, Lead, Pad, Pluck, Keys, Arp or FX). The four **MACRO** knobs do nothing until a mod slot
   uses one.
@@ -189,7 +191,8 @@ keeps the take; `R` again punches out and the song plays on; `⌘Z` takes it bac
 - **Light Table's window.** Open it big and each oscillator's table is drawn as a stack of its waves, the one it plays
   lit: drag up or down on the drawing (or turn **POS**) to move through them, and **3D**, **Wave** and **Harmonics**
   change how it's drawn. Click the table's name to pick another; each is drawn small with a few words on how it
-  sounds.
+  sounds. Under them, **AKWF single cycles** lists the recorded waves by family: pick a family, then a wave, and the
+  oscillator plays it. Turn **POS** from there to morph into its neighbours.
 - **Drag to modulate.** Every source has a jack, the small socket beside an envelope's or an LFO's name, under each
   macro, and beside Velocity, Note, Wheel and Random. Drag one onto a knob and the first free mod slot takes it: the
   knob gets a ring, and the ring's arc is how far the source moves it. Drag the ring up or down to change that, and
