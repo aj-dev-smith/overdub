@@ -10,6 +10,10 @@
 // release sample sounds at note-off, softer the longer the key was held; the voice cap steals the oldest; the
 // sustain pedal holds note-offs; a sample's `cutoff` filters it; the interpolator keeps a bright tone clean when it
 // is moved up; renders repeat bit for bit.
+// With Parlour Upright's kit fetched (node tools/fetch-kits.js): the file is the pinned one, packs within the piano
+// budget and rebuilds byte for byte from the download cache; the device passes checkDevice, renders bit-exact twice
+// and at 44.1 kHz; every one of the 88 keys plays its zone's sample at the right pitch; the level climbs with
+// velocity on every octave, across the layer seam too; the studio fetches it packed and renders what Node does.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +24,22 @@ import { makeDsp } from '../app/src/kernel/dsp.js';
 import { normParam, paramValues } from '../app/src/devices/registry.js';
 import { samplerKernel, samplerParams } from '../app/src/devices/builtin/sampler.js';
 import { sha256 } from '../app/src/engine/node/io.js';
+import crypto from 'node:crypto';
+import zlib from 'node:zlib';
+import { spawnSync } from 'node:child_process';
+import { open } from './pw.js';
+import { getDevice } from '../app/src/devices/registry.js';
+import '../app/src/devices/builtin/index.js';
+import { UPRIGHT_HASH } from '../app/src/devices/builtin/upright.js';
+import { RECIPE } from './kits/upright-kw.js';
+import { dataPath } from '../app/src/engine/node/data.js';
+import { unpackOdk } from '../app/src/kernel/odkz.js';
+import { checkDeviceNode } from '../app/src/engine/node/check.js';
+import { renderSong } from '../app/src/engine/node/render.js';
+import { measure } from '../app/src/audio/measure.js';
+import { createProject } from '../app/src/core/project.js';
+import { phrase as testPhrase, PHRASE_BPM, PHRASE_BEATS } from '../app/src/audio/testsignals.js';
+import { pitchAt } from './kits/qa.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const t = tally('sampler');
@@ -76,10 +96,10 @@ console.log('melodic fields in the .odk');
 // ------------------------------------------------------------------------------------------------ playing it
 const PARAMS = samplerParams().map(normParam);
 const SRC = samplerKernel({ makeup: 1, poly: 8, xfade: 6, law: 'linear' });   // (the test kit's layers are in phase: their amplitudes add)
-function play(events, { secs = 2, sr = SR, params = {}, seed = 1, kit = KIT, src = SRC, poly = 8 } = {}) {
+function play(events, { secs = 2, sr = SR, params = {}, seed = 1, kit = KIT, src = SRC, poly = 8, specs = PARAMS } = {}) {
   const Core = kernelCore(sr, makeDsp(sr), kernelCompiler);
   const out = [];
-  const c = new Core({ source: src, kind: 'instrument', params: PARAMS, values: paramValues({ params: PARAMS }, params), poly, seed, tail: 4, data: { kit } }, (m) => out.push(m));
+  const c = new Core({ source: src, kind: 'instrument', params: specs, values: paramValues({ params: specs }, params), poly, seed, tail: 4, data: { kit } }, (m) => out.push(m));
   const err = out.find((m) => m.type === 'error');
   if (err) throw new Error(err.message);
   for (const e of events) c.msg({ ...e, time: e.time || 0 });
@@ -181,6 +201,154 @@ console.log('the sampler kernel');
   // no kit: silence, and no error
   const none = play([on(60, 0.9)], { secs: 0.5, kit: null });
   t.ok(rms(none.channels[0], 0, 0.5) === 0, 'with no kit it plays silence');
+}
+
+// ------------------------------------------------------------------------------------------------ Parlour Upright
+const def = getDevice('core.upright');
+if (!fs.existsSync(dataPath(UPRIGHT_HASH))) {
+  t.note(`Parlour Upright's kit isn't fetched (${path.relative(path.join(HERE, '..'), dataPath(UPRIGHT_HASH))}): node tools/fetch-kits.js, then this runs in full`);
+  t.done();
+  process.exit();
+}
+console.log('Parlour Upright: the kit file');
+const bytes = fs.readFileSync(dataPath(UPRIGHT_HASH));
+const up = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length));
+{
+  t.ok('sha256-' + crypto.createHash('sha256').update(bytes).digest('hex') === UPRIGHT_HASH, `the file is the pinned kit (${UPRIGHT_HASH.slice(0, 19)}...)`);
+  const zf = dataPath(UPRIGHT_HASH) + 'z', have = fs.existsSync(zf);
+  const zb = have ? fs.readFileSync(zf) : null;
+  t.ok(have && 'sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === UPRIGHT_HASH, 'its .odkz unpacks to it, byte for byte');
+  if (zb) {
+    const g1 = zlib.gzipSync(bytes, { level: 9 }).length, g2 = zlib.gzipSync(zb, { level: 9 }).length;
+    t.ok(g2 <= 15e6, `on the wire: ${(g2 / 1e6).toFixed(2)} MB packed and gzipped (the piano budget is 15 MB; ${(g1 / 1e6).toFixed(2)} MB as a gzipped .odk)`);
+  }
+  t.ok(up.sr === 44100 && up.bits === 16 && up.channels === 2 && up.samples.length === 66, `66 samples, 44.1 kHz, 16-bit, stereo (${up.samples.length}, ${up.sr}, ${up.bits}, ${up.channels})`);
+  t.ok(up.meta.licence === 'CC0-1.0' && up.meta.commit === RECIPE.commit && up.meta.source === RECIPE.source && up.meta.kind === 'melodic', `it carries its source and licence (${up.meta.licence}, ${up.meta.repo}@${String(up.meta.commit).slice(0, 12)})`);
+  // every key A0..C8 is covered by exactly one zone per layer
+  const gaps = [];
+  for (let k = 21; k <= 108; k++) for (const [lo, hi] of [[0, 80], [81, 127]]) { const n = up.samples.filter((s) => k >= s.lo && k <= s.hi && s.vlo === lo && s.vhi === hi).length; if (n !== 1) gaps.push(`${k}@${lo}:${n}`); }
+  t.ok(!gaps.length, `all 88 keys have one sample in each layer${gaps.length ? ' (not: ' + gaps.slice(0, 8).join(', ') + ')' : ''}`);
+  // the build: no flat tops in the 16-bit samples, DC under -60 dBFS, every unlooped tail ends 60 dB down or more
+  let flat = 0, dc = -200, tail = -200;
+  for (const sm of up.samples) {
+    for (const c of sm.ch) { let s0 = 0, run = 0; for (let i = 0; i < c.length; i++) { s0 += c[i]; if (Math.abs(c[i]) >= 32400 && i && c[i] === c[i - 1]) { if (++run === 2) flat++; } else run = 0; } dc = Math.max(dc, db(Math.abs(s0 / c.length) / 32768)); }
+    if (!sm.loop) { const c = sm.ch[0], n = c.length; let pk = 0, e = 0; for (const x of c) pk = Math.max(pk, Math.abs(x)); for (let i = n - 441; i < n; i++) e += c[i] * c[i]; tail = Math.max(tail, db(Math.sqrt(e / 441) / pk)); }
+  }
+  t.ok(flat === 0 && dc <= -60 && tail <= -60, `the samples: no flat tops, DC ${dc.toFixed(1)} dBFS at worst, every unlooped sample ending ${(-tail).toFixed(0)} dB or more under its peak (trimmed at -70 dBFS and faded)`);
+  const cache = path.join(HERE, '.out', 'kits-cache');
+  if (fs.existsSync(cache)) {
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify'], { encoding: 'utf8' });
+    const line = v.stdout.split('\n').filter((l) => /rebuilt|cache/.test(l)).pop() || '';
+    if (/Upright[^]*isn't in the download cache/.test(v.stdout)) t.note('the download cache is incomplete: the byte-for-byte rebuild was not run');
+    else t.ok(/ok rebuilt from the cache: sha256-c9b7|ok rebuilt from the cache: /.test(v.stdout.split('Upright Piano KW')[1] || ''), `the kit rebuilds byte for byte from the pinned upstream files (${line.trim()})`);
+  } else t.note('no download cache: the byte-for-byte rebuild was not run');
+}
+
+console.log('Parlour Upright: the device');
+const specs = def.params.map(normParam);
+const pplay = (events, o = {}) => play(events, { kit: up, src: def.kernel, poly: def.poly || 32, specs, ...o });
+const usong = (notes, params = {}) => ({
+  ...createProject(), id: 'p_up', title: 'up', key: null, tempo: PHRASE_BPM, devices: {},
+  tracks: [{ id: 't_up', name: 'Piano', kind: 'instrument', instrument: { device: 'core.upright', params }, inserts: [],
+    clips: [{ id: 'c1', kind: 'notes', start: 0, length: 64, notes: notes.map((n, i) => ({ id: 'n' + i, d: 1, v: 0.8, ...n, by: 'overdub' })), by: 'overdub' }],
+    gain: 0, pan: 0, mute: false, solo: false, arm: false, by: 'overdub' }],
+});
+{
+  const rep = await checkDeviceNode(def, {});
+  t.ok(rep.ok && !rep.warnings.length, `checkDevice (Node) passes with no warnings${rep.ok ? '' : ': ' + rep.errors.join('; ')}${rep.warnings.length ? ' (' + rep.warnings.join('; ') + ')' : ''}`);
+  t.ok(rep.deterministic === true, 'checkDevice: two renders are bit-identical');
+  t.ok(rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1, `checkDevice: ${rep.level.lufs} LUFS on the test phrase, ${rep.truePeak} dBTP`);
+  t.ok(rep.cpu && rep.cpu.pct < 25, `cpu ${rep.cpu && rep.cpu.pct}% of real time on the test phrase (${rep.voices && rep.voices.maxVoices} voices at most)`);
+  // a held, pedalled cluster: 32 voices at once, the interpolator on every one
+  {
+    const ev = [{ type: 'expr', sustain: true, time: 0 }];
+    for (let k = 0; k < 32; k++) ev.push(on(36 + ((k * 2) % 60), 0.7, k * 0.02));
+    const t0 = performance.now(); const r = pplay(ev, { secs: 4 }); const ms = performance.now() - t0;
+    t.ok(r.stats.maxVoices >= 30 && ms / 4000 < 0.5, `32 notes held under the pedal: ${(100 * ms / 4000).toFixed(1)}% of real time in Node (${r.stats.maxVoices} voices at once)`);
+  }
+  // create() on the audio thread: the zone maps and the sinc table, no scan of the audio
+  {
+    const values = paramValues({ params: specs }, {});
+    for (const sr of [48000, 44100]) {
+      const K = kernelCore(sr, makeDsp(sr), kernelCompiler);
+      let best = Infinity, ready = 0;
+      for (let i = 0; i < 5; i++) { const t0 = performance.now(); new K({ source: def.kernel, kind: 'instrument', params: specs, values, poly: 32, seed: 1, tail: def.tail, data: { kit: up } }, (m) => { if (m && m.type === 'ready') ready++; }); best = Math.min(best, performance.now() - t0); }
+      t.ok(ready === 5 && best < 15, `building an instance at ${sr / 1000} kHz takes ${best.toFixed(1)} ms (best of 5)`);
+    }
+  }
+  const ph = testPhrase();
+  const a = renderSong(usong(ph), { from: 0, to: PHRASE_BEATS, tail: 2 }), b = renderSong(usong(ph), { from: 0, to: PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(a) === sha256(b) && !a.warnings.length, `the test phrase renders bit-exact twice (${sha256(a).slice(0, 16)}), no warnings`);
+  const m = measure({ sr: a.sr, channels: a.channels });
+  const a44 = renderSong(usong(ph), { from: 0, to: PHRASE_BEATS, tail: 2, sr: 44100 }), m44 = measure({ sr: 44100, channels: a44.channels });
+  t.ok(Math.abs(m44.lufs - m.lufs) < 0.5 && sha256(a44) === sha256(renderSong(usong(ph), { from: 0, to: PHRASE_BEATS, tail: 2, sr: 44100 })), `at 44.1 kHz it plays the same (${m44.lufs} LUFS against ${m.lufs}), bit-exact twice`);
+
+  // pitch, every key: the kernel moves its zone's sample by 2^((key - sample's key) / 12). Checked on the sample's
+  // strongest partial (of the first four; a bass note's fundamental is too weak to read): read in the sample over a
+  // stretch of it, then in the render over the same stretch of the note (output time x the ratio is sample time), the
+  // render must be that partial moved by exactly the ratio
+  const sampleOf = (k, v) => up.samples.find((s) => k >= s.lo && k <= s.hi && v >= s.vlo && v <= s.vhi);
+  const mono = (L, R) => { const x = new Float64Array(L.length); for (let i = 0; i < L.length; i++) x[i] = (L[i] + R[i]) / 2; return x; };
+  const monos = new Map();
+  let worst = 0, worstKey = 21; const curve = [];
+  for (let k = 21; k <= 108; k++) {
+    const s = sampleOf(k, 100), ratio = Math.pow(2, (k - s.key) / 12);
+    if (!monos.has(s)) monos.set(s, mono(s.ch[0], s.ch[1]));
+    const src = monos.get(s), r = pplay([on(k, 100 / 127)], { secs: 0.8, params: { release: 6 } });
+    const x = mono(r.channels[0], r.channels[1]);
+    const a0 = 0.15, len = 0.25, fs0 = 440 * Math.pow(2, (s.key - 69) / 12), fk = 440 * Math.pow(2, (k - 69) / 12);
+    const sa = s.start + Math.round(a0 * ratio * up.sr), sl = Math.round(len * ratio * up.sr);
+    let n = 1, best = null;
+    for (let h = 1; h <= 4; h++) { if (h * fs0 > 8000) break; const q = pitchAt(src, up.sr, sa, sl, h * fs0); if (!best || q.amp > best.amp) { best = q; n = h; } }
+    const got = pitchAt(x, SR, Math.round(a0 * SR), Math.round(len * SR), n * fk);
+    curve.push([k, n, got.cents]);
+    const d = Math.abs(got.cents - best.cents);
+    if (d > worst) { worst = d; worstKey = k; }
+  }
+  t.ok(worst < 1, `all 88 keys play their zone's sample moved by the right ratio (the worst, key ${worstKey}, ${worst.toFixed(2)} cents off it, on its strongest partial)`);
+  const fund = curve.filter(([, n]) => n === 1);
+  t.note(`against equal temperament, on the keys whose fundamental is their strongest partial (${fund.length} of 88): ${fund.filter((_, i) => i % 6 === 0).map(([k, , c]) => `${k}: ${c >= 0 ? '+' : ''}${c.toFixed(0)}`).join(', ')} cents (stretch-tuned, as recorded)`);
+
+  // velocity: the level climbs on every octave, across the layer seam (80 / 81) too
+  const steps = [];
+  let down = 0, seam = 0;
+  for (const k of [21, 33, 45, 57, 60, 69, 81, 93, 105, 108]) {
+    let prev = null;
+    for (let v = 8; v <= 127; v += 4) {
+      const vv = v === 80 ? 80 : v === 84 ? 81 : v;
+      const r = pplay([on(k, vv / 127)], { secs: 0.25, params: { release: 6 } });
+      const lv = db(rms(r.channels[0], 0.01, 0.2));
+      if (prev != null) { if (lv < prev - 0.3) down++; steps.push(lv - prev); if (vv === 81) seam = Math.max(seam, Math.abs(lv - prev)); }
+      prev = lv;
+    }
+  }
+  t.ok(down === 0 && seam < 2, `the level climbs with velocity on ten keys A0..C8 (never down by more than 0.3 dB; across the seam from 80 to 81 at most ${seam.toFixed(2)} dB)`);
+}
+
+console.log('Parlour Upright: the studio');
+{
+  const { page, close, errors } = await open('/app/', { query: 'new' });
+  try {
+    await page.waitForFunction(() => window.overdub && window.overdub.store, null, { timeout: 30000 });
+    const ph = testPhrase().slice(0, 16);
+    const node = renderSong(usong(ph), { from: 0, to: 8, tail: 2 });
+    const reqs = [];
+    page.on('request', (rq) => { if (/\.odkz?$/.test(rq.url())) reqs.push(rq.url().endsWith('z') ? 'odkz' : 'odk'); });
+    const out = await page.evaluate(async ({ p }) => {
+      const { renderProject } = await import('/app/src/engine/render.js');
+      const { cleanProject } = await import('/app/src/core/project.js');
+      const buf = await renderProject(cleanProject(p), { from: 0, to: 8, tail: 2, assets: { get: async () => null } });
+      const enc = (f) => { const u = new Uint8Array(f.buffer.slice(0)); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+      return { ch: [enc(buf.getChannelData(0)), enc(buf.getChannelData(1))], len: buf.length };
+    }, { p: usong(ph) });
+    const unb = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+    const ch = out.ch.map(unb);
+    let worst = 0;
+    for (let c = 0; c < 2; c++) for (let i = 0; i < Math.min(ch[c].length, node.channels[c].length); i++) worst = Math.max(worst, Math.abs(ch[c][i] - node.channels[c][i]));
+    t.ok(reqs.join() === 'odkz', `the studio fetched the kit once, packed (${reqs.join(', ')})`);
+    t.ok(out.len === node.length && db(worst) <= -90, `the page's render matches Node's within -90 dBFS (worst ${worst ? db(worst).toFixed(1) : '-inf'} dBFS${worst ? '' : ': bit-identical'})`);
+    t.ok(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  } finally { await close(); }
 }
 
 t.done();

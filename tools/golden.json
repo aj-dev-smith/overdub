@@ -369,6 +369,16 @@
       "lufs": -16.82,
       "truePeak": -3.86,
       "peak": -3.86
+    },
+    "inst:core.upright#cc1e7ab496aa": {
+      "sha256": "32d16ce7a4e9b69f1e9e209cd69081fa3368adc574f7eb809a057b2d41183212",
+      "frames": 864000,
+      "lufs": -15.49,
+      "truePeak": -1.52,
+      "peak": -1.52,
+      "data": {
+        "kit": "sha256-cc1e7ab496aafa7f73b44b45fa0f9bdb96015c6b3ca2ff1fe29d6565a17ece86"
+      }
     }
   }
 }

@@ -37,12 +37,15 @@
 import { kernel } from './lib.js';
 
 // opts: { makeup (linear gain on the kit), poly, xfade (velocity units, 0..127), law: 'power' (layers that are
-// unlike each other: equal power) | 'linear' (layers alike at the attack, whose amplitudes add) }
+// unlike each other: equal power) | 'linear' (layers alike at the attack, whose amplitudes add) | 'aligned' (two
+// samples of the same note that the kit's build lined up in time, their correlation there in the soft one's `align`:
+// weights that keep the sum's power constant for that correlation, so linear at 1 and equal power at 0; any other
+// pair, equal power) }
 export function samplerKernel({ makeup = 1, poly = 32, xfade = 6, law = 'power' } = {}) {
   return kernel(String.raw`
 const MAKEUP = ${JSON.stringify(makeup)};
 const XF = ${JSON.stringify(xfade)};
-const XL = ${JSON.stringify(law === 'linear')} ? (x) => x : Math.sqrt;
+const LAW = ${JSON.stringify(law)};
 const KN = 1 / 32768;
 // the windowed-sinc table, from + - * / and sqrt alone: the same numbers in every engine
 const T = 16, HALF = 8, P = 512;
@@ -99,7 +102,7 @@ return {
       const loop = s.loop && s.loop.e > s.loop.s + 16 && s.loop.e <= n ? { s: s.loop.s, e: s.loop.e, sus: s.loop.mode === 'sustain' } : null;
       return { L: s.ch[0], R: s.ch[1] || s.ch[0], n, key, lo: s.lo == null ? key : s.lo, hi: s.hi == null ? key : s.hi,
         vlo: s.vlo == null ? 0 : s.vlo, vhi: s.vhi == null ? 127 : s.vhi, rr: s.rr | 0, rel: s.trig === 'release',
-        tune: +s.tune || 0, g: dbx(+s.gain || 0), at: Number.isInteger(s.start) && s.start > 0 && s.start < n ? s.start : 0, loop, lp };
+        tune: +s.tune || 0, g: dbx(+s.gain || 0), align: +s.align || 0, at: Number.isInteger(s.start) && s.start > 0 && s.start < n ? s.start : 0, loop, lp };
     });
     // per key: its layers in velocity order, each { vlo, vhi, rr: [sample, ...] } (attack samples), and its release
     // samples the same way
@@ -109,7 +112,7 @@ return {
         const by = new Map();
         for (const s of S) if (s.rel === rel && k >= s.lo && k <= s.hi) {
           const id = s.vlo + ':' + s.vhi;
-          if (!by.has(id)) by.set(id, { vlo: s.vlo, vhi: s.vhi, rr: [] });
+          if (!by.has(id)) by.set(id, { vlo: s.vlo, vhi: s.vhi, rr: [], last: -1 });
           by.get(id).rr.push(s);
         }
         const L = [...by.values()].sort((a, b) => a.vlo - b.vlo || a.vhi - b.vhi);
@@ -122,14 +125,25 @@ return {
     // the round robins: one seeded draw per pick, never the sample that played last on that layer
     const RR = new Uint32Array(1); RR[0] = (seed ^ 0x51ab) >>> 0 || 11;
     const draw = () => (RR[0] = (Math.imul(RR[0], 1664525) + 1013904223) >>> 0) / 4294967296;
-    const last = new Map();
+    // (a layer is one key's: each key keeps its own last pick)
     const pick = (lay) => {
       const n = lay.rr.length;
       if (n === 1) return lay.rr[0];
-      const prev = last.get(lay);
-      const q = prev == null ? Math.floor(draw() * n) : (prev + 1 + Math.floor(draw() * (n - 1))) % n;
-      last.set(lay, q);
+      const q = lay.last < 0 ? Math.floor(draw() * n) : (lay.last + 1 + Math.floor(draw() * (n - 1))) % n;
+      lay.last = q;
       return lay.rr[q];
+    };
+    // two layers at once: weights by the law (a layer's samples share their key, so its first one stands for it)
+    const pair = (out, a, b, u) => {
+      let wa = 1 - u, wb = u;
+      if (LAW === 'power') { wa = Math.sqrt(wa); wb = Math.sqrt(wb); }
+      else if (LAW === 'aligned') {
+        const x = a.rr[0], y = b.rr[0], rho = x.key === y.key ? Math.min(1, Math.max(0, x.align || y.align || 0)) : 0;
+        const k = 1 / Math.sqrt(wa * wa + wb * wb + 2 * wa * wb * rho);
+        wa *= k; wb *= k;
+      }
+      out[0] = a; out[1] = wa; out[2] = b; out[3] = wb;
+      return 2;
     };
     // the layers (and weights, by the law) a velocity plays on: [[layer, weight], ...] into out; returns the count
     const choose = (L, v, out) => {
@@ -139,11 +153,11 @@ return {
       const cur = L[i];
       if (XF > 0 && i > 0 && v < cur.vlo + XF && L[i - 1].vhi < cur.vlo) {
         const b = (L[i - 1].vhi + cur.vlo) / 2, u = Math.min(1, Math.max(0, (v - (b - XF)) / (2 * XF)));
-        if (u < 1) { out[0] = L[i - 1]; out[1] = XL(1 - u); out[2] = cur; out[3] = XL(u); return 2; }
+        if (u < 1) return pair(out, L[i - 1], cur, u);
       }
       if (XF > 0 && i < L.length - 1 && v > cur.vhi - XF && L[i + 1].vlo > cur.vhi) {
         const b = (cur.vhi + L[i + 1].vlo) / 2, u = Math.min(1, Math.max(0, (v - (b - XF)) / (2 * XF)));
-        if (u > 0) { out[0] = cur; out[1] = XL(1 - u); out[2] = L[i + 1]; out[3] = XL(u); return 2; }
+        if (u > 0) return pair(out, cur, L[i + 1], u);
       }
       out[0] = cur; out[1] = 1; return 1;
     };
@@ -185,7 +199,7 @@ return {
       return {
         start(pitch, v, p) {
           key = pitch < 0 ? 0 : pitch > 127 ? 127 : pitch | 0; vel = v < 0 ? 0 : v > 1 ? 1 : v;
-          for (const R of rd) R.on = false;
+          rd[0].on = rd[1].on = rd[2].on = false;
           on = false; held = true; env = 1; att = 0; heldFor = 0; relK = 1;
           const v127 = vel * 127;
           gVel = dbx(velDb(v127) * p.dynamics / 100);
@@ -204,7 +218,7 @@ return {
             if (n) begin(rd[2], pick(tmp[0]), tmp[1] * dbx(-RT * heldFor / sr));
           }
         },
-        stop() { on = false; for (const R of rd) R.on = false; },
+        stop() { on = false; rd[0].on = rd[1].on = rd[2].on = false; },
         render(Lo, Ro, n, p, t) {
           if (!on) return false;
           // the note's envelope for this block, shared by its attack reads: the ramp in, then the release
