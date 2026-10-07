@@ -347,6 +347,13 @@ console.log('Parlour Upright: the studio');
     for (let c = 0; c < 2; c++) for (let i = 0; i < Math.min(ch[c].length, node.channels[c].length); i++) worst = Math.max(worst, Math.abs(ch[c][i] - node.channels[c][i]));
     t.ok(reqs.join() === 'odkz', `the studio fetched the kit once, packed (${reqs.join(', ')})`);
     t.ok(out.len === node.length && db(worst) <= -90, `the page's render matches Node's within -90 dBFS (worst ${worst ? db(worst).toFixed(1) : '-inf'} dBFS${worst ? '' : ': bit-identical'})`);
+    // an agent finds it: list_devices names it among the keys, get_device gives its params and presets
+    const ag = await page.evaluate(async () => {
+      const l = await window.overdub.tools.run('list_devices', { kind: 'instrument', cat: 'keys' }, { by: 'claude' });
+      const g = await window.overdub.tools.run('get_device', { id: 'core.upright' }, { by: 'claude' });
+      return { list: JSON.stringify(l), get: JSON.stringify(g) };
+    });
+    t.ok(/core\.upright/.test(ag.list) && /Parlour Upright/.test(ag.list) && /dynamics/.test(ag.get) && /Felt/.test(ag.get), 'an agent finds it: list_devices names Parlour Upright among the keys, get_device gives its params and presets');
     t.ok(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   } finally { await close(); }
 }

@@ -295,7 +295,9 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples. The studio's one sampled instrument (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)).
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's two sampled
+  instruments; the other is Parlour Upright (`core.upright`), a real upright piano
+  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)).
 
 **Cymbal models.** Gobo Kit and Studio A take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,

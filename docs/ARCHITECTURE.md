@@ -397,8 +397,8 @@ draw them, so the editor shows exactly what plays. Its design note, with the par
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 32 built-ins, one of
-them sampled: Virtuosity Kit, whose samples come as kernel data),
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 33 built-ins, two of
+them sampled: Virtuosity Kit and Parlour Upright, whose samples come as kernel data),
 `devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its
 156 rigs as device chains) and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source:
 'library'`, each with its `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices
