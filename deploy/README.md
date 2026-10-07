@@ -35,5 +35,15 @@ the tab's title with "Preview ·". The live site's copy has no `preview` key, so
 before the ribbon existed (no `app/src/ui/preview.js`) deploys without the slip or the title; the noindex header still
 applies, since it comes from the distribution.
 
+## The preview from GitHub Actions
+
+`.github/workflows/ci.yml` runs the full suite on every pull request and push to main, on macOS (the golden renders
+match only on Apple Silicon). Its `deploy-staging` job ships `main` or `next` to the preview when you start the
+workflow by hand on that branch (Actions › ci › Run workflow), and only after that run's suite passes. It signs in to AWS with GitHub's OIDC
+token, never a stored key, as a role that can write the preview's bucket and invalidate its distribution and nothing
+else. `deploy/next/github-oidc.sh` (once, `AWS_PROFILE=overdub`; `DRY_RUN=1` prints the plan) makes the role and
+GitHub's identity provider; `BRANCHES` names the branches whose runs may assume it (default `main next`). The role's
+ARN and the distribution id go in the repository variables `NEXT_DEPLOY_ROLE` and `NEXT_DISTRIBUTION`.
+
 What a tester should know: songs, keys and settings saved on the preview stay on the preview (each site keeps its own
 browser storage). Connect to Claude doesn't work there: the relay accepts the live origin only.

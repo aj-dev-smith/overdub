@@ -1,0 +1,151 @@
+# The full suite (node tools/run-all.js) on every pull request and every push to main, and a staging deploy you start
+# by hand (Actions > ci > Run workflow, on main or next). Node comes from mise.toml, as it does locally.
+#
+# macOS on Apple Silicon, on purpose: tools/golden.json was made on Apple Silicon with Node 24, and another V8 rounds
+# Math.exp/sin differently in the last bit (CLAUDE.md), so the golden renders only match there.
+#
+# The suite needs three things the repo doesn't carry (zero dependencies, no build):
+#   - playwright-core and its Chromium, WebKit and Firefox for the browser checks (tools/pw.js, compat-test), installed
+#     with --no-save;
+#   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files;
+#   - the kit HEAD~1 names as well: analytics-test dry-runs deploy.sh --next HEAD~1, and deploy.sh refuses a ref
+#     whose kit isn't built.
+# The deploy job reaches AWS through GitHub's OIDC token: no keys are stored anywhere. The role it assumes can only
+# write the next.overdubstudio.com bucket and invalidate its distribution (deploy/next/github-oidc.sh makes it). Its
+# ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE, NEXT_DISTRIBUTION), never committed.
+# Actions are pinned to a commit; the comment names the release.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to https://next.overdubstudio.com once the suite passes (main or next only)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # by event too, so a later push to the same branch can't replace a queued by-hand deploy
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PLAYWRIGHT_CORE_VERSION: 1.63.0
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: Cache the Chromium playwright-core drives
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
+
+      - name: Install playwright-core and its browsers (not saved to package.json)
+        run: |
+          npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
+          node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
+
+      - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.out/kits-cache
+          key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
+          restore-keys: kits-cache-
+
+      - name: Build the sampled kits HEAD and HEAD~1 name
+        run: |
+          node tools/fetch-kits.js
+          PREV="$RUNNER_TEMP/prev"
+          git worktree add --detach "$PREV" HEAD~1
+          mkdir -p "$PREV/tools/.out"
+          ln -s "$PWD/tools/.out/kits-cache" "$PREV/tools/.out/kits-cache"
+          (cd "$PREV" && node tools/fetch-kits.js)
+          cp -n "$PREV"/app/kits/*.odk app/kits/ || true
+          git worktree remove --force "$PREV"
+          ls -l app/kits
+
+      - name: Full suite (node tools/run-all.js)
+        env:
+          REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
+          # Two suites at a time, not three: the runner has 3 vCPUs, and jam-test's live-meter check reads real-time
+          # audio, so it flakes when three Chromiums share them.
+          PAR: 2
+          # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
+          # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
+          CPU: 0
+        run: node tools/run-all.js
+
+      - name: Keep the screenshots and reports when it fails
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tools-out
+          path: |
+            tools/.out/
+            !tools/.out/kits-cache/
+          retention-days: 7
+
+  deploy-staging:
+    needs: test
+    # the role trusts only these branches (deploy/next/github-oidc.sh, BRANCHES)
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.deploy
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      AWS_ROLE: ${{ vars.NEXT_DEPLOY_ROLE }}
+      NEXT_DISTRIBUTION: ${{ vars.NEXT_DISTRIBUTION }}
+    steps:
+      - name: Check the repository variables are set (deploy/next/github-oidc.sh says what goes in them)
+        run: |
+          [ -n "$AWS_ROLE" ] || { echo "::error::set the repository variable NEXT_DEPLOY_ROLE"; exit 1; }
+          [ -n "$NEXT_DISTRIBUTION" ] || { echo "::error::set the repository variable NEXT_DISTRIBUTION"; exit 1; }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: Cache the kit downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.out/kits-cache
+          key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
+          restore-keys: kits-cache-
+
+      - name: Build the sampled kits this commit names
+        run: node tools/fetch-kits.js
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: us-east-1
+
+      - name: Deploy to https://next.overdubstudio.com (the suite already passed in the test job)
+        run: |
+          echo "$NEXT_DISTRIBUTION" > deploy/.next-distribution-id
+          deploy/deploy.sh --skip-tests --next "$GITHUB_SHA"
