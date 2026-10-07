@@ -31,20 +31,20 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 38 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 39 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
   Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit,
-  Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin and Damper Bar;
+  Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar and Roundwound;
   Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed Tape, Gatefold, Red Line,
-  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but seven, which play samples: Virtuosity Kit, a real
+  Slide Rule, Scribble Strip and Gaffer Tape. All are synthesized but eight, which play samples: Virtuosity Kit, a real
   jazz-club kit, Parlour Upright, a real upright piano, Rusty Brushes, a real kit played with brushes and mallets,
-  Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string section, and Damper Bar, a real vibraphone. (Light Table's AKWF
-  tables are recorded too: 108 single cycles, nine to a table.)
+  Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string section, Damper Bar, a real vibraphone, and Roundwound, a real five-string
+  bass. (Light Table's AKWF tables are recorded too: 108 single cycles, nine to a table.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 38 built-ins.
+  behind it, next to the 39 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano
@@ -141,6 +141,9 @@ commit `c1ea7bc`, listed in `tools/kits/vcsl-hand.js`). Full Stick plays
 (Sam Gossner) and Ivy Audio (Simon Dalzell) (CC0 1.0; at commit `4403009`, listed in `tools/kits/vsco-strings.js`).
 Damper Bar plays the vibraphone of the [Versilian Community Sample Library](https://github.com/sgossner/VCSL) by
 Versilian Studios (CC0 1.0; at commit `c1ea7bc`, listed in `tools/kits/vcsl-vibes.js`).
+Roundwound plays the dark black five-string of
+[Black And Blue Basses](https://github.com/sfzinstruments/karoryfer.black-and-blue-basses) by Karoryfer Samples
+(CC0 1.0; at commit `6e7d674`, listed in `tools/kits/karoryfer-bass.js`).
 [`docs/SOUNDS.md`](docs/SOUNDS.md) is the record of every sound set: source, pin,
 licence, author and what the build changed.
 

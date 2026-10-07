@@ -304,9 +304,10 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's seven sampled
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's eight sampled
   instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
-  concert grand), Rosin (`core.ensemble`, a real string section) and Damper Bar (`core.vibes`, a real vibraphone)
+  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone)
+  and Roundwound (`core.ebass`, a real five-string bass)
   ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
@@ -588,6 +589,7 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 | Full Stick (`core.grand`) | Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB | `tools/kits/salamander.js` |
 | Rosin (`core.ensemble`) | VSCO 2 CE: four string sections' sustains, 15 zones, 2 layers, looped | `tools/kits/vsco-strings.js` |
 | Damper Bar (`core.vibes`) | VCSL Vibraphone: 11 bars, soft and hard mallets, 4 layers | `tools/kits/vcsl-vibes.js` |
+| Roundwound (`core.ebass`) | Karoryfer Black And Blue Basses, dark black: 14 zones, 4 layers, 2 round robins, mono | `tools/kits/karoryfer-bass.js` |
 
 **Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
 Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,
