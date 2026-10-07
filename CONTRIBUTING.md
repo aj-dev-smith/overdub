@@ -30,6 +30,11 @@ Nobody can judge a mix from a diff. After a change to anything that makes sound,
 canonical renders: if yours moves one on purpose, regenerate only that scene (`UPDATE_GOLDEN=<scene>
 node tools/golden-test.js`) and say why in the pull request.
 
+## Sounds
+
+Contributed audio (samples, impulse responses, anything recorded) must be CC0, so anyone can ship it and nobody's
+song owes it anything. Pin its source and add it to [`docs/SOUNDS.md`](docs/SOUNDS.md).
+
 ## Pull requests
 
 Keep one change per pull request, with its checks passing, and copy that follows [`docs/BRAND.md`](docs/BRAND.md):
