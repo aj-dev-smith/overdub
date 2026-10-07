@@ -1,4 +1,4 @@
-# The full suite (node tools/run-all.js) on every pull request and every push to main, and a staging deploy you start
+# The full suite (node tools/run-all.js, in four shards) on every pull request and every push to main, and a staging deploy you start
 # by hand (Actions > ci > Run workflow, on main or next). Node comes from mise.toml, as it does locally.
 #
 # macOS on Apple Silicon, on purpose: tools/golden.json was made on Apple Silicon with Node 24, and another V8 rounds
@@ -39,9 +39,17 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
+  # The suite is about 70 minutes of work one suite at a time, and its real-time checks (frame rates, tap tempo, live
+  # meters) fail when suites share a 3-vCPU runner. So it's split four ways: every *-test.js file lands in exactly one
+  # shard (round-robin by name), and each shard runs its suites one at a time.
   test:
+    name: test (${{ matrix.shard }}/4)
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -80,26 +88,41 @@ jobs:
           git worktree remove --force "$PREV"
           ls -l app/kits
 
-      - name: Full suite (node tools/run-all.js)
+      - name: This shard's suites (node tools/run-all.js <names>)
         env:
+          SHARD: ${{ matrix.shard }}
           REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
-          # Two suites at a time, not three: the runner has 3 vCPUs, and jam-test's live-meter check reads real-time
-          # audio, so it flakes when three Chromiums share them.
-          PAR: 2
+          PAR: 1           # one suite at a time: the real-time checks need the runner to themselves
           # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
           # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
           CPU: 0
-        run: node tools/run-all.js
+        run: |
+          # file names are unique and none contains another, so run-all's name filter picks exactly these
+          names=()
+          while IFS= read -r f; do names+=("$f"); done < <(cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
+          echo "shard $SHARD: ${names[*]}"
+          node tools/run-all.js "${names[@]}"
 
       - name: Keep the screenshots and reports when it fails
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: tools-out
+          name: tools-out-${{ matrix.shard }}
           path: |
             tools/.out/
             !tools/.out/kits-cache/
           retention-days: 7
+
+  # One status for branch protection to require, whatever the shard count.
+  suite:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: '[ "$RESULT" = success ] || { echo "the suite: $RESULT"; exit 1; }'
 
   deploy-staging:
     needs: test
