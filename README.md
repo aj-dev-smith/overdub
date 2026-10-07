@@ -124,13 +124,17 @@ The pedals, amps, cabs and presets are AJ's Guitar Studio from Claw'd-o-Matic. T
 AJ's earlier synthesis experiments (Karplus-Strong strings, modal drums, tube amp models). Virtuosity Kit plays
 [Virtuosity Drums](https://github.com/sfzinstruments/virtuosity_drums) by Versilian Studios, played by Austin McMahon
 on the house kit at Virtuosity Musical Instruments, Boston (CC0 1.0; the samples at commit `9f04cf9`, listed in
-`tools/kits/virtuosity.js`).
+`tools/kits/virtuosity.js`). Parlour Upright plays FreePats'
+[Upright Piano KW](https://github.com/freepats/upright-piano-KW), a Kawai upright recorded by Gonzalo and Roberto
+(CC0 1.0; at commit `570f6c6`, listed in `tools/kits/upright-kw.js`). [`docs/SOUNDS.md`](docs/SOUNDS.md) is the
+record of every sound set: source, pin, licence, author and what the build changed.
 
 ## Licence
 
-MIT: see [LICENSE](LICENSE). The fonts in `app/style/fonts/` are under the SIL Open Font License, each with its
-`OFL.txt`. The kit samples `tools/fetch-kits.js` fetches aren't in this repository; they are CC0 1.0 (public domain
-dedication), and the tool checks the upstream LICENSE before it builds them.
+MIT: see [LICENSE](LICENSE). The MIT licence covers the code; each sound set carries its own licence
+([`docs/SOUNDS.md`](docs/SOUNDS.md)). The fonts in `app/style/fonts/` are under the SIL Open Font License, each with
+its `OFL.txt`. The samples `tools/fetch-kits.js` fetches aren't in this repository; both sets are CC0 1.0 (public
+domain dedication), and the tool checks the upstream LICENSE before it builds them.
 
 ## Contributing
 
