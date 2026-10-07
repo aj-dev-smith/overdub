@@ -7,8 +7,24 @@ const t = process.hrtime.bigint();
 let x = 0; for (let i = 0; i < 2e8; i++) x = (x + i * 7) % 1000003;
 console.log(`node: a 2e8-step loop in ${(Number(process.hrtime.bigint() - t) / 1e6).toFixed(0)} ms (${x})`);
 
+const loop = async (page) => page.evaluate(async () => {
+  const long = []; let po = null;
+  try { po = new PerformanceObserver((l) => { for (const e of l.getEntries()) long.push(Math.round(e.duration)); }); po.observe({ type: 'longtask' }); } catch (e) { /* ok */ }
+  const gaps = []; let n = 0;
+  await new Promise((res) => { const t0 = performance.now(); let last = t0; const f = (now) => { n++; gaps.push(now - last); last = now; if (now - t0 < 2000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+  const late = [];
+  for (let i = 0; i < 40; i++) { const t0 = performance.now(); await new Promise((res) => setTimeout(res, 10)); late.push(performance.now() - t0 - 10); }
+  if (po) po.disconnect();
+  gaps.sort((a, b) => a - b);
+  return { fps: n / 2, frameMs: { p50: +gaps[gaps.length >> 1].toFixed(1), max: +gaps[gaps.length - 1].toFixed(1) }, timeoutLateMean: +(late.reduce((a, b) => a + b, 0) / late.length).toFixed(1), longTasks: long.length, longestTask: Math.max(0, ...long) };
+});
 const { page, close } = await open('/app/');
-await page.waitForTimeout(1500);
+const blank = await page.context().newPage();
+await blank.setContent('<p>blank</p>');
+console.log('a blank page beside the studio:', JSON.stringify(await loop(blank)));
+await blank.close();
+await page.waitForTimeout(3000);
+console.log('the studio, idle:', JSON.stringify(await loop(page)));
 const r = await page.evaluate(async () => {
   const out = {};
   const frames = (ms) => new Promise((res) => { const t0 = performance.now(); let n = 0; const f = () => { n++; if (performance.now() - t0 < ms) requestAnimationFrame(f); else res(n); }; requestAnimationFrame(f); });

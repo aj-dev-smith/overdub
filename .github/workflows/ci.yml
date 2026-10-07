@@ -51,62 +51,39 @@ env:
     jam-test.js mcp-e2e-test.js phone-test.js plugin-test.js record-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # TEMPORARY: what the runner gives a test browser, three ways
+  # TEMPORARY: what the runner gives a test browser, headless and headed
   diag:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
-        variant: [base, blackhole, blackhole-quiet]
+        mode: [headless, headed]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/suite-setup
-      - name: The machine
-        run: |
-          sysctl hw.ncpu hw.memsize machdep.cpu.brand_string || true
-          system_profiler SPAudioDataType SPDisplaysDataType || true
-          mdutil -s / || true
-          top -l 2 -o cpu -n 15 -stats pid,command,cpu,mem | tail -20 || true
-      - name: A virtual audio output
-        if: startsWith(matrix.variant, 'blackhole')
-        run: |
-          brew install --cask blackhole-2ch
-          brew install switchaudio-osx
-          sudo launchctl kickstart -kp system/com.apple.audio.coreaudiod || sudo killall coreaudiod || true
-          sleep 5
-          SwitchAudioSource -a -t output || true
-          SwitchAudioSource -t output -s "BlackHole 2ch" || true
-          SwitchAudioSource -c -t output || true
-          system_profiler SPAudioDataType || true
-      - name: Quiet the machine
-        if: matrix.variant == 'blackhole-quiet'
+      - name: Quiet the machine, and the display
         run: |
           sudo mdutil -a -i off || true
-          top -l 2 -o cpu -n 15 -stats pid,command,cpu,mem | tail -20 || true
+          system_profiler SPDisplaysDataType || true
+          node node_modules/playwright-core/cli.js install chromium
       - name: Probe
         run: |
-          node node_modules/playwright-core/cli.js install chromium
-          FULL=$(find ~/Library/Caches/ms-playwright -path '*chromium-*' -name Chromium -type f -perm +111 | head -1)
-          echo "full chromium: $FULL"
-          echo "::group::default"; node tools/ci-probe.js; echo "::endgroup::"
-          echo "::group::gpu flags"; CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization" node tools/ci-probe.js; echo "::endgroup::"
-          echo "::group::full chromium headless"; CHROMIUM="$FULL" node tools/ci-probe.js; echo "::endgroup::"
-          echo "::group::full chromium headless gpu"; CHROMIUM="$FULL" CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist" node tools/ci-probe.js; echo "::endgroup::"
-          echo "::group::headed"; HEADED=1 node tools/ci-probe.js; echo "::endgroup::"
+          [ "${{ matrix.mode }}" = headed ] && export HEADED=1
+          node tools/ci-probe.js
       - name: Suites
         if: always()
         env:
           PAR: 1
           CPU: 0
         run: |
-          node tools/run-all.js arrange-test.js brand-test.js engine-test.js input-test.js eq-test.js || true
-          for i in 1 2 3 4 5 6; do
-            echo "::group::eq alone $i"; set +e; node tools/eq-test.js > eq.log 2>&1; code=$?; set -e
-            echo "exit $code"; tail -15 eq.log; echo "::endgroup::"
-          done
+          [ "${{ matrix.mode }}" = headed ] && export HEADED=1
+          top -l 0 -s 15 -o cpu -n 8 -stats command,cpu,threads > top.log &
+          node tools/run-all.js arrange-test.js brand-test.js engine-test.js input-test.js stopping-test.js plugin-test.js phone-test.js sounds-test.js || true
+          kill %1 || true
+          grep -A9 '^COMMAND' top.log | awk '{print $1, $2}' | sort | awk '{a[$1]+=$2; n[$1]++} END {for (k in a) printf "%s %.1f\n", k, a[k]/n[k]}' | sort -k2 -nr | head -15
 
   # Every suite but the real-time ones, about 40 minutes one suite at a time, split four ways: each lands in exactly
   # one shard (round-robin by name), and each shard runs its suites one at a time.
