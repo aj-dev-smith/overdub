@@ -4,7 +4,8 @@ Overdub's code is MIT ([LICENSE](../LICENSE)). The MIT licence covers the code a
 recorded sounds the studio plays carries its own licence, recorded here. Every built-in device not listed below is
 synthesized from notes, parameters and code, so it has no sound files at all.
 
-The recordings aren't in this repository. `node tools/fetch-kits.js` downloads each set from its source at a pinned
+The sampled kits' recordings aren't in this repository (Light Table's AKWF single cycles are the one exception: 108
+short cycles, embedded in `app/src/devices/builtin/akwf.js`, below). `node tools/fetch-kits.js` downloads each set from its source at a pinned
 commit, checks every file against its SHA-256, checks the upstream licence before building anything, and builds the
 kit file the device names (`app/kits/<sha256>.odk`, and its packed twin `.odkz`). The same files always build the
 same bytes, so the hash a device pins is also the record of exactly what was shipped. The recipes in `tools/kits/`
@@ -36,6 +37,17 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Author | FreePats: a Kawai upright in Inma Martínez de Miguel's living room, recorded by Gonzalo and Roberto in January 2017 with a Zoom H1 at the player's head; edited by Roberto. |
 | Modifications | The full build (both velocity layers), mapped as its SFZ maps it, loops and low-pass filters included. 24-bit to 16-bit by rounding, kept at 44.1 kHz. Each tail cut after the last 20 ms window at or above -70 dBFS RMS, then a 10 ms linear fade; a looped sample kept to its loop's end. Each sample's start set 2 ms before its attack, and each soft sample's moved to line up with its key's hard one. A gain per sample (within ±4 dB), so that every sample sits on one smooth curve across the keys: the files are peak-normalized. |
 | Kit | `sha256-cc1e7ab496aafa7f73b44b45fa0f9bdb96015c6b3ca2ff1fe29d6565a17ece86` |
+| Verified | 2026-10-06 |
+
+## AKWF: Light Table's recorded tables (`core.wavetable`)
+
+| | |
+|---|---|
+| Source | https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE |
+| Pinned | commit `8de90bf94376670947369e69de0af6b9fbd19286`; LICENSE.md sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`; 108 WAV files, each by sha256, in [`tools/kits/akwf.js`](../tools/kits/akwf.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE.md is the full CC0 1.0 Universal text) |
+| Author | Kristoffer Ekstrand (Adventure Kid Waveforms) |
+| Modifications | A subset: nine single cycles from each of 12 families, picked by measure (`node tools/akwf-bank.js --pick`). Packed losslessly into `app/src/devices/builtin/akwf.js`, which is in this repository and carried in the kernel's source; each cycle's spectrum turned to sine phase, RMS-scaled and band-limited per octave when the tables are built. `node tools/akwf-bank.js` rebuilds the module from the pinned files (`--verify` offline). |
 | Verified | 2026-10-06 |
 
 ## Adding a set
