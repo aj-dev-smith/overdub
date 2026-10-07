@@ -11,6 +11,9 @@ concept? I'd love some community UI to browse and use these new devices") with a
 the tests that hold it. Draft 2 takes in two reviews, one of the security and one of Simple view on a
 phone. "Review notes" at the end lists what changed and what was turned down, with the reason.*
 
+*Since then: the studio is one view with everything on screen, More became Find (⌘K), and Simple view is reached only
+at `?view=simple`, never by default. Where this spec says Simple view or More, that is the history it was written in.*
+
 **There is no marketplace.** Community devices are free forever and never sold. So this shelf has no prices, no
 checkout, no paid tier, no ratings and no download counts. It is a shelf: what the community repo holds, each device's author, what it was asked
 for, what it measured and how it sounds, and a way to bring it into a song you're making.
@@ -55,9 +58,10 @@ It ships **off on the live site** until AJ turns it on, and "off" means off, wha
 - `COMMUNITY_LIVE = false` in `app/src/ui/community.js`, like `RELAY_LIVE` in `agent/remote.js`. While it is false,
   everything the shelf does depends on `location.hostname` being `localhost` or `127.0.0.1`. On any other host,
   `?community=`, `?community-device=` and a stored `overdub:community` are ignored. The Browser section isn't drawn,
-  More's shelf words aren't added, and the agent tool answers *"The community shelf isn't on in this studio."*
+  Find's shelf words aren't added, and the agent tool answers *"The community shelf isn't on in this studio."*
   Without that check, a link to `overdubstudio.com/app/?community=http://localhost:NNNN/…` would open the shelf and its
-  trust prompt on the origin that holds the person's Anthropic key, since `connect-src` already allows `localhost:*`.
+  trust prompt on the live studio's origin, which holds the person's songs and drives their agents, since `connect-src`
+  already allows `localhost:*`.
 - The bundled snapshot (`app/community/`) is **gitignored**, so `deploy/deploy.sh`, which ships `git archive`, never
   carries community devices or clips to overdubstudio.com.
 - `site/community/` is committed, but `deploy.sh` leaves it out (a `HELD_BACK` list) and no page links to it until
@@ -100,14 +104,14 @@ or **Try**.
   "revoked": [],
   "devices": [
     {
-      "id": "aj-dev-smith.back-seat",
+      "id": "example-author.back-seat",
       "name": "Back Seat",
       "kind": "effect",
       "cat": "time",
       "blurb": "Echoes that stay out of the way, then bloom in the gaps",
       "nod": "the ducking delay on a vocal bus",
       "tier": "community",
-      "author": { "handle": "aj-dev-smith", "alias": null },
+      "author": { "handle": "example-author", "alias": null },
       "agent": "Claude Opus 5.5 (Claude Code)",
       "requester": "AJ's community seed: AJ briefed a first set …",
       "request": "I want an echo that stays out of the way while I'm singing and blooms in the gaps.",
@@ -132,11 +136,11 @@ or **Try**.
         "params": null,
         "seconds": 6,
         "lufs": -18,
-        "wet": { "clips": [{ "src": "clips/aj-dev-smith.back-seat.mp3", "type": "audio/mpeg", "bytes": 98102 }, { "src": "clips/aj-dev-smith.back-seat.wav", "type": "audio/wav", "bytes": 1152044 }], "pcm": "<64 hex>" },
+        "wet": { "clips": [{ "src": "clips/example-author.back-seat.mp3", "type": "audio/mpeg", "bytes": 98102 }, { "src": "clips/example-author.back-seat.wav", "type": "audio/wav", "bytes": 1152044 }], "pcm": "<64 hex>" },
         "dry": "strum"
       },
-      "device": "devices/aj-dev-smith.back-seat.overdub-device.json",
-      "source": { "path": "devices/aj-dev-smith/back-seat", "commit": "249eac3", "url": null }
+      "device": "devices/example-author.back-seat.overdub-device.json",
+      "source": { "path": "devices/example-author/back-seat", "commit": "249eac3", "url": null }
     }
   ]
 }
@@ -397,7 +401,7 @@ A row is a `.br-row`:
 - the blurb (`.br-blurb`, as built-in rows have);
 - a 40 px **▶** / **Stop** at the end of the row that plays `preview.wet`.
 
-The credit (*aj-dev-smith with Claude*) sits on a second line in small type, with the author in warm ink and the agent
+The credit (*example-author with Claude*) sits on a second line in small type, with the author in warm ink and the agent
 in cool ink. Under 640 px it moves into the detail. Tapping ▶ plays and doesn't open anything. Tapping the rest of the
 row (or Enter) opens its detail under it, separated by a hairline. A second Enter on an open row does nothing; it never
 presses a button in the detail. The detail isn't a card or a nested box. It leads with what a musician needs:
@@ -407,11 +411,11 @@ Back Seat — Echoes that stay out of the way, then bloom in the gaps
 ▶ On a strum    Dry
 Try on Vocals
 "I want an echo that stays out of the way while I'm singing and blooms in the gaps."
-by aj-dev-smith with Claude Opus 5.5                Asked for by …  (requester, in pencil)
+by example-author with Claude Opus 5.5                Asked for by …  (requester, in pencil)
 Same level as what goes in. Rings on 1.5 s. Light on the computer.
 Level +0.0 LU · Peak -5.7 dBTP · Tail 1.5 s · CPU 0.8%                  (small)
 A person read it before it went on the shelf. It passed the studio check.   (bundled index only)
-MIT-0 · devices/aj-dev-smith/back-seat at 249eac3 · Read the code · Keep it in this song, on no track
+MIT-0 · devices/example-author/back-seat at 249eac3 · Read the code · Keep it in this song, on no track
 ```
 
 - **The numbers come last**, led by plain words, the way the demo agent already writes them (FRESH-EYES-3): level
@@ -452,7 +456,7 @@ the agent. Only the bundled index (`origin: 'bundled'`, the copy the maintainer 
 word. For any other origin:
 
 - the detail and the prompt **drop** "A person read it" and "It passed the studio check";
-- the prompt says instead: *"The shelf at localhost:4000 says aj-dev-smith asked for this. The studio can't confirm
+- the prompt says instead: *"The shelf at localhost:4000 says example-author asked for this. The studio can't confirm
   that."*;
 - the measured numbers show under *"The shelf says:"*;
 - the held strip's shelf credit line (below) isn't added;
@@ -500,9 +504,9 @@ with no instrument track selected), or *Try on the master*. It's the detail's on
       revokes something the person had already allowed, or that another tab added in the meantime.
 
    `credit = { author, alias, agent, license, sha256, source: entry.source.url || entry.source.path }` is a new,
-   optional field on a project device, so the song carries the credit the pledge promises. Credit is tied to code:
+   optional field on a project device, so the song carries the credit the shelf shows. Credit is tied to code:
    - The studio shows `credit` only while `kernelHash(device.kernel) === credit.sha256`. A shared song that attaches
-     `credit: { author: 'aj-dev-smith', sha256: <Back Seat> }` to other code shows no credit.
+     `credit: { author: 'example-author', sha256: <Back Seat> }` to other code shows no credit.
    - `device.define` (`core/ops.js`) drops `credit` from a device whose kernel doesn't hash to `credit.sha256`, so a
      rewrite under the same id loses the credit. The inverse restores the old device whole, as now.
    - The device's own `by` is `'you'`, never an agent's (section 5), so `define_device` won't rewrite it later without
@@ -530,7 +534,7 @@ place of Piano** (the primary) and *Play it on a new track*.
 A floating insert anchored to the row, or a bottom sheet on phones. It's the same prompt whether the person pressed Try
 or the agent's card, and it never shows the agent's words. The bundled-index version:
 
-> **Back Seat** is code. aj-dev-smith asked for it, Claude Opus 5.5 wrote it. A person read it before it went on the
+> **Back Seat** is code. example-author asked for it, Claude Opus 5.5 wrote it. A person read it before it went on the
 > shelf.
 >
 > It runs on the studio's audio thread, in the same browser tab as your API key. It can't reach the network or your
@@ -543,7 +547,7 @@ or the agent's card, and it never shows the agent's words. The bundled-index ver
 >
 > **[Play it on Vocals]** &nbsp; Not now
 
-- **Another origin:** the second sentence becomes *"The shelf at localhost:4000 says aj-dev-smith asked for this. The
+- **Another origin:** the second sentence becomes *"The shelf at localhost:4000 says example-author asked for this. The
   studio can't confirm that."*, and "A person read it" goes.
 - **No key stored:** "in the same browser tab as your API key" becomes "in this browser tab".
 - **The numbers aren't here.** They're in the detail, so the prompt fits: **Play it on Vocals** is visible without
@@ -582,7 +586,7 @@ define).
 
 Without `new`, it opens the section on the entry in the current song. An id the index doesn't list: *"The shelf has no
 device "<id>"."* Then the parameter is removed from the address bar, as `?device=` is. While the shelf is off
-(section "Where this sits"), the parameter is ignored and removed.
+(section "Where it's on"), the parameter is ignored and removed.
 
 **Framing.** The studio's meta CSP can't set `frame-ancestors`, and only `server/relay.js` sends
 `frame-ancestors 'none'` today. `server/serve.js` sends `X-Frame-Options: DENY` and
@@ -621,7 +625,7 @@ any other origin could revoke anything, and an index from another origin carries
 A song you share that has a community device in it reaches the other person with that device held, like any song
 device. Their **Play them** strip names who made it from the song's own `by` (existing behaviour; a file's own claims
 aren't repeated). When the **bundled** index lists the held kernel's `sha256`, the strip adds one line from the index,
-not from the song: *"Back Seat is on the community shelf, by aj-dev-smith with Claude Opus 5.5."* That's a hash match
+not from the song: *"Back Seat is on the community shelf, by example-author with Claude Opus 5.5."* That's a hash match
 against the studio's own copy, so neither a song nor an index someone else serves can borrow a shelf author's name.
 
 ### Phones
@@ -732,7 +736,7 @@ author, agent, license, measured, preview: { wet, dry }, vouched }] }`.
 **put_on:** it validates the id against the index and the track against the song, then adds a card to the agent panel
 through the `keep.js` card machinery (a `variations`-style request with one take).
 
-- **The card doesn't vouch.** It reads *"Claude suggests Back Seat, by aj-dev-smith with Claude Opus 5.5, on Vocals."*
+- **The card doesn't vouch.** It reads *"Claude suggests Back Seat, by example-author with Claude Opus 5.5, on Vocals."*
   with ▶ / Dry from the clips, **Try it on Vocals** and **No thanks**. No words from the agent are on it, and the trust
   prompt that follows is the one from section 3, identical for both routes. Remote agents (relay, MCP) can raise cards
   too, so the card is never where the case for running the code is made.
@@ -769,7 +773,7 @@ with the best match on the named or selected track, the way the tone scene offer
 
 **Registration:** `ui/community.js` registers the tool through `installTools(app).register`. Its schema is in
 `agent/extra-schemas.js`, so `catalogSchemas()`, `server/mcp.js`, the bridge and `server/relay-catalog.json` (rebuilt
-with `tools/relay-catalog.js`) list it before a tab connects. While the shelf is off (section "Where this sits"), the
+with `tools/relay-catalog.js`) list it before a tab connects. While the shelf is off (section "Where it's on"), the
 tool answers *"The community shelf isn't on in this studio."* with no results.
 
 ---

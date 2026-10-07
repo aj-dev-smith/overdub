@@ -5,7 +5,7 @@
 //   app.sounds = {
 //     setHost(fn)            Sketch registers fn({ track, take }) -> an element to hold the card (its stage, its phone
 //                            sheet) or null. Asked when a take offers the card; null puts it under the track's header.
-//     offer({ track, from: 'take' | 'header' | 'window' | 'browser' | 'agent', anchor?, take?, focus? }) -> { ok }
+//     offer({ track, from: 'take' | 'header' | 'window' | 'browser' | 'find' | 'agent', anchor?, take?, focus? }) -> { ok }
 //                            open the card. take: { kind: 'notes' | 'drums', src?: 'hum' | ..., notes?, start, end,
 //                            committed?, tune?: { on, set(on) } }; a take not committed (Sketch before Keep) with no
 //                            track tries sounds on the track the Keep would make (tryNew).

@@ -100,7 +100,7 @@ for (const d of DEVS) {
   entries.push({
     id: d.id, name: d.name, kind: d.kind, cat: d.cat, blurb: d.blurb, nod: d.nod || null,
     tier: d.house ? 'house' : 'community',
-    author: { handle: handle || 'aj-dev-smith', alias: null },
+    author: { handle: handle || 'tester', alias: null },
     agent: 'Claude Opus 5.5 (Claude Code)',
     requester: REQUESTER[d.id] || null, request: d.request || null, license: 'MIT-0',
     sha256: d.lie ? sha(GAIN) : sha(d.kernel), parent: null, challenge: null,

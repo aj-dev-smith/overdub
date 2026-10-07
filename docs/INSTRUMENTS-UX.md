@@ -5,6 +5,9 @@ It fixes the path AJ walked in the simple view: getting from a beat to a second 
 seeing that sound. Both views get it; where the full studio keeps today's behaviour, this says so. File references are
 to the `ux-simple` tree this branch starts from (`32e89a2`).
 
+*Since then: the studio is one view with everything on screen, More became Find (⌘K), and Simple view is reached only
+at `?view=simple`, never by default. Where this spec says Simple view or More, that is the history it was written in.*
+
 The direction agreed with AJ:
 
 1. **A new idea is a new track.** Hum, Play or Tap on a song with tracks lands on a new track unless you picked one.

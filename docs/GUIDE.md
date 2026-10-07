@@ -70,7 +70,7 @@ Each row says what it is:
 
 Empty, Find lists every part of the studio by what it's for (Make, Sound, Balance, Song, Recording, Agent, Files,
 Layout). `Esc` closes it. Ask the agent where something is (*"where's the mixer?"*) and it says where, and the demo
-agent shows it. A studio that had the simple view saved opens this one studio and says so once.
+agent shows it.
 
 ## Record into the song
 

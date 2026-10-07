@@ -267,6 +267,51 @@ try {
     await P.shot('find');
   });
 
+  /* ---------------------------------------------------------------- a Sound row, run with the Browser closed */
+  await section('Find a sound', async () => {
+    const P = await fresh();
+    // (the Browser is closed on a first visit: a trial started from Find must not be the Browser's, which ends when
+    // its pane isn't showing)
+    const pick = await P.E(() => {
+      const o = window.overdub;
+      o.ui.setOpen?.('left', false);
+      const t = o.store.get().tracks.find((x) => x.kind === 'instrument');
+      const d = o.devices.listDevices().find((x) => x.kind === 'instrument' && x.name && x.id !== t?.instrument?.device);
+      o.ui.select({ track: t.id });
+      return { track: t.id, device: d.id, name: d.name, left: o.ui.isOpen('left') };
+    });
+    await neutral(P);
+    await P.E((q) => window.overdub.find.open({ query: q }), pick.name);
+    await sleep(250);
+    const e = await P.E(findInfo);
+    const at = e ? e.rows.findIndex((r) => r.kind === 'sound' && r.title === pick.name) : -1;
+    T.ok(!pick.left && at >= 0, `with the Browser closed, "${pick.name}" finds its Sound row (row ${at})`);
+    for (let i = 0; i < at; i++) await P.page.keyboard.press('ArrowDown');
+    await P.page.keyboard.press('Enter');
+    await sleep(600);
+    const tr = await P.E(() => ({ trying: window.overdub.sounds.trying(), toasts: [...document.querySelectorAll('.ew-toast')].map((t) => t.textContent.trim()) }));
+    T.ok(tr.trying && tr.trying.track === pick.track && tr.trying.device === pick.device && !tr.toasts.some((t) => /wasn.t kept/.test(t)), `Enter tries it on the track, and the trial stays with the Browser closed (${JSON.stringify(tr.trying)}${tr.toasts.length ? '; ' + tr.toasts.join(' | ') : ''})`);
+  });
+
+  /* ---------------------------------------------------------------- a narrow window: Find's button leaves All off clear */
+  await section('narrow top bar', async () => {
+    const P = await fresh({ w: 660, h: 800 });
+    for (const w of [641, 660, 684, 700, 760, 800, 801, 830, 899]) {
+      await P.page.setViewportSize({ width: w, height: 800 });
+      await sleep(200);
+      const r = await P.E(() => {
+        const R = (el) => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+        const kill = document.querySelector('.tp-kill');
+        if (!kill || !kill.getClientRects().length) return null;
+        const k = R(kill);
+        const hit = [...document.querySelectorAll('.ew-top button, .ew-top input, .ew-top a')].filter((e) => e !== kill && !kill.contains(e) && e.getClientRects().length)
+          .filter((e) => { const b = R(e); return b.l < k.r - 0.5 && k.l < b.r - 0.5 && b.t < k.b - 0.5 && k.t < b.b - 0.5; }).map((e) => e.textContent.trim().slice(0, 20) || e.className);
+        return { k: [Math.round(k.l), Math.round(k.r)], hit };
+      });
+      T.ok(r && !r.hit.length, `${w} px wide, All off (${r?.k.join('–')}) meets nothing in the top bar${r?.hit.length ? ' (under ' + r.hit.join(', ') + ')' : ''}`);
+    }
+  });
+
   /* ---------------------------------------------------------------- the copy */
   await section('copy', async () => {
     const ws = fs.readFileSync(new URL('../app/src/ui/workspace.js', import.meta.url), 'utf8');

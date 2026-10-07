@@ -118,7 +118,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     try { said = !!storage?.getItem('overdub:start.merged'); } catch (e) { said = false; }
     if (!said) {
       try { storage?.setItem('overdub:start.merged', '1'); } catch (e) { /* once a visit, then */ }
-      ui.on?.('ready', () => ui.toast?.(T.merged, { ms: 8000 }));
+      ui.on?.('ready', () => ui.toast?.(T.merged.replace('⌘K', `${MODK}K`), { ms: 8000 }));   // (Ctrl+K off a Mac)
     }
   }
 
@@ -323,8 +323,8 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   function trySound(it) {
     const t = selectedTrack();
     if (it.def.kind === 'instrument' && t && app.sounds?.try) {
-      try { app.sounds.offer?.({ track: t.id, from: 'browser' }); } catch (e) { /* the trial still plays */ }
-      const r = app.sounds.try(t.id, { device: it.def.id, ...(it.preset ? { preset: it.preset } : {}) }, { from: 'browser' });
+      try { app.sounds.offer?.({ track: t.id, from: 'find' }); } catch (e) { /* the trial still plays */ }
+      const r = app.sounds.try(t.id, { device: it.def.id, ...(it.preset ? { preset: it.preset } : {}) }, { from: 'find' });
       if (r && r.ok === false && r.error) ui.toast?.(r.error, { kind: 'bad' });
       return;
     }
@@ -573,6 +573,9 @@ const WS_CSS = `
 .ws-q-in { width: 72px; height: 36px; padding: 0 8px; border: var(--rule-2); border-radius: var(--r-press); background: var(--bg); color: var(--text); font: 600 14px var(--font-mono); text-align: right; }
 .ws-q-in:focus { outline: 2px solid var(--accent-2); outline-offset: -1px; }
 .ws-q:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+/* a narrow window: the top bar is full, so Find says just "Find" (its key stays in the title), and Song stays clear of
+   All off (find-test measures it) */
+@media (min-width: 641px) and (max-width: 800px) { .ws-find-x, .ws-find-k { display: none; } }
 /* a phone: the view switch moves into More (its first row), More opens as a bottom sheet at up to 70% of the height,
    and the note is a slim line along the foot of the top bar, inside its height */
 @media (max-width: 640px) {

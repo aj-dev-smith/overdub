@@ -142,9 +142,9 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
 
 /* ------------------------------------------------------------------ the studio's own asks */
 // "Where is the mixer?", "show me the piano roll", "open notes", "add the loop": the feature by its title or one of
-// its search words (app.ui.workspace's registry; never imported here), brought in with the workspace tool and said
-// where it is in one line. "Show me everything" / "full studio" and "simple view" / "less on screen" switch the view
-// (asked, so the tool lets it). "What can you do?" in the simple view: what the demo does, and the first door lit.
+// its search words (app.ui.workspace's registry; never imported here), shown as Find's Go to shows it and said where
+// it is in one line. "Show me everything" / "full studio" and "simple view" / "less on screen" are answered in words:
+// there's one studio, and ?view=simple is a URL only. "What can you do?": what the demo does, and the first door lit.
 // The thing named has to be the whole rest of the ask, so "show me a lick into the D7 at bar 2" or "open the bass
 // filter" never reads as a feature. "add" takes a title or a screen word only: "add drums" is a part, not the Beat grid.
 const STUDIO_VERB = /^(?:(?:hey|ok|okay|so|please|claude|can you|could you|would you)[\s,]+)*(where(?:'s| is| are| do i find| can i find)|show me|open|open up|add|bring (?:in|back|up)|put in)\s+(.+)$/;
