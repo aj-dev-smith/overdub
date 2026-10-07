@@ -2,8 +2,9 @@
 # Deploy Overdub to https://overdubstudio.com (the bucket keeps its first name): the landing page (site/), the studio (app/) and the public docs.
 # Text files revalidate every time (no-cache + ETag, so a deploy is live at once); media caches for a day.
 # Sampled kits (app/kits/<sha256>.odk, gitignored: node tools/fetch-kits.js builds them) go up from the working tree,
-# each checked against its name, gzipped, and cached for good (a file named by its hash never changes). Every kit the
-# shipped code names must be here, or nothing is deployed; they go up before the code that names them.
+# each checked against its name, gzipped, and cached for good (a file named by its hash never changes), with its packed
+# twin (<sha256>.odkz, which the studio fetches first and unpacks back to the .odk; the .odk stays as the fallback).
+# Every kit the shipped code names must be here, or nothing is deployed; they go up before the code that names them.
 # Run deploy/setup.sh once first. Usage:
 #   deploy/deploy.sh [--skip-tests]                  the live site, from REF (default HEAD)
 #   deploy/deploy.sh [--skip-tests] --next [REF]     the preview, https://next.overdubstudio.com (deploy/next/setup.sh
@@ -75,17 +76,27 @@ for name in $KITS; do
   if [ ! -e "$f" ]; then echo "not deploying: $f isn't here (node tools/fetch-kits.js builds it)"; exit 1; fi
   sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
   if [ "$sum" != "$name" ]; then echo "not deploying: $f's SHA-256 is $sum"; exit 1; fi
+  # the packed twin must unpack to exactly that file
+  if ! node --input-type=module -e 'import fs from "node:fs"; import crypto from "node:crypto";
+    import { unpackOdk } from "'"$ROOT"'/app/src/kernel/odkz.js";
+    const [f, want] = process.argv.slice(1);
+    const got = crypto.createHash("sha256").update(unpackOdk(fs.readFileSync(f))).digest("hex");
+    if (got !== want) { console.error(f + " unpacks to " + got); process.exit(1); }' "${f}z" "$name"; then
+    echo "not deploying: ${f}z is missing or doesn't unpack to $f (node tools/fetch-kits.js writes it)"; exit 1
+  fi
 done
 
 # the kits first, so no page names one that isn't up yet (uploaded once each: a file named by its hash never changes)
 KITTMP=$(mktemp -d)
 trap 'rm -rf "$STAGE" "$KITTMP"' EXIT
 for name in $KITS; do
-  if [ -z "$DRY" ] && aws s3api head-object --bucket "$BUCKET" --key "app/kits/$name.odk" >/dev/null 2>&1; then echo "kit $name: already up"; continue; fi
-  gzip -9 -n -c "app/kits/$name.odk" > "$KITTMP/$name.odk"
-  x aws s3 cp "$KITTMP/$name.odk" "s3://$BUCKET/app/kits/$name.odk" --only-show-errors \
-    --content-type 'application/octet-stream' --content-encoding gzip --cache-control 'public, max-age=31536000, immutable'
-  echo "uploaded kit $name ($(du -h "$KITTMP/$name.odk" | cut -f1) gzipped)"
+  for ext in odkz odk; do
+    if [ -z "$DRY" ] && aws s3api head-object --bucket "$BUCKET" --key "app/kits/$name.$ext" >/dev/null 2>&1; then echo "kit $name.$ext: already up"; continue; fi
+    gzip -9 -n -c "app/kits/$name.$ext" > "$KITTMP/$name.$ext"
+    x aws s3 cp "$KITTMP/$name.$ext" "s3://$BUCKET/app/kits/$name.$ext" --only-show-errors \
+      --content-type 'application/octet-stream' --content-encoding gzip --cache-control 'public, max-age=31536000, immutable'
+    echo "uploaded kit $name.$ext ($(du -h "$KITTMP/$name.$ext" | cut -f1) gzipped)"
+  done
 done
 
 up() { x aws s3 sync "$STAGE" "s3://$BUCKET" --only-show-errors --exclude '*' "$@"; }
