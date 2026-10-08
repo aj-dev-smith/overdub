@@ -64,12 +64,15 @@ export function stableIds(p, seed) {
   };
   p.id = mint('p');
   for (const sec of p.sections || []) sec.id = mint('s');
+  const was = new Map();
   for (const t of p.tracks) {
-    t.id = mint('t');
+    was.set(t.id, (t.id = mint('t')));
     for (const fx of t.inserts) fx.id = mint('fx');
     for (const c of t.clips) c.id = mint('c');
   }
   for (const fx of p.master?.inserts || []) fx.id = mint('fx');
+  // a keyed insert (a sidechain) names its key track by id: it follows the track
+  for (const t of p.tracks) for (const fx of t.inserts) if (fx.key && was.has(fx.key.track)) fx.key = { ...fx.key, track: was.get(fx.key.track) };
   return p;
 }
 
@@ -191,7 +194,14 @@ function withAuto(obj, auto, mixer = false) {
 
 export function normInsert(fx) {
   if (!isObj(fx)) fx = {};
-  return withAuto({ id: fx.id || newId('fx'), device: String(fx.device), on: fx.on !== false, params: { ...(isObj(fx.params) ? fx.params : {}) }, by: author(fx.by) }, fx.auto);
+  const key = normKey(fx.key);
+  return withAuto({ id: fx.id || newId('fx'), device: String(fx.device), on: fx.on !== false, params: { ...(isObj(fx.params) ? fx.params : {}) }, by: author(fx.by), ...(key ? { key } : {}) }, fx.auto);
+}
+// An insert's key input (a sidechain: docs/ARCHITECTURE.md "Keys"): { track: '<track id>' }, the track whose sound
+// (after its inserts, before its fader) the insert's device hears beside its own input. Anything else is no key. A key
+// naming a track that isn't in the song stays (undoing the track's removal brings it back) and is heard as silence.
+export function normKey(k) {
+  return isObj(k) && typeof k.track === 'string' && k.track && k.track.length <= 64 ? { track: k.track } : null;
 }
 
 // A take group: the clips one recording stacked on the same span ('tk_' + base36). The playing take is the unmuted one.
@@ -335,7 +345,9 @@ export function cleanProject(p) {
   for (const [id, d] of Object.entries(isObj(p.devices) ? p.devices : {})) if (isObj(d)) out.devices[id] = cleanDeviceText(d);
   out.assets = { ...(isObj(p.assets) ? p.assets : {}) };
   const m = isObj(p.master) ? p.master : {};
-  out.master = withAuto({ gain: finite(m.gain), inserts: objs(m.inserts).map(normInsert) }, isObj(m.auto) && { gain: m.auto.gain }, true);
+  // clip: how the master ends. Absent is 'soft', the safety soft clip every song has always had; 'clean' is a hard
+  // ceiling at 0 dBFS, exactly linear below it (for a master whose last insert is a limiter: engine/strip.js)
+  out.master = withAuto({ gain: finite(m.gain), inserts: objs(m.inserts).map(normInsert), ...(m.clip === 'clean' ? { clip: 'clean' } : {}) }, isObj(m.auto) && { gain: m.auto.gain }, true);
   out.meta = cleanMeta(p.meta, base.meta);
   if ('reference' in out && !isValidReference(out.reference)) delete out.reference;
   if (LEGACY_NAME !== HOUSE) {
@@ -453,7 +465,8 @@ export function summarize(p, { detail = 'full', track = null, devices = null, he
     lines.push('');
     lines.push(`track ${t.id} "${t.name}" (${t.kind}${flags ? ', ' + flags : ''}) gain ${t.gain} dB pan ${t.pan} — by ${t.by}`);
     if (t.instrument) lines.push(`  instrument: ${dname(t.instrument.device)} ${pstr(t.instrument.device, t.instrument.params)}`);
-    if (t.inserts.length) lines.push('  inserts: ' + t.inserts.map((fx) => `${fx.id}=${dname(fx.device)}${fx.on ? '' : ' (off)'} ${pstr(fx.device, fx.params)}`).join(' → '));
+    const keyText = (fx) => { if (!fx.key) return ''; const src = p.tracks.find((o) => o.id === fx.key.track); return src ? ` (keyed by ${src.id} "${src.name}")` : ` (key track missing: ${fx.key.track})`; };
+    if (t.inserts.length) lines.push('  inserts: ' + t.inserts.map((fx) => `${fx.id}=${dname(fx.device)}${fx.on ? '' : ' (off)'}${keyText(fx)} ${pstr(fx.device, fx.params)}`).join(' → '));
     for (const l of lanes.filter((x) => x.track === t.id)) lines.push('  ' + laneLine(p, l, devices, bpb));
     for (const c of t.clips) {
       const tab = c.tuning || c.capo ? ` (tab: ${c.tuning || 'standard'} tuning${c.capo ? `, capo ${c.capo}` : ''}; tab_for reads it)` : '';
@@ -467,7 +480,8 @@ export function summarize(p, { detail = 'full', track = null, devices = null, he
       }
     }
   }
-  if (p.master.inserts.length) lines.push('', 'master: ' + p.master.inserts.map((fx) => `${fx.id}=${dname(fx.device)}${fx.on ? '' : ' (off)'}`).join(' → '));
+  if (p.master.inserts.length) lines.push('', 'master: ' + p.master.inserts.map((fx) => `${fx.id}=${dname(fx.device)}${fx.on ? '' : ' (off)'}`).join(' → ') + (p.master.clip === 'clean' ? ' → clean ceiling' : ''));
+  else if (p.master.clip === 'clean') lines.push('', 'master: clean ceiling (no soft clip)');
   const ml = track ? [] : lanes.filter((x) => x.track === 'master');
   if (ml.length) { if (!p.master.inserts.length) lines.push(''); for (const l of ml) lines.push('master ' + laneLine(p, l, devices, bpb)); }
   const custom = Object.values(p.devices || {});

@@ -4,7 +4,7 @@
 // the same placing functions, so a person and an agent put a groove in the song the same way.
 //
 //   installGrooveTools(app)                         registers the three tools; app.tools.run('use_groove', ...)
-//   targetTrack(app) / playheadBar(app) / studioA(app) / isDrum(app, t)   the defaults both sides use
+//   targetTrack(app) / playheadBar(app) / studioA(app) / deviceOf(app) / isDrum(app, t)   the defaults both sides use
 //   putGroove(app, { groove, track, bar, bars, seed, by, under, label, reason, dryRun }) -> result (one dispatch)
 //   buildDrums(app, { style, parts, ending, crashes, seed, by, label, reason, dryRun }) -> result (one dispatch)
 
@@ -27,6 +27,8 @@ export function isDrum(app, t) {
 }
 // Studio A's definition when the studio has it (its presets set a style's kit), else null: Gobo Kit plays instead
 export const studioA = (app) => app.devices?.getDevice?.(G.STUDIO_A) || null;
+// a device's definition by id, or null: a style written for a kit of its own (G.KIT_DEVICES) plays on it when it's here
+export const deviceOf = (app) => (id) => app.devices?.getDevice?.(id) || null;
 // The drum track a groove goes onto when nobody says: the selected one, else the first; null means a new one.
 export function targetTrack(app) {
   const p = app.store.get(), sel = app.ui?.state?.selection?.track;
@@ -52,7 +54,7 @@ export function putGroove(app, { groove, track = undefined, bar = null, bars = n
   const t = track === undefined ? targetTrack(app) : track;
   const plan = G.planPut(app.store.get(), {
     groove: g, track: t ? (typeof t === 'object' ? t.id : t) : null, bar: bar ?? playheadBar(app), bars: bars ?? G.defaultBars(g), seed,
-    studioA: studioA(app), under, planDrop: planDropTrim, isDrum: (x) => isDrum(app, x),
+    studioA: studioA(app), device: deviceOf(app), under, planDrop: planDropTrim, isDrum: (x) => isDrum(app, x),
   });
   if (plan.error) return err(plan.error, plan.hint, plan.occupied ? { occupied: plan.occupied } : null);
   const out = { summary: plan.summary, groove: g.id, track: plan.track ? { id: plan.track, name: plan.trackName } : { new: true, name: plan.trackName }, bars: plan.bars, notes: plan.notes, seed: plan.seed };
@@ -70,9 +72,9 @@ export function putGroove(app, { groove, track = undefined, bar = null, bars = n
 // The song creator, one dispatch. ending: true, false, or null for the default (none when the loop goes round the
 // drums' end); crashes: false leaves out the crash on each section's downbeat.
 export function buildDrums(app, { style = null, parts = null, ending = null, crashes = true, seed = 1, by = 'you', label = null, reason = null, dryRun = false } = {}) {
-  const plan = G.planDrumTrack(app.store.get(), { style, parts, ending, crashes, seed: Number.isFinite(+seed) ? +seed : 1, studioA: studioA(app), isDrum: (x) => isDrum(app, x) });
+  const plan = G.planDrumTrack(app.store.get(), { style, parts, ending, crashes, seed: Number.isFinite(+seed) ? +seed : 1, studioA: studioA(app), device: deviceOf(app), isDrum: (x) => isDrum(app, x) });
   if (plan.error) return err(plan.error, plan.hint);
-  const out = { summary: plan.summary, style: plan.style, plan: plan.plan, kit: plan.kit.device === G.STUDIO_A ? `Studio A${plan.kit.preset ? ` (${plan.kit.preset})` : ''}` : `Gobo Kit (${['FIELD', 'MACHINE', 'DUST', '808', '909', 'ACOUSTIC+'][plan.kit.params.kit] || 'ACOUSTIC+'})`, ...(plan.styleWhy ? { style_why: plan.styleWhy } : {}) };
+  const out = { summary: plan.summary, style: plan.style, plan: plan.plan, kit: plan.kit.device === G.STUDIO_A ? `Studio A${plan.kit.preset ? ` (${plan.kit.preset})` : ''}` : plan.kit.device !== 'core.drums' ? (app.devices?.getDevice?.(plan.kit.device)?.name || plan.kit.device) : `Gobo Kit (${['FIELD', 'MACHINE', 'DUST', '808', '909', 'ACOUSTIC+'][plan.kit.params.kit] || 'ACOUSTIC+'})`, ...(plan.styleWhy ? { style_why: plan.styleWhy } : {}) };
   if (dryRun) return { ok: true, dry_run: true, ...out, note: 'nothing changed' };
   const res = app.store.dispatch(plan.ops, { by, label: String(label || plan.label).slice(0, 80) });
   if (!res.ok) return err(res.error, 'the song changed under it; try again');

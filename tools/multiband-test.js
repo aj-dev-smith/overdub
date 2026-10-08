@@ -52,13 +52,13 @@ ok(def && def.kind === 'effect' && def.cat === 'dynamics' && def.name === 'Gaffe
   const keys = def.params.map((p) => p.key);
   const want = [];
   for (const b of BANDS) want.push(`${b}_down_thresh`, `${b}_down_ratio`, `${b}_up_thresh`, `${b}_up_ratio`, `${b}_attack`, `${b}_release`, `${b}_gain`);
-  want.push('xover_lo', 'xover_hi', 'depth', 'in_gain', 'out_gain', 'time');
-  ok(JSON.stringify(keys) === JSON.stringify(want), `its params are a band at a time (thresholds and ratios down and up, attack, release, gain), then the splits, depth, input, output and time: ${keys.length}`);
+  want.push('xover_lo', 'xover_hi', 'depth', 'in_gain', 'out_gain', 'time', 'upward', 'downward');
+  ok(JSON.stringify(keys) === JSON.stringify(want), `its params are a band at a time (thresholds and ratios down and up, attack, release, gain), then the splits, depth, input, output and time, then (appended) upward and downward: ${keys.length}`);
   ok(def.params.every((p) => typeof p.desc === 'string' && p.desc.length >= 40 && p.role), 'every param has a role and a desc an agent can act on');
   ok(/punch/.test(def.params.find((p) => p.key === 'low_attack').desc) && /main control/.test(def.params.find((p) => p.key === 'depth').desc), 'the descs say what makes it punchier (a slower attack) and that DEPTH is the main control');
   ok(def.params.filter((p) => /^(low|mid|high|xover)_/.test(p.key)).every((p) => p.face === false) && ['depth', 'in_gain', 'out_gain', 'time'].every((k) => def.params.find((p) => p.key === k).face !== false) && typeof def.screen === 'function', 'the face shows its curves (screen) and depth, input, output and time; the bands live in the window');
   ok(def.nod && !/ott|xfer|ableton|serum|fabfilter|waves|izotope|steve duda|over the top/i.test(def.nod + ' ' + def.blurb + ' ' + def.presets.map((p) => p.name + ' ' + p.blurb).join(' ')), `the nod, the blurb and the presets name no trademark ("${def.nod}")`);
-  const WANT = ['Full depth', 'Glue (bus)', 'Drum smash', 'Vocal presence', 'Bass tighten', 'Subtle 30%'];
+  const WANT = ['Full depth', 'Glue (bus)', 'Drum smash', 'Vocal presence', 'Bass tighten', 'Subtle 30%', 'Bass density', 'Drum density'];
   ok(JSON.stringify(def.presets.map((p) => p.name)) === JSON.stringify(WANT) && def.presets.every((p) => p.blurb && p.blurb.length > 20), `its presets: ${def.presets.map((p) => p.name).join(', ')}`);
   const shared = [C.mbSplit, C.mbCurve, C.mbWeights, C.mbFreqs, C.mbG, C.mbMix, C.mbCoef, C.mbStep, C.mbShelfCoefs, C.mbShelve, C.mbResponse];
   ok(shared.every((fn) => typeof fn === 'function' && def.kernel.includes(fn.toString())), 'the kernel runs the shared functions themselves (their source is in it): the detectors, the curve, the dynamics and the shelves, one source of truth for the sound, the curves and the window\'s readouts');
@@ -181,6 +181,23 @@ block('\ndownward and upward, against the shared curve', () => {
   const deep = sine(1000, 2, -96), [Lz] = render({ depth: 100 }, deep);
   const gz = toneLevel(Lz, 1.2, 1.9) + 96, mg = paramValues(def, {}).mid_gain;
   ok(Math.abs(gz - mg) < 0.5, `a tone at -96 dBFS isn't lifted (only the band's gain: ${gz.toFixed(2)} dB, its gain ${mg} dB): silence stays silent`);
+});
+
+block('\nUPWARD and DOWNWARD scale the two sides', () => {
+  // the loud tone above with DOWNWARD at 50% and 150%, and the quiet one with UPWARD at 0% and 150%: each side's dB is
+  // scaled, as the shared curve (scaledCurve) says, and the other side is left as it was
+  const pDown = { depth: 100, mid_down_thresh: -30, mid_down_ratio: 30 };
+  for (const b of BANDS) Object.assign(pDown, { [`${b}_up_ratio`]: 1, [`${b}_gain`]: 0 });
+  const loud = sine(1000, 2, -6), base = toneLevel(render(pDown, loud)[0], 1.2, 1.9) + 6;
+  for (const dn of [50, 150]) {
+    const p = { ...pDown, downward: dn }, got = toneLevel(render(p, loud)[0], 1.2, 1.9) + 6, want = C.toneGain(paramValues(def, p), 1000, -6, SR);
+    ok(Math.abs(got - base * dn / 100) < 0.4 && Math.abs(got - want) < 0.3, `DOWNWARD ${dn}% holds a loud band ${got.toFixed(2)} dB (at 100%: ${base.toFixed(2)} dB; the curve: ${want.toFixed(2)})`);
+  }
+  const quiet = sine(1000, 2, -50), lift = (up) => { const p = { depth: 100, mid_gain: 0, upward: up }; return [toneLevel(render(p, quiet)[0], 1.2, 1.9) + 50, C.toneGain(paramValues(def, p), 1000, -50, SR)]; };
+  const [l100] = lift(100), [l0, w0] = lift(0), [l150, w150] = lift(150);
+  ok(Math.abs(l0) < 0.3 && Math.abs(l0 - w0) < 0.3, `UPWARD 0% lifts nothing: a -50 dBFS tone comes out ${l0.toFixed(2)} dB (the curve: ${w0.toFixed(2)})`);
+  ok(l150 > l100 + 2 && l150 <= 30.3 && Math.abs(l150 - w150) < 0.4, `UPWARD 150% lifts it further, still at most 30 dB: +${l150.toFixed(2)} dB against +${l100.toFixed(2)} at 100% (the curve: ${w150.toFixed(2)})`);
+  ok(C.mbStep.length === 14 && def.kernel.includes('cC, cL, sdn, sup)'), 'the kernel hands mbStep the two scales; at 100% each it takes the arithmetic it always did (fx:core.multiband is unchanged in golden.json)');
 });
 
 block('\nTIME scales the envelope', () => {
@@ -532,7 +549,7 @@ console.log('\nthe window (Chromium, desktop)');
     // kit in the report: on the demo's Gobo Kit depth barely moves the crest, and adjust's measuring turns the plan round)
     const gd = await E(() => window.overdub.tools.run('get_device', { id: 'core.multiband' }, { by: 'claude' }));
     const lines = gd.params || [];
-    ok(lines.some((l) => /^depth 0\.\.100 % def=40 role=mix — how much of the compressed sound you hear/.test(l)) && lines.some((l) => /^low_attack /.test(l) && /punchier/.test(l)) && (gd.presets || []).length === 6, `get_device describes every param ("${lines.find((l) => l.startsWith('depth'))?.slice(0, 90)}…")`);
+    ok(lines.some((l) => /^depth 0\.\.100 % def=40 role=mix — how much of the compressed sound you hear/.test(l)) && lines.some((l) => /^low_attack /.test(l) && /punchier/.test(l)) && (gd.presets || []).length === 8, `get_device describes every param ("${lines.find((l) => l.startsWith('depth'))?.slice(0, 90)}…")`);
     const adj = await E(async ({ track, fx }) => {
       const a = window.overdub, out = {};
       a.store.dispatch({ type: 'instrument.set', track, device: 'core.drumroom' }, { by: 'you', label: 'Studio A' });

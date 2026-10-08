@@ -19,9 +19,14 @@
 //   presetOf(def, stored)        the preset { name, params } these stored params are exactly, or null
 //   normPresets(id, presets, params)   the presets field checked and filled in (defineDevice does this)
 //
-// Presets: def.presets = [{ name, params: { key: value } }] (an optional field: older readers skip it). A preset names
-// a sound ("Felt", "Gospel"); its params are filled in from the defaults, clamped to their ranges and snapped to their
-// steps, and a switch may be given by its label ('NYLON') as well as its index. Up to 24 per device, names unique.
+// Presets: def.presets = [{ name, params: { key: value }, blurb?, tags? }] (an optional field: older readers skip it).
+// A preset names a sound ("Felt", "Gospel"); its params are filled in from the defaults, clamped to their ranges and
+// snapped to their steps, and a switch may be given by its label ('NYLON') as well as its index. Up to 24 per device
+// (64 for a built-in), names unique. tags: words from PRESET_TAGS ('bass-music', 'growl', ...), what a genre filter and
+// list_devices({ tag }) find it by.
+// Keys: def.key = true marks an effect that hears a key input beside its own (a sidechain: t.key in its kernel).
+//
+//   presetsTagged(tag)           [{ def, preset }] for every preset tagged `tag`, in registration order
 //
 // Two flavours share one Instance interface:
 //   graph devices  (def.build)  trusted, built in: a Web Audio node graph (the ported pedals and amps). devices/graph.js
@@ -50,14 +55,20 @@ export const DEVICE_CATS = [
 ];
 
 const ID_RE = /^[a-z0-9][a-z0-9._-]{1,63}$/;
+// A song's or an agent's device keeps up to PRESETS_MAX presets; a built-in (the studio's own, by 'overdub') up to
+// PRESETS_MAX_BUILTIN, so one synth can carry a genre's worth of sounds.
 export const PRESETS_MAX = 24;
+export const PRESETS_MAX_BUILTIN = 64;
+// The words a preset may be tagged with (preset.tags), so the browser and an agent can find sounds by genre and role.
+// Only these: a list that grows when a genre needs a word, never a free-for-all.
+export const PRESET_TAGS = Object.freeze(['bass-music', 'dubstep', 'riddim', 'dnb', 'melodic', 'sub', 'growl', 'reese', 'wobble', 'stab', 'lead', 'chords', 'fx', 'drums', 'bus', 'master', 'pump']);
 
 // The presets field, checked and normalised against the device's (normalised) params. Throws with a message an
-// agent can act on; returns [] when there are none.
-export function normPresets(id, presets, params) {
+// agent can act on; returns [] when there are none. max: how many it may hold (PRESETS_MAX unless a built-in's).
+export function normPresets(id, presets, params, max = PRESETS_MAX) {
   if (presets == null) return [];
   if (!Array.isArray(presets)) throw new Error(`defineDevice ${id}: presets must be an array of { name, params }`);
-  if (presets.length > PRESETS_MAX) throw new Error(`defineDevice ${id}: ${presets.length} presets; a device keeps up to ${PRESETS_MAX}`);
+  if (presets.length > max) throw new Error(`defineDevice ${id}: ${presets.length} presets; a device keeps up to ${max}`);
   const byKey = new Map(params.map((p) => [p.key, p]));
   const seen = new Set();
   return presets.map((pr, i) => {
@@ -82,6 +93,12 @@ export function normPresets(id, presets, params) {
     }
     const o = { name, params: out };
     if (typeof pr.blurb === 'string' && pr.blurb) o.blurb = pr.blurb.slice(0, 80);
+    if (pr.tags != null) {
+      if (!Array.isArray(pr.tags)) throw new Error(`defineDevice ${id}: preset "${name}" tags must be a list of words (${PRESET_TAGS.join(', ')})`);
+      const bad = pr.tags.filter((x) => !PRESET_TAGS.includes(x));
+      if (bad.length) throw new Error(`defineDevice ${id}: preset "${name}" is tagged ${bad.map((x) => JSON.stringify(x)).join(', ')}; tags are ${PRESET_TAGS.join(', ')}`);
+      if (pr.tags.length) o.tags = [...new Set(pr.tags)];
+    }
     return o;
   });
 }
@@ -130,7 +147,10 @@ export function defineDevice(def, { replace = false } = {}) {
     keys.add(p.key);
     if (!(p.def >= Math.min(p.min, p.max) && p.def <= Math.max(p.min, p.max))) throw new Error(`defineDevice ${id}: param ${p.key} default ${p.def} is outside ${p.min}..${p.max}`);
   }
-  const presets = normPresets(id, def.presets, params);
+  if ('key' in def && typeof def.key !== 'boolean') throw new Error(`defineDevice ${id}: key is true (the effect hears a key input: t.key) or left out`);
+  if (def.key === true && def.kind !== 'effect') throw new Error(`defineDevice ${id}: only an effect can take a key (key: true)`);
+  const builtin = (def.source || 'builtin') === 'builtin' && (def.by == null || def.by === 'overdub');
+  const presets = normPresets(id, def.presets, params, builtin ? PRESETS_MAX_BUILTIN : PRESETS_MAX);
   // what the studio draws as text is text: a device file or a song is anyone's JSON, and an object where a name or a
   // blurb goes would reach the page as one (ui/dom.js h() reads a plain object as attributes)
   const text = (v, fallback) => (typeof v === 'string' && v ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : fallback);
@@ -226,10 +246,16 @@ export function presetOf(def, stored = {}) {
   })) || null;
 }
 
-export function listDevices({ kind, cat, q } = {}) {
+export function listDevices({ kind, cat, q, tag } = {}) {
   const s = q ? String(q).toLowerCase() : '';
   return LIST.filter((d) => (!kind || d.kind === kind) && (!cat || d.cat === cat) &&
+    (!tag || (d.presets || []).some((pr) => pr.tags && pr.tags.includes(tag))) &&
     (!s || (d.id + ' ' + d.name + ' ' + d.blurb + ' ' + (d.nod || '') + ' ' + (d.kindLabel || '')).toLowerCase().includes(s)));
+}
+export function presetsTagged(tag) {
+  const out = [];
+  for (const d of LIST) for (const pr of d.presets || []) if (pr.tags && pr.tags.includes(tag)) out.push({ def: d, preset: pr });
+  return out;
 }
 
 export function onDevices(fn) { listeners.add(fn); return () => listeners.delete(fn); }

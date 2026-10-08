@@ -111,7 +111,11 @@ if (process.env.NODE_ONLY) { t.done(); process.exit(); }
 const { open } = await import('./pw.js');
 const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
 console.log('built-in devices (checkDevice in Chromium' + (process.env.QUICK ? ', quick' : '') + ')');
-const { page, errors, close } = await open('/app/');
+let { page, errors, close } = await open('/app/');
+// a sampled kit's samples stay in the page once decoded (Rusty Sticks alone is 24 MB), so after each sampled device the
+// page is opened afresh: fourteen kits in one tab run it out of memory
+const allErrors = [];
+async function fresh() { allErrors.push(...errors); await close(); ({ page, errors, close } = await open('/app/')); }
 const wav = (file, chans, sr) => {
   const n = chans[0].length, w = Buffer.alloc(44 + n * 4);
   w.write('RIFF', 0); w.writeUInt32LE(36 + n * 4, 4); w.write('WAVEfmt ', 8); w.writeUInt32LE(16, 16); w.writeUInt16LE(1, 20); w.writeUInt16LE(2, 22);
@@ -125,7 +129,7 @@ try {
     const B = await import('/app/src/devices/builtin/index.js');
     return B.BUILTINS.map((d) => d.id);
   });
-  t.ok(ids.length === 44, `builtin/index.js registers ${ids.length} devices`);
+  t.ok(ids.length === 52, `builtin/index.js registers ${ids.length} devices`);
   // a sampled device whose samples haven't been fetched plays nothing: skipped here (tools/drumkit-test.js says so)
   const unfetched = SAMPLED.filter((d) => Object.values(d.data || {}).some((h) => !fs.existsSync(dataPath(h)))).map((d) => d.id);
   for (const id of unfetched) t.note(`${id}: skipped, its samples haven't been fetched (node tools/fetch-kits.js)`);
@@ -189,7 +193,10 @@ try {
       const dry = measure(T.program(8, res.sr)).lufs, d = Math.round((mine.lufs - dry) * 100) / 100;
       level = `ΔLU strum ${r.level && r.level.deltaLU} / drums ${r.level && r.level.drumsDeltaLU} / program ${d}`;
       const lo = id === 'core.drive' ? 0 : -1.5, hi = id === 'core.drive' ? 3 : 1.5;
-      levelOk = r.level && [r.level.deltaLU, r.level.drumsDeltaLU, d].every((x) => x >= lo - 0.3 && x <= hi + 0.3);
+      // an amp's output barely follows its input (as Hot Print's), so drums and the program read far under: Half Stack
+      // and Y Cable are held here on the DI strum only, and to their own DIs' level by stack-test and bassrig-test
+      const amp = id === 'core.stack' || id === 'core.bassrig';
+      levelOk = r.level && (amp ? [r.level.deltaLU].every((x) => x >= -3 && x <= 1.8) : [r.level.deltaLU, r.level.drumsDeltaLU, d].every((x) => x >= lo - 0.3 && x <= hi + 0.3));
     }
     const tp = Math.max(r.truePeak ?? -120, mine.truePeak);
     rows.push([id, level, `${tp} dBTP`, `${r.cpu && r.cpu.pct}%`, r.tail ? `${r.tail.seconds}s${r.tail.decays === false ? ' (rings)' : ''}` : '-', r.deterministic ? 'yes' : 'NO', r.latency ? `${r.latency.samples ?? '-'}/${r.latency.declared}` : '-']);
@@ -200,6 +207,7 @@ try {
     t.ok(r.deterministic === true, `${id}: deterministic`);
     t.ok(!r.nan && !(r.extremes && r.extremes.failed && r.extremes.failed.length), `${id}: no NaN, every extreme setting renders${r.extremes && r.extremes.failed && r.extremes.failed.length ? ': ' + JSON.stringify(r.extremes.failed.slice(0, 3)) : ''} (worst peak ${r.extremes && r.extremes.worstPeak} dBFS)`);
     if (id === 'core.limiter') t.ok(r.latency && Math.abs(r.latency.samples - r.latency.declared) <= 2, `core.limiter: reports its latency (${r.latency && r.latency.declared} samples; an impulse comes out at ${r.latency && r.latency.samples})`);
+    if (SAMPLED.some((d) => d.id === id)) await fresh();
   }
   const head = ['id', 'level', 'true peak', 'cpu', 'tail', 'deterministic', 'latency (seen/declared)'];
   const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => String(r[i]).length)));
@@ -207,6 +215,7 @@ try {
   console.log('\n' + line(head) + '\n  ' + w.map((n) => '-'.repeat(n)).join('-+-') + '\n' + rows.map(line).join('\n') + '\n');
   t.note(`WAV renders in ${path.relative(process.cwd(), SOUNDS)}/`);
   // page errors: ours fail the run, anyone else's are noted
+  errors.push(...allErrors);
   const mineErr = errors.filter((e) => /devices\/builtin|audio\/(measure|testsignals)/.test(e));
   for (const e of errors) if (!mineErr.includes(e)) t.note('page error (another area): ' + e.slice(0, 200));
   t.ok(!mineErr.length, `no page errors from the sounds area${mineErr.length ? ': ' + mineErr.join(' | ') : ''}`);

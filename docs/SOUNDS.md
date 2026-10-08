@@ -6,7 +6,7 @@ synthesized from notes, parameters and code, so it has no sound files at all.
 
 The sampled kits' recordings aren't in this repository (Light Table's AKWF single cycles are the one exception: 108
 short cycles, embedded in `app/src/devices/builtin/akwf.js`, below). `node tools/fetch-kits.js` downloads each set from its source at a pinned
-commit, checks every file against its SHA-256, checks the upstream licence before building anything, and builds the
+commit (or a pinned zip), checks every file against its SHA-256, checks the upstream licence before building anything, and builds the
 kit file the device names (`app/kits/<sha256>.odk`, and its packed twin `.odkz`). The same files always build the
 same bytes, so the hash a device pins is also the record of exactly what was shipped. The recipes in `tools/kits/`
 list every file with its hash.
@@ -38,6 +38,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Modifications | A subset: the overhead pair only, the brush and mallet articulations (and the kick), 13 in all, 2 to 4 velocity layers of 2 strokes each. Kept at 44.1 kHz and 16 bits. Each tail cut after the last 960-frame window at or above -70 dBFS RMS (-64 on the open hat and the crash), then a 480-frame linear fade; the open hat and the ride cut at 4 s and the crash at 6 s with a fade. The stirs looped: 3 s from 0.5 s in, the loop's last 0.3 s crossfaded at equal power into its start. Each stroke's start set 2 ms before its attack. |
 | Kit | `sha256-653ce5fbd513951101d8c0b81d2a11e9177b89e8588ca403074003b1eb917ba3` |
 | Verified | 2026-10-07 |
+
+## Big Rusty Drums: Rusty Sticks (`core.metalkit`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.big-rusty-drums |
+| Pinned | commit `f07ce00df34a46b6b08375be56fe116cf15782bc` (the one Rusty Brushes pins); LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`; 388 FLAC files, each by sha256, in [`tools/kits/big-rusty-sticks.js`](../tools/kits/big-rusty-sticks.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text, and GitHub reads it as CC0-1.0) |
+| Author | Karoryfer Samples: a kit Zygmunt Szpaderski made in Poland, probably in the early 1980s. Brought to SFZ by sfzinstruments. |
+| Modifications | A subset: the stick articulations (kick, snare centre, rimshot and side stick, seven hi-hat strokes, four toms, ride bow, bell and edge, crash, sizzle crash, China, stack and chokes), 176 strokes: 1 to 5 velocity layers of 2 to 4 strokes each. Each stroke mixed from its close mic, panned, and the overhead pair at a gain set by measurement ([`tools/kits/blend.js`](../tools/kits/blend.js)); hats and cymbals high-passed at 100 Hz (the hat pedal at 80), the snare and rimshot at 70, the side stick at 120. Kept at 44.1 kHz and 16 bits. Each tail cut after the last 960-frame window at or above -60 dBFS, then a 480-frame linear fade; the cymbals cut at 1.6-2.0 s, the open hats at 0.9-1.6 s, the toms at 0.9 s and the closed hats at 0.30-0.32 s, each with a fade. Each piece scaled so its loudest stroke peaks at -1 dBFS. Each stroke's start set 1 ms before its attack. |
+| Kit | `sha256-9e0becc0ce4f330d152bb27466130ff581bd4933ea08ed3eaeac18bdc7c5c9aa` |
+| Verified | 2026-10-07 (LICENSE fetched at the pinned commit and its sha256 matched) |
 
 ## VCSL hand and aux percussion: Hand Crate (`core.handkit`)
 
@@ -169,6 +181,19 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Author | Versilian Studios (Sam Gossner) and Ivy Audio (Simon Dalzell). |
 | Modifications | A subset: the trumpet's straight sustains, every note it recorded (F3 to C6, 10), its softest and loudest dynamics (v1 and v3). 16-bit as recorded, kept at 44.1 kHz, stereo. Each start 2 ms before the note first comes within 40 dB of its peak. A sustain loop of 1.6 to 2.4 s from 1 s (loud) or 1.6 s (soft) after the onset, ending by 3.6 or 4.4 s, its 0.4 s crossfade baked into the samples, each sample cut at its loop's end. A `tune` field on a note read 5 to 25 cents off. A gain per sample, so every note plays at one level (its loop's); the dynamics come from a velocity curve set from the two layers' recorded distance. |
 | Kit | `sha256-3b61055341a0939a835c2ee27c751c7cedb275147923da73ad03aca91e2100b4` |
+| Verified | 2026-10-07 |
+
+## Jester's Brutal Pack and Emerald Pack: the cabs of Half Stack, Iso Cab and Y Cable (`core.stack`, `core.cab`, `core.bassrig`)
+
+| | |
+|---|---|
+| Source | https://www.jester-dyne-productions.com/brutal-ir-pack/ and https://www.jester-dyne-productions.com/emerald-ir-pack/ (each page links its zip) |
+| Pinned | `JestersBrutalPack_1.0.zip` sha256 `299dc053f01ebd1e980459adc48f9c6b8a8c7af91917b4f946512eefdbb311ea`; `Emerald-Pack-1.0.zip` sha256 `a5b3eeea4816bf94d85182341877b42876dfa0cd6c2c570cf6761933b0c79d70`; the handbooks (the licence) sha256 `265e887fc747a154916bf56408e9c4a371c9d9036aaf1b22997ad4d161cd079e` and `906d36291d900907ddafa245920587578654589d6fceb964cd1ebbaa3995c6eb`; all 21 48 kHz WAVs, each by sha256, in [`tools/kits/jester-cabs.js`](../tools/kits/jester-cabs.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Each pack's handbook, inside its zip: "LICENSED 2022 UNDER: CC0 (aka CC Zero) … CC0 allows reusers to distribute, remix, adapt, and build upon the material in any medium or format, with no conditions." |
+| Author | Jester Dyne Productions |
+| What they are | Brutal: a modified 4x12 (upper speakers), close-miked: #1 Celestion Vintage 30 / Shure SM57, #2 Eminence DV-77 / SM57, #3 Celestion G12F-60 / Sennheiser e606, #8 G12F-60 and Vintage 30 / e606 and SM57. Emerald: a 1998 Marshall 1960AX with Celestion G12M-25 Greenbacks, #1 SM57, #4 e606. The studio names them by what they are (Modern 4x12, close dynamic, …), never by the packs' patch names. |
+| Modifications | Six of the 21, at 48 kHz. Each cut to 2048 taps (the shortest of 2048 or 4096 within 1.0 dB of the whole IR in every third octave, 80 Hz-10 kHz; worst 0.26 dB) with a 5 ms half-Hann fade; each set to unity mean power gain between 1 and 3 kHz; kept at 24 bits. |
+| Kit | `sha256-7fd30c061e6b087e7694961ba78b953045f2ef0ac082a0fda6f21e370a8bc08e` |
 | Verified | 2026-10-07 |
 
 ## AKWF: Light Table's recorded tables (`core.wavetable`)

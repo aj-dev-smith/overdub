@@ -204,7 +204,9 @@ oracle scores at least 0.9 and doing nothing scores under 0.5. If there is a pla
 starting song, the Bass track's side/mid under 120 Hz reads -15.5 dB with Gatefold at its default; with MONO BASS
 at 120 Hz it reads -13.2 dB (wider), at 250 Hz -13.9, and only at 500 Hz -17.7. The side's lows are taken out as
 <code>s - lp(lp(s))</code> with two 2nd-order low-passes, which is not a complement: below the cutoff the phase shift makes the
-difference larger than the input. The oracle uses Gatefold's WIDTH at 0 on the bass instead.</li>
+difference larger than the input. The oracle uses Gatefold's WIDTH at 0 on the bass instead. Gatefold now has
+MONO MODE (<code>mono_mode</code>, appended): STEEP takes the side through a 24 dB per octave high pass at MONO BASS and is
+mono below it; ORIGINAL, the default, is the old split, so songs made before it sound as they did.</li>
 <li><strong>Partial credit is real credit.</strong> Turning the master up 10 dB alone puts <code>mix-master-loudness</code> at -10.96 LUFS
 with true peaks at -0.51 dBTP, half a dB over the spec: it scores 0.673 (the true-peak gate at 0.67). The oracle's
 limiter, pushing 2.5 dB into a -1.5 dB ceiling, lands at -10.98 LUFS and -1.6 dBTP and scores 1.</li>

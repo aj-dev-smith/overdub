@@ -156,6 +156,7 @@ export class Strip {
       this.out = G();               // the tap (engine.masterTap): after the soft clip
       this.fader.connect(this.clip.input);
       this.clip.output.connect(this.out);
+      this.clipMode = 'soft';
     } else {
       this.fader.channelCount = 2; this.fader.channelCountMode = 'explicit'; this.fader.channelInterpretation = 'speakers';
       this.mute = G();
@@ -199,6 +200,21 @@ export class Strip {
       this.monIn = this.mon.input;
     }
     this.wire();
+  }
+
+  // The master's end (master.clip): 'soft', the safety soft clip, or 'clean', nothing between the fader and the tap: the
+  // ceiling is the output's own at 0 dBFS (the converter's, and every export's; a render clamps its buffer to +-1.0,
+  // engine/render.js), so a master that ends in a limiter at -1 dBTP comes out exactly as the limiter left it.
+  setClip(mode) {
+    if (!this.master) return;
+    mode = mode === 'clean' ? 'clean' : 'soft';
+    if (mode === this.clipMode) return;
+    const swap = () => {
+      if (mode === 'clean') { try { this.fader.disconnect(this.clip.input); } catch (e) { /* ok */ } this.fader.connect(this.out); }
+      else { try { this.fader.disconnect(this.out); } catch (e) { /* ok */ } this.fader.connect(this.clip.input); }
+      this.clipMode = mode;
+    };
+    if (!this.live || this.c.state !== 'running') swap(); else this.dipped(swap);
   }
 
   // ---- mixer (cheap, synchronous)
@@ -403,6 +419,9 @@ export class Strip {
     this.links.push([at, this.postDip]);
   }
 
+  // What a key hears from this strip (keyPlan above): its sound after its inserts, before its fader, mute and pan.
+  keyTap() { return this.postDip; }
+
   // Seconds of delay the strip's own devices add (the instrument and the wired inserts).
   latency() {
     let s = 0;
@@ -498,6 +517,49 @@ export function mixAt(t, at) {
     if (v != null) out[k] = v;
   }
   return out;
+}
+
+// Keys (sidechains: an insert's key, { track }, docs/ARCHITECTURE.md "Keys"). A keyed device (def.key: true) on track B
+// hears track A's sound after A's inserts and before its fader, mute and pan: A's keyTap. So A is rendered before B in
+// every block, and A is rendered even when it isn't heard (muted, soloed out, not in a stem), without being summed.
+//   keyPlan(p, { def, heard }) -> { keyOf: Map(insert id -> source track id | null), order: [track ids], needed: Set,
+//                                   cut: [insert ids], missing: [insert ids] }
+// keyOf: each keyed insert's source (null: its track isn't in the song, or the key was cut). order: every track, each
+// key source before the tracks it keys, otherwise in track order (a topological sort, stable on track order: a song
+// without keys is in track order). needed: the heard tracks and every track they hear through keys. cut: keys that
+// would close a loop (the op refuses them; a hand-written song can still carry one), heard as silence.
+export function keyPlan(p, { def = getDevice, heard = null } = {}) {
+  const tracks = (p && p.tracks) || [], ids = tracks.map((t) => t.id), at = new Map(ids.map((id, i) => [id, i]));
+  const keyOf = new Map(), into = new Map(ids.map((id) => [id, []])), missing = [], cut = [];
+  for (const t of tracks) {
+    for (const x of t.inserts || []) {
+      if (!x.key || !x.key.track) continue;
+      const d = def(String(x.device));
+      if (!d || d.key !== true) continue;
+      const src = x.key.track;
+      if (!at.has(src) || src === t.id) { keyOf.set(x.id, null); missing.push(x.id); continue; }
+      keyOf.set(x.id, src);
+      into.get(t.id).push({ src, insert: x.id });
+    }
+  }
+  // Kahn's sort, always taking the earliest track that is ready; what is left is in a loop: its keys are cut
+  const order = [], done = new Set();
+  const ready = (id) => into.get(id).every((e) => done.has(e.src) || keyOf.get(e.insert) === null);
+  while (order.length < ids.length) {
+    let pick = ids.find((id) => !done.has(id) && ready(id));
+    if (pick == null) {
+      pick = ids.find((id) => !done.has(id));
+      for (const e of into.get(pick)) if (!done.has(e.src)) { keyOf.set(e.insert, null); cut.push(e.insert); }
+    }
+    order.push(pick); done.add(pick);
+  }
+  const needed = new Set(ids.filter((id) => !heard || heard[id]));
+  const todo = [...needed];
+  while (todo.length) {
+    const id = todo.pop();
+    for (const e of into.get(id) || []) { const s = keyOf.get(e.insert); if (s && !needed.has(s)) { needed.add(s); todo.push(s); } }
+  }
+  return { keyOf, order, needed, cut, missing };
 }
 
 // Which tracks are heard: mute, and solo (any solo: only soloed tracks).

@@ -98,11 +98,16 @@ export function nodeRenderer({ node = process.execPath } = {}) {
     const frames = Math.round(job.secs * job.sr);
     const input = job.input ? [job.input[0], job.input[1] || job.input[0]] : null;
     const inFrames = input ? input[0].length : 0;
+    // a keyed effect's key (def.key: true), after the input
+    const key = job.key && def.key === true ? [job.key[0], job.key[1] || job.key[0]] : null;
+    const keyFrames = key ? key[0].length : 0;
     cur = { id: ++seq, frames, sr: job.sr, def, hooks: hooks || {}, started: false, t0: 0, resolve, reject };
-    const d = { id: def.id, kind: def.kind, kernel: def.kernel, params: def.params, poly: def.poly, tail: def.tail, data: def.data };
+    const d = { id: def.id, kind: def.kind, kernel: def.kernel, params: def.params, poly: def.poly, tail: def.tail, data: def.data, key: def.key === true };
     const header = { type: 'job', id: cur.id, def: d, secs: job.secs, sr: job.sr, bpm: job.bpm, seed: job.seed, params: job.params,
-      notes: job.notes, allOffAt: job.allOffAt, stats: !!job.stats, inFrames };
-    const f = frame(header, input ? [Float32Array.from(input[0]), Float32Array.from(input[1]).subarray(0, inFrames)] : []);
+      notes: job.notes, allOffAt: job.allOffAt, stats: !!job.stats, inFrames, keyFrames };
+    const chans = input ? [Float32Array.from(input[0]), Float32Array.from(input[1]).subarray(0, inFrames)] : [];
+    if (key) chans.push(Float32Array.from(key[0]), Float32Array.from(key[1]).subarray(0, keyFrames));
+    const f = frame(header, chans);
     cur.t0 = performance.now();
     child.stdin.write(f);
   });

@@ -4,11 +4,12 @@
 //                core.drums (Gobo Kit), core.pad (Room Tone), core.piano (Baby Grand), core.organ (Rotor Cabinet),
 //                core.strings (Music Stands), core.bassguitar (Flatwound), core.guitar (DI Box), core.ep (Suitcase),
 //                core.mallets (Mallet Bag), core.poly2 (Step Ladder), core.brass (Brass Rail), core.choir (Risers),
-//                core.drumroom (Studio A), core.wavetable (Light Table)
+//                core.drumroom (Studio A), core.wavetable (Light Table), core.clubkit (Sandbag)
 //   sampled:     core.drumkit (Virtuosity Kit), core.upright (Parlour Upright), core.brushkit (Rusty Brushes),
 //                core.handkit (Hand Crate), core.grand (Full Stick), core.ensemble (Rosin),
 //                core.vibes (Damper Bar), core.ebass (Roundwound), core.eguitar (Hollow Body), core.barisax (Bell Up),
-//                core.cello (Endpin), core.flute (Head Joint), core.trumpet (Spit Valve): instruments that play
+//                core.cello (Endpin), core.flute (Head Joint), core.trumpet (Spit Valve),
+//                core.metalkit (Rusty Sticks): instruments that play
 //                recorded samples
 //                (kernel data, fetched by tools/fetch-kits.js; without them they play nothing). Not in INSTRUMENTS, whose
 //                every member is synthesized and checked as such everywhere; tools/drumkit-test.js and
@@ -16,7 +17,8 @@
 //   effects:     core.eq (Top Shelf), core.comp (Squeeze Box), core.verb (Stairwell), core.delay (Echo Reel),
 //                core.chorus (Double Track), core.filter (Keyhole), core.drive (Hot Print), core.crush (Chewed Tape),
 //                core.width (Gatefold), core.limiter (Red Line), core.eq8 (Slide Rule), core.shaper (Scribble Strip),
-//                core.multiband (Gaffer Tape)
+//                core.multiband (Gaffer Tape), core.ducker (Dim Switch: keyed, a sidechain duck), core.clipper (Clip Lamp),
+//                core.drumbus (Drum Riser), core.stack (Half Stack), core.cab (Iso Cab), core.bassrig (Y Cable)
 // Levels are measured by tools/sounds-test.js: instruments land around -16 LUFS on the test phrase, effects within
 // about a decibel of bypass at their defaults, every true peak at or under -1 dBTP.
 import poly from './poly.js';
@@ -37,6 +39,7 @@ import brass from './brass.js';
 import choir from './choir.js';
 import drumroom from './drumroom.js';
 import wavetable from './wavetable.js';
+import clubkit from './clubkit.js';
 import drumkit from './drumkit.js';
 import upright from './upright.js';
 import brushkit from './brushkit.js';
@@ -63,9 +66,16 @@ import limiter from './limiter.js';
 import eq8 from './eq8.js';
 import shaper from './shaper.js';
 import multiband from './multiband.js';
+import ducker from './ducker.js';
+import clipper from './clipper.js';
+import metalkit from './metalkit.js';
+import drumbus from './drumbus.js';
+import stack from './stack.js';
+import cab from './cab.js';
+import bassrig from './bassrig.js';
 
-export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable];
-export const EFFECTS = [eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter, eq8, shaper, multiband];
-export const SAMPLED = [drumkit, upright, brushkit, handkit, grand, ensemble, vibes, ebass, eguitar, barisax, cello, flute, trumpet];
+export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable, clubkit];
+export const EFFECTS = [eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter, eq8, shaper, multiband, ducker, clipper, drumbus, stack, cab, bassrig];
+export const SAMPLED = [drumkit, upright, brushkit, handkit, grand, ensemble, vibes, ebass, eguitar, barisax, cello, flute, trumpet, metalkit];
 export const BUILTINS = [...INSTRUMENTS, ...SAMPLED, ...EFFECTS];
 export default BUILTINS;

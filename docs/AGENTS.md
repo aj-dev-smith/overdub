@@ -312,8 +312,9 @@ Tracks may be named by id or exact name; `'master'` takes inserts. All times are
 { type: 'track.add', ref: 'pad', track: { name, kind: 'instrument' | 'audio', instrument: { device, params?, preset? }, inserts?, gain?, pan? }, index? }
 { type: 'track.set', track, patch: { name?, color?, gain? (dB), pan? (-1..1), mute?, solo? } }   // track.remove / track.move { track, index }
 { type: 'instrument.set', track, device?, params?, preset? }              // params merge; null resets one; preset: a name
-{ type: 'insert.add', track, insert: { device, params?, preset?, on? }, index?, ref? }   // insert.remove / insert.move
-{ type: 'insert.set', track, insert, patch: { on?, params?, preset? } }
+{ type: 'insert.add', track, insert: { device, params?, preset?, on?, key? }, index?, ref? }   // insert.remove / insert.move
+{ type: 'insert.set', track, insert, patch: { on?, params?, preset?, key? } }   // key: { track } (a sidechain, below) or null
+{ type: 'master.set', patch: { gain?, clip? } }   // clip: 'clean' (a hard ceiling at 0 dBFS, after a limiter) or 'soft' (the default)
 { type: 'clip.add', track, ref?, clip: { start, length, name?, notes?: "text", grid? } }
 { type: 'clip.set', track, clip, patch: { start?, length?, name?, mute?, take?, tuning?, capo? } }   // mute: true keeps it, silent; take: 'tk_…' its take group (null: none); tuning, capo: a notes clip's, for tab; clip.remove / clip.move { toTrack?, start? }
 { type: 'notes.add' | 'notes.replace', track, clip, notes: "text" }     // notes.remove { ids } / notes.set { notes: [{ id, p?, t?, d?, v?, s?, f? }] }
@@ -513,6 +514,9 @@ gains can't run away. At depth 0 it is the input, untouched.
   releases, at once.
 - **More room, tails and breath:** raise a band's `up_thresh` or `up_ratio`. **Hold the peaks harder:** lower a band's
   `down_thresh` or raise its `down_ratio`.
+- **All the lift, or all the hold, at once:** `upward` and `downward` (%, default 100) scale every band's lift and
+  hold: `upward` 60 on a growl or a reese keeps its hiss down (the Bass density preset), `downward` 130 on drums holds
+  the hits harder (Drum density).
 
 A drum bus, deeper and with each hit's front let through:
 
@@ -526,6 +530,43 @@ words ("depth 40%, splits at 120 Hz and 2.5 kHz; low: down above −4 dB at 3.0:
 `show_device` opens its window, where a threshold, a split or a knob you move flashes in your colour and the window
 says what moved; while the song plays the window also shows the loudness out against in, in LU, and each band held
 or lifted. `render_and_measure` with and without it (`bypass`) gives the same comparison in numbers.
+
+## Bass music: the genre guide, tags and targets
+
+`get_guide { topic: "genres" }` is how a named genre is built and mixed here (read it before writing one): bass music's
+tempo and form, the drums (Sandbag, `core.clubkit`, and the groove library's `dubstep` style), the sounds to start from
+by preset name, the mix and the master. `list_devices { tag: "growl" }` (or `bass-music`, `sub`, `reese`, `wobble`,
+`stab`, `riddim`, `dnb`...) lists only the devices with presets tagged so, and those presets; `get_device { id, tag }`
+the same for one device. `render_and_measure { targets: "bass-music" }` checks a render against the genre's numbers
+(`window: "drop"`: short-term loudness, crest, the low end's mono-ness under 120 Hz, the bands; `"song"`: integrated
+loudness and true peak), the misses first, each in words: "integrated loudness -9.1 LUFS (want -8 to -6), 1.1 LUFS
+under". measure() reports the low end as `lowSideDb` and `lowCorrelation`.
+
+## The bass ducks under the kick: Dim Switch (`core.ducker`) and keys
+
+A keyed effect hears a second track, its **key**: Dim Switch on the bass, keyed by the drums, dips the bass on each
+kick. Put it on and key it in one call:
+
+```json
+[{ "type": "insert.add", "track": "Bass", "insert": { "device": "core.ducker", "preset": "Kick duck", "key": { "track": "Drums" } }, "ref": "duck" }]
+```
+
+`key` names a track by id, name or `$ref`; the key hears that track after its inserts and before its fader, mute and
+pan, so a muted "ghost kick" track keys it too. `insert.set { patch: { key: null } }` removes it. A key to the insert's
+own track, on a master insert, or one that would close a loop is refused with the reason; a key whose track is removed
+stays (get_project: "key track missing") and is heard as silence. `get_project` writes it on the insert:
+`fx_ab12cd=Dim Switch (keyed by t_k3j9x2 "Drums")`. Dim Switch's params: `mode` (`TRIGGER`: a fixed duck on each hit;
+`FOLLOW`: follows the key's level), `depth` (dB), `attack`, `hold`, `release` (ms), `curve`, `thresh` (dB), `key_lo`
+and `key_hi` (Hz: the part of the key it listens to; 30-150 for a kick), `nokey` (with no key, dip on `1/4`, `1/8`,
+`1/2` or `1 BAR` of the song) and `mix`. Its presets: Kick duck, Kick and snare duck, Gentle pump, Hard pump (riddim),
+Bus breathe, Quarter pump (no key). A device you write can take a key too: `key: true` in its definition, `t.key` in
+its kernel (the device guide).
+
+**A loud master.** Clip Lamp (`core.clipper`: `drive` dB into a `ceiling` it never passes, `shape` HARD, SOFT or TAPE,
+4x oversampled; presets Drum bus clip, Master clip (+3), Master clip (+6), Bass grit) takes the peaks' first
+milliseconds off, then a limiter (Red Line, `core.limiter`, ceiling −1) brings the rest up. End the master that way and set
+`master.set { patch: { clip: 'clean' } }`: the safety soft clip after the limiter rounds a −1 dBTP master down by up
+to half a decibel, and `clean` leaves it exactly as the limiter did, with a hard ceiling at 0 dBFS.
 
 ## Writing devices
 

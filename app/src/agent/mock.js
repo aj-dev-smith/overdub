@@ -32,7 +32,7 @@ import { statusFor } from './claude.js';
 import { noteName, parsePc, spellNote, formatNotes } from '../core/music.js';
 import { transform } from '../core/transforms.js';
 import { styleIn, findGrooves, planPut, defaultBars } from '../core/grooves.js';
-import { playheadBar, studioA } from './grooves-tool.js';
+import { playheadBar, studioA, deviceOf } from './grooves-tool.js';
 import { findRiffStyle, RIFF_STYLES } from '../core/riff.js';
 import { chordTimeline, makeLick, findJamStyle, JAM_STYLES } from '../core/jam.js';
 import { stringNumber } from '../core/fretboard.js';
@@ -827,7 +827,7 @@ async function sceneGroove(app, { say, fine, tool, think, offer, t: text }) {
   const p = app.store.get(), bar = playheadBar(app);
   const vars = [];
   for (const g of picks) {
-    const plan = planPut(p, { groove: g, track: null, bar, bars: defaultBars(g), studioA: studioA(app) });
+    const plan = planPut(p, { groove: g, track: null, bar, bars: defaultBars(g), studioA: studioA(app), device: deviceOf(app) });
     if (plan.error) { await say(`I can't put a groove in this song: ${plan.error}.${plan.hint ? ` ${plan.hint[0].toUpperCase()}${plan.hint.slice(1)}.` : ''}`); return; }
     vars.push({ label: g.name.toLowerCase(), ops: plan.ops, why: `${style.name} ${g.part === 'half' ? 'half-time' : g.part}, ${g.feel}` });
   }

@@ -345,7 +345,7 @@ try {
     const lt = await call('apply_ops', { label: 'a pad', ops: [{ type: 'track.add', ref: 'p', track: { name: 'Glass pad', instrument: { device: 'core.wavetable', preset: 'Bokeh' } } }] });
     const ltLine = await page.evaluate(async () => { const o = window.overdub, t = o.store.get().tracks.find((x) => x.name === 'Glass pad'); return t ? (await import('/app/src/devices/registry.js')).presetOf(o.devices.getDevice('core.wavetable'), t.instrument.params)?.name || null : null; });
     const ltDev = await call('get_device', { id: 'core.wavetable' });
-    t.ok(!lt.isError && /Glass pad: Light Table, Bokeh/.test(JSON.stringify(lt.data?.presets)) && ltLine === 'Bokeh' && ltDev.texts.join('').length < 16000,
+    t.ok(!lt.isError && /Glass pad: Light Table, Bokeh/.test(JSON.stringify(lt.data?.presets)) && ltLine === 'Bokeh' && ltDev.texts.join('').length < 18500,   // (40 presets since bass music's 16; it was under 16,000 at 24)
       `a preset by name in track.add lands as that preset (${JSON.stringify(lt.data?.presets)}; the rack says ${ltLine}); get_device on Light Table reads ${ltDev.texts.join('').length} characters (it was 38,640)`);
     // a second studio tab: it takes the calls, and the first result from it says so; the next doesn't
     const page2 = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();

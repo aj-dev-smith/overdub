@@ -155,7 +155,7 @@ for (const f of ['logo.svg', 'wordmark.svg', 'wordmark-ink.svg', 'favicon.svg'])
   const wrong = Object.keys(real).filter((k) => said[k] !== real[k]);
   T.ok(!wrong.length, `session notes: the counts are real (${Object.entries(real).map(([k, v]) => `${k} ${said[k]}/${v}`).join(', ')})`);
   const more = DEMOS.slice(1);
-  const words = { 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12 };
+  const words = { 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15, 'sixteen': 16 };
   const n = words[((sec.match(/(\w+) more songs/i) || [])[1] || '').toLowerCase()];
   T.ok(n === more.length, `session notes: "${(sec.match(/\w+ more songs/i) || ['?'])[0]}" (${more.length} besides ${DEMOS[0].title})`);
   const cards = [...sec.matchAll(/href="\/app\/\?demo=([a-z-]+)"[^>]*><b>([^<]+)<\/b><span>([^<]+)<\/span><span>(\d+) bpm(?: ·|,) ([^<]+)<\/span>/g)].map((m) => ({ id: m[1], title: m[2], genre: m[3], tempo: +m[4], key: m[5] }));

@@ -29,7 +29,7 @@
  },
  {
   "name": "get_guide",
-  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), \"transforms\" (every transform with its params and defaults).",
+  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), \"transforms\" (every transform with its params and defaults), \"genres\" (how a named genre is built and mixed here, bass music and metal: the tempo, form, drums, sounds by device and preset, mix, master and the numbers it is held to).",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -40,8 +40,13 @@
       "devices",
       "ops",
       "lexicon",
-      "transforms"
+      "transforms",
+      "genres"
      ]
+    },
+    "section": {
+     "type": "string",
+     "description": "genres: one genre (bass-music, metal)"
     }
    },
    "required": [
@@ -99,7 +104,7 @@
  },
  {
   "name": "apply_ops",
-  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason, in musician terms. All-or-nothing: if any op fails nothing changes, and you get which op and why.\nReturns created ids (by ref), a diff and the undo hint.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.\nOps (get_guide \"ops\" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). preset: \"<name>\" sets a device's whole sound (get_device lists them), params on top. Param values are in each param's units: one out of range is refused, with the range; a switch takes its number or its name.",
+  "description": "Change the song: dispatch a list of ops as ONE undo step attributed to you, with a short label (shown in History) and the reason, in musician terms. All-or-nothing: if any op fails nothing changes, and you get which op and why.\nReturns created ids (by ref), a diff and the undo hint.\nSmall, reversible moves they asked for: make them. Rewriting the human's notes: propose_variations instead.\nOps (get_guide \"ops\" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):\nproject.set { patch: { title?, tempo?, meter?, key?, loop? } }\ntrack.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }\ninstrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset?, key? } } insert.remove, insert.move\nclip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move\nnotes.add, notes.replace { track, clip, notes: \"text\" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }\nsection.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split\nauto.write { track, insert?, param, points: \"beat:value ...\", from?, to? }   auto.clear   auto.set\nTracks by id or exact name ('master' takes inserts); times in beats; ref: 'x' on an op that makes something, '$x' in later ops of the same call. Notes text: pitch@start:dur[*vel], e.g. \"A2@0:0.5 C3@0.5:0.5*0.9\" (beats from the clip start). preset: \"<name>\" sets a device's whole sound (get_device lists them), params on top. Param values are in each param's units: one out of range is refused, with the range; a switch takes its number or its name.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -135,7 +140,7 @@
  },
  {
   "name": "list_devices",
-  "description": "Instruments and effects you can put on tracks: built-ins (core.*), the Guitar Studio (pedal.*, amp.*), and devices written in this project. Filter by kind (\"instrument\" | \"effect\"), cat (synth keys drums bass pluck sampler dynamics eq filter pitch drive fuzz amp mod time ambient glitch utility) or a free-text query; a cat nothing is filed under finds the devices that mention the word.\nWith detail \"params\" (the default while the list stays short; one device always has them) each param is listed as: key min..max unit (log) def=… role — what it does. Param values in ops are in these units and inside these ranges. Presets (named sounds) are listed by name: preset: \"<name>\" in instrument.set, track.add's instrument, insert.add or insert.set sets one.",
+  "description": "Instruments and effects you can put on tracks: built-ins (core.*), the Guitar Studio (pedal.*, amp.*), and devices written in this project. Filter by kind (\"instrument\" | \"effect\"), cat (synth keys drums bass pluck sampler dynamics eq filter pitch drive fuzz amp mod time ambient glitch utility) or a free-text query; a cat nothing is filed under finds the devices that mention the word.\nWith detail \"params\" (the default while the list stays short; one device always has them) each param is listed as: key min..max unit (log) def=… role — what it does. Param values in ops are in these units and inside these ranges. Presets (named sounds) are listed by name: preset: \"<name>\" in instrument.set, track.add's instrument, insert.add or insert.set sets one. tag (\"bass-music\", \"growl\", \"sub\"...) lists only the devices with presets tagged so, and those presets.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -151,6 +156,10 @@
     },
     "query": {
      "type": "string"
+    },
+    "tag": {
+     "type": "string",
+     "description": "a preset tag: bass-music, dubstep, riddim, dnb, melodic, sub, growl, reese, wobble, stab, lead, chords, fx, drums, bus, master, pump"
     },
     "detail": {
      "type": "string",
@@ -185,6 +194,10 @@
     "preset": {
      "type": "string",
      "description": "a preset's name: returns that preset's whole params"
+    },
+    "tag": {
+     "type": "string",
+     "description": "only the presets tagged so (\"bass-music\", \"growl\", \"sub\"...)"
     },
     "detail": {
      "type": "string",
@@ -307,7 +320,7 @@
  },
  {
   "name": "render_and_measure",
-  "description": "Listen (you can't hear, so the studio renders offline through the exact graph the human hears, and measures). Renders a range (bars, beats or a section; default: the selection, else the loop) of some tracks (default: the whole mix) and returns LUFS, true peak, crest, energy per band (sub low lowmid mid highmid presence air) as bands (each band's share of the total: the balance) and bandsAbs (each band's own energy: what an EQ move changes), brightness centre (Hz), stereo correlation, onsets/s, key, plus musician-language glosses.\nIt keeps a baseline per scope: measure BEFORE a change and again AFTER, and you get the deltas with glosses (\"low-mid −3.1 dB vs before: less muddy\"; bands far under the total aren't glossed). \"previous\" moves on with every measurement, so for a change in several steps save_as: \"before\" first and compare_to: \"before\" after. spectrogram: true adds an image (log-frequency, 20 Hz bottom → 20 kHz top, time left → right).\nbypass: [insert ids] and mute: [tracks] apply to this render only (a scratch copy: no History entries), e.g. your effect on vs bypassed in two calls.\nper_track: true measures balance in one call (is the hook buried?): each track on its own and the rest of the mix without it, with its level against the mix and the rest, and its main band against the rest of the mix in that band. The summed mix's loudness and tone can stay put while one track moves 2 LU, so use this for balance.\nseries: \"bars\" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers (\"bars 1–4: −41, −29, −22, −17 LUFS short-term, rising\").",
+  "description": "Listen (you can't hear, so the studio renders offline through the exact graph the human hears, and measures). Renders a range (bars, beats or a section; default: the selection, else the loop) of some tracks (default: the whole mix) and returns LUFS, true peak, crest, energy per band (sub low lowmid mid highmid presence air) as bands (each band's share of the total: the balance) and bandsAbs (each band's own energy: what an EQ move changes), brightness centre (Hz), stereo correlation, onsets/s, key, plus musician-language glosses.\nIt keeps a baseline per scope: measure BEFORE a change and again AFTER, and you get the deltas with glosses (\"low-mid −3.1 dB vs before: less muddy\"; bands far under the total aren't glossed). \"previous\" moves on with every measurement, so for a change in several steps save_as: \"before\" first and compare_to: \"before\" after. spectrogram: true adds an image (log-frequency, 20 Hz bottom → 20 kHz top, time left → right).\nbypass: [insert ids] and mute: [tracks] apply to this render only (a scratch copy: no History entries), e.g. your effect on vs bypassed in two calls.\nper_track: true measures balance in one call (is the hook buried?): each track on its own and the rest of the mix without it, with its level against the mix and the rest, and its main band against the rest of the mix in that band. The summed mix's loudness and tone can stay put while one track moves 2 LU, so use this for balance.\nseries: \"bars\" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers (\"bars 1–4: −41, −29, −22, −17 LUFS short-term, rising\").\ntargets: \"bass-music\" or \"metal\" checks the render against the genre's measured targets (bass music: window \"drop\": short-term loudness, crest, the low end's mono-ness, the bands; \"song\": integrated loudness, true peak; metal: window \"song\", every number on the whole master), the misses first.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -371,6 +384,22 @@
     "per_track": {
      "type": "boolean",
      "description": "balance: every audible track (or the tracks given) against the rest of the mix"
+    },
+    "targets": {
+     "type": "string",
+     "enum": [
+      "bass-music",
+      "metal"
+     ],
+     "description": "a genre: check against its targets"
+    },
+    "window": {
+     "type": "string",
+     "enum": [
+      "drop",
+      "song"
+     ],
+     "description": "with targets: a drop's numbers (default) or the whole song's"
     }
    },
    "additionalProperties": false
@@ -1224,13 +1253,13 @@
  },
  {
   "name": "find_grooves",
-  "description": "Searches the studio's drum groove library: grooves played with a drummer's feel (accents, ghost notes, swing and micro-timing by style, seeded humanising), in General MIDI, so they play on any drum track. Each has a name, a style, a feel, a tempo range, its part and its length. Styles: rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, jazz, shuffle, country, reggae, bossa, samba, afrobeat. Parts: intro, verse, chorus, bridge, half, fill, ending (half is a half-time feel; fills are one beat, two beats or a bar).\nFilters (any together): style, part, feel (words: swung, laid back, half-time, shuffle, four on the floor ...), tempo (BPM it is played at), query (words in names and descriptions). Or rhythm: a tapped or written rhythm, matched against the library (kick and snare first, every piece second, over every cyclic shift, tolerant of timing): the closest grooves come back with a score from 0 to 1, how many onsets landed on their hits, and the tempo the onsets were played at.\nReturns { grooves: [{ id, name, style, part, feel, length, tempo, grid, about, score? }], styles (when no style was given), rhythm? }. grid is the groove as written in the library's text format: one row per piece, a group of cells per beat (X accent, x hit, O soft, o ghost, g feathered, f flam, . rest). Changes nothing. It returns no song text: every name, blurb and grid in it is the studio's own library.",
+  "description": "Searches the studio's drum groove library: grooves played with a drummer's feel (accents, ghost notes, swing and micro-timing by style, seeded humanising), in General MIDI, so they play on any drum track. Each has a name, a style, a feel, a tempo range, its part and its length. Styles: rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, dubstep, jazz, shuffle, country, reggae, bossa, samba, afrobeat, extreme, modernmetal. Parts: intro, verse, chorus, bridge, half, fill, ending (half is a half-time feel; fills are one beat, two beats or a bar).\nFilters (any together): style, part, feel (words: swung, laid back, half-time, shuffle, four on the floor ...), tempo (BPM it is played at), query (words in names and descriptions). Or rhythm: a tapped or written rhythm, matched against the library (kick and snare first, every piece second, over every cyclic shift, tolerant of timing): the closest grooves come back with a score from 0 to 1, how many onsets landed on their hits, and the tempo the onsets were played at.\nReturns { grooves: [{ id, name, style, part, feel, length, tempo, grid, about, score? }], styles (when no style was given), rhythm? }. grid is the groove as written in the library's text format: one row per piece, a group of cells per beat (X accent, x hit, O soft, o ghost, g feathered, f flam, . rest). Changes nothing. It returns no song text: every name, blurb and grid in it is the studio's own library.",
   "input_schema": {
    "type": "object",
    "properties": {
     "style": {
      "type": "string",
-     "description": "a style id or name (rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, jazz, shuffle, country, reggae, bossa, samba, afrobeat)"
+     "description": "a style id or name (rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, dubstep, jazz, shuffle, country, reggae, bossa, samba, afrobeat, extreme, modernmetal)"
     },
     "part": {
      "type": "string",
@@ -1363,13 +1392,13 @@
  },
  {
   "name": "drum_track",
-  "description": "Writes a whole drum track for the song from one style in the groove library, on a new track (drum tracks already there stay as they are, so both play), as one undo step signed by the caller: one clip per section, each playing its part's groove (by the section's name: intro, verse, pre-chorus, chorus, bridge, breakdown, solo, outro; else by how busy the song's other parts are there), a fill in the last bar before each change, a crash on each new section's downbeat and the style's ending in the last bars, except when the loop is on and reaches the song's end: then no ending, so the loop goes round. ending: true or false decides that either way; crashes: false leaves out the crashes. With no sections it adds one, over the loop when it is on or over the song's length. style: rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, jazz, shuffle, country, reggae, bossa, samba, afrobeat (default: the style closest to the song's drums, else one played at its tempo). parts: { \"<section name or id>\": \"<part>\" } says which part a section is. The kit is Studio A when the studio has it, else Gobo Kit (machine styles: its machines). dry_run: true returns the plan and changes nothing. The song must be in 4/4. Returns { ok, summary, plan: { sections: [{ name, part, plays, groove, bars, fill?, ending?, crash }], fills, crashes, ending, loops }, track, clips } or { error, hint }.",
+  "description": "Writes a whole drum track for the song from one style in the groove library, on a new track (drum tracks already there stay as they are, so both play), as one undo step signed by the caller: one clip per section, each playing its part's groove (by the section's name: intro, verse, pre-chorus, chorus, bridge, breakdown, solo, outro; else by how busy the song's other parts are there), a fill in the last bar before each change, a crash on each new section's downbeat and the style's ending in the last bars, except when the loop is on and reaches the song's end: then no ending, so the loop goes round. ending: true or false decides that either way; crashes: false leaves out the crashes. With no sections it adds one, over the loop when it is on or over the song's length. style: rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, dubstep, jazz, shuffle, country, reggae, bossa, samba, afrobeat, extreme, modernmetal (default: the style closest to the song's drums, else one played at its tempo). parts: { \"<section name or id>\": \"<part>\" } says which part a section is. The kit is Studio A when the studio has it, else Gobo Kit (machine styles: its machines); the metal styles (extreme, modernmetal) play on Rusty Sticks when the studio has it. dry_run: true returns the plan and changes nothing. The song must be in 4/4. Returns { ok, summary, plan: { sections: [{ name, part, plays, groove, bars, fill?, ending?, crash }], fills, crashes, ending, loops }, track, clips } or { error, hint }.",
   "input_schema": {
    "type": "object",
    "properties": {
     "style": {
      "type": "string",
-     "description": "a style id or name (rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, jazz, shuffle, country, reggae, bossa, samba, afrobeat)"
+     "description": "a style id or name (rock, pop, indie, punk, metal, funk, motown, disco, gospel, neosoul, boombap, lofi, trap, house, dnb, dubstep, jazz, shuffle, country, reggae, bossa, samba, afrobeat, extreme, modernmetal)"
     },
     "parts": {
      "type": "object",

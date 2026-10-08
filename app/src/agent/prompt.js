@@ -22,7 +22,8 @@ export const OPS_CHEATSHEET = `Ops (apply_ops takes a list; all-or-nothing; one 
 - { type: 'track.set', track, patch: { name?, color?, gain? (dB -96..24), pan? (-1..1), mute?, solo? } }   track.remove { track }   track.move { track, index }
 - { type: 'instrument.set', track, device?, params?: { key: value }, preset? }   (params merge; null resets a param to default)
 - { type: 'insert.add', track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.remove { track, insert }   insert.move { track, insert, index }
-- { type: 'insert.set', track, insert, patch: { on?, params?, preset? } }
+- { type: 'insert.set', track, insert, patch: { on?, params?, preset?, key? } }   key: { track } (a keyed device such as Dim Switch, core.ducker, hears that track's sound, after its inserts and before its fader: the bass ducks under the kick) or null; insert.add's insert takes key too. A track can't key itself, the master can't take one, and a loop is refused.
+- { type: 'master.set', patch: { gain?, clip? } }   clip: 'clean' ends the master on a hard ceiling at 0 dBFS, linear below (set it when a limiter is the master's last insert), 'soft' is the safety soft clip (the default)
 - Param values are in each param's own units and range (list_devices with detail "params", or get_device): a value outside the range is refused with the range, and nothing changes. A switch takes its number or its name. preset: "<name>" (get_device lists them) sets that preset's whole sound; params given with it go on top.
 - { type: 'clip.add', track, ref?, clip: { start (beats), length (beats), name?, notes?: "text" | [{p,t,d,v}], grid?: {...} } }
 - { type: 'clip.set', track, clip, patch: { start?, length?, name?, mute? } }   clip.remove { track, clip }   clip.move { track, clip, toTrack?, start? }
@@ -43,7 +44,7 @@ Example (a new track with a clip, one call):
 export const OPS_BRIEF = `Ops (get_guide "ops" has every field, automation lanes, the notes and drum-grid formats, examples: read it before your first call):
 project.set { patch: { title?, tempo?, meter?, key?, loop? } }
 track.add { ref?, track: { name, kind?, instrument?: { device, params?, preset? }, inserts?, gain?, pan? }, index? }   track.set { track, patch: { name?, color?, gain? (dB, -96..24), pan? (-1..1), mute?, solo? } }   track.remove, track.move { track, index }
-instrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset? } }   insert.remove, insert.move
+instrument.set { track, device?, params?, preset? }   insert.add { track, insert: { device, params?, preset?, on? }, index?, ref? }   insert.set { track, insert, patch: { on?, params?, preset?, key? } } insert.remove, insert.move
 clip.add { track, ref?, clip: { start, length, name?, notes?, grid? } }   clip.set, clip.remove, clip.move
 notes.add, notes.replace { track, clip, notes: "text" }   notes.remove { track, clip, ids }   notes.set { track, clip, notes: [{ id, p?, t?, d?, v? }] }
 section.add { section: { name, start, length } }   section.set, section.remove, section.duplicate   time.insert, time.remove { at, length }   clip.repeat, clip.split
@@ -96,6 +97,8 @@ Ops: apply_ops's description lists every op; get_guide "ops" has their fields in
 ${NOTES_BRIEF}
 
 Devices: list_devices shows instruments and effects with their params (ranges, units, roles). Built-ins are core.* (synths, drums, keys, bass, pluck, pad; eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter), and the Guitar Studio's pedal.* and amp.* (AJ's clawd-o-matic rigs). Param values are in the param's own units. Writing an instrument or effect: read get_guide "devices" (the dsp stdlib, two working examples) before define_device, in the same turn as your first reads.
+
+For a named genre (bass music, dubstep, riddim, DnB, metal, djent...), read get_guide "genres" first. For metal: Half Stack (core.stack, an amp with its cab), Iso Cab (core.cab), Y Cable (core.bassrig, a bass split), Rusty Sticks (core.metalkit, a sampled metal kit) and Drum Riser (core.drumbus); the Guitar Studio's graph amps render clean in exports, Half Stack renders as heard.
 
 Guitar: the Jam room (the tab beside Arrange) is where a guitarist plays over the song or a jam track; read get_jam first for the chords, the scale and where on the neck. Tab: write_tab, tab_for and suggest_riff.
 

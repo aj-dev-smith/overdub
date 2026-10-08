@@ -146,6 +146,12 @@ try {
     const md = dsp.modal([200, 310], [0.3, 0.2]).strike(1); let mm = 0; for (let j = 0; j < 48000; j++) mm = Math.max(mm, Math.abs(md.next())); r.modal = { peak: mm, active: md.active() };
     const n1 = dsp.noise(3, 'pink'), n2 = dsp.noise(3, 'pink'); r.noiseSeeded = Array.from({ length: 50 }, () => n1.next() === n2.next()).every(Boolean);
     const l = dsp.lfo('saw', 1).sync(4, { bpm: 120, playing: true, beat: 2 }); r.lfoSync = { phase: l.phase, hz: l.dt * 48000 };
+    // fft round trip; a convolver with taps [0.5, 0, 0.25]: half the input plus a quarter two samples late, 128 frames
+    // later (0 with direct: 128), and nothing else over -180 dB
+    const F = dsp.fft(256), xs = run(256, (i) => Math.sin(i * 0.3) + (i % 7) / 7), Xr = new Float64Array(129), Xi = new Float64Array(129), back = new Float64Array(256);
+    F.forward(xs, Xr, Xi); F.inverse(Xr, Xi, back); r.fftRound = Math.max(...back.map((v, i) => Math.abs(v - xs[i])));
+    const conv = (o) => { const c = dsp.convolver([0.5, 0, 0.25], o), x = run(600, (i) => (i === 3 ? 1 : 0)), y = new Float32Array(600); c.process(x, y, null, 600); return { lat: c.latency, at: [...y].map((v, i) => [i, v]).filter(([, v]) => Math.abs(v) > 1e-9) }; };
+    r.conv = { plain: conv(), direct: conv({ direct: 128 }) };
     return r;
   });
   T.ok(d.frozen && d.api, 'dsp is frozen and exposes exactly DSP_API');
@@ -154,6 +160,9 @@ try {
   T.ok(Math.abs(d.svf.lp1k + 3) < 0.2 && d.svf.lp10k < -35 && d.svf.hp100 < -35 && Math.abs(d.svf.bell1k - 6) < 0.2 && Math.abs(d.svf.ls100 - 6) < 0.3 && Math.abs(d.svf.hs10k - 6) < 0.3,
     `svf responses (lp -3 dB at fc, bell/shelves +6 dB): ${JSON.stringify(Object.fromEntries(Object.entries(d.svf).map(([k, v]) => [k, +v.toFixed(1)])))}`);
   T.ok(d.osLatency === 23, `oversample2x latency is the declared 23 samples (measured ${d.osLatency})`);
+  const cv = (c, at) => c.at.length === 2 && c.at[0][0] === at && Math.abs(c.at[0][1] - 0.5) < 1e-12 && c.at[1][0] === at + 2 && Math.abs(c.at[1][1] - 0.25) < 1e-12;
+  T.ok(d.fftRound < 1e-14 && cv(d.conv.plain, 131) && d.conv.plain.lat === 128 && cv(d.conv.direct, 3) && d.conv.direct.lat === 0,
+    `dsp.fft round-trips (${d.fftRound.toExponential(1)}); dsp.convolver plays its taps ${d.conv.plain.lat} frames late, and on time with direct: 128`);
   T.ok(Math.abs(d.karplusHz - 220) < 0.3, `karplus is in tune (${d.karplusHz.toFixed(2)} Hz for 220)`);
   T.ok(Math.abs(d.attackMs - 10) < 0.5 && d.releaseDone, `adsr attack lands on time (${d.attackMs} ms) and the release ends`);
   T.ok(d.fdnPeak > 0.05 && d.fdnPeak < 2 && d.fdnTail < 1e-3, `fdn reverb rings and decays (peak ${d.fdnPeak.toFixed(3)}, after 2 s ${d.fdnTail.toExponential(1)})`);

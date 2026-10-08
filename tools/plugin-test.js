@@ -133,7 +133,7 @@ try {
     const d = (id) => window.overdub.devices.getDevice(id);
     const fake = { id: 'x.wt', name: 'Fake Table', kind: 'instrument', params: ['a_pos', 'a_warp', 'b_pos', 'b_warp', 'flt_cut', 'flt_res', 'env1_a', 'env1_d', 'env1_s', 'env1_r', 'vol'].map((key) => ({ key, label: key.toUpperCase(), min: 0, max: 1, def: 0.5 })) };
     const mods = { id: 'x.mods', name: 'Fake Mods', kind: 'instrument', params: ['m1_src', 'm1_dst', 'm1_amt', 'm2_src', 'm2_dst', 'm2_amt', 'macro1', 'vol'].map((key) => ({ key, label: key.toUpperCase(), min: 0, max: 1, def: 0.5 })) };
-    return { poly: g.layout(d('core.poly')).map((x) => x.name), small: g.layout(d('core.verb')).map((x) => x.name), amp: g.layout(window.overdub.devices.listDevices().find((x) => x.cat === 'amp')).map((x) => x.name), fake: g.layout(fake).map((x) => `${x.name}:${x.keys.length}`), mods: g.layout(mods).map((x) => x.name) };
+    return { poly: g.layout(d('core.poly')).map((x) => x.name), small: g.layout(d('core.verb')).map((x) => x.name), amp: g.layout(window.overdub.devices.listDevices().find((x) => x.cat === 'amp' && x.id.startsWith('amp.'))).map((x) => x.name), fake: g.layout(fake).map((x) => `${x.name}:${x.keys.length}`), mods: g.layout(mods).map((x) => x.name) };
   });
   // m1_* are a mod slot's source, destination and amount: "Mod slot 1", not "Macros 1"
   ok(lay.mods[0] === 'Mod slot 1' && lay.mods[1] === 'Mod slot 2' && !lay.mods.some((x) => /Macros/.test(x)), `numbered mod slots are named as mod slots (${lay.mods.join(', ')})`);

@@ -130,7 +130,8 @@ function installSounds(app, S) {
     const cur = trial && !trial.newTrack && trial.track === track ? trial.was : t ? realOf(t) : newPart(kindOfTakeKind(take));
     const now = { device: cur.device, preset: cur.preset || null, now: true };
     let list = [];
-    try { list = S.soundsFor(takeOf(track, take), { has, current: now.device, currentPreset: now.preset }) || []; } catch (e) { list = []; }
+    // (a song whose title names a genre, "Dubstep thing", is offered that genre's sounds first: core/sounds.js genreOf)
+    try { list = S.soundsFor(takeOf(track, take), { has, current: now.device, currentPreset: now.preset, genre: S.genreOf?.(store.get().title) || null }) || []; } catch (e) { list = []; }
     // ("now" is named for its family the way the set's rows are, "Electric piano", even off the set or on a preset)
     now.family = famOfDevice(now.device) || list.find((r) => r.now)?.family || '';
     // (a house row with no preset is the device as it comes: the same sound as "now" on that device, so not listed twice)

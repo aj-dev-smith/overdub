@@ -117,7 +117,7 @@
 
 import { songEnd as projectSongEnd } from '../core/project.js';
 import { onDevices } from '../devices/registry.js';
-import { Strip, trackSpec, masterSpec, audibility, mixAt } from './strip.js';
+import { Strip, trackSpec, masterSpec, audibility, mixAt, keyPlan } from './strip.js';
 import { createClock } from './clock.js';
 import { notesIn, audioIn, lastSound, playBuffer, autoIn, lanesOf, lanePos, laneValue, travel, mixGain, panGains, GRID } from './schedule.js';
 import { noteExpr } from '../kernel/expr.js';
@@ -321,6 +321,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     refreshLanes(p);
     const auto = (track) => ({ gain: T.playing && AU.byId.has(track + '/mix/gain'), pan: T.playing && AU.byId.has(track + '/mix/pan') });
     master.setMix({ gain: mixAt(p.master || {}, T.cursor).gain, auto: auto('master') });
+    master.setClip(p.master && p.master.clip);
     master.sync(masterSpec(p, { at: T.cursor })).catch((e) => report({ kind: 'graph', track: 'master', message: e.message })).then(queuePdc);
     const heard = audibility(p);
     const seen = new Set();
@@ -334,7 +335,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       }
       const mx = mixAt(t, T.cursor);
       s.setMix({ gain: mx.gain, pan: mx.pan, audible: !!heard[t.id], auto: auto(t.id), trim: trimOf(t.id) });
-      s.sync(trackSpec(t, { at: T.cursor })).catch((e) => report({ kind: 'graph', track: t.id, message: e.message })).then(queuePdc);
+      s.sync(trackSpec(t, { at: T.cursor })).catch((e) => report({ kind: 'graph', track: t.id, message: e.message })).then(queuePdc).then(queueKeys);
     }
     for (const [id, s] of strips) {
       if (seen.has(id)) continue;
@@ -344,6 +345,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       ev.emit('graph', { kind: 'track', track: id, removed: true });
     }
     updatePdc();
+    updateKeys();
     rescan();
     if (tempoMoved) {
       // synced devices hear the new tempo (applyParams compares params + bpm)
@@ -387,6 +389,40 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     for (const s of strips.values()) if (s.job) jobs.push(s.job);
     if (!jobs.length) return Promise.resolve();
     return Promise.all(jobs.map((j) => j.catch(() => {}))).then(() => sleep(0)).then(() => settled());
+  }
+
+  // ------------------------------------------------------------------------------------------- keys
+  // Sidechains (strip.js keyPlan): each keyed insert's key input is connected to its source strip's key tap (after its
+  // inserts, before its fader and mute, so a muted ghost kick still keys). A key that changes is rewired inside the
+  // keyed strip's dip, so it never clicks; a key whose track is gone hears silence (t.key.on false).
+  const keyLinks = new Map(); // insert id -> { inst, tap }
+  let keysQueued = false;
+  function queueKeys() {
+    if (keysQueued || disposed) return;
+    keysQueued = true;
+    queueMicrotask(() => { keysQueued = false; updateKeys(); });
+  }
+  function updateKeys() {
+    if (!ctx || disposed) return;
+    const p = P(), plan = keyPlan(p), seen = new Set();
+    const cut = (l) => { if (l && l.tap) { try { l.tap.disconnect(l.inst.keyInput); } catch (e) { /* gone */ } } };
+    for (const t of p.tracks || []) {
+      const s = strips.get(t.id);
+      if (!s) continue;
+      for (const x of t.inserts || []) {
+        if (!plan.keyOf.has(x.id)) continue;
+        const inst = s.instance(x.id);
+        if (!inst || !inst.keyInput) continue;
+        seen.add(x.id);
+        const sid = plan.keyOf.get(x.id), src = sid ? strips.get(sid) : null, tap = src && !src.disposed ? src.keyTap() : null;
+        const cur = keyLinks.get(x.id);
+        if (cur && cur.inst === inst && cur.tap === tap) continue;
+        keyLinks.set(x.id, { inst, tap });
+        const apply = () => { if (cur) cut(cur); if (tap) tap.connect(inst.keyInput); inst.setKey(!!tap); };
+        if (cur && cur.inst === inst) s.dipped(apply); else apply();
+      }
+    }
+    for (const [id, l] of keyLinks) if (!seen.has(id)) { cut(l); keyLinks.delete(id); }
   }
 
   // ------------------------------------------------------------------------------------------- latency

@@ -524,7 +524,7 @@ export const JAM_STYLES = {
     label: 'Metal', blurb: 'a palm-muted chug on a rhythm guitar, double kick, power chords', key: { root: 'E', scale: 'minor' }, tempo: 132,
     power: true, midCost: 0.6, swing: 0, ghost: 0,
     progs: { riff: 'i5 i5 bVI5 bVII5', lift: 'bVI5 bVII5 i5 i5' }, form: [['Riff', 'riff'], ['Riff', 'riff'], ['Lift', 'lift'], ['Riff', 'riff']],
-    chords: { name: 'Rhythm', device: 'core.guitar', params: DI_CRUNCH, inserts: [{ device: 'amp.metal', params: {} }], register: [40, 52],
+    chords: { name: 'Rhythm', device: 'core.guitar', params: DI_CRUNCH, inserts: [{ device: 'core.stack', params: {} }], register: [40, 52],
       rhythm: [[0, 0.2, 0.95], [0.25, 0.2, 0.3], [0.5, 0.2, 0.3], [0.75, 0.2, 0.3], [1, 0.45, 0.9], [1.5, 0.2, 0.3], [1.75, 0.2, 0.3], [2, 0.2, 0.95], [2.25, 0.2, 0.3], [2.5, 0.2, 0.3], [2.75, 0.2, 0.3], [3, 0.9, 0.9]], legato: 1 },
     bass: { name: 'Bass', device: 'core.bassguitar', params: { style: 1, tone: 0.5, pickup: 0.35, sustain: 1, mute: 0.08, drive: 0.6 }, range: [28, 47],
       riff: [B(0, 'R', 0.2, 0.95), B(0.25, 'R', 0.2, 0.7), B(0.5, 'R', 0.2, 0.75), B(0.75, 'R', 0.2, 0.7), B(1, 'R', 0.45, 0.9), B(1.5, 'R', 0.2, 0.75), B(1.75, 'R', 0.2, 0.7), B(2, 'R', 0.2, 0.95), B(2.25, 'R', 0.2, 0.7), B(2.5, 'R', 0.2, 0.75), B(2.75, 'R', 0.2, 0.7), B(3, 'R', 0.9, 0.9)] },

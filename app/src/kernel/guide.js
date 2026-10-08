@@ -112,6 +112,7 @@ host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot rel
   params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
   drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
   presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  key?: true (effects: it hears a second track, its key, as t.key),
   kernel: '<source>' }
 
 ParamSpec, continuous: { key, label, min, max, def, curve?: 'lin' | 'log' (log needs min > 0; use it for Hz and
@@ -156,6 +157,9 @@ oldest, with a 5 ms fade):
   the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
   already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
   and mod); in process, the channel's. A kernel that ignores them still plays.
+- A keyed effect (key: true in the definition; a sidechain, e.g. a duck under the kick) also sees t.key = { l, r, on }:
+  this block's key, another track's sound after its inserts (Float32Arrays of n), silent with on false when the
+  insert has no key (insert.set { patch: { key: { track } } } gives it one).
 - Mono sources arrive on both L and R. Output is always stereo.
 - render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.
 
@@ -226,10 +230,18 @@ Space: fdn(size = 0.6, decay = 2, damp = 0.4, seed?) (8-line modulated reverb; s
 damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp). chorus(depth = 0.5, rate = 0.8)
 (two voices in quadrature) -> .tick(l, r) then .l .r (wet) .set(depth, rate). buffer(n) -> Float32Array(n).
 
+Convolution: convolver(taps, { direct }?) (taps: one array, or [left, right]; a cab, a room) -> .process(x, outL, outR,
+n) (mono x in, one output per taps channel; in place is fine) .set(taps) (new taps up to the first length, no
+allocation) .reset() .latency (128 frames; 0 with direct: 128, which convolves the first 128 taps directly: declare
+it). fft(n) (n a power of two, 16..8192) -> .forward(x, Xr, Xi) (n/2 + 1 bins) .inverse(Xr, Xi, x). Both are the
+same doubles on every engine.
+
 ## What the check reports (define_device returns it)
 
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
-latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
+latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck?,
+keyed?: { deltaLU, grMaxDb } }. keyed is a key: true effect's DI strum again, keyed by the drum loop (a warning if
+nothing changes: the key is ignored).
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
 extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes

@@ -17,15 +17,20 @@
 // (localTrials), with the same calls.
 // Keys: / searches (from anywhere), ↑ ↓ move, Enter tries or adds, Shift+Enter puts an instrument on a new track,
 // Esc goes back from a trial, else clears.
+// The genre filter (All, Bass music: GENRE_FILTERS, the registry's preset tags): a genre lists its sounds first, each
+// preset tagged with it as a row of its own ("Fixer", Light Table, its blurb). An instrument's tries on the selected
+// track (with that preset), an effect's goes on the end of the chain with it. The choice lasts the session.
 
 import { kitHashes, kitState, kitLine, prefetchKit } from './kitload.js';
 import { h, css, icon, byline } from './dom.js';
-import { DEVICE_CATS } from '../devices/registry.js';
+import { DEVICE_CATS, presetParams } from '../devices/registry.js';
 import { addDevice, applyRig, guitar, swatchOf, authorKind, authorName, currentTrack, rankDevices, isMismatch } from './rack.js';
 import { songColor, touchFirst, menu } from './arrange-kit.js';
 
 const DT_DEV = 'application/x-overdub-device', DT_RIG = 'application/x-overdub-rig';
 const PREF = 'overdub:browser';
+// the genres the filter offers: [tag, label] (a genre's presets carry its tag: devices/registry.js PRESET_TAGS)
+export const GENRE_FILTERS = [['', 'All'], ['bass-music', 'Bass music']];
 const catName = (c) => (DEVICE_CATS.find(([k]) => k === c) || [c, c ? c[0].toUpperCase() + c.slice(1) : 'Other'])[1];
 
 export default async function (app) {
@@ -47,8 +52,12 @@ export default async function (app) {
     mount(el) {
       const q = h('input.br-q', { type: 'search', placeholder: 'Sounds, effects, rigs…', 'aria-label': 'Search devices and rigs', autocomplete: 'off', spellcheck: false });
       const target = h('div.br-target');
+      // the genre filter: All, or a genre's sounds first
+      let genre = ui.state.browserGenre || '';
+      const gbtns = GENRE_FILTERS.map(([tag, label]) => h('button.br-g', { type: 'button', 'aria-pressed': String(tag === genre), dataset: { genre: tag }, onclick: () => { genre = tag; ui.state.browserGenre = tag; for (const b of gbtns) b.setAttribute('aria-pressed', String(b.dataset.genre === genre)); render(); } }, label));
+      const gfilter = h('div.br-genres', { role: 'group', 'aria-label': 'Genre' }, ...gbtns);
       const list = h('div.br-list', { role: 'listbox', 'aria-label': 'Devices' });
-      el.append(h('div.br', h('label.br-search', icon('search', { size: 15 }), q, h('kbd', '/')), target, list));
+      el.append(h('div.br', h('label.br-search', icon('search', { size: 15 }), q, h('kbd', '/')), gfilter, target, list));
       let rows = [];   // the visible, pickable rows in order: { el, kind: 'device' | 'rig', item }
       let at = -1;
       let dirty = false;
@@ -147,6 +156,39 @@ export default async function (app) {
         rows.push({ el: r, kind: 'device', item: d });
         return r;
       }
+      // a preset as a row (the genre filter): its name, the device's swatch and name, its blurb; a click tries it (an
+      // instrument, on the selected track) or puts it on (an effect, at the end of the chain)
+      function presetRow(d, pr) {
+        const sw = swatchOf(d);
+        const r = h('div.br-row.br-pre', { role: 'option', tabindex: -1, dataset: { device: d.id, kind: d.kind, preset: pr.name },
+          title: [`${pr.name}: ${d.name}`, pr.blurb || '', d.kind === 'instrument' ? 'Click: try it on the selected track' : 'Click: on the end of the selected track’s chain'].filter(Boolean).join('\n') },
+          h('i.br-sw', { style: { background: sw.color, '--ink': sw.ink } }),
+          h('span.br-n', pr.name),
+          h('small.br-tag', d.name),
+          pr.blurb ? h('span.br-blurb', pr.blurb) : null);
+        r.addEventListener('click', () => pickPreset(d, pr, r));
+        rows.push({ el: r, kind: 'preset', item: d, preset: pr.name });
+        return r;
+      }
+      function pickPreset(d, pr, anchor) {
+        if (d.kind !== 'instrument') {
+          const id = currentTrack(app) || 'master', params = presetParams(d, pr.name) || {};
+          const res = store.dispatch({ type: 'insert.add', track: id, insert: { device: d.id, params } }, { by: 'you', label: `${d.name}: ${pr.name}` });
+          if (!res.ok) ui.toast(res.error, { kind: 'bad' }); else ui.toast(`${d.name} (${pr.name}) is on the end of the chain.`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo() } });
+          return;
+        }
+        const id = currentTrack(app), t = id && id !== 'master' ? store.track(id) : null;
+        if (!t || t.kind !== 'instrument' || !t.instrument?.device) {
+          const r = store.dispatch({ type: 'track.add', ref: 'n', track: { name: pr.name, kind: 'instrument', instrument: { device: d.id, params: presetParams(d, pr.name) || {} } } }, { by: 'you', label: `new track: ${pr.name}` });
+          if (r.ok) { ui.select({ track: r.created.n, clip: null, insert: null }); ui.toast(`${pr.name} (${d.name}) is on a new track.`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo() } }); }
+          return;
+        }
+        const res = S().try(t.id, { device: d.id, preset: pr.name }, { from: 'browser' });
+        if (res && res.ok === false) { if (res.error) ui.toast(res.error, { kind: 'bad' }); return; }
+        mine = { track: t.id };
+        already = null;
+        renderTarget();
+      }
       // a device the song brought whose code hasn't run here (main.js holds it): listed, kept off, never added from here
       function heldRow(d) {
         const sw = swatchOf(d);
@@ -202,6 +244,17 @@ export default async function (app) {
         const mine = all.filter((d) => (d.source === 'project' || proj[d.id]) && !heldIds.has(d.id) && match(d));
         const builtins = all.filter((d) => !(d.source === 'project' || proj[d.id]));
         const out = [];
+        // a genre's sounds: every preset tagged with it, a row each (its name, its device, its blurb), searched too
+        if (genre) {
+          const kids = [];
+          for (const d of all) for (const pr of d.presets || []) {
+            if (!(pr.tags || []).includes(genre)) continue;
+            if (s && !(pr.name + ' ' + (pr.blurb || '') + ' ' + d.name + ' ' + (pr.tags || []).join(' ')).toLowerCase().includes(s)) continue;
+            kids.push(presetRow(d, pr));
+          }
+          const label = (GENRE_FILTERS.find(([t]) => t === genre) || [, genre])[1];
+          out.push(section('genre:' + genre, label, kids.length, kids.length ? kids : [h('div.br-none', `No ${label.toLowerCase()} sounds match.`)], { open: true }));
+        }
         if (mine.length || held.length || !searching) {
           const kids = mine.length || held.length ? [...mine.map((d) => row(d)), ...held.map(heldRow)] : [h('div.br-none', 'Nothing yet. Describe a sound to your agent and it can build an instrument or effect for this song.', h('button.btn.br-ask', { onclick: () => ui.emit('agent:compose', { text: 'Build me an effect that ', attach: { track: currentTrack(app) } }) }, icon('agent', { size: 13 }), 'Build one with the agent'))];
           out.push(section('mine', 'Written in this song', mine.length + held.length, kids, { open: searching }));
@@ -341,7 +394,7 @@ export default async function (app) {
       q.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowDown') { at = Math.min(rows.length - 1, at + 1); highlight(); }
         else if (e.key === 'ArrowUp') { at = Math.max(0, at - 1); highlight(); }
-        else if (e.key === 'Enter') { const r = rows[at]; if (!r) return; if (r.kind === 'rig') pickRig(r.item, r.el); else if (r.kind === 'community') r.enter?.(); else if (r.kind === 'held') askHeld(r.item); else pickDevice(r.item, e.shiftKey, r.el); }
+        else if (e.key === 'Enter') { const r = rows[at]; if (!r) return; if (r.kind === 'rig') pickRig(r.item, r.el); else if (r.kind === 'community') r.enter?.(); else if (r.kind === 'held') askHeld(r.item); else if (r.kind === 'preset') pickPreset(r.item, (r.item.presets || []).find((x) => x.name === r.preset), r.el); else pickDevice(r.item, e.shiftKey, r.el); }
         else if (e.key === 'Escape') { if (S().trying()) backTrial('esc'); else if (q.value) { q.value = ''; render(); } else q.blur(); }
         else return;
         e.preventDefault();
@@ -535,4 +588,8 @@ const BROWSER_CSS = `
 .br-ask { justify-self: start; }
 .br-ask svg { color: var(--agent); }
 .br-search kbd { flex: none; }
+.br-genres { display: flex; gap: 4px; margin: 0 14px 6px; }
+.br-g { height: 26px; padding: 0 9px; border: 1px solid var(--line-2); border-radius: 6px; background: none; color: var(--text-2); font: 500 12px/1 var(--font-ui); cursor: pointer; }
+.br-g[aria-pressed="true"] { border-color: var(--text); color: var(--text); }
+.br-g:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
 `;

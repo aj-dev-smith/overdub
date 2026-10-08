@@ -18,7 +18,7 @@ import { h, css, canvas, clamp, byline } from './dom.js';
 import { palette, rgba, touched } from './arrange-kit.js';
 import * as G from '../core/grooves.js';
 import { beatsPerBar } from '../core/music.js';
-import { installGrooveTools, putGroove, buildDrums, targetTrack, playheadBar, isDrum, studioA } from '../agent/grooves-tool.js';
+import { installGrooveTools, putGroove, buildDrums, targetTrack, playheadBar, isDrum, studioA, deviceOf } from '../agent/grooves-tool.js';
 
 const HEARING_KEY = 'overdub:grooves-hearing';
 const PAD = [
@@ -268,7 +268,7 @@ function mountGrooves(el, app) {
     // on the drum track it would go onto (its kit, its effects), else the kit that suits the style
     const t = targetTrack(app);
     const playable = (dev) => !!app.devices?.getDevice?.(dev) && !app.devices?.heldDevice?.(dev);
-    const kit = G.kitFor(g.style, { studioA: studioA(app) });
+    const kit = G.kitFor(g.style, { studioA: studioA(app), device: deviceOf(app) });
     const instrument = t && playable(t.instrument.device) ? { device: t.instrument.device, params: { ...t.instrument.params } } : { device: kit.device, params: kit.params };
     const articulations = instrument.device === G.STUDIO_A;
     let { notes, len } = passage(g, p, articulations);

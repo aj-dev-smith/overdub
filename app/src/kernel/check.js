@@ -28,6 +28,10 @@
 //     cpu: { pct, ms, secs },   wall time of a 4 s render as % of real time (one instance)
 //     latency: { samples, ms, declared },  effects: where an impulse comes out; instruments: note-on to onset
 //     deterministic,            two renders hash-equal
+//     keyed?: { deltaLU, grMaxDb },  effects whose def says key: true (docs/DEVICES.md "Keys"): the DI strum again,
+//                               keyed by the drum loop. deltaLU: its level against the unkeyed render; grMaxDb: the
+//                               most it dips under the unkeyed render over any 10 ms. Neither moving: a warning (the
+//                               key is ignored)
 //     extremes: { cases, worstPeak, failed: [{ case, nan, peak, error }], hot: [case] },   every param at min and max,
 //                               all min, all max; `hot`: cases over +6 dBFS (a warning)
 //     voices?: { poly, maxVoices, steals },  instruments: poly + 4 notes held at once
@@ -151,6 +155,23 @@ function firstAbove(buf, thr, from = 0) {
   return first === Infinity ? -1 : first;
 }
 
+// The most `b` dips under `a` over any 10 ms (5 ms apart), in dB, where `a` is over -50 dBFS (a keyed render, b,
+// against the same input unkeyed, a).
+function dipDb(a, b) {
+  const win = Math.round(0.01 * SR), hop = Math.round(0.005 * SR), n = Math.min(a.length, b.length);
+  let worst = 0;
+  for (let at = 0; at + win <= n; at += hop) {
+    let ea = 0, eb = 0;
+    for (let c = 0; c < 2; c++) {
+      const x = a.getChannelData(c), y = b.getChannelData(c);
+      for (let i = at; i < at + win; i++) { ea += x[i] * x[i]; eb += y[i] * y[i]; }
+    }
+    if (ea / (2 * win) < 1e-5) continue;
+    const d = 10 * Math.log10(ea / Math.max(eb, 1e-20));
+    if (d > worst) worst = d;
+  }
+  return worst;
+}
 function stereoOf(x) { return Array.isArray(x) ? x : (x && x.channels) ? x.channels : [x, x]; }
 function cut(chans, secs, fade = 0.01) {
   const n = Math.round(secs * SR), f = Math.round(fade * SR);
@@ -200,13 +221,13 @@ function accept(raw, frames) {
 async function renderOutside(def, job, w, renderer) {
   w.check();
   w.loaded = true;
-  const { secs, params = {}, input = null, notes = null, allOffAt = null, seed = 1, stats = false } = job;
-  return w.wait(renderer.render(def, { secs, sr: SR, bpm: PHRASE_BPM, seed, params, input, notes, allOffAt, stats }, { created: () => { w.created = true; } }));
+  const { secs, params = {}, input = null, key = null, notes = null, allOffAt = null, seed = 1, stats = false } = job;
+  return w.wait(renderer.render(def, { secs, sr: SR, bpm: PHRASE_BPM, seed, params, input, key, notes, allOffAt, stats }, { created: () => { w.created = true; } }));
 }
 
 // One offline render on this page's audio thread. Every wait goes through the check's watch `w`; when it trips, what
 // was being waited on is held until it ends, and the instance is let go.
-async function renderInPage(def, { secs, params = {}, input = null, notes = null, allOffAt = null, seed = 1, stats = false }, w) {
+async function renderInPage(def, { secs, params = {}, input = null, key = null, notes = null, allOffAt = null, seed = 1, stats = false }, w) {
   w.check();
   const c = new OfflineAudioContext(2, Math.round(secs * SR), SR);
   const made = kernelInstance(c, def, { seed, params, bpm: PHRASE_BPM }); // (loads the worklet on `c` first)
@@ -225,6 +246,13 @@ async function renderInPage(def, { secs, params = {}, input = null, notes = null
     const b = c.createBuffer(2, input[0].length, SR);
     b.copyToChannel(input[0], 0); b.copyToChannel(input[1] || input[0], 1);
     const src = c.createBufferSource(); src.buffer = b; src.connect(inst.input); src.start(0);
+  }
+  // a keyed effect's key (def.key: true): another signal on its second input, and t.key.on
+  if (key && inst.keyInput) {
+    const b = c.createBuffer(2, key[0].length, SR);
+    b.copyToChannel(key[0], 0); b.copyToChannel(key[1] || key[0], 1);
+    const src = c.createBufferSource(); src.buffer = b; src.connect(inst.keyInput); src.start(0);
+    inst.setKey(true);
   }
   if (notes) for (const n of notes) { inst.noteOn(n.p, n.v, n.t); inst.noteOff(n.p, n.t + n.d); }
   if (allOffAt != null) inst.allOff(allOffAt);
@@ -302,6 +330,7 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
     level: null, truePeak: null, peak: null, nan: false, tail: null, cpu: null, latency: null,
     deterministic: null, extremes: null,
   };
+  if (kind === 'effect' && def && def.key === true) report.keyed = null;
   const finish = () => {
     report.ok = !errors.length;
     report.ms = Math.round(performance.now() - T0);
@@ -368,6 +397,14 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       if (outL < -60 && (!dr.buffer || outD < -60)) errors.push(`level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent). A gate, a mute or a triggered effect should let the test signals through at its defaults`);
       else levelWarnings(report.level, warnings);
       report.cpu = { pct: round((main.ms / 4000) * 100), ms: Math.round(main.ms), secs: 4 };
+      // a keyed effect (def.key: true): the DI strum again, keyed by the drum loop, against the unkeyed render
+      if (def.key === true) {
+        const kr = await render(ndef, { secs: 4, params: defaults, input: strum, key: drums });
+        if (note(kr, 'with the DI strum keyed by the drum loop') && kr.buffer) {
+          report.keyed = { deltaLU: round(measureLufs(kr.buffer) - outL), grMaxDb: round(dipDb(main.buffer, kr.buffer)) };
+          if (Math.abs(report.keyed.deltaLU) < 0.1 && report.keyed.grMaxDb < 0.5) warnings.push('key: the def says key: true, but keyed by the drum loop the DI strum comes out as it does unkeyed: read the key in process() (t.key.l, t.key.r; t.key.on is false when the insert has none)');
+        }
+      }
       if (report.cpu.pct > 25) warnings.push(`cpu: a 4 s render took ${report.cpu.ms} ms (${report.cpu.pct}% of real time) for one instance: look for per-sample trig/pow/exp you could move to per-block`);
 
       // tail: 1 s of input, then silence

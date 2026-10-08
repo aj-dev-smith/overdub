@@ -167,7 +167,9 @@ export function mbSplit(X, n, z, zo, g1a, g1b, g2a, g2b, B0, B1, B2) {
 // whole release, and a slow attack lets them through. The lift reads the louder of the two, lets go within MB_LIFT_MS
 // (so nothing jumps out of a quiet spot) and comes back at the release. Held still, the sum is the curve (mbCurve with
 // both ratios): a steady tone's peak and mean square read the same.
-export function mbStep(e, s, o, thrD, rD, thrU, rU, cA, cR, cD, cC, cL) {
+// sd, su (optional): Gaffer Tape's DOWNWARD and UPWARD (1 = 100%): the downward side's dB and the lift's dB are scaled
+// by them, the classic three-band plugin's two big knobs (the lift still at most MB_RANGE). Left out, or both 1, the arithmetic is exactly what it was before they existed.
+export function mbStep(e, s, o, thrD, rD, thrU, rU, cA, cR, cD, cC, cL, sd, su) {
   let m1 = e + (s[o] - e) * cD;
   if (m1 < 1e-30) m1 = 0;
   s[o] = m1;
@@ -191,7 +193,9 @@ export function mbStep(e, s, o, thrD, rD, thrU, rU, cA, cR, cD, cC, cL) {
   let gu = tu + (u0 - tu) * (tu < u0 ? cL : cR);
   if (gu < 1e-12) gu = 0;
   s[o + 4] = gu;
-  return (gc < gd ? gc : gd) + gu;
+  if (sd === undefined || (sd === 1 && su === 1)) return (gc < gd ? gc : gd) + gu;
+  const lift = gu * su;
+  return (gc < gd ? gc : gd) * sd + (lift > MB_RANGE ? MB_RANGE : lift);
 }
 
 // The shelves' coefficients for the three bands' linear gains gl, gm, gh (after the depth: mbMix), into co (12
@@ -255,8 +259,16 @@ const num = (v, d) => { const x = +v; return Number.isFinite(x) ? x : d; };
 export function transfer(params, b, x) {
   const p = bandOf(params, b), gin = num(params.in_gain, 0), gout = num(params.out_gain, 0), d = Math.min(1, Math.max(0, num(params.depth, 100) / 100));
   const lv = x + gin;
-  const m = mbMix(mbCurve(lv, p.thrD, p.rD, p.thrU, p.rU), p.gain, d);
+  const m = mbMix(scaledCurve(params, lv, p), p.gain, d);
   return lv + 20 * Math.log10(Math.max(m, 1e-12)) + gout;
+}
+// The static curve with DOWNWARD and UPWARD (params.downward, params.upward, %, default 100) scaling its two sides, as
+// mbStep does: at 100% each, mbCurve itself.
+export function scaledCurve(params, x, p) {
+  const sd = num(params.downward, 100) / 100, su = num(params.upward, 100) / 100;
+  if (sd === 1 && su === 1) return mbCurve(x, p.thrD, p.rD, p.thrU, p.rU);
+  const lift = mbCurve(x, p.thrD, 1, p.thrU, p.rU) * su;
+  return mbCurve(x, p.thrD, p.rD, p.thrU, 1) * sd + (lift > MB_RANGE ? MB_RANGE : lift);
 }
 // The same at full depth (what the compressor itself does, before the dry is mixed back)
 export function transferFull(params, b, x) { return transfer({ ...params, depth: 100 }, b, x); }
@@ -271,7 +283,7 @@ export function toneGains(params, f, level, sr, out = [0, 0, 0]) {
   for (let i = 0; i < 3; i++) {
     const p = bandOf(params, MB_BANDS[i].id);
     const lv = level + gin + 20 * Math.log10(Math.max(w[i], 1e-30));
-    out[i] = mbMix(mbCurve(lv, p.thrD, p.rD, p.thrU, p.rU), p.gain, d);
+    out[i] = mbMix(scaledCurve(params, lv, p), p.gain, d);
   }
   return out;
 }

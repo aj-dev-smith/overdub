@@ -8,6 +8,8 @@
 //   demo-kernels  the same without the Guitar track: kernels only, so the browser can render exactly the same thing
 //   automation  a pad with a gain fade in, a pan sweep and a filter sweep on a kernel insert (bent, a jump, a step):
 //               the lanes both renderers play (docs/research/AUTOMATION.md 3.5)
+//   sidechain   a bass and a pad ducking under kicks through Dim Switch's key (one key a muted ghost kick), both renderers
+//   master-clean  the same mix through Red Line at -1 dBTP on the master and a clean ceiling (master.clip 'clean')
 //   demo:<id>   a song from the demo shelf (only those listed in SHELF_SCENES), whole, as demoById builds it (its ids
 //               are stable already), its timestamps pinned. Each scene is pinned on purpose, not the whole shelf.
 //   inst:core.wavetable:akwf   Light Table on two of its AKWF tables (the bank in app/src/devices/builtin/akwf.js),
@@ -15,6 +17,9 @@
 //   inst:<id>#<12 hex>   a sampled instrument (kernel data) on its phrase: the name carries the first 12 hex digits of
 //               the kit it plays, so a different kit is a different scene, never a moved hash. Only when the kit has
 //               been fetched (node tools/fetch-kits.js); otherwise it is listed by missingScenes() and skipped.
+//   inst:core.metalkit#<12 hex>:trigger   Rusty Sticks with its trigger up and its room off: the synthesized layers
+//   fx:core.stack, fx:core.cab, fx:core.bassrig   the amps (tools/amp-scenes.js builds them): Half Stack on its filter
+//               cab, and each on the cab bank as fx:<id>[:cab]#<12 hex>, only when the bank has been fetched
 //
 // `browser: true` marks the kernel-only scenes tools/golden-test.js also renders in Chromium's OfflineAudioContext.
 import fs from 'node:fs';
@@ -23,6 +28,7 @@ import { dataPath } from '../app/src/engine/node/data.js';
 import { SHOWCASE } from '../app/src/devices/showcase.js';
 import { demoProject, demoById } from '../app/src/core/demo.js';
 import { createProject } from '../app/src/core/project.js';
+import { ampScenes } from './amp-scenes.js';
 import { phrase, drumPhrase, diStrum, PHRASE_BPM, PHRASE_BEATS, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 
 const STAMP = '2026-09-30T00:00:00.000Z';
@@ -83,8 +89,32 @@ function automationScene() {
   };
 }
 
+// sidechain: a bass and a pad ducking under kicks through Dim Switch's key (strip.js keyPlan). The bass comes before
+// the kick in track order, so the key's order is tested; the pad's key is a muted "ghost" kick, rendered and not heard
+function sidechainScene() {
+  const four = (p) => notes(Array.from({ length: 8 }, (_, i) => ({ p, t: i, d: 0.25, v: 0.9 })));
+  const tr = (id, name, device, params, clipNotes, extra = {}) => ({ id, name, kind: 'instrument', instrument: { device, params }, inserts: [],
+    clips: [{ id: 'c_' + id.slice(2), kind: 'notes', start: 0, length: 8, notes: clipNotes, by: 'overdub' }], gain: 0, pan: 0, mute: false, solo: false, arm: false, by: 'overdub', ...extra });
+  const bass = tr('t_bass', 'Bass', 'core.bass', {}, notes([{ p: 33, t: 0, d: 4, v: 0.9 }, { p: 36, t: 4, d: 4, v: 0.9 }]), { gain: -3 });
+  bass.inserts = [{ id: 'fx_duckb', device: 'core.ducker', on: true, params: { depth: 10, attack: 1, hold: 15, release: 160, curve: 0.2, thresh: -30, key_lo: 30, key_hi: 150 }, key: { track: 't_kick' }, by: 'overdub' }];
+  const pad = tr('t_pad', 'Pad', 'core.pad', {}, notes([{ p: 57, t: 0, d: 8, v: 0.7 }, { p: 60, t: 0, d: 8, v: 0.7 }, { p: 64, t: 0, d: 8, v: 0.7 }]), { gain: -6 });
+  pad.inserts = [{ id: 'fx_duckp', device: 'core.ducker', on: true, params: { mode: 1, depth: 8, attack: 5, hold: 10, release: 300, thresh: -36 }, key: { track: 't_ghost' }, by: 'overdub' }];
+  return {
+    name: 'sidechain', browser: true, opts: { from: 0, to: 8, tail: 2 }, assets: {},
+    project: project({ title: 'sidechain', tempo: 128, tracks: [bass, tr('t_kick', 'Kick', 'core.drums', {}, four(36)), pad, tr('t_ghost', 'Ghost kick', 'core.drums', {}, notes(Array.from({ length: 4 }, (_, i) => ({ p: 36, t: 2 * i + 1, d: 0.25, v: 1 }))), { mute: true })] }),
+  };
+}
+// master-clean: a loud master that ends in Red Line at -1 dBTP and a clean ceiling (master.clip), no soft clip after it
+function masterCleanScene() {
+  const sc = sidechainScene();
+  const p = JSON.parse(JSON.stringify(sc.project));
+  p.title = 'master-clean';
+  p.master = { gain: 0, clip: 'clean', inserts: [{ id: 'fx_mlim', device: 'core.limiter', on: true, params: { gain: 9, ceiling: -1, release: 60 }, by: 'overdub' }] };
+  return { ...sc, name: 'master-clean', project: p };
+}
+
 // the shelf songs pinned as scenes (kernel devices only; tools/demos-test.js renders them in the browser)
-const SHELF_SCENES = ['sodium', 'red-eye', 'late-checkout', 'wake-up-call', 'lobby-bar', 'room-service', 'turndown', 'ice-machine', 'vacancy'];
+const SHELF_SCENES = ['sodium', 'red-eye', 'late-checkout', 'wake-up-call', 'lobby-bar', 'room-service', 'turndown', 'ice-machine', 'vacancy', 'service-lift', 'boiler-room'];
 
 // The demo song with every id replaced by a fixed one (in document order), so it renders the same every time.
 export function fixedDemo() {
@@ -112,7 +142,19 @@ function sampledScenes() {
   });
 }
 // the scenes skipped because their kernel data hasn't been fetched
-export const missingScenes = () => sampledScenes().filter(([, here]) => !here).map(([s]) => s.name);
+const AMPS = new Set(['core.stack', 'core.cab', 'core.bassrig']);
+const ampHere = () => ampScenes().map((s) => [s, Object.values(s.data || {}).every((h) => fs.existsSync(dataPath(h)))]);
+// the shelf's scenes: [scene, the kernel data its devices play is here] (Boiler Room plays Rusty Sticks and the cabs)
+function shelfScenes() {
+  return SHELF_SCENES.map((id) => {
+    const p = demoById(id);
+    p.meta = { ...p.meta, created: STAMP, modified: STAMP };
+    const ids = [...p.tracks.flatMap((t) => [t.instrument?.device, ...t.inserts.map((x) => x.device)]), ...p.master.inserts.map((x) => x.device)].filter(Boolean);
+    const hashes = [...new Set(ids)].flatMap((d) => Object.values([...SAMPLED, ...EFFECTS, ...INSTRUMENTS].find((x) => x.id === d)?.data || {}));
+    return [{ name: 'demo:' + id, browser: false, opts: { from: 0, to: p.loop.end, tail: 2 }, assets: {}, project: p }, hashes.every((h) => fs.existsSync(dataPath(h)))];
+  });
+}
+export const missingScenes = () => [...sampledScenes(), ...ampHere(), ...shelfScenes()].filter(([, here]) => !here).map(([s]) => s.name);
 
 export function scenes() {
   const out = [];
@@ -128,7 +170,11 @@ export function scenes() {
     out.push(instrumentScene(lt, {}, { a_table: ti('AKWF VOICE'), a_pos: 0.3, b_table: ti('AKWF BASS'), b_pos: 0.5, b_oct: -1, b_level: 0.35, m1_src: 5, m1_dst: 1, m1_amt: 0.25 }, ':akwf'));
   }
   for (const d of showcase('instrument')) out.push(instrumentScene(d, asDevices([d])));
-  for (const d of EFFECTS) out.push(effectScene(d));
+  // Rusty Sticks with its trigger up and its room off: the synthesized layers pinned on their own
+  const mk = SAMPLED.find((d) => d.id === 'core.metalkit');
+  if (mk && Object.values(mk.data).every((h) => fs.existsSync(dataPath(h)))) out.push({ ...instrumentScene(mk, {}, { click: 0, sub: 0, trig_vel: 0, room: -40 }, '#' + mk.data.kit.slice(7, 19) + ':trigger'), data: { ...mk.data } });
+  for (const d of EFFECTS) if (!AMPS.has(d.id)) out.push(effectScene(d));
+  for (const [s, here] of ampHere()) if (here) out.push(s);
   for (const d of showcase('effect')) out.push(effectScene(d, asDevices([d])));
   const demo = fixedDemo();
   out.push({ name: 'demo', browser: false, opts: { from: 0, to: 32, tail: 2 }, assets: {}, project: demo });
@@ -136,10 +182,8 @@ export function scenes() {
   kern.tracks = kern.tracks.filter((t) => t.name !== 'Guitar');
   out.push({ name: 'demo-kernels', browser: true, opts: { from: 0, to: 32, tail: 2 }, assets: {}, project: kern });
   out.push(automationScene());
-  for (const id of SHELF_SCENES) {
-    const p = demoById(id);
-    p.meta = { ...p.meta, created: STAMP, modified: STAMP };
-    out.push({ name: 'demo:' + id, browser: false, opts: { from: 0, to: p.loop.end, tail: 2 }, assets: {}, project: p });
-  }
+  out.push(sidechainScene());
+  out.push(masterCleanScene());
+  for (const [s, here] of shelfScenes()) if (here) out.push(s);
   return out;
 }

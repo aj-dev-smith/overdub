@@ -105,18 +105,21 @@ export function quotedName(name, max = 60) {
 }
 
 // A sampled device's samples: loading, or not on this server (nothing once they're here). The line names its file by
-// hash and is redrawn when the state changes.
+// hash and is redrawn when the state changes. A device whose data isn't samples says its own words (def.dataSays:
+// { loading: [short, long], missing: [short, long] }; Half Stack's cabs: it plays the filter cab meanwhile).
 const DATA_SAYS = { loading: ['Loading samples…', 'Loading its samples: it plays once they’re in'], missing: ['No samples here', 'Its samples aren’t on this server, so it plays nothing'] };
-const dataSays = (hash) => DATA_SAYS[dataState(hash)] || ['', ''];
-export function dataLine(hash) {
-  const [t, long] = dataSays(hash);
-  return h('span.rk-data', { 'data-hash': hash, role: 'status', title: long || null, 'aria-label': long || null, hidden: !t }, t);
+const dataSays = (hash, own) => (own && own[dataState(hash)]) || DATA_SAYS[dataState(hash)] || ['', ''];
+export function dataLine(hash, own = null) {
+  const [t, long] = dataSays(hash, own);
+  const el = h('span.rk-data', { 'data-hash': hash, role: 'status', title: long || null, 'aria-label': long || null, hidden: !t }, t);
+  el._says = own;
+  return el;
 }
 onData(({ hash }) => {
   if (typeof document === 'undefined') return;
   for (const el of document.querySelectorAll('.rk-data')) {
     if (el.dataset.hash !== hash) continue;
-    const [t, long] = dataSays(hash);
+    const [t, long] = dataSays(hash, el._says);
     el.textContent = t; el.hidden = !t;
     if (long) { el.title = long; el.setAttribute('aria-label', long); } else { el.removeAttribute('title'); el.removeAttribute('aria-label'); }
   }
@@ -423,9 +426,27 @@ export function controlMenu(app, anchor, addr, { name, can = true } = {}) {
   else if (l) items.push({ label: 'Hold it here', sub: 'its lane steps aside', run: () => { const r = app.store.dispatch({ type: 'auto.set', ...addr, patch: { off: true } }, { by: 'you', label: `${sentence(name)} held` }); if (!r.ok) app.ui.toast(r.error, { kind: 'bad' }); } });
   // (a master lane has no row in the arranger, where a lane is cleared: it is cleared here)
   if (l && addr.track === 'master') items.push({ label: 'Clear its lane', sub: 'it stays where the lane has it now', run: () => clearMasterLane(app, addr, name) });
+  // the master's end (master.clip): the safety soft clip, or a clean ceiling for a master that ends in a limiter
+  if (addr.track === 'master' && addr.param === 'gain' && !addr.insert) {
+    const clean = app.store.get().master?.clip === 'clean';
+    items.push(clean
+      ? { label: 'Soft safety clip', sub: 'rounds off anything near 0 dBFS (the default)', run: () => setMasterClip(app, 'soft') }
+      : { label: 'Clean ceiling (for a limited master)', sub: 'nothing after the limiter; 0 dBFS is the ceiling', run: () => setMasterClip(app, 'clean') });
+  }
   const m = kitMenu(at, items);
   m.el.classList.add('ew-automenu');
   return m;
+}
+
+function setMasterClip(app, clip) {
+  const r = app.store.dispatch({ type: 'master.set', patch: { clip } }, { by: 'you', label: clip === 'clean' ? 'Master: clean ceiling' : 'Master: soft safety clip' });
+  if (!r.ok) { app.ui.toast(r.error, { kind: 'bad' }); return; }
+  if (clip !== 'clean') { app.ui.toast('The master ends in the soft safety clip again.'); return; }
+  // (say what is last on it: a limiter, or nothing that keeps it under 0 dBFS)
+  const ins = app.store.get().master?.inserts || [], last = ins.filter((x) => x.on !== false).pop();
+  app.ui.toast(last && last.device === 'core.limiter'
+    ? 'The master ends clean now: Red Line is the last thing on it.'
+    : 'The master ends clean now, with no limiter last on it: anything over 0 dBFS is cut flat. Put Red Line last to keep it under.');
 }
 
 /* ================================================================ what History calls a hand on a control */
@@ -883,7 +904,7 @@ export default async function (app) {
         cap.append(...[grip, h('span.rk-name', { title: dname }, dname),
           openBig ? h('button.rk-open', { type: 'button', title: 'Open it in its own window (or double-click its name)', 'aria-label': `Open ${dname} in its own window`, onclick: openBig }, 'Open') : null,
           // a sampled device: whether its samples are here yet (kernel/data.js holds the state; this only shows it)
-          ...(def && !held && def.data ? Object.values(def.data).map((hash) => dataLine(hash)) : []),
+          ...(def && !held && def.data ? Object.values(def.data).map((hash) => dataLine(hash, def.dataSays)) : []),
           h('span.rk-cap-sp'), authorBadge,
           lat ? h('span.rk-lat', { title: 'Latency this device adds' }, fmtLatency(lat)) : null,
           projDev ? h('button.rk-ib', { title: 'View its code', 'aria-label': `View the code of ${dname}`, onclick: () => openCode(devId) }, icon('code', { size: 14 })) : null,

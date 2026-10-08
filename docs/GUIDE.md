@@ -205,6 +205,11 @@ yours to pick by ear:
   card, each saying why, signed *suggested by Claude*. Nothing changes until you keep one, and the kept sound is yours.
   Name an instrument (*"make it a Choir Loft"*) and it sets it, and says what it was.
 - Recording on a track while you're trying a sound keeps that sound first, and says so before the take starts.
+- **Sounds by genre.** Under the browser's search, **Bass music** lists that genre's sounds by name: Light Table's
+  subs, growls, riddim stabs, Reeses and wobbles (Dark Slide, Fixer, Hard Cut, Double Exposure, Strobe...), Sandbag's
+  kits, and the presets of Dim Switch, Clip Lamp and Gaffer Tape made for it. A click tries one on the selected track.
+  Each Light Table one has its main move on **Macro 1**. A song whose title says dubstep, riddim or drum and bass gets
+  them first on its sound card too.
 
 ## Shape the song
 
@@ -301,6 +306,13 @@ yours to pick by ear:
 - **An electric guitar.** Hollow Body, under Plucked, is a recorded hollow-body electric guitar (a Gretsch), picked
   and played dry: soft notes are softer picks, not just quieter ones, and a repeated note alternates between two picks.
   Put an amp from the Guitar Studio after it for the room. DI Box beside it is the synthesized one.
+- **A metal guitar.** Put **Half Stack** on an audio track with a guitar DI (record one through your interface, or
+  drop a WAV on the track). It plays as you play. **Modern** is a tight rhythm tone; **Djent**, **Thrash**, **Doom** and
+  **Lead** are the others. **GAIN** at 6 to 7 is a modern rhythm; **TIGHT** higher makes palm mutes faster; **GATE**
+  up until the hiss between chugs is gone. **CAB** pages through six miked 4x12s. Record the part twice and pan the
+  two tracks hard left and right: a copy isn't a double.
+- **A metal bass.** **Y Cable** splits a bass: the low end stays clean and in the middle, the top growls through a cab.
+  **XOVER** is where one hands over to the other.
 - **A saxophone.** Bell Up, under Keys, is a recorded baritone sax (a 1926 Conn), each note held for as long as you
   hold the key, soft takes for soft notes and loud ones for loud. **RELEASE** is the breath stopping; the **Stabs**
   preset cuts every note at once, for horn hits.
@@ -320,6 +332,9 @@ yours to pick by ear:
   claves, a woodblock, an agogo and a guiro, recorded. A beat written for a kit plays on it as a hand player would:
   the kick is the cajon's bass, the snare its slap, the hats a shaker and a tambourine, the toms the congas. Hold
   note 33 and the tambourine rolls for as long as you hold it.
+- **A metal kit.** Rusty Sticks, under Drums, is a recorded kit hit with sticks: a kick with a click and a sub you can turn up or off
+  (CLICK, SUB), TIGHT for fast double kick, a room on the snare. Put **Drum Riser** after it for a produced sound: its **Modern** preset
+  punches, squashes and adds a crushed room underneath. The Grooves tab's **Extreme metal** and **Modern metal** play on it.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -372,12 +387,23 @@ yours to pick by ear:
   bar, and a green dot rides its curve where the band is now. **Time** makes every band react faster or slower; a
   fast **Attack** (under 5 ms) catches each hit's front, a slow one lets it through. Thresholds and splits take the
   arrow keys too.
+- **Make the bass duck under the kick.** Put **Dim Switch** on the bass (Add an effect, in the Devices tab), **Open**
+  it and pick the drums or the kick in its **Key** menu: the bass dips each time the kick hits and comes back before
+  the next one. The mixer says "keyed by Kick" under the bass. **Kick duck** listens to the key's low end only
+  (30-150 Hz), so the hats don't set it off; **Hard pump (riddim)** all but cuts the bass on each kick; **Gentle
+  pump** is for pads. **Depth** is how far it dips, **Release** how long it takes to come back. A muted kick track
+  still keys it, so you can duck to a kick you don't hear. With no key, **No key** dips on the song's beat instead.
+- **A loud master.** Put **Clip Lamp** then **Red Line** on the master. Clip Lamp's **Master clip (+3)** takes the
+  tops off the kicks and snares so Red Line has less to do; turn Red Line's **Gain** up until the master is as loud as
+  you want it. Then right-click the master's level in the mixer and pick **Clean ceiling (for a limited master)**: the
+  safety clip after the limiter would otherwise round the last half decibel off.
 
 ## Grooves
 
 The **Grooves** tab, beside Beat, is a drummer's book. The styles run down the side, from rock and funk to bossa, trap
 and gospel. Each has grooves for the parts of a song: intro, verse, chorus, bridge, a half-time feel where it fits,
-fills of a beat, two beats and a bar, and an ending. Each groove is drawn as a picture of its hits: the bigger the
+fills of a beat, two beats and a bar, and an ending. **Dubstep** plays half-time at 140 on **Sandbag**, the club kit
+(kick on one, snare on three, riddim's triplet kicks, a four-bar build roll from quarters to 32nds). Each groove is drawn as a picture of its hits: the bigger the
 mark, the harder the hit, and a hollow mark is a ghost note. They play with a feel, not on a grid: swing that tightens
 as the tempo rises, a neo-soul snare a little behind the beat, punk hats a hair ahead, and a drummer's small drift.
 
@@ -639,7 +665,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 57 devices: the 44 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 65 devices: the 52 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).
