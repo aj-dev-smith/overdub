@@ -3,6 +3,7 @@
 // (Claude Code's path in). Screenshots land in tools/.out/agent-*.png.
 //
 //   node tools/agent-test.js
+// local-only: presses Meta+Z, a Mac's undo, in the agent box (⌘Z undoes the typing, not the song); elsewhere it is Ctrl+Z
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
