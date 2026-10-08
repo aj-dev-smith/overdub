@@ -602,9 +602,9 @@ deterministic, extremes }` (plus `voices` and `stuck` for instruments). `define_
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
 setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline
-(60 s by default) and the caller's signal: a render that doesn't end refuses the device ("process() may never
-return"), and Stop ends `define_device` at once. A render can't be cancelled, and Chrome renders every offline context
-on one worklet thread, so the renders a check gave up on are counted until they end (`heldRenders()`): meanwhile a
+(60 s by default, per render: it moves on each time a render comes back, since a check renders twice per param) and the
+caller's signal: a render that doesn't end refuses the device ("process() may never return"), and Stop ends
+`define_device` at once. A render can't be cancelled, and Chrome renders every offline context on one worklet thread, so the renders a check gave up on are counted until they end (`heldRenders()`): meanwhile a
 check, a song render (`engine/render.js`: an export, a reference compare, `arrange_around`) and the agent's measuring
 say the thread is held instead of queueing behind it, since loading a worklet then would block the page.
 

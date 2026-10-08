@@ -61,7 +61,7 @@ reports:
 | `extremes` | every param at min and at max, all min, all max: NaN, errors, raw peak (`hot`: cases over +6 dBFS) | same, with a short phrase |
 | `voices` | | `{ poly, maxVoices, steals }` after poly + 4 held notes |
 | `stuck` | | a note still sounding after note-off, after `allOff()`, or after stealing |
-| `timedOut` | `'process'`: a render didn't finish by the deadline (60 s); `'create'`: `create()` didn't return; `'busy'`: the audio thread is still held by an earlier render that didn't; else `false` | same |
+| `timedOut` | `'process'`: a render didn't finish within 60 s of the one before it (the deadline is per render, not for the whole check, whose length grows with the params); `'create'`: `create()` didn't return; `'busy'`: the audio thread is still held by an earlier render that didn't; else `false` | same |
 
 `ok` is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
 (a raw peak over +24 dBFS), a stuck note, or no sound at all at default settings (under -60 LUFS). Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
