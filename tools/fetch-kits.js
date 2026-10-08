@@ -13,6 +13,7 @@
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
 //   node tools/fetch-kits.js ... rusty  any of the above for the kits whose name or repo has that word in it (any case)
+//                                       (the cab bank, a 24-bit .odk from two pinned zips, tools/kits/zip.js: `cab`)
 //   ... --only <name>                   the same: just the kits whose recipe name or repo contains <name>
 //
 // The downloads are cached in tools/.out/kits-cache/ (by SHA-256), so a rebuild is offline. The build is deterministic:
@@ -54,6 +55,8 @@ import { RECIPE as FLUTE_RECIPE } from './kits/vsco-flute.js';
 import { FLUTE_HASH } from '../app/src/devices/builtin/flute.js';
 import { RECIPE as TRUMPET_RECIPE } from './kits/vsco-trumpet.js';
 import { TRUMPET_HASH } from '../app/src/devices/builtin/trumpet.js';
+import { RECIPE as CABS_RECIPE, cabBuilder } from './kits/jester-cabs.js';
+import { CABS_HASH } from '../app/src/devices/builtin/amp-lib.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -336,18 +339,30 @@ const printQa = (qa) => { for (const [c, v, why] of qa.verdicts) console.log(`  
 
 // the packed twin of an .odk (kernel/odkz.js), written beside it; returns its size and both gzipped sizes
 function writePacked(file, bytes) {
+  // (a 24-bit bank, the cabs, ships as .odk alone: packing is for 16-bit kits, and the bank is a few tens of KB)
+  if (/"bits":24/.test(Buffer.from(bytes.subarray(8, 200)).toString('latin1'))) {
+    const gz = zlib.gzipSync(bytes, { level: 9 }).length;
+    return { odk: bytes.length, odkz: 0, gzOdk: gz, gzOdkz: gz, plain: true };
+  }
   const z = packOdk(bytes);
   fs.writeFileSync(file + 'z', z);
   const gz = (b) => zlib.gzipSync(b, { level: 9 }).length;
   return { odk: bytes.length, odkz: z.length, gzOdk: gz(bytes), gzOdkz: gz(z) };
 }
 const mb = (x) => (x / 1e6).toFixed(2) + ' MB';
-const sizes = (s) => `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`;
+const sizes = (s) => (s.plain ? `${mb(s.gzOdk)} gzipped as .odk (24-bit: no .odkz)` : `${mb(s.gzOdk)} gzipped as .odk, ${mb(s.gzOdkz)} as .odkz (${(100 * (1 - s.gzOdkz / s.gzOdk)).toFixed(0)}% less)`);
 
 // a recipe that lays out its own regions (tools/kits/build.js)
 async function buildLaidOut(recipe) {
   const r = await buildInstrument(recipe, fetchFile);
   return { ...r, hash: 'sha256-' + sha256(r.bytes) };
+}
+
+// the cab bank (tools/kits/jester-cabs.js): two pinned zips from the author's site, each IR cut and levelled
+async function buildCabBank(recipe) {
+  const r = await cabBuilder({ cache: CACHE, offline: () => OFFLINE })(recipe);
+  for (const row of r.rows) console.log(`  ${row.id.padEnd(16)} ${row.frames} frames -> ${row.taps} taps (third-octave error at ${recipe.lengths.join(' / ')}: ${row.errs.join(' / ')} dB), gain ${row.gain}`);
+  return { ...r, hash: 'sha256-' + sha256(r.bytes), inFrames: r.rows.reduce((s, x) => s + x.frames, 0), outFrames: r.rows.reduce((s, x) => s + x.taps, 0) };
 }
 
 // every kit a device names: [recipe, the hash the device pins, how it's built]
@@ -358,7 +373,8 @@ const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buil
   [BARISAX_RECIPE, BARISAX_HASH, buildLaidOut],
   [CELLO_RECIPE, CELLO_HASH, buildLaidOut],
   [FLUTE_RECIPE, FLUTE_HASH, buildLaidOut],
-  [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut]];
+  [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut],
+  [CABS_RECIPE, CABS_HASH, buildCabBank]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
@@ -366,10 +382,13 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
     const here = fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === pinned;
     let packed = false;
     try { packed = here && 'sha256-' + sha256(unpackOdk(fs.readFileSync(file + 'z'))) === pinned; } catch (e) { /* missing or bad */ }
-    console.log(`${recipe.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)}), .odkz ${packed ? 'here' : 'missing or wrong'}`);
+    const plain = recipe.kind === 'cabs';   // (24-bit: it ships as .odk alone)
+    if (here && plain) packed = true;
+    console.log(`${recipe.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)}), ${plain ? '24-bit, no .odkz' : '.odkz ' + (packed ? 'here' : 'missing or wrong')}`);
     return here && packed ? 0 : 1;
   }
-  console.log(`${recipe.name}: ${recipe.repo} at ${recipe.commit.slice(0, 12)} (${recipe.licence})`);
+  console.log(recipe.zips ? `${recipe.name}: ${Object.values(recipe.zips).map((z) => z.url.replace(/^.*\//, '') + ' ' + z.sha256.slice(0, 12)).join(', ')} (${recipe.licence})`
+    : `${recipe.name}: ${recipe.repo} at ${recipe.commit.slice(0, 12)} (${recipe.licence})`);
   if (verify) {
     OFFLINE = true;
     let r;
@@ -396,7 +415,7 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
   fs.writeFileSync(outFile, r.bytes);
   const s = writePacked(outFile, r.bytes);
   console.log(`  ${r.count} samples, ${(r.outFrames / recipe.sr).toFixed(1)} s of ${recipe.channels === 1 ? 'mono' : 'stereo'} (trimming cut ${(100 * (1 - r.outFrames / r.inFrames)).toFixed(0)}%), ${mb(r.bytes.length)}; ${sizes(s)}`);
-  console.log(`  wrote ${path.relative(ROOT, outFile)} and its .odkz`);
+  console.log(`  wrote ${path.relative(ROOT, outFile)}${s.plain ? '' : ' and its .odkz'}`);
   if (r.hash !== pinned) {
     console.log(`  FAIL the build is ${r.hash}; the device pins ${pinned}`);
     return 1;

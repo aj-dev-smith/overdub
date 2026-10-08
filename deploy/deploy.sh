@@ -84,7 +84,9 @@ for name in $KITS; do
   if [ ! -e "$f" ]; then echo "not deploying: $f isn't here (node tools/fetch-kits.js builds it)"; exit 1; fi
   sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
   if [ "$sum" != "$name" ]; then echo "not deploying: $f's SHA-256 is $sum"; exit 1; fi
-  # the packed twin must unpack to exactly that file
+  # the packed twin must unpack to exactly that file (a 24-bit bank, the cab IRs, ships as .odk alone: packing is for
+  # 16-bit kits, tools/fetch-kits.js)
+  if head -c 200 "$f" | grep -q '"bits":24'; then HAVE="$HAVE $name"; continue; fi
   if ! node --input-type=module -e 'import fs from "node:fs"; import crypto from "node:crypto";
     import { unpackOdk } from "'"$ROOT"'/app/src/kernel/odkz.js";
     const [f, want] = process.argv.slice(1);
@@ -100,6 +102,7 @@ KITTMP=$(mktemp -d)
 trap 'rm -rf "$STAGE" "$KITTMP"' EXIT
 for name in $HAVE; do
   for ext in odkz odk; do
+    if [ ! -e "app/kits/$name.$ext" ]; then continue; fi
     if [ -z "$DRY" ] && aws s3api head-object --bucket "$BUCKET" --key "app/kits/$name.$ext" >/dev/null 2>&1; then echo "kit $name.$ext: already up"; continue; fi
     gzip -9 -n -c "app/kits/$name.$ext" > "$KITTMP/$name.$ext"
     x aws s3 cp "$KITTMP/$name.$ext" "s3://$BUCKET/app/kits/$name.$ext" --only-show-errors \

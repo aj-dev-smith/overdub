@@ -12,6 +12,7 @@
 //     .latency                   frames the wet output is late: `head` (0006's design, a fixed 128) or 0 with `direct`
 //     .set(taps)                 new taps (up to the length it was made for), planned in place: no allocation
 //     .reset()                   clear the history (silence in, silence out from the next sample)
+//   dsin(x), dcos(x)             the sine series below (for tools that must build the same doubles: tools/kits/)
 //
 // How it convolves (intent 0006's design, R1-R5; Gardner, "Efficient convolution without input-output delay", JAES
 // 43(3), 1995): two levels of uniformly partitioned overlap-save. The head runs in `head`-frame blocks (2 * head-point
@@ -29,14 +30,14 @@
 
 // sin(x) from + - * / and Math.round alone: the same doubles everywhere (the series sampler.js's sinc table uses,
 // copied rather than shared: sampler.js keeps its own inside its kernel source, which songs carry)
-function dsin(x) {
+export function dsin(x) {
   const k = Math.round(x / (2 * Math.PI)); x -= k * 2 * Math.PI;
   if (x > Math.PI / 2) x = Math.PI - x; else if (x < -Math.PI / 2) x = -Math.PI - x;
   const x2 = x * x; let term = x, s = x;
   for (let n = 1; n < 12; n++) { term *= -x2 / ((2 * n) * (2 * n + 1)); s += term; }
   return s;
 }
-const dcos = (x) => dsin(Math.PI / 2 - x);
+export const dcos = (x) => dsin(Math.PI / 2 - x);
 
 // A real FFT of n points through a complex one of n/2 (even samples real, odd imaginary), then the split.
 export function fft(n) {
@@ -158,7 +159,8 @@ export function convolver(taps, opts = {}) {
 
   // the input history (a power-of-two ring long enough for the body's 2 blocks and the direct taps)
   let RN = 1; while (RN < 2 * BB + DIRECT + 8) RN <<= 1;
-  const RM = RN - 1, hist = new Float64Array(RN);
+  // (twice over: every sample is written at p and p + RN, so the direct taps read a run without wrapping)
+  const RM = RN - 1, hist = new Float64Array(2 * RN);
   // the output ring: every level adds its block where it is due; read and cleared sample by sample
   let ON = 1; while (ON < BB + BB + D + HB + 8) ON <<= 1;
   const OM = ON - 1, ring = [];
@@ -238,7 +240,8 @@ export function convolver(taps, opts = {}) {
       const two = C === 2;
       for (let i = 0; i < n; i++) {
         const v = +x[i];
-        hist[t & RM] = v;
+        const hp = t & RM;
+        hist[hp] = v; hist[hp + RN] = v;
         // the output at t: the ring (the partitions' sum) plus the direct taps
         const q = t & OM;
         let yl = ring[0][q]; ring[0][q] = 0;
@@ -247,9 +250,10 @@ export function convolver(taps, opts = {}) {
         if (DIRECT) {
           const h0 = dt[0];
           let s = 0;
-          for (let k = 0; k < DIRECT; k++) s += h0[k] * hist[(t - k) & RM];
+          const b = hp + RN;
+          for (let k = 0; k < DIRECT; k++) s += h0[k] * hist[b - k];
           yl += s;
-          if (two) { const h1 = dt[1]; let s1 = 0; for (let k = 0; k < DIRECT; k++) s1 += h1[k] * hist[(t - k) & RM]; yr += s1; }
+          if (two) { const h1 = dt[1]; let s1 = 0; for (let k = 0; k < DIRECT; k++) s1 += h1[k] * hist[b - k]; yr += s1; }
         }
         t++;
         for (let j = 0; j < levels.length; j++) { const L = levels[j]; if (L.used && (t % L.B) === 0) blockDone(L); }
