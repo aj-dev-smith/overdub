@@ -463,15 +463,24 @@ const floorCheck = (E, label) => E((label) => {
   // tap-to-find, from taps on the pads: a rock beat at 100 BPM, two bars
   await page.click('.gv-style[data-style="rock"]');
   const pad = async (voice) => { const b = await page.$(`.gv-pad[data-voice="${voice}"]`); const r = await b.boundingBox(); await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2); await page.mouse.down(); await page.mouse.up(); };
-  const beat = 600, rhythm = [[0, ['kick', 'hat']], [0.5, ['hat']], [1, ['snare', 'hat']], [1.5, ['hat']], [2, ['kick', 'hat']], [2.5, ['kick', 'hat']], [3, ['snare', 'hat']], [3.5, ['hat']]];
-  const t0 = Date.now();
-  for (let bar = 0; bar < 2; bar++) {
-    for (const [b, voices] of rhythm) {
-      const at = t0 + (bar * 4 + b) * beat;
-      while (Date.now() < at) await new Promise((r) => setTimeout(r, 2));
-      for (const v of voices) await pad(v);
+  // The taps are played in the page, on its own clock: five round trips a pad from here took longer than an eighth on
+  // a slower machine (a CI runner read 66 BPM). Each is a pointerdown on the pad, which the pad stamps with the event's
+  // timeStamp; the real mouse on a pad is checked below (F J K)
+  await E(async ({ beat, rhythm }) => {
+    const t0 = performance.now() + 50;
+    for (let bar = 0; bar < 2; bar++) {
+      for (const [b, voices] of rhythm) {
+        const at = t0 + (bar * 4 + b) * beat;
+        await new Promise((r) => setTimeout(r, Math.max(0, at - performance.now())));
+        for (const v of voices) {
+          const el = document.querySelector(`.gv-pad[data-voice="${v}"]`), r = el.getBoundingClientRect();
+          const o = { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+          el.dispatchEvent(new PointerEvent('pointerdown', { ...o, button: 0, buttons: 1 }));
+          el.dispatchEvent(new PointerEvent('pointerup', { ...o, button: 0, buttons: 0 }));
+        }
+      }
     }
-  }
+  }, { beat: 600, rhythm: ROCK_TAPS });
   await page.waitForFunction(() => window.overdub.grooves.view() === 'taps', null, { timeout: 8000 }).catch(() => {});
   const found = await E(() => ({ view: window.overdub.grooves.view(), results: window.overdub.grooves.results(), rows: [...document.querySelectorAll('.gv-row')].map((r) => r.dataset.groove), head: document.querySelector('.gv-listhead')?.textContent, taps: window.overdub.grooves.taps().length, say: document.querySelector('.gv-tapsay').textContent }));
   T.ok(found.view === 'taps' && found.rows.length === 5 && found.results?.length === 5, `tap-to-find, from ${found.taps} taps on the pads, shows the closest five: ${found.rows.join(', ')}`);

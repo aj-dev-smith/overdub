@@ -1013,7 +1013,22 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
     passes.forEach((ps, k) => ps.forEach((h) => plan.push({ g: g0 + k * 8 + h.t / (spbMs / 1000), code: KEY[h.p] })));
     plan.sort((a, b) => a.g - b.g);
     await ev(() => { window.__kd = []; window.addEventListener('keydown', (e) => { const en = window.overdub.engine; if (!e.repeat) window.__kd.push(en.gridBeat + (en.beatAt(e.timeStamp) - en.beat)); }, true); });
-    for (const x of plan) { await untilGrid(x.g); await page.keyboard.down(x.code); await page.waitForTimeout(20); await page.keyboard.up(x.code); }
+    // The hits are played in the page, each when the grid the take counts on (beatAt, from the key's timeStamp) reaches
+    // it: from here, a poll and a key press a hit landed late enough on a slower machine that a second hit missed and
+    // the pass line counted two misses replaced, not one
+    await ev(async ({ plan, spbMs }) => {
+      // (the grid at a time: what beatAt says passed since the audio clock's last step, a loop wrap in between taken out)
+      const en = window.overdub.engine, lp = window.overdub.store.get().loop, len = lp && lp.on ? lp.end - lp.start : 0;
+      const gridAt = (ms) => { let d = en.beatAt(ms) - en.beat; if (len > 0 && Math.abs(d) > len / 2) d -= Math.sign(d) * len; return en.gridBeat + d; };
+      const key = (type, code) => (document.activeElement || document.body).dispatchEvent(new KeyboardEvent(type, { code, key: code.slice(3).toLowerCase(), bubbles: true, cancelable: true }));
+      for (const x of plan) {
+        for (let now = performance.now(), g = gridAt(now); g < x.g; now = performance.now(), g = gridAt(now)) {
+          await new Promise((r) => setTimeout(r, Math.min(100, Math.max(0, (x.g - g) * spbMs - 1))));
+        }
+        key('keydown', x.code);
+        setTimeout(() => key('keyup', x.code), 20);
+      }
+    }, { plan, spbMs });
     const kd = await ev(() => window.__kd);
     await untilGrid(g0 + 16.2);
     const ro = await ev(() => window.overdub.sketch.ruler().readouts.map((r) => r.text));
@@ -1136,7 +1151,10 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
       const a = await song(), last = await ev(() => window.overdub.input.recorder.last?.summary || '');
       const mel = a.tracks[0]?.clips[0]?.notes || [];
       const got = mel.map((n) => `${n.p}@${n.t}`).join(' '), want = h.want.map((w) => `${w.m}@${w.beat}`).join(' ');
-      t.ok(a.tracks.length === 1 && a.tracks[0].name === 'Melody' && a.tracks[0].device === 'core.keys' && got === want, `a hum in your own time comes back with the rhythm sung, on a new Melody (${got}; sung ${want})`);
+      // (where each note was heard, from the first sample the mic gave: 0.90 1.57 2.12 2.45 3.27 3.88 4.23 4.55 s on a
+      // Mac at a desk, idle or busy; if these move, the fake mic's timing moved, not the hum)
+      const heard = await ev(() => (window.overdub.input.hum.take?.segs || []).map((g) => g.t0.toFixed(2)).join(' '));
+      t.ok(a.tracks.length === 1 && a.tracks[0].name === 'Melody' && a.tracks[0].device === 'core.keys' && got === want, `a hum in your own time comes back with the rhythm sung, on a new Melody (${got}; sung ${want}; heard at ${heard} s)`);
       t.ok(Math.abs(a.tempo - 100) <= 4 && /Your hum is in: 8 notes on Melody/.test(last), `at the tempo hummed: ${a.tempo} BPM ("${last}")`);
       await ev(() => window.overdub.store.undo());
       const u = await song();
