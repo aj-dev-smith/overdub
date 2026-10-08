@@ -18,7 +18,16 @@ node server/serve.js                 # the site at http://localhost:3279/, the s
 node tools/<area>-test.js            # one area's checks
 node --test "test/unit/*.test.js"    # the unit tests, what CI runs (seconds)
 node tools/run-all.js                # every check (a few minutes): run it before a pull request
+npm run check                        # the static checks CI runs: lint, format, types, shell, workflows (seconds)
+npm run format                       # format what you changed (Biome); CI fails on unformatted code
 ```
+
+The static checkers (Biome, TypeScript, ShellCheck, actionlint, zizmor) are pinned in `mise.toml`, not in
+`package.json`: `mise install` fetches them, and the studio still has no dependencies. Type checking is opt-in per
+file: a file that starts with `// @ts-check` is checked by `tsc` (`jsconfig.json`); add the line to a file once it
+passes, never take it off one. Four files are kept out of the formatter on purpose (`biome.jsonc` says why: their
+source becomes kernel text, and kernels are trusted by its hash). `git config blame.ignoreRevsFile
+.git-blame-ignore-revs` keeps the format commits out of `git blame`.
 
 The browser checks need playwright-core and a Chromium; `tools/pw.js` says where it looks (`PLAYWRIGHT_CORE`,
 `CHROMIUM`). Chrome is the reference browser, and `tools/compat-test.js` and `tools/phone-test.js` hold Safari,
