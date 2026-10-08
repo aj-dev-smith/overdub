@@ -16,6 +16,8 @@
 // half-band resampler and the 8-line Householder reverb come from AJ's opus55-experiments/pop-punk/engine.js
 // ("Tell Me How It Sounds").
 
+import { fft as makeFft, convolver as makeConvolver } from './convolve.js';
+
 /* eslint-disable no-inner-declarations */
 export function overdubDsp(sr) {
   'use strict';
@@ -701,6 +703,14 @@ export function overdubDsp(sr) {
 
   const buffer = (n) => new Float32Array(Math.max(0, n | 0));
 
+  /* ------------------------------------------------------------------ convolution (kernel/convolve.js) */
+  // fft(n): a real FFT, n a power of two 16..8192 -> .forward(x, Xr, Xi) / .inverse(Xr, Xi, x) (n/2 + 1 bins).
+  // convolver(taps, { head = 128, body = 1024, direct }) -> .process(x, outL, outR, n) .set(taps) .reset() .latency:
+  // a two-level partitioned convolver (one or two channels of taps), bit-exact on every engine; latency 128 frames,
+  // or 0 with direct: 128 (the first 128 taps in the time domain).
+  const fft = (n) => makeFft(n);
+  const convolver = (taps, opts) => makeConvolver(taps, opts);
+
   return Object.freeze({
     sr, TAU, PI,
     clamp, lerp, mtof, ftom, dB, toDb, sstep, tanh, softclip, hardclip, fold, crush,
@@ -711,6 +721,7 @@ export function overdubDsp(sr) {
     oversample2x, oversample4x,
     karplus, modal, fdn, chorus,
     buffer,
+    fft, convolver,
   });
 }
 
@@ -719,6 +730,7 @@ export const DSP_API = [
   'sr', 'TAU', 'PI', 'clamp', 'lerp', 'mtof', 'ftom', 'dB', 'toDb', 'sstep', 'tanh', 'softclip', 'hardclip', 'fold', 'crush',
   'rng', 'noise', 'blep', 'blamp', 'osc', 'lfo', 'svf', 'onepole', 'dcblock', 'biquad', 'delay', 'allpass', 'comb',
   'adsr', 'ar', 'follower', 'smooth', 'slew', 'oversample2x', 'oversample4x', 'karplus', 'modal', 'fdn', 'chorus', 'buffer',
+  'fft', 'convolver',
 ];
 
 const cache = new Map();

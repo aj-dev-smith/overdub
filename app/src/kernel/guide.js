@@ -226,6 +226,12 @@ Space: fdn(size = 0.6, decay = 2, damp = 0.4, seed?) (8-line modulated reverb; s
 damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp). chorus(depth = 0.5, rate = 0.8)
 (two voices in quadrature) -> .tick(l, r) then .l .r (wet) .set(depth, rate). buffer(n) -> Float32Array(n).
 
+Convolution: convolver(taps, { direct }?) (taps: one array, or [left, right]; a cab, a room) -> .process(x, outL, outR,
+n) (mono x in, one output per taps channel; in place is fine) .set(taps) (new taps up to the first length, no
+allocation) .reset() .latency (128 frames; 0 with direct: 128, which convolves the first 128 taps directly: declare
+it). fft(n) (n a power of two, 16..8192) -> .forward(x, Xr, Xi) (n/2 + 1 bins) .inverse(Xr, Xi, x). Both are the
+same doubles on every engine.
+
 ## What the check reports (define_device returns it)
 
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
