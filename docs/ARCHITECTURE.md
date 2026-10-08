@@ -418,14 +418,16 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 43 built-ins, twelve of
-them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound, Hollow Body, Bell Up, Endpin and Head Joint, whose samples come as kernel data), `devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16
-cabinets and 5 mics inside the amps, and its 156 rigs as device chains) and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source:
-'library'`, each with its `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices
-the demo song carries as project devices. Project devices (`project.devices`) follow the song: `main.js`
-`syncProjectDevices` registers each one the song has whose kernel this browser trusts (`source: 'project'`), holds the
-rest (below), and calls `registry.removeDevice(id)` for every one it no longer has or now holds (undo, another song
-loaded, `revert_my_changes`), which puts back the def it shadowed, if any (`shadowedDevice(id)`).
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 44 built-ins, thirteen
+of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
+Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), `devices/guitar/` (the
+Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
+and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source: 'library'`, each with its
+`request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices the demo song carries as
+project devices. Project devices (`project.devices`) follow the song: `main.js` `syncProjectDevices` registers each one
+the song has whose kernel this browser trusts (`source: 'project'`), holds the rest (below), and calls
+`registry.removeDevice(id)` for every one it no longer has or now holds (undo, another song loaded,
+`revert_my_changes`), which puts back the def it shadowed, if any (`shadowedDevice(id)`).
 
 **Device files** (`ui/devices-io.js`, `app.devicesIO`): `.overdub-device.json` (`overdub-device/0`) out and in; an
 import runs `checkDevice` first and becomes one `device.define` by you (its kernel trusted here: the person chose the

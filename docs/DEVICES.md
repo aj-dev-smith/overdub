@@ -304,11 +304,13 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's twelve sampled
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's thirteen sampled
   instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
-  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone), Roundwound (`core.ebass`, a real five-string bass), Hollow Body (`core.eguitar`, a real hollow-body electric guitar), Bell Up (`core.barisax`, a real baritone sax), Endpin (`core.cello`, a real solo cello)
-  and Head Joint (`core.flute`, a real flute)
-  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
+  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone),
+  Roundwound (`core.ebass`, a real five-string bass), Hollow Body (`core.eguitar`, a real hollow-body electric guitar),
+  Bell Up (`core.barisax`, a real baritone sax), Endpin (`core.cello`, a real solo cello), Head Joint (`core.flute`, a
+  real flute) and Spit Valve (`core.trumpet`, a real trumpet) ([Melodic
+  kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
 - **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would
@@ -594,6 +596,7 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 | Bell Up (`core.barisax`) | Karoryfer Bear Sax: 11 zones, 2 layers, looped on Karoryfer's own loops, mono | `tools/kits/karoryfer-barisax.js` |
 | Endpin (`core.cello`) | Karoryfer x bigcat cello: 16 zones, 2 layers, looped on Karoryfer's own loops, mono | `tools/kits/karoryfer-cello.js` |
 | Head Joint (`core.flute`) | VSCO 2 CE: the flute's sustains with vibrato, 10 zones, 1 layer, looped | `tools/kits/vsco-flute.js` |
+| Spit Valve (`core.trumpet`) | VSCO 2 CE: the trumpet's straight sustains, 10 zones, 2 layers, looped | `tools/kits/vsco-trumpet.js` |
 
 **Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
 Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,
