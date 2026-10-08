@@ -51,7 +51,11 @@ else
 fi
 
 # 2. The role: assumable only by this repo's runs on the named branches (a pull request's run has a different subject)
-SUBS=$(for b in $BRANCHES; do printf '"repo:%s:ref:refs/heads/%s",' "$REPO" "$b"; done)
+# The subject starts with the repo's claim prefix. This repo uses GitHub's immutable subjects, which name the owner
+# and repo by id too (repo:overdubstudio@<id>/overdub@<id>), so a renamed or re-created repo can't inherit the role.
+PREFIX=$(gh api "repos/$REPO/actions/oidc/customization/sub" -q '.sub_claim_prefix // empty' 2>/dev/null || true)
+PREFIX=${PREFIX:-repo:$REPO}
+SUBS=$(for b in $BRANCHES; do printf '"%s:ref:refs/heads/%s",' "$PREFIX" "$b"; done)
 cat > "$TMP/trust.json" <<JSON
 {
   "Version": "2012-10-17",
