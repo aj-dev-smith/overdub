@@ -291,7 +291,7 @@ return {
               const u = Math.min(1, t / span), fc = 300 * Math.pow(30, u);
               if ((t & 31) === 0) bp1.set(fc, 2.2);
               const env = v.rel ? Math.exp(-(t - v.dur) / (0.25 * sr)) : Math.min(1, t / (0.5 * sr)) * (0.25 + 0.75 * u);
-              const x = bp1.tick(R()) * env * 0.9 * a;
+              const x = bp1.tick(R()) * env * 0.25 * a;   // (at its loudest about the kit's own level, -16 LUFS)
               room.tick(x);
               L[i] += x * 0.8 + room.l * 0.9; Rr[i] += x * 0.8 + room.r * 0.9;
               const ay = Math.abs(x) + Math.abs(room.l); if (ay > pk) pk = ay;

@@ -114,7 +114,7 @@ function masterCleanScene() {
 }
 
 // the shelf songs pinned as scenes (kernel devices only; tools/demos-test.js renders them in the browser)
-const SHELF_SCENES = ['sodium', 'red-eye', 'late-checkout', 'wake-up-call', 'lobby-bar', 'room-service', 'turndown', 'ice-machine', 'vacancy'];
+const SHELF_SCENES = ['sodium', 'red-eye', 'late-checkout', 'wake-up-call', 'lobby-bar', 'room-service', 'turndown', 'ice-machine', 'vacancy', 'service-lift', 'boiler-room'];
 
 // The demo song with every id replaced by a fixed one (in document order), so it renders the same every time.
 export function fixedDemo() {
@@ -144,7 +144,17 @@ function sampledScenes() {
 // the scenes skipped because their kernel data hasn't been fetched
 const AMPS = new Set(['core.stack', 'core.cab', 'core.bassrig']);
 const ampHere = () => ampScenes().map((s) => [s, Object.values(s.data || {}).every((h) => fs.existsSync(dataPath(h)))]);
-export const missingScenes = () => [...sampledScenes(), ...ampHere()].filter(([, here]) => !here).map(([s]) => s.name);
+// the shelf's scenes: [scene, the kernel data its devices play is here] (Boiler Room plays Rusty Sticks and the cabs)
+function shelfScenes() {
+  return SHELF_SCENES.map((id) => {
+    const p = demoById(id);
+    p.meta = { ...p.meta, created: STAMP, modified: STAMP };
+    const ids = [...p.tracks.flatMap((t) => [t.instrument?.device, ...t.inserts.map((x) => x.device)]), ...p.master.inserts.map((x) => x.device)].filter(Boolean);
+    const hashes = [...new Set(ids)].flatMap((d) => Object.values([...SAMPLED, ...EFFECTS, ...INSTRUMENTS].find((x) => x.id === d)?.data || {}));
+    return [{ name: 'demo:' + id, browser: false, opts: { from: 0, to: p.loop.end, tail: 2 }, assets: {}, project: p }, hashes.every((h) => fs.existsSync(dataPath(h)))];
+  });
+}
+export const missingScenes = () => [...sampledScenes(), ...ampHere(), ...shelfScenes()].filter(([, here]) => !here).map(([s]) => s.name);
 
 export function scenes() {
   const out = [];
@@ -174,10 +184,6 @@ export function scenes() {
   out.push(automationScene());
   out.push(sidechainScene());
   out.push(masterCleanScene());
-  for (const id of SHELF_SCENES) {
-    const p = demoById(id);
-    p.meta = { ...p.meta, created: STAMP, modified: STAMP };
-    out.push({ name: 'demo:' + id, browser: false, opts: { from: 0, to: p.loop.end, tail: 2 }, assets: {}, project: p });
-  }
+  for (const [s, here] of shelfScenes()) if (here) out.push(s);
   return out;
 }

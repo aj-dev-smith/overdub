@@ -13,10 +13,15 @@
 //   demo({ ... })                        a project: authors, sections, loop, master
 //   automate(p, by, ops)                 automation lanes, written with the auto ops (core/ops.js) as `by` would send
 //                                        them; an op's insert may name its device ('core.filter': the track's first)
+//   built(project, steps)                a song made wholly of ops through the store (store.dispatch validates each,
+//                                        as it does an agent's): steps [[by, label, ops], ...], one undo step each
+//   preset(device, name, extra?)         a built-in preset's params (registry), with extra on top
 
 import { createProject, newId, idNotes } from '../project.js';
 import { normNote } from '../music.js';
 import { applyOp } from '../ops.js';
+import { createStore } from '../store.js';
+import { getDevice, presetParams } from '../../devices/registry.js';
 
 export const HOUSE = 'overdub';
 export const AGENT = 'claude';
@@ -112,4 +117,21 @@ export function automate(p, by, ops) {
     applyOp(p, o, ctx);
   }
   return p;
+}
+
+// A song made the way a person or an agent makes one: every change an op, dispatched through the store, which checks
+// each one (a device that isn't there, a key that would loop) and signs it. The house's parts are 'overdub' and
+// Claude's 'claude'. The project comes back as the store holds it.
+export function built(project, steps) {
+  const store = createStore(project, { getDevice });
+  for (const [by, label, ops] of steps) {
+    const r = store.dispatch(ops, { by, label });
+    if (!r.ok) throw new Error(`${project.title}: "${label}" was refused: ${r.error}`);
+  }
+  return store.get();
+}
+export function preset(device, name, extra = {}) {
+  const p = presetParams(device, name);
+  if (!p) throw new Error(`${device} has no preset "${name}"`);
+  return { ...p, ...extra };
 }

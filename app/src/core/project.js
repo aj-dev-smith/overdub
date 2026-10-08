@@ -64,12 +64,15 @@ export function stableIds(p, seed) {
   };
   p.id = mint('p');
   for (const sec of p.sections || []) sec.id = mint('s');
+  const was = new Map();
   for (const t of p.tracks) {
-    t.id = mint('t');
+    was.set(t.id, (t.id = mint('t')));
     for (const fx of t.inserts) fx.id = mint('fx');
     for (const c of t.clips) c.id = mint('c');
   }
   for (const fx of p.master?.inserts || []) fx.id = mint('fx');
+  // a keyed insert (a sidechain) names its key track by id: it follows the track
+  for (const t of p.tracks) for (const fx of t.inserts) if (fx.key && was.has(fx.key.track)) fx.key = { ...fx.key, track: was.get(fx.key.track) };
   return p;
 }
 

@@ -588,6 +588,20 @@
       "data": {
         "cabs": "sha256-7fd30c061e6b087e7694961ba78b953045f2ef0ac082a0fda6f21e370a8bc08e"
       }
+    },
+    "demo:service-lift": {
+      "sha256": "863edcb0f99bdb034416c520e6bf30ada89b361612ea5e4bfe697132e3d5591c",
+      "frames": 5362286,
+      "lufs": -7.48,
+      "truePeak": -1.1,
+      "peak": -1.1
+    },
+    "demo:boiler-room": {
+      "sha256": "0718f956c566499f711ac8d053af31bf57a415020ebfd53dd6428d03d56c6b1a",
+      "frames": 2888728,
+      "lufs": -7.24,
+      "truePeak": -1.1,
+      "peak": -1.1
     }
   }
 }
