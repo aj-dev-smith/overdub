@@ -29,6 +29,7 @@
 //   node tools/phone-test.js                     all six
 //   node tools/phone-test.js chromium            just Chromium (390, 430, on its side and simple); also webkit
 //   node tools/phone-test.js simple              just the simple view passes (simple chromium: one of them)
+// local-only: six phone runs in Chromium and WebKit, with touch drags and sheets: 4.5 min on a CI runner
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

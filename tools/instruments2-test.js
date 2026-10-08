@@ -19,6 +19,7 @@
 //
 // Then each passes checkDevice (kernel/check.js, full mode) in Chromium with no warnings, the drums once per new kit.
 //   node tools/instruments2-test.js            NODE_ONLY=1 skips the browser
+// local-only: the second instrument batch held to its signatures on the canonical render: 3 min on a CI runner
 import crypto from 'node:crypto';
 import { tally } from './pw.js';
 import { renderSong } from '../app/src/engine/node/render.js';

@@ -3,6 +3,7 @@
 // Every task has a hand-made solution (tools/bench/oracles/<task>.json) that scores at least 0.9, the do-nothing
 // baseline scores under 0.5, the near misses (oracles/near-misses/) score under 0.5, a run replayed from an MCP
 // tool-call log scores what its ops score, and every score comes out the same twice: fresh renders, fresh random ids.
+// local-only: OverdubBench's scorers against every task's oracle: 2 min on a CI runner
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadTask, listTasks, startSong, applyOps, scoreTask, transactionsOf, CHECK_KINDS, HERE } from './bench/score.js';

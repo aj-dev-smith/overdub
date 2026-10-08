@@ -22,6 +22,7 @@
 //      watchdog, live, lets go of a note-on that reached the worklet behind the host's back, on every kernel instrument.
 //
 //   node tools/stuck-test.js                 STUCK_TRIALS=150 for a longer fuzz (default 36), STUCK_SEED=n
+// local-only: stops every way and waits out the silence, in Node and live in the browser: 4 min on a CI runner
 import { open, tally } from './pw.js';
 import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
 import { makeDsp } from '../app/src/kernel/dsp.js';

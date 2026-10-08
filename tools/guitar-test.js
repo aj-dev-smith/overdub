@@ -15,6 +15,7 @@
 //  7. faces: gallery.html renders a face for every device with no page errors; knobs turn (keys, double-click reset),
 //     switches flip, footswitches stomp; screenshots at 1440 and 390 wide (tools/.out/gallery-*.png).
 // usage: node tools/guitar-test.js   (FAST=1 skips the rigs' levels; PEDALS=quack,delay renders only those)
+// local-only: every vendored pedal and amp, registered, rendered and run live: 2 min on a CI runner
 import { open, tally, OUTDIR } from './pw.js';
 import path from 'node:path';
 

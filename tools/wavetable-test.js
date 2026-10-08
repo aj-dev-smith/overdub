@@ -26,6 +26,7 @@
 //
 // Then in Chromium: the device check (kernel/check.js), full at the defaults and quick on every preset; the face.
 //   node tools/wavetable-test.js        NODE_ONLY=1 skips the browser; CPU=0 the timing; GC=0 the allocation count
+// local-only: Light Table measured on the canonical render and in the browser: 4.5 min on a CI runner
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
