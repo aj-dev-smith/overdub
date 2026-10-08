@@ -561,7 +561,8 @@ async function phone(pw, srvUrl, run) {
       T.ok(a0.gy != null && a1.open && a1.top <= 2, `${label}: dragging the agent sheet's handle up takes it to the whole height (${a0.top} → ${a1.top})`);
       await shot('agent-full');
       await dragTouch(page, run.engine, a1.gx, a1.gy, a1.gx, vp.h - 10);
-      await sleep(300);
+      // a swipe that fast flings in Chromium on Linux, and a tap while the fling runs only stops it (no click): wait it out
+      await sleep(2000);
       const a2 = await ag();
       T.ok(!a2.open, `${label}: dragging it down closes the agent sheet (${a2.open ? 'still open at ' + a2.top : 'closed'})`);
       await tap('.ew-t-panelRight'); await sleep(450);
