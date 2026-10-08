@@ -79,7 +79,24 @@
 // Its schema is SHOW_DEVICE_SCHEMA in agent/extra-schemas.js (so Node lists it before a tab connects).
 
 import { h, css, icon, clamp, byline, authorOf, tok } from './dom.js';
-import { popover, popoverOpen, controlOps, laneFor, laneNow, laneNote, controlMenu, heldNote, heldSay, backToLane, automate, sentence, quotedName, presetNow, gestureLabel, relabel } from './rack.js';
+import {
+  popover,
+  popoverOpen,
+  controlOps,
+  laneFor,
+  laneNow,
+  laneNote,
+  controlMenu,
+  heldNote,
+  heldSay,
+  backToLane,
+  automate,
+  sentence,
+  quotedName,
+  presetNow,
+  gestureLabel,
+  relabel,
+} from './rack.js';
 import { colorsOf } from './faces.js';
 import { paramValues, presetParams } from '../devices/registry.js';
 import * as kit from './plugin-kit.js';
@@ -95,23 +112,42 @@ export function editorFor(def) {
   if (!EDITOR_SOURCES.includes(def.source)) return null;
   return def.editor;
 }
-const editorCache = new Map();   // name -> Promise<module | null>
+const editorCache = new Map(); // name -> Promise<module | null>
 function loadEditor(name) {
-  if (!editorCache.has(name)) editorCache.set(name, import(`./editors/${name}.js`).then((m) => (m && typeof m.mount === 'function' ? m : null)).catch((e) => { console.warn(`plugin: the ${name} editor did not load (${e.message}); using the generic one`); editorCache.delete(name); return null; }));
+  if (!editorCache.has(name))
+    editorCache.set(
+      name,
+      import(`./editors/${name}.js`)
+        .then((m) => (m && typeof m.mount === 'function' ? m : null))
+        .catch((e) => {
+          console.warn(`plugin: the ${name} editor did not load (${e.message}); using the generic one`);
+          editorCache.delete(name);
+          return null;
+        }),
+    );
   return editorCache.get(name);
 }
 
 const isHex = (c) => typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c);
 const lumOf = (c) => {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})/i.exec(c || ''); if (!m) return 0.5;
-  let x = m[1]; if (x.length === 3) x = x.split('').map((ch) => ch + ch).join('');
-  const [r, g, b] = [0, 2, 4].map((i) => { const v = parseInt(x.slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})/i.exec(c || '');
+  if (!m) return 0.5;
+  let x = m[1];
+  if (x.length === 3)
+    x = x
+      .split('')
+      .map((ch) => ch + ch)
+      .join('');
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const v = parseInt(x.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const db = (x) => (x > 1e-6 ? 20 * Math.log10(x) : -120);
 const fmtDbShort = (d) => (d <= -90 ? 'silent' : `${d < 0 ? '−' : ''}${Math.abs(d).toFixed(1)} dB`);
-let windows = 0;   // (each window's name gets an id of its own, for aria-labelledby)
+let windows = 0; // (each window's name gets an id of its own, for aria-labelledby)
 
 export default function (app) {
   const { store, ui } = app;
@@ -119,38 +155,76 @@ export default function (app) {
   const PHONE = window.matchMedia('(max-width: 900px)');
   const SHORT = window.matchMedia('(max-height: 500px)');
   const phone = () => PHONE.matches;
-  let win = null;          // the open window
-  let lastOpener = null;   // what had focus when it opened (focus goes back there on close)
+  let win = null; // the open window
+  let lastOpener = null; // what had focus when it opened (focus goes back there on close)
 
   /* ---------------------------------------------------------------- where a device is */
   const findTrack = (ref) => {
     if (ref === 'master') return 'master';
     const p = store.get();
-    const t = p.tracks.find((x) => x.id === ref) || p.tracks.find((x) => x.name === ref) || p.tracks.find((x) => String(x.name).toLowerCase() === String(ref || '').toLowerCase());
+    const t =
+      p.tracks.find((x) => x.id === ref) ||
+      p.tracks.find((x) => x.name === ref) ||
+      p.tracks.find((x) => String(x.name).toLowerCase() === String(ref || '').toLowerCase());
     return t ? t.id : null;
   };
   function slotOf(track, slot) {
     const p = store.get();
     const t = track === 'master' ? null : p.tracks.find((x) => x.id === track);
     if (track !== 'master' && !t) return null;
-    let host = null, index = -1, count = 0;
-    if (slot === 'instrument') { if (!t || t.kind !== 'instrument' || !t.instrument) return null; host = t.instrument; }
-    else { const list = track === 'master' ? p.master.inserts || [] : t.inserts || []; index = list.findIndex((x) => x.id === slot); host = list[index] || null; count = list.length; if (!host) return null; }
+    let host = null,
+      index = -1,
+      count = 0;
+    if (slot === 'instrument') {
+      if (!t || t.kind !== 'instrument' || !t.instrument) return null;
+      host = t.instrument;
+    } else {
+      const list = track === 'master' ? p.master.inserts || [] : t.inserts || [];
+      index = list.findIndex((x) => x.id === slot);
+      host = list[index] || null;
+      count = list.length;
+      if (!host) return null;
+    }
     const devId = host.device;
-    return { t, host, devId, index, count, def: app.devices.getDevice(devId), held: app.devices.heldDevice?.(devId) || null, trackName: t ? t.name : 'the master' };
+    return {
+      t,
+      host,
+      devId,
+      index,
+      count,
+      def: app.devices.getDevice(devId),
+      held: app.devices.heldDevice?.(devId) || null,
+      trackName: t ? t.name : 'the master',
+    };
   }
 
   /* ---------------------------------------------------------------- the loop: a top panel with no face */
   ui.panel({
-    id: 'plugin', region: 'top', title: 'Device window',
+    id: 'plugin',
+    region: 'top',
+    title: 'Device window',
     mount(el) {
-      el.hidden = true;                        // (nothing to draw in the bar: it's here for frame() and update())
+      el.hidden = true; // (nothing to draw in the bar: it's here for frame() and update())
       el.setAttribute('aria-hidden', 'true');
       return {
-        update(evt) { if (win) { try { win.update(evt); } catch (e) { console.error('plugin: update', e); } } },
+        update(evt) {
+          if (win) {
+            try {
+              win.update(evt);
+            } catch (e) {
+              console.error('plugin: update', e);
+            }
+          }
+        },
         frame(now) {
           if (document.hidden) return;
-          if (win) { try { win.frame(now); } catch (e) { console.error('plugin: frame', e); } }
+          if (win) {
+            try {
+              win.frame(now);
+            } catch (e) {
+              console.error('plugin: frame', e);
+            }
+          }
           kit.pump(now);
         },
       };
@@ -162,12 +236,20 @@ export default function (app) {
     const tId = findTrack(track ?? ui.state.selection.track);
     if (!tId) return { ok: false, error: track == null ? 'no track is selected' : `no track "${track}"` };
     const s = slotOf(tId, slot || 'instrument');
-    if (!s) return { ok: false, error: slot === 'instrument' ? 'that track has no instrument' : `no insert "${slot}" on that track` };
+    if (!s)
+      return {
+        ok: false,
+        error: slot === 'instrument' ? 'that track has no instrument' : `no insert "${slot}" on that track`,
+      };
     if (s.held) return { ok: false, error: `${s.held.name} is kept off on this computer`, held: true };
     if (!s.def) return { ok: false, error: `${s.devId} isn't loaded here` };
     const same = win && win.addr.track === tId && win.addr.slot === slot && win.def === s.def;
-    if (same) { if (focus) win.focus(); return { ok: true, same: true }; }
-    if (!win && focus) lastOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    if (same) {
+      if (focus) win.focus();
+      return { ok: true, same: true };
+    }
+    if (!win && focus)
+      lastOpener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     if (win) win.destroy();
     win = makeWindow({ track: tId, slot: slot || 'instrument' }, s, { by });
     // a person opening it is working on that track: musical typing plays it (input.target follows the selection)
@@ -191,29 +273,61 @@ export default function (app) {
     return true;
   }
   app.plugin = {
-    open, close, editorFor,
-    get current() { return win ? { track: win.addr.track, slot: win.addr.slot, device: win.def.id, name: win.def.name, editor: win.editorName || 'generic' } : null; },
-    get el() { return win ? win.el : null; },
+    open,
+    close,
+    editorFor,
+    get current() {
+      return win
+        ? {
+            track: win.addr.track,
+            slot: win.addr.slot,
+            device: win.def.id,
+            name: win.def.name,
+            editor: win.editorName || 'generic',
+          }
+        : null;
+    },
+    get el() {
+      return win ? win.el : null;
+    },
   };
 
   // Esc closes the window while it's what you're using (focus in it; on a phone, whenever it's up), unless something
   // that Esc closes first is open over it (a menu, a popover, the code, the keys sheet), the agent is at work (Esc
   // stops it) or a hum is going. Ahead of musical typing's Esc: the window is the nearer thing.
-  const escOk = () => !!win && !app.agent?.busy && !app.input?.hum?.active && !popoverOpen()
-    && !document.querySelector('.ek-pop, .ew-pop, .sk-menu, [role=menu], .rk-sheet, .tpk, .snd-card:focus-within, .snd-sheet, [aria-modal=true]:not(.ew-region)')
-    && (phone() || ui.state.focus === 'plugin' || win.el.contains(document.activeElement));
-  ui.keys.add({ key: 'Escape', first: true, global: true, when: escOk, run: () => close(), label: 'Close the device window', group: 'Devices' });
+  const escOk = () =>
+    !!win &&
+    !app.agent?.busy &&
+    !app.input?.hum?.active &&
+    !popoverOpen() &&
+    !document.querySelector(
+      '.ek-pop, .ew-pop, .sk-menu, [role=menu], .rk-sheet, .tpk, .snd-card:focus-within, .snd-sheet, [aria-modal=true]:not(.ew-region)',
+    ) &&
+    (phone() || ui.state.focus === 'plugin' || win.el.contains(document.activeElement));
+  ui.keys.add({
+    key: 'Escape',
+    first: true,
+    global: true,
+    when: escOk,
+    run: () => close(),
+    label: 'Close the device window',
+    group: 'Devices',
+  });
 
   // the device it shows changed under it: a new version rebuilds the window, a device gone (or kept off) closes it
   app.devices.onDevices?.(() => {
     if (!win) return;
     const s = slotOf(win.addr.track, win.addr.slot);
-    if (!s || !s.def || s.held) { close({ restore: false }); return; }
+    if (!s || !s.def || s.held) {
+      close({ restore: false });
+      return;
+    }
     if (s.def !== win.def) rebuild();
   });
   function rebuild() {
     if (!win) return;
-    const addr = { ...win.addr }, had = win.el.contains(document.activeElement);
+    const addr = { ...win.addr },
+      had = win.el.contains(document.activeElement);
     win.destroy();
     win = null;
     const s = slotOf(addr.track, addr.slot);
@@ -228,7 +342,11 @@ export default function (app) {
   // the keys lit by what's played on the track from elsewhere (MIDI, musical typing); input/index.js starts first in
   // MODULES, and again once the studio is up in case it didn't
   let notesHooked = false;
-  const hookNotes = () => { if (notesHooked || !app.input?.on) return; notesHooked = true; app.input.on('note', (n) => win?.liveNote(n)); };
+  const hookNotes = () => {
+    if (notesHooked || !app.input?.on) return;
+    notesHooked = true;
+    app.input.on('note', (n) => win?.liveNote(n));
+  };
   hookNotes();
   ui.on('ready', hookNotes);
 
@@ -237,7 +355,11 @@ export default function (app) {
     ...SHOW_DEVICE_SCHEMA,
     run: (input, ctx) => showDevice(input || {}, ctx || {}),
   };
-  try { installTools(app).register(TOOL); } catch (e) { console.warn('show_device tool', e.message); }
+  try {
+    installTools(app).register(TOOL);
+  } catch (e) {
+    console.warn('show_device tool', e.message);
+  }
   async function showDevice(input, ctx) {
     if (input.close) {
       const was = win ? `${win.def.name} on ${slotOf(win.addr.track, win.addr.slot)?.trackName || 'its track'}` : null;
@@ -245,69 +367,170 @@ export default function (app) {
       return was ? { ok: true, closed: was } : { ok: true, closed: null, note: 'No device window was open.' };
     }
     const rec = app.input?.recorder;
-    if (rec && rec.state && rec.state !== 'idle') return { error: 'recording', hint: 'the human is recording: show it after the take (get_recording waits for it)' };
+    if (rec && rec.state && rec.state !== 'idle')
+      return {
+        error: 'recording',
+        hint: 'the human is recording: show it after the take (get_recording waits for it)',
+      };
     const p = store.get();
     const sel = ui.state.selection || {};
     const ref = input.track ?? sel.track ?? null;
-    if (ref == null) return { error: 'which track?', hint: `name a track (id or exact name) or "master": ${p.tracks.map((t) => `${t.id} "${capText(t.name, 60)}"`).join(', ') || 'no tracks yet'}` };
+    if (ref == null)
+      return {
+        error: 'which track?',
+        hint: `name a track (id or exact name) or "master": ${p.tracks.map((t) => `${t.id} "${capText(t.name, 60)}"`).join(', ') || 'no tracks yet'}`,
+      };
     const tId = findTrack(ref);
-    if (!tId) return { error: `no track "${capText(String(ref), 80)}"`, hint: `tracks: ${p.tracks.map((t) => `${t.id} "${capText(t.name, 60)}"`).join(', ') || 'none'}, or "master"` };
+    if (!tId)
+      return {
+        error: `no track "${capText(String(ref), 80)}"`,
+        hint: `tracks: ${p.tracks.map((t) => `${t.id} "${capText(t.name, 60)}"`).join(', ') || 'none'}, or "master"`,
+      };
     const t = tId === 'master' ? null : store.track(tId);
     const list = tId === 'master' ? p.master.inserts || [] : t.inserts || [];
-    const listed = list.map((fx) => `${fx.id} (${capText(app.devices.getDevice(fx.device)?.name || fx.device, 60)})`).join(', ');
+    const listed = list
+      .map((fx) => `${fx.id} (${capText(app.devices.getDevice(fx.device)?.name || fx.device, 60)})`)
+      .join(', ');
     let slot = input.slot ?? input.insert ?? null;
-    if (slot == null) slot = input.track == null && sel.insert && list.some((x) => x.id === sel.insert) ? sel.insert : (t && t.kind === 'instrument' && t.instrument ? 'instrument' : list[0]?.id || 'instrument');
+    if (slot == null)
+      slot =
+        input.track == null && sel.insert && list.some((x) => x.id === sel.insert)
+          ? sel.insert
+          : t && t.kind === 'instrument' && t.instrument
+            ? 'instrument'
+            : list[0]?.id || 'instrument';
     const tn = t ? capText(t.name, 80) : 'the master';
-    if (slot === 'instrument' && !(t && t.kind === 'instrument' && t.instrument)) return { error: `${tn} has no instrument${t?.kind === 'audio' ? ' (an audio track)' : ''}`, hint: list.length ? `show one of its effects: ${listed}` : 'it has no effects either' };
-    if (slot !== 'instrument' && !list.some((x) => x.id === slot)) return { error: `no insert "${capText(String(slot), 40)}" on ${tn}`, hint: `its inserts: ${listed || 'none'}${t?.instrument ? ', or "instrument"' : ''}` };
+    if (slot === 'instrument' && !(t && t.kind === 'instrument' && t.instrument))
+      return {
+        error: `${tn} has no instrument${t?.kind === 'audio' ? ' (an audio track)' : ''}`,
+        hint: list.length ? `show one of its effects: ${listed}` : 'it has no effects either',
+      };
+    if (slot !== 'instrument' && !list.some((x) => x.id === slot))
+      return {
+        error: `no insert "${capText(String(slot), 40)}" on ${tn}`,
+        hint: `its inserts: ${listed || 'none'}${t?.instrument ? ', or "instrument"' : ''}`,
+      };
     const r = open({ track: tId, slot }, { focus: false, by: ctx.by || 'claude' });
-    if (!r.ok) return { error: r.error, hint: r.held ? 'only the person can let a kept-off device play (Play it, in the Devices tab)' : 'get_project lists each track\'s devices' };
-    const w = win, def = w.def;
+    if (!r.ok)
+      return {
+        error: r.error,
+        hint: r.held
+          ? 'only the person can let a kept-off device play (Play it, in the Devices tab)'
+          : "get_project lists each track's devices",
+      };
+    const w = win,
+      def = w.def;
     // (a custom editor loads after the window opens: its sections are read once it's up, a second at the most)
     if (w.editorName) await Promise.race([w.ready, new Promise((r) => setTimeout(r, 1000))]);
-    const out = { ok: true, showing: `${def.name} on ${tn}`, track: tId, slot, device: def.id, editor: w.editorName || 'generic' };
+    const out = {
+      ok: true,
+      showing: `${def.name} on ${tn}`,
+      track: tId,
+      slot,
+      device: def.id,
+      editor: w.editorName || 'generic',
+    };
     // the sections the window shows, by the names the human sees, with their param keys (a custom editor's too; the
     // params it has no control on screen for come last, by the device's groups, marked shown: false)
-    try { out.sections = w.sections(); } catch (e) { out.sections = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys })); }
-    out.note = 'Its window is open in front of the human. Each control an agent changes flashes there in that agent\'s colour, and the window says what moved.';
+    try {
+      out.sections = w.sections();
+    } catch (e) {
+      out.sections = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys }));
+    }
+    out.note =
+      "Its window is open in front of the human. Each control an agent changes flashes there in that agent's colour, and the window says what moved.";
     return out;
   }
 
   /* ================================================================ the window */
   function makeWindow(addr, s0, { by = 'you' } = {}) {
     const { track, slot } = addr;
-    const def = s0.def, devId = s0.devId;
+    const def = s0.def,
+      devId = s0.devId;
     const isInst = slot === 'instrument';
     const name = def.name || devId;
     const specs = new Map((def.params || []).map((p) => [p.key, kit.spec(p)]));
     const editorName = editorFor(def);
     const listeners = new Set();
-    const controls = new Map();            // key -> [{ w, kind }]
-    let stored = {}, shown = {}, follow = [], marks = new Map(), statusT = 0, alive = true, editor = null, editorKind = 'generic';
-    let statusFor = null;   // what the bar's line is about while it shows ('ab': the A/B line, which a change makes stale)
+    const controls = new Map(); // key -> [{ w, kind }]
+    let stored = {},
+      shown = {},
+      follow = [],
+      marks = new Map(),
+      statusT = 0,
+      alive = true,
+      editor = null,
+      editorKind = 'generic';
+    let statusFor = null; // what the bar's line is about while it shows ('ab': the A/B line, which a change makes stale)
     const laneAddr = (k) => ({ track, insert: slot, param: k });
     const slotNow = () => slotOf(track, slot);
-    const storedNow = () => { const s = slotNow(); return s && s.def ? paramValues(def, s.host.params || {}) : stored; };
+    const storedNow = () => {
+      const s = slotNow();
+      return s && s.def ? paramValues(def, s.host.params || {}) : stored;
+    };
     // a hand on the controls of an instrument being tried keeps it first (the sound card's "Kept … to change it")
-    const keepTrial = () => { if (isInst) { try { app.sounds?.keepIfTrying?.(track, { why: 'control' }); } catch (e) { console.error('plugin: keep the trial', e); } } };
+    const keepTrial = () => {
+      if (isInst) {
+        try {
+          app.sounds?.keepIfTrying?.(track, { why: 'control' });
+        } catch (e) {
+          console.error('plugin: keep the trial', e);
+        }
+      }
+    };
 
     /* ---- the frame of it */
     const { color, ink } = colorsOf(def);
     const led = isHex(def.look?.led) ? def.look.led : lumOf(color) > 0.5 ? ink : color;
-    const el = h('section.pw', { role: 'dialog', 'aria-modal': 'false', tabindex: -1, dataset: { panel: 'plugin', device: devId, track, slot, editor: editorName || 'generic' } });
-    el.style.setProperty('--pw-pc', color); el.style.setProperty('--pw-pi', ink); el.style.setProperty('--pw-led', led);
-    const nameId = 'pw-name-' + (++windows);
+    const el = h('section.pw', {
+      role: 'dialog',
+      'aria-modal': 'false',
+      tabindex: -1,
+      dataset: { panel: 'plugin', device: devId, track, slot, editor: editorName || 'generic' },
+    });
+    el.style.setProperty('--pw-pc', color);
+    el.style.setProperty('--pw-pi', ink);
+    el.style.setProperty('--pw-led', led);
+    const nameId = 'pw-name-' + ++windows;
     el.setAttribute('aria-labelledby', nameId);
     const kindWord = def.kindLabel || (def.cat ? String(def.cat) : def.kind);
-    const plate = h('div.pw-plate', h('i.pw-led', { 'aria-hidden': 'true' }), h('span.pw-plate-t', h('b.pw-name', { id: nameId }, name), h('small.pw-kind', String(kindWord).toUpperCase())));
+    const plate = h(
+      'div.pw-plate',
+      h('i.pw-led', { 'aria-hidden': 'true' }),
+      h('span.pw-plate-t', h('b.pw-name', { id: nameId }, name), h('small.pw-kind', String(kindWord).toUpperCase())),
+    );
     const credit = h('div.pw-credit');
-    const playKey = h('button.pw-ib.pw-play', { type: 'button', 'aria-label': 'Play the song', title: 'Play or stop the song (Space)', onclick: () => { try { app.transport?.playStop?.(); } catch (e) { /* no transport */ } } }, icon('play', { size: 18 }));
-    const shut = h('button.pw-ib.pw-x', { type: 'button', 'aria-label': `Close ${name} (Esc)`, title: 'Close (Esc)', onclick: () => close() }, icon('x', { size: 18 }));
+    const playKey = h(
+      'button.pw-ib.pw-play',
+      {
+        type: 'button',
+        'aria-label': 'Play the song',
+        title: 'Play or stop the song (Space)',
+        onclick: () => {
+          try {
+            app.transport?.playStop?.();
+          } catch (e) {
+            /* no transport */
+          }
+        },
+      },
+      icon('play', { size: 18 }),
+    );
+    const shut = h(
+      'button.pw-ib.pw-x',
+      { type: 'button', 'aria-label': `Close ${name} (Esc)`, title: 'Close (Esc)', onclick: () => close() },
+      icon('x', { size: 18 }),
+    );
     const head = h('header.pw-head', plate, credit, playKey, shut);
     const bar = h('div.pw-bar');
     const body = h('div.pw-body');
-    const grip = h('button.pw-grip', { type: 'button', 'aria-label': 'Window size: arrow keys make it bigger or smaller', title: 'Drag to resize' });
-    grip.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M11 4L4 11M11 8L8 11" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>';
+    const grip = h('button.pw-grip', {
+      type: 'button',
+      'aria-label': 'Window size: arrow keys make it bigger or smaller',
+      title: 'Drag to resize',
+    });
+    grip.innerHTML =
+      '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M11 4L4 11M11 8L8 11" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>';
     el.append(head, bar, body);
     const keysBox = h('div.pw-keys');
     el.append(keysBox, grip);
@@ -320,7 +543,8 @@ export default function (app) {
       if (!s) return;
       const where = isInst ? `On ${s.trackName}` : `On ${s.trackName}, effect ${s.index + 1} of ${s.count}`;
       const src = store.get().devices?.[devId];
-      const maker = src?.by || def.by, via = src?.via || def.via;
+      const maker = src?.by || def.by,
+        via = src?.via || def.via;
       const sig = JSON.stringify([where, maker, via, maker ? app.store.author?.(maker)?.name : null]);
       if (sig === creditSig) return;
       creditSig = sig;
@@ -332,7 +556,9 @@ export default function (app) {
       }
       // (what it is, in plain words, for an instrument: "What is Light Table?" answered where it opens)
       const what = isInst && def.blurb ? h('span.pw-what', def.blurb) : null;
-      credit.replaceChildren(...[h('span.pw-where', where), what, who.length ? h('span.pw-who', ...who) : null].filter(Boolean));
+      credit.replaceChildren(
+        ...[h('span.pw-where', where), what, who.length ? h('span.pw-who', ...who) : null].filter(Boolean),
+      );
       credit.title = [def.blurb, def.nod ? `Tips its hat to ${def.nod}.` : ''].filter(Boolean).join(' ');
     }
     renderCredit();
@@ -361,93 +587,198 @@ export default function (app) {
       const row = [...document.querySelectorAll('.ar-head[data-track]')].find((x) => x.dataset.track === track);
       const arr = row?.closest('.ar-main') || document.querySelector('.ar-main');
       if (!row || !arr || !row.getClientRects().length) return null;
-      const r = row.getBoundingClientRect(), a = arr.getBoundingClientRect(), vh = window.innerHeight;
+      const r = row.getBoundingClientRect(),
+        a = arr.getBoundingClientRect(),
+        vh = window.innerHeight;
       if (r.bottom < a.top || r.top > a.bottom) return null;
       const top = (document.querySelector('.ew-top')?.getBoundingClientRect().bottom || 0) + 8;
       const mid = a.top + a.height / 2;
       // (the room below the lane, or above it: lo..hi; the window goes as near the arranger's middle as it fits)
-      if (r.top + r.height / 2 < mid) { const lo = Math.round(r.bottom + 8), hi = vh - 12; return hi - lo >= 240 ? { lo, hi, at: (n) => Math.max(lo, Math.min(Math.round(mid), hi - n)) } : null; }
-      const lo = Math.round(top), hi = Math.round(r.top - 8);
+      if (r.top + r.height / 2 < mid) {
+        const lo = Math.round(r.bottom + 8),
+          hi = vh - 12;
+        return hi - lo >= 240 ? { lo, hi, at: (n) => Math.max(lo, Math.min(Math.round(mid), hi - n)) } : null;
+      }
+      const lo = Math.round(top),
+        hi = Math.round(r.top - 8);
       return hi - lo >= 240 ? { lo, hi, at: () => lo } : null;
     }
     function place({ fit = false } = {}) {
       if (!alive) return;
       el.classList.toggle('pw-phone', phone());
       arrange();
-      if (phone()) { for (const k of ['left', 'top', 'width', 'height', 'min-width', 'max-width', 'max-height']) el.style.removeProperty(k); return; }
-      const g = geo(), vw = window.innerWidth, vh = window.innerHeight;
+      if (phone()) {
+        for (const k of ['left', 'top', 'width', 'height', 'min-width', 'max-width', 'max-height'])
+          el.style.removeProperty(k);
+        return;
+      }
+      const g = geo(),
+        vw = window.innerWidth,
+        vh = window.innerHeight;
       // (only when the whole window fits beside the lane: a deep synth that needs the screen takes its usual place)
       let sp = null;
-      if (fit && !g.placed) { spareMax = null; sp = g.auto ? spare() : null; if (!sp) g.y = 84; }
+      if (fit && !g.placed) {
+        spareMax = null;
+        sp = g.auto ? spare() : null;
+        if (!sp) g.y = 84;
+      }
       g.y = clamp(g.y ?? 84, 0, Math.max(0, vh - 56));
       if (g.auto) {
-        Object.assign(el.style, { width: 'max-content', minWidth: Math.min(680, vw - 16) + 'px', maxWidth: Math.min(1120, vw - 16) + 'px', height: 'auto', maxHeight: Math.max(240, Math.min(spareMax ?? Infinity, vh - g.y - 12)) + 'px' });
+        Object.assign(el.style, {
+          width: 'max-content',
+          minWidth: Math.min(680, vw - 16) + 'px',
+          maxWidth: Math.min(1120, vw - 16) + 'px',
+          height: 'auto',
+          maxHeight: Math.max(240, Math.min(spareMax ?? Infinity, vh - g.y - 12)) + 'px',
+        });
       } else {
-        g.w = clamp(g.w, Math.min(520, vw - 16), vw - 16); g.h = clamp(g.h, Math.min(300, vh - 16), vh - 16);
+        g.w = clamp(g.w, Math.min(520, vw - 16), vw - 16);
+        g.h = clamp(g.h, Math.min(300, vh - 16), vh - 16);
         Object.assign(el.style, { width: g.w + 'px', height: g.h + 'px', minWidth: '', maxWidth: '', maxHeight: '' });
       }
-      if (sp) { const n = el.scrollHeight; if (n <= sp.hi - sp.lo) { g.y = sp.at(n); spareMax = sp.hi - g.y; el.style.top = g.y + 'px'; el.style.maxHeight = spareMax + 'px'; } }
+      if (sp) {
+        const n = el.scrollHeight;
+        if (n <= sp.hi - sp.lo) {
+          g.y = sp.at(n);
+          spareMax = sp.hi - g.y;
+          el.style.top = g.y + 'px';
+          el.style.maxHeight = spareMax + 'px';
+        }
+      }
       const w = el.offsetWidth || g.w || 680;
       if (g.x == null) g.x = Math.round((vw - w) / 2);
       // a window just opened (or rebuilt) is all on screen when it fits; one being dragged keeps 160 px in view
       if (fit && w <= vw - 16) g.x = clamp(g.x, 8, vw - w - 8);
       g.x = clamp(g.x, -(w - 160), vw - 160);
-      el.style.left = g.x + 'px'; el.style.top = g.y + 'px';
+      el.style.left = g.x + 'px';
+      el.style.top = g.y + 'px';
     }
     place();
     // its size, taken over by hand (the corner, or the arrow keys on it)
-    const own = () => { const g = geo(); if (g.auto) { g.auto = false; g.w = el.offsetWidth; g.h = el.offsetHeight; } return g; };
+    const own = () => {
+      const g = geo();
+      if (g.auto) {
+        g.auto = false;
+        g.w = el.offsetWidth;
+        g.h = el.offsetHeight;
+      }
+      return g;
+    };
     // drag by the head (not its buttons), from anywhere on it
     head.addEventListener('pointerdown', (e) => {
       if (phone() || e.button !== 0 || e.target.closest('button, a, input, select')) return;
-      const g = geo(), x0 = e.clientX, y0 = e.clientY, gx = g.x, gy = g.y;
-      head.setPointerCapture(e.pointerId); head.classList.add('pw-dragging');
-      const mv = (ev) => { g.x = gx + ev.clientX - x0; g.y = gy + ev.clientY - y0; g.placed = true; spareMax = null; place(); };
-      const up = () => { head.removeEventListener('pointermove', mv); head.removeEventListener('pointerup', up); head.removeEventListener('pointercancel', up); head.classList.remove('pw-dragging'); };
-      head.addEventListener('pointermove', mv); head.addEventListener('pointerup', up); head.addEventListener('pointercancel', up);
+      const g = geo(),
+        x0 = e.clientX,
+        y0 = e.clientY,
+        gx = g.x,
+        gy = g.y;
+      head.setPointerCapture(e.pointerId);
+      head.classList.add('pw-dragging');
+      const mv = (ev) => {
+        g.x = gx + ev.clientX - x0;
+        g.y = gy + ev.clientY - y0;
+        g.placed = true;
+        spareMax = null;
+        place();
+      };
+      const up = () => {
+        head.removeEventListener('pointermove', mv);
+        head.removeEventListener('pointerup', up);
+        head.removeEventListener('pointercancel', up);
+        head.classList.remove('pw-dragging');
+      };
+      head.addEventListener('pointermove', mv);
+      head.addEventListener('pointerup', up);
+      head.addEventListener('pointercancel', up);
       e.preventDefault();
     });
     grip.addEventListener('pointerdown', (e) => {
       if (phone() || e.button !== 0) return;
-      const g = own(), x0 = e.clientX, y0 = e.clientY, w0 = g.w, h0 = g.h;
+      const g = own(),
+        x0 = e.clientX,
+        y0 = e.clientY,
+        w0 = g.w,
+        h0 = g.h;
       grip.setPointerCapture(e.pointerId);
-      const mv = (ev) => { g.w = w0 + ev.clientX - x0; g.h = h0 + ev.clientY - y0; place(); };
-      const up = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); };
-      grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
-      e.preventDefault(); e.stopPropagation();
+      const mv = (ev) => {
+        g.w = w0 + ev.clientX - x0;
+        g.h = h0 + ev.clientY - y0;
+        place();
+      };
+      const up = () => {
+        grip.removeEventListener('pointermove', mv);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+      };
+      grip.addEventListener('pointermove', mv);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+      e.preventDefault();
+      e.stopPropagation();
     });
     grip.addEventListener('keydown', (e) => {
       const d = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[e.key];
       if (!d) return;
-      e.preventDefault(); e.stopPropagation();
-      const g = own(), st = e.shiftKey ? 64 : 16;
-      g.w += d[0] * st; g.h += d[1] * st; place();
+      e.preventDefault();
+      e.stopPropagation();
+      const g = own(),
+        st = e.shiftKey ? 64 : 16;
+      g.w += d[0] * st;
+      g.h += d[1] * st;
+      place();
     });
     // in use: the shell's ui.state.focus follows the pointer and focus into the window (data-panel), and a person's
     // first touch selects its track, so musical typing plays what's on screen
-    const touch = () => { if (track !== 'master' && ui.state.selection.track !== track) ui.select({ track }); };
+    const touch = () => {
+      if (track !== 'master' && ui.state.selection.track !== track) ui.select({ track });
+    };
     el.addEventListener('pointerdown', touch, true);
-    el.addEventListener('focusin', () => { if (ui.state.focus !== 'plugin') { ui.state.focus = 'plugin'; ui.emit('focus', 'plugin'); } });
+    el.addEventListener('focusin', () => {
+      if (ui.state.focus !== 'plugin') {
+        ui.state.focus = 'plugin';
+        ui.emit('focus', 'plugin');
+      }
+    });
     // a phone's sheet keeps Tab inside it
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab' || !phone()) return;
-      const f = [...el.querySelectorAll('button:not([disabled]), select, [tabindex="0"], [href]')].filter((x) => x.getClientRects().length);
+      const f = [...el.querySelectorAll('button:not([disabled]), select, [tabindex="0"], [href]')].filter(
+        (x) => x.getClientRects().length,
+      );
       if (!f.length) return;
-      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+      if (e.shiftKey && document.activeElement === f[0]) {
+        e.preventDefault();
+        f[f.length - 1].focus();
+      } else if (!e.shiftKey && document.activeElement === f[f.length - 1]) {
+        e.preventDefault();
+        f[0].focus();
+      }
     });
 
     /* ---- params: what it plays (lanes over the knobs), and who hears about a change */
     stored = storedNow();
     function effective() {
       const out = { ...stored };
-      for (const f of follow) { const v = laneNow(app, f.addr, f.l); if (fin(v)) out[f.key] = v; }
+      for (const f of follow) {
+        const v = laneNow(app, f.addr, f.l);
+        if (fin(v)) out[f.key] = v;
+      }
       return out;
     }
     shown = effective();
     const emit = (evt) => {
-      for (const fn of [...listeners]) { try { fn(evt); } catch (e) { console.error('plugin: a listener failed', e); } }
-      try { editor?.update?.(evt); } catch (e) { console.error('plugin: the editor failed to update', e); }
+      for (const fn of [...listeners]) {
+        try {
+          fn(evt);
+        } catch (e) {
+          console.error('plugin: a listener failed', e);
+        }
+      }
+      try {
+        editor?.update?.(evt);
+      } catch (e) {
+        console.error('plugin: the editor failed to update', e);
+      }
     };
     function pushValues(keys, by, kind) {
       for (const k of keys) for (const c of controls.get(k) || []) c.w.set(shown[k]);
@@ -470,19 +801,39 @@ export default function (app) {
       const changed = now.size !== marks.size || [...now].some(([k, v]) => marks.get(k) !== v);
       marks = now;
       // (a control's mark says which bars its lane covers: re-marked when a lane comes, goes, is held or is redrawn)
-      const sig = JSON.stringify(Object.keys(auto).map((k) => [k, auto[k]?.off ? 1 : 0, auto[k]?.points?.length || 0, auto[k]?.points?.[0]?.t, auto[k]?.points?.at?.(-1)?.t]));
-      if (sig !== lanesSig || force) { lanesSig = sig; for (const [k, list] of controls) for (const c of list) markControl(k, c); }
+      const sig = JSON.stringify(
+        Object.keys(auto).map((k) => [
+          k,
+          auto[k]?.off ? 1 : 0,
+          auto[k]?.points?.length || 0,
+          auto[k]?.points?.[0]?.t,
+          auto[k]?.points?.at?.(-1)?.t,
+        ]),
+      );
+      if (sig !== lanesSig || force) {
+        lanesSig = sig;
+        for (const [k, list] of controls) for (const c of list) markControl(k, c);
+      }
       return changed;
     }
     function markControl(k, c) {
-      const st = marks.get(k) || null, p = specs.get(k);
+      const st = marks.get(k) || null,
+        p = specs.get(k);
       if (!c.w.mark) return;
-      if (!st) { c.w.mark(null); return; }
-      const addr = laneAddr(k), nm = p.label;
+      if (!st) {
+        c.w.mark(null);
+        return;
+      }
+      const addr = laneAddr(k),
+        nm = p.label;
       c.w.mark(st, {
         note: laneNote(app, addr, nm),
-        title: st === 'held' ? `${sentence(nm)} is held. Click: back to the lane` : `${laneNote(app, addr, nm)}. Click: show the lane`,
-        label: st === 'held' ? `${sentence(nm)} is held: back to the lane` : `${sentence(nm)} follows its lane: show it`,
+        title:
+          st === 'held'
+            ? `${sentence(nm)} is held. Click: back to the lane`
+            : `${laneNote(app, addr, nm)}. Click: show the lane`,
+        label:
+          st === 'held' ? `${sentence(nm)} is held: back to the lane` : `${sentence(nm)} follows its lane: show it`,
         onClick: () => (st === 'held' ? backToLane(app, addr, nm) : automate(app, addr, nm)),
       });
     }
@@ -495,21 +846,44 @@ export default function (app) {
     // lane held, coalesced under the set of keys.
     function setParams(patch = {}, { gesture = 'end', label = null, fresh = false } = {}) {
       const keys = Object.keys(patch).filter((k) => specs.has(k) && fin(+patch[k]));
-      if (!keys.length) return { ok: false, error: `no such param (${Object.keys(patch).join(', ') || 'none given'}); this device has ${[...specs.keys()].join(', ')}` };
+      if (!keys.length)
+        return {
+          ok: false,
+          error: `no such param (${Object.keys(patch).join(', ') || 'none given'}); this device has ${[...specs.keys()].join(', ')}`,
+        };
       keepTrial();
       const params = {};
       for (const k of keys) params[k] = kit.snap(specs.get(k), +patch[k]);
-      const op = isInst ? { type: 'instrument.set', track, params } : { type: 'insert.set', track, insert: slot, patch: { params } };
+      const op = isInst
+        ? { type: 'instrument.set', track, params }
+        : { type: 'insert.set', track, insert: slot, patch: { params } };
       let ops;
       if (keys.length === 1) ops = controlOps(app, laneAddr(keys[0]), op);
-      else { ops = [op]; if (!app.engine?.recording) for (const k of keys) { const l = laneFor(app, laneAddr(k)); if (l && !l.held) ops.push({ type: 'auto.set', ...laneAddr(k), patch: { off: true } }); } }
-      const coalesce = fresh ? null : (isInst ? 'instrument:' + track : 'insert:' + slot) + ':' + keys.slice().sort().join('+');
+      else {
+        ops = [op];
+        if (!app.engine?.recording)
+          for (const k of keys) {
+            const l = laneFor(app, laneAddr(k));
+            if (l && !l.held) ops.push({ type: 'auto.set', ...laneAddr(k), patch: { off: true } });
+          }
+      }
+      const coalesce = fresh
+        ? null
+        : (isInst ? 'instrument:' + track : 'insert:' + slot) + ':' + keys.slice().sort().join('+');
       // History: the control in words and where it was left ("Light Table: A pos 0.53"), the gesture's one entry
       // relabelled with each move, so it says where the drag ended
-      const said = typeof label === 'string' && label ? label.slice(0, 120) : gestureLabel(name, keys.map((k) => ({ label: specs.get(k).label, text: kit.text(specs.get(k), params[k]) })));
+      const said =
+        typeof label === 'string' && label
+          ? label.slice(0, 120)
+          : gestureLabel(
+              name,
+              keys.map((k) => ({ label: specs.get(k).label, text: kit.text(specs.get(k), params[k]) })),
+            );
       relabel(app, coalesce, said);
       const r = store.dispatch(ops, { by: 'you', coalesce, label: said });
-      const k0 = keys[0], p0 = specs.get(k0), v0 = kit.text(p0, params[k0]);
+      const k0 = keys[0],
+        p0 = specs.get(k0),
+        v0 = kit.text(p0, params[k0]);
       if (r.ok && ops.length > 1) heldNote(app, laneAddr(k0), p0.label, v0, { later: gesture !== 'end' });
       else if (gesture === 'end') heldSay(app, v0);
       return r;
@@ -527,7 +901,8 @@ export default function (app) {
       let w;
       if (k === 'knob') w = kit.knob(p, { value: v, size, name, label, onInput, onMenu });
       else if (k === 'slider') w = kit.slider(p, { value: v, name, label, onInput, onMenu, orient, length });
-      else if (k === 'segmented') w = kit.segmented(p, { value: v, name, label, onChange: (i) => setParams({ [key]: i }) });
+      else if (k === 'segmented')
+        w = kit.segmented(p, { value: v, name, label, onChange: (i) => setParams({ [key]: i }) });
       else if (k === 'select') w = kit.select(p, { value: v, name, label, onChange: (i) => setParams({ [key]: i }) });
       else if (k === 'tap') w = kit.tap(p, { value: v, name, onInput: (x) => setParams({ [key]: x }) });
       else return null;
@@ -544,66 +919,189 @@ export default function (app) {
     let flashes = [];
     function flash(target) {
       const els = typeof target === 'string' ? (controls.get(target) || []).map((c) => c.w.el) : target ? [target] : [];
-      for (const x of els) { x.classList.remove('pk-flash'); void x.offsetWidth; x.classList.add('pk-flash'); flashes.push({ el: x, until: performance.now() + 1700 }); }
+      for (const x of els) {
+        x.classList.remove('pk-flash');
+        void x.offsetWidth;
+        x.classList.add('pk-flash');
+        flashes.push({ el: x, until: performance.now() + 1700 });
+      }
     }
     function status(words, { ms = 6000, about = null } = {}) {
       clearTimeout(statusT);
       statusFor = about;
       statusEl.replaceChildren(...(Array.isArray(words) ? words : [words]).filter((x) => x != null && x !== ''));
       statusEl.classList.toggle('on', !!statusEl.childNodes.length);
-      if (ms) statusT = setTimeout(() => { statusEl.replaceChildren(); statusEl.classList.remove('on'); statusFor = null; }, ms);
+      if (ms)
+        statusT = setTimeout(() => {
+          statusEl.replaceChildren();
+          statusEl.classList.remove('on');
+          statusFor = null;
+        }, ms);
     }
     function agentSaid(by, keys) {
       const nm = (k) => sentence(specs.get(k).label);
-      if (keys.length === 1) status([byline(by, { app, cap: true }), ` set ${nm(keys[0])} to ${kit.text(specs.get(keys[0]), shown[keys[0]])}.`]);
-      else status([byline(by, { app, cap: true }), ` moved ${keys.length} controls: ${keys.slice(0, 4).map(nm).join(', ')}${keys.length > 4 ? '…' : ''}.`]);
+      if (keys.length === 1)
+        status([
+          byline(by, { app, cap: true }),
+          ` set ${nm(keys[0])} to ${kit.text(specs.get(keys[0]), shown[keys[0]])}.`,
+        ]);
+      else
+        status([
+          byline(by, { app, cap: true }),
+          ` moved ${keys.length} controls: ${keys.slice(0, 4).map(nm).join(', ')}${keys.length > 4 ? '…' : ''}.`,
+        ]);
     }
 
     /* ---- the bar: presets, A/B, on, code, ask, what changed, the output */
-    const preBtn = h('button.pw-pre-n', { type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => openPresets() });
-    const prev = h('button.pw-key', { type: 'button', 'aria-label': 'Previous preset', title: 'Previous preset', onclick: () => stepPreset(-1) }, icon('chevron', { size: 14 }));
-    const next = h('button.pw-key', { type: 'button', 'aria-label': 'Next preset', title: 'Next preset', onclick: () => stepPreset(1) }, icon('chevron', { size: 14 }));
+    const preBtn = h('button.pw-pre-n', {
+      type: 'button',
+      'aria-haspopup': 'menu',
+      'aria-expanded': 'false',
+      onclick: () => openPresets(),
+    });
+    const prev = h(
+      'button.pw-key',
+      { type: 'button', 'aria-label': 'Previous preset', title: 'Previous preset', onclick: () => stepPreset(-1) },
+      icon('chevron', { size: 14 }),
+    );
+    const next = h(
+      'button.pw-key',
+      { type: 'button', 'aria-label': 'Next preset', title: 'Next preset', onclick: () => stepPreset(1) },
+      icon('chevron', { size: 14 }),
+    );
     prev.querySelector('svg').style.transform = 'scaleX(-1)';
-    const presets = h('div.pw-pre', { role: 'group', 'aria-label': `${name} presets` }, h('span.pw-lbl', 'Preset'), prev, preBtn, next);
+    const presets = h(
+      'div.pw-pre',
+      { role: 'group', 'aria-label': `${name} presets` },
+      h('span.pw-lbl', 'Preset'),
+      prev,
+      preBtn,
+      next,
+    );
     const abA = h('button.pw-key.pw-ab-b', { type: 'button', 'aria-pressed': 'true', onclick: () => flip('A') }, 'A');
     const abB = h('button.pw-key.pw-ab-b', { type: 'button', 'aria-pressed': 'false', onclick: () => flip('B') }, 'B');
     const abCopy = h('button.btn.btn-txt.pw-ab-copy', { type: 'button', onclick: () => copyAB() }, 'Copy A to B');
     const ab = h('div.pw-ab', { role: 'group', 'aria-label': 'Compare A and B' }, abA, abB, abCopy);
-    const onTog = isInst ? null : kit.toggle({ label: 'On', name, title: 'On, or bypassed (the sound passes through)', onChange: (on) => { const r = store.dispatch({ type: 'insert.set', track, insert: slot, patch: { on } }, { by: 'you', label: `${name} ${on ? 'on' : 'off'}` }); if (!r.ok) ui.toast(r.error, { kind: 'bad' }); } });
-    const codeBtn = typeof def.kernel === 'string' ? h('button.btn.btn-txt.pw-code', { type: 'button', title: 'Its kernel source, read-only', onclick: () => app.rack?.openCode?.(devId) }, 'Code') : null;
-    const askBtn = h('button.btn.ew-btn-agent.pw-ask', { type: 'button', title: 'Describe a sound; the agent tunes this device', onclick: () => { const s = slotNow(); ui.emit('agent:compose', { text: `${quotedName(name)} on ${quotedName(s?.trackName || 'the master')}: `, attach: { track, device: devId } }); } }, icon('agent', { size: 14 }), 'Ask');
+    const onTog = isInst
+      ? null
+      : kit.toggle({
+          label: 'On',
+          name,
+          title: 'On, or bypassed (the sound passes through)',
+          onChange: (on) => {
+            const r = store.dispatch(
+              { type: 'insert.set', track, insert: slot, patch: { on } },
+              { by: 'you', label: `${name} ${on ? 'on' : 'off'}` },
+            );
+            if (!r.ok) ui.toast(r.error, { kind: 'bad' });
+          },
+        });
+    const codeBtn =
+      typeof def.kernel === 'string'
+        ? h(
+            'button.btn.btn-txt.pw-code',
+            { type: 'button', title: 'Its kernel source, read-only', onclick: () => app.rack?.openCode?.(devId) },
+            'Code',
+          )
+        : null;
+    const askBtn = h(
+      'button.btn.ew-btn-agent.pw-ask',
+      {
+        type: 'button',
+        title: 'Describe a sound; the agent tunes this device',
+        onclick: () => {
+          const s = slotNow();
+          ui.emit('agent:compose', {
+            text: `${quotedName(name)} on ${quotedName(s?.trackName || 'the master')}: `,
+            attach: { track, device: devId },
+          });
+        },
+      },
+      icon('agent', { size: 14 }),
+      'Ask',
+    );
     // the sound card for this track (trying another instrument rebuilds this window onto it: what you see is what you
     // hear), and the effects after it, in the Devices tab
-    const soundsBtn = isInst && track !== 'master' && app.sounds ? h('button.btn.btn-txt.pw-sounds', { type: 'button', title: 'Hear this track on other instruments', onclick: (e) => app.sounds?.offer?.({ track, from: 'window', anchor: e.currentTarget }) }, 'Sounds') : null;
-    const fxBtn = track !== 'master' ? h('button.btn.btn-txt.pw-fx', { type: 'button', title: `The effects on ${s0.trackName}, in the Devices tab`, onclick: () => { ui.select({ track, insert: isInst ? null : slot }); ui.show('rack'); } }, 'Effects') : null;
+    const soundsBtn =
+      isInst && track !== 'master' && app.sounds
+        ? h(
+            'button.btn.btn-txt.pw-sounds',
+            {
+              type: 'button',
+              title: 'Hear this track on other instruments',
+              onclick: (e) => app.sounds?.offer?.({ track, from: 'window', anchor: e.currentTarget }),
+            },
+            'Sounds',
+          )
+        : null;
+    const fxBtn =
+      track !== 'master'
+        ? h(
+            'button.btn.btn-txt.pw-fx',
+            {
+              type: 'button',
+              title: `The effects on ${s0.trackName}, in the Devices tab`,
+              onclick: () => {
+                ui.select({ track, insert: isInst ? null : slot });
+                ui.show('rack');
+              },
+            },
+            'Effects',
+          )
+        : null;
     // a keyed device (def.key: Dim Switch): which track it hears beside its own input (its key, insert.set { key })
-    const keyPick = !isInst && def.key === true && track !== 'master'
-      ? h('select.pw-keypick', { 'aria-label': `${name}: the track it ducks under (its key)`, title: 'The track it listens to: it ducks under that track\'s sound', onchange: (e) => setKey(e.currentTarget.value) })
-      : null;
+    const keyPick =
+      !isInst && def.key === true && track !== 'master'
+        ? h('select.pw-keypick', {
+            'aria-label': `${name}: the track it ducks under (its key)`,
+            title: "The track it listens to: it ducks under that track's sound",
+            onchange: (e) => setKey(e.currentTarget.value),
+          })
+        : null;
     const keyBox = keyPick ? h('label.pw-key-to', h('span.pw-lbl', 'Key'), keyPick) : null;
     let keySig = '';
     function syncKey() {
       if (!keyPick) return;
-      const p = store.get(), me = (p.tracks || []).find((t) => t.id === track), fx = me && me.inserts.find((x) => x.id === slot);
+      const p = store.get(),
+        me = (p.tracks || []).find((t) => t.id === track),
+        fx = me && me.inserts.find((x) => x.id === slot);
       const cur = fx && fx.key ? fx.key.track : '';
       const others = (p.tracks || []).filter((t) => t.id !== track);
       const gone = cur && !others.some((t) => t.id === cur);
       const sig = cur + '|' + others.map((t) => t.id + ':' + t.name).join(',');
       if (sig === keySig) return;
       keySig = sig;
-      keyPick.replaceChildren(h('option', { value: '' }, 'No key'), ...others.map((t) => h('option', { value: t.id }, t.name)), ...(gone ? [h('option', { value: cur }, 'Key track missing')] : []));
+      keyPick.replaceChildren(
+        h('option', { value: '' }, 'No key'),
+        ...others.map((t) => h('option', { value: t.id }, t.name)),
+        ...(gone ? [h('option', { value: cur }, 'Key track missing')] : []),
+      );
       keyPick.value = cur;
     }
     function setKey(id) {
-      const r = store.dispatch({ type: 'insert.set', track, insert: slot, patch: { key: id ? { track: id } : null } }, { by: 'you', label: `${name}: key` });
-      if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); keySig = ''; syncKey(); return; }
+      const r = store.dispatch(
+        { type: 'insert.set', track, insert: slot, patch: { key: id ? { track: id } : null } },
+        { by: 'you', label: `${name}: key` },
+      );
+      if (!r.ok) {
+        ui.toast(r.error, { kind: 'bad' });
+        keySig = '';
+        syncKey();
+        return;
+      }
       const t = id && (store.get().tracks || []).find((x) => x.id === id);
       ui.announce?.(t ? `${name} ducks under ${t.name}` : `${name} has no key`);
     }
     const statusEl = h('p.pw-status');
     const peakEl = h('span.pw-peak', { 'aria-hidden': 'true' }, 'silent');
     const scopeCv = kit.canvas({ className: 'pw-scope', label: `${name}'s output: scope and spectrum` });
-    const live = h('div.pw-live', { title: 'What it sends out: the spectrum, with the wave over it' }, h('span.pw-lbl', 'Output'), scopeCv.el, peakEl);
+    const live = h(
+      'div.pw-live',
+      { title: 'What it sends out: the spectrum, with the wave over it' },
+      h('span.pw-lbl', 'Output'),
+      scopeCv.el,
+      peakEl,
+    );
     // the studio's notes while the window is open, when there's no room for them beside it (ui.dockToasts: a phone's
     // window always): a line of the bar, so a note never sits over the controls
     const toastBox = h('div.pw-toasts', { role: 'status', 'aria-live': 'polite' });
@@ -619,23 +1117,34 @@ export default function (app) {
     }
     let preSig = '';
     function syncPresets() {
-      const st = presetState(), sig = `${st.label}|${st.edited}`;
+      const st = presetState(),
+        sig = `${st.label}|${st.edited}`;
       const has = !!def.presets?.length;
       prev.disabled = next.disabled = !has;
       if (sig === preSig) return;
       preSig = sig;
-      preBtn.replaceChildren(...[h('span.pw-pre-l', st.label), st.edited ? h('span.pw-pre-e', ', edited') : null, icon('down', { size: 12 })].filter(Boolean));
+      preBtn.replaceChildren(
+        ...[
+          h('span.pw-pre-l', st.label),
+          st.edited ? h('span.pw-pre-e', ', edited') : null,
+          icon('down', { size: 12 }),
+        ].filter(Boolean),
+      );
       preBtn.dataset.preset = st.name || '';
       preBtn.dataset.edited = st.edited ? '1' : '';
       preBtn.setAttribute('aria-label', `${name} preset: ${st.label}${st.edited ? ', edited' : ''}. Choose a preset`);
     }
     function applyPreset(pname) {
       keepTrial();
-      const params = pname === null ? Object.fromEntries((def.params || []).map((p) => [p.key, p.def])) : presetParams(def, pname);
+      const params =
+        pname === null ? Object.fromEntries((def.params || []).map((p) => [p.key, p.def])) : presetParams(def, pname);
       if (!params) return { ok: false };
-      const op = isInst ? { type: 'instrument.set', track, params } : { type: 'insert.set', track, insert: slot, patch: { params } };
+      const op = isInst
+        ? { type: 'instrument.set', track, params }
+        : { type: 'insert.set', track, insert: slot, patch: { params } };
       const r = store.dispatch(op, { by: 'you', label: pname === null ? `${name}: defaults` : `${name}: ${pname}` });
-      if (!r.ok) ui.toast(r.error, { kind: 'bad' }); else ui.announce?.(pname === null ? `${name}: every control at its default` : `${name}: ${pname}`);
+      if (!r.ok) ui.toast(r.error, { kind: 'bad' });
+      else ui.announce?.(pname === null ? `${name}: every control at its default` : `${name}: ${pname}`);
       return r;
     }
     function stepPreset(d) {
@@ -649,23 +1158,75 @@ export default function (app) {
     }
     let prePop = null;
     function openPresets() {
-      if (prePop) { prePop.close(); return; }
+      if (prePop) {
+        prePop.close();
+        return;
+      }
       const st = presetState();
       const rows = (def.presets || []).map((pr) => {
         const on = st.name === pr.name;
-        return h('button.rk-pi' + (on ? '.sel-print' : ''), { type: 'button', role: 'menuitemradio', 'aria-checked': on && !st.edited ? 'true' : 'false', dataset: { preset: pr.name }, onclick: () => { prePop?.close(); applyPreset(pr.name); } },
-          h('span', pr.name), on && st.edited ? h('small', 'edited: pick it to go back to it') : pr.blurb ? h('small', pr.blurb) : null);
+        return h(
+          'button.rk-pi' + (on ? '.sel-print' : ''),
+          {
+            type: 'button',
+            role: 'menuitemradio',
+            'aria-checked': on && !st.edited ? 'true' : 'false',
+            dataset: { preset: pr.name },
+            onclick: () => {
+              prePop?.close();
+              applyPreset(pr.name);
+            },
+          },
+          h('span', pr.name),
+          on && st.edited ? h('small', 'edited: pick it to go back to it') : pr.blurb ? h('small', pr.blurb) : null,
+        );
       });
-      rows.push(h('button.rk-pi.pw-pi-def', { type: 'button', role: 'menuitem', onclick: () => { prePop?.close(); applyPreset(null); } }, h('span', 'Defaults'), h('small', 'every control back to where it starts')));
-      const menu = h('div.rk-presets', { role: 'menu', 'aria-label': `${name} presets` }, h('div.rk-pcat', def.presets?.length ? `${name} presets` : `${name} has no presets`), rows);
+      rows.push(
+        h(
+          'button.rk-pi.pw-pi-def',
+          {
+            type: 'button',
+            role: 'menuitem',
+            onclick: () => {
+              prePop?.close();
+              applyPreset(null);
+            },
+          },
+          h('span', 'Defaults'),
+          h('small', 'every control back to where it starts'),
+        ),
+      );
+      const menu = h(
+        'div.rk-presets',
+        { role: 'menu', 'aria-label': `${name} presets` },
+        h('div.rk-pcat', def.presets?.length ? `${name} presets` : `${name} has no presets`),
+        rows,
+      );
       menu.addEventListener('keydown', (e) => {
         const i = rows.indexOf(document.activeElement);
-        const j = e.key === 'ArrowDown' ? Math.min(rows.length - 1, i + 1) : e.key === 'ArrowUp' ? Math.max(0, i - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? rows.length - 1 : null;
+        const j =
+          e.key === 'ArrowDown'
+            ? Math.min(rows.length - 1, i + 1)
+            : e.key === 'ArrowUp'
+              ? Math.max(0, i - 1)
+              : e.key === 'Home'
+                ? 0
+                : e.key === 'End'
+                  ? rows.length - 1
+                  : null;
         if (j == null) return;
-        e.preventDefault(); e.stopPropagation(); rows[j].focus();
+        e.preventDefault();
+        e.stopPropagation();
+        rows[j].focus();
       });
       preBtn.setAttribute('aria-expanded', 'true');
-      prePop = popover(preBtn, menu, { label: `${name} presets`, onClose: () => { preBtn.setAttribute('aria-expanded', 'false'); prePop = null; } });
+      prePop = popover(preBtn, menu, {
+        label: `${name} presets`,
+        onClose: () => {
+          preBtn.setAttribute('aria-expanded', 'false');
+          prePop = null;
+        },
+      });
       (rows.find((r) => r.classList.contains('sel-print')) || rows[0])?.focus({ preventScroll: true });
     }
 
@@ -676,36 +1237,67 @@ export default function (app) {
     const AB = () => ((ui.state.pluginAB ||= {})[abKey] ||= { on: 'A', A: null, B: null, flips: [] });
     const syncAB = () => {
       const st = AB();
-      for (const [b, k] of [[abA, 'A'], [abB, 'B']]) { const on = st.on === k; b.setAttribute('aria-pressed', String(on)); b.classList.toggle('sel-print', on); b.setAttribute('aria-label', on ? `${k}: playing now` : `${k}: ${st[k] ? 'hear it' : 'start it as a copy of ' + st.on}`); }
+      for (const [b, k] of [
+        [abA, 'A'],
+        [abB, 'B'],
+      ]) {
+        const on = st.on === k;
+        b.setAttribute('aria-pressed', String(on));
+        b.classList.toggle('sel-print', on);
+        b.setAttribute(
+          'aria-label',
+          on ? `${k}: playing now` : `${k}: ${st[k] ? 'hear it' : 'start it as a copy of ' + st.on}`,
+        );
+      }
       abCopy.textContent = `Copy ${st.on} to ${st.on === 'A' ? 'B' : 'A'}`;
     };
     // (how many controls A and B set apart: what the line says after a flip)
-    const differ = (a = {}, b = {}) => [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => specs.has(k) && Math.abs((a[k] ?? specs.get(k).def) - (b[k] ?? specs.get(k).def)) > 1e-9).length;
+    const differ = (a = {}, b = {}) =>
+      [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
+        (k) => specs.has(k) && Math.abs((a[k] ?? specs.get(k).def) - (b[k] ?? specs.get(k).def)) > 1e-9,
+      ).length;
     function flip(to) {
       const st = AB();
       if (st.on === to) return;
       keepTrial();
       const from = st.on;
       st[from] = { ...stored };
-      if (!st[to]) { st[to] = { ...stored }; st.on = to; syncAB(); status(`${to} starts as a copy of ${from}. Change it, then flip back to compare.`, { about: 'ab' }); return; }
+      if (!st[to]) {
+        st[to] = { ...stored };
+        st.on = to;
+        syncAB();
+        status(`${to} starts as a copy of ${from}. Change it, then flip back to compare.`, { about: 'ab' });
+        return;
+      }
       const params = { ...st[to] };
       const same = Object.keys(params).every((k) => Math.abs((params[k] ?? 0) - (stored[k] ?? 0)) <= 1e-9);
       st.on = to;
       if (!same) {
-        const op = isInst ? { type: 'instrument.set', track, params } : { type: 'insert.set', track, insert: slot, patch: { params } };
+        const op = isInst
+          ? { type: 'instrument.set', track, params }
+          : { type: 'insert.set', track, insert: slot, patch: { params } };
         const r = store.dispatch(op, { by: 'you', label: `${name}: ${to}` });
-        if (!r.ok) { st.on = from; ui.toast(r.error, { kind: 'bad' }); }
-        else st.flips.push({ txn: r.txn?.id, from, to });
+        if (!r.ok) {
+          st.on = from;
+          ui.toast(r.error, { kind: 'bad' });
+        } else st.flips.push({ txn: r.txn?.id, from, to });
         if (st.flips.length > 64) st.flips.splice(0, st.flips.length - 64);
       }
       syncAB();
       // the line says where the flip landed, and how far apart the two are now (the copy's line said it before any change)
       const n = differ(st.A, st.B);
-      if (st.on === to) status(n ? `${to} now: ${n} control${n === 1 ? ' differs' : 's differ'} from ${from}.` : `${to} now: the same as ${from} so far.`, { about: 'ab' });
+      if (st.on === to)
+        status(
+          n
+            ? `${to} now: ${n} control${n === 1 ? ' differs' : 's differ'} from ${from}.`
+            : `${to} now: the same as ${from} so far.`,
+          { about: 'ab' },
+        );
       ui.announce?.(`${name}: ${st.on}`);
     }
     function copyAB() {
-      const st = AB(), other = st.on === 'A' ? 'B' : 'A';
+      const st = AB(),
+        other = st.on === 'A' ? 'B' : 'A';
       st[other] = { ...stored };
       syncAB();
       status(`${other} is now a copy of ${st.on}.`, { about: 'ab' });
@@ -715,10 +1307,17 @@ export default function (app) {
       if (!st?.flips?.length) return;
       if (evt.kind === 'undo') {
         const gone = new Set([evt.txn?.id, ...(evt.reverted || []).map((x) => x.id)].filter(Boolean));
-        for (let i = st.flips.length - 1; i >= 0; i--) if (gone.has(st.flips[i].txn)) { st.on = st.flips[i].from; st.flips[i].undone = true; }
+        for (let i = st.flips.length - 1; i >= 0; i--)
+          if (gone.has(st.flips[i].txn)) {
+            st.on = st.flips[i].from;
+            st.flips[i].undone = true;
+          }
       } else if (evt.kind === 'redo') {
         const f = st.flips.find((x) => x.txn === evt.txn?.id && x.undone);
-        if (f) { st.on = f.to; f.undone = false; }
+        if (f) {
+          st.on = f.to;
+          f.undone = false;
+        }
       }
       syncAB();
     }
@@ -730,13 +1329,34 @@ export default function (app) {
       const ac = app.engine?.ctx;
       if (!ac || !alive) return null;
       let inst = null;
-      try { inst = app.engine.instance?.(track, slot) || null; } catch (e) { inst = null; }
+      try {
+        inst = app.engine.instance?.(track, slot) || null;
+      } catch (e) {
+        inst = null;
+      }
       if (inst !== tapS.inst) {
-        if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch (e) { /* gone */ } }
+        if (tapS.inst && tapS.an) {
+          try {
+            tapS.inst.output.disconnect(tapS.an);
+          } catch (e) {
+            /* gone */
+          }
+        }
         tapS.inst = null;
         if (inst?.output) {
-          if (!tapS.an || tapS.an.context !== ac) { tapS.an = ac.createAnalyser(); tapS.an.fftSize = 2048; tapS.an.smoothingTimeConstant = 0.7; tapS.t = new Float32Array(2048); tapS.f = new Float32Array(1024); }
-          try { inst.output.connect(tapS.an); tapS.inst = inst; } catch (e) { tapS.inst = null; }
+          if (!tapS.an || tapS.an.context !== ac) {
+            tapS.an = ac.createAnalyser();
+            tapS.an.fftSize = 2048;
+            tapS.an.smoothingTimeConstant = 0.7;
+            tapS.t = new Float32Array(2048);
+            tapS.f = new Float32Array(1024);
+          }
+          try {
+            inst.output.connect(tapS.an);
+            tapS.inst = inst;
+          } catch (e) {
+            tapS.inst = null;
+          }
         }
       }
       return tapS.inst ? tapS.an : null;
@@ -745,10 +1365,19 @@ export default function (app) {
       if (tapS.at === now) return tapS.level;
       tapS.at = now;
       const an = analyser();
-      if (!an) { tapS.level = { peak: -120, rms: -120 }; return tapS.level; }
+      if (!an) {
+        tapS.level = { peak: -120, rms: -120 };
+        return tapS.level;
+      }
       an.getFloatTimeDomainData(tapS.t);
-      let pk = 0, sq = 0;
-      for (let i = 0; i < tapS.t.length; i++) { const v = tapS.t[i], a = v < 0 ? -v : v; if (a > pk) pk = a; sq += v * v; }
+      let pk = 0,
+        sq = 0;
+      for (let i = 0; i < tapS.t.length; i++) {
+        const v = tapS.t[i],
+          a = v < 0 ? -v : v;
+        if (a > pk) pk = a;
+        sq += v * v;
+      }
       tapS.level = { peak: db(pk), rms: db(Math.sqrt(sq / tapS.t.length)) };
       return tapS.level;
     }
@@ -759,62 +1388,161 @@ export default function (app) {
       const ac = app.engine?.ctx;
       if (!ac || !alive) return null;
       let inst = null;
-      try { inst = app.engine.instance?.(track, slot) || null; } catch (e) { inst = null; }
+      try {
+        inst = app.engine.instance?.(track, slot) || null;
+      } catch (e) {
+        inst = null;
+      }
       const node = (inst && (which === 'input' ? inst.input : inst.output)) || null;
       const key = `${which}:${fftSize}:${smoothing}`;
       let t = taps.get(key);
-      if (!t) { t = { an: null, node: null }; taps.set(key, t); }
-      if (t.node && t.node !== node) { try { t.node.disconnect(t.an); } catch (e) { /* gone */ } t.node = null; }
+      if (!t) {
+        t = { an: null, node: null };
+        taps.set(key, t);
+      }
+      if (t.node && t.node !== node) {
+        try {
+          t.node.disconnect(t.an);
+        } catch (e) {
+          /* gone */
+        }
+        t.node = null;
+      }
       if (!node) return null;
-      if (!t.an || t.an.context !== ac) { t.an = ac.createAnalyser(); t.an.fftSize = fftSize; t.an.smoothingTimeConstant = smoothing; }
-      if (t.node !== node) { try { node.connect(t.an); t.node = node; } catch (e) { return null; } }
+      if (!t.an || t.an.context !== ac) {
+        t.an = ac.createAnalyser();
+        t.an.fftSize = fftSize;
+        t.an.smoothingTimeConstant = smoothing;
+      }
+      if (t.node !== node) {
+        try {
+          node.connect(t.an);
+          t.node = node;
+        } catch (e) {
+          return null;
+        }
+      }
       return t.an;
     }
     const meterApi = {
       node: () => analyser(),
       level: () => readLevel(performance.now()),
-      scope(buf) { const an = analyser(); if (!an) { buf.fill(0); return false; } an.getFloatTimeDomainData(buf); return true; },
-      spectrum(buf) { const an = analyser(); if (!an) { buf.fill(-120); return false; } an.getFloatFrequencyData(buf); return true; },
+      scope(buf) {
+        const an = analyser();
+        if (!an) {
+          buf.fill(0);
+          return false;
+        }
+        an.getFloatTimeDomainData(buf);
+        return true;
+      },
+      spectrum(buf) {
+        const an = analyser();
+        if (!an) {
+          buf.fill(-120);
+          return false;
+        }
+        an.getFloatFrequencyData(buf);
+        return true;
+      },
       tap: (which, o) => tap(which, o),
-      get sampleRate() { return app.engine?.ctx?.sampleRate || 48000; },
+      get sampleRate() {
+        return app.engine?.ctx?.sampleRate || 48000;
+      },
     };
-    const inks = { text: tok('--text') || '#f4ead6', t3: tok('--text-3') || '#9a8f7c', line: tok('--line') || '#2f2b25', line2: tok('--line-2') || '#46413a' };
+    const inks = {
+      text: tok('--text') || '#f4ead6',
+      t3: tok('--text-3') || '#9a8f7c',
+      line: tok('--line') || '#2f2b25',
+      line2: tok('--line-2') || '#46413a',
+    };
     let liveOn = false;
     scopeCv.set({
       animate: () => liveOn,
       draw: (g, { w, h: hh }) => {
         const an = analyser();
-        g.strokeStyle = inks.line2; g.lineWidth = 1; g.beginPath(); g.moveTo(0, Math.round(hh / 2) + 0.5); g.lineTo(w, Math.round(hh / 2) + 0.5); g.stroke();
+        g.strokeStyle = inks.line2;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(0, Math.round(hh / 2) + 0.5);
+        g.lineTo(w, Math.round(hh / 2) + 0.5);
+        g.stroke();
         if (!an) return;
         // the spectrum, 30 Hz to 18 kHz on a log axis, as a pencil fill
         an.getFloatFrequencyData(tapS.f);
-        const sr = an.context.sampleRate, n = tapS.f.length, lo = Math.log(30), hi = Math.log(18000);
-        g.fillStyle = inks.line2; g.beginPath(); g.moveTo(0, hh);
+        const sr = an.context.sampleRate,
+          n = tapS.f.length,
+          lo = Math.log(30),
+          hi = Math.log(18000);
+        g.fillStyle = inks.line2;
+        g.beginPath();
+        g.moveTo(0, hh);
         for (let x = 0; x <= w; x += 2) {
-          const f = Math.exp(lo + (hi - lo) * (x / w)), bin = clamp(Math.round((f / (sr / 2)) * n), 1, n - 1);
+          const f = Math.exp(lo + (hi - lo) * (x / w)),
+            bin = clamp(Math.round((f / (sr / 2)) * n), 1, n - 1);
           const y = hh - clamp((tapS.f[bin] + 100) / 80, 0, 1) * hh;
           g.lineTo(x, y);
         }
-        g.lineTo(w, hh); g.closePath(); g.fill();
+        g.lineTo(w, hh);
+        g.closePath();
+        g.fill();
         // the wave over it, from a rising zero crossing so it stands still
         an.getFloatTimeDomainData(tapS.t);
-        let z = 0; for (let i = 1; i < tapS.t.length / 2; i++) if (tapS.t[i - 1] < 0 && tapS.t[i] >= 0) { z = i; break; }
+        let z = 0;
+        for (let i = 1; i < tapS.t.length / 2; i++)
+          if (tapS.t[i - 1] < 0 && tapS.t[i] >= 0) {
+            z = i;
+            break;
+          }
         const span = Math.min(tapS.t.length - z, 1024);
-        g.strokeStyle = inks.text; g.lineWidth = 1.25; g.beginPath();
-        for (let x = 0; x <= w; x++) { const v = tapS.t[z + Math.floor((x / w) * (span - 1))] || 0; const y = hh / 2 - clamp(v, -1, 1) * (hh / 2 - 1); if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+        g.strokeStyle = inks.text;
+        g.lineWidth = 1.25;
+        g.beginPath();
+        for (let x = 0; x <= w; x++) {
+          const v = tapS.t[z + Math.floor((x / w) * (span - 1))] || 0;
+          const y = hh / 2 - clamp(v, -1, 1) * (hh / 2 - 1);
+          if (x) g.lineTo(x, y);
+          else g.moveTo(x, y);
+        }
         g.stroke();
       },
     });
 
     /* ---- the keyboard (instruments) */
     const kbListeners = new Set();
-    let kb = null, kbShown = false, oct = phone() ? 60 : 48;
+    let kb = null,
+      kbShown = false,
+      oct = phone() ? 60 : 48;
     const octLabel = h('span.pw-oct-l');
-    const octDown = h('button.pw-key', { type: 'button', 'aria-label': 'Octave down', title: 'Octave down', onclick: () => shiftOct(-12) }, icon('chevron', { size: 14 }));
+    const octDown = h(
+      'button.pw-key',
+      { type: 'button', 'aria-label': 'Octave down', title: 'Octave down', onclick: () => shiftOct(-12) },
+      icon('chevron', { size: 14 }),
+    );
     octDown.querySelector('svg').style.transform = 'scaleX(-1)';
-    const octUp = h('button.pw-key', { type: 'button', 'aria-label': 'Octave up', title: 'Octave up', onclick: () => shiftOct(12) }, icon('chevron', { size: 14 }));
+    const octUp = h(
+      'button.pw-key',
+      { type: 'button', 'aria-label': 'Octave up', title: 'Octave up', onclick: () => shiftOct(12) },
+      icon('chevron', { size: 14 }),
+    );
     // musical typing, from here: the home row plays this track (` does the same anywhere); a lamp, lit while it's on
-    const qwBtn = h('button.tog.pw-qw', { type: 'button', title: 'Play it from the computer keys: A S D F… (` turns it on or off anywhere)', onclick: () => { try { if (ui.state.selection.track !== track && track !== 'master') ui.select({ track }); app.input?.qwerty?.toggle?.(); } catch (e) { console.error(e); } paintQw(); } }, 'Computer keys');
+    const qwBtn = h(
+      'button.tog.pw-qw',
+      {
+        type: 'button',
+        title: 'Play it from the computer keys: A S D F… (` turns it on or off anywhere)',
+        onclick: () => {
+          try {
+            if (ui.state.selection.track !== track && track !== 'master') ui.select({ track });
+            app.input?.qwerty?.toggle?.();
+          } catch (e) {
+            console.error(e);
+          }
+          paintQw();
+        },
+      },
+      'Computer keys',
+    );
     const paintQw = () => qwBtn.setAttribute('aria-pressed', String(!!app.input?.qwerty?.on));
     paintQw();
     const offQw = app.input?.on?.('qwerty', paintQw) || null;
@@ -827,22 +1555,46 @@ export default function (app) {
       oct = clamp(oct, 12, 127 - n);
       kb.setRange(oct, oct + n);
       octLabel.textContent = `${kit.noteName(oct)} to ${kit.noteName(oct + n)}`;
-      octDown.disabled = oct <= 12; octUp.disabled = oct + n >= 120;
+      octDown.disabled = oct <= 12;
+      octUp.disabled = oct + n >= 120;
     }
-    function shiftOct(d) { oct += d; setKbRange(); }
+    function shiftOct(d) {
+      oct += d;
+      setKbRange();
+    }
     const s0t = s0.t;
     const keyboard = {
-      get el() { return keysBox; },
-      get shown() { return kbShown; },
+      get el() {
+        return keysBox;
+      },
+      get shown() {
+        return kbShown;
+      },
       show(on = true) {
         on = !!on && !!s0t && s0t.kind === 'instrument' && !!s0t.instrument;
         if (on === kbShown) return;
         kbShown = on;
         if (on && !kb) {
-          kb = kit.keys({ lo: oct, hi: oct + span(), label: `Keyboard: plays ${name} on ${s0.trackName}. Click or drag; lower on a key is louder`, onNote: (p, v, isOn) => {
-            try { if (isOn) app.engine.liveNoteOn(track, p, v); else app.engine.liveNoteOff(track, p); } catch (e) { /* no audio yet */ }
-            for (const fn of [...kbListeners]) { try { fn({ p, v, on: isOn }); } catch (e) { console.error(e); } }
-          } });
+          kb = kit.keys({
+            lo: oct,
+            hi: oct + span(),
+            label: `Keyboard: plays ${name} on ${s0.trackName}. Click or drag; lower on a key is louder`,
+            onNote: (p, v, isOn) => {
+              try {
+                if (isOn) app.engine.liveNoteOn(track, p, v);
+                else app.engine.liveNoteOff(track, p);
+              } catch (e) {
+                /* no audio yet */
+              }
+              for (const fn of [...kbListeners]) {
+                try {
+                  fn({ p, v, on: isOn });
+                } catch (e) {
+                  console.error(e);
+                }
+              }
+            },
+          });
           // (the lamp at the keyboard's right end: beside it, so the window grows no taller)
           keysBox.replaceChildren(octBox, kb.el, qwBtn);
           setKbRange();
@@ -851,28 +1603,52 @@ export default function (app) {
         keysBox.hidden = !on;
         el.classList.toggle('pw-has-keys', on);
       },
-      get range() { return kb ? kb.range : { lo: oct, hi: oct + span() }; },
-      setRange(lo, hi) { if (!kb) return; oct = lo; kb.setRange(lo, hi); octLabel.textContent = `${kit.noteName(lo)} to ${kit.noteName(hi)}`; },
-      on(fn) { kbListeners.add(fn); return () => kbListeners.delete(fn); },
+      get range() {
+        return kb ? kb.range : { lo: oct, hi: oct + span() };
+      },
+      setRange(lo, hi) {
+        if (!kb) return;
+        oct = lo;
+        kb.setRange(lo, hi);
+        octLabel.textContent = `${kit.noteName(lo)} to ${kit.noteName(hi)}`;
+      },
+      on(fn) {
+        kbListeners.add(fn);
+        return () => kbListeners.delete(fn);
+      },
       held: () => (kb ? kb.held() : []),
     };
     keysBox.hidden = true;
     keyboard.show(isInst);
-    const kbRo = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (kb && kb.range.hi - kb.range.lo !== span()) setKbRange(); }) : null;
+    const kbRo =
+      typeof ResizeObserver === 'function'
+        ? new ResizeObserver(() => {
+            if (kb && kb.range.hi - kb.range.lo !== span()) setKbRange();
+          })
+        : null;
     kbRo?.observe(body);
 
     /* ---- the editor */
     const ctx = {
-      app, def, addr: { track, slot, insert: slot },
+      app,
+      def,
+      addr: { track, slot, insert: slot },
       params: () => ({ ...shown }),
       stored: () => ({ ...stored }),
       set: (patch, o) => setParams(patch, o),
-      on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+      on(fn) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
       control,
       param: (k) => specs.get(k) || null,
       text: (k, v) => (specs.has(k) ? kit.text(specs.get(k), v ?? shown[k]) : String(v)),
-      lane: (k) => { const l = laneFor(app, laneAddr(k)); return l ? { lane: l.lane, held: l.held, note: laneNote(app, laneAddr(k), specs.get(k)?.label || k) } : null; },
-      menu: (k, anchor) => controlMenu(app, anchor, laneAddr(k), { name: specs.get(k)?.label || k, can: specs.get(k)?.auto !== false }),
+      lane: (k) => {
+        const l = laneFor(app, laneAddr(k));
+        return l ? { lane: l.lane, held: l.held, note: laneNote(app, laneAddr(k), specs.get(k)?.label || k) } : null;
+      },
+      menu: (k, anchor) =>
+        controlMenu(app, anchor, laneAddr(k), { name: specs.get(k)?.label || k, can: specs.get(k)?.auto !== false }),
       flash,
       isAgent: (b) => !!store.isAgent?.(b),
       byline: (b) => byline(b, { app }),
@@ -890,7 +1666,10 @@ export default function (app) {
         editorKind = kind;
       } catch (e) {
         console.warn(`plugin: the ${kind} editor failed to mount (${e.message}); using the generic one`);
-        if (mod !== generic) { mountEditor(generic, 'generic'); return; }
+        if (mod !== generic) {
+          mountEditor(generic, 'generic');
+          return;
+        }
         editor = {};
         body.append(h('div.empty', h('p', `This device's controls failed to draw: ${e.message}`)));
       }
@@ -904,8 +1683,14 @@ export default function (app) {
       el.dataset.editor = 'loading';
       ready = loadEditor(editorName).then((mod) => {
         if (!alive) return;
-        if (mod) { try { editor?.unmount?.(); } catch (e) { console.error(e); } mountEditor(mod, editorName); }
-        else el.dataset.editor = 'generic';
+        if (mod) {
+          try {
+            editor?.unmount?.();
+          } catch (e) {
+            console.error(e);
+          }
+          mountEditor(mod, editorName);
+        } else el.dataset.editor = 'generic';
       });
     }
     // What the window shows, for an agent (show_device): sections with their param keys. The generic editor's are its
@@ -917,22 +1702,32 @@ export default function (app) {
       const l = (a.getAttribute('aria-label') || '').trim();
       if (l) return l;
       const ids = a.getAttribute('aria-labelledby');
-      const by = ids ? ids.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ').trim() : '';
-      return by || (a.querySelector(':scope > :is(h2, h3, h4), :scope > header :is(h2, h3, h4)')?.textContent || '').trim();
+      const by = ids
+        ? ids
+            .split(/\s+/)
+            .map((id) => document.getElementById(id)?.textContent || '')
+            .join(' ')
+            .trim()
+        : '';
+      return (
+        by || (a.querySelector(':scope > :is(h2, h3, h4), :scope > header :is(h2, h3, h4)')?.textContent || '').trim()
+      );
     };
     function sections() {
       const gen = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys }));
       if (editorKind === 'generic') return gen;
       const genOf = new Map(gen.flatMap((s) => s.params.map((k) => [k, s.name])));
       const own = new RegExp(`^${escRe(name)}[:,]?\\s+`, 'i');
-      const by = new Map(), seen = new Set();
+      const by = new Map(),
+        seen = new Set();
       for (const c of body.querySelectorAll('[data-key]')) {
         const k = c.dataset.key;
         if (!specs.has(k) || seen.has(k)) continue;
         seen.add(k);
         let sec = null;
         for (let a = c.parentElement; a && a !== body && !sec; a = a.parentElement) {
-          if (a.matches('.pk-ctl') || !a.matches('section, fieldset, [role=region], [role=group], [role=tabpanel]')) continue;
+          if (a.matches('.pk-ctl') || !a.matches('section, fieldset, [role=region], [role=group], [role=tabpanel]'))
+            continue;
           const lab = nameOf(a);
           if (lab) sec = lab.replace(own, '').replace(/^./, (x) => x.toUpperCase());
         }
@@ -940,7 +1735,9 @@ export default function (app) {
         if (!by.has(sec)) by.set(sec, []);
         by.get(sec).push(k);
       }
-      const rest = gen.map((s) => ({ name: s.name, params: s.params.filter((k) => !seen.has(k)) })).filter((s) => s.params.length);
+      const rest = gen
+        .map((s) => ({ name: s.name, params: s.params.filter((k) => !seen.has(k)) }))
+        .filter((s) => s.params.length);
       return [...[...by].map(([n, params]) => ({ name: n, params })), ...rest.map((s) => ({ ...s, shown: false }))];
     }
 
@@ -961,10 +1758,18 @@ export default function (app) {
     /* ---- presence: an agent pointing at this device */
     let presEl = null;
     function presence(list) {
-      presEl?.remove(); presEl = null;
+      presEl?.remove();
+      presEl = null;
       const pr = (list || []).find((x) => x.track === track && (x.insert === slot || (isInst && x.instrument)));
       if (!pr) return;
-      presEl = h('div.crop.pw-pres', h('i'), h('i'), h('i'), h('i'), h('span', `${app.store.author?.(pr.by)?.name || pr.by}${pr.note ? ': ' + pr.note : ''}`));
+      presEl = h(
+        'div.crop.pw-pres',
+        h('i'),
+        h('i'),
+        h('i'),
+        h('i'),
+        h('span', `${app.store.author?.(pr.by)?.name || pr.by}${pr.note ? ': ' + pr.note : ''}`),
+      );
       plate.append(presEl);
     }
     presence(ui.state.presence || []);
@@ -972,18 +1777,44 @@ export default function (app) {
     /* ---- the window's own lifecycle */
     function update(evt) {
       if (!alive) return;
-      if (evt.kind === 'load') { close({ restore: false }); return; }
-      app.rack?.notePresets?.(evt);   // (what each slot was last on, before the preset line reads it: once per change)
-      const s = slotNow();
-      if (!s || s.devId !== devId) {
-        if (!s) { close({ restore: false }); ui.announce?.(`${name} is gone; its window closed`); return; }
-        // (rebuilt once the task is over: a sound on trial let go and kept in one task leaves the window as it was,
-        // and a knob being turned keeps its drag)
-        if (!swapSoon) { swapSoon = true; queueMicrotask(() => { swapSoon = false; if (!alive) return; const s2 = slotNow(); if (!s2) { close({ restore: false }); return; } if (s2.devId !== devId) rebuild(); else update(evt); }); }
+      if (evt.kind === 'load') {
+        close({ restore: false });
         return;
       }
-      if (!s.def || s.held) { close({ restore: false }); return; }
-      if (s.def !== def) { rebuild(); return; }
+      app.rack?.notePresets?.(evt); // (what each slot was last on, before the preset line reads it: once per change)
+      const s = slotNow();
+      if (!s || s.devId !== devId) {
+        if (!s) {
+          close({ restore: false });
+          ui.announce?.(`${name} is gone; its window closed`);
+          return;
+        }
+        // (rebuilt once the task is over: a sound on trial let go and kept in one task leaves the window as it was,
+        // and a knob being turned keeps its drag)
+        if (!swapSoon) {
+          swapSoon = true;
+          queueMicrotask(() => {
+            swapSoon = false;
+            if (!alive) return;
+            const s2 = slotNow();
+            if (!s2) {
+              close({ restore: false });
+              return;
+            }
+            if (s2.devId !== devId) rebuild();
+            else update(evt);
+          });
+        }
+        return;
+      }
+      if (!s.def || s.held) {
+        close({ restore: false });
+        return;
+      }
+      if (s.def !== def) {
+        rebuild();
+        return;
+      }
       if (evt.kind === 'undo' || evt.kind === 'redo') abFollow(evt);
       const lanesMoved = lanes();
       const before = stored;
@@ -996,7 +1827,10 @@ export default function (app) {
       pushValues(keys, evt.by, evt.kind);
       if (lanesMoved) emit({ type: 'lanes' });
       const on = syncOn();
-      if (on !== wasOn) { wasOn = on; emit({ type: 'on', on }); }
+      if (on !== wasOn) {
+        wasOn = on;
+        emit({ type: 'on', on });
+      }
       syncPresets();
       syncKey();
       renderCredit();
@@ -1004,20 +1838,48 @@ export default function (app) {
         const changed = keys.filter((k) => stored[k] !== before[k]);
         for (const k of changed) flash(k);
         let words = null;
-        if (changed.length && typeof editor?.said === 'function') { try { words = editor.said(changed, evt.by); } catch (e) { words = null; } }
+        if (changed.length && typeof editor?.said === 'function') {
+          try {
+            words = editor.said(changed, evt.by);
+          } catch (e) {
+            words = null;
+          }
+        }
         if (typeof words === 'string' && words) status([byline(evt.by, { app, cap: true }), ` ${words}`]);
         else if (changed.length) agentSaid(evt.by, changed);
-        if (!isInst && (evt.ops || []).some((o) => o.type === 'insert.set' && o.insert === slot && o.patch && 'on' in o.patch) && onTog) { flash(onTog.el); status([byline(evt.by, { app, cap: true }), on ? ' switched it on.' : ' bypassed it.']); }
+        if (
+          !isInst &&
+          (evt.ops || []).some((o) => o.type === 'insert.set' && o.insert === slot && o.patch && 'on' in o.patch) &&
+          onTog
+        ) {
+          flash(onTog.el);
+          status([byline(evt.by, { app, cap: true }), on ? ' switched it on.' : ' bypassed it.']);
+        }
       }
     }
-    let lastLv = -1, liveAt = 0, swapSoon = false;
+    let lastLv = -1,
+      liveAt = 0,
+      swapSoon = false;
     function frame(now) {
       if (!alive) return;
-      if (flashes.length) flashes = flashes.filter((f) => { if (now > f.until) { f.el.classList.remove('pk-flash'); return false; } return true; });
+      if (flashes.length)
+        flashes = flashes.filter((f) => {
+          if (now > f.until) {
+            f.el.classList.remove('pk-flash');
+            return false;
+          }
+          return true;
+        });
       // knobs on playing lanes turn with the song
       if (follow.length) {
         const keys = [];
-        for (const f of follow) { const v = laneNow(app, f.addr, f.l); if (fin(v) && v !== shown[f.key]) { shown[f.key] = v; keys.push(f.key); } }
+        for (const f of follow) {
+          const v = laneNow(app, f.addr, f.l);
+          if (fin(v) && v !== shown[f.key]) {
+            shown[f.key] = v;
+            keys.push(f.key);
+          }
+        }
         if (keys.length) pushValues(keys, null, 'lane');
       }
       // the output: read at ~30 Hz; the scope animates while there's sound or the song plays
@@ -1028,13 +1890,21 @@ export default function (app) {
         if (lv.peak > -90) tapS.quietSince = now;
         liveOn = playing || now - tapS.quietSince < 600;
         const x = clamp((lv.rms + 54) / 54, 0, 1);
-        if (Math.abs(x - lastLv) > 0.02) { lastLv = x; el.style.setProperty('--pw-lv', x.toFixed(2)); }
+        if (Math.abs(x - lastLv) > 0.02) {
+          lastLv = x;
+          el.style.setProperty('--pw-lv', x.toFixed(2));
+        }
         const txt = fmtDbShort(lv.peak);
         if (peakEl.textContent !== txt) peakEl.textContent = txt;
         playKey.setAttribute('aria-pressed', String(playing));
         playKey.classList.toggle('on', playing);
       }
-      try { editor?.frame?.(now); } catch (e) { console.error('plugin: the editor failed to draw', e); editor.frame = null; }
+      try {
+        editor?.frame?.(now);
+      } catch (e) {
+        console.error('plugin: the editor failed to draw', e);
+        editor.frame = null;
+      }
     }
     function liveNote(n) {
       if (!kb || !n || n.track !== track) return;
@@ -1045,24 +1915,69 @@ export default function (app) {
       alive = false;
       clearTimeout(statusT);
       prePop?.close();
-      try { editor?.unmount?.(); } catch (e) { console.error('plugin: the editor failed to unmount', e); }
+      try {
+        editor?.unmount?.();
+      } catch (e) {
+        console.error('plugin: the editor failed to unmount', e);
+      }
       editor = null;
       kb?.destroy();
       kbRo?.disconnect();
-      try { offQw?.(); offMode?.(); } catch (e) { /* ok */ }
+      try {
+        offQw?.();
+        offMode?.();
+      } catch (e) {
+        /* ok */
+      }
       scopeCv.destroy();
-      if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch (e) { /* gone */ } }
-      for (const t of taps.values()) if (t.node && t.an) { try { t.node.disconnect(t.an); } catch (e) { /* gone */ } }
+      if (tapS.inst && tapS.an) {
+        try {
+          tapS.inst.output.disconnect(tapS.an);
+        } catch (e) {
+          /* gone */
+        }
+      }
+      for (const t of taps.values())
+        if (t.node && t.an) {
+          try {
+            t.node.disconnect(t.an);
+          } catch (e) {
+            /* gone */
+          }
+        }
       taps.clear();
-      listeners.clear(); kbListeners.clear();
-      try { undock?.(); } catch (e) { /* the shell's own */ }
+      listeners.clear();
+      kbListeners.clear();
+      try {
+        undock?.();
+      } catch (e) {
+        /* the shell's own */
+      }
       el.remove();
     }
     return {
-      el, addr, def, editorName, ready, sections,
-      get editorKind() { return editorKind; },
-      update, frame, destroy, place, presence, liveNote,
-      focus() { el.focus({ preventScroll: true }); if (ui.state.focus !== 'plugin') { ui.state.focus = 'plugin'; ui.emit('focus', 'plugin'); } },
+      el,
+      addr,
+      def,
+      editorName,
+      ready,
+      sections,
+      get editorKind() {
+        return editorKind;
+      },
+      update,
+      frame,
+      destroy,
+      place,
+      presence,
+      liveNote,
+      focus() {
+        el.focus({ preventScroll: true });
+        if (ui.state.focus !== 'plugin') {
+          ui.state.focus = 'plugin';
+          ui.emit('focus', 'plugin');
+        }
+      },
       ctx,
     };
   }

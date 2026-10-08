@@ -29,9 +29,25 @@
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
 
-export const NP = 16;                 // points a shape holds
-export const OCTAVES = 8;             // how far the filter closes at 100% depth
-export const RATES = ['1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8', '1/8D', '1/4T', '1/4', '1/4D', '1/2T', '1/2', '1/2D', '1 BAR', '2 BARS'];
+export const NP = 16; // points a shape holds
+export const OCTAVES = 8; // how far the filter closes at 100% depth
+export const RATES = [
+  '1/32',
+  '1/16T',
+  '1/16',
+  '1/16D',
+  '1/8T',
+  '1/8',
+  '1/8D',
+  '1/4T',
+  '1/4',
+  '1/4D',
+  '1/2T',
+  '1/2',
+  '1/2D',
+  '1 BAR',
+  '2 BARS',
+];
 export const RATE_BEATS = [0.125, 1 / 6, 0.25, 0.375, 1 / 3, 0.5, 0.75, 2 / 3, 1, 1.5, 4 / 3, 2, 3, 4, 8];
 // The lanes, in the order the window shows them. rest: a point's level where the lane does nothing (its default)
 export const LANES = [
@@ -40,14 +56,17 @@ export const LANES = [
   { id: 'pan', name: 'Pan', word: 'pan', rest: 0.5, rate: 11, depth: 100, on: 0 },
 ];
 export const laneOf = (id) => LANES.find((l) => l.id === id) || null;
-export const pkey = (lane, i, f) => `${lane}${i}_${f}`;            // i is 1-based: pkey('vol', 3, 'x') -> 'vol3_x'
+export const pkey = (lane, i, f) => `${lane}${i}_${f}`; // i is 1-based: pkey('vol', 3, 'x') -> 'vol3_x'
 // a point slot's own defaults: the first at the start, the rest at the end, all at the lane's rest level, straight
 export const slotDefault = (lane, i) => ({ x: i === 1 ? 0 : 1, y: laneOf(lane)?.rest ?? 1, c: 0, s: 0 });
 
 /* ------------------------------------------------------------------------------------------------ reading a shape */
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const cl = (x, a, b) => (x < a ? a : x > b ? b : x);
-const num = (v, d) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
+const num = (v, d) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : d;
+};
 // The shape a lane's params hold, sorted by x (a tie keeps the param order): [{ i, x, y, c, s }], i the 1-based slot
 export function pointsOf(params = {}, lane = 'vol') {
   const L = laneOf(lane);
@@ -56,7 +75,13 @@ export function pointsOf(params = {}, lane = 'vol') {
   const out = [];
   for (let i = 1; i <= n; i++) {
     const d = slotDefault(lane, i);
-    out.push({ i, x: cl(num(params[pkey(lane, i, 'x')], d.x), 0, 1), y: cl(num(params[pkey(lane, i, 'y')], d.y), 0, 1), c: cl(num(params[pkey(lane, i, 'c')], 0), -1, 1), s: num(params[pkey(lane, i, 's')], 0) >= 0.5 ? 1 : 0 });
+    out.push({
+      i,
+      x: cl(num(params[pkey(lane, i, 'x')], d.x), 0, 1),
+      y: cl(num(params[pkey(lane, i, 'y')], d.y), 0, 1),
+      c: cl(num(params[pkey(lane, i, 'c')], 0), -1, 1),
+      s: num(params[pkey(lane, i, 's')], 0) >= 0.5 ? 1 : 0,
+    });
   }
   return out.sort((a, b) => a.x - b.x || a.i - b.i);
 }
@@ -69,7 +94,10 @@ export function bend(u, c) {
 export function segmentAt(pts, ph) {
   const n = pts.length;
   let k = -1;
-  for (let j = 0; j < n; j++) { if (pts[j].x <= ph) k = j; else break; }
+  for (let j = 0; j < n; j++) {
+    if (pts[j].x <= ph) k = j;
+    else break;
+  }
   if (k < 0) return { j0: n - 1, j1: 0, x0: pts[n - 1].x - 1, x1: pts[0].x };
   if (k === n - 1) return { j0: k, j1: 0, x0: pts[k].x, x1: pts[0].x + 1 };
   return { j0: k, j1: k + 1, x0: pts[k].x, x1: pts[k + 1].x };
@@ -78,7 +106,9 @@ export function segmentAt(pts, ph) {
 export function valueAt(pts, ph) {
   if (!pts.length) return 1;
   ph -= Math.floor(ph);
-  const g = segmentAt(pts, ph), a = pts[g.j0], b = pts[g.j1];
+  const g = segmentAt(pts, ph),
+    a = pts[g.j0],
+    b = pts[g.j1];
   if (a.s) return a.y;
   const len = g.x1 - g.x0;
   const u = len > 1e-9 ? cl((ph - g.x0) / len, 0, 1) : 1;
@@ -107,22 +137,34 @@ export function lanePatch(lane, points) {
   }
   return out;
 }
-const r4 = (x) => { const r = Math.round(x * 10000) / 10000; return Object.is(r, -0) ? 0 : r; };
+const r4 = (x) => {
+  const r = Math.round(x * 10000) / 10000;
+  return Object.is(r, -0) ? 0 : r;
+};
 // [[x, y, c?, 'step'?], ...] -> points (how the presets are written below)
 const pts = (list) => list.map(([x, y, c = 0, s = 0]) => ({ x, y, c: s ? 0 : c, s: s ? 1 : 0 }));
 const shape = (lane, list) => lanePatch(lane, pts(list));
 
 /* ------------------------------------------------------------------------------------------------ the text form */
-const r3 = (x) => { const r = Math.round(x * 1000) / 1000; return Object.is(r, -0) ? 0 : r; };
+const r3 = (x) => {
+  const r = Math.round(x * 1000) / 1000;
+  return Object.is(r, -0) ? 0 : r;
+};
 // "0:0~-0.35 0.6:1 1:1": x:y per point in order, ~bend or ~step after it (the automation lanes' text form)
-export const shapeText = (points) => (points || []).map((p) => `${r3(p.x)}:${r3(p.y)}${p.s ? '~step' : p.c ? `~${r3(p.c)}` : ''}`).join(' ');
+export const shapeText = (points) =>
+  (points || []).map((p) => `${r3(p.x)}:${r3(p.y)}${p.s ? '~step' : p.c ? `~${r3(p.c)}` : ''}`).join(' ');
 const hz = (f) => (f >= 1000 ? `${+(f / 1000).toFixed(f >= 10000 ? 1 : 2)} kHz` : `${Math.round(f)} Hz`);
-const isRest = (lane, pts) => pts.length === 2 && pts.every((p) => !p.s && !p.c && Math.abs(p.y - laneOf(lane).rest) < 1e-6) && pts[0].x === 0 && pts[1].x === 1;
+const isRest = (lane, pts) =>
+  pts.length === 2 &&
+  pts.every((p) => !p.s && !p.c && Math.abs(p.y - laneOf(lane).rest) < 1e-6) &&
+  pts[0].x === 0 &&
+  pts[1].x === 1;
 // One line for get_project: what each lane does, in words and the text form, and how the params spell it
 export function describe(params = {}) {
   const v = { ...DEFAULTS, ...params };
   const lane = (L) => {
-    const p = pointsOf(v, L.id), on = num(v[`${L.id}_on`], 0) >= 0.5;
+    const p = pointsOf(v, L.id),
+      on = num(v[`${L.id}_on`], 0) >= 0.5;
     const rate = RATES[cl(Math.round(num(v[`${L.id}_rate`], L.rate)), 0, RATES.length - 1)];
     const extra = L.id === 'flt' ? `, cutoff ${hz(num(v.flt_cut, 8000))}, reso ${r3(num(v.flt_res, 0.25))}` : '';
     if (!on) return `${L.word} off${isRest(L.id, p) ? '' : ` (every ${rate}: ${shapeText(p)})`}`;
@@ -133,36 +175,173 @@ export function describe(params = {}) {
 
 /* ------------------------------------------------------------------------------------------------ the params */
 const lanePoints = (L) => {
-  const out = [{ key: `${L.id}_n`, label: `${L.id} points`, min: 1, max: NP, def: 2, step: 1, hidden: true, auto: false,
-    desc: L.id === 'vol'
-      ? `how many points the volume shape uses: vol1 … vol${NP}. Point i is vol<i>_x (where in one pass, 0..1), vol<i>_y (0 bottom … 1 top: the level, or pulled down by VOL DEPTH), vol<i>_c (the bend to the next point, -1..1: > 0 starts slow) and vol<i>_s (1: hold, then jump at the next point). The shape loops`
-      : L.id === 'flt'
-        ? 'how many points the filter shape uses: flt1 … fltN, as vol_n says; 1 is the cutoff, 0 the cutoff closed by FLT DEPTH'
-        : 'how many points the pan shape uses: pan1 … panN, as vol_n says; 0.5 is the middle, 1 right and 0 left (at 100% PAN DEPTH)' }];
+  const out = [
+    {
+      key: `${L.id}_n`,
+      label: `${L.id} points`,
+      min: 1,
+      max: NP,
+      def: 2,
+      step: 1,
+      hidden: true,
+      auto: false,
+      desc:
+        L.id === 'vol'
+          ? `how many points the volume shape uses: vol1 … vol${NP}. Point i is vol<i>_x (where in one pass, 0..1), vol<i>_y (0 bottom … 1 top: the level, or pulled down by VOL DEPTH), vol<i>_c (the bend to the next point, -1..1: > 0 starts slow) and vol<i>_s (1: hold, then jump at the next point). The shape loops`
+          : L.id === 'flt'
+            ? 'how many points the filter shape uses: flt1 … fltN, as vol_n says; 1 is the cutoff, 0 the cutoff closed by FLT DEPTH'
+            : 'how many points the pan shape uses: pan1 … panN, as vol_n says; 0.5 is the middle, 1 right and 0 left (at 100% PAN DEPTH)',
+    },
+  ];
   for (let i = 1; i <= NP; i++) {
-    const d = slotDefault(L.id, i), one = i === 1 && L.id === 'vol';
+    const d = slotDefault(L.id, i),
+      one = i === 1 && L.id === 'vol';
     out.push(
-      { key: pkey(L.id, i, 'x'), label: `${L.id} ${i} x`, min: 0, max: 1, def: d.x, quantum: 1e-4, hidden: true, auto: false, ...(one ? { desc: 'point 1: where it sits in one pass of the shape, 0 (start) .. 1 (end)' } : {}) },
-      { key: pkey(L.id, i, 'y'), label: `${L.id} ${i} y`, min: 0, max: 1, def: d.y, quantum: 1e-4, hidden: true, auto: false, ...(one ? { desc: 'point 1: its level, 0 (bottom) .. 1 (top)' } : {}) },
-      { key: pkey(L.id, i, 'c'), label: `${L.id} ${i} bend`, min: -1, max: 1, def: 0, quantum: 1e-3, hidden: true, auto: false, ...(one ? { desc: 'point 1: the bend of the line to the next point: > 0 starts slow, < 0 starts fast' } : {}) },
-      { key: pkey(L.id, i, 's'), label: `${L.id} ${i} step`, opts: ['LINE', 'STEP'], def: 0, hidden: true, auto: false, ...(one ? { desc: 'point 1: STEP holds its level, then jumps at the next point' } : {}) },
+      {
+        key: pkey(L.id, i, 'x'),
+        label: `${L.id} ${i} x`,
+        min: 0,
+        max: 1,
+        def: d.x,
+        quantum: 1e-4,
+        hidden: true,
+        auto: false,
+        ...(one ? { desc: 'point 1: where it sits in one pass of the shape, 0 (start) .. 1 (end)' } : {}),
+      },
+      {
+        key: pkey(L.id, i, 'y'),
+        label: `${L.id} ${i} y`,
+        min: 0,
+        max: 1,
+        def: d.y,
+        quantum: 1e-4,
+        hidden: true,
+        auto: false,
+        ...(one ? { desc: 'point 1: its level, 0 (bottom) .. 1 (top)' } : {}),
+      },
+      {
+        key: pkey(L.id, i, 'c'),
+        label: `${L.id} ${i} bend`,
+        min: -1,
+        max: 1,
+        def: 0,
+        quantum: 1e-3,
+        hidden: true,
+        auto: false,
+        ...(one ? { desc: 'point 1: the bend of the line to the next point: > 0 starts slow, < 0 starts fast' } : {}),
+      },
+      {
+        key: pkey(L.id, i, 's'),
+        label: `${L.id} ${i} step`,
+        opts: ['LINE', 'STEP'],
+        def: 0,
+        hidden: true,
+        auto: false,
+        ...(one ? { desc: 'point 1: STEP holds its level, then jumps at the next point' } : {}),
+      },
     );
   }
   return out;
 };
 const PARAMS = [
-  { key: 'vol_on', label: 'VOLUME', opts: ['OFF', 'ON'], def: 1, desc: 'the volume lane: its shape moves the level in time' },
-  { key: 'vol_depth', label: 'VOL DEPTH', min: 0, max: 100, def: 100, unit: '%', role: 'depth', desc: 'how far the shape pulls the level down: at 100% the bottom of the shape is silence' },
-  { key: 'vol_rate', label: 'VOL RATE', opts: RATES, def: 8, role: 'rate', desc: 'one pass of the volume shape as a note length, locked to the song (a bar is 4 beats)' },
-  { key: 'flt_on', label: 'FILTER', opts: ['OFF', 'ON'], def: 0, desc: 'the filter lane: its shape moves a resonant low-pass' },
-  { key: 'flt_depth', label: 'FLT DEPTH', min: 0, max: 100, def: 50, unit: '%', role: 'depth', desc: `how far the shape closes the filter: at 100% the bottom of the shape is ${OCTAVES} octaves under CUTOFF` },
-  { key: 'flt_rate', label: 'FLT RATE', opts: RATES, def: 5, role: 'rate', desc: 'one pass of the filter shape as a note length, locked to the song' },
-  { key: 'flt_cut', label: 'CUTOFF', min: 40, max: 18000, def: 8000, curve: 'log', unit: 'Hz', role: 'tone', desc: 'where the filter sits at the top of the shape' },
+  {
+    key: 'vol_on',
+    label: 'VOLUME',
+    opts: ['OFF', 'ON'],
+    def: 1,
+    desc: 'the volume lane: its shape moves the level in time',
+  },
+  {
+    key: 'vol_depth',
+    label: 'VOL DEPTH',
+    min: 0,
+    max: 100,
+    def: 100,
+    unit: '%',
+    role: 'depth',
+    desc: 'how far the shape pulls the level down: at 100% the bottom of the shape is silence',
+  },
+  {
+    key: 'vol_rate',
+    label: 'VOL RATE',
+    opts: RATES,
+    def: 8,
+    role: 'rate',
+    desc: 'one pass of the volume shape as a note length, locked to the song (a bar is 4 beats)',
+  },
+  {
+    key: 'flt_on',
+    label: 'FILTER',
+    opts: ['OFF', 'ON'],
+    def: 0,
+    desc: 'the filter lane: its shape moves a resonant low-pass',
+  },
+  {
+    key: 'flt_depth',
+    label: 'FLT DEPTH',
+    min: 0,
+    max: 100,
+    def: 50,
+    unit: '%',
+    role: 'depth',
+    desc: `how far the shape closes the filter: at 100% the bottom of the shape is ${OCTAVES} octaves under CUTOFF`,
+  },
+  {
+    key: 'flt_rate',
+    label: 'FLT RATE',
+    opts: RATES,
+    def: 5,
+    role: 'rate',
+    desc: 'one pass of the filter shape as a note length, locked to the song',
+  },
+  {
+    key: 'flt_cut',
+    label: 'CUTOFF',
+    min: 40,
+    max: 18000,
+    def: 8000,
+    curve: 'log',
+    unit: 'Hz',
+    role: 'tone',
+    desc: 'where the filter sits at the top of the shape',
+  },
   { key: 'flt_res', label: 'RESO', min: 0, max: 1, def: 0.25, role: 'tone', desc: 'a singing peak at the cutoff' },
-  { key: 'pan_on', label: 'PAN', opts: ['OFF', 'ON'], def: 0, desc: 'the pan lane: its shape moves the sound between the speakers' },
-  { key: 'pan_depth', label: 'PAN DEPTH', min: 0, max: 100, def: 100, unit: '%', role: 'width', desc: 'how far it pans: at 100% the top of the shape is hard right and the bottom hard left' },
-  { key: 'pan_rate', label: 'PAN RATE', opts: RATES, def: 11, role: 'rate', desc: 'one pass of the pan shape as a note length, locked to the song' },
-  { key: 'smooth', label: 'SMOOTH', min: 0.1, max: 100, def: 2, curve: 'log', unit: 'ms', role: 'attack', desc: 'how long the shape\'s edges take: 0.1 ms is a hard edge (it clicks, on purpose), 2-5 ms is clean, 30 ms and up rounds a gate into a swell' },
+  {
+    key: 'pan_on',
+    label: 'PAN',
+    opts: ['OFF', 'ON'],
+    def: 0,
+    desc: 'the pan lane: its shape moves the sound between the speakers',
+  },
+  {
+    key: 'pan_depth',
+    label: 'PAN DEPTH',
+    min: 0,
+    max: 100,
+    def: 100,
+    unit: '%',
+    role: 'width',
+    desc: 'how far it pans: at 100% the top of the shape is hard right and the bottom hard left',
+  },
+  {
+    key: 'pan_rate',
+    label: 'PAN RATE',
+    opts: RATES,
+    def: 11,
+    role: 'rate',
+    desc: 'one pass of the pan shape as a note length, locked to the song',
+  },
+  {
+    key: 'smooth',
+    label: 'SMOOTH',
+    min: 0.1,
+    max: 100,
+    def: 2,
+    curve: 'log',
+    unit: 'ms',
+    role: 'attack',
+    desc: "how long the shape's edges take: 0.1 ms is a hard edge (it clicks, on purpose), 2-5 ms is clean, 30 ms and up rounds a gate into a swell",
+  },
   { key: 'mix', label: 'MIX', min: 0, max: 100, def: 100, unit: '%', role: 'mix', desc: 'dry to all shaped' },
   ...LANES.flatMap(lanePoints),
 ];
@@ -171,22 +350,134 @@ const DEFAULTS = Object.fromEntries(PARAMS.map((p) => [p.key, p.def]));
 /* ------------------------------------------------------------------------------------------------ the presets */
 // Each is the whole device (a preset is the whole sound): the lane it is about on and drawn, the others off and flat.
 export const PRESETS = [
-  { name: 'Pump (quarter notes)', blurb: 'ducks on every beat and breathes back, like a kick on the sidechain',
-    params: { vol_rate: 8, vol_depth: 85, smooth: 4, ...shape('vol', [[0, 0, -0.35], [0.6, 1], [1, 1]]) } },
-  { name: 'Pump (eighths)', blurb: 'a quicker duck on every eighth',
-    params: { vol_rate: 5, vol_depth: 75, smooth: 3, ...shape('vol', [[0, 0, -0.3], [0.7, 1], [1, 1]]) } },
-  { name: 'Gate (sixteenths)', blurb: 'chops every sixteenth: on, then off',
-    params: { vol_rate: 2, vol_depth: 100, smooth: 1.5, ...shape('vol', [[0, 1, 0, 1], [0.55, 0, 0, 1]]) } },
-  { name: 'Stutter', blurb: 'two beats open, then sixteenth and thirty-second chops into the next bar',
-    params: { vol_rate: 13, vol_depth: 100, smooth: 1, ...shape('vol', [[0, 1, 0, 1], [0.5625, 0, 0, 1], [0.625, 1, 0, 1], [0.6875, 0, 0, 1], [0.75, 1, 0, 1], [0.78125, 0, 0, 1], [0.8125, 1, 0, 1], [0.84375, 0, 0, 1], [0.875, 1, 0, 1], [0.90625, 0, 0, 1], [0.9375, 1, 0, 1], [0.96875, 0, 0, 1]]) } },
-  { name: 'Swell over a bar', blurb: 'rises from nothing to full across each bar',
-    params: { vol_rate: 13, vol_depth: 100, smooth: 6, ...shape('vol', [[0, 0, 0.45], [0.92, 1], [1, 1]]) } },
-  { name: 'Auto-pan', blurb: 'sways left and right every half note',
-    params: { vol_on: 0, pan_on: 1, pan_rate: 11, pan_depth: 80, smooth: 10, ...shape('pan', [[0, 0.5, -0.2], [0.25, 1, 0.2], [0.5, 0.5, -0.2], [0.75, 0, 0.2]]) } },
-  { name: 'Filter wobble (eighths)', blurb: 'a resonant low-pass that opens and closes every eighth',
-    params: { vol_on: 0, flt_on: 1, flt_rate: 5, flt_depth: 70, flt_cut: 3200, flt_res: 0.6, smooth: 5, ...shape('flt', [[0, 0, 0.2], [0.25, 0.5, -0.2], [0.5, 1, 0.2], [0.75, 0.5, -0.2]]) } },
-  { name: 'Half-time duck', blurb: 'a deep, slow duck on beats one and three',
-    params: { vol_rate: 11, vol_depth: 90, smooth: 5, ...shape('vol', [[0, 0, -0.25], [0.45, 1], [1, 1]]) } },
+  {
+    name: 'Pump (quarter notes)',
+    blurb: 'ducks on every beat and breathes back, like a kick on the sidechain',
+    params: {
+      vol_rate: 8,
+      vol_depth: 85,
+      smooth: 4,
+      ...shape('vol', [
+        [0, 0, -0.35],
+        [0.6, 1],
+        [1, 1],
+      ]),
+    },
+  },
+  {
+    name: 'Pump (eighths)',
+    blurb: 'a quicker duck on every eighth',
+    params: {
+      vol_rate: 5,
+      vol_depth: 75,
+      smooth: 3,
+      ...shape('vol', [
+        [0, 0, -0.3],
+        [0.7, 1],
+        [1, 1],
+      ]),
+    },
+  },
+  {
+    name: 'Gate (sixteenths)',
+    blurb: 'chops every sixteenth: on, then off',
+    params: {
+      vol_rate: 2,
+      vol_depth: 100,
+      smooth: 1.5,
+      ...shape('vol', [
+        [0, 1, 0, 1],
+        [0.55, 0, 0, 1],
+      ]),
+    },
+  },
+  {
+    name: 'Stutter',
+    blurb: 'two beats open, then sixteenth and thirty-second chops into the next bar',
+    params: {
+      vol_rate: 13,
+      vol_depth: 100,
+      smooth: 1,
+      ...shape('vol', [
+        [0, 1, 0, 1],
+        [0.5625, 0, 0, 1],
+        [0.625, 1, 0, 1],
+        [0.6875, 0, 0, 1],
+        [0.75, 1, 0, 1],
+        [0.78125, 0, 0, 1],
+        [0.8125, 1, 0, 1],
+        [0.84375, 0, 0, 1],
+        [0.875, 1, 0, 1],
+        [0.90625, 0, 0, 1],
+        [0.9375, 1, 0, 1],
+        [0.96875, 0, 0, 1],
+      ]),
+    },
+  },
+  {
+    name: 'Swell over a bar',
+    blurb: 'rises from nothing to full across each bar',
+    params: {
+      vol_rate: 13,
+      vol_depth: 100,
+      smooth: 6,
+      ...shape('vol', [
+        [0, 0, 0.45],
+        [0.92, 1],
+        [1, 1],
+      ]),
+    },
+  },
+  {
+    name: 'Auto-pan',
+    blurb: 'sways left and right every half note',
+    params: {
+      vol_on: 0,
+      pan_on: 1,
+      pan_rate: 11,
+      pan_depth: 80,
+      smooth: 10,
+      ...shape('pan', [
+        [0, 0.5, -0.2],
+        [0.25, 1, 0.2],
+        [0.5, 0.5, -0.2],
+        [0.75, 0, 0.2],
+      ]),
+    },
+  },
+  {
+    name: 'Filter wobble (eighths)',
+    blurb: 'a resonant low-pass that opens and closes every eighth',
+    params: {
+      vol_on: 0,
+      flt_on: 1,
+      flt_rate: 5,
+      flt_depth: 70,
+      flt_cut: 3200,
+      flt_res: 0.6,
+      smooth: 5,
+      ...shape('flt', [
+        [0, 0, 0.2],
+        [0.25, 0.5, -0.2],
+        [0.5, 1, 0.2],
+        [0.75, 0.5, -0.2],
+      ]),
+    },
+  },
+  {
+    name: 'Half-time duck',
+    blurb: 'a deep, slow duck on beats one and three',
+    params: {
+      vol_rate: 11,
+      vol_depth: 90,
+      smooth: 5,
+      ...shape('vol', [
+        [0, 0, -0.25],
+        [0.45, 1],
+        [1, 1],
+      ]),
+    },
+  },
 ];
 // the lane a preset is about (the one it turns on that does something): its drawing in the window
 export function presetLane(pr) {
@@ -336,13 +627,25 @@ return {
 `;
 
 export default defineDevice({
-  id: 'core.shaper', name: 'Scribble Strip', kind: 'effect', cat: 'mod', by: 'overdub',
+  id: 'core.shaper',
+  name: 'Scribble Strip',
+  kind: 'effect',
+  cat: 'mod',
+  by: 'overdub',
   blurb: 'Draw shapes that move volume, filter and pan in time',
   nod: 'a drawable, tempo-synced volume, filter and pan shaper: sidechain-style pumping without the sidechain',
   editor: 'shaper',
   params: PARAMS,
   presets: PRESETS,
-  look: { color: '#e8dfc8', ink: '#211e1a', shape: 'rack', finish: 'flat', knob: 'black', label: 'script', led: '#3fb68b' },
+  look: {
+    color: '#e8dfc8',
+    ink: '#211e1a',
+    shape: 'rack',
+    finish: 'flat',
+    knob: 'black',
+    label: 'script',
+    led: '#3fb68b',
+  },
   tail: 0.1,
   describe,
   kernel: kernel(BODY),

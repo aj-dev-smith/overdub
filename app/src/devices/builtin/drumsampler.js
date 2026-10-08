@@ -25,10 +25,29 @@
 // the words for them). The output runs through Studio A's stereo-linked true-peak limiter (-1.5 dBTP, 1.5 ms ahead).
 import { kernel } from './lib.js';
 
-export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24, even = false, offset = null, rr = null, similar = 1, tight = null, trigger = null, room = null, onset = 0 }) {
+export function drumSamplerKernel({
+  pieces,
+  levelOf,
+  note,
+  choke = {},
+  metal = {},
+  held = {},
+  makeup = 1,
+  poly = 24,
+  even = false,
+  offset = null,
+  rr = null,
+  similar = 1,
+  tight = null,
+  trigger = null,
+  room = null,
+  onset = 0,
+}) {
   // (the options after `offset` are Rusty Sticks'; with none of them passed, the source is exactly what it was before
   // they existed, so every kit that doesn't ask keeps its sound and its golden hash: tools/metalkit-test.js checks it)
-  const NR = rr === 'norepeat', SIM = NR && similar < 1, X = NR || !!tight || !!trigger || !!room || !!onset;
+  const NR = rr === 'norepeat',
+    SIM = NR && similar < 1,
+    X = NR || !!tight || !!trigger || !!room || !!onset;
   return kernel(String.raw`
 const PIECES = ${JSON.stringify(pieces)};
 const LEVEL_OF = ${JSON.stringify(levelOf)};
@@ -37,8 +56,12 @@ const CHOKE = ${JSON.stringify(choke)};    // piece -> [group, ms]
 const METAL = ${JSON.stringify(metal)};    // cymbals and hats: velocity layers crossfade at equal power
 const HELD = ${JSON.stringify(held)};      // piece -> [attack ms, release ms]: rings while held
 const XF = 0.06;            // the crossfade half-width around a layer boundary (velocity, 0..1)
-const MAKEUP = ${makeup};${offset ? `
-const OFFSET = ${JSON.stringify(offset)};   // piece -> dB` : ''}${X ? OPTIONS_SRC({ NR, SIM, similar, tight, trigger, room, onset }) : ''}
+const MAKEUP = ${makeup};${
+    offset
+      ? `
+const OFFSET = ${JSON.stringify(offset)};   // piece -> dB`
+      : ''
+  }${X ? OPTIONS_SRC({ NR, SIM, similar, tight, trigger, room, onset }) : ''}
 const KN = 1 / 32768;       // 16-bit to float, exactly
 const dbx = (d) => (d <= -39.9 ? 0 : Math.pow(10, d / 20));
 const ceil = (x) => { const a = x < 0 ? -x : x; if (a <= 0.89) return x; const y = 0.89 + 0.1 * Math.tanh((a - 0.89) / 0.1); return x < 0 ? -y : y; };
@@ -69,7 +92,9 @@ return {
       const win = HELD[p] ? 1 : 0.15;
       for (const r of l.rr) { let e = 1; const m = Math.min(r.n - r.at, Math.round(win * kit.sr)); for (let i = r.at; i < r.at + m; i++) e += r.L[i] * r.L[i] + r.R[i] * r.R[i]; sum += 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);${even || NR ? ' r.lv = 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);' : ''} }
       l.peak = sum / l.rr.length;
-    }${SIM ? `
+    }${
+      SIM
+        ? `
     // (norepeat) how alike each stroke is to the strokes of its own and the neighbouring layers: their first 30 ms (mono,
     // from the start) correlated. After a stroke the picker passes over those over SIMILAR while others remain, else
     // takes the least alike
@@ -90,7 +115,9 @@ return {
           a.nid.push(lj * 64 + q2); a.nc.push(aa > 0 && bb > 0 ? ab / Math.sqrt(aa * bb) : 0);
         }
       }
-    }` : ''}
+    }`
+        : ''
+    }
     const FI = Math.round(0.001 * sr);
     const levelAt = (L, v) => {
       if (v <= L[0].top) return L[0].peak + 20 * Math.log10(Math.max(0.02, v) / L[0].top);
@@ -100,9 +127,13 @@ return {
     const RR = new Uint32Array(1); RR[0] = (seed ^ 0x5eed) >>> 0 || 7;
     const draw = () => (RR[0] = (Math.imul(RR[0], 1664525) + 1013904223) >>> 0) / 4294967296;
     const last = {};
-    const ringing = [];${X ? `
+    const ringing = [];${
+      X
+        ? `
     const H1 = {}, H2 = {}, POOL = new Int32Array(256);   // each piece's last two strokes, and the draw's pool (norepeat)
-    const PRE = Math.round(ONSET * sr);${trigger ? '\n    const CLK = clickTable(sr);' : ''}${room ? '\n    const ROOM = kitRoom(sr, seed), RIN = new Float64Array(1024), SENDERS = [];\n    let blk = 0, roomSize = -1;' : ''}` : ''}
+    const PRE = Math.round(ONSET * sr);${trigger ? '\n    const CLK = clickTable(sr);' : ''}${room ? '\n    const ROOM = kitRoom(sr, seed), RIN = new Float64Array(1024), SENDERS = [];\n    let blk = 0, roomSize = -1;' : ''}`
+        : ''
+    }
     let lpL = 0, lpR = 0;
     const aLP = 1 - Math.exp(-2 * Math.PI * 900 / sr);
     const LA = Math.max(1, Math.round(0.0015 * sr)), TT = 8;
@@ -124,25 +155,43 @@ return {
 
     function voice() {
       const rd = [{ r: null, g: 0, pos: 0, fi: 0 }, { r: null, g: 0, pos: 0, fi: 0 }];
-      let nr = 0, piece = '', rate = 1, env = 1, hold = 0, k = 1, fade = 0, fadeN = 0, on = false, t = 0, FIn = FI;${X ? `
-      let tgOn = false, tgH = 0, tgK = 1, tgE = 1;${trigger ? '\n      const trg = trigger(sr, CLK, PRE);' : ''}${room ? '\n      const SB = new Float64Array(1024);' : ''}` : ''}
+      let nr = 0, piece = '', rate = 1, env = 1, hold = 0, k = 1, fade = 0, fadeN = 0, on = false, t = 0, FIn = FI;${
+        X
+          ? `
+      let tgOn = false, tgH = 0, tgK = 1, tgE = 1;${trigger ? '\n      const trg = trigger(sr, CLK, PRE);' : ''}${room ? '\n      const SB = new Float64Array(1024);' : ''}`
+          : ''
+      }
       const self = {
-        piece: '',${room ? `
-        SB, b: -1, c: 0, st: -1,` : ''}
+        piece: '',${
+          room
+            ? `
+        SB, b: -1, c: 0, st: -1,`
+            : ''
+        }
         choke(ms) { if (!on) return; const n = Math.max(1, Math.round(ms * 0.001 * sr)); if (!fadeN || n < fade) { fade = n; fadeN = n; }${trigger ? ' trg.choke(ms);' : ''} },
         start(pitch, vel, p) {
           piece = NOTE[pitch] || ''; self.piece = piece; on = false; nr = 0; fade = 0; fadeN = 0; t = 0; env = 1;
-          const i = ringing.indexOf(self); if (i >= 0) ringing.splice(i, 1);${X ? `
-          tgOn = false; tgE = 1;${trigger ? ' trg.stop();' : ''}${room ? `
+          const i = ringing.indexOf(self); if (i >= 0) ringing.splice(i, 1);${
+            X
+              ? `
+          tgOn = false; tgE = 1;${trigger ? ' trg.stop();' : ''}${
+            room
+              ? `
           // (a voice taken for a new note mid-block: what it sent before goes into the room now, at the block's start)
           if (self.b === blk && self.c > 0) { for (let i2 = 0; i2 < self.c && i2 < 1024; i2++) RIN[i2] += SB[i2]; self.c = 0; }
-          self.st = blk;` : ''}` : ''}
+          self.st = blk;`
+              : ''
+          }`
+              : ''
+          }
           const L = K[piece];
           if (!L) return;
           const v = vel < 0 ? 0 : vel > 1 ? 1 : vel;
           let lo = L.length - 1;
           for (let j = 0; j < L.length; j++) if (v <= L[j].top) { lo = j; break; }
-${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)' : ''};
+${
+  NR
+    ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)' : ''};
           // the stroke: one of this layer's or the nearer neighbour layer's, never either of the piece's last two (nor, with
           // SIMILAR, a near twin of the last), at
           // its own measured level brought to the curve's, then +-0.4 dB and +-4 cents of its own (all from the seed)
@@ -161,10 +210,19 @@ ${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)'
           H2[piece] = H1[piece]; H1[piece] = id;
           const R = rd[nr++];
           R.r = L[id >> 6].rr[id & 63]; R.g = Math.pow(10, (want + 0.4 * (2 * draw() - 1) - R.r.lv) / 20); R.pos = R.r.at; R.fi = 0;
-          rate = RATE * Math.pow(2, p.tune / 12 + 4 * (2 * draw() - 1) / 1200);${trigger ? `
-          if (piece === TRIG.piece) trg.start(want - L[L.length - 1].peak, p, R.r.pol);` : ''}${tight ? `
-          if (piece === TIGHT.piece) { const ms = p[TIGHT.key]; tgOn = true; tgH = Math.round(TIGHT.hold * ms * 0.001 * sr); tgK = Math.pow(10, -3 / (TIGHT.t60 * ms * 0.001 * sr)); }` : ''}
-` : `          const picks = [];
+          rate = RATE * Math.pow(2, p.tune / 12 + 4 * (2 * draw() - 1) / 1200);${
+            trigger
+              ? `
+          if (piece === TRIG.piece) trg.start(want - L[L.length - 1].peak, p, R.r.pol);`
+              : ''
+          }${
+            tight
+              ? `
+          if (piece === TIGHT.piece) { const ms = p[TIGHT.key]; tgOn = true; tgH = Math.round(TIGHT.hold * ms * 0.001 * sr); tgK = Math.pow(10, -3 / (TIGHT.t60 * ms * 0.001 * sr)); }`
+              : ''
+          }
+`
+    : `          const picks = [];
           const xf = METAL[piece] ? Math.sqrt : (x) => x;
           if (lo > 0 && v < L[lo - 1].top + XF) { const u = (v - (L[lo - 1].top - XF)) / (2 * XF); picks.push([lo - 1, xf(1 - u)], [lo, xf(u)]); }
           else if (lo < L.length - 1 && v > L[lo].top - XF) { const u = (v - (L[lo].top - XF)) / (2 * XF); picks.push([lo, xf(1 - u)], [lo + 1, xf(u)]); }
@@ -179,7 +237,8 @@ ${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)'
             R.r = lay.rr[q]; R.g = w * Math.pow(10, (want - ${even ? 'R.r.lv' : 'lay.peak'}) / 20); R.pos = R.r.at; R.fi = 0;
           }
           rate = RATE * Math.pow(2, p.tune / 12);
-`}          FIn = HELD[piece] ? Math.max(FI, Math.round(HELD[piece][0] * 0.001 * sr)) : FI;
+`
+}          FIn = HELD[piece] ? Math.max(FI, Math.round(HELD[piece][0] * 0.001 * sr)) : FI;
           const d = p.decay / 100;
           if (d >= 0.999) { hold = Infinity; k = 1; }
           else {
@@ -213,8 +272,12 @@ ${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)'
               if (pos >= xn) break;
               let a = gj;
               if (fi < FIn) { a *= fi / FIn; fi++; }
-              if (h <= 0) { e *= k; a *= e; } else h--;${tight ? `
-              if (tgOn) { if (gh <= 0) ge *= tgK; else gh--; a *= ge; }` : ''}
+              if (h <= 0) { e *= k; a *= e; } else h--;${
+                tight
+                  ? `
+              if (tgOn) { if (gh <= 0) ge *= tgK; else gh--; a *= ge; }`
+                  : ''
+              }
               if (fadeN) { if (f <= 0) { a = 0; } else { a *= f / fadeN; f--; } }
               let l, r;
               if (rate === 1) { l = x.L[pos]; r = x.R[pos]; pos += 1; }
@@ -224,17 +287,25 @@ ${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)'
             R.pos = pos; R.fi = fi;
             if (le || pos < xn) alive = true;
           }
-${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true;
-` : ''}          for (let i = 0; i < n; i++) { if (hold - t <= 0) env *= k;${tight ? ' if (tgOn) { if (tgH - t <= 0) tgE *= tgK; }' : ''} t++; if (fadeN) { if (fade > 0) fade--; } }
+${
+  trigger
+    ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true;
+`
+    : ''
+}          for (let i = 0; i < n; i++) { if (hold - t <= 0) env *= k;${tight ? ' if (tgOn) { if (tgH - t <= 0) tgE *= tgK; }' : ''} t++; if (fadeN) { if (fade > 0) fade--; } }
           if (fadeN && fade <= 0) alive = false;
-          if (env < 1e-4${tight ? ' || tgE < 1e-4' : ''}) alive = false;${trigger ? '\n          if (trg.on) alive = true;' : ''}${room ? `
+          if (env < 1e-4${tight ? ' || tgE < 1e-4' : ''}) alive = false;${trigger ? '\n          if (trg.on) alive = true;' : ''}${
+            room
+              ? `
           const sd = ROOMSEND[piece] || 0;
           if (sd) {
             if (self.b !== blk) { self.b = blk; self.c = 0; SENDERS.push(self); }
             const c = self.c;
             for (let i = 0; i < n && c + i < 1024; i++) SB[c + i] = (Lo[i] + Ro[i]) * 0.5 * sd;
             self.c = c + n;
-          }` : ''}
+          }`
+              : ''
+          }
           if (!alive) self.stop();
           return alive;
         },
@@ -244,7 +315,9 @@ ${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true
     return {
       voice,
       latency: LA + TT${onset ? ' + PRE' : ''},
-      process(L, R, n, p) {${room ? `
+      process(L, R, n, p) {${
+        room
+          ? `
         // the room: each voice's send, where in the block it played (a voice that started in this block played its
         // last frames), through the kit room; culled while ROOM is off
         if (p.room_size !== roomSize) { roomSize = p.room_size; ROOM.set(roomSize); }
@@ -253,7 +326,9 @@ ${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true
         const rl = dbx(p.room) * ROOM_GAIN;
         if (rl > 0) for (let i = 0; i < n; i++) { ROOM.tick(RIN[i]); L[i] += ROOM.l * rl; R[i] += ROOM.r * rl; }
         for (let i = 0; i < n; i++) RIN[i] = 0;
-        blk++;` : ''}
+        blk++;`
+          : ''
+      }
         const T = p.tone / 100;
         const gh = Math.pow(10, T * 6 / 20), gl = 1 / gh, flat = T > -1e-4 && T < 1e-4;
         let hsum = 0; for (let k = 0; k < boxN; k++) hsum += hb[(lw - k) & LM];
@@ -315,8 +390,12 @@ const TIGHT = ${JSON.stringify(tight)};
 const TRIG = ${JSON.stringify(trigger)};
 const ROOMSEND = ${JSON.stringify(room ? room.send : null)}, ROOM_GAIN = ${room ? room.gain : 0};
 const ONSET = ${onset};
-${SIM ? `
-const SIMILAR = ${similar};   // (norepeat) two strokes this alike over their first 30 ms aren't played one after the other` : ''}${room ? room.src : ''}${trigger ? TRIGGER_SRC : ''}`;
+${
+  SIM
+    ? `
+const SIMILAR = ${similar};   // (norepeat) two strokes this alike over their first 30 ms aren't played one after the other`
+    : ''
+}${room ? room.src : ''}${trigger ? TRIGGER_SRC : ''}`;
 }
 const TRIGGER_SRC = String.raw`
 // the trigger's click: a burst of seeded noise, high-passed at 2 kHz and low-passed at 6 kHz (two one-poles each),
@@ -394,11 +473,61 @@ function trigOnly(sr, seed) {
 `;
 
 // a piece's level knob, as drumkit.js has them
-export const pieceLevel = (key, what, def = 0) => ({ key: key + '_level', label: key.toUpperCase(), min: -40, max: 12, def, unit: 'dB', role: 'level', group: 'levels', desc: `${what} (-40 is off)` });
+export const pieceLevel = (key, what, def = 0) => ({
+  key: key + '_level',
+  label: key.toUpperCase(),
+  min: -40,
+  max: 12,
+  def,
+  unit: 'dB',
+  role: 'level',
+  group: 'levels',
+  desc: `${what} (-40 is off)`,
+});
 // the four kit-wide knobs, as drumkit.js has them
 export const KIT_PARAMS = [
-  { key: 'tune', label: 'TUNE', min: -12, max: 12, def: 0, unit: 'st', role: 'pitch', group: 'kit', desc: 'every piece up or down, semitones (by resampling: lower is longer)' },
-  { key: 'decay', label: 'DECAY', min: 5, max: 100, def: 100, unit: '%', role: 'decay', group: 'kit', desc: 'how long each stroke rings: 100% is the recording, lower gates it shorter' },
-  { key: 'tone', label: 'TONE', min: -100, max: 100, def: 0, unit: '%', role: 'tone', group: 'kit', desc: 'a tilt around 900 Hz: below 0 darker, above 0 brighter (up to 6 dB each way at the ends); 0 is the recording' },
-  { key: 'level', label: 'LEVEL', min: -24, max: 6, def: 0, unit: 'dB', role: 'level', group: 'kit', desc: 'the whole kit' },
+  {
+    key: 'tune',
+    label: 'TUNE',
+    min: -12,
+    max: 12,
+    def: 0,
+    unit: 'st',
+    role: 'pitch',
+    group: 'kit',
+    desc: 'every piece up or down, semitones (by resampling: lower is longer)',
+  },
+  {
+    key: 'decay',
+    label: 'DECAY',
+    min: 5,
+    max: 100,
+    def: 100,
+    unit: '%',
+    role: 'decay',
+    group: 'kit',
+    desc: 'how long each stroke rings: 100% is the recording, lower gates it shorter',
+  },
+  {
+    key: 'tone',
+    label: 'TONE',
+    min: -100,
+    max: 100,
+    def: 0,
+    unit: '%',
+    role: 'tone',
+    group: 'kit',
+    desc: 'a tilt around 900 Hz: below 0 darker, above 0 brighter (up to 6 dB each way at the ends); 0 is the recording',
+  },
+  {
+    key: 'level',
+    label: 'LEVEL',
+    min: -24,
+    max: 6,
+    def: 0,
+    unit: 'dB',
+    role: 'level',
+    group: 'kit',
+    desc: 'the whole kit',
+  },
 ];

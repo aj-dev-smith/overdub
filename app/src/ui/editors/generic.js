@@ -17,47 +17,140 @@
 import { h, css } from '../dom.js';
 
 const FAMILY = {
-  shape: 'sound', pitch: 'sound', tone: 'tone', drive: 'tone', attack: 'env', decay: 'env', release: 'env', gate: 'env',
-  rate: 'move', depth: 'move', size: 'space', time: 'space', feedback: 'space', width: 'space', mix: 'level', level: 'level', sens: 'level',
+  shape: 'sound',
+  pitch: 'sound',
+  tone: 'tone',
+  drive: 'tone',
+  attack: 'env',
+  decay: 'env',
+  release: 'env',
+  gate: 'env',
+  rate: 'move',
+  depth: 'move',
+  size: 'space',
+  time: 'space',
+  feedback: 'space',
+  width: 'space',
+  mix: 'level',
+  level: 'level',
+  sens: 'level',
 };
-const FAMILY_NAME = { sound: 'Sound', tone: 'Tone', env: 'Envelope', move: 'Movement', space: 'Space', voice: 'Voice', level: 'Level', other: 'More' };
+const FAMILY_NAME = {
+  sound: 'Sound',
+  tone: 'Tone',
+  env: 'Envelope',
+  move: 'Movement',
+  space: 'Space',
+  voice: 'Voice',
+  level: 'Level',
+  other: 'More',
+};
 // what a key prefix or a group id reads as
 const NAMES = {
-  a: 'Osc A', b: 'Osc B', c: 'Osc C', osc: 'Oscillator', sub: 'Sub', noise: 'Noise', nz: 'Noise', wt: 'Wavetable',
-  flt: 'Filter', filt: 'Filter', filter: 'Filter', f: 'Filter', env: 'Envelope', aenv: 'Amp envelope', fenv: 'Filter envelope',
-  lfo: 'LFO', mod: 'Modulation', mtx: 'Mod matrix', mx: 'Mod matrix', mac: 'Macros', macro: 'Macros', m: 'Mod slots',
-  fx: 'FX', dly: 'Delay', delay: 'Delay', rev: 'Reverb', verb: 'Reverb', cho: 'Chorus', chorus: 'Chorus', dist: 'Distortion',
-  drv: 'Drive', comp: 'Compressor', eq: 'EQ', uni: 'Unison', voice: 'Voice', vel: 'Velocity', amp: 'Amp', out: 'Output',
-  master: 'Output', mst: 'Output', glide: 'Glide', arp: 'Arpeggiator',
-  kick: 'Kick', snare: 'Snare', sn: 'Snare', hat: 'Hats', hh: 'Hats', tom: 'Tom', ride: 'Ride', crash: 'Crash',
-  oh: 'Overheads', room: 'Room', cl: 'Close mics', close: 'Close mics', mic: 'Mics', bleed: 'Bleed', kit: 'Kit',
+  a: 'Osc A',
+  b: 'Osc B',
+  c: 'Osc C',
+  osc: 'Oscillator',
+  sub: 'Sub',
+  noise: 'Noise',
+  nz: 'Noise',
+  wt: 'Wavetable',
+  flt: 'Filter',
+  filt: 'Filter',
+  filter: 'Filter',
+  f: 'Filter',
+  env: 'Envelope',
+  aenv: 'Amp envelope',
+  fenv: 'Filter envelope',
+  lfo: 'LFO',
+  mod: 'Modulation',
+  mtx: 'Mod matrix',
+  mx: 'Mod matrix',
+  mac: 'Macros',
+  macro: 'Macros',
+  m: 'Mod slots',
+  fx: 'FX',
+  dly: 'Delay',
+  delay: 'Delay',
+  rev: 'Reverb',
+  verb: 'Reverb',
+  cho: 'Chorus',
+  chorus: 'Chorus',
+  dist: 'Distortion',
+  drv: 'Drive',
+  comp: 'Compressor',
+  eq: 'EQ',
+  uni: 'Unison',
+  voice: 'Voice',
+  vel: 'Velocity',
+  amp: 'Amp',
+  out: 'Output',
+  master: 'Output',
+  mst: 'Output',
+  glide: 'Glide',
+  arp: 'Arpeggiator',
+  kick: 'Kick',
+  snare: 'Snare',
+  sn: 'Snare',
+  hat: 'Hats',
+  hh: 'Hats',
+  tom: 'Tom',
+  ride: 'Ride',
+  crash: 'Crash',
+  oh: 'Overheads',
+  room: 'Room',
+  cl: 'Close mics',
+  close: 'Close mics',
+  mic: 'Mics',
+  bleed: 'Bleed',
+  kit: 'Kit',
   cab: 'Cab and mics',
 };
 // a numbered one reads as one of them: m1_* is "Mod slot 1" (a modulation slot's source, destination and amount, as
 // Light Table's are), macro2 "Macro 2"
 const ONE = { m: 'Mod slot', mac: 'Macro', macro: 'Macro' };
-const title = (s) => String(s).replace(/[_-]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+const title = (s) =>
+  String(s)
+    .replace(/[_-]+/g, ' ')
+    .replace(/^./, (c) => c.toUpperCase());
 export function sectionName(id) {
-  const s = String(id || '').trim().slice(0, 40);
-  if (!/^[a-z0-9_-]+$/.test(s)) return s || 'Main';   // a group a device named in words keeps its words
+  const s = String(id || '')
+    .trim()
+    .slice(0, 40);
+  if (!/^[a-z0-9_-]+$/.test(s)) return s || 'Main'; // a group a device named in words keeps its words
   if (NAMES[s]) return NAMES[s];
   const m = /^([a-z]+)(\d+)$/.exec(s);
   if (m && (ONE[m[1]] || NAMES[m[1]])) return `${ONE[m[1]] || NAMES[m[1]]} ${m[2]}`;
   return title(s);
 }
-const prefixOf = (k) => { const m = /^([a-z]+\d*)_/i.exec(String(k)); return m ? m[1].toLowerCase() : null; };
+const prefixOf = (k) => {
+  const m = /^([a-z]+\d*)_/i.exec(String(k));
+  return m ? m[1].toLowerCase() : null;
+};
 
 export function layout(def) {
   const ps = (def?.params || []).filter((p) => p && !p.hidden);
   if (!ps.length) return [];
   const counts = new Map();
-  for (const p of ps) { const pre = prefixOf(p.key); if (pre) counts.set(pre, (counts.get(pre) || 0) + 1); }
-  const groupOf = (p) => (typeof p.group === 'string' && p.group.trim() ? 'g:' + p.group.trim() : prefixOf(p.key) && counts.get(prefixOf(p.key)) >= 2 ? 'p:' + prefixOf(p.key) : null);
+  for (const p of ps) {
+    const pre = prefixOf(p.key);
+    if (pre) counts.set(pre, (counts.get(pre) || 0) + 1);
+  }
+  const groupOf = (p) =>
+    typeof p.group === 'string' && p.group.trim()
+      ? 'g:' + p.group.trim()
+      : prefixOf(p.key) && counts.get(prefixOf(p.key)) >= 2
+        ? 'p:' + prefixOf(p.key)
+        : null;
   if (ps.some(groupOf)) {
-    const order = [], by = new Map();
+    const order = [],
+      by = new Map();
     for (const p of ps) {
       const g = groupOf(p) || 'main';
-      if (!by.has(g)) { by.set(g, []); if (g !== 'main') order.push(g); }
+      if (!by.has(g)) {
+        by.set(g, []);
+        if (g !== 'main') order.push(g);
+      }
       by.get(g).push(p.key);
     }
     const out = order.map((g) => ({ name: sectionName(g.slice(2)), keys: by.get(g) }));
@@ -78,7 +171,10 @@ export function layout(def) {
   for (const [i, p] of ps.entries()) {
     const f = fam(p);
     let s = secs.find((x) => x.fam === f);
-    if (!s) { s = { fam: f, first: i, keys: [] }; secs.push(s); }
+    if (!s) {
+      s = { fam: f, first: i, keys: [] };
+      secs.push(s);
+    }
     s.keys.push({ key: p.key, i });
   }
   // a section of one joins its neighbour in the param order (the one before it, or after it when it comes first),
@@ -90,9 +186,16 @@ export function layout(def) {
       if (s.keys.length !== 1 || (s.fam === 'level' && !inst)) continue;
       const i = s.keys[0].i;
       const others = secs.filter((x) => x !== s);
-      const before = others.filter((x) => x.keys.some((k) => k.i < i)).sort((a, b) => Math.max(...b.keys.filter((k) => k.i < i).map((k) => k.i)) - Math.max(...a.keys.filter((k) => k.i < i).map((k) => k.i)))[0];
+      const before = others
+        .filter((x) => x.keys.some((k) => k.i < i))
+        .sort(
+          (a, b) =>
+            Math.max(...b.keys.filter((k) => k.i < i).map((k) => k.i)) -
+            Math.max(...a.keys.filter((k) => k.i < i).map((k) => k.i)),
+        )[0];
       const into = before || others.sort((a, b) => a.first - b.first)[0];
-      into.keys.push(s.keys[0]); into.keys.sort((a, b) => a.i - b.i);
+      into.keys.push(s.keys[0]);
+      into.keys.sort((a, b) => a.i - b.i);
       into.first = Math.min(into.first, s.first);
       secs = others;
       merged = true;
@@ -106,7 +209,12 @@ export function layout(def) {
 
 // An envelope among a section's params: attack and release (decay and sustain too, when it has them) that are
 // times, by key ('attack', 'env1_a', 'amp_rel'). -> { attack, decay?, sustain?, release } keys, or null
-const ENV_KEYS = { attack: /(^|_)(attack|atk|att|a)$/, decay: /(^|_)(decay|dec|d)$/, sustain: /(^|_)(sustain|sus|s)$/, release: /(^|_)(release|rel|r)$/ };
+const ENV_KEYS = {
+  attack: /(^|_)(attack|atk|att|a)$/,
+  decay: /(^|_)(decay|dec|d)$/,
+  sustain: /(^|_)(sustain|sus|s)$/,
+  release: /(^|_)(release|rel|r)$/,
+};
 export function envelopeOf(keys, param) {
   const out = {};
   for (const [part, re] of Object.entries(ENV_KEYS)) {
@@ -130,7 +238,8 @@ export function mount(el, ctx) {
   const root = h('div.pg', { dataset: { sections: String(secs.length) } });
   const graphs = [];
   for (const s of secs) {
-    const sw = [], kn = [];
+    const sw = [],
+      kn = [];
     for (const k of s.keys) {
       const p = ctx.param(k);
       const c = ctx.control(k, { size });
@@ -143,8 +252,14 @@ export function mount(el, ctx) {
     if (env) {
       const keys = Object.values(env);
       const g = ctx.kit.envelope({
-        label: s.name, showLabel: false, readout: false, name: def.name,
-        attack: ctx.param(env.attack), decay: env.decay && ctx.param(env.decay), sustain: env.sustain && ctx.param(env.sustain), release: ctx.param(env.release),
+        label: s.name,
+        showLabel: false,
+        readout: false,
+        name: def.name,
+        attack: ctx.param(env.attack),
+        decay: env.decay && ctx.param(env.decay),
+        sustain: env.sustain && ctx.param(env.sustain),
+        release: ctx.param(env.release),
         value: ctx.params(),
         onInput: (patch, { commit }) => ctx.set(patch, { gesture: commit ? 'end' : 'move' }),
       });
@@ -152,19 +267,39 @@ export function mount(el, ctx) {
       graph = g.el;
     }
     const id = `pg-h-${++n}`;
-    root.append(h('section.pg-sec', s.name ? { 'aria-labelledby': id } : { 'aria-label': `${def.name} controls` },
-      s.name ? h('h3.pg-h', { id }, s.name) : null,
-      sw.length ? h('div.pg-sw', sw) : null,
-      graph || kn.length ? h('div.pg-kn', graph, kn) : null));
+    root.append(
+      h(
+        'section.pg-sec',
+        s.name ? { 'aria-labelledby': id } : { 'aria-label': `${def.name} controls` },
+        s.name ? h('h3.pg-h', { id }, s.name) : null,
+        sw.length ? h('div.pg-sw', sw) : null,
+        graph || kn.length ? h('div.pg-kn', graph, kn) : null,
+      ),
+    );
   }
   if (!secs.length) root.append(h('div.empty', h('p', `${def.name} has no controls: it plays as it is.`)));
   const blurb = typeof def.blurb === 'string' ? def.blurb.trim() : '';
-  const about = [blurb && !/[.!?]$/.test(blurb) ? blurb + '.' : blurb, typeof def.nod === 'string' && def.nod ? `Tips its hat to ${def.nod}.` : ''].filter(Boolean).join(' ');
+  const about = [
+    blurb && !/[.!?]$/.test(blurb) ? blurb + '.' : blurb,
+    typeof def.nod === 'string' && def.nod ? `Tips its hat to ${def.nod}.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   if (about) root.append(h('p.pg-about', about));
   el.append(root);
   // the drawn envelopes follow their knobs (a turn, an agent, an undo, a lane playing)
-  const off = ctx.on((evt) => { for (const x of graphs) if (evt.keys?.some((k) => x.keys.includes(k))) x.g.set(evt.params); });
-  return { update() {}, frame() {}, unmount() { off(); for (const x of graphs) x.g.destroy(); root.remove(); } };
+  const off = ctx.on((evt) => {
+    for (const x of graphs) if (evt.keys?.some((k) => x.keys.includes(k))) x.g.set(evt.params);
+  });
+  return {
+    update() {},
+    frame() {},
+    unmount() {
+      off();
+      for (const x of graphs) x.g.destroy();
+      root.remove();
+    },
+  };
 }
 
 const CSS = `

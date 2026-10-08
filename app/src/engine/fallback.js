@@ -15,12 +15,26 @@ import { isOffline, soon } from './util.js';
 const SLOTS = 32;
 
 export const FALLBACK_DEF = {
-  id: 'engine.fallback', name: 'Fallback synth', kind: 'instrument', cat: 'synth', flavour: 'fallback',
-  blurb: 'what plays while the real instrument is missing', params: [], look: {}, version: 1,
+  id: 'engine.fallback',
+  name: 'Fallback synth',
+  kind: 'instrument',
+  cat: 'synth',
+  flavour: 'fallback',
+  blurb: 'what plays while the real instrument is missing',
+  params: [],
+  look: {},
+  version: 1,
 };
 export const PASS_DEF = {
-  id: 'engine.pass', name: 'Pass-through', kind: 'effect', cat: 'utility', flavour: 'fallback',
-  blurb: 'stands in for a missing effect', params: [], look: {}, version: 1,
+  id: 'engine.pass',
+  name: 'Pass-through',
+  kind: 'effect',
+  cat: 'utility',
+  flavour: 'fallback',
+  blurb: 'stands in for a missing effect',
+  params: [],
+  look: {},
+  version: 1,
 };
 
 const mtof = (p) => 440 * Math.pow(2, (p - 69) / 12);
@@ -32,7 +46,8 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
   const live = !isOffline(c);
   const slots = [];
   for (let i = 0; i < SLOTS; i++) {
-    const g = c.createGain(); g.gain.value = 1;
+    const g = c.createGain();
+    g.gain.value = 1;
     if (i) slots[i - 1].node.connect(g);
     slots.push({ node: g, busy: -Infinity, voice: null });
   }
@@ -42,7 +57,13 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     if (fast && at <= v.t0 + 1e-9) {
       // it hasn't started yet: make sure it never sounds
       v.off = v.t0;
-      for (const o of v.nodes) { try { o.stop(v.t0); } catch (e) { /* stopped */ } }
+      for (const o of v.nodes) {
+        try {
+          o.stop(v.t0);
+        } catch (e) {
+          /* stopped */
+        }
+      }
       if (v.slot.voice === v) v.slot.busy = Math.min(v.slot.busy, v.t0);
       return;
     }
@@ -51,16 +72,29 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     if (v.off !== Infinity && t >= v.off && !fast) return;
     v.off = Math.min(v.off, t);
     const tc = fast ? 0.008 : 0.07;
-    try { v.env.gain.setTargetAtTime(0, t, tc); } catch (e) { /* gone */ }
+    try {
+      v.env.gain.setTargetAtTime(0, t, tc);
+    } catch (e) {
+      /* gone */
+    }
     const end = t + tc * 10;
-    for (const o of v.nodes) { try { o.stop(end); } catch (e) { /* stopped */ } }
+    for (const o of v.nodes) {
+      try {
+        o.stop(end);
+      } catch (e) {
+        /* stopped */
+      }
+    }
     if (v.slot.voice === v) v.slot.busy = Math.min(v.slot.busy, end);
   }
 
   // The first slot that is silent at t; else steal the one that frees up soonest (it is released fast).
   function slotFor(t) {
     let best = null;
-    for (const s of slots) { if (s.busy <= t) return s; if (!best || s.busy < best.busy) best = s; }
+    for (const s of slots) {
+      if (s.busy <= t) return s;
+      if (!best || s.busy < best.busy) best = s;
+    }
     if (best.voice) stopVoice(best.voice, t, true);
     return best;
   }
@@ -81,17 +115,36 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     lp.type = 'lowpass';
     lp.frequency.value = Math.min(c.sampleRate * 0.45, f * (3 + 5 * v) + 500);
     lp.Q.value = 0.6;
-    const tri = c.createOscillator(); tri.type = 'triangle'; tri.frequency.value = f;
-    const saw = c.createOscillator(); saw.type = 'sawtooth'; saw.frequency.value = f; saw.detune.value = 5;
-    const sawG = c.createGain(); sawG.gain.value = 0.22;
-    tri.connect(lp); saw.connect(sawG); sawG.connect(lp); lp.connect(env); env.connect(slot.node);
-    tri.start(t); saw.start(t);
+    const tri = c.createOscillator();
+    tri.type = 'triangle';
+    tri.frequency.value = f;
+    const saw = c.createOscillator();
+    saw.type = 'sawtooth';
+    saw.frequency.value = f;
+    saw.detune.value = 5;
+    const sawG = c.createGain();
+    sawG.gain.value = 0.22;
+    tri.connect(lp);
+    saw.connect(sawG);
+    sawG.connect(lp);
+    lp.connect(env);
+    env.connect(slot.node);
+    tri.start(t);
+    saw.start(t);
     const voice = { p: pitch, at: time, t0: t, off: Infinity, nodes: [tri, saw], env, alive: true, slot };
-    slot.voice = voice; slot.busy = Infinity;
+    slot.voice = voice;
+    slot.busy = Infinity;
     tri.onended = () => {
       voice.alive = false;
-      try { env.disconnect(); lp.disconnect(); sawG.disconnect(); } catch (e) { /* gone */ }
-      const i = voices.indexOf(voice); if (i >= 0) voices.splice(i, 1);
+      try {
+        env.disconnect();
+        lp.disconnect();
+        sawG.disconnect();
+      } catch (e) {
+        /* gone */
+      }
+      const i = voices.indexOf(voice);
+      if (i >= 0) voices.splice(i, 1);
     };
     voices.push(voice);
     if (!live && voices.length > 4096) voices.splice(0, voices.length - 4096); // offline: keep the list bounded
@@ -122,11 +175,42 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
   }
 
   return {
-    def: FALLBACK_DEF, uid, ready: Promise.resolve(), input: null, output, latency: 0, fallback: true, missing,
-    set() {}, setOn() {}, noteOn, noteOff, allOff, cancel,
+    def: FALLBACK_DEF,
+    uid,
+    ready: Promise.resolve(),
+    input: null,
+    output,
+    latency: 0,
+    fallback: true,
+    missing,
+    set() {},
+    setOn() {},
+    noteOn,
+    noteOff,
+    allOff,
+    cancel,
     // (voices: still sounding; held: no release laid down yet. engine.voices() and tools/stuck-test.js read it)
-    stats: async () => ({ voices: voices.filter((v) => v.alive).length, held: voices.filter((v) => v.alive && v.off === Infinity).length }),
-    dispose() { allOff(); setTimeout(() => { for (const s of slots) { try { s.node.disconnect(); } catch (e) { /* gone */ } } try { output.disconnect(); } catch (e) { /* gone */ } }, 200); },
+    stats: async () => ({
+      voices: voices.filter((v) => v.alive).length,
+      held: voices.filter((v) => v.alive && v.off === Infinity).length,
+    }),
+    dispose() {
+      allOff();
+      setTimeout(() => {
+        for (const s of slots) {
+          try {
+            s.node.disconnect();
+          } catch (e) {
+            /* gone */
+          }
+        }
+        try {
+          output.disconnect();
+        } catch (e) {
+          /* gone */
+        }
+      }, 200);
+    },
   };
 }
 
@@ -136,25 +220,69 @@ export function passThrough(c, { uid = 'pass', missing = null, held = null } = {
   const node = c.createGain();
   node.gain.value = 1;
   return {
-    def: PASS_DEF, uid, ready: Promise.resolve(), input: node, output: node, latency: 0, fallback: true, missing, held,
-    set() {}, setOn() {}, noteOn() {}, noteOff() {}, allOff() {},
-    dispose() { try { node.disconnect(); } catch (e) { /* gone */ } },
+    def: PASS_DEF,
+    uid,
+    ready: Promise.resolve(),
+    input: node,
+    output: node,
+    latency: 0,
+    fallback: true,
+    missing,
+    held,
+    set() {},
+    setOn() {},
+    noteOn() {},
+    noteOff() {},
+    allOff() {},
+    dispose() {
+      try {
+        node.disconnect();
+      } catch (e) {
+        /* gone */
+      }
+    },
   };
 }
 
 // A held instrument (its code came with the song and hasn't been allowed to run here): silence. Unlike a missing
 // device, it doesn't get the fallback synth: the track is quiet until the person lets the device play.
 export const HELD_DEF = {
-  id: 'engine.held', name: 'Kept off', kind: 'instrument', cat: 'utility', flavour: 'fallback',
-  blurb: 'stands in for a song’s instrument whose code hasn’t been allowed here', params: [], look: {}, version: 1,
+  id: 'engine.held',
+  name: 'Kept off',
+  kind: 'instrument',
+  cat: 'utility',
+  flavour: 'fallback',
+  blurb: 'stands in for a song’s instrument whose code hasn’t been allowed here',
+  params: [],
+  look: {},
+  version: 1,
 };
 export function silentInstrument(c, { uid = 'held', held = null } = {}) {
   const output = c.createGain();
   output.gain.value = 1;
   return {
-    def: HELD_DEF, uid, ready: Promise.resolve(), input: null, output, latency: 0, fallback: true, missing: null, held,
-    set() {}, setOn() {}, noteOn() {}, noteOff() {}, allOff() {}, cancel() {},
+    def: HELD_DEF,
+    uid,
+    ready: Promise.resolve(),
+    input: null,
+    output,
+    latency: 0,
+    fallback: true,
+    missing: null,
+    held,
+    set() {},
+    setOn() {},
+    noteOn() {},
+    noteOff() {},
+    allOff() {},
+    cancel() {},
     stats: async () => ({ voices: 0, held: 0 }),
-    dispose() { try { output.disconnect(); } catch (e) { /* gone */ } },
+    dispose() {
+      try {
+        output.disconnect();
+      } catch (e) {
+        /* gone */
+      }
+    },
   };
 }

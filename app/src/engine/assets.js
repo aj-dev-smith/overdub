@@ -12,36 +12,50 @@
 // AudioBuffers are not tied to a context (a source on a 48 kHz context plays a 44.1 kHz buffer, resampled), so one
 // decoded copy serves the live context and every offline render.
 
-const DB = 'overdub-assets', STORE = 'assets', VERSION = 1;
+const DB = 'overdub-assets',
+  STORE = 'assets',
+  VERSION = 1;
 
 function openDB() {
   return new Promise((resolve) => {
     try {
       if (typeof indexedDB === 'undefined') return resolve(null);
       const rq = indexedDB.open(DB, VERSION);
-      rq.onupgradeneeded = () => { const db = rq.result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' }); };
+      rq.onupgradeneeded = () => {
+        const db = rq.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+      };
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) { resolve(null); }
+    } catch (e) {
+      resolve(null);
+    }
   });
 }
 
 function tx(db, mode, fn) {
   return new Promise((resolve, reject) => {
     try {
-      const t = db.transaction(STORE, mode), s = t.objectStore(STORE);
+      const t = db.transaction(STORE, mode),
+        s = t.objectStore(STORE);
       const rq = fn(s);
       t.oncomplete = () => resolve(rq ? rq.result : undefined);
       t.onerror = () => reject(t.error);
       t.onabort = () => reject(t.error);
-    } catch (e) { reject(e); }
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 function toBuffer(rec) {
   const len = rec.channels[0] ? rec.channels[0].length : 0;
-  const b = new AudioBuffer({ length: Math.max(1, len), numberOfChannels: Math.max(1, rec.channels.length), sampleRate: rec.sr });
+  const b = new AudioBuffer({
+    length: Math.max(1, len),
+    numberOfChannels: Math.max(1, rec.channels.length),
+    sampleRate: rec.sr,
+  });
   rec.channels.forEach((ch, i) => b.copyToChannel(ch instanceof Float32Array ? ch : Float32Array.from(ch), i));
   return b;
 }
@@ -52,23 +66,40 @@ function toRecord(id, data) {
     for (let i = 0; i < data.numberOfChannels; i++) channels.push(Float32Array.from(data.getChannelData(i)));
     return { id, sr: data.sampleRate, channels };
   }
-  if (!data || !Array.isArray(data.channels) || !data.channels.length) throw new Error('assets.put: give an AudioBuffer or { sr, channels: [Float32Array] }');
+  if (!data || !Array.isArray(data.channels) || !data.channels.length)
+    throw new Error('assets.put: give an AudioBuffer or { sr, channels: [Float32Array] }');
   const sr = Number(data.sr || data.sampleRate);
   if (!(sr >= 3000 && sr <= 768000)) throw new Error('assets.put: bad sample rate ' + sr);
   const n = data.channels[0].length;
-  return { id, sr, channels: data.channels.map((c) => { const f = c instanceof Float32Array ? Float32Array.from(c) : Float32Array.from(c); if (f.length !== n) throw new Error('assets.put: channels differ in length'); return f; }) };
+  return {
+    id,
+    sr,
+    channels: data.channels.map((c) => {
+      const f = c instanceof Float32Array ? Float32Array.from(c) : Float32Array.from(c);
+      if (f.length !== n) throw new Error('assets.put: channels differ in length');
+      return f;
+    }),
+  };
 }
 
 export function createAssets() {
-  const mem = new Map();      // id -> AudioBuffer (decoded, ready)
-  const loading = new Map();  // id -> Promise<AudioBuffer|null>
+  const mem = new Map(); // id -> AudioBuffer (decoded, ready)
+  const loading = new Map(); // id -> Promise<AudioBuffer|null>
   let dbp = null;
-  const db = () => (dbp || (dbp = openDB()));
+  const db = () => dbp || (dbp = openDB());
 
-  const info = (id, b) => ({ id, sr: b.sampleRate, channels: b.numberOfChannels, duration: b.duration, length: b.length });
+  const info = (id, b) => ({
+    id,
+    sr: b.sampleRate,
+    channels: b.numberOfChannels,
+    duration: b.duration,
+    length: b.length,
+  });
 
   const api = {
-    get persistent() { return dbp ? dbp.then((d) => !!d) : Promise.resolve(false); },
+    get persistent() {
+      return dbp ? dbp.then((d) => !!d) : Promise.resolve(false);
+    },
 
     async put(id, data) {
       if (!id || typeof id !== 'string') throw new Error('assets.put: id must be a string');
@@ -77,11 +108,19 @@ export function createAssets() {
       mem.set(id, buf);
       loading.delete(id);
       const d = await db();
-      if (d) { try { await tx(d, 'readwrite', (s) => s.put(rec)); } catch (e) { console.warn('overdub assets: could not store', id, e && e.message); } }
+      if (d) {
+        try {
+          await tx(d, 'readwrite', (s) => s.put(rec));
+        } catch (e) {
+          console.warn('overdub assets: could not store', id, e && e.message);
+        }
+      }
       return info(id, buf);
     },
 
-    peek(id) { return mem.get(id) || null; },
+    peek(id) {
+      return mem.get(id) || null;
+    },
 
     get(id) {
       if (mem.has(id)) return Promise.resolve(mem.get(id));
@@ -95,19 +134,33 @@ export function createAssets() {
           const b = toBuffer(rec);
           mem.set(id, b);
           return b;
-        } catch (e) { console.warn('overdub assets: could not read', id, e && e.message); return null; }
+        } catch (e) {
+          console.warn('overdub assets: could not read', id, e && e.message);
+          return null;
+        }
       })();
       loading.set(id, p);
-      p.then((b) => { if (!b) loading.delete(id); });
+      p.then((b) => {
+        if (!b) loading.delete(id);
+      });
       return p;
     },
 
-    async has(id) { return !!(await api.get(id)); },
+    async has(id) {
+      return !!(await api.get(id));
+    },
 
     async remove(id) {
-      mem.delete(id); loading.delete(id);
+      mem.delete(id);
+      loading.delete(id);
       const d = await db();
-      if (d) { try { await tx(d, 'readwrite', (s) => s.delete(id)); } catch (e) { /* gone */ } }
+      if (d) {
+        try {
+          await tx(d, 'readwrite', (s) => s.delete(id));
+        } catch (e) {
+          /* gone */
+        }
+      }
     },
 
     async list() {
@@ -117,8 +170,18 @@ export function createAssets() {
       if (d) {
         try {
           const recs = await tx(d, 'readonly', (s) => s.getAll());
-          for (const r of recs || []) if (!out.has(r.id)) out.set(r.id, { id: r.id, sr: r.sr, channels: r.channels.length, duration: (r.channels[0] ? r.channels[0].length : 0) / r.sr, length: r.channels[0] ? r.channels[0].length : 0 });
-        } catch (e) { /* memory only */ }
+          for (const r of recs || [])
+            if (!out.has(r.id))
+              out.set(r.id, {
+                id: r.id,
+                sr: r.sr,
+                channels: r.channels.length,
+                duration: (r.channels[0] ? r.channels[0].length : 0) / r.sr,
+                length: r.channels[0] ? r.channels[0].length : 0,
+              });
+        } catch (e) {
+          /* memory only */
+        }
       }
       return [...out.values()];
     },
@@ -126,7 +189,8 @@ export function createAssets() {
     // Load every asset a project names, so the scheduler can start them without waiting.
     prefetch(project) {
       const ids = new Set();
-      for (const t of (project && project.tracks) || []) for (const c of t.clips || []) if (c.kind === 'audio' && c.asset) ids.add(c.asset);
+      for (const t of (project && project.tracks) || [])
+        for (const c of t.clips || []) if (c.kind === 'audio' && c.asset) ids.add(c.asset);
       return Promise.all([...ids].map((id) => api.get(id)));
     },
   };

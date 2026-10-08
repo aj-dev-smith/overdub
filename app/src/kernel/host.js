@@ -52,10 +52,17 @@ const DEV = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\]
 const PROCESSOR = new URL('./processor.js', import.meta.url).href;
 
 export function ensureKernelWorklet(c) {
-  if (!c || !c.audioWorklet) return Promise.reject(new Error('kernels need AudioWorklet (a current browser, in a secure context)'));
+  if (!c || !c.audioWorklet)
+    return Promise.reject(new Error('kernels need AudioWorklet (a current browser, in a secure context)'));
   let p = loaded.get(c);
   if (!p) {
-    p = c.audioWorklet.addModule(PROCESSOR).then(() => true, (e) => { loaded.delete(c); throw new Error('could not load the kernel worklet: ' + (e && e.message)); });
+    p = c.audioWorklet.addModule(PROCESSOR).then(
+      () => true,
+      (e) => {
+        loaded.delete(c);
+        throw new Error('could not load the kernel worklet: ' + (e && e.message));
+      },
+    );
     loaded.set(c, p);
   }
   return p;
@@ -77,13 +84,22 @@ const sent = new WeakMap();
 // processorOptions.data for these files: { [name]: { hash, bytes? } | null }
 function dataOptions(c, files, have) {
   let s = sent.get(c);
-  if (!s) { s = new Set(); sent.set(c, s); }
+  if (!s) {
+    s = new Set();
+    sent.set(c, s);
+  }
   const out = {};
   for (const [k, hash] of Object.entries(files)) {
     const bytes = have[k];
-    if (!bytes) { out[k] = null; continue; }
+    if (!bytes) {
+      out[k] = null;
+      continue;
+    }
     if (s.has(hash)) out[k] = { hash };
-    else { out[k] = { hash, bytes }; s.add(hash); }
+    else {
+      out[k] = { hash, bytes };
+      s.add(hash);
+    }
   }
   return out;
 }
@@ -99,11 +115,16 @@ function offlineBarrier(c, inst) {
     b = { insts: new Set() };
     barriers.set(c, b);
     try {
-      c.suspend(0).then(async () => {
-        await Promise.all([...b.insts].map((i) => i.sync()));
-        await c.resume();
-      }, () => {});
-    } catch (e) { /* already rendering: nothing to line up */ }
+      c.suspend(0).then(
+        async () => {
+          await Promise.all([...b.insts].map((i) => i.sync()));
+          await c.resume();
+        },
+        () => {},
+      );
+    } catch (e) {
+      /* already rendering: nothing to line up */
+    }
   }
   b.insts.add(inst);
   return () => b.insts.delete(inst);
@@ -111,8 +132,17 @@ function offlineBarrier(c, inst) {
 
 // The param specs a KernelCore takes (processorOptions.params), from a def. Shared with the Node renderer.
 export function kernelSpecs(def) {
-  return (def.params || []).map(normParam)
-    .map(({ key, min, max, def: d, step, curve, opts: o }) => ({ key, min, max, def: d, step, curve, opts: o ? o.length : undefined }));
+  return (def.params || [])
+    .map(normParam)
+    .map(({ key, min, max, def: d, step, curve, opts: o }) => ({
+      key,
+      min,
+      max,
+      def: d,
+      step,
+      curve,
+      opts: o ? o.length : undefined,
+    }));
 }
 
 // opts: { uid, seed, clock, params, on = true, bpm? }
@@ -127,7 +157,9 @@ export async function kernelInstance(c, def, opts = {}) {
   const offline = isOffline(c);
   const transport = () => {
     const now = c.currentTime;
-    let bpm = opts.bpm || 120, playing = offline, beat = 0;
+    let bpm = opts.bpm || 120,
+      playing = offline,
+      beat = 0;
     try {
       if (clock) {
         if (clock.bpm) bpm = +clock.bpm() || bpm;
@@ -135,7 +167,9 @@ export async function kernelInstance(c, def, opts = {}) {
         if (clock.beatAt) beat = +clock.beatAt(now) || 0;
         else if (clock.barAt) beat = (+clock.barAt(now) || 0) * (clock.beatsPerBar ? +clock.beatsPerBar() || 4 : 4);
       }
-    } catch (e) { /* a clock mid-rebuild: keep the defaults */ }
+    } catch (e) {
+      /* a clock mid-rebuild: keep the defaults */
+    }
     return { bpm, playing, beat, time: now };
   };
 
@@ -147,8 +181,15 @@ export async function kernelInstance(c, def, opts = {}) {
     for (const [k, hash] of Object.entries(files)) have[k] = peekData(hash);
     const missing = Object.entries(files).filter(([k]) => !have[k]);
     if (missing.length) {
-      const all = Promise.all(missing.map(([k, hash]) => loadData(hash).then((b) => { have[k] = b; })));
-      if (offline) await all; else waiting = all;
+      const all = Promise.all(
+        missing.map(([k, hash]) =>
+          loadData(hash).then((b) => {
+            have[k] = b;
+          }),
+        ),
+      );
+      if (offline) await all;
+      else waiting = all;
     }
   }
   const dataNow = () => {
@@ -164,34 +205,79 @@ export async function kernelInstance(c, def, opts = {}) {
     numberOfInputs: kind === 'effect' ? (keyed ? 2 : 1) : 0,
     numberOfOutputs: 1,
     outputChannelCount: [2],
-    processorOptions: { source: def.kernel, kind, params: specs, values, poly: def.poly, seed, transport: transport(), idle: !offline, tail: def.tail,
+    processorOptions: {
+      source: def.kernel,
+      kind,
+      params: specs,
+      values,
+      poly: def.poly,
+      seed,
+      transport: transport(),
+      idle: !offline,
+      tail: def.tail,
       ...(keyed ? { key: true, keyOn: false } : {}),
-      ...(files ? { data: dataOptions(c, files, have) } : {}) },
+      ...(files ? { data: dataOptions(c, files, have) } : {}),
+    },
   });
 
-  const listeners = { error: new Set(), log: new Set(), ready: new Set(), stats: new Set(), stuck: new Set(), data: new Set() };
-  const emit = (type, d) => { for (const fn of listeners[type] || []) { try { fn(d); } catch (e) { console.error(e); } } };
+  const listeners = {
+    error: new Set(),
+    log: new Set(),
+    ready: new Set(),
+    stats: new Set(),
+    stuck: new Set(),
+    data: new Set(),
+  };
+  const emit = (type, d) => {
+    for (const fn of listeners[type] || []) {
+      try {
+        fn(d);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
   const pending = new Map(); // reload ids -> { resolve, reject }
   const syncs = new Map();
-  let reqId = 0, latencySamples = 0, version = 0;
+  let reqId = 0,
+    latencySamples = 0,
+    version = 0;
 
   let readyRes, readyRej;
-  const ready = new Promise((res, rej) => { readyRes = res; readyRej = rej; });
+  const ready = new Promise((res, rej) => {
+    readyRes = res;
+    readyRej = rej;
+  });
   ready.catch(() => {}); // a compile error is reported through `ready` / errors; never an unhandled rejection
 
   const inst = {
-    def, uid: opts.uid || null, ready, data: null,
-    input: null, output: null,
-    errors: [], faulted: false, version: 0,
+    def,
+    uid: opts.uid || null,
+    ready,
+    data: null,
+    input: null,
+    output: null,
+    errors: [],
+    faulted: false,
+    version: 0,
     // (bypassed, an effect is its dry path: delayed by the declared latency, whatever the kernel reports)
-    get latency() { return kind === 'effect' && !on ? +def.latency || 0 : (latencySamples || 0) / c.sampleRate || +def.latency || 0; },
+    get latency() {
+      return kind === 'effect' && !on ? +def.latency || 0 : (latencySamples || 0) / c.sampleRate || +def.latency || 0;
+    },
   };
 
   node.port.onmessage = (e) => {
     const d = e.data || {};
     if (d.type === 'ready') {
-      latencySamples = d.latency || 0; version = d.version; inst.version = version; inst.faulted = false; inst.poly = d.poly || 0;
-      if (d.id != null && pending.has(d.id)) { pending.get(d.id).resolve(d); pending.delete(d.id); }
+      latencySamples = d.latency || 0;
+      version = d.version;
+      inst.version = version;
+      inst.faulted = false;
+      inst.poly = d.poly || 0;
+      if (d.id != null && pending.has(d.id)) {
+        pending.get(d.id).resolve(d);
+        pending.delete(d.id);
+      }
       if (d.version === 1) readyRes(inst);
       emit('ready', d);
     } else if (d.type === 'error') {
@@ -199,40 +285,77 @@ export async function kernelInstance(c, def, opts = {}) {
       inst.errors.push(err);
       if (inst.errors.length > 50) inst.errors.shift();
       if (d.stage === 'process') inst.faulted = true;
-      if (d.id != null && pending.has(d.id)) { pending.get(d.id).reject(Object.assign(new Error(d.message), err)); pending.delete(d.id); }
-      else if (d.stage === 'compile' && version === 0) readyRej(Object.assign(new Error(d.message), err));
+      if (d.id != null && pending.has(d.id)) {
+        pending.get(d.id).reject(Object.assign(new Error(d.message), err));
+        pending.delete(d.id);
+      } else if (d.stage === 'compile' && version === 0) readyRej(Object.assign(new Error(d.message), err));
       emit('error', err);
     } else if (d.type === 'log') emit('log', d.args);
     else if (d.type === 'stats') emit('stats', d);
-    else if (d.type === 'synced') { const r = syncs.get(d.id); if (r) { syncs.delete(d.id); r(true); } }
-    else if (d.type === 'stuck') {
+    else if (d.type === 'synced') {
+      const r = syncs.get(d.id);
+      if (r) {
+        syncs.delete(d.id);
+        r(true);
+      }
+    } else if (d.type === 'stuck') {
       inst.stuck += d.n || 1;
-      if (DEV) console.warn(`overdub: the watchdog let go of ${d.n || 1} ${d.why === 'ring' ? 'ringing' : 'stuck'} voice${d.n > 1 ? 's' : ''} (pitch ${d.p}) on ${def.id}${opts.uid ? ' (' + opts.uid + ')' : ''}`);
+      if (DEV)
+        console.warn(
+          `overdub: the watchdog let go of ${d.n || 1} ${d.why === 'ring' ? 'ringing' : 'stuck'} voice${d.n > 1 ? 's' : ''} (pitch ${d.p}) on ${def.id}${opts.uid ? ' (' + opts.uid + ')' : ''}`,
+        );
       emit('stuck', d);
     }
   };
 
   const out = c.createGain();
   inst.output = out;
-  const post = (m) => { try { node.port.postMessage(m); } catch (e) { /* closed */ } };
-  let on = opts.on !== false, wet = null, dry = null, feed = null, dryDelay = null;
+  const post = (m) => {
+    try {
+      node.port.postMessage(m);
+    } catch (e) {
+      /* closed */
+    }
+  };
+  let on = opts.on !== false,
+    wet = null,
+    dry = null,
+    feed = null,
+    dryDelay = null;
 
   if (kind === 'effect') {
     const input = c.createGain();
-    feed = c.createGain(); wet = c.createGain(); dry = c.createGain();
-    feed.gain.value = on ? 1 : 0; wet.gain.value = on ? 1 : (def.trails ? 1 : 0); dry.gain.value = on ? 0 : 1;
-    input.connect(feed); feed.connect(node); node.connect(wet); wet.connect(out);
+    feed = c.createGain();
+    wet = c.createGain();
+    dry = c.createGain();
+    feed.gain.value = on ? 1 : 0;
+    wet.gain.value = on ? 1 : def.trails ? 1 : 0;
+    dry.gain.value = on ? 0 : 1;
+    input.connect(feed);
+    feed.connect(node);
+    node.connect(wet);
+    wet.connect(out);
     input.connect(dry);
     const lat = +def.latency || 0; // seconds, declared: line the dry path up with the wet one
-    if (lat > 0) { dryDelay = c.createDelay(Math.max(1, lat * 2)); dryDelay.delayTime.value = lat; dry.connect(dryDelay); dryDelay.connect(out); }
-    else dry.connect(out);
+    if (lat > 0) {
+      dryDelay = c.createDelay(Math.max(1, lat * 2));
+      dryDelay.delayTime.value = lat;
+      dry.connect(dryDelay);
+      dryDelay.connect(out);
+    } else dry.connect(out);
     inst.input = input;
     if (keyed) {
       const k = c.createGain();
       k.connect(node, 0, 1);
       inst.keyInput = k;
       inst.keyOn = false;
-      inst.setKey = (v) => { v = !!v; if (v !== inst.keyOn) { inst.keyOn = v; post({ type: 'key', on: v }); } };
+      inst.setKey = (v) => {
+        v = !!v;
+        if (v !== inst.keyOn) {
+          inst.keyOn = v;
+          post({ type: 'key', on: v });
+        }
+      };
     }
   } else {
     node.connect(out);
@@ -244,29 +367,61 @@ export async function kernelInstance(c, def, opts = {}) {
     const v = paramValues(ndef, params || {});
     lastValues = v;
     post({ type: 'params', values: v, jump: !!x.first });
-    if (x.bpm) { opts.bpm = x.bpm; post({ type: 'transport', ...transport() }); }
+    if (x.bpm) {
+      opts.bpm = x.bpm;
+      post({ type: 'transport', ...transport() });
+    }
   };
-  inst.auto = (g) => post({ type: 'auto', key: g.key, time: tOf(g.time), end: tOf(g.end == null ? g.time : g.end), a: +g.a, b: +g.b, c: g.c == null ? 0 : g.c, start: g.start == null ? null : +g.start });
-  inst.autoClear = (key, from, release = false) => post({ type: 'auto.clear', key: key == null ? null : key, from: tOf(from), release: !!release });
+  inst.auto = (g) =>
+    post({
+      type: 'auto',
+      key: g.key,
+      time: tOf(g.time),
+      end: tOf(g.end == null ? g.time : g.end),
+      a: +g.a,
+      b: +g.b,
+      c: g.c == null ? 0 : g.c,
+      start: g.start == null ? null : +g.start,
+    });
+  inst.autoClear = (key, from, release = false) =>
+    post({ type: 'auto.clear', key: key == null ? null : key, from: tOf(from), release: !!release });
   inst.autoStop = () => post({ type: 'auto.stop' });
   inst.setOn = (next, at) => {
     if (kind !== 'effect') return;
     next = !!next;
     if (next === on) return;
     on = next;
-    const t = Math.max(at == null ? 0 : at, c.currentTime), tc = 0.010 / 3; // ~10 ms to settle
-    const ramp = (g, v) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(v, t, tc); };
-    if (sleepTimer) { clearTimeout(sleepTimer); sleepTimer = null; }
+    const t = Math.max(at == null ? 0 : at, c.currentTime),
+      tc = 0.01 / 3; // ~10 ms to settle
+    const ramp = (g, v) => {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.setTargetAtTime(v, t, tc);
+    };
+    if (sleepTimer) {
+      clearTimeout(sleepTimer);
+      sleepTimer = null;
+    }
     if (on) {
       post({ type: 'sleep', on: false });
-      ramp(feed, 1); ramp(wet, 1); ramp(dry, 0);
+      ramp(feed, 1);
+      ramp(wet, 1);
+      ramp(dry, 0);
     } else {
       ramp(dry, 1);
-      if (def.trails) ramp(feed, 0); // the tail rings out through the still-open wet path
+      if (def.trails)
+        ramp(feed, 0); // the tail rings out through the still-open wet path
       else {
-        ramp(wet, 0); ramp(feed, 0);
+        ramp(wet, 0);
+        ramp(feed, 0);
         // once faded (and whatever was in the kernel has died away), stop running it
-        if (!offline) sleepTimer = setTimeout(() => { if (!on) post({ type: 'sleep', on: true }); }, 1000 * Math.max(0.1, Math.min(5, +def.tail || 0.25)));
+        if (!offline)
+          sleepTimer = setTimeout(
+            () => {
+              if (!on) post({ type: 'sleep', on: true });
+            },
+            1000 * Math.max(0.1, Math.min(5, +def.tail || 0.25)),
+          );
       }
     }
   };
@@ -274,14 +429,23 @@ export async function kernelInstance(c, def, opts = {}) {
   // the ledger (see the watchdog in the header): what was handed over, in time order (k: 0 allOff, 1 off, 2 on)
   const led = { base: new Map(), ev: [], last: 0 };
   const ledAdd = (k, p, t) => {
-    const e = { k, p, t: Math.max(t, 0) }, q = led.ev;
+    const e = { k, p, t: Math.max(t, 0) },
+      q = led.ev;
     let j = q.length;
     while (j > 0 && (q[j - 1].t > e.t || (q[j - 1].t === e.t && q[j - 1].k > k))) j--;
     q.splice(j, 0, e);
     if (e.t > led.last) led.last = e.t;
     if (c.currentTime > led.last) led.last = c.currentTime;
   };
-  const ledApply = (m, e) => { if (e.k === 0) m.clear(); else if (e.k === 2) m.set(e.p, (m.get(e.p) || 0) + 1); else { const n = (m.get(e.p) || 0) - 1; if (n > 0) m.set(e.p, n); else m.delete(e.p); } };
+  const ledApply = (m, e) => {
+    if (e.k === 0) m.clear();
+    else if (e.k === 2) m.set(e.p, (m.get(e.p) || 0) + 1);
+    else {
+      const n = (m.get(e.p) || 0) - 1;
+      if (n > 0) m.set(e.p, n);
+      else m.delete(e.p);
+    }
+  };
   // the open notes at time `now` ({ pitch: n }); events more than a second old fold into the base
   const ledOpen = (now) => {
     const q = led.ev;
@@ -289,7 +453,10 @@ export async function kernelInstance(c, def, opts = {}) {
     while (i < q.length && q[i].t < now - 1) ledApply(led.base, q[i++]);
     if (i) q.splice(0, i);
     const m = new Map(led.base);
-    for (const e of q) { if (e.t > now) break; ledApply(m, e); }
+    for (const e of q) {
+      if (e.t > now) break;
+      ledApply(m, e);
+    }
     const o = {};
     for (const [p, n] of m) o[p] = n;
     return o;
@@ -303,19 +470,30 @@ export async function kernelInstance(c, def, opts = {}) {
     let n = led.base.get(p) || 0;
     for (const e of led.ev) {
       if (e.t > t + eps) break;
-      if (e.k === 2 && e.t > t - eps) continue;   // (at the same frame, the ons come after every off)
-      if (e.k === 0) n = 0; else if (e.p === p) n += e.k === 2 ? 1 : -1;
+      if (e.k === 2 && e.t > t - eps) continue; // (at the same frame, the ons come after every off)
+      if (e.k === 0) n = 0;
+      else if (e.p === p) n += e.k === 2 ? 1 : -1;
       if (n < 0) n = 0;
     }
     return n;
   };
   const ledOnAt = (p, t) => led.ev.some((e) => e.k === 2 && e.p === p && Math.abs(e.t - t) < 0.5 / c.sampleRate);
-  const ledDrop = (k, p, t) => { const q = led.ev; for (let j = q.length - 1; j >= 0; j--) if (q[j].k === k && q[j].p === p && Math.abs(q[j].t - t) < 0.5 / c.sampleRate) { q.splice(j, 1); return true; } return false; };
+  const ledDrop = (k, p, t) => {
+    const q = led.ev;
+    for (let j = q.length - 1; j >= 0; j--)
+      if (q[j].k === k && q[j].p === p && Math.abs(q[j].t - t) < 0.5 / c.sampleRate) {
+        q.splice(j, 1);
+        return true;
+      }
+    return false;
+  };
   inst.noteOn = (pitch, vel = 0.8, time, x) => {
     if (kind === 'instrument') ledAdd(2, pitch | 0, tOf(time));
-    post(x && (x.bend != null || x.mod != null)
-      ? { type: 'on', p: pitch | 0, v: +vel, time: tOf(time), x: { bend: x.bend, mod: x.mod } }
-      : { type: 'on', p: pitch | 0, v: +vel, time: tOf(time) });
+    post(
+      x && (x.bend != null || x.mod != null)
+        ? { type: 'on', p: pitch | 0, v: +vel, time: tOf(time), x: { bend: x.bend, mod: x.mod } }
+        : { type: 'on', p: pitch | 0, v: +vel, time: tOf(time) },
+    );
   };
   // the channel's expression from `time`: bend (semitones), mod (0..1), sustain (bool); fields left out stay
   inst.expr = (x, time) => post({ type: 'expr', ...chanExpr(x), time: tOf(time) });
@@ -335,7 +513,10 @@ export async function kernelInstance(c, def, opts = {}) {
     }
     post({ type: 'off', p, time: t });
   };
-  inst.allOff = (time) => { if (kind === 'instrument') ledAdd(0, 0, tOf(time)); post({ type: 'alloff', time: tOf(time) }); };
+  inst.allOff = (time) => {
+    if (kind === 'instrument') ledAdd(0, 0, tOf(time));
+    post({ type: 'alloff', time: tOf(time) });
+  };
   // drop every note queued at or after `time` (the engine's stop and seek, before allOff): note-ons in the lookahead
   // never sound, and their note-offs can't be lost
   inst.flush = (time) => {
@@ -355,41 +536,73 @@ export async function kernelInstance(c, def, opts = {}) {
     }
     post({ type: 'cancel', p, time: tOf(time), off: off == null ? null : +off, to: to == null ? null : +to });
   };
-  inst.reload = (source) => new Promise((resolve, reject) => {
-    const id = ++reqId;
-    pending.set(id, { resolve: () => { def = Object.assign({}, def, { kernel: source }); inst.def = def; resolve(inst); }, reject });
-    post({ type: 'code', source, id });
-  });
+  inst.reload = (source) =>
+    new Promise((resolve, reject) => {
+      const id = ++reqId;
+      pending.set(id, {
+        resolve: () => {
+          def = Object.assign({}, def, { kernel: source });
+          inst.def = def;
+          resolve(inst);
+        },
+        reject,
+      });
+      post({ type: 'code', source, id });
+    });
   // Resolves once the worklet has handled everything posted before this call.
-  inst.sync = () => new Promise((resolve) => {
-    const id = ++reqId;
-    syncs.set(id, resolve);
-    post({ type: 'sync', id });
-    setTimeout(() => { if (syncs.delete(id)) resolve(false); }, 2000);
-  });
-  inst.on = (type, fn) => { (listeners[type] || (listeners[type] = new Set())).add(fn); return () => listeners[type].delete(fn); };
+  inst.sync = () =>
+    new Promise((resolve) => {
+      const id = ++reqId;
+      syncs.set(id, resolve);
+      post({ type: 'sync', id });
+      setTimeout(() => {
+        if (syncs.delete(id)) resolve(false);
+      }, 2000);
+    });
+  inst.on = (type, fn) => {
+    (listeners[type] || (listeners[type] = new Set())).add(fn);
+    return () => listeners[type].delete(fn);
+  };
   inst.stuck = 0;
-  inst.stats = () => new Promise((resolve) => {
-    const off = inst.on('stats', (d) => { off(); clearTimeout(to); resolve(d); });
-    const to = setTimeout(() => { off(); resolve(null); }, 1000);
-    post({ type: 'stats' });
-  });
+  inst.stats = () =>
+    new Promise((resolve) => {
+      const off = inst.on('stats', (d) => {
+        off();
+        clearTimeout(to);
+        resolve(d);
+      });
+      const to = setTimeout(() => {
+        off();
+        resolve(null);
+      }, 1000);
+      post({ type: 'stats' });
+    });
 
   // transport: post the song position now and every 50 ms (the worklet extrapolates between)
   let tick = null;
   if (!offline) {
-    let last = '', n = 0;
+    let last = '',
+      n = 0;
     // the watchdog's ring limit: the device's tail or its release param, whichever is longer, plus a second
     const ring = () => {
       let r = +def.tail || 4;
-      for (const s of def.params || []) if (s.role === 'release') { const v = +(lastValues || {})[s.key]; if (v > r) r = v; }
+      for (const s of def.params || [])
+        if (s.role === 'release') {
+          const v = +(lastValues || {})[s.key];
+          if (v > r) r = v;
+        }
       return Math.min(60, r) + 1;
     };
     const send = () => {
-      const tr = transport(), key = tr.bpm + '|' + tr.playing;
-      if (key !== last || tr.playing) { last = key; post({ type: 'transport', ...tr }); }
+      const tr = transport(),
+        key = tr.bpm + '|' + tr.playing;
+      if (key !== last || tr.playing) {
+        last = key;
+        post({ type: 'transport', ...tr });
+      }
       // (stopped, and the last note handed over is 200 ms behind us)
-      if (kind === 'instrument' && !tr.playing && ++n % 5 === 0 && tr.time > led.last + 0.2) post({ type: 'watch', open: ledOpen(tr.time), time: tr.time, ring: ring() });
+      if (kind === 'instrument' && !tr.playing && ++n % 5 === 0 && tr.time > led.last + 0.2)
+        post({ type: 'watch', open: ledOpen(tr.time), time: tr.time, ring: ring() });
     };
     tick = setInterval(send, 50);
   }
@@ -411,8 +624,19 @@ export async function kernelInstance(c, def, opts = {}) {
     if (tick) clearInterval(tick);
     if (sleepTimer) clearTimeout(sleepTimer);
     post({ type: 'end' });
-    try { node.port.onmessage = null; node.port.close(); } catch (e) { /* closed */ }
-    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) { try { if (n) n.disconnect(); } catch (e) { /* gone */ } }
+    try {
+      node.port.onmessage = null;
+      node.port.close();
+    } catch (e) {
+      /* closed */
+    }
+    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) {
+      try {
+        if (n) n.disconnect();
+      } catch (e) {
+        /* gone */
+      }
+    }
     for (const p of pending.values()) p.reject(new Error('disposed'));
     pending.clear();
   };

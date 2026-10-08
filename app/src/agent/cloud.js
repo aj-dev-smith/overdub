@@ -31,8 +31,13 @@ const POLL_FOR_MS = 15 * 60 * 1000;
 
 export class CloudError extends Error {
   constructor(status, body = {}) {
-    const e = body && body.error || {};
-    super(e.message || (status ? `The service answered ${status}.` : 'Couldn’t reach Claude on Overdub credits. Check your connection and try again.'));
+    const e = (body && body.error) || {};
+    super(
+      e.message ||
+        (status
+          ? `The service answered ${status}.`
+          : 'Couldn’t reach Claude on Overdub credits. Check your connection and try again.'),
+    );
     this.name = 'CloudError';
     this.status = status;
     this.code = e.code || (status ? 'http_' + status : 'unreachable');
@@ -49,35 +54,86 @@ export function maskEmail(email) {
 
 // A URL the service hands back to open in a new tab (a checkout): https, or http on this machine, else nothing
 export function safeUrl(u) {
-  try { const x = new URL(u); return x.protocol === 'https:' || (x.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname)) ? x.href : null; } catch (e) { return null; }
+  try {
+    const x = new URL(u);
+    return x.protocol === 'https:' || (x.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname))
+      ? x.href
+      : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(...a), win = globalThis } = {}) {
   const fns = new Map();
-  const emit = (type, d) => { for (const fn of fns.get(type) || []) { try { fn(d); } catch (e) { console.error('cloud listener', type, e); } } };
-  let state = 'signed-out', me = null, config = null, pendingEmail = '', error = null, checked = false;
-  let pollT = 0, pollUntil = 0;
+  const emit = (type, d) => {
+    for (const fn of fns.get(type) || []) {
+      try {
+        fn(d);
+      } catch (e) {
+        console.error('cloud listener', type, e);
+      }
+    }
+  };
+  let state = 'signed-out',
+    me = null,
+    config = null,
+    pendingEmail = '',
+    error = null,
+    checked = false;
+  let pollT = 0,
+    pollUntil = 0;
 
-  function setState(s, err = null) { state = s; error = err; emit('state', s); }
-  function setMe(m) { me = m || null; checked = true; if (me && state !== 'signed-in') { stopPoll(); pendingEmail = ''; setState('signed-in'); } else if (!me && state === 'signed-in') setState('signed-out'); emit('me', me); }
+  function setState(s, err = null) {
+    state = s;
+    error = err;
+    emit('state', s);
+  }
+  function setMe(m) {
+    me = m || null;
+    checked = true;
+    if (me && state !== 'signed-in') {
+      stopPoll();
+      pendingEmail = '';
+      setState('signed-in');
+    } else if (!me && state === 'signed-in') setState('signed-out');
+    emit('me', me);
+  }
 
   async function req(method, path, body, { key = null, signal = null, raw = false } = {}) {
-    if (!api) throw new CloudError(0, { error: { code: 'off', message: 'Claude on Overdub credits isn’t on in this studio.' } });
+    if (!api)
+      throw new CloudError(0, {
+        error: { code: 'off', message: 'Claude on Overdub credits isn’t on in this studio.' },
+      });
     const headers = {};
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (key) headers['idempotency-key'] = key;
     let res;
-    try { res = await f(api + path, { method, credentials: 'include', headers, body: body === undefined ? undefined : JSON.stringify(body), signal, cache: 'no-store' }); } catch (e) {
+    try {
+      res = await f(api + path, {
+        method,
+        credentials: 'include',
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
+        cache: 'no-store',
+      });
+    } catch (e) {
       if (e && e.name === 'AbortError') throw e;
       throw new CloudError(0);
     }
     if (raw && res.ok) return res;
     if (res.status === 204) return null;
     let j = null;
-    try { j = await res.json(); } catch (e) { j = null; }
+    try {
+      j = await res.json();
+    } catch (e) {
+      j = null;
+    }
     if (!res.ok) {
       const err = new CloudError(res.status, j);
-      if (!err.details.retryAfter && res.headers.get('retry-after')) err.details.retryAfter = Number(res.headers.get('retry-after')) || 0;
+      if (!err.details.retryAfter && res.headers.get('retry-after'))
+        err.details.retryAfter = Number(res.headers.get('retry-after')) || 0;
       if (res.status === 401 && me) setMe(null);
       throw err;
     }
@@ -86,13 +142,24 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
 
   /* ------------------------------------------------------------------ account */
   async function load() {
-    try { config = await req('GET', '/v1/config'); emit('config', config); } catch (e) { config = null; }
+    try {
+      config = await req('GET', '/v1/config');
+      emit('config', config);
+    } catch (e) {
+      config = null;
+    }
     await refresh().catch(() => null);
     return config;
   }
   async function refresh() {
-    try { setMe(await req('GET', '/v1/me')); } catch (e) {
-      if (e.status === 401) { checked = true; setMe(null); return null; }
+    try {
+      setMe(await req('GET', '/v1/me'));
+    } catch (e) {
+      if (e.status === 401) {
+        checked = true;
+        setMe(null);
+        return null;
+      }
       throw e;
     }
     return me;
@@ -103,16 +170,46 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     const kind = config?.botCheck?.kind || 'stub';
     if (kind === 'stub') return Promise.resolve('dev-ok');
     return new Promise((resolve, reject) => {
-      if (!frameHost) { reject(new CloudError(400, { error: { code: 'bot_check_failed', message: 'We couldn’t check you’re a person. Try again.' } })); return; }
+      if (!frameHost) {
+        reject(
+          new CloudError(400, {
+            error: { code: 'bot_check_failed', message: 'We couldn’t check you’re a person. Try again.' },
+          }),
+        );
+        return;
+      }
       const frame = win.document.createElement('iframe');
       frame.className = 'ag-cl-bot';
       frame.title = 'A quick check that you’re a person';
       frame.src = api + '/v1/auth/botcheck-frame';
-      const done = (fn, v) => { win.removeEventListener('message', onMsg); clearTimeout(t); frame.remove(); fn(v); };
-      const onMsg = (ev) => { if (ev.origin === api && ev.data && ev.data.type === 'overdub:botcheck' && typeof ev.data.token === 'string') done(resolve, ev.data.token); };
-      const t = setTimeout(() => done(reject, new CloudError(400, { error: { code: 'bot_check_failed', message: 'We couldn’t check you’re a person. Try again.' } })), 120000);
+      const done = (fn, v) => {
+        win.removeEventListener('message', onMsg);
+        clearTimeout(t);
+        frame.remove();
+        fn(v);
+      };
+      const onMsg = (ev) => {
+        if (ev.origin === api && ev.data && ev.data.type === 'overdub:botcheck' && typeof ev.data.token === 'string')
+          done(resolve, ev.data.token);
+      };
+      const t = setTimeout(
+        () =>
+          done(
+            reject,
+            new CloudError(400, {
+              error: { code: 'bot_check_failed', message: 'We couldn’t check you’re a person. Try again.' },
+            }),
+          ),
+        120000,
+      );
       win.addEventListener('message', onMsg);
-      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api); } catch (e) { /* the frame says hello again */ } });
+      frame.addEventListener('load', () => {
+        try {
+          frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api);
+        } catch (e) {
+          /* the frame says hello again */
+        }
+      });
       frameHost.replaceChildren(frame);
     });
   }
@@ -126,43 +223,83 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
       pendingEmail = email;
       setState('check-inbox');
       startPoll();
-    } catch (e) { setState('signed-out', e); throw e; }
+    } catch (e) {
+      setState('signed-out', e);
+      throw e;
+    }
   }
   async function enterCode(email, code) {
-    await req('POST', '/v1/auth/code', { email: String(email || pendingEmail).trim(), code: String(code || '').replace(/\s+/g, '') });
+    await req('POST', '/v1/auth/code', {
+      email: String(email || pendingEmail).trim(),
+      code: String(code || '').replace(/\s+/g, ''),
+    });
     return refresh();
   }
-  function cancelSignIn() { stopPoll(); pendingEmail = ''; setState('signed-out'); }
+  function cancelSignIn() {
+    stopPoll();
+    pendingEmail = '';
+    setState('signed-out');
+  }
   async function signOut() {
-    try { await req('POST', '/v1/auth/logout', {}); } catch (e) { if (e.status !== 401) throw e; }
+    try {
+      await req('POST', '/v1/auth/logout', {});
+    } catch (e) {
+      if (e.status !== 401) throw e;
+    }
     forgetLocal();
-    setMe(null); setState('signed-out');
+    setMe(null);
+    setState('signed-out');
   }
   // The ask-to-takes map (for credits back on undo) holds the service's action ids, which point at its usage records:
   // it goes when the account does, or is signed out of, on this browser
-  function forgetLocal() { try { win.localStorage?.removeItem('overdub:cloud:takes'); } catch (e) { /* storage blocked */ } }
+  function forgetLocal() {
+    try {
+      win.localStorage?.removeItem('overdub:cloud:takes');
+    } catch (e) {
+      /* storage blocked */
+    }
+  }
 
   // "Check your inbox": the link opened in this browser signs this tab in too, so /v1/me is asked every 5 s while the
   // tab is visible (and when it comes back into view), for up to 15 minutes
-  function startPoll() { pollUntil = Date.now() + POLL_FOR_MS; schedule(); win.addEventListener?.('focus', onFocus); }
-  function stopPoll() { clearTimeout(pollT); pollT = 0; win.removeEventListener?.('focus', onFocus); }
-  function onFocus() { if (state === 'check-inbox') refresh().catch(() => {}); }
+  function startPoll() {
+    pollUntil = Date.now() + POLL_FOR_MS;
+    schedule();
+    win.addEventListener?.('focus', onFocus);
+  }
+  function stopPoll() {
+    clearTimeout(pollT);
+    pollT = 0;
+    win.removeEventListener?.('focus', onFocus);
+  }
+  function onFocus() {
+    if (state === 'check-inbox') refresh().catch(() => {});
+  }
   function schedule() {
     clearTimeout(pollT);
     pollT = setTimeout(async () => {
       if (state !== 'check-inbox') return;
-      if (Date.now() > pollUntil) { stopPoll(); return; }
+      if (Date.now() > pollUntil) {
+        stopPoll();
+        return;
+      }
       if (win.document?.visibilityState !== 'hidden') await refresh().catch(() => {});
       if (state === 'check-inbox') schedule();
     }, POLL_MS);
   }
 
   /* ------------------------------------------------------------------ actions */
-  const open = ({ kind, moreTime = false, promptVersion }, key) => req('POST', '/v1/agent/actions', { kind, moreTime: !!moreTime, promptVersion }, { key });
-  const call = (actionId, body, signal) => req('POST', `/v1/agent/actions/${encodeURIComponent(actionId)}/calls`, body, { signal, raw: true });
+  const open = ({ kind, moreTime = false, promptVersion }, key) =>
+    req('POST', '/v1/agent/actions', { kind, moreTime: !!moreTime, promptVersion }, { key });
+  const call = (actionId, body, signal) =>
+    req('POST', `/v1/agent/actions/${encodeURIComponent(actionId)}/calls`, body, { signal, raw: true });
   const wait = (actionId) => req('POST', `/v1/agent/actions/${encodeURIComponent(actionId)}/wait`, {});
   async function finish(actionId, { outcome = 'done', cardPending = false, deviceWritten = false } = {}) {
-    const s = await req('POST', `/v1/agent/actions/${encodeURIComponent(actionId)}/finish`, { outcome, cardPending: !!cardPending, deviceWritten: !!deviceWritten });
+    const s = await req('POST', `/v1/agent/actions/${encodeURIComponent(actionId)}/finish`, {
+      outcome,
+      cardPending: !!cardPending,
+      deviceWritten: !!deviceWritten,
+    });
     if (s?.balance) setBalance(s.balance);
     return s;
   }
@@ -171,10 +308,18 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     if (r?.balance) setBalance(r.balance);
     return r;
   }
-  function setBalance(balance) { if (me && balance) { me = { ...me, balance }; emit('me', me); } }
+  function setBalance(balance) {
+    if (me && balance) {
+      me = { ...me, balance };
+      emit('me', me);
+    }
+  }
 
   /* ------------------------------------------------------------------ credits */
-  async function claimTrial() { setMe(await req('POST', '/v1/trial/claim', { takeSaved: true })); return me; }
+  async function claimTrial() {
+    setMe(await req('POST', '/v1/trial/claim', { takeSaved: true }));
+    return me;
+  }
   async function checkout(sku) {
     const r = await req('POST', '/v1/billing/checkout', { sku }, { key: newKey() });
     const url = safeUrl(r?.url);
@@ -186,32 +331,74 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     setMe(m);
     return { me, paid: checkoutPaid !== false };
   }
-  const activity = ({ before = null, limit = 20 } = {}) => req('GET', `/v1/me/activity?limit=${limit}${before ? '&before=' + encodeURIComponent(before) : ''}`);
+  const activity = ({ before = null, limit = 20 } = {}) =>
+    req('GET', `/v1/me/activity?limit=${limit}${before ? '&before=' + encodeURIComponent(before) : ''}`);
   async function deleteAccount({ cancelPlan = false, forfeitCredits = false } = {}) {
     await req('DELETE', '/v1/me', { confirm: 'delete', cancelPlan: !!cancelPlan, forfeitCredits: !!forfeitCredits });
     forgetLocal();
-    setMe(null); setState('signed-out');
+    setMe(null);
+    setState('signed-out');
   }
-  const rateCard = () => (Array.isArray(config?.rateCard) ? config.rateCard.filter((r) => r && typeof r.kind === 'string' && Number.isFinite(r.credits)) : []);
+  const rateCard = () =>
+    Array.isArray(config?.rateCard)
+      ? config.rateCard.filter((r) => r && typeof r.kind === 'string' && Number.isFinite(r.credits))
+      : [];
 
   return {
-    get enabled() { return !!api; },
+    get enabled() {
+      return !!api;
+    },
     api,
-    get state() { return state; },
-    get me() { return me; },
-    get config() { return config; },
-    get checked() { return checked; },
-    get pendingEmail() { return pendingEmail; },
-    get error() { return error; },
-    load, refresh, signIn, enterCode, cancelSignIn, signOut,
-    open, call, wait, finish, creditBack,
-    claimTrial, checkout, sync, activity, deleteAccount,
-    rateCard, setBalance,
-    on(type, fn) { if (!fns.has(type)) fns.set(type, new Set()); fns.get(type).add(fn); return () => fns.get(type).delete(fn); },
+    get state() {
+      return state;
+    },
+    get me() {
+      return me;
+    },
+    get config() {
+      return config;
+    },
+    get checked() {
+      return checked;
+    },
+    get pendingEmail() {
+      return pendingEmail;
+    },
+    get error() {
+      return error;
+    },
+    load,
+    refresh,
+    signIn,
+    enterCode,
+    cancelSignIn,
+    signOut,
+    open,
+    call,
+    wait,
+    finish,
+    creditBack,
+    claimTrial,
+    checkout,
+    sync,
+    activity,
+    deleteAccount,
+    rateCard,
+    setBalance,
+    on(type, fn) {
+      if (!fns.has(type)) fns.set(type, new Set());
+      fns.get(type).add(fn);
+      return () => fns.get(type).delete(fn);
+    },
   };
 }
 
-export const newKey = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join(''));
+export const newKey = () =>
+  globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join(
+        '',
+      );
 
 /* ------------------------------------------------------------------ the prompt bundle's version */
 // The service owns the system prompt and the tools (by version, overdub-cloud SPEC §5.3): the studio sends only which
@@ -224,11 +411,14 @@ export function canonicalJson(v) {
     return JSON.stringify(v);
   }
   if (Array.isArray(v)) return '[' + v.map((x) => (x === undefined ? 'null' : canonicalJson(x))).join(',') + ']';
-  const keys = Object.keys(v).filter((k) => v[k] !== undefined).sort();
+  const keys = Object.keys(v)
+    .filter((k) => v[k] !== undefined)
+    .sort();
   return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalJson(v[k])).join(',') + '}';
 }
 export function canonicalBundle(system, tools) {
-  const list = (tools || []).map(({ name, description, input_schema }) => ({ name, description, input_schema }))
+  const list = (tools || [])
+    .map(({ name, description, input_schema }) => ({ name, description, input_schema }))
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return { system: String(system), tools: list };
 }

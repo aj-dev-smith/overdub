@@ -75,8 +75,63 @@ import stack from './stack.js';
 import cab from './cab.js';
 import bassrig from './bassrig.js';
 
-export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable, clubkit];
-export const EFFECTS = [eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter, eq8, shaper, multiband, ducker, clipper, drumbus, stack, cab, bassrig];
-export const SAMPLED = [drumkit, upright, brushkit, handkit, grand, ensemble, vibes, ebass, eguitar, barisax, cello, flute, trumpet, metalkit];
+export const INSTRUMENTS = [
+  poly,
+  bass,
+  keys,
+  pluck,
+  drums,
+  pad,
+  piano,
+  organ,
+  strings,
+  bassguitar,
+  guitar,
+  ep,
+  mallets,
+  poly2,
+  brass,
+  choir,
+  drumroom,
+  wavetable,
+  clubkit,
+];
+export const EFFECTS = [
+  eq,
+  comp,
+  verb,
+  delay,
+  chorus,
+  filter,
+  drive,
+  crush,
+  width,
+  limiter,
+  eq8,
+  shaper,
+  multiband,
+  ducker,
+  clipper,
+  drumbus,
+  stack,
+  cab,
+  bassrig,
+];
+export const SAMPLED = [
+  drumkit,
+  upright,
+  brushkit,
+  handkit,
+  grand,
+  ensemble,
+  vibes,
+  ebass,
+  eguitar,
+  barisax,
+  cello,
+  flute,
+  trumpet,
+  metalkit,
+];
 export const BUILTINS = [...INSTRUMENTS, ...SAMPLED, ...EFFECTS];
 export default BUILTINS;

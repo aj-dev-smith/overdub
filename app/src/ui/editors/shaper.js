@@ -21,24 +21,54 @@
 import { h, css, clamp, tok } from '../dom.js';
 import { menu } from '../arrange-kit.js';
 import { presetOf } from '../../devices/registry.js';
-import { LANES, RATES, RATE_BEATS, NP, laneOf, pkey, slotDefault, pointsOf, valueAt, segmentAt, applied, lanePatch, shapeText, presetLane } from '../../devices/builtin/shaper.js';
+import {
+  LANES,
+  RATES,
+  RATE_BEATS,
+  NP,
+  laneOf,
+  pkey,
+  slotDefault,
+  pointsOf,
+  valueAt,
+  segmentAt,
+  applied,
+  lanePatch,
+  shapeText,
+  presetLane,
+} from '../../devices/builtin/shaper.js';
 
-const SNAPS = [0, 2, 3, 4, 6, 8, 12, 16, 24, 32];         // steps a pass (0: off)
-const FINE = 1 / 192;                                     // a nudge with Shift, or with the snap off
+const SNAPS = [0, 2, 3, 4, 6, 8, 12, 16, 24, 32]; // steps a pass (0: off)
+const FINE = 1 / 192; // a nudge with Shift, or with the snap off
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const r4 = (x) => Math.round(x * 10000) / 10000;
 const frac = (x) => x - Math.floor(x);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const dbText = (g) => (g <= 0.0005 ? '−∞ dB' : (() => { const d = 20 * Math.log10(g); return `${d < -0.05 ? '−' : ''}${Math.abs(d).toFixed(1)} dB`; })());
+const dbText = (g) =>
+  g <= 0.0005
+    ? '−∞ dB'
+    : (() => {
+        const d = 20 * Math.log10(g);
+        return `${d < -0.05 ? '−' : ''}${Math.abs(d).toFixed(1)} dB`;
+      })();
 const hzText = (f) => (f >= 1000 ? `${(f / 1000).toFixed(f >= 10000 ? 1 : 2)} kHz` : `${Math.round(f)} Hz`);
 const hzShort = (f) => (f >= 1000 ? `${(f / 1000).toFixed(f >= 10000 ? 0 : 1)} kHz` : `${Math.round(f)} Hz`);
 const panText = (v) => (Math.abs(v) < 0.005 ? 'centre' : `${v < 0 ? 'L' : 'R'} ${Math.round(Math.abs(v) * 100)}%`);
 // a pass's grid step as a note value, when it is one ("1/16 notes", "1/16 triplets", "1/8 dotted"), else null
 function noteOf(beats) {
-  const names = [[4, '1 bar'], [2, '1/2'], [1, '1/4'], [0.5, '1/8'], [0.25, '1/16'], [0.125, '1/32'], [0.0625, '1/64'], [1 / 32, '1/128']];
+  const names = [
+    [4, '1 bar'],
+    [2, '1/2'],
+    [1, '1/4'],
+    [0.5, '1/8'],
+    [0.25, '1/16'],
+    [0.125, '1/32'],
+    [0.0625, '1/64'],
+    [1 / 32, '1/128'],
+  ];
   for (const [b, n] of names) {
     if (Math.abs(beats - b) < 1e-6) return n + (n === '1 bar' ? '' : ' notes');
-    if (Math.abs(beats - b * 2 / 3) < 1e-6) return n + ' triplets';
+    if (Math.abs(beats - (b * 2) / 3) < 1e-6) return n + ' triplets';
     if (Math.abs(beats - b * 1.5) < 1e-6) return n + ' dotted';
   }
   return null;
@@ -60,20 +90,33 @@ export function mount(el, ctx) {
 
   // the room's inks and the device's own colour (its tape)
   const ink = {
-    text: tok('--text') || '#f4ead6', t2: tok('--text-2') || '#cbc0aa', t3: tok('--text-3') || '#9a8f7c', line: tok('--line') || '#2f2b25',
-    line2: tok('--line-2') || '#46413a', accent: tok('--accent') || '#d9f36a', human: tok('--human') || '#ffa043', agent: tok('--agent') || '#4cc3ff',
-    bg: tok('--bg') || '#141210', mono: tok('--font-mono') || 'monospace',
+    text: tok('--text') || '#f4ead6',
+    t2: tok('--text-2') || '#cbc0aa',
+    t3: tok('--text-3') || '#9a8f7c',
+    line: tok('--line') || '#2f2b25',
+    line2: tok('--line-2') || '#46413a',
+    accent: tok('--accent') || '#d9f36a',
+    human: tok('--human') || '#ffa043',
+    agent: tok('--agent') || '#4cc3ff',
+    bg: tok('--bg') || '#141210',
+    mono: tok('--font-mono') || 'monospace',
   };
   const tape = /^#[0-9a-f]{6}$/i.test(def.look?.color || '') ? def.look.color : ink.text;
 
   /* ---------------------------------------------------------------- what it plays now */
   let P = ctx.params();
-  let L = laneOf(sess.lane), pts = pointsOf(P, L.id);
+  let L = laneOf(sess.lane),
+    pts = pointsOf(P, L.id);
   const rateOf = (lane) => clamp(Math.round(P[`${lane}_rate`] ?? laneOf(lane).rate), 0, RATES.length - 1);
   const cycOf = (lane) => RATE_BEATS[rateOf(lane)];
   const onOf = (lane) => (P[`${lane}_on`] ?? laneOf(lane).on) >= 0.5;
   const bpm = () => +app.store.get().tempo || 120;
-  const levelText = (lane, y) => (lane === 'vol' ? dbText(applied(P, 'vol', y)) : lane === 'flt' ? hzText(applied(P, 'flt', y)) : panText(applied(P, 'pan', y)));
+  const levelText = (lane, y) =>
+    lane === 'vol'
+      ? dbText(applied(P, 'vol', y))
+      : lane === 'flt'
+        ? hzText(applied(P, 'flt', y))
+        : panText(applied(P, 'pan', y));
   const placeText = (ph) => {
     const cyc = cycOf(L.id);
     if (cyc >= 1) return `beat ${(1 + ph * cyc).toFixed(2)}`;
@@ -87,18 +130,31 @@ export function mount(el, ctx) {
   for (const lane of LANES) {
     const mini = h('span.sh-mini', { 'aria-hidden': 'true' });
     const meta = h('small.sh-tab-m');
-    const t = h('button.sh-tab', { type: 'button', role: 'tab', id: `${id}-tab-${lane.id}`, 'aria-controls': `${id}-stage`, dataset: { lane: lane.id }, onclick: () => pickLane(lane.id) },
-      mini, h('span.sh-tab-t', h('b.sh-tab-n', h('i.sh-lamp', { 'aria-hidden': 'true' }), lane.name), meta));
+    const t = h(
+      'button.sh-tab',
+      {
+        type: 'button',
+        role: 'tab',
+        id: `${id}-tab-${lane.id}`,
+        'aria-controls': `${id}-stage`,
+        dataset: { lane: lane.id },
+        onclick: () => pickLane(lane.id),
+      },
+      mini,
+      h('span.sh-tab-t', h('b.sh-tab-n', h('i.sh-lamp', { 'aria-hidden': 'true' }), lane.name), meta),
+    );
     tabEls.set(lane.id, { el: t, mini, meta });
     tabs.append(t);
   }
   tabs.addEventListener('keydown', (e) => {
     const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     if (e.key !== 'Home' && e.key !== 'End' && d == null) return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     const i = LANES.findIndex((x) => x.id === L.id);
     const j = e.key === 'Home' ? 0 : e.key === 'End' ? LANES.length - 1 : (i + d + LANES.length) % LANES.length;
-    pickLane(LANES[j].id); tabEls.get(LANES[j].id).el.focus();
+    pickLane(LANES[j].id);
+    tabEls.get(LANES[j].id).el.focus();
   });
   const sum = h('p.sh-sum');
   const head = h('div.sh-head', tabs, sum);
@@ -108,8 +164,30 @@ export function mount(el, ctx) {
   const stage = h('div.sh-stage', { role: 'tabpanel', id: `${id}-stage` }, field);
 
   // the tools: points or pencil, the snap, what it applies now, and a line on how to draw
-  const mode = ctx.kit.segmented({ key: 'mode', label: 'DRAW', opts: ['POINTS', 'PENCIL'] }, { value: sess.mode === 'pencil' ? 1 : 0, name: def.name, onChange: (i) => { sess.mode = i ? 'pencil' : 'points'; root.dataset.mode = sess.mode; hint(); } });
-  const snap = ctx.kit.select({ key: 'snap', label: 'SNAP', opts: SNAPS.map((s) => (s ? `${s} steps` : 'Off')) }, { value: SNAPS.indexOf(sess.snap), name: def.name, onChange: (i) => { sess.snap = SNAPS[i]; snapNote(); cv.dirty(); } });
+  const mode = ctx.kit.segmented(
+    { key: 'mode', label: 'DRAW', opts: ['POINTS', 'PENCIL'] },
+    {
+      value: sess.mode === 'pencil' ? 1 : 0,
+      name: def.name,
+      onChange: (i) => {
+        sess.mode = i ? 'pencil' : 'points';
+        root.dataset.mode = sess.mode;
+        hint();
+      },
+    },
+  );
+  const snap = ctx.kit.select(
+    { key: 'snap', label: 'SNAP', opts: SNAPS.map((s) => (s ? `${s} steps` : 'Off')) },
+    {
+      value: SNAPS.indexOf(sess.snap),
+      name: def.name,
+      onChange: (i) => {
+        sess.snap = SNAPS[i];
+        snapNote();
+        cv.dirty();
+      },
+    },
+  );
   const snapSay = h('span.sh-snap-n');
   const nowEl = h('output.sh-now', { 'aria-hidden': 'true' });
   const hintEl = h('p.sh-hint');
@@ -120,8 +198,19 @@ export function mount(el, ctx) {
   const presets = h('div.sh-pre', { role: 'group', 'aria-label': `${def.name} presets` });
   for (const pr of def.presets || []) {
     const lane = presetLane(pr);
-    const b = h('button.sh-pre-b', { type: 'button', 'aria-pressed': 'false', dataset: { preset: pr.name, lane }, title: pr.blurb || pr.name, 'aria-label': `${pr.name}${pr.blurb ? `: ${pr.blurb}` : ''}`, onclick: () => applyPreset(pr) },
-      h('span.sh-pre-d', { 'aria-hidden': 'true' }, drawing(pointsOf(pr.params, lane), lane, 88, 30, 2)), h('span.sh-pre-n', pr.name));
+    const b = h(
+      'button.sh-pre-b',
+      {
+        type: 'button',
+        'aria-pressed': 'false',
+        dataset: { preset: pr.name, lane },
+        title: pr.blurb || pr.name,
+        'aria-label': `${pr.name}${pr.blurb ? `: ${pr.blurb}` : ''}`,
+        onclick: () => applyPreset(pr),
+      },
+      h('span.sh-pre-d', { 'aria-hidden': 'true' }, drawing(pointsOf(pr.params, lane), lane, 88, 30, 2)),
+      h('span.sh-pre-n', pr.name),
+    );
     preEls.push({ el: b, pr });
     presets.append(b);
   }
@@ -130,14 +219,30 @@ export function mount(el, ctx) {
   const groups = new Map();
   const knobs = h('div.sh-ctl');
   for (const lane of LANES) {
-    const g = h('section.sh-grp', { dataset: { lane: lane.id }, 'aria-label': `${lane.name} lane` },
+    const g = h(
+      'section.sh-grp',
+      { dataset: { lane: lane.id }, 'aria-label': `${lane.name} lane` },
       h('h3.sh-gh', `${lane.name} lane`),
-      h('div.sh-row', ctx.control(`${lane.id}_on`, { label: false }), ctx.control(`${lane.id}_depth`, { label: 'DEPTH', size: 54 }), ctx.control(`${lane.id}_rate`, { label: 'RATE' }),
-        lane.id === 'flt' ? ctx.control('flt_cut', { size: 54 }) : null, lane.id === 'flt' ? ctx.control('flt_res', { size: 54 }) : null));
+      h(
+        'div.sh-row',
+        ctx.control(`${lane.id}_on`, { label: false }),
+        ctx.control(`${lane.id}_depth`, { label: 'DEPTH', size: 54 }),
+        ctx.control(`${lane.id}_rate`, { label: 'RATE' }),
+        lane.id === 'flt' ? ctx.control('flt_cut', { size: 54 }) : null,
+        lane.id === 'flt' ? ctx.control('flt_res', { size: 54 }) : null,
+      ),
+    );
     groups.set(lane.id, g);
     knobs.append(g);
   }
-  knobs.append(h('section.sh-grp.sh-all', { 'aria-label': 'All lanes' }, h('h3.sh-gh', 'All lanes'), h('div.sh-row', ctx.control('smooth', { size: 54 }), ctx.control('mix', { size: 54 }))));
+  knobs.append(
+    h(
+      'section.sh-grp.sh-all',
+      { 'aria-label': 'All lanes' },
+      h('h3.sh-gh', 'All lanes'),
+      h('div.sh-row', ctx.control('smooth', { size: 54 }), ctx.control('mix', { size: 54 })),
+    ),
+  );
 
   root.append(head, stage, tools, presets, knobs);
   root.dataset.mode = sess.mode;
@@ -146,14 +251,26 @@ export function mount(el, ctx) {
   /* ---------------------------------------------------------------- the geometry: a pass, with room either side */
   const geo = (w, hh) => {
     const side = clamp(Math.round(w * 0.075), 22, 72);
-    const top = 14, bottom = hh - 24;
-    return { w, h: hh, side, x0: side, x1: w - side, cw: Math.max(1, w - 2 * side), top, bottom, ch: Math.max(1, bottom - top) };
+    const top = 14,
+      bottom = hh - 24;
+    return {
+      w,
+      h: hh,
+      side,
+      x0: side,
+      x1: w - side,
+      cw: Math.max(1, w - 2 * side),
+      top,
+      bottom,
+      ch: Math.max(1, bottom - top),
+    };
   };
   const fieldGeo = () => geo(field.clientWidth || 600, field.clientHeight || 260);
   const X = (G, ph) => G.x0 + ph * G.cw;
   const Y = (G, y) => G.bottom - y * G.ch;
   const at = (e) => {
-    const r = field.getBoundingClientRect(), G = fieldGeo();
+    const r = field.getBoundingClientRect(),
+      G = fieldGeo();
     return { G, ph: (e.clientX - r.left - G.x0) / G.cw, y: (G.bottom - (e.clientY - r.top)) / G.ch };
   };
   const snapX = (x, free) => (free || !sess.snap ? clamp(x, 0, 1) : clamp(Math.round(x * sess.snap) / sess.snap, 0, 1));
@@ -166,28 +283,63 @@ export function mount(el, ctx) {
   };
 
   /* ---------------------------------------------------------------- the points and bend handles (DOM, over the canvas) */
-  const handles = [], benders = [];
+  const handles = [],
+    benders = [];
   for (let i = 1; i <= NP; i++) {
-    const pt = h('div.sh-pt', { role: 'slider', tabindex: 0, hidden: true, dataset: { i: String(i) }, 'aria-valuemin': 0, 'aria-valuemax': 100 });
+    const pt = h('div.sh-pt', {
+      role: 'slider',
+      tabindex: 0,
+      hidden: true,
+      dataset: { i: String(i) },
+      'aria-valuemin': 0,
+      'aria-valuemax': 100,
+    });
     pt.addEventListener('pointerdown', (e) => pointDown(e, i));
     pt.addEventListener('keydown', (e) => pointKey(e, i));
-    pt.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); remove(i); });
-    pt.addEventListener('focus', () => { focusSlot = i; showBend(); });
-    pt.addEventListener('blur', () => { if (focusSlot === i) focusSlot = 0; showBend(); });
-    ctx.kit.menuOn(pt, (anchor, e) => pointMenu(i, e && e.clientX != null ? { x: e.clientX, y: e.clientY } : pt), () => drag?.stop?.());
+    pt.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      remove(i);
+    });
+    pt.addEventListener('focus', () => {
+      focusSlot = i;
+      showBend();
+    });
+    pt.addEventListener('blur', () => {
+      if (focusSlot === i) focusSlot = 0;
+      showBend();
+    });
+    ctx.kit.menuOn(
+      pt,
+      (anchor, e) => pointMenu(i, e && e.clientX != null ? { x: e.clientX, y: e.clientY } : pt),
+      () => drag?.stop?.(),
+    );
     handles.push(pt);
-    const bd = h('div.sh-bend', { hidden: true, 'aria-hidden': 'true', title: 'Drag up or down to bend this line. Double-click: straight', dataset: { i: String(i) } });
+    const bd = h('div.sh-bend', {
+      hidden: true,
+      'aria-hidden': 'true',
+      title: 'Drag up or down to bend this line. Double-click: straight',
+      dataset: { i: String(i) },
+    });
     bd.addEventListener('pointerdown', (e) => bendDown(e, i));
-    bd.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); setShape({ [pkey(L.id, i, 'c')]: 0 }, 'end', `straightened a ${L.word} line`); });
+    bd.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setShape({ [pkey(L.id, i, 'c')]: 0 }, 'end', `straightened a ${L.word} line`);
+    });
     benders.push(bd);
   }
   field.append(...benders, ...handles);
-  let focusSlot = 0, hoverSlot = 0, order = '';
+  let focusSlot = 0,
+    hoverSlot = 0,
+    order = '';
   const segOf = (i) => {
     // the line leaving slot i: from it to the next point (across the loop for the last)
     const k = pts.findIndex((p) => p.i === i);
     if (k < 0) return null;
-    const a = pts[k], b = pts[(k + 1) % pts.length], x1 = k === pts.length - 1 ? b.x + 1 : b.x;
+    const a = pts[k],
+      b = pts[(k + 1) % pts.length],
+      x1 = k === pts.length - 1 ? b.x + 1 : b.x;
     return { a, b, x0: a.x, x1, len: x1 - a.x, rising: b.y > a.y, flat: Math.abs(b.y - a.y) < 0.02 };
   };
   function placeHandles() {
@@ -201,50 +353,83 @@ export function mount(el, ctx) {
       if (had && field.contains(had) && document.activeElement !== had) had.focus({ preventScroll: true });
     }
     for (let i = 1; i <= NP; i++) {
-      const pt = handles[i - 1], k = pts.findIndex((p) => p.i === i);
-      if (k < 0) { pt.hidden = true; benders[i - 1].hidden = true; continue; }
+      const pt = handles[i - 1],
+        k = pts.findIndex((p) => p.i === i);
+      if (k < 0) {
+        pt.hidden = true;
+        benders[i - 1].hidden = true;
+        continue;
+      }
       const p = pts[k];
       pt.hidden = false;
-      pt.style.left = X(G, p.x) + 'px'; pt.style.top = Y(G, p.y) + 'px';
+      pt.style.left = X(G, p.x) + 'px';
+      pt.style.top = Y(G, p.y) + 'px';
       pt.dataset.step = p.s ? '1' : '';
       pt.setAttribute('aria-label', `${L.name} point ${k + 1} of ${n}`);
       pt.setAttribute('aria-valuenow', String(Math.round(p.y * 100)));
-      pt.setAttribute('aria-valuetext', `${placeText(p.x)}, ${levelText(L.id, p.y)}, ${p.s ? 'a step' : p.c ? (p.c > 0 ? 'the line after it starts slow' : 'the line after it starts fast') : 'a straight line after it'}`);
-      pt.title = 'Drag to move (Shift: off the grid). Right-click: step, line or delete. Arrow keys move it; Alt+up or down bends the line after it; Enter: step or line; Delete removes it';
-      const s = segOf(i), bd = benders[i - 1];
-      if (!s || p.s || s.flat || s.len < 0.01) { bd.hidden = true; continue; }
+      pt.setAttribute(
+        'aria-valuetext',
+        `${placeText(p.x)}, ${levelText(L.id, p.y)}, ${p.s ? 'a step' : p.c ? (p.c > 0 ? 'the line after it starts slow' : 'the line after it starts fast') : 'a straight line after it'}`,
+      );
+      pt.title =
+        'Drag to move (Shift: off the grid). Right-click: step, line or delete. Arrow keys move it; Alt+up or down bends the line after it; Enter: step or line; Delete removes it';
+      const s = segOf(i),
+        bd = benders[i - 1];
+      if (!s || p.s || s.flat || s.len < 0.01) {
+        bd.hidden = true;
+        continue;
+      }
       let mid = (s.x0 + s.x1) / 2;
       if (mid >= 1) mid -= 1;
       bd.hidden = false;
-      bd.style.left = X(G, mid) + 'px'; bd.style.top = Y(G, valueAt(pts, mid)) + 'px';
+      bd.style.left = X(G, mid) + 'px';
+      bd.style.top = Y(G, valueAt(pts, mid)) + 'px';
     }
     showBend();
   }
   function showBend() {
-    for (let i = 1; i <= NP; i++) benders[i - 1].classList.toggle('on', i === focusSlot || i === hoverSlot || (drag && drag.i === i));
+    for (let i = 1; i <= NP; i++)
+      benders[i - 1].classList.toggle('on', i === focusSlot || i === hoverSlot || (drag && drag.i === i));
   }
   field.addEventListener('pointermove', (e) => {
     if (drag || e.pointerType === 'touch') return;
     const t = e.target.closest?.('.sh-pt, .sh-bend');
     const i = t ? +t.dataset.i : 0;
-    if (i !== hoverSlot) { hoverSlot = i; showBend(); }
+    if (i !== hoverSlot) {
+      hoverSlot = i;
+      showBend();
+    }
   });
-  field.addEventListener('pointerleave', () => { if (hoverSlot) { hoverSlot = 0; showBend(); } });
+  field.addEventListener('pointerleave', () => {
+    if (hoverSlot) {
+      hoverSlot = 0;
+      showBend();
+    }
+  });
 
   /* ---------------------------------------------------------------- writing: every gesture through ctx.set, signed you */
-  let drag = null, warmUntil = 0;
+  let drag = null,
+    warmUntil = 0;
   function setShape(patch, gesture = 'end', what = `changed the ${L.word} shape`) {
     const r = ctx.set(patch, { gesture, label: `${def.name}: ${what}` });
     if (r && r.ok === false && r.error) ctx.status(r.error);
     return r;
   }
-  const slotPatch = (lane, i, p) => ({ [pkey(lane, i, 'x')]: r4(p.x), [pkey(lane, i, 'y')]: r4(p.y), [pkey(lane, i, 'c')]: p.s ? 0 : r4(p.c || 0), [pkey(lane, i, 's')]: p.s ? 1 : 0 });
+  const slotPatch = (lane, i, p) => ({
+    [pkey(lane, i, 'x')]: r4(p.x),
+    [pkey(lane, i, 'y')]: r4(p.y),
+    [pkey(lane, i, 'c')]: p.s ? 0 : r4(p.c || 0),
+    [pkey(lane, i, 's')]: p.s ? 1 : 0,
+  });
   const neighbours = (i) => {
     const k = pts.findIndex((p) => p.i === i);
     return { lo: k > 0 ? pts[k - 1].x : 0, hi: k < pts.length - 1 ? pts[k + 1].x : 1 };
   };
   function addAt(x, y) {
-    if (pts.length >= NP) { ctx.status(`A shape holds ${NP} points: delete one to add another.`); return 0; }
+    if (pts.length >= NP) {
+      ctx.status(`A shape holds ${NP} points: delete one to add another.`);
+      return 0;
+    }
     const i = pts.length + 1;
     const p = { x, y, c: 0, s: 0 };
     setShape({ [`${L.id}_n`]: i, ...slotPatch(L.id, i, p) }, 'end', `added a ${L.word} point`);
@@ -253,24 +438,35 @@ export function mount(el, ctx) {
   }
   function remove(i) {
     const n = pts.length;
-    if (n <= 1) { ctx.status('A shape keeps at least one point.'); return; }
+    if (n <= 1) {
+      ctx.status('A shape keeps at least one point.');
+      return;
+    }
     const k = pts.findIndex((p) => p.i === i);
     if (k < 0) return;
     const patch = { [`${L.id}_n`]: n - 1 };
     // the last slot moves into the freed one, and its own goes back to its defaults
-    if (i !== n) { const last = pointsOf(P, L.id).find((p) => p.i === n); Object.assign(patch, slotPatch(L.id, i, last)); }
+    if (i !== n) {
+      const last = pointsOf(P, L.id).find((p) => p.i === n);
+      Object.assign(patch, slotPatch(L.id, i, last));
+    }
     Object.assign(patch, slotPatch(L.id, n, slotDefault(L.id, n)));
     const was = pts[k];
     setShape(patch, 'end', `deleted a ${L.word} point`);
     ui.announce?.(`Deleted the ${L.word} point at ${placeText(was.x)}`);
     // focus: the point before it, else the first
     const next = pts[Math.max(0, k - 1)];
-    if (next && root.contains(document.activeElement) && document.activeElement?.classList.contains('sh-pt')) handles[next.i - 1]?.focus({ preventScroll: true });
+    if (next && root.contains(document.activeElement) && document.activeElement?.classList.contains('sh-pt'))
+      handles[next.i - 1]?.focus({ preventScroll: true });
   }
   function toggleStep(i) {
     const p = pts.find((q) => q.i === i);
     if (!p) return;
-    setShape({ [pkey(L.id, i, 's')]: p.s ? 0 : 1, [pkey(L.id, i, 'c')]: 0 }, 'end', p.s ? `made a ${L.word} point a line` : `made a ${L.word} point a step`);
+    setShape(
+      { [pkey(L.id, i, 's')]: p.s ? 0 : 1, [pkey(L.id, i, 'c')]: 0 },
+      'end',
+      p.s ? `made a ${L.word} point a line` : `made a ${L.word} point a step`,
+    );
     ui.announce?.(p.s ? 'A line again' : 'A step: it holds, then jumps at the next point');
   }
 
@@ -278,12 +474,19 @@ export function mount(el, ctx) {
   // which ends it now (a long press that opens the menu instead)
   const EVTS = ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'];
   function gesture(target, e, move, end) {
-    try { target.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch (err) {
+      /* gone */
+    }
     const id = e.pointerId;
     let over = false;
     const on = (ev) => {
       if (over || (ev.pointerId != null && ev.pointerId !== id)) return;
-      if (ev.type === 'pointermove') { move(ev); return; }
+      if (ev.type === 'pointermove') {
+        move(ev);
+        return;
+      }
       stop();
     };
     const stop = () => {
@@ -298,70 +501,111 @@ export function mount(el, ctx) {
   // a point: drag to move it (between its neighbours; snapped unless Shift)
   function pointDown(e, i) {
     if (e.button !== 0 || sess.mode === 'pencil') return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     const pt = handles[i - 1];
     pt.focus({ preventScroll: true });
-    const d = drag = { kind: 'move', i, x0: e.clientX, y0: e.clientY, touch: e.pointerType === 'touch', moved: false, last: null };
-    d.stop = gesture(pt, e, (ev) => {
-      // (a finger rests a moment for the long press: nothing moves until it has gone 8 px)
-      if (!d.moved && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < (d.touch ? 8 : 2)) return;
-      d.moved = true;
-      const q = at(ev), nb = neighbours(i);
-      const x = clamp(snapX(q.ph, ev.shiftKey), nb.lo, nb.hi), y = magnet(q.y, ev.shiftKey);
-      d.last = { [pkey(L.id, i, 'x')]: r4(x), [pkey(L.id, i, 'y')]: r4(y) };
-      warmUntil = performance.now() + 600;
-      setShape(d.last, 'move', `moved a ${L.word} point`);
-    }, () => {
-      if (drag === d) drag = null;
-      if (d.moved && d.last) setShape(d.last, 'end', `moved a ${L.word} point`);
-      showBend(); cv.dirty();
+    const d = (drag = {
+      kind: 'move',
+      i,
+      x0: e.clientX,
+      y0: e.clientY,
+      touch: e.pointerType === 'touch',
+      moved: false,
+      last: null,
     });
+    d.stop = gesture(
+      pt,
+      e,
+      (ev) => {
+        // (a finger rests a moment for the long press: nothing moves until it has gone 8 px)
+        if (!d.moved && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < (d.touch ? 8 : 2)) return;
+        d.moved = true;
+        const q = at(ev),
+          nb = neighbours(i);
+        const x = clamp(snapX(q.ph, ev.shiftKey), nb.lo, nb.hi),
+          y = magnet(q.y, ev.shiftKey);
+        d.last = { [pkey(L.id, i, 'x')]: r4(x), [pkey(L.id, i, 'y')]: r4(y) };
+        warmUntil = performance.now() + 600;
+        setShape(d.last, 'move', `moved a ${L.word} point`);
+      },
+      () => {
+        if (drag === d) drag = null;
+        if (d.moved && d.last) setShape(d.last, 'end', `moved a ${L.word} point`);
+        showBend();
+        cv.dirty();
+      },
+    );
   }
   // a line's bend handle: drag up to bow the line up, down to bow it down
   function bendDown(e, i) {
     if (e.button !== 0 || sess.mode === 'pencil') return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     const s = segOf(i);
     if (!s) return;
-    const d = drag = { kind: 'bend', i, y0: e.clientY, c0: s.a.c, rising: s.rising, moved: false, last: null };
-    d.stop = gesture(benders[i - 1], e, (ev) => {
-      if (!d.moved && Math.abs(d.y0 - ev.clientY) < 2) return;
-      d.moved = true;
-      const up = (d.y0 - ev.clientY) / 80;
-      d.last = { [pkey(L.id, i, 'c')]: Math.round(clamp(d.c0 + (d.rising ? -up : up), -1, 1) * 1000) / 1000 };
-      warmUntil = performance.now() + 600;
-      setShape(d.last, 'move', `bent a ${L.word} line`);
-    }, () => {
-      if (drag === d) drag = null;
-      if (d.moved && d.last) setShape(d.last, 'end', `bent a ${L.word} line`);
-      showBend(); cv.dirty();
-    });
+    const d = (drag = { kind: 'bend', i, y0: e.clientY, c0: s.a.c, rising: s.rising, moved: false, last: null });
+    d.stop = gesture(
+      benders[i - 1],
+      e,
+      (ev) => {
+        if (!d.moved && Math.abs(d.y0 - ev.clientY) < 2) return;
+        d.moved = true;
+        const up = (d.y0 - ev.clientY) / 80;
+        d.last = { [pkey(L.id, i, 'c')]: Math.round(clamp(d.c0 + (d.rising ? -up : up), -1, 1) * 1000) / 1000 };
+        warmUntil = performance.now() + 600;
+        setShape(d.last, 'move', `bent a ${L.word} line`);
+      },
+      () => {
+        if (drag === d) drag = null;
+        if (d.moved && d.last) setShape(d.last, 'end', `bent a ${L.word} line`);
+        showBend();
+        cv.dirty();
+      },
+    );
   }
   // the canvas: a click adds a point (and a drag carries it, in the same step); in pencil mode a drag paints steps
   field.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.target.closest('.sh-pt, .sh-bend')) return;
     const q = at(e);
-    if (q.ph < -0.02 || q.ph > 1.02) return;   // (the faint passes either side are to look at)
+    if (q.ph < -0.02 || q.ph > 1.02) return; // (the faint passes either side are to look at)
     e.preventDefault();
-    if (sess.mode === 'pencil') { paintDown(e, q); return; }
+    if (sess.mode === 'pencil') {
+      paintDown(e, q);
+      return;
+    }
     const i = addAt(snapX(q.ph, e.shiftKey), magnet(q.y, e.shiftKey));
     if (!i) return;
     warmUntil = performance.now() + 600;
     // the drag that follows writes the same keys as the add, so the store keeps it the one step
-    const d = drag = { kind: 'add', i, x0: e.clientX, y0: e.clientY, moved: false, last: null };
-    d.stop = gesture(field, e, (ev) => {
-      if (!d.moved && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < 3) return;
-      d.moved = true;
-      const q2 = at(ev), nb = neighbours(i);
-      d.last = { [`${L.id}_n`]: pts.length, ...slotPatch(L.id, i, { x: clamp(snapX(q2.ph, ev.shiftKey), nb.lo, nb.hi), y: magnet(q2.y, ev.shiftKey), c: 0, s: 0 }) };
-      warmUntil = performance.now() + 600;
-      setShape(d.last, 'move', `added a ${L.word} point`);
-    }, () => {
-      if (drag === d) drag = null;
-      if (d.moved && d.last) setShape(d.last, 'end', `added a ${L.word} point`);
-      handles[i - 1]?.focus({ preventScroll: true });
-      cv.dirty();
-    });
+    const d = (drag = { kind: 'add', i, x0: e.clientX, y0: e.clientY, moved: false, last: null });
+    d.stop = gesture(
+      field,
+      e,
+      (ev) => {
+        if (!d.moved && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < 3) return;
+        d.moved = true;
+        const q2 = at(ev),
+          nb = neighbours(i);
+        d.last = {
+          [`${L.id}_n`]: pts.length,
+          ...slotPatch(L.id, i, {
+            x: clamp(snapX(q2.ph, ev.shiftKey), nb.lo, nb.hi),
+            y: magnet(q2.y, ev.shiftKey),
+            c: 0,
+            s: 0,
+          }),
+        };
+        warmUntil = performance.now() + 600;
+        setShape(d.last, 'move', `added a ${L.word} point`);
+      },
+      () => {
+        if (drag === d) drag = null;
+        if (d.moved && d.last) setShape(d.last, 'end', `added a ${L.word} point`);
+        handles[i - 1]?.focus({ preventScroll: true });
+        cv.dirty();
+      },
+    );
   });
 
   // pencil: each grid cell the stroke crosses becomes a step at the pen's level; where a painted run ends, the shape
@@ -370,20 +614,30 @@ export function mount(el, ctx) {
     const S = sess.snap || 16;
     const base = pts.map((p) => ({ ...p }));
     const cells = new Map();
-    let lastCell = null, full = false;
+    let lastCell = null,
+      full = false;
     const cellOf = (ph) => clamp(Math.floor(clamp(ph, 0, 0.999999) * S), 0, S - 1);
     const paint = (q, free) => {
       // (a gate is mostly on or off: near the top or the bottom the pen lands there, unless Shift)
-      const raw = clamp(q.y, 0, 1), c = cellOf(q.ph), y = free ? r4(raw) : raw > 0.94 ? 1 : raw < 0.06 ? 0 : r4(raw);
+      const raw = clamp(q.y, 0, 1),
+        c = cellOf(q.ph),
+        y = free ? r4(raw) : raw > 0.94 ? 1 : raw < 0.06 ? 0 : r4(raw);
       // (a quick stroke skips cells: the ones it passed over since the last take this level too, not the last itself)
       const dir = lastCell == null || c === lastCell ? 0 : c > lastCell ? 1 : -1;
-      const lo = dir > 0 ? lastCell + 1 : c, hi = dir < 0 ? lastCell - 1 : c;
+      const lo = dir > 0 ? lastCell + 1 : c,
+        hi = dir < 0 ? lastCell - 1 : c;
       let changed = false;
       for (let k = lo; k <= hi; k++) {
         if (cells.get(k) === y) continue;
-        const had = cells.has(k), prev = cells.get(k);
+        const had = cells.has(k),
+          prev = cells.get(k);
         cells.set(k, y);
-        if (!painted(base, cells, S)) { if (had) cells.set(k, prev); else cells.delete(k); full = true; continue; }
+        if (!painted(base, cells, S)) {
+          if (had) cells.set(k, prev);
+          else cells.delete(k);
+          full = true;
+          continue;
+        }
         changed = true;
       }
       lastCell = c;
@@ -392,14 +646,20 @@ export function mount(el, ctx) {
       warmUntil = performance.now() + 600;
       setShape(d.last, 'move', `painted the ${L.word} shape`);
     };
-    const d = drag = { kind: 'paint', last: null };
+    const d = (drag = { kind: 'paint', last: null });
     paint(q0, e.shiftKey);
-    d.stop = gesture(field, e, (ev) => paint(at(ev), ev.shiftKey), () => {
-      if (drag === d) drag = null;
-      if (d.last) setShape(d.last, 'end', `painted the ${L.word} shape`);
-      if (full) ctx.status(`A shape holds ${NP} points, so some steps didn't take: paint fewer changes, or a coarser snap.`);
-      cv.dirty();
-    });
+    d.stop = gesture(
+      field,
+      e,
+      (ev) => paint(at(ev), ev.shiftKey),
+      () => {
+        if (drag === d) drag = null;
+        if (d.last) setShape(d.last, 'end', `painted the ${L.word} shape`);
+        if (full)
+          ctx.status(`A shape holds ${NP} points, so some steps didn't take: paint fewer changes, or a coarser snap.`);
+        cv.dirty();
+      },
+    );
   }
   // the points a stroke leaves: null when they'd be more than a shape holds
   function painted(base, cells, S) {
@@ -407,11 +667,13 @@ export function mount(el, ctx) {
     const out = base.filter((p) => !inPainted(p.x)).map((p) => ({ x: p.x, y: p.y, c: p.c, s: p.s }));
     for (const [c, y] of cells) {
       out.push({ x: r4(c / S), y, c: 0, s: 1 });
-      const endC = (c + 1) % S, end = endC / S;
+      const endC = (c + 1) % S,
+        end = endC / S;
       if (cells.has(endC)) continue;
       if (out.some((p) => Math.abs(p.x - end) < 1e-6) || base.some((p) => Math.abs(p.x - end) < 1e-6)) continue;
       // the shape that was there carries on from the end of the run
-      const g = segmentAt(base, end), a = base[g.j0];
+      const g = segmentAt(base, end),
+        a = base[g.j0];
       out.push({ x: r4(end), y: r4(valueAt(base, end)), c: a.s ? 0 : a.c, s: a.s });
     }
     out.sort((a, b) => a.x - b.x);
@@ -426,8 +688,10 @@ export function mount(el, ctx) {
     const p = pts.find((q) => q.i === i);
     if (!p) return;
     const nb = neighbours(i);
-    const stepX = e.shiftKey || !sess.snap ? FINE : 1 / sess.snap, stepY = e.shiftKey ? 0.01 : 0.05;
-    let patch = null, what = `moved a ${L.word} point`;
+    const stepX = e.shiftKey || !sess.snap ? FINE : 1 / sess.snap,
+      stepY = e.shiftKey ? 0.01 : 0.05;
+    let patch = null,
+      what = `moved a ${L.word} point`;
     if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       const s = segOf(i);
       if (!s || p.s) return;
@@ -443,28 +707,50 @@ export function mount(el, ctx) {
       patch = { [pkey(L.id, i, 'y')]: r4(clamp(p.y + (e.key === 'ArrowUp' ? stepY : -stepY), 0, 1)) };
     } else if (e.key === 'PageUp' || e.key === 'PageDown') {
       patch = { [pkey(L.id, i, 'y')]: r4(clamp(p.y + (e.key === 'PageUp' ? 0.25 : -0.25), 0, 1)) };
-    } else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); remove(i); return; }
-    else if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); e.stopPropagation(); toggleStep(i); return; }
-    else return;
-    e.preventDefault(); e.stopPropagation();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      e.stopPropagation();
+      remove(i);
+      return;
+    } else if (e.key === 'Enter' && !e.repeat) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleStep(i);
+      return;
+    } else return;
+    e.preventDefault();
+    e.stopPropagation();
     if (patch) setShape(patch, 'end', what);
   }
   // a point's menu: right-click, a long press, the menu key
   function pointMenu(i, anchor) {
     const p = pts.find((q) => q.i === i);
     if (!p) return;
-    const k = pts.indexOf(p), n = pts.length;
+    const k = pts.indexOf(p),
+      n = pts.length;
     menu(anchor, [
       { head: `${L.name} point ${k + 1} of ${n}` },
-      p.s ? { label: 'Make it a line', sub: 'a line to the next point', run: () => toggleStep(i) } : { label: 'Make it a step', sub: 'holds, then jumps at the next', kbd: 'Enter', run: () => toggleStep(i) },
-      { label: 'Straighten the line after it', disabled: p.s || !p.c, run: () => setShape({ [pkey(L.id, i, 'c')]: 0 }, 'end', `straightened a ${L.word} line`) },
-      { label: 'Add a point after it', sub: 'halfway to the next', disabled: n >= NP, run: () => {
-        const s = segOf(i);
-        let mid = (s.x0 + s.x1) / 2; if (mid >= 1) mid -= 1;
-        const j = addAt(r4(mid), r4(valueAt(pts, mid)));
-        // (the store tells the window at once, so the new point's handle is already in place)
-        if (j) setTimeout(() => handles[j - 1]?.focus({ preventScroll: true }), 0);
-      } },
+      p.s
+        ? { label: 'Make it a line', sub: 'a line to the next point', run: () => toggleStep(i) }
+        : { label: 'Make it a step', sub: 'holds, then jumps at the next', kbd: 'Enter', run: () => toggleStep(i) },
+      {
+        label: 'Straighten the line after it',
+        disabled: p.s || !p.c,
+        run: () => setShape({ [pkey(L.id, i, 'c')]: 0 }, 'end', `straightened a ${L.word} line`),
+      },
+      {
+        label: 'Add a point after it',
+        sub: 'halfway to the next',
+        disabled: n >= NP,
+        run: () => {
+          const s = segOf(i);
+          let mid = (s.x0 + s.x1) / 2;
+          if (mid >= 1) mid -= 1;
+          const j = addAt(r4(mid), r4(valueAt(pts, mid)));
+          // (the store tells the window at once, so the new point's handle is already in place)
+          if (j) setTimeout(() => handles[j - 1]?.focus({ preventScroll: true }), 0);
+        },
+      },
       '-',
       { label: 'Delete it', kbd: 'Delete', danger: true, disabled: n <= 1, run: () => remove(i) },
     ]);
@@ -481,9 +767,15 @@ export function mount(el, ctx) {
   }
   function applyPreset(pr) {
     const params = { ...pr.params };
-    const op = ctx.addr.slot === 'instrument' ? { type: 'instrument.set', track: ctx.addr.track, params } : { type: 'insert.set', track: ctx.addr.track, insert: ctx.addr.slot, patch: { params } };
+    const op =
+      ctx.addr.slot === 'instrument'
+        ? { type: 'instrument.set', track: ctx.addr.track, params }
+        : { type: 'insert.set', track: ctx.addr.track, insert: ctx.addr.slot, patch: { params } };
     const r = app.store.dispatch(op, { by: 'you', label: `${def.name}: ${pr.name}` });
-    if (!r.ok) { ui.toast?.(r.error, { kind: 'bad' }); return; }
+    if (!r.ok) {
+      ui.toast?.(r.error, { kind: 'bad' });
+      return;
+    }
     ui.announce?.(`${def.name}: ${pr.name}`);
     const lane = presetLane(pr);
     if (lane !== L.id) pickLane(lane);
@@ -491,21 +783,28 @@ export function mount(el, ctx) {
 
   /* ---------------------------------------------------------------- reading it back out */
   function snapNote() {
-    const cyc = cycOf(L.id), S = sess.snap;
-    if (!S) { snapSay.textContent = 'free'; return; }
+    const cyc = cycOf(L.id),
+      S = sess.snap;
+    if (!S) {
+      snapSay.textContent = 'free';
+      return;
+    }
     const nm = noteOf(cyc / S);
-    snapSay.textContent = nm || `${Math.round((cyc / S) * 60000 / bpm())} ms each`;
+    snapSay.textContent = nm || `${Math.round(((cyc / S) * 60000) / bpm())} ms each`;
   }
   function hint() {
     const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-    hintEl.textContent = sess.mode === 'pencil'
-      ? 'Drag across the grid to paint steps at the pen\'s height.'
-      : `${touch ? 'Tap' : 'Click'} to add a point. Drag a point to move it, or the square on a line to bend it. ${touch ? 'Hold' : 'Right-click'} a point for more.`;
+    hintEl.textContent =
+      sess.mode === 'pencil'
+        ? "Drag across the grid to paint steps at the pen's height."
+        : `${touch ? 'Tap' : 'Click'} to add a point. Drag a point to move it, or the square on a line to bend it. ${touch ? 'Hold' : 'Right-click'} a point for more.`;
   }
   // the words: each tab's lamp and rate, the line over the canvas, what the canvas is called, the snap's note value
   function labels() {
     for (const lane of LANES) {
-      const t = tabEls.get(lane.id), on = onOf(lane.id), sel = lane.id === L.id;
+      const t = tabEls.get(lane.id),
+        on = onOf(lane.id),
+        sel = lane.id === L.id;
       t.el.setAttribute('aria-selected', String(sel));
       t.el.tabIndex = sel ? 0 : -1;
       t.el.dataset.on = on ? '1' : '';
@@ -515,7 +814,8 @@ export function mount(el, ctx) {
       groups.get(lane.id).hidden = !sel;
     }
     stage.setAttribute('aria-labelledby', `${id}-tab-${L.id}`);
-    const cyc = cycOf(L.id), ms = Math.round(cyc * 60000 / bpm());
+    const cyc = cycOf(L.id),
+      ms = Math.round((cyc * 60000) / bpm());
     const said = `${plural(pts.length, 'point')}, every ${RATES[rateOf(L.id)]}, ${ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`} at ${+bpm().toFixed(2)} bpm${onOf(L.id) ? '' : ', lane off'}`;
     if (sum.textContent !== said) sum.textContent = said;
     cv.set({ label: `${L.name} shape, every ${RATES[rateOf(L.id)]}${onOf(L.id) ? '' : ' (off)'}: ${shapeText(pts)}` });
@@ -524,10 +824,15 @@ export function mount(el, ctx) {
   function render() {
     P = ctx.params();
     pts = pointsOf(P, L.id);
-    for (const lane of LANES) tabEls.get(lane.id).mini.replaceChildren(drawing(pointsOf(P, lane.id), lane.id, 54, 20, 1));
+    for (const lane of LANES)
+      tabEls.get(lane.id).mini.replaceChildren(drawing(pointsOf(P, lane.id), lane.id, 54, 20, 1));
     labels();
     const now = presetOf(def, ctx.stored());
-    for (const { el: b, pr } of preEls) { const on = !!now && now.name === pr.name; b.setAttribute('aria-pressed', String(on)); b.classList.toggle('sel-print', on); }
+    for (const { el: b, pr } of preEls) {
+      const on = !!now && now.name === pr.name;
+      b.setAttribute('aria-pressed', String(on));
+      b.classList.toggle('sel-print', on);
+    }
     placeHandles();
     cv.dirty();
   }
@@ -538,38 +843,81 @@ export function mount(el, ctx) {
   const shapeKeys = (lane) => (k) => k === `${lane}_n` || new RegExp(`^${lane}\\d+_[xycs]$`).test(k);
   cv.set({
     // (while it plays, while an agent's or a hand's ink is up, and one frame after, to put the cream back)
-    animate: () => live.playing || !!drag || performance.now() < coolUntil || performance.now() < warmUntil || !!root.dataset.ink,
+    animate: () =>
+      live.playing || !!drag || performance.now() < coolUntil || performance.now() < warmUntil || !!root.dataset.ink,
     draw: (g, { w, h: hh, now }) => {
-      const G = geo(w, hh), cyc = cycOf(L.id), on = onOf(L.id);
+      const G = geo(w, hh),
+        cyc = cycOf(L.id),
+        on = onOf(L.id);
       g.font = `400 10.5px ${ink.mono}`;
       // the strip: a pass of it, faintly in the device's own colour
-      g.globalAlpha = 0.045; g.fillStyle = tape; g.fillRect(G.x0, G.top - 6, G.cw, G.ch + 12); g.globalAlpha = 1;
+      g.globalAlpha = 0.045;
+      g.fillStyle = tape;
+      g.fillRect(G.x0, G.top - 6, G.cw, G.ch + 12);
+      g.globalAlpha = 1;
       // levels: the top and bottom, quarters between (the middle stronger on pan)
       g.lineWidth = 1;
       for (const y of [0, 0.25, 0.5, 0.75, 1]) {
         const strong = y === 0 || y === 1 || (L.id === 'pan' && y === 0.5);
-        g.globalAlpha = strong ? 1 : 0.5; g.strokeStyle = ink.line2;
-        g.beginPath(); g.moveTo(0, Math.round(Y(G, y)) + 0.5); g.lineTo(w, Math.round(Y(G, y)) + 0.5); g.stroke();
+        g.globalAlpha = strong ? 1 : 0.5;
+        g.strokeStyle = ink.line2;
+        g.beginPath();
+        g.moveTo(0, Math.round(Y(G, y)) + 0.5);
+        g.lineTo(w, Math.round(Y(G, y)) + 0.5);
+        g.stroke();
       }
       g.globalAlpha = 1;
       // the grid: the snap's steps in hairline, beats stronger, the pass's edges strongest; the beats numbered
       const S = sess.snap;
-      const vline = (ph, color, alpha = 1) => { const x = Math.round(X(G, ph)) + 0.5; g.globalAlpha = alpha; g.strokeStyle = color; g.beginPath(); g.moveTo(x, G.top - 6); g.lineTo(x, G.bottom + 6); g.stroke(); g.globalAlpha = 1; };
-      if (S) for (let k = -1; k <= 1; k++) for (let j = 1; j < S; j++) { const ph = k + j / S; if (ph > -G.x0 / G.cw && ph < 1 + G.side / G.cw) vline(ph, ink.line2, k ? 0.3 : 0.55); }
-      if (cyc > 1) for (let k = -1; k <= 1; k++) for (let b = 1; b < cyc; b++) { const ph = k + b / cyc; if (ph > -G.x0 / G.cw && ph < 1 + G.side / G.cw) vline(ph, ink.line2, k ? 0.6 : 1); }
-      vline(0, ink.t3); vline(1, ink.t3);
-      g.fillStyle = ink.t3; g.textBaseline = 'top';
-      if (cyc >= 1) { for (let b = 0; b < cyc; b++) g.fillText(String(b + 1), X(G, b / cyc) + 4, G.bottom + 8); }
-      else g.fillText('1', X(G, 0) + 4, G.bottom + 8);
-      const ms = Math.round(cyc * 60000 / bpm());
+      const vline = (ph, color, alpha = 1) => {
+        const x = Math.round(X(G, ph)) + 0.5;
+        g.globalAlpha = alpha;
+        g.strokeStyle = color;
+        g.beginPath();
+        g.moveTo(x, G.top - 6);
+        g.lineTo(x, G.bottom + 6);
+        g.stroke();
+        g.globalAlpha = 1;
+      };
+      if (S)
+        for (let k = -1; k <= 1; k++)
+          for (let j = 1; j < S; j++) {
+            const ph = k + j / S;
+            if (ph > -G.x0 / G.cw && ph < 1 + G.side / G.cw) vline(ph, ink.line2, k ? 0.3 : 0.55);
+          }
+      if (cyc > 1)
+        for (let k = -1; k <= 1; k++)
+          for (let b = 1; b < cyc; b++) {
+            const ph = k + b / cyc;
+            if (ph > -G.x0 / G.cw && ph < 1 + G.side / G.cw) vline(ph, ink.line2, k ? 0.6 : 1);
+          }
+      vline(0, ink.t3);
+      vline(1, ink.t3);
+      g.fillStyle = ink.t3;
+      g.textBaseline = 'top';
+      if (cyc >= 1) {
+        for (let b = 0; b < cyc; b++) g.fillText(String(b + 1), X(G, b / cyc) + 4, G.bottom + 8);
+      } else g.fillText('1', X(G, 0) + 4, G.bottom + 8);
+      const ms = Math.round((cyc * 60000) / bpm());
       const passTxt = `${RATES[rateOf(L.id)]}, ${ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`}`;
-      g.textAlign = 'right'; g.fillText(passTxt, X(G, 1) - 4, G.bottom + 8); g.textAlign = 'left';
+      g.textAlign = 'right';
+      g.fillText(passTxt, X(G, 1) - 4, G.bottom + 8);
+      g.textAlign = 'left';
       // what the top, middle and bottom mean, at the far left, just over their lines
       g.textBaseline = 'bottom';
-      const lab = (y, t) => { g.fillStyle = ink.t3; g.fillText(t, 4, Math.max(G.top + 8, Y(G, y) - 3)); };
+      const lab = (y, t) => {
+        g.fillStyle = ink.t3;
+        g.fillText(t, 4, Math.max(G.top + 8, Y(G, y) - 3));
+      };
       if (G.side >= 40) {
-        if (L.id === 'pan') { lab(1, 'R'); lab(0.5, 'C'); lab(0, 'L'); }
-        else { lab(1, L.id === 'vol' ? '0 dB' : hzShort(applied(P, 'flt', 1))); lab(0, L.id === 'vol' ? dbText(applied(P, 'vol', 0)) : hzShort(applied(P, 'flt', 0))); }
+        if (L.id === 'pan') {
+          lab(1, 'R');
+          lab(0.5, 'C');
+          lab(0, 'L');
+        } else {
+          lab(1, L.id === 'vol' ? '0 dB' : hzShort(applied(P, 'flt', 1)));
+          lab(0, L.id === 'vol' ? dbText(applied(P, 'vol', 0)) : hzShort(applied(P, 'flt', 0)));
+        }
       }
       // the shape: the passes either side in pencil, this one in cream (an agent's change cool for a moment, a
       // person's hand warm while it draws), filled under like a level
@@ -579,39 +927,82 @@ export function mount(el, ctx) {
       if (root.dataset.ink !== who) root.dataset.ink = who;
       const trace = (from, to) => {
         // the line from phase `from` to `to`, a vertex a pixel, with the jumps at the points drawn upright
-        const x0 = X(G, from), x1 = X(G, to), path = [];
+        const x0 = X(G, from),
+          x1 = X(G, to),
+          path = [];
         const jumps = [];
-        for (let k = Math.floor(from) - 1; k <= Math.ceil(to); k++) for (const p of pts) { const ph = p.x + k; if (ph > from && ph < to) jumps.push(ph); }
+        for (let k = Math.floor(from) - 1; k <= Math.ceil(to); k++)
+          for (const p of pts) {
+            const ph = p.x + k;
+            if (ph > from && ph < to) jumps.push(ph);
+          }
         jumps.sort((a, b) => a - b);
         let ji = 0;
         for (let x = x0; x <= x1 + 0.001; x += 1) {
           const ph = from + (x - x0) / G.cw;
-          while (ji < jumps.length && jumps[ji] <= ph) { const jp = jumps[ji++]; path.push([X(G, jp), Y(G, valueAt(pts, jp - 1e-7))], [X(G, jp), Y(G, valueAt(pts, jp))]); }
+          while (ji < jumps.length && jumps[ji] <= ph) {
+            const jp = jumps[ji++];
+            path.push([X(G, jp), Y(G, valueAt(pts, jp - 1e-7))], [X(G, jp), Y(G, valueAt(pts, jp))]);
+          }
           path.push([x, Y(G, valueAt(pts, Math.min(ph, to)))]);
         }
         return path;
       };
-      const stroke = (path, color, alpha, width) => { g.globalAlpha = alpha; g.strokeStyle = color; g.lineWidth = width; g.lineJoin = 'round'; g.beginPath(); path.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); g.globalAlpha = 1; };
-      const left = trace(-G.x0 / G.cw, 0), right = trace(1, 1 + G.side / G.cw), main = trace(0, 1);
-      stroke(left, ink.t3, 0.55, 1.25); stroke(right, ink.t3, 0.55, 1.25);
+      const stroke = (path, color, alpha, width) => {
+        g.globalAlpha = alpha;
+        g.strokeStyle = color;
+        g.lineWidth = width;
+        g.lineJoin = 'round';
+        g.beginPath();
+        path.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+        g.stroke();
+        g.globalAlpha = 1;
+      };
+      const left = trace(-G.x0 / G.cw, 0),
+        right = trace(1, 1 + G.side / G.cw),
+        main = trace(0, 1);
+      stroke(left, ink.t3, 0.55, 1.25);
+      stroke(right, ink.t3, 0.55, 1.25);
       // the fill: down to the bottom (pan: to the middle)
       const base = L.id === 'pan' ? Y(G, 0.5) : Y(G, 0);
-      g.globalAlpha = on ? 0.09 : 0.04; g.fillStyle = lineInk;
-      g.beginPath(); g.moveTo(main[0][0], base); for (const [x, y] of main) g.lineTo(x, y); g.lineTo(main[main.length - 1][0], base); g.closePath(); g.fill(); g.globalAlpha = 1;
+      g.globalAlpha = on ? 0.09 : 0.04;
+      g.fillStyle = lineInk;
+      g.beginPath();
+      g.moveTo(main[0][0], base);
+      for (const [x, y] of main) g.lineTo(x, y);
+      g.lineTo(main[main.length - 1][0], base);
+      g.closePath();
+      g.fill();
+      g.globalAlpha = 1;
       if (!on) g.setLineDash([5, 4]);
       stroke(main, lineInk, on ? 1 : 0.7, 2);
       g.setLineDash([]);
       // the playhead: a hairline at the beat and a dot on the line, with what the lane applies there
       if (live.playing) {
-        const x = X(G, live.ph), y = Y(G, valueAt(pts, live.ph));
-        g.strokeStyle = ink.accent; g.globalAlpha = 0.55; g.lineWidth = 1;
-        g.beginPath(); g.moveTo(Math.round(x) + 0.5, G.top - 6); g.lineTo(Math.round(x) + 0.5, G.bottom + 6); g.stroke(); g.globalAlpha = 1;
-        g.fillStyle = ink.accent; g.fillRect(Math.round(x) - 4, Math.round(y) - 4, 8, 8);
+        const x = X(G, live.ph),
+          y = Y(G, valueAt(pts, live.ph));
+        g.strokeStyle = ink.accent;
+        g.globalAlpha = 0.55;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(Math.round(x) + 0.5, G.top - 6);
+        g.lineTo(Math.round(x) + 0.5, G.bottom + 6);
+        g.stroke();
+        g.globalAlpha = 1;
+        g.fillStyle = ink.accent;
+        g.fillRect(Math.round(x) - 4, Math.round(y) - 4, 8, 8);
         const t = on ? levelText(L.id, valueAt(pts, live.ph)) : 'off';
-        g.font = `600 11px ${ink.mono}`; g.textBaseline = 'bottom';
-        const tw = g.measureText(t).width, tx = x + 10 + tw > G.x1 ? x - 10 - tw : x + 10, ty = y - 8 < G.top + 12 ? y + 22 : y - 8;
-        g.fillStyle = ink.bg; g.globalAlpha = 0.8; g.fillRect(tx - 3, ty - 14, tw + 6, 16); g.globalAlpha = 1;
-        g.fillStyle = ink.text; g.fillText(t, tx, ty);
+        g.font = `600 11px ${ink.mono}`;
+        g.textBaseline = 'bottom';
+        const tw = g.measureText(t).width,
+          tx = x + 10 + tw > G.x1 ? x - 10 - tw : x + 10,
+          ty = y - 8 < G.top + 12 ? y + 22 : y - 8;
+        g.fillStyle = ink.bg;
+        g.globalAlpha = 0.8;
+        g.fillRect(tx - 3, ty - 14, tw + 6, 16);
+        g.globalAlpha = 1;
+        g.fillStyle = ink.text;
+        g.fillText(t, tx, ty);
       }
       void now;
     },
@@ -621,12 +1012,20 @@ export function mount(el, ctx) {
   const off = ctx.on((evt) => {
     // a lane moving a knob while the song plays (depth, rate, on: never the points) comes every frame: the words and
     // the canvas follow it, the rest is as it was
-    if (evt.kind === 'lane') { P = ctx.params(); labels(); cv.dirty(); return; }
+    if (evt.kind === 'lane') {
+      P = ctx.params();
+      labels();
+      cv.dirty();
+      return;
+    }
     render();
     if (evt.kind === 'do' && evt.by && ctx.isAgent(evt.by)) {
       const touched = LANES.filter((lane) => (evt.keys || []).some(shapeKeys(lane.id)));
       for (const lane of touched) ctx.flash(tabEls.get(lane.id).el);
-      if (touched.some((lane) => lane.id === L.id)) { ctx.flash(field); coolUntil = performance.now() + 1700; }
+      if (touched.some((lane) => lane.id === L.id)) {
+        ctx.flash(field);
+        coolUntil = performance.now() + 1700;
+      }
     }
   });
   const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => placeHandles()) : null;
@@ -637,7 +1036,9 @@ export function mount(el, ctx) {
 
   let nowAt = 0;
   return {
-    update(evt) { if (evt && evt.type === 'on') cv.dirty(); },
+    update(evt) {
+      if (evt && evt.type === 'on') cv.dirty();
+    },
     frame(now) {
       const eng = app.engine;
       const playing = !!eng?.playing && fin(eng.beat);
@@ -649,7 +1050,11 @@ export function mount(el, ctx) {
           nowEl.textContent = onOf(L.id) ? `Now ${levelText(L.id, valueAt(pts, ph))}` : 'Lane off';
           root.dataset.phase = ph.toFixed(4);
         }
-      } else if (live.playing) { nowEl.textContent = ''; root.dataset.phase = ''; cv.dirty(); }
+      } else if (live.playing) {
+        nowEl.textContent = '';
+        root.dataset.phase = '';
+        cv.dirty();
+      }
       live.playing = playing;
     },
     // what an agent's change to the points did, for the window's line ("Claude drew the volume shape: 3 points")
@@ -658,10 +1063,16 @@ export function mount(el, ctx) {
       const lanes = LANES.filter((lane) => keys.some(shapeKeys(lane.id)));
       if (!lanes.length) return null;
       if (lanes.length > 1) return `drew the ${lanes.map((l) => l.word).join(' and ')} shapes.`;
-      const lane = lanes[0], n = pointsOf(ctx.params(), lane.id).length;
+      const lane = lanes[0],
+        n = pointsOf(ctx.params(), lane.id).length;
       return `drew the ${lane.word} shape: ${plural(n, 'point')}${onOf(lane.id) ? `, every ${RATES[rateOf(lane.id)]}` : ', with its lane off'}.`;
     },
-    unmount() { off(); ro?.disconnect(); cv.destroy(); root.remove(); },
+    unmount() {
+      off();
+      ro?.disconnect();
+      cv.destroy();
+      root.remove();
+    },
   };
 }
 
@@ -669,22 +1080,30 @@ export function mount(el, ctx) {
 const SVGNS = 'http://www.w3.org/2000/svg';
 function drawing(pts, lane, w, hh, passes = 1) {
   const s = document.createElementNS(SVGNS, 'svg');
-  s.setAttribute('viewBox', `0 0 ${w} ${hh}`); s.setAttribute('width', w); s.setAttribute('height', hh);
-  const pad = 2, ih = hh - 2 * pad, d = [];
+  s.setAttribute('viewBox', `0 0 ${w} ${hh}`);
+  s.setAttribute('width', w);
+  s.setAttribute('height', hh);
+  const pad = 2,
+    ih = hh - 2 * pad,
+    d = [];
   const N = w * 2;
   let prev = null;
   for (let k = 0; k <= N; k++) {
-    const ph = (k / N) * passes, v = valueAt(pts, ph % 1 === 0 && k === N ? 0.999999 : ph);
-    const x = (k / N) * w, y = pad + (1 - v) * ih;
+    const ph = (k / N) * passes,
+      v = valueAt(pts, ph % 1 === 0 && k === N ? 0.999999 : ph);
+    const x = (k / N) * w,
+      y = pad + (1 - v) * ih;
     if (prev != null && Math.abs(prev - y) > ih * 0.3) d.push(`L${x.toFixed(1)},${prev.toFixed(1)}`);
     d.push(`${k ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`);
     prev = y;
   }
   const base = lane === 'pan' ? pad + ih / 2 : hh - pad;
   const fill = document.createElementNS(SVGNS, 'path');
-  fill.setAttribute('d', `${d.join('')}L${w},${base}L0,${base}Z`); fill.setAttribute('class', 'sh-dr-f');
+  fill.setAttribute('d', `${d.join('')}L${w},${base}L0,${base}Z`);
+  fill.setAttribute('class', 'sh-dr-f');
   const line = document.createElementNS(SVGNS, 'path');
-  line.setAttribute('d', d.join('')); line.setAttribute('class', 'sh-dr-l');
+  line.setAttribute('d', d.join(''));
+  line.setAttribute('class', 'sh-dr-l');
   s.append(fill, line);
   return s;
 }

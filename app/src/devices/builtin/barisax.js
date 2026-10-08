@@ -17,7 +17,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const BARISAX_HASH = 'sha256-8821720c6600ccce800a666bbc8dded6196a4f2e2235f66313abc9364a6f157e';
 
 export default defineDevice({
-  id: 'core.barisax', name: 'Bell Up', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.barisax',
+  name: 'Bell Up',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real baritone sax, sampled, held notes',
   nod: 'Bear Sax (Karoryfer Samples, CC0): a 1926 Conn baritone, soft and loud takes, looped as Karoryfer looped them',
   data: { kit: BARISAX_HASH },
@@ -29,7 +33,15 @@ export default defineDevice({
     { name: 'Stabs', params: { release: 0.06 }, blurb: 'notes stop the moment the key lifts, for horn hits' },
     { name: 'Long breath', params: { release: 0.8 }, blurb: 'every note left to fall away' },
   ],
-  look: { color: '#8a6a22', ink: '#1c160a', shape: 'wide', finish: 'brushed', knob: 'black', label: 'script', led: '#ffcf5a' },
+  look: {
+    color: '#8a6a22',
+    ink: '#1c160a',
+    shape: 'wide',
+    finish: 'brushed',
+    knob: 'black',
+    label: 'script',
+    led: '#ffcf5a',
+  },
   tail: 2,
   kernel: samplerKernel({ makeup: 1.25, poly: 16, xfade: 16, law: 'aligned' }),
 });

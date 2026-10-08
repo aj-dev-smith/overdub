@@ -42,27 +42,40 @@ export function parsePc(s) {
 
 /* ---------------------------------------------------------------- scales and keys */
 export const SCALES = {
-  major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10],
-  phrygian: [0, 1, 3, 5, 7, 8, 10], lydian: [0, 2, 4, 6, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10],
-  locrian: [0, 1, 3, 5, 6, 8, 10], harmonicMinor: [0, 2, 3, 5, 7, 8, 11], melodicMinor: [0, 2, 3, 5, 7, 9, 11],
-  majorPentatonic: [0, 2, 4, 7, 9], minorPentatonic: [0, 3, 5, 7, 10], blues: [0, 3, 5, 6, 7, 10],
+  major: [0, 2, 4, 5, 7, 9, 11],
+  minor: [0, 2, 3, 5, 7, 8, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  locrian: [0, 1, 3, 5, 6, 8, 10],
+  harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+  melodicMinor: [0, 2, 3, 5, 7, 9, 11],
+  majorPentatonic: [0, 2, 4, 7, 9],
+  minorPentatonic: [0, 3, 5, 7, 10],
+  blues: [0, 3, 5, 6, 7, 10],
   chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 };
 export const keyLabel = (key) => (key ? `${key.root} ${key.scale.replace(/([A-Z])/g, ' $1').toLowerCase()}` : 'No key');
 export function scalePcs(key) {
   if (!key) return SCALES.chromatic;
-  const root = parsePc(key.root), sc = SCALES[key.scale] || SCALES.major;
+  const root = parsePc(key.root),
+    sc = SCALES[key.scale] || SCALES.major;
   return sc.map((i) => (root + i) % 12);
 }
 export const inScale = (p, key) => scalePcs(key).includes(((Math.round(p) % 12) + 12) % 12);
 export function snapToScale(p, key) {
   if (!key) return Math.round(p);
   const pcs = scalePcs(key);
-  let best = Math.round(p), bd = 99;
+  let best = Math.round(p),
+    bd = 99;
   for (let q = Math.floor(p) - 2; q <= Math.ceil(p) + 2; q++) {
     if (!pcs.includes(((q % 12) + 12) % 12)) continue;
     const d = Math.abs(q - p);
-    if (d < bd - 1e-9) { bd = d; best = q; }
+    if (d < bd - 1e-9) {
+      bd = d;
+      best = q;
+    }
   }
   return best;
 }
@@ -74,10 +87,25 @@ export function scalePitches(key, lo = 48, hi = 72) {
 
 /* ---------------------------------------------------------------- chords */
 export const CHORDS = {
-  '': [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8], sus2: [0, 2, 7], sus4: [0, 5, 7], 5: [0, 7],
-  7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10], m7b5: [0, 3, 6, 10], dim7: [0, 3, 6, 9],
-  6: [0, 4, 7, 9], m6: [0, 3, 7, 9], add9: [0, 4, 7, 14], madd9: [0, 3, 7, 14], 9: [0, 4, 7, 10, 14],
-  maj9: [0, 4, 7, 11, 14], m9: [0, 3, 7, 10, 14],
+  '': [0, 4, 7],
+  m: [0, 3, 7],
+  dim: [0, 3, 6],
+  aug: [0, 4, 8],
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+  5: [0, 7],
+  7: [0, 4, 7, 10],
+  maj7: [0, 4, 7, 11],
+  m7: [0, 3, 7, 10],
+  m7b5: [0, 3, 6, 10],
+  dim7: [0, 3, 6, 9],
+  6: [0, 4, 7, 9],
+  m6: [0, 3, 7, 9],
+  add9: [0, 4, 7, 14],
+  madd9: [0, 3, 7, 14],
+  9: [0, 4, 7, 10, 14],
+  maj9: [0, 4, 7, 11, 14],
+  m9: [0, 3, 7, 10, 14],
 };
 // 'Am7' -> pitches around octave 4 (root at or above C3 by default)
 export function chordPitches(sym, octave = 3) {
@@ -100,8 +128,9 @@ function spellFrom(rootName, steps) {
   const L = LETTERS.indexOf(rootName[0].toUpperCase());
   const root = parsePc(rootName);
   return steps.map((iv, i) => {
-    const letter = LETTERS[(L + i) % 7], pc = (root + iv) % 12;
-    let acc = ((pc - PC[letter]) % 12 + 12) % 12;
+    const letter = LETTERS[(L + i) % 7],
+      pc = (root + iv) % 12;
+    let acc = (((pc - PC[letter]) % 12) + 12) % 12;
     if (acc > 6) acc -= 12;
     return { pc, name: letter + (acc > 0 ? '#'.repeat(acc) : 'b'.repeat(-acc)), odd: Math.abs(acc) > 1 };
   });
@@ -115,8 +144,12 @@ export function keySpelling(key) {
   let root = String(key.root).replace('♯', '#').replace('♭', 'b');
   let deg = spellFrom(root, sc);
   // D# major would need double sharps: spell it from its enharmonic (Eb) instead
-  if (deg.some((d) => d.odd)) { root = (root.includes('#') ? FLAT_NAMES : NAMES)[parsePc(root)]; deg = spellFrom(root, sc); }
-  const flats = deg.some((d) => /b/.test(d.name)), sharps = deg.some((d) => /#/.test(d.name));
+  if (deg.some((d) => d.odd)) {
+    root = (root.includes('#') ? FLAT_NAMES : NAMES)[parsePc(root)];
+    deg = spellFrom(root, sc);
+  }
+  const flats = deg.some((d) => /b/.test(d.name)),
+    sharps = deg.some((d) => /#/.test(d.name));
   const base = flats && !sharps ? FLAT_NAMES : sharps && !flats ? NAMES : NEUTRAL;
   const out = base.slice();
   for (const d of deg) out[d.pc] = d.name;
@@ -132,14 +165,18 @@ export function chordName(pitches, key = null) {
   const pcs = [...new Set(pitches.map((p) => ((Math.round(p) % 12) + 12) % 12))];
   if (pcs.length < 2) return pcs.length ? pcName(pcs[0]) : '';
   const bass = ((Math.round(Math.min(...pitches)) % 12) + 12) % 12;
-  let best = '', bestScore = -1;
+  let best = '',
+    bestScore = -1;
   for (const root of pcs) {
     const rel = pcs.map((pc) => (pc - root + 12) % 12).sort((a, b) => a - b);
     for (const [q, iv] of Object.entries(CHORDS)) {
       const set = new Set(iv.map((i) => i % 12));
       if (rel.length !== set.size || !rel.every((r) => set.has(r))) continue;
       const score = 10 - iv.length + (root === bass ? 5 : 0);
-      if (score > bestScore) { bestScore = score; best = pcName(root) + q + (root === bass ? '' : '/' + pcName(bass)); }
+      if (score > bestScore) {
+        bestScore = score;
+        best = pcName(root) + q + (root === bass ? '' : '/' + pcName(bass));
+      }
     }
   }
   return best;
@@ -151,14 +188,17 @@ export const beatsPerBar = (meter) => (meter ? meter[0] * (4 / meter[1]) : 4);
 // one (project.set, cleanProject, a MIDI file's time signature) holds to this, so a corrupt or crafted value can't
 // make a bar a billionth of a beat long.
 export const METER_UNITS = [1, 2, 4, 8, 16, 32];
-export const validMeter = (m) => Array.isArray(m) && m.length === 2 && Number.isInteger(m[0]) && m[0] >= 1 && m[0] <= 32 && METER_UNITS.includes(m[1]);
+export const validMeter = (m) =>
+  Array.isArray(m) && m.length === 2 && Number.isInteger(m[0]) && m[0] >= 1 && m[0] <= 32 && METER_UNITS.includes(m[1]);
 export const beatToSec = (b, bpm) => (b * 60) / bpm;
 export const secToBeat = (s, bpm) => (s * bpm) / 60;
 // "bar.beat.sixteenth" (1-based), as a DAW shows it
 export function posLabel(beat, meter = [4, 4]) {
   const bpb = beatsPerBar(meter);
-  const bar = Math.floor(beat / bpb) + 1, inBar = beat - (bar - 1) * bpb;
-  const bt = Math.floor(inBar) + 1, six = Math.floor((inBar - Math.floor(inBar)) * 4) + 1;
+  const bar = Math.floor(beat / bpb) + 1,
+    inBar = beat - (bar - 1) * bpb;
+  const bt = Math.floor(inBar) + 1,
+    six = Math.floor((inBar - Math.floor(inBar)) * 4) + 1;
   return `${bar}.${bt}.${six}`;
 }
 // Move t toward the nearest grid line by strength (0..1). swing (0..1) delays every second grid step.
@@ -176,33 +216,53 @@ export function parseNotes(text) {
   if (Array.isArray(text)) return text.map(normNote);
   const out = [];
   const errors = [];
-  for (const raw of String(text).replace(/(^|[\s,;])#[^\n]*/g, '$1').split(/[\s,;]+/)) {
+  for (const raw of String(text)
+    .replace(/(^|[\s,;])#[^\n]*/g, '$1')
+    .split(/[\s,;]+/)) {
     const tok = raw.trim();
     if (!tok) continue;
     const m = /^([^@]+)@(-?[\d.]+(?:\/\d+)?):([\d.]+(?:\/\d+)?)(?:\*([\d.]+))?$/.exec(tok);
-    if (!m) { errors.push(tok); continue; }
+    if (!m) {
+      errors.push(tok);
+      continue;
+    }
     const p = parsePitch(m[1]);
-    if (!Number.isFinite(p)) { errors.push(tok); continue; }
+    if (!Number.isFinite(p)) {
+      errors.push(tok);
+      continue;
+    }
     let v = m[4] == null ? 0.8 : Number(m[4]);
     if (v > 1) v = v / 127; // tolerate MIDI velocities
     out.push(normNote({ p, t: frac(m[2]), d: frac(m[3]), v }));
   }
   if (errors.length) {
-    const e = new Error(`could not read note(s): ${errors.slice(0, 5).join(' ')}${errors.length > 5 ? ' …' : ''} — expected pitch@start:dur[*vel], e.g. C4@0:0.5 or 60@1.5:0.25*0.9`);
+    const e = new Error(
+      `could not read note(s): ${errors.slice(0, 5).join(' ')}${errors.length > 5 ? ' …' : ''} — expected pitch@start:dur[*vel], e.g. C4@0:0.5 or 60@1.5:0.25*0.9`,
+    );
     e.partial = out;
     throw e;
   }
   return out;
 }
-function frac(s) { if (String(s).includes('/')) { const [a, b] = String(s).split('/'); return Number(a) / Number(b); } return Number(s); }
+function frac(s) {
+  if (String(s).includes('/')) {
+    const [a, b] = String(s).split('/');
+    return Number(a) / Number(b);
+  }
+  return Number(s);
+}
 const r4 = (x) => Math.round(x * 10000) / 10000;
 // A note that can't be read (an unknown pitch, a start that isn't a number) throws "could not read note"; a missing or
 // unreadable length or velocity falls back to the default.
 export function normNote(n) {
-  if (!n || typeof n !== 'object') throw new Error(`could not read note ${JSON.stringify(n)}: expected { p, t, d?, v? }`);
+  if (!n || typeof n !== 'object')
+    throw new Error(`could not read note ${JSON.stringify(n)}: expected { p, t, d?, v? }`);
   const p = Math.max(0, Math.min(127, Math.round(parsePitch(n.p ?? n.pitch))));
   const t = Math.max(0, r4(Number(n.t ?? n.start ?? 0)));
-  if (!Number.isFinite(p) || !Number.isFinite(t)) throw new Error(`could not read note ${JSON.stringify({ p: n.p ?? n.pitch, t: n.t ?? n.start })}: p is a pitch (C4, F#3, 60) and t a start in beats`);
+  if (!Number.isFinite(p) || !Number.isFinite(t))
+    throw new Error(
+      `could not read note ${JSON.stringify({ p: n.p ?? n.pitch, t: n.t ?? n.start })}: p is a pitch (C4, F#3, 60) and t a start in beats`,
+    );
   const d0 = Number(n.d ?? n.dur ?? n.duration ?? 0.25);
   const d = Math.max(1 / 64, r4(Number.isFinite(d0) ? d0 : 0.25));
   let v = Number(n.v ?? n.vel ?? n.velocity ?? 0.8);
@@ -210,12 +270,16 @@ export function normNote(n) {
   if (v > 1) v /= 127;
   const out = { p, t, d, v: Math.max(0.01, Math.min(1, r4(v))) };
   // expression (kernel/expr.js): bend in semitones and mod 0..1, each a number or [[beat, value], ...] from the start
-  const bend = normCurve(n.bend, -BEND_MAX, BEND_MAX), mod = normCurve(n.mod, 0, 1);
+  const bend = normCurve(n.bend, -BEND_MAX, BEND_MAX),
+    mod = normCurve(n.mod, 0, 1);
   if (bend !== undefined) out.bend = bend;
   if (mod !== undefined) out.mod = mod;
   // where a guitarist plays it (core/fretboard.js): s the string (0 the lowest), f the fret from the nut. Both or
   // neither; the pitch stays the truth (a place that no longer matches it is re-fingered where tab is drawn)
-  if (isPlace(n.s, n.f)) { out.s = n.s; out.f = n.f; }
+  if (isPlace(n.s, n.f)) {
+    out.s = n.s;
+    out.f = n.f;
+  }
   if (n.id) out.id = n.id;
   if (n.by) out.by = n.by;
   return out;
@@ -224,8 +288,12 @@ export function normNote(n) {
 // (the nut) to 36. Older readers skip both fields.
 export const isPlace = (s, f) => Number.isInteger(s) && s >= 0 && s <= 11 && Number.isInteger(f) && f >= 0 && f <= 36;
 export function formatNotes(notes, { names = true } = {}) {
-  return [...notes].sort((a, b) => a.t - b.t || a.p - b.p)
-    .map((n) => `${names ? noteName(n.p) : n.p}@${r4(n.t)}:${r4(n.d)}${Math.abs(n.v - 0.8) > 0.005 ? '*' + r4(n.v) : ''}`).join(' ');
+  return [...notes]
+    .sort((a, b) => a.t - b.t || a.p - b.p)
+    .map(
+      (n) => `${names ? noteName(n.p) : n.p}@${r4(n.t)}:${r4(n.d)}${Math.abs(n.v - 0.8) > 0.005 ? '*' + r4(n.v) : ''}`,
+    )
+    .join(' ');
 }
 
 /* ---------------------------------------------------------------- drum grids */
@@ -234,41 +302,194 @@ export function formatNotes(notes, { names = true } = {}) {
 // them plays whatever it maps those notes to. Names are added, never renumbered: a song's notes keep their meaning.
 // (formatGrid names a note by its last name here, so a new alias for an existing note goes before the old name.)
 export const DRUM_MAP = {
-  kick: 36, bd: 36, rim: 37, side: 37, snare: 38, sd: 38, clap: 39, cp: 39, hat: 42, hh: 42, ch: 42, closed: 42,
-  pedal: 44, ph: 44, open: 46, oh: 46, tom1: 50, hitom: 50, tom2: 47, midtom: 47, tom3: 45, lotom: 45,
-  tom4: 43, floor: 43, crash: 49, cy: 49, ride: 51, rd: 51, bell: 53, cowbell: 56, cb: 56, shaker: 70, sh: 70, tamb: 54,
-  rimshot: 40, lowfloor: 41, himid: 48, china: 52, splash: 55, crash2: 57, rideedge: 59,
-  footsplash: 21, hatedge: 22, quarter: 23, half: 24, ridechoke: 25, openedge: 26, crashchoke: 27, crash2choke: 28,
-  chinachoke: 29, splashchoke: 30, flam: 31, drag: 32, roll: 33, snareedge: 34,
+  kick: 36,
+  bd: 36,
+  rim: 37,
+  side: 37,
+  snare: 38,
+  sd: 38,
+  clap: 39,
+  cp: 39,
+  hat: 42,
+  hh: 42,
+  ch: 42,
+  closed: 42,
+  pedal: 44,
+  ph: 44,
+  open: 46,
+  oh: 46,
+  tom1: 50,
+  hitom: 50,
+  tom2: 47,
+  midtom: 47,
+  tom3: 45,
+  lotom: 45,
+  tom4: 43,
+  floor: 43,
+  crash: 49,
+  cy: 49,
+  ride: 51,
+  rd: 51,
+  bell: 53,
+  cowbell: 56,
+  cb: 56,
+  shaker: 70,
+  sh: 70,
+  tamb: 54,
+  rimshot: 40,
+  lowfloor: 41,
+  himid: 48,
+  china: 52,
+  splash: 55,
+  crash2: 57,
+  rideedge: 59,
+  footsplash: 21,
+  hatedge: 22,
+  quarter: 23,
+  half: 24,
+  ridechoke: 25,
+  openedge: 26,
+  crashchoke: 27,
+  crash2choke: 28,
+  chinachoke: 29,
+  splashchoke: 30,
+  flam: 31,
+  drag: 32,
+  roll: 33,
+  snareedge: 34,
 };
 // Every label the studio gave a drum note before kits named their own (Studio A's articulations included). Rows are
 // named per kit now: drumName(p, kitNotes(def)) below.
-export const DRUM_NAMES = { 36: 'Kick', 37: 'Rim', 38: 'Snare', 39: 'Clap', 42: 'Hat', 44: 'Pedal hat', 46: 'Open hat', 43: 'Floor tom', 45: 'Low tom', 47: 'Mid tom', 50: 'High tom', 49: 'Crash', 51: 'Ride', 53: 'Bell', 54: 'Tamb', 56: 'Cowbell', 70: 'Shaker',
-  35: 'Kick 2', 40: 'Rimshot', 41: 'Low floor tom', 48: 'Hi-mid tom', 52: 'China', 55: 'Splash', 57: 'Crash 2', 59: 'Ride edge', 69: 'Cabasa', 82: 'Shaker 2',
-  21: 'Hat foot splash', 22: 'Hat edge', 23: 'Hat 1/4 open', 24: 'Hat 1/2 open', 25: 'Ride choke', 26: 'Open hat edge',
-  27: 'Crash choke', 28: 'Crash 2 choke', 29: 'China choke', 30: 'Splash choke', 31: 'Flam', 32: 'Drag', 33: 'Roll', 34: 'Snare edge' };
+export const DRUM_NAMES = {
+  36: 'Kick',
+  37: 'Rim',
+  38: 'Snare',
+  39: 'Clap',
+  42: 'Hat',
+  44: 'Pedal hat',
+  46: 'Open hat',
+  43: 'Floor tom',
+  45: 'Low tom',
+  47: 'Mid tom',
+  50: 'High tom',
+  49: 'Crash',
+  51: 'Ride',
+  53: 'Bell',
+  54: 'Tamb',
+  56: 'Cowbell',
+  70: 'Shaker',
+  35: 'Kick 2',
+  40: 'Rimshot',
+  41: 'Low floor tom',
+  48: 'Hi-mid tom',
+  52: 'China',
+  55: 'Splash',
+  57: 'Crash 2',
+  59: 'Ride edge',
+  69: 'Cabasa',
+  82: 'Shaker 2',
+  21: 'Hat foot splash',
+  22: 'Hat edge',
+  23: 'Hat 1/4 open',
+  24: 'Hat 1/2 open',
+  25: 'Ride choke',
+  26: 'Open hat edge',
+  27: 'Crash choke',
+  28: 'Crash 2 choke',
+  29: 'China choke',
+  30: 'Splash choke',
+  31: 'Flam',
+  32: 'Drag',
+  33: 'Roll',
+  34: 'Snare edge',
+};
 
 /* ---------------------------------------------------------------- a kit's own names for its notes */
 // The General MIDI drum names (35-81, and GM2's shaker on 82), in the studio's short words: what a note is called on a
 // kit that names nothing itself.
 export const GM_DRUMS = {
-  35: 'Kick 2', 36: 'Kick', 37: 'Rim', 38: 'Snare', 39: 'Clap', 40: 'Snare 2', 41: 'Low floor tom', 42: 'Hat', 43: 'Floor tom',
-  44: 'Pedal hat', 45: 'Low tom', 46: 'Open hat', 47: 'Mid tom', 48: 'Hi-mid tom', 49: 'Crash', 50: 'High tom', 51: 'Ride',
-  52: 'China', 53: 'Bell', 54: 'Tamb', 55: 'Splash', 56: 'Cowbell', 57: 'Crash 2', 58: 'Vibraslap', 59: 'Ride 2', 60: 'Hi bongo',
-  61: 'Low bongo', 62: 'Mute hi conga', 63: 'Open hi conga', 64: 'Low conga', 65: 'High timbale', 66: 'Low timbale',
-  67: 'High agogo', 68: 'Low agogo', 69: 'Cabasa', 70: 'Shaker', 71: 'Short whistle', 72: 'Long whistle', 73: 'Short guiro',
-  74: 'Long guiro', 75: 'Claves', 76: 'Hi wood block', 77: 'Low wood block', 78: 'Mute cuica', 79: 'Open cuica',
-  80: 'Mute triangle', 81: 'Open triangle', 82: 'Shaker 2',
+  35: 'Kick 2',
+  36: 'Kick',
+  37: 'Rim',
+  38: 'Snare',
+  39: 'Clap',
+  40: 'Snare 2',
+  41: 'Low floor tom',
+  42: 'Hat',
+  43: 'Floor tom',
+  44: 'Pedal hat',
+  45: 'Low tom',
+  46: 'Open hat',
+  47: 'Mid tom',
+  48: 'Hi-mid tom',
+  49: 'Crash',
+  50: 'High tom',
+  51: 'Ride',
+  52: 'China',
+  53: 'Bell',
+  54: 'Tamb',
+  55: 'Splash',
+  56: 'Cowbell',
+  57: 'Crash 2',
+  58: 'Vibraslap',
+  59: 'Ride 2',
+  60: 'Hi bongo',
+  61: 'Low bongo',
+  62: 'Mute hi conga',
+  63: 'Open hi conga',
+  64: 'Low conga',
+  65: 'High timbale',
+  66: 'Low timbale',
+  67: 'High agogo',
+  68: 'Low agogo',
+  69: 'Cabasa',
+  70: 'Shaker',
+  71: 'Short whistle',
+  72: 'Long whistle',
+  73: 'Short guiro',
+  74: 'Long guiro',
+  75: 'Claves',
+  76: 'Hi wood block',
+  77: 'Low wood block',
+  78: 'Mute cuica',
+  79: 'Open cuica',
+  80: 'Mute triangle',
+  81: 'Open triangle',
+  82: 'Shaker 2',
 };
 // A drum kit names its own notes with `notes` on its def: { 36: 'Kick', 40: 'Rimshot', ..., other: 'Side stick' }
 // (other: what every note it doesn't name plays). Gobo Kit's names are here, by its id, until its def carries them
 // (devices/builtin/drums.js: what it plays).
 export const KIT_NOTES = {
   'core.drums': {
-    35: 'Kick (35)', 36: 'Kick', 37: 'Rim', 38: 'Snare', 39: 'Clap', 40: 'Snare (40)', 41: 'Low floor tom', 42: 'Hat', 43: 'Floor tom',
-    44: 'Pedal hat', 45: 'Low tom', 46: 'Open hat', 47: 'Mid tom', 48: 'Hi-mid tom', 49: 'Crash', 50: 'High tom', 51: 'Ride',
-    52: 'Crash (52)', 53: 'Bell', 54: 'Tamb', 55: 'Crash (55)', 56: 'Cowbell', 57: 'Crash 2', 59: 'Ride (59)', 69: 'Shaker (69)',
-    70: 'Shaker', 82: 'Shaker (82)', other: 'Rim',
+    35: 'Kick (35)',
+    36: 'Kick',
+    37: 'Rim',
+    38: 'Snare',
+    39: 'Clap',
+    40: 'Snare (40)',
+    41: 'Low floor tom',
+    42: 'Hat',
+    43: 'Floor tom',
+    44: 'Pedal hat',
+    45: 'Low tom',
+    46: 'Open hat',
+    47: 'Mid tom',
+    48: 'Hi-mid tom',
+    49: 'Crash',
+    50: 'High tom',
+    51: 'Ride',
+    52: 'Crash (52)',
+    53: 'Bell',
+    54: 'Tamb',
+    55: 'Crash (55)',
+    56: 'Cowbell',
+    57: 'Crash 2',
+    59: 'Ride (59)',
+    69: 'Shaker (69)',
+    70: 'Shaker',
+    82: 'Shaker (82)',
+    other: 'Rim',
   },
 };
 // A device's note names, read as text (a song's device is anyone's JSON): MIDI notes 0-127 and `other`, each a short
@@ -277,13 +498,17 @@ const NOTES_SEEN = new WeakMap();
 export function kitNotes(def) {
   if (!def || typeof def !== 'object') return null;
   if (NOTES_SEEN.has(def)) return NOTES_SEEN.get(def);
-  const raw = def.notes && typeof def.notes === 'object' && !Array.isArray(def.notes) ? def.notes : KIT_NOTES[def.id] || null;
+  const raw =
+    def.notes && typeof def.notes === 'object' && !Array.isArray(def.notes) ? def.notes : KIT_NOTES[def.id] || null;
   let out = null;
   if (raw) {
     const ok = {};
     for (const [k, v] of Object.entries(raw)) {
       if (typeof v !== 'string') continue;
-      const name = v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 40);
+      const name = v
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .trim()
+        .slice(0, 40);
       if (!name) continue;
       if (k === 'other' || (/^\d{1,3}$/.test(k) && +k <= 127)) ok[k === 'other' ? k : +k] = name;
     }
@@ -302,7 +527,8 @@ export function drumName(p, notes = null) {
   return GM_DRUMS[p] || null;
 }
 // Said beside a note map (get_device): how to read it and write to it.
-export const NOTES_HINT = 'MIDI note -> what this kit plays there ("other": every note it doesn\'t name). Write these numbers in notes, or as drum grid rows (a row may be a MIDI number or a grid name: kick 36, rimshot 40, half 24, flam 31 ...).';
+export const NOTES_HINT =
+  'MIDI note -> what this kit plays there ("other": every note it doesn\'t name). Write these numbers in notes, or as drum grid rows (a row may be a MIDI number or a grid name: kick 36, rimshot 40, half 24, flam 31 ...).';
 const HIT = { X: 1, x: 0.8, o: 0.45, O: 0.6 };
 // { steps: 16, step: 0.25, rows: { kick: 'x...x...' } } -> notes. Row names map through DRUM_MAP or may be MIDI numbers.
 export function parseGrid(grid) {
@@ -310,7 +536,10 @@ export function parseGrid(grid) {
   const out = [];
   for (const [name, row] of Object.entries(grid.rows || {})) {
     const p = DRUM_MAP[String(name).toLowerCase()] ?? parsePitch(name);
-    if (!Number.isFinite(p)) throw new Error(`unknown drum row "${name}" (use ${Object.keys(DRUM_MAP).slice(0, 12).join(', ')} … or a MIDI number)`);
+    if (!Number.isFinite(p))
+      throw new Error(
+        `unknown drum row "${name}" (use ${Object.keys(DRUM_MAP).slice(0, 12).join(', ')} … or a MIDI number)`,
+      );
     const cells = String(row).replace(/[\s|]/g, '');
     for (let i = 0; i < cells.length; i++) {
       const v = HIT[cells[i]];
@@ -321,7 +550,11 @@ export function parseGrid(grid) {
 }
 export function formatGrid(notes, { steps = 16, step = 0.25 } = {}) {
   const rows = {};
-  const names = Object.fromEntries(Object.entries(DRUM_MAP).filter(([k]) => k.length > 2).map(([k, v]) => [v, k]));
+  const names = Object.fromEntries(
+    Object.entries(DRUM_MAP)
+      .filter(([k]) => k.length > 2)
+      .map(([k, v]) => [v, k]),
+  );
   Object.assign(names, { 36: 'kick', 38: 'snare', 42: 'hat', 44: 'pedal', 46: 'open', 49: 'crash', 51: 'ride' });
   for (const n of notes) {
     const name = names[n.p] || String(n.p);

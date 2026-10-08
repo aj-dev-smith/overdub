@@ -11,4 +11,7 @@ await page.waitForTimeout(300);
 const out = path.join(ROOT, 'site/assets/og.png');
 await page.screenshot({ path: out, clip: { x: 0, y: 0, width: 1200, height: 630 } });
 await close();
-if (errors.length) { console.log('errors:', errors); process.exitCode = 1; } else console.log('wrote', path.relative(ROOT, out));
+if (errors.length) {
+  console.log('errors:', errors);
+  process.exitCode = 1;
+} else console.log('wrote', path.relative(ROOT, out));

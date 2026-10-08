@@ -27,8 +27,12 @@ import { notesIn, audioIn, playBuffer, autoIn, lanesOf, mixGrid, laneValue, GRID
 import { noteExpr } from '../kernel/expr.js';
 import { beatsPerBarOf, frame } from './util.js';
 
-export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000, tail = 2, assets, report = null, latencyMax = 0, trims = null } = {}) {
-  const bpm = +p.tempo || 120, spb = 60 / bpm;
+export async function renderProject(
+  p,
+  { from = 0, to, tracks = null, sr = 48000, tail = 2, assets, report = null, latencyMax = 0, trims = null } = {},
+) {
+  const bpm = +p.tempo || 120,
+    spb = 60 / bpm;
   if (!(to > from)) throw new Error(`render: empty range ${from}..${to}`);
   await notHeld();
   const len = Math.max(1, Math.ceil(((to - from) * spb + Math.max(0, tail)) * sr));
@@ -69,14 +73,20 @@ export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000
   const bufs = new Map();
   if (clips.length) {
     if (!assets) throw new Error('render: audio clips need the asset store');
-    await Promise.all([...new Set(clips.map((a) => a.clip.asset))].map(async (id) => bufs.set(id, await assets.get(id))));
+    await Promise.all(
+      [...new Set(clips.map((a) => a.clip.asset))].map(async (id) => bufs.set(id, await assets.get(id))),
+    );
   }
   await Promise.all(builds);
   wireKeys(p, plan, strips);
   // plugin delay compensation: hold every track back to the latest one
-  const lat = {}, comp = {};
+  const lat = {},
+    comp = {};
   let max = Number.isFinite(latencyMax) && latencyMax > 0 ? latencyMax : 0;
-  for (const [id, s] of strips) { lat[id] = s.latency(); if (lat[id] > max) max = lat[id]; }
+  for (const [id, s] of strips) {
+    lat[id] = s.latency();
+    if (lat[id] > max) max = lat[id];
+  }
   for (const id of strips.keys()) comp[id] = Math.max(0, Math.round((max - lat[id]) * sr));
   const latency = { tracks: lat, comp, max, master: master.latency(), total: 0 };
   latency.total = latency.max + latency.master;
@@ -95,22 +105,48 @@ export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000
     if (!inst) continue;
     const t = e.t + held(e.n.track);
     try {
-      if (e.on) inst.noteOn(e.n.note.p, Number.isFinite(e.n.note.v) ? e.n.note.v : 0.8, t, noteExpr(e.n.note, spb, e.n.into));
+      if (e.on)
+        inst.noteOn(e.n.note.p, Number.isFinite(e.n.note.v) ? e.n.note.v : 0.8, t, noteExpr(e.n.note, spb, e.n.into));
       else inst.noteOff(e.n.note.p, t);
-    } catch (err) { report && report({ kind: 'note', track: e.n.track, message: err.message }); }
+    } catch (err) {
+      report && report({ kind: 'note', track: e.n.track, message: err.message });
+    }
   }
   for (const a of clips) {
-    const buf = bufs.get(a.clip.asset), s = strips.get(a.track);
-    if (!buf) { report && report({ kind: 'asset', track: a.track, asset: a.clip.asset, message: `audio asset "${a.clip.asset}" is missing` }); continue; }
+    const buf = bufs.get(a.clip.asset),
+      s = strips.get(a.track);
+    if (!buf) {
+      report &&
+        report({
+          kind: 'asset',
+          track: a.track,
+          asset: a.clip.asset,
+          message: `audio asset "${a.clip.asset}" is missing`,
+        });
+      continue;
+    }
     if (!s) continue;
-    playBuffer(c, buf, s.head, { t0: T(a.at) + held(a.track), offset: (+a.clip.offset || 0) + a.into * spb, t1: T(a.end) + held(a.track), gainDb: +a.clip.gain || 0 });
+    playBuffer(c, buf, s.head, {
+      t0: T(a.at) + held(a.track),
+      offset: (+a.clip.offset || 0) + a.into * spb,
+      t1: T(a.end) + held(a.track),
+      gainDb: +a.clip.gain || 0,
+    });
   }
   scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held });
   const out = await c.startRendering();
   master.dispose();
   for (const s of strips.values()) s.dispose();
   // master.clip 'clean': the ceiling the converter and an export put on it, at 0 dBFS (strip.js setClip)
-  if (clean) for (let ch = 0; ch < out.numberOfChannels; ch++) { const d = out.getChannelData(ch); for (let i = 0; i < d.length; i++) { const v = d[i]; if (v > 1) d[i] = 1; else if (v < -1) d[i] = -1; } }
+  if (clean)
+    for (let ch = 0; ch < out.numberOfChannels; ch++) {
+      const d = out.getChannelData(ch);
+      for (let i = 0; i < d.length; i++) {
+        const v = d[i];
+        if (v > 1) d[i] = 1;
+        else if (v < -1) d[i] = -1;
+      }
+    }
   out.latency = latency;
   return out;
 }
@@ -126,8 +162,12 @@ export function wireKeys(p, plan, strips) {
       if (!plan.keyOf.has(x.id)) continue;
       const inst = s.instance(x.id);
       if (!inst || !inst.keyInput) continue;
-      const id = plan.keyOf.get(x.id), src = id ? strips.get(id) : null;
-      if (src) { src.keyTap().connect(inst.keyInput); links.push({ insert: x.id, inst, tap: src.keyTap() }); }
+      const id = plan.keyOf.get(x.id),
+        src = id ? strips.get(id) : null;
+      if (src) {
+        src.keyTap().connect(inst.keyInput);
+        links.push({ insert: x.id, inst, tap: src.keyTap() });
+      }
       inst.setKey(!!src);
     }
   }
@@ -139,8 +179,14 @@ export function wireKeys(p, plan, strips) {
 // loading its worklets would block the page: an export, a reference compare or arrange_around says so instead.
 // (The check is imported only when a render asks, so rendering doesn't load it.)
 async function notHeld() {
-  const n = await import('../kernel/check.js').then((m) => m.heldRenders(), () => 0);
-  if (n) throw new Error('the audio thread is still held by a device check\'s render that hasn\'t finished: try again in a moment, or reload the studio');
+  const n = await import('../kernel/check.js').then(
+    (m) => m.heldRenders(),
+    () => 0,
+  );
+  if (n)
+    throw new Error(
+      "the audio thread is still held by a device check's render that hasn't finished: try again in a moment, or reload the studio",
+    );
 }
 
 export const GRAPH_STEP = 0.02; // seconds between a graph device's automation points
@@ -153,8 +199,12 @@ function scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held })
   const stripOf = (track) => (track === 'master' ? master : strips.get(track));
   const hOf = (track) => (track === 'master' ? 0 : held(track));
   // kernels: segments
-  for (const g of autoIn(p, from, from + len / sr / spb, { chase: true, lanes: lanes.filter((L) => L.kind === 'device') })) {
-    const s = stripOf(g.track), inst = s && s.instance(g.insert);
+  for (const g of autoIn(p, from, from + len / sr / spb, {
+    chase: true,
+    lanes: lanes.filter((L) => L.kind === 'device'),
+  })) {
+    const s = stripOf(g.track),
+      inst = s && s.instance(g.insert);
     if (!inst || !inst.auto) continue;
     const h = hOf(g.track);
     inst.auto({ key: g.param, time: T(g.at) + h, end: T(g.end) + h, a: g.a, b: g.b, c: g.c, start: T(g.start) + h });
@@ -163,19 +213,38 @@ function scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held })
   const graph = new Map();
   for (const L of lanes) {
     if (L.kind !== 'device') continue;
-    const s = stripOf(L.track), inst = s && s.instance(L.insert);
+    const s = stripOf(L.track),
+      inst = s && s.instance(L.insert);
     if (!inst || inst.auto || !inst.set) continue;
     if (!graph.has(inst)) graph.set(inst, { L: [], track: L.track, insert: L.insert });
     graph.get(inst).L.push(L);
   }
   for (const [inst, w] of graph) {
-    const spec = (w.track === 'master' ? masterSpec(p, { at: from }) : trackSpec(p.tracks.find((t) => t.id === w.track), { at: from }));
-    const base = w.insert === 'instrument' ? spec.instrument && spec.instrument.params : (spec.inserts.find((x) => x.id === w.insert) || {}).params;
-    const h = hOf(w.track), dur = len / sr;
+    const spec =
+      w.track === 'master'
+        ? masterSpec(p, { at: from })
+        : trackSpec(
+            p.tracks.find((t) => t.id === w.track),
+            { at: from },
+          );
+    const base =
+      w.insert === 'instrument'
+        ? spec.instrument && spec.instrument.params
+        : (spec.inserts.find((x) => x.id === w.insert) || {}).params;
+    const h = hOf(w.track),
+      dur = len / sr;
     for (let t = GRAPH_STEP; t < dur; t += GRAPH_STEP) {
-      const v = { ...(base || {}) }, beat = from + (t - h) / spb;
-      for (const L of w.L) { const x = laneValue(L.lane, beat, L.spec); if (x != null) v[L.param] = x; }
-      try { inst.set(v, { at: t }); } catch (e) { /* a device that can't take it */ }
+      const v = { ...(base || {}) },
+        beat = from + (t - h) / spb;
+      for (const L of w.L) {
+        const x = laneValue(L.lane, beat, L.spec);
+        if (x != null) v[L.param] = x;
+      }
+      try {
+        inst.set(v, { at: t });
+      } catch (e) {
+        /* a device that can't take it */
+      }
     }
   }
   // gain and pan: linear ramps through the 128-frame grid
@@ -192,7 +261,10 @@ function scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held })
     const h = hOf(L.track);
     const G = mixGrid(L.lane, L.param, n, (fr) => from + (fr / sr - h) / spb);
     if (L.param === 'gain') ramp(s.fader.gain, G.g);
-    else if (s.panL) { ramp(s.panL.gain, G.l); ramp(s.panR.gain, G.r); }
+    else if (s.panL) {
+      ramp(s.panL.gain, G.l);
+      ramp(s.panR.gain, G.r);
+    }
   }
 }
 
@@ -205,7 +277,8 @@ export async function probeLatency(p, { tracks = null, withMix = false, sr = 480
   const c = new OfflineAudioContext({ numberOfChannels: 2, length: 128, sampleRate: sr });
   const clock = gridClock(c, { bpm, beatsPerBar: beatsPerBarOf(p.meter), from: 0, playing: true });
   const opts = { clock, bpm: () => bpm, report, meters: false };
-  const only = audibility(p, tracks), mix = withMix && tracks ? audibility(p) : {};
+  const only = audibility(p, tracks),
+    mix = withMix && tracks ? audibility(p) : {};
   const heard = Object.fromEntries((p.tracks || []).map((t) => [t.id, !!(only[t.id] || mix[t.id])]));
   const strips = new Map();
   try {
@@ -219,7 +292,10 @@ export async function probeLatency(p, { tracks = null, withMix = false, sr = 480
     await Promise.all(builds);
     const lat = {};
     let max = 0;
-    for (const [id, s] of strips) { lat[id] = s.latency(); if (lat[id] > max) max = lat[id]; }
+    for (const [id, s] of strips) {
+      lat[id] = s.latency();
+      if (lat[id] > max) max = lat[id];
+    }
     return { tracks: lat, max };
   } finally {
     for (const s of strips.values()) s.dispose();

@@ -18,7 +18,8 @@
 import { h, css } from './dom.js';
 import { loadData, dataState, dataProgress, onData, peekData } from '../kernel/data.js';
 
-export const kitHashes = (def) => (def && def.data ? Object.values(def.data).filter((x) => typeof x === 'string' && x.startsWith('sha256-')) : []);
+export const kitHashes = (def) =>
+  def && def.data ? Object.values(def.data).filter((x) => typeof x === 'string' && x.startsWith('sha256-')) : [];
 
 export function kitState(def) {
   const hs = kitHashes(def);
@@ -41,30 +42,51 @@ export function whenKitReady(def, ms = 60000) {
   if (!hs.length || kitState(def) === 'ready') return Promise.resolve(true);
   return new Promise((resolve) => {
     const t = setTimeout(() => resolve(false), ms);
-    prefetchKit(def).then((ok) => { clearTimeout(t); resolve(ok); });
+    prefetchKit(def).then((ok) => {
+      clearTimeout(t);
+      resolve(ok);
+    });
   });
 }
 
 export function instReady(engine, track, ms = 60000) {
   let inst = null;
-  try { inst = engine?.instance?.(track, 'instrument') || null; } catch (e) { inst = null; }
-  if (!inst || !inst.data || inst.data.state !== 'loading' || typeof inst.on !== 'function') return Promise.resolve(!inst?.data || inst.data.state === 'ready');
+  try {
+    inst = engine?.instance?.(track, 'instrument') || null;
+  } catch (e) {
+    inst = null;
+  }
+  if (!inst || !inst.data || inst.data.state !== 'loading' || typeof inst.on !== 'function')
+    return Promise.resolve(!inst?.data || inst.data.state === 'ready');
   return new Promise((resolve) => {
     let off = null;
-    const t = setTimeout(() => { if (off) off(); resolve(false); }, ms);
-    off = inst.on('data', (d) => { off(); clearTimeout(t); resolve(!!d && d.state === 'ready'); });
+    const t = setTimeout(() => {
+      if (off) off();
+      resolve(false);
+    }, ms);
+    off = inst.on('data', (d) => {
+      off();
+      clearTimeout(t);
+      resolve(!!d && d.state === 'ready');
+    });
   });
 }
 
 const mb = (b) => (b / 1e6).toFixed(1);
 function progressOf(def) {
-  let got = 0, total = 0, known = true;
+  let got = 0,
+    total = 0,
+    known = true;
   for (const x of kitHashes(def)) {
     if (peekData(x)) continue;
     const p = dataProgress(x);
-    if (!p) { known = false; continue; }
+    if (!p) {
+      known = false;
+      continue;
+    }
     got += p.got;
-    if (p.total) total += p.total; else known = false;
+    if (p.total) total += p.total;
+    else known = false;
   }
   return { got, total: known && total ? total : null };
 }
@@ -88,7 +110,8 @@ export function kitSays(def, { short = false } = {}) {
 
 const lines = new Set();
 function draw(el) {
-  const def = el._kitDef, s = kitState(def);
+  const def = el._kitDef,
+    s = kitState(def);
   const t = kitSays(def, { short: el._short });
   el.hidden = !t;
   el.classList.toggle('kl-missing', s === 'missing');
@@ -100,14 +123,27 @@ function draw(el) {
   el.classList.toggle('kl-unknown', s === 'loading' && f == null);
   const n = s === 'loading' ? kitAmount(def) : '';
   const own = def && def.dataSays && def.dataSays[s];
-  const long = own ? own[1] : s === 'loading' ? `Loading its samples${n ? `, ${n}` : ''}: it plays once they’re in` : s === 'missing' ? 'Its samples aren’t on this server, so it plays nothing' : '';
+  const long = own
+    ? own[1]
+    : s === 'loading'
+      ? `Loading its samples${n ? `, ${n}` : ''}: it plays once they’re in`
+      : s === 'missing'
+        ? 'Its samples aren’t on this server, so it plays nothing'
+        : '';
   el.setAttribute('aria-label', long);
   el.title = long;
 }
 export function kitLine(def, { short = false, bare = false } = {}) {
   css('ew-kitload', KITLOAD_CSS);
-  const el = h('span.kitload' + (bare ? '.kl-bare' : ''), { role: 'status', hidden: true }, h('span.kl-t'), h('i.kl-bar', { 'aria-hidden': 'true' }, h('i')));
-  el._kitDef = def; el._short = short; el._t = Date.now();
+  const el = h(
+    'span.kitload' + (bare ? '.kl-bare' : ''),
+    { role: 'status', hidden: true },
+    h('span.kl-t'),
+    h('i.kl-bar', { 'aria-hidden': 'true' }, h('i')),
+  );
+  el._kitDef = def;
+  el._short = short;
+  el._t = Date.now();
   el.dataset.hashes = kitHashes(def).join(' ');
   draw(el);
   lines.add(el);
@@ -116,7 +152,10 @@ export function kitLine(def, { short = false, bare = false } = {}) {
 onData(({ hash }) => {
   for (const el of lines) {
     // (a line leaves with its row: once it has been on the page and isn't, or never got there within 10 s)
-    if (!el.isConnected && (el._seen || Date.now() - el._t > 10000)) { lines.delete(el); continue; }
+    if (!el.isConnected && (el._seen || Date.now() - el._t > 10000)) {
+      lines.delete(el);
+      continue;
+    }
     if (el.isConnected) el._seen = true;
     if (el.dataset.hashes.includes(hash)) draw(el);
   }

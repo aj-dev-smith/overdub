@@ -21,15 +21,20 @@ import { css } from './dom.js';
 export const HOLD = 350;
 const SLOP = 8;
 const HINT = 'overdub:touch-hold-hint';
-const gated = new WeakMap();   // control -> options
-let gate = null, passing = false, installed = false, toldAt = -1e9;
+const gated = new WeakMap(); // control -> options
+let gate = null,
+  passing = false,
+  installed = false,
+  toldAt = -1e9;
 const ui = () => (typeof window !== 'undefined' ? window.overdub?.ui : null) || null;
 
 export function holdToMove(el, opts = {}) {
   if (!el) return () => {};
   gated.set(el, opts);
   install();
-  return () => { if (gated.get(el) === opts) gated.delete(el); };
+  return () => {
+    if (gated.get(el) === opts) gated.delete(el);
+  };
 }
 
 // the nearest box over el that scrolls along an axis ('x' or 'y') and has somewhere to go
@@ -57,54 +62,105 @@ function install() {
   if (installed || typeof window === 'undefined') return;
   installed = true;
   css('ew-touch', CSS);
-  window.addEventListener('pointerdown', (e) => {
-    if (passing || e.pointerType !== 'touch') return;
-    const ctl = controlOf(e.target);
-    if (!ctl) return;
-    // (the control never hears this touch: it gets one when the hold lands)
-    e.stopPropagation();
-    e.preventDefault();
-    drop();
-    const o = gated.get(ctl) || {};
-    const g = gate = { id: e.pointerId, x: e.clientX, y: e.clientY, target: e.target, ctl, o, pan: false, held: false };
-    g.timer = setTimeout(() => {
-      if (gate !== g || g.pan || !ctl.isConnected) return;
-      g.held = true;
-      ctl.classList.add(o.heldClass || 'ew-held');
-      try { navigator.vibrate?.(12); } catch (err) { /* no buzz */ }
-      const name = o.name || 'knob', key = o.hintKey || HINT;
-      let first = false;
-      try { first = localStorage.getItem(key) !== '1'; if (first) localStorage.setItem(key, '1'); } catch (err) { first = false; }
-      if (first) ui()?.toast(`Holding a ${name} picks it up: keep holding and drag to move it. A drag without holding scrolls.`, { ms: 7000 });
-      else ui()?.announce?.(`Holding the ${name}: drag to move it.`);
-      const to = (typeof o.pick === 'function' && o.pick(g.target)) || g.target;
-      passing = true;
-      try { to.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, composed: true, pointerId: g.id, pointerType: 'touch', isPrimary: true, clientX: g.x, clientY: g.y, button: 0, buttons: 1 })); } finally { passing = false; }
-    }, HOLD);
-  }, true);
-  window.addEventListener('pointermove', (e) => {
-    const g = gate;
-    if (!g || e.pointerId !== g.id || g.held) return;
-    const dx = e.clientX - g.x, dy = e.clientY - g.y;
-    if (!g.pan && Math.hypot(dx, dy) <= SLOP) return;
-    if (!g.pan) {
-      g.pan = true;
-      clearTimeout(g.timer);
-      g.sx = g.o.scroller || scrollerOf(g.ctl, 'x');
-      g.sy = g.o.scroller || scrollerOf(g.ctl, 'y');
-      g.sl = g.sx ? g.sx.scrollLeft : 0; g.st = g.sy ? g.sy.scrollTop : 0;
-    }
-    e.stopPropagation();
-    if (g.sx) g.sx.scrollLeft = g.sl - dx;
-    if (g.sy) g.sy.scrollTop = g.st - dy;
-  }, true);
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (passing || e.pointerType !== 'touch') return;
+      const ctl = controlOf(e.target);
+      if (!ctl) return;
+      // (the control never hears this touch: it gets one when the hold lands)
+      e.stopPropagation();
+      e.preventDefault();
+      drop();
+      const o = gated.get(ctl) || {};
+      const g = (gate = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        target: e.target,
+        ctl,
+        o,
+        pan: false,
+        held: false,
+      });
+      g.timer = setTimeout(() => {
+        if (gate !== g || g.pan || !ctl.isConnected) return;
+        g.held = true;
+        ctl.classList.add(o.heldClass || 'ew-held');
+        try {
+          navigator.vibrate?.(12);
+        } catch (err) {
+          /* no buzz */
+        }
+        const name = o.name || 'knob',
+          key = o.hintKey || HINT;
+        let first = false;
+        try {
+          first = localStorage.getItem(key) !== '1';
+          if (first) localStorage.setItem(key, '1');
+        } catch (err) {
+          first = false;
+        }
+        if (first)
+          ui()?.toast(
+            `Holding a ${name} picks it up: keep holding and drag to move it. A drag without holding scrolls.`,
+            { ms: 7000 },
+          );
+        else ui()?.announce?.(`Holding the ${name}: drag to move it.`);
+        const to = (typeof o.pick === 'function' && o.pick(g.target)) || g.target;
+        passing = true;
+        try {
+          to.dispatchEvent(
+            new PointerEvent('pointerdown', {
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              pointerId: g.id,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: g.x,
+              clientY: g.y,
+              button: 0,
+              buttons: 1,
+            }),
+          );
+        } finally {
+          passing = false;
+        }
+      }, HOLD);
+    },
+    true,
+  );
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      const g = gate;
+      if (!g || e.pointerId !== g.id || g.held) return;
+      const dx = e.clientX - g.x,
+        dy = e.clientY - g.y;
+      if (!g.pan && Math.hypot(dx, dy) <= SLOP) return;
+      if (!g.pan) {
+        g.pan = true;
+        clearTimeout(g.timer);
+        g.sx = g.o.scroller || scrollerOf(g.ctl, 'x');
+        g.sy = g.o.scroller || scrollerOf(g.ctl, 'y');
+        g.sl = g.sx ? g.sx.scrollLeft : 0;
+        g.st = g.sy ? g.sy.scrollTop : 0;
+      }
+      e.stopPropagation();
+      if (g.sx) g.sx.scrollLeft = g.sl - dx;
+      if (g.sy) g.sy.scrollTop = g.st - dy;
+    },
+    true,
+  );
   // a swipe that scrolled nothing was a reach for the control: say how to pick it up (not every time)
   const lift = (e) => {
     const g = gate;
     if (!g || e.pointerId !== g.id) return;
     drop();
     if (g.held || !g.pan || e.type !== 'pointerup') return;
-    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    const dx = e.clientX - g.x,
+      dy = e.clientY - g.y;
     if (Math.hypot(dx, dy) < 16) return;
     const moved = (g.sx && Math.abs(g.sx.scrollLeft - g.sl) > 2) || (g.sy && Math.abs(g.sy.scrollTop - g.st) > 2);
     if (moved) return;

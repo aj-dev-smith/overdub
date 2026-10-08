@@ -16,8 +16,8 @@
 //                                   into: beats the note had already sounded (a note chased from mid-song)
 //   normCurve(x, lo, hi)          -> undefined | number | [[beat, v], ...]   (the stored form, sorted and clamped)
 //   chanExpr(x)                   -> { bend?, mod?, sustain? }   a channel message, clamped
-export const BEND_MAX = 48;   // semitones either way
-export const CURVE_MAX = 64;  // points in one note's curve
+export const BEND_MAX = 48; // semitones either way
+export const CURVE_MAX = 64; // points in one note's curve
 
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -46,14 +46,19 @@ function secs(x, spb, into, lo, hi) {
   if (c === undefined) return undefined;
   if (typeof c === 'number') return c;
   const out = new Array(c.length * 2);
-  for (let i = 0; i < c.length; i++) { out[2 * i] = (c[i][0] - into) * spb; out[2 * i + 1] = c[i][1]; }
+  for (let i = 0; i < c.length; i++) {
+    out[2 * i] = (c[i][0] - into) * spb;
+    out[2 * i + 1] = c[i][1];
+  }
   return out;
 }
 
 export function noteExpr(note, spb, into = 0) {
   if (!note || (note.bend == null && note.mod == null)) return null;
-  const s = fin(spb) && spb > 0 ? spb : 0.5, k = fin(into) && into > 0 ? into : 0;
-  const bend = secs(note.bend, s, k, -BEND_MAX, BEND_MAX), mod = secs(note.mod, s, k, 0, 1);
+  const s = fin(spb) && spb > 0 ? spb : 0.5,
+    k = fin(into) && into > 0 ? into : 0;
+  const bend = secs(note.bend, s, k, -BEND_MAX, BEND_MAX),
+    mod = secs(note.mod, s, k, 0, 1);
   if (bend === undefined && mod === undefined) return null;
   const x = {};
   if (bend !== undefined) x.bend = bend;

@@ -25,17 +25,34 @@ const r = await page.evaluate(async () => {
     const m = M.measure(b);
     tracks[tr.name] = { lufs: +m.lufs.toFixed(1), tp: +m.truePeak.toFixed(1) };
   }
-  return { missing, secs: buf.duration, ms: Math.round(ms), lufs: +mix.lufs.toFixed(1), tp: +mix.truePeak.toFixed(1), lra: +(mix.lra ?? 0).toFixed(1), bands: mix.bands, key: mix.key, tracks };
+  return {
+    missing,
+    secs: buf.duration,
+    ms: Math.round(ms),
+    lufs: +mix.lufs.toFixed(1),
+    tp: +mix.truePeak.toFixed(1),
+    lra: +(mix.lra ?? 0).toFixed(1),
+    bands: mix.bands,
+    key: mix.key,
+    tracks,
+  };
 });
 console.log('  ..   ' + JSON.stringify(r));
 t.ok(r.missing.length === 0, 'every device in the demo resolves ' + r.missing.join(', '));
 t.ok(r.secs > 20, `renders ${r.secs.toFixed(1)} s in ${r.ms} ms`);
 t.ok(r.lufs >= -12 && r.lufs <= -9.5, `the mix is ${r.lufs} LUFS (-12..-9.5)`);
-for (const [name, m] of Object.entries(r.tracks)) if (name !== 'Fireflies') t.ok(m.lufs >= -19 && m.lufs <= -13, `${name} sits at ${m.lufs} LUFS (-19..-13)`);
+for (const [name, m] of Object.entries(r.tracks))
+  if (name !== 'Fireflies') t.ok(m.lufs >= -19 && m.lufs <= -13, `${name} sits at ${m.lufs} LUFS (-19..-13)`);
 t.ok(r.tp <= -1, `true peak ${r.tp} dBTP <= -1`);
 // A minor and C major share every note; either reading (or its alternative) is right
 const keys = [r.key, r.key && r.key.alt].filter(Boolean).map((k) => k.root + ' ' + k.scale);
-t.ok(keys.some((k) => k === 'A minor' || k === 'C major'), `key reads ${keys.join(' / ')}`);
-t.ok(!errors.filter((e) => !/Failed to load resource/.test(e)).length, 'no page errors ' + errors.slice(0, 3).join(' | '));
+t.ok(
+  keys.some((k) => k === 'A minor' || k === 'C major'),
+  `key reads ${keys.join(' / ')}`,
+);
+t.ok(
+  !errors.filter((e) => !/Failed to load resource/.test(e)).length,
+  'no page errors ' + errors.slice(0, 3).join(' | '),
+);
 await close();
 t.done();

@@ -19,7 +19,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const EGUITAR_HASH = 'sha256-bd0513cef14ffd4f2b32584973417dbb571e49b91eadd289549f1ffdb373f2d7';
 
 export default defineDevice({
-  id: 'core.eguitar', name: 'Hollow Body', kind: 'instrument', cat: 'pluck', by: 'overdub',
+  id: 'core.eguitar',
+  name: 'Hollow Body',
+  kind: 'instrument',
+  cat: 'pluck',
+  by: 'overdub',
   blurb: 'A real hollow-body electric guitar, sampled, picked',
   nod: 'Black And Green Guitars (Karoryfer Samples, CC0): the green Gretsch, three dynamics, two picks each',
   data: { kit: EGUITAR_HASH },
@@ -31,7 +35,15 @@ export default defineDevice({
     { name: 'Twang', params: { tone: 40 }, blurb: 'more string and pick, to cut through' },
     { name: 'Let ring', params: { release: 1.2 }, blurb: 'notes ring on after the hand lets go' },
   ],
-  look: { color: '#2f6b4a', ink: '#f2ead8', shape: 'wide', finish: 'gloss', knob: 'gold', label: 'script', led: '#ffcf5a' },
+  look: {
+    color: '#2f6b4a',
+    ink: '#f2ead8',
+    shape: 'wide',
+    finish: 'gloss',
+    knob: 'gold',
+    label: 'script',
+    led: '#ffcf5a',
+  },
   tail: 4,
   kernel: samplerKernel({ makeup: 2.0, poly: 16, xfade: 10, law: 'aligned' }),
 });

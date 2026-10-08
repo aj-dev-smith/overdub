@@ -23,24 +23,76 @@ const CHECK = process.argv.includes('--check');
 
 // The pages. `raw` is where the deploy publishes the Markdown itself (deploy/deploy.sh ships these docs/*.md).
 export const DOCS = [
-  { slug: 'guide', src: 'docs/GUIDE.md', raw: '/docs/GUIDE.md', label: 'Guide',
-    blurb: 'Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.' },
-  { slug: 'agents', src: 'docs/AGENTS.md', raw: '/docs/AGENTS.md', label: 'For agents',
-    blurb: 'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector through the Connect tab), the rules of the room, every tool, the ops and the notes format.' },
-  { slug: 'integrations', src: 'integrations/README.md', raw: null, label: 'Connect an agent',
-    blurb: 'Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.' },
-  { slug: 'devices', src: 'docs/DEVICES.md', raw: '/docs/DEVICES.md', label: 'Writing devices',
-    blurb: 'Instruments and effects as code: the kernel format, the dsp library, the device check a new device passes before it plays, the house library, and two complete examples.' },
-  { slug: 'bench', src: 'docs/BENCH.md', raw: '/docs/BENCH.md', label: 'OverdubBench',
-    blurb: 'Fifteen jobs a musician would ask an agent for (mix, write, edit, build a device), each scored 0 to 1 by measurement with the canonical renderer, never by a judge: the tasks, the scoring and how to run an agent.' },
-  { slug: 'remote-mcp', src: 'docs/REMOTE-MCP.md', raw: '/docs/REMOTE-MCP.md', label: 'Remote MCP',
-    blurb: 'The relay that lets claude.ai drive a studio tab: pairing by URL, the protocol edges, limits, hosting, cost and the known gap.',
-    note: 'The relay is live: open the studio’s Connect tab, turn it on, and add the URL to claude.ai as a custom connector.' },
-  { slug: 'architecture', src: 'docs/ARCHITECTURE.md', raw: '/docs/ARCHITECTURE.md', label: 'Architecture',
-    blurb: 'The contract every module is built against: the song document, ops and the store, devices and kernels, the engine, the measurements, the UI and the agent layer.' },
+  {
+    slug: 'guide',
+    src: 'docs/GUIDE.md',
+    raw: '/docs/GUIDE.md',
+    label: 'Guide',
+    blurb:
+      'Your first overdub in five minutes, then the rest: bring your own Claude or Claude Code, build a device, share and fork a song, take it to another DAW, and the keys.',
+  },
+  {
+    slug: 'agents',
+    src: 'docs/AGENTS.md',
+    raw: '/docs/AGENTS.md',
+    label: 'For agents',
+    blurb:
+      'How an agent connects (Claude Code over MCP to a local copy of the studio, the in-app agent and its free demo, and the claude.ai connector through the Connect tab), the rules of the room, every tool, the ops and the notes format.',
+  },
+  {
+    slug: 'integrations',
+    src: 'integrations/README.md',
+    raw: null,
+    label: 'Connect an agent',
+    blurb:
+      'Step by step for Claude Code (the plugin or the MCP server alone), Claude Desktop, Cursor, VS Code and Codex, what has actually been tried, and what to do when it won’t connect.',
+  },
+  {
+    slug: 'devices',
+    src: 'docs/DEVICES.md',
+    raw: '/docs/DEVICES.md',
+    label: 'Writing devices',
+    blurb:
+      'Instruments and effects as code: the kernel format, the dsp library, the device check a new device passes before it plays, the house library, and two complete examples.',
+  },
+  {
+    slug: 'bench',
+    src: 'docs/BENCH.md',
+    raw: '/docs/BENCH.md',
+    label: 'OverdubBench',
+    blurb:
+      'Fifteen jobs a musician would ask an agent for (mix, write, edit, build a device), each scored 0 to 1 by measurement with the canonical renderer, never by a judge: the tasks, the scoring and how to run an agent.',
+  },
+  {
+    slug: 'remote-mcp',
+    src: 'docs/REMOTE-MCP.md',
+    raw: '/docs/REMOTE-MCP.md',
+    label: 'Remote MCP',
+    blurb:
+      'The relay that lets claude.ai drive a studio tab: pairing by URL, the protocol edges, limits, hosting, cost and the known gap.',
+    note: 'The relay is live: open the studio’s Connect tab, turn it on, and add the URL to claude.ai as a custom connector.',
+  },
+  {
+    slug: 'architecture',
+    src: 'docs/ARCHITECTURE.md',
+    raw: '/docs/ARCHITECTURE.md',
+    label: 'Architecture',
+    blurb:
+      'The contract every module is built against: the song document, ops and the store, devices and kernels, the engine, the measurements, the UI and the agent layer.',
+  },
 ];
 // Other docs the deploy publishes as raw Markdown (deploy/deploy.sh).
-const SHIPPED_MD = new Set(['UX-RESEARCH', 'VISION', 'BRAND', 'AGENTS', 'ARCHITECTURE', 'DEVICES', 'REMOTE-MCP', 'GUIDE', 'BENCH']);
+const SHIPPED_MD = new Set([
+  'UX-RESEARCH',
+  'VISION',
+  'BRAND',
+  'AGENTS',
+  'ARCHITECTURE',
+  'DEVICES',
+  'REMOTE-MCP',
+  'GUIDE',
+  'BENCH',
+]);
 
 // ---------------------------------------------------------------- inline Markdown
 
@@ -52,31 +104,51 @@ function inline(src, ctx) {
   const hold = (html) => `\u0000${held.push(html) - 1}\u0000`;
   // Pass 1, left to right: backslash escapes and code spans (nothing inside a code span is Markdown).
   let s = '';
-  for (let i = 0; i < src.length;) {
+  for (let i = 0; i < src.length; ) {
     const c = src[i];
-    if (c === '\\' && i + 1 < src.length && PUNCT.test(src[i + 1])) { s += hold(esc(src[i + 1])); i += 2; continue; }
+    if (c === '\\' && i + 1 < src.length && PUNCT.test(src[i + 1])) {
+      s += hold(esc(src[i + 1]));
+      i += 2;
+      continue;
+    }
     if (c === '`') {
-      let n = 0; while (src[i + n] === '`') n++;
-      let j = i + n, close = -1;
+      let n = 0;
+      while (src[i + n] === '`') n++;
+      let j = i + n,
+        close = -1;
       while (j < src.length) {
-        const k = src.indexOf('`', j); if (k === -1) break;
-        let m = 0; while (src[k + m] === '`') m++;
-        if (m === n) { close = k; break; }
+        const k = src.indexOf('`', j);
+        if (k === -1) break;
+        let m = 0;
+        while (src[k + m] === '`') m++;
+        if (m === n) {
+          close = k;
+          break;
+        }
         j = k + m;
       }
-      if (close === -1) { s += hold('`'.repeat(n)); i += n; continue; }
+      if (close === -1) {
+        s += hold('`'.repeat(n));
+        i += n;
+        continue;
+      }
       let code = src.slice(i + n, close).replace(/\n/g, ' ');
       if (code.length > 2 && code[0] === ' ' && code[code.length - 1] === ' ' && code.trim()) code = code.slice(1, -1);
-      s += hold(`<code>${esc(code)}</code>`); i = close + n; continue;
+      s += hold(`<code>${esc(code)}</code>`);
+      i = close + n;
+      continue;
     }
-    s += c; i++;
+    s += c;
+    i++;
   }
   // Pass 2: autolinks, images and links (the label stays in the text, so it gets emphasis like anything else).
   s = s.replace(/<(https?:\/\/[^\s<>]+)>/g, (_, url) => hold(`<a href="${esc(url)}">${esc(url)}</a>`));
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, href) => hold(`<img src="${esc(ctx.href(href) || href)}" alt="${esc(alt)}">`));
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, href) =>
+    hold(`<img src="${esc(ctx.href(href) || href)}" alt="${esc(alt)}">`),
+  );
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, label, href) => {
     const to = ctx.href(href);
-    if (!to) return label;   // a repo file that isn't served: keep the words, drop the link
+    if (!to) return label; // a repo file that isn't served: keep the words, drop the link
     const ext = /^https?:/.test(to) && !to.startsWith('https://overdubstudio.com');
     return hold(`<a href="${esc(to)}"${ext ? ' rel="noopener"' : ''}>`) + label + hold('</a>');
   });
@@ -103,24 +175,33 @@ const blank = (l) => !l || !l.trim();
 const isTableStart = (lines, i) => /^\s*\|/.test(lines[i]) && i + 1 < lines.length && RE.tableSep.test(lines[i + 1]);
 const startsBlock = (lines, i) => {
   const l = lines[i];
-  if (RE.fence.test(l) || RE.heading.test(l) || RE.hr.test(l) || RE.quote.test(l) || isTableStart(lines, i)) return true;
+  if (RE.fence.test(l) || RE.heading.test(l) || RE.hr.test(l) || RE.quote.test(l) || isTableStart(lines, i))
+    return true;
   const m = l.match(RE.list);
-  return !!(m && (!/\d/.test(m[2]) || parseInt(m[2], 10) === 1));   // an ordered list interrupts a paragraph only at 1
+  return !!(m && (!/\d/.test(m[2]) || parseInt(m[2], 10) === 1)); // an ordered list interrupts a paragraph only at 1
 };
 
 export function slugify(text) {
-  return text.toLowerCase()
+  return text
+    .toLowerCase()
     .replace(/<[^>]+>/g, '')
     .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .trim().replace(/\s/g, '-');
+    .trim()
+    .replace(/\s/g, '-');
 }
-const plain = (md) => md.replace(/`([^`]*)`/g, '$1').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1').replace(/\\(.)/g, '$1');
+const plain = (md) =>
+  md
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1')
+    .replace(/\\(.)/g, '$1');
 
 function highlight(code, lang) {
   let h = esc(code);
   // Comments, dimmed: // in JS-ish code, # in shell-ish code. Only at a line start or after whitespace (never in a URL).
   if (/^(js|javascript|json|ts)$/.test(lang)) h = h.replace(/(^|\s)(\/\/[^\n]*)/g, '$1<span class="c">$2</span>');
-  if (/^(sh|bash|shell|toml|text)$/.test(lang)) h = h.replace(/(^|\s)(#[^\n]*)/g, (m, a, b) => /^#!/.test(b) ? m : `${a}<span class="c">${b}</span>`);
+  if (/^(sh|bash|shell|toml|text)$/.test(lang))
+    h = h.replace(/(^|\s)(#[^\n]*)/g, (m, a, b) => (/^#!/.test(b) ? m : `${a}<span class="c">${b}</span>`));
   return h;
 }
 
@@ -136,13 +217,21 @@ function blocks(lines, ctx, tight = false) {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    if (blank(line)) { i++; continue; }
+    if (blank(line)) {
+      i++;
+      continue;
+    }
     let m;
     if ((m = line.match(RE.fence))) {
-      const fence = m[1], lang = m[2].toLowerCase(), ind = indentOf(line);
+      const fence = m[1],
+        lang = m[2].toLowerCase(),
+        ind = indentOf(line);
       const body = [];
       i++;
-      while (i < lines.length && !(lines[i].trim().startsWith(fence[0].repeat(fence.length)) && /^[`~]+\s*$/.test(lines[i].trim()))) {
+      while (
+        i < lines.length &&
+        !(lines[i].trim().startsWith(fence[0].repeat(fence.length)) && /^[`~]+\s*$/.test(lines[i].trim()))
+      ) {
         body.push(lines[i].slice(Math.min(ind, indentOf(lines[i]))));
         i++;
       }
@@ -151,41 +240,62 @@ function blocks(lines, ctx, tight = false) {
       continue;
     }
     if ((m = line.match(RE.heading))) {
-      const level = m[1].length, text = m[2];
+      const level = m[1].length,
+        text = m[2];
       const id = ctx.id(plain(text));
       const html = inline(text, ctx).replace(/<\/?a\b[^>]*>/g, '');
       if (level >= 2) ctx.toc.push({ level, id, text: plain(text) });
       out += `<h${level} id="${id}"><a class="h-link" href="#${id}">${html}</a></h${level}>\n`;
-      i++; continue;
+      i++;
+      continue;
     }
-    if (RE.hr.test(line)) { out += '<hr>\n'; i++; continue; }
+    if (RE.hr.test(line)) {
+      out += '<hr>\n';
+      i++;
+      continue;
+    }
     if (RE.quote.test(line)) {
       const body = [];
-      while (i < lines.length && !blank(lines[i]) && (RE.quote.test(lines[i]) || !startsBlock(lines, i))) { body.push(lines[i].replace(RE.quote, '')); i++; }
+      while (i < lines.length && !blank(lines[i]) && (RE.quote.test(lines[i]) || !startsBlock(lines, i))) {
+        body.push(lines[i].replace(RE.quote, ''));
+        i++;
+      }
       out += `<blockquote>\n${blocks(body, ctx)}</blockquote>\n`;
       continue;
     }
     if (isTableStart(lines, i)) {
       const head = splitRow(lines[i]);
-      const align = splitRow(lines[i + 1]).map((c) => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : ''));
+      const align = splitRow(lines[i + 1]).map((c) =>
+        c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : '',
+      );
       i += 2;
       const rows = [];
-      while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(splitRow(lines[i])); i++; }
-      const cell = (tag, c, k) => `<${tag}${align[k] ? ` style="text-align:${align[k]}"` : ''}>${inline(c, ctx)}</${tag}>`;
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      const cell = (tag, c, k) =>
+        `<${tag}${align[k] ? ` style="text-align:${align[k]}"` : ''}>${inline(c, ctx)}</${tag}>`;
       const empty = head.every((h) => !h);
-      out += '<div class="table-wrap"><table>\n'
-        + (empty ? '' : `<thead><tr>${head.map((c, k) => cell('th', c, k)).join('')}</tr></thead>\n`)
-        + `<tbody>\n${rows.map((r) => `<tr>${head.map((_, k) => cell(empty && k === 0 ? 'th' : 'td', r[k] || '', k)).join('')}</tr>`).join('\n')}\n</tbody></table></div>\n`;
+      out +=
+        '<div class="table-wrap"><table>\n' +
+        (empty ? '' : `<thead><tr>${head.map((c, k) => cell('th', c, k)).join('')}</tr></thead>\n`) +
+        `<tbody>\n${rows.map((r) => `<tr>${head.map((_, k) => cell(empty && k === 0 ? 'th' : 'td', r[k] || '', k)).join('')}</tr>`).join('\n')}\n</tbody></table></div>\n`;
       continue;
     }
     if ((m = line.match(RE.list))) {
       const [html, next] = list(lines, i, ctx);
-      out += html; i = next; continue;
+      out += html;
+      i = next;
+      continue;
     }
     // a paragraph
     const para = [line.trim()];
     i++;
-    while (i < lines.length && !blank(lines[i]) && !startsBlock(lines, i)) { para.push(lines[i].trim()); i++; }
+    while (i < lines.length && !blank(lines[i]) && !startsBlock(lines, i)) {
+      para.push(lines[i].trim());
+      i++;
+    }
     const html = inline(para.join('\n'), ctx);
     out += tight ? html + '\n' : `<p>${html}</p>\n`;
   }
@@ -209,19 +319,31 @@ function list(lines, i, ctx) {
     while (i < lines.length) {
       const l = lines[i];
       if (blank(l)) {
-        let j = i; while (j < lines.length && blank(lines[j])) j++;
-        if (j < lines.length && indentOf(lines[j]) >= contentIndent) { for (; i < j; i++) body.push(''); gap = true; continue; }
+        let j = i;
+        while (j < lines.length && blank(lines[j])) j++;
+        if (j < lines.length && indentOf(lines[j]) >= contentIndent) {
+          for (; i < j; i++) body.push('');
+          gap = true;
+          continue;
+        }
         const n = j < lines.length && lines[j].match(RE.list);
-        if (n && Math.abs(n[1].length - base) <= 1 && /\d/.test(n[2]) === ordered) { loose = true; i = j; }
-        else i = j;   // the list ends here
+        if (n && Math.abs(n[1].length - base) <= 1 && /\d/.test(n[2]) === ordered) {
+          loose = true;
+          i = j;
+        } else i = j; // the list ends here
         break;
       }
       const ind = indentOf(l);
-      if (ind >= contentIndent) { body.push(l.slice(contentIndent)); i++; continue; }
+      if (ind >= contentIndent) {
+        body.push(l.slice(contentIndent));
+        i++;
+        continue;
+      }
       const n = l.match(RE.list);
-      if (n && n[1].length <= base + 1) break;            // the next item (or a new list)
-      if (startsBlock(lines, i) && !n) break;              // a heading, a fence... ends the list
-      body.push(l.trim()); i++;                            // a lazy continuation line
+      if (n && n[1].length <= base + 1) break; // the next item (or a new list)
+      if (startsBlock(lines, i) && !n) break; // a heading, a fence... ends the list
+      body.push(l.trim());
+      i++; // a lazy continuation line
     }
     items.push({ body, gap });
   }
@@ -246,7 +368,11 @@ export function render(md, { hrefFor } = {}) {
   // The first H1 is the page title, not part of the body.
   let title = '';
   const h1 = lines.findIndex((l) => /^# /.test(l));
-  if (h1 !== -1) { title = lines[h1].slice(2).trim(); lines.splice(h1, 1); seen.set(slugify(plain(title)), 1); }
+  if (h1 !== -1) {
+    title = lines[h1].slice(2).trim();
+    lines.splice(h1, 1);
+    seen.set(slugify(plain(title)), 1);
+  }
   const html = blocks(lines, ctx);
   return { title, html, toc: ctx.toc };
 }
@@ -258,7 +384,7 @@ function hrefFor(doc) {
   return (href) => {
     if (/^(https?:|mailto:)/.test(href)) return href;
     if (href.startsWith('#')) return href;
-    if (href.startsWith('/')) return href;   // the site's own pages (/app/, /app/library.html)
+    if (href.startsWith('/')) return href; // the site's own pages (/app/, /app/library.html)
     const [p, hash = ''] = href.split('#');
     const frag = hash ? '#' + hash : '';
     const target = path.posix.normalize(path.posix.join(dir, p));
@@ -312,7 +438,8 @@ const FOOT = `<footer class="foot">
 </footer>`;
 
 // a page's title: display italic, linking to itself (the overprint is the landing page's hero and the tape box's alone)
-const over = (tag, id, text, cls = '') => `<${tag} id="${id}"${cls ? ` class="${cls}"` : ''}><a class="h-link" href="#${id}">${text}</a></${tag}>`;
+const over = (tag, id, text, cls = '') =>
+  `<${tag} id="${id}"${cls ? ` class="${cls}"` : ''}><a class="h-link" href="#${id}">${text}</a></${tag}>`;
 
 // Small and optional: scrollable code and tables become keyboard-focusable; code blocks get a Copy button;
 // "On this page" is open on wide screens.
@@ -348,7 +475,11 @@ const SCRIPT = `<script>
 })();
 </script>`;
 
-const words = (s) => s.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+const words = (s) =>
+  s
+    .replace(/<[^>]+>/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length;
 
 function docPage(doc, r, k) {
   const toc = [];
@@ -356,8 +487,14 @@ function docPage(doc, r, k) {
     if (h.level === 2) toc.push({ ...h, kids: [] });
     else if (h.level === 3 && toc.length) toc[toc.length - 1].kids.push(h);
   }
-  const tocHtml = toc.map((h) => `<li><a href="#${h.id}">${esc(h.text)}</a>${h.kids.length ? `<ol>${h.kids.map((c) => `<li><a href="#${c.id}">${esc(c.text)}</a></li>`).join('')}</ol>` : ''}</li>`).join('\n');
-  const prev = DOCS[k - 1], next = DOCS[k + 1];
+  const tocHtml = toc
+    .map(
+      (h) =>
+        `<li><a href="#${h.id}">${esc(h.text)}</a>${h.kids.length ? `<ol>${h.kids.map((c) => `<li><a href="#${c.id}">${esc(c.text)}</a></li>`).join('')}</ol>` : ''}</li>`,
+    )
+    .join('\n');
+  const prev = DOCS[k - 1],
+    next = DOCS[k + 1];
   const mins = Math.max(1, Math.round(words(r.html) / 230));
   return `${HEAD(`${r.title} · Overdub docs`, doc.blurb)}
 <body class="docs-page">
@@ -425,7 +562,9 @@ ${cards}
       </ol>
       <div class="hub-raw">
         <h2 id="for-agents-reading-this"><a class="h-link" href="#for-agents-reading-this">For agents reading this</a></h2>
-        <p>The plain versions: <a href="/llms.txt">llms.txt</a>, and the Markdown itself at ${DOCS.filter((d) => d.raw).map((d) => `<a href="${d.raw}">${esc(d.raw)}</a>`).join(', ')}.</p>
+        <p>The plain versions: <a href="/llms.txt">llms.txt</a>, and the Markdown itself at ${DOCS.filter((d) => d.raw)
+          .map((d) => `<a href="${d.raw}">${esc(d.raw)}</a>`)
+          .join(', ')}.</p>
       </div>
     </div>
   </section>
@@ -441,7 +580,9 @@ ${FOOT}
 function build() {
   const rendered = DOCS.map((d) => render(fs.readFileSync(path.join(ROOT, d.src), 'utf8'), { hrefFor: hrefFor(d) }));
   const files = { 'index.html': hubPage(rendered) };
-  DOCS.forEach((d, k) => { files[`${d.slug}.html`] = docPage(d, rendered[k], k); });
+  DOCS.forEach((d, k) => {
+    files[`${d.slug}.html`] = docPage(d, rendered[k], k);
+  });
   return files;
 }
 
@@ -452,14 +593,25 @@ if (isMain) {
   for (const [name, html] of Object.entries(files)) {
     const f = path.join(OUT, name);
     const now = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-    if (now === html) { if (!CHECK) console.log(`  same  site/docs/${name}`); continue; }
-    if (CHECK) { stale++; console.log(`  stale site/docs/${name}${now === null ? ' (missing)' : ''}`); continue; }
+    if (now === html) {
+      if (!CHECK) console.log(`  same  site/docs/${name}`);
+      continue;
+    }
+    if (CHECK) {
+      stale++;
+      console.log(`  stale site/docs/${name}${now === null ? ' (missing)' : ''}`);
+      continue;
+    }
     fs.mkdirSync(OUT, { recursive: true });
     fs.writeFileSync(f, html);
     console.log(`  wrote site/docs/${name} (${(html.length / 1024).toFixed(1)} KB)`);
   }
   if (CHECK) {
-    console.log(stale ? `docs-build: ${stale} page(s) out of date: run node tools/docs-build.js` : 'docs-build: all pages up to date');
+    console.log(
+      stale
+        ? `docs-build: ${stale} page(s) out of date: run node tools/docs-build.js`
+        : 'docs-build: all pages up to date',
+    );
     if (stale) process.exitCode = 1;
   }
 }

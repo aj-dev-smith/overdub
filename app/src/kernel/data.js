@@ -19,19 +19,40 @@
 import { dataFile } from './odk.js';
 import { isPacked, unpackOdk } from './odkz.js';
 
-const DB = 'overdub-kits', STORE = 'kits', VERSION = 1;
-const mem = new Map();       // hash -> Uint8Array
-const pending = new Map();   // hash -> Promise<Uint8Array | null>
-const state = new Map();     // hash -> state
+const DB = 'overdub-kits',
+  STORE = 'kits',
+  VERSION = 1;
+const mem = new Map(); // hash -> Uint8Array
+const pending = new Map(); // hash -> Promise<Uint8Array | null>
+const state = new Map(); // hash -> state
 const listeners = new Set();
-const prog = new Map();      // hash -> { got, total, at } while it downloads
-const tell = (ev) => { for (const fn of listeners) { try { fn(ev); } catch (e) { console.error(e); } } };
-const set = (hash, s) => { if (state.get(hash) === s) return; state.set(hash, s); if (s !== 'loading') prog.delete(hash); tell({ hash, state: s }); };
+const prog = new Map(); // hash -> { got, total, at } while it downloads
+const tell = (ev) => {
+  for (const fn of listeners) {
+    try {
+      fn(ev);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+};
+const set = (hash, s) => {
+  if (state.get(hash) === s) return;
+  state.set(hash, s);
+  if (s !== 'loading') prog.delete(hash);
+  tell({ hash, state: s });
+};
 
 export const dataState = (hash) => state.get(hash);
 export const peekData = (hash) => mem.get(hash) || null;
-export const dataProgress = (hash) => { const p = prog.get(hash); return p ? { got: p.got, total: p.total } : null; };
-export function onData(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+export const dataProgress = (hash) => {
+  const p = prog.get(hash);
+  return p ? { got: p.got, total: p.total } : null;
+};
+export function onData(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
 // where a hash's file is served: app/kits/<hex>.odk, beside app/src (and its packed twin, <hex>.odkz)
 export const dataUrl = (hash) => new URL('../../' + dataFile(hash), import.meta.url).href;
 export const packedUrl = (hash) => dataUrl(hash) + 'z';
@@ -43,21 +64,30 @@ function db() {
     try {
       if (typeof indexedDB === 'undefined') return resolve(null);
       const rq = indexedDB.open(DB, VERSION);
-      rq.onupgradeneeded = () => { const d = rq.result; if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'hash' }); };
+      rq.onupgradeneeded = () => {
+        const d = rq.result;
+        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'hash' });
+      };
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) { resolve(null); }
+    } catch (e) {
+      resolve(null);
+    }
   });
   return dbp;
 }
 function tx(d, mode, fn) {
   return new Promise((resolve, reject) => {
     try {
-      const t = d.transaction(STORE, mode), rq = fn(t.objectStore(STORE));
+      const t = d.transaction(STORE, mode),
+        rq = fn(t.objectStore(STORE));
       t.oncomplete = () => resolve(rq ? rq.result : undefined);
-      t.onerror = () => reject(t.error); t.onabort = () => reject(t.error);
-    } catch (e) { reject(e); }
+      t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -74,9 +104,19 @@ async function sha256(bytes) {
 async function odkOf(hash, bytes, what) {
   let odk = bytes;
   if (isPacked(bytes)) {
-    try { odk = unpackOdk(bytes); } catch (e) { console.warn(`overdub: ${what} for ${hash.slice(0, 19)}... can't be unpacked (${e.message}); not used`); return null; }
+    try {
+      odk = unpackOdk(bytes);
+    } catch (e) {
+      console.warn(`overdub: ${what} for ${hash.slice(0, 19)}... can't be unpacked (${e.message}); not used`);
+      return null;
+    }
   }
-  if ((await sha256(odk)) !== hash) { console.warn(`overdub: ${what} is not the file its name says (its SHA-256 isn't ${hash.slice(0, 19)}...); not used`); return null; }
+  if ((await sha256(odk)) !== hash) {
+    console.warn(
+      `overdub: ${what} is not the file its name says (its SHA-256 isn't ${hash.slice(0, 19)}...); not used`,
+    );
+    return null;
+  }
   return odk;
 }
 
@@ -86,18 +126,23 @@ async function odkOf(hash, bytes, what) {
 function expectedLength(head, r) {
   if (head.length < 12) return undefined;
   if (isPacked(head)) {
-    const dv = new DataView(head.buffer, head.byteOffset, head.length), H = dv.getUint32(8, true);
-    if (head.length < 12 + H) return undefined;          // (not yet: the header isn't all here)
+    const dv = new DataView(head.buffer, head.byteOffset, head.length),
+      H = dv.getUint32(8, true);
+    if (head.length < 12 + H) return undefined; // (not yet: the header isn't all here)
     try {
       let json = '';
-      for (let i = 0; i < H; i += 4096) json += String.fromCharCode.apply(null, head.subarray(12 + i, 12 + Math.min(H, i + 4096)));
+      for (let i = 0; i < H; i += 4096)
+        json += String.fromCharCode.apply(null, head.subarray(12 + i, 12 + Math.min(H, i + 4096)));
       const k = JSON.parse(json);
       let n = 0;
       for (const e of k.samples || []) n += (e.frames | 0) * (k.channels | 0);
       return 12 + H + 2 * n;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
-  const enc = r.headers.get('content-encoding'), len = +r.headers.get('content-length');
+  const enc = r.headers.get('content-encoding'),
+    len = +r.headers.get('content-length');
   return !enc && len > 0 ? len : null;
 }
 
@@ -107,27 +152,45 @@ async function fetchBytes(url, hash) {
     const r = await fetch(url);
     if (!r.ok) return null;
     if (!r.body || typeof r.body.getReader !== 'function') return new Uint8Array(await r.arrayBuffer());
-    const rd = r.body.getReader(), parts = [];
-    let got = 0, total, head = new Uint8Array(0), last = 0;
+    const rd = r.body.getReader(),
+      parts = [];
+    let got = 0,
+      total,
+      head = new Uint8Array(0),
+      last = 0;
     prog.set(hash, { got: 0, total: null });
     for (;;) {
       const { done, value } = await rd.read();
       if (done) break;
-      parts.push(value); got += value.length;
+      parts.push(value);
+      got += value.length;
       if (total === undefined) {
-        if (head.length < 1 << 16) { const m = new Uint8Array(head.length + value.length); m.set(head); m.set(value, head.length); head = m; }
+        if (head.length < 1 << 16) {
+          const m = new Uint8Array(head.length + value.length);
+          m.set(head);
+          m.set(value, head.length);
+          head = m;
+        }
         total = expectedLength(head, r);
         if (total === undefined && head.length >= 1 << 16) total = null;
       }
       const now = Date.now();
       prog.set(hash, { got, total: total || null });
-      if (now - last > 120) { last = now; tell({ hash, state: 'loading', got, total: total || null }); }
+      if (now - last > 120) {
+        last = now;
+        tell({ hash, state: 'loading', got, total: total || null });
+      }
     }
     const out = new Uint8Array(got);
     let o = 0;
-    for (const p of parts) { out.set(p, o); o += p.length; }
+    for (const p of parts) {
+      out.set(p, o);
+      o += p.length;
+    }
     return out;
-  } catch (e) { /* offline, or not served */ }
+  } catch (e) {
+    /* offline, or not served */
+  }
   return null;
 }
 
@@ -146,26 +209,53 @@ export function loadData(hash) {
           const odk = isPacked(b) ? await odkOf(hash, b, 'the cached copy') : b;
           if (odk) return odk;
         }
-      } catch (e) { /* not cached */ }
+      } catch (e) {
+        /* not cached */
+      }
     }
     // the packed file first (about two thirds of the transfer), then the plain one; each must rebuild to the hash
     const file = dataFile(hash);
-    let keep = null, odk = null;
+    let keep = null,
+      odk = null;
     const packed = await fetchBytes(packedUrl(hash), hash);
-    if (packed) { odk = await odkOf(hash, packed, file + 'z'); if (odk) keep = packed; }
+    if (packed) {
+      odk = await odkOf(hash, packed, file + 'z');
+      if (odk) keep = packed;
+    }
     if (!odk) {
       const plain = await fetchBytes(dataUrl(hash), hash);
-      if (plain) { odk = await odkOf(hash, plain, file); if (odk) keep = plain; }
+      if (plain) {
+        odk = await odkOf(hash, plain, file);
+        if (odk) keep = plain;
+      }
     }
     if (!odk) return null;
     // IndexedDB keeps what came over the wire: the packed bytes are about 3.4 times smaller (Safari's quota)
-    if (d) { try { await tx(d, 'readwrite', (s) => s.put({ hash, bytes: keep.buffer.slice(keep.byteOffset, keep.byteOffset + keep.byteLength) })); } catch (e) { /* kept for this session only */ } }
+    if (d) {
+      try {
+        await tx(d, 'readwrite', (s) =>
+          s.put({ hash, bytes: keep.buffer.slice(keep.byteOffset, keep.byteOffset + keep.byteLength) }),
+        );
+      } catch (e) {
+        /* kept for this session only */
+      }
+    }
     return odk;
-  })().then((b) => {
-    pending.delete(hash);
-    if (b) { mem.set(hash, b); set(hash, 'ready'); } else set(hash, 'missing');
-    return b;
-  }, () => { pending.delete(hash); set(hash, 'missing'); return null; });
+  })().then(
+    (b) => {
+      pending.delete(hash);
+      if (b) {
+        mem.set(hash, b);
+        set(hash, 'ready');
+      } else set(hash, 'missing');
+      return b;
+    },
+    () => {
+      pending.delete(hash);
+      set(hash, 'missing');
+      return null;
+    },
+  );
   pending.set(hash, p);
   return p;
 }

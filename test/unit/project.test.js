@@ -2,23 +2,82 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FORMAT, HOUSE, isProjectFormat, newId, stableIds, createProject, plainText, cleanName, isColor, NAME_MAX, TITLE_MAX,
-  authorClass, namedAuthor, normTrack, normClip, normInsert, normKey, isTakeId, idNotes, sortNotes, songEnd, LIMITS,
-  songSize, sizeError, validateProject, isValidReference, cleanProject,
+  FORMAT,
+  HOUSE,
+  isProjectFormat,
+  newId,
+  stableIds,
+  createProject,
+  plainText,
+  cleanName,
+  isColor,
+  NAME_MAX,
+  TITLE_MAX,
+  authorClass,
+  namedAuthor,
+  normTrack,
+  normClip,
+  normInsert,
+  normKey,
+  isTakeId,
+  idNotes,
+  sortNotes,
+  songEnd,
+  LIMITS,
+  songSize,
+  sizeError,
+  validateProject,
+  isValidReference,
+  cleanProject,
 } from '../../app/src/core/project.js';
 
 // A small but complete song: two tracks, notes, an audio clip, an insert with a lane, a section, a device.
 function song() {
   const p = createProject({ title: 'Round trip', tempo: 96, key: { root: 'A', scale: 'minor' } });
   p.tracks = [
-    normTrack({ name: 'Bass', by: 'claude', clips: [{ start: 0, length: 4, by: 'claude', notes: [{ p: 40, t: 0, d: 1, v: 0.8 }, { p: 43, t: 1, d: 1, v: 0.7 }] }], inserts: [{ device: 'core.eq', params: { low: 2 } }] }, 0),
-    normTrack({ kind: 'audio', name: 'Vox', clips: [{ kind: 'audio', start: 4, length: 8, asset: 'a_abc123', offset: 0.5, gain: -3 }] }, 1),
+    normTrack(
+      {
+        name: 'Bass',
+        by: 'claude',
+        clips: [
+          {
+            start: 0,
+            length: 4,
+            by: 'claude',
+            notes: [
+              { p: 40, t: 0, d: 1, v: 0.8 },
+              { p: 43, t: 1, d: 1, v: 0.7 },
+            ],
+          },
+        ],
+        inserts: [{ device: 'core.eq', params: { low: 2 } }],
+      },
+      0,
+    ),
+    normTrack(
+      {
+        kind: 'audio',
+        name: 'Vox',
+        clips: [{ kind: 'audio', start: 4, length: 8, asset: 'a_abc123', offset: 0.5, gain: -3 }],
+      },
+      1,
+    ),
   ];
   for (const t of p.tracks) for (const c of t.clips) if (c.kind === 'notes') idNotes(c);
   p.sections = [{ id: 's_aaaaaa', name: 'Verse', start: 0, length: 16 }];
-  p.devices = { 'you.fuzz': { id: 'you.fuzz', name: 'Fuzz', kind: 'effect', kernel: 'return x', params: [], by: 'you' } };
+  p.devices = {
+    'you.fuzz': { id: 'you.fuzz', name: 'Fuzz', kind: 'effect', kernel: 'return x', params: [], by: 'you' },
+  };
   p.assets = { a_abc123: { kind: 'audio', name: 'take', sr: 48000, channels: 1, duration: 4 } };
-  p.tracks[0].auto = { gain: { points: [{ t: 0, v: -6 }, { t: 8, v: 0 }], by: 'claude' } };
+  p.tracks[0].auto = {
+    gain: {
+      points: [
+        { t: 0, v: -6 },
+        { t: 8, v: 0 },
+      ],
+      by: 'claude',
+    },
+  };
   return p;
 }
 
@@ -31,8 +90,14 @@ describe('ids', () => {
     assert.ok(ids.size >= 1999);
   });
   test('stableIds is deterministic per seed, distinct per seed, and unique within a song', () => {
-    const a = stableIds(song(), 'demo'), b = stableIds(song(), 'demo'), c = stableIds(song(), 'other');
-    const ids = (p) => [p.id, ...p.sections.map((s) => s.id), ...p.tracks.flatMap((t) => [t.id, ...t.inserts.map((f) => f.id), ...t.clips.map((x) => x.id)])];
+    const a = stableIds(song(), 'demo'),
+      b = stableIds(song(), 'demo'),
+      c = stableIds(song(), 'other');
+    const ids = (p) => [
+      p.id,
+      ...p.sections.map((s) => s.id),
+      ...p.tracks.flatMap((t) => [t.id, ...t.inserts.map((f) => f.id), ...t.clips.map((x) => x.id)]),
+    ];
     assert.deepEqual(ids(a), ids(b));
     assert.notDeepEqual(ids(a), ids(c));
     assert.equal(new Set(ids(a)).size, ids(a).length);
@@ -81,7 +146,8 @@ describe('text and colours', () => {
   });
   test('isColor takes palette tokens and hex only', () => {
     for (const c of ['var(--c-1)', 'var(--c-12)', '#abc', '#abcd', '#a1b2c3', '#A1B2C3FF']) assert.ok(isColor(c), c);
-    for (const c of ['red', 'url(http://x)', '#ab', '#abcde', 'var(--x)', 'var(--c-123)', 12, null]) assert.ok(!isColor(c), String(c));
+    for (const c of ['red', 'url(http://x)', '#ab', '#abcde', 'var(--x)', 'var(--c-123)', 12, null])
+      assert.ok(!isColor(c), String(c));
   });
 });
 
@@ -127,7 +193,15 @@ describe('normalisers', () => {
     assert.equal(t.name, 'Audio');
   });
   test('normClip clamps start and length, keeps flags only when valid', () => {
-    const c = normClip({ start: -3, length: 0.01, mute: 'yes', take: 'tk_abcd', tuning: 'drop-d', capo: 13, notes: [{ p: 60, t: 0, s: 1.5, f: 2 }, 'x'] });
+    const c = normClip({
+      start: -3,
+      length: 0.01,
+      mute: 'yes',
+      take: 'tk_abcd',
+      tuning: 'drop-d',
+      capo: 13,
+      notes: [{ p: 60, t: 0, s: 1.5, f: 2 }, 'x'],
+    });
     assert.equal(c.start, 0);
     assert.equal(c.length, 0.25);
     assert.ok(!('mute' in c));
@@ -165,14 +239,34 @@ describe('normalisers', () => {
 
 describe('notes', () => {
   test('idNotes numbers new notes after the highest id and sorts by time, then pitch', () => {
-    const c = { id: 'c_1', notes: [{ p: 64, t: 1 }, { id: 'na', p: 60, t: 1 }, { p: 50, t: 0 }] };
+    const c = {
+      id: 'c_1',
+      notes: [
+        { p: 64, t: 1 },
+        { id: 'na', p: 60, t: 1 },
+        { p: 50, t: 0 },
+      ],
+    };
     idNotes(c);
-    assert.deepEqual(c.notes.map((n) => [n.p, n.t]), [[50, 0], [60, 1], [64, 1]]);
+    assert.deepEqual(
+      c.notes.map((n) => [n.p, n.t]),
+      [
+        [50, 0],
+        [60, 1],
+        [64, 1],
+      ],
+    );
     assert.deepEqual(c.notes.map((n) => n.id).sort(), ['na', 'nb', 'nc']);
   });
   test('idNotes with a sequence never hands an id out twice in a clip', () => {
     const seq = new Map();
-    const c = { id: 'c_1', notes: [{ p: 60, t: 0 }, { p: 62, t: 1 }] };
+    const c = {
+      id: 'c_1',
+      notes: [
+        { p: 60, t: 0 },
+        { p: 62, t: 1 },
+      ],
+    };
     idNotes(c, seq);
     const freed = c.notes.pop().id;
     c.notes.push({ p: 64, t: 2 });
@@ -180,8 +274,16 @@ describe('notes', () => {
     assert.notEqual(c.notes[1].id, freed);
   });
   test('sortNotes breaks ties by id', () => {
-    const c = { notes: [{ id: 'n2', p: 60, t: 0 }, { id: 'n1', p: 60, t: 0 }] };
-    assert.deepEqual(sortNotes(c).notes.map((n) => n.id), ['n1', 'n2']);
+    const c = {
+      notes: [
+        { id: 'n2', p: 60, t: 0 },
+        { id: 'n1', p: 60, t: 0 },
+      ],
+    };
+    assert.deepEqual(
+      sortNotes(c).notes.map((n) => n.id),
+      ['n1', 'n2'],
+    );
   });
 });
 
@@ -197,7 +299,10 @@ describe('size and limits', () => {
   test('sizeError: under the limits is fine; past one names it; a song already past can shrink', () => {
     const ok = { clips: 1, notes: 10, clipNotes: 10, end: 16, points: 0, lanePoints: 0 };
     assert.equal(sizeError(ok), null);
-    assert.match(sizeError({ ...ok, clipNotes: LIMITS.clipNotes + 1, notes: LIMITS.clipNotes + 1 }), /a clip would hold 20,001 notes/);
+    assert.match(
+      sizeError({ ...ok, clipNotes: LIMITS.clipNotes + 1, notes: LIMITS.clipNotes + 1 }),
+      /a clip would hold 20,001 notes/,
+    );
     assert.match(sizeError({ ...ok, notes: LIMITS.songNotes + 1 }), /song would hold/);
     assert.match(sizeError({ ...ok, clips: LIMITS.clips + 1 }), /clips/);
     assert.match(sizeError({ ...ok, end: LIMITS.beats + 1 }), /would run to beat/);
@@ -256,7 +361,21 @@ describe('save and load', () => {
   test('cleanProject drops notes it cannot place, unsafe text and code-carrying device fields', () => {
     const p = cleanProject({
       title: 'A‮b' + 'x'.repeat(300),
-      tracks: [{ name: 'T', clips: [{ notes: [{ p: 60, t: 0 }, { p: 'C4', t: 0 }, { p: 62, t: NaN }, { p: 64, t: 1, d: Infinity }] }] }],
+      tracks: [
+        {
+          name: 'T',
+          clips: [
+            {
+              notes: [
+                { p: 60, t: 0 },
+                { p: 'C4', t: 0 },
+                { p: 62, t: NaN },
+                { p: 64, t: 1, d: Infinity },
+              ],
+            },
+          ],
+        },
+      ],
       sections: [{ name: 'S', start: 0, length: 0, color: 'url(x)' }],
       devices: { 'you.x': { name: 5, kernel: 'k', build: 'evil()', worklets: ['a.js'] }, bad: 'str' },
       reference: { name: 'r' },
@@ -274,13 +393,36 @@ describe('save and load', () => {
     assert.deepEqual(p.master, { gain: 0, inserts: [], clip: 'clean' });
   });
   test('clips and sections load sorted by start, then id', () => {
-    const p = cleanProject({ tracks: [{ clips: [{ id: 'c_b', start: 4 }, { id: 'c_c', start: 0 }, { id: 'c_a', start: 4 }] }], sections: [{ id: 's_2', start: 8 }, { id: 's_1', start: 0 }] });
-    assert.deepEqual(p.tracks[0].clips.map((c) => c.id), ['c_c', 'c_a', 'c_b']);
-    assert.deepEqual(p.sections.map((s) => s.id), ['s_1', 's_2']);
+    const p = cleanProject({
+      tracks: [
+        {
+          clips: [
+            { id: 'c_b', start: 4 },
+            { id: 'c_c', start: 0 },
+            { id: 'c_a', start: 4 },
+          ],
+        },
+      ],
+      sections: [
+        { id: 's_2', start: 8 },
+        { id: 's_1', start: 0 },
+      ],
+    });
+    assert.deepEqual(
+      p.tracks[0].clips.map((c) => c.id),
+      ['c_c', 'c_a', 'c_b'],
+    );
+    assert.deepEqual(
+      p.sections.map((s) => s.id),
+      ['s_1', 's_2'],
+    );
   });
   test('automation lanes survive a load', () => {
     const p = load(save(song()));
-    assert.deepEqual(p.tracks[0].auto.gain.points, [{ t: 0, v: -6 }, { t: 8, v: 0 }]);
+    assert.deepEqual(p.tracks[0].auto.gain.points, [
+      { t: 0, v: -6 },
+      { t: 8, v: 0 },
+    ]);
     assert.equal(p.tracks[0].auto.gain.by, 'claude');
   });
 });
@@ -296,8 +438,17 @@ describe('older formats', () => {
   });
   test('a song saved under the old name opens as this format, house parts re-signed', () => {
     const p = cleanProject({
-      format: `${OLD}/0`, title: 'Old', tempo: 100,
-      tracks: [{ name: 'Drums', by: OLD, clips: [{ by: OLD, notes: [{ p: 36, t: 0, by: OLD }] }], inserts: [{ device: 'core.eq', by: OLD }] }],
+      format: `${OLD}/0`,
+      title: 'Old',
+      tempo: 100,
+      tracks: [
+        {
+          name: 'Drums',
+          by: OLD,
+          clips: [{ by: OLD, notes: [{ p: 36, t: 0, by: OLD }] }],
+          inserts: [{ device: 'core.eq', by: OLD }],
+        },
+      ],
       sections: [{ name: 'Intro', start: 0, length: 8, by: OLD }],
       devices: { 'x.y': { kernel: 'k', by: OLD } },
       meta: { authors: { [OLD]: { kind: 'house', name: 'Earworm' }, you: { kind: 'human', name: 'Me' } } },
@@ -324,7 +475,9 @@ describe('older formats', () => {
     assert.equal(typeof p.meta.created, 'string');
   });
   test('meta.forkedFrom and sharedFrom are cleaned, not trusted', () => {
-    const p = cleanProject({ meta: { forkedFrom: { title: { x: 1 }, authors: [{ id: 5 }, 'x'], at: 7 }, sharedFrom: 'nope' } });
+    const p = cleanProject({
+      meta: { forkedFrom: { title: { x: 1 }, authors: [{ id: 5 }, 'x'], at: 7 }, sharedFrom: 'nope' },
+    });
     assert.equal(p.meta.forkedFrom.title, 'Untitled');
     assert.deepEqual(p.meta.forkedFrom.authors, [{ id: '5', kind: 'human', name: '5' }]);
     assert.equal(p.meta.forkedFrom.at, '7');

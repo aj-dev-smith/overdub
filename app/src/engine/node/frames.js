@@ -12,16 +12,26 @@ export function frame(header, chans = []) {
   const h = Buffer.from(JSON.stringify(header), 'utf8');
   const bytes = chans.reduce((s, a) => s + a.byteLength, 0);
   const out = Buffer.allocUnsafe(8 + h.length + bytes);
-  out.writeUInt32BE(h.length, 0); out.writeUInt32BE(bytes, 4);
+  out.writeUInt32BE(h.length, 0);
+  out.writeUInt32BE(bytes, 4);
   h.copy(out, 8);
   let at = 8 + h.length;
-  for (const a of chans) { Buffer.from(a.buffer, a.byteOffset, a.byteLength).copy(out, at); at += a.byteLength; }
+  for (const a of chans) {
+    Buffer.from(a.buffer, a.byteOffset, a.byteLength).copy(out, at);
+    at += a.byteLength;
+  }
   return out;
 }
 
 export function reader({ allow, onFrame, onError, maxHeader = 1 << 20 }) {
-  let buf = Buffer.alloc(0), need = null, broken = false; // need: { header, bytes } once a header is in
-  const fail = (m) => { broken = true; buf = Buffer.alloc(0); onError(m); };
+  let buf = Buffer.alloc(0),
+    need = null,
+    broken = false; // need: { header, bytes } once a header is in
+  const fail = (m) => {
+    broken = true;
+    buf = Buffer.alloc(0);
+    onError(m);
+  };
   return {
     push(chunk) {
       if (broken) return;
@@ -29,13 +39,22 @@ export function reader({ allow, onFrame, onError, maxHeader = 1 << 20 }) {
       for (;;) {
         if (!need) {
           if (buf.length < 8) return;
-          const hl = buf.readUInt32BE(0), pl = buf.readUInt32BE(4);
+          const hl = buf.readUInt32BE(0),
+            pl = buf.readUInt32BE(4);
           if (hl > maxHeader) return fail(`a header of ${hl} bytes`);
           if (buf.length < 8 + hl) return;
           let header;
-          try { header = JSON.parse(buf.subarray(8, 8 + hl).toString('utf8')); } catch (e) { return fail('a header that is not JSON'); }
+          try {
+            header = JSON.parse(buf.subarray(8, 8 + hl).toString('utf8'));
+          } catch (e) {
+            return fail('a header that is not JSON');
+          }
           let want;
-          try { want = allow(header); } catch (e) { return fail(e.message); }
+          try {
+            want = allow(header);
+          } catch (e) {
+            return fail(e.message);
+          }
           if (want !== pl) return fail(`${pl} bytes where ${want} were expected`);
           need = { header, bytes: pl };
           buf = buf.subarray(8 + hl);
@@ -43,7 +62,8 @@ export function reader({ allow, onFrame, onError, maxHeader = 1 << 20 }) {
         if (buf.length < need.bytes) return;
         const payload = Buffer.from(buf.subarray(0, need.bytes)); // (a copy: the rest of buf is the next frame)
         const header = need.header;
-        buf = buf.subarray(need.bytes); need = null;
+        buf = buf.subarray(need.bytes);
+        need = null;
         onFrame(header, payload);
         if (broken) return;
       }

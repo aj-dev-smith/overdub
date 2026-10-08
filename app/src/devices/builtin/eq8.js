@@ -17,70 +17,254 @@ import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
 import { EQ_SOURCE, EQ_TYPES, EQ_PARK, EQ_BANDS, eqSections, eqBandPow, EQ_STRIDE } from './eq8-curve.js';
 
-const WHERE = ['the low end: kick and bass weight', 'the bottom of the low mids: body, boom', 'the low mids: mud', 'the mids: boxiness, honk', 'the upper mids: definition', 'presence and bite', 'brilliance, sibilance', 'air'];
-const SHAPES_DESC = 'BELL boosts or cuts around FREQ by GAIN; LOW SHELF / HIGH SHELF lift or lower everything below / above FREQ by GAIN; LOW CUT / HIGH CUT 12, 24 or 48 remove what is below / above FREQ at that many dB per octave (GAIN unused); NOTCH takes out a narrow band at FREQ (Q sets how narrow); BAND PASS keeps only the region around FREQ';
+const WHERE = [
+  'the low end: kick and bass weight',
+  'the bottom of the low mids: body, boom',
+  'the low mids: mud',
+  'the mids: boxiness, honk',
+  'the upper mids: definition',
+  'presence and bite',
+  'brilliance, sibilance',
+  'air',
+];
+const SHAPES_DESC =
+  'BELL boosts or cuts around FREQ by GAIN; LOW SHELF / HIGH SHELF lift or lower everything below / above FREQ by GAIN; LOW CUT / HIGH CUT 12, 24 or 48 remove what is below / above FREQ at that many dB per octave (GAIN unused); NOTCH takes out a narrow band at FREQ (Q sets how narrow); BAND PASS keeps only the region around FREQ';
 
 // (a Q reads as a plain number: "1.40", "12.0")
 const qText = (v) => (+v < 10 ? (+v).toFixed(2) : (+v).toFixed(1));
 const params = [];
 for (let n = 1; n <= EQ_BANDS; n++) {
-  const group = `Band ${n}`, park = EQ_PARK[n - 1], face = false;   // (the bands live in the window; the face shows the curve)
+  const group = `Band ${n}`,
+    park = EQ_PARK[n - 1],
+    face = false; // (the bands live in the window; the face shows the curve)
   const at = park >= 1000 ? `${park / 1000} kHz` : `${park} Hz`;
   params.push(
-    { key: `b${n}_on`, label: `BAND ${n} ON`, opts: ['OFF', 'ON'], def: 0, group, face, desc: `band ${n} in (ON) or out (OFF: it does nothing, whatever its settings)` },
-    { key: `b${n}_type`, label: `BAND ${n} TYPE`, opts: EQ_TYPES, def: 0, group, face, desc: n === 1 ? `band 1's shape. ${SHAPES_DESC}` : `band ${n}'s shape (the same choices as b1_type)` },
-    { key: `b${n}_freq`, label: `BAND ${n} FREQ`, min: 20, max: 20000, def: park, curve: 'log', unit: 'Hz', role: 'tone', group, face, desc: `band ${n}'s frequency (parked at ${at}, ${WHERE[n - 1]})` },
-    { key: `b${n}_gain`, label: `BAND ${n} GAIN`, min: -24, max: 24, def: 0, unit: 'dB', role: 'tone', group, face, desc: `band ${n}'s boost (+) or cut (-) for a bell or a shelf: 2-4 dB is a clear move; cuts, notch and band pass ignore it` },
-    { key: `b${n}_q`, label: `BAND ${n} Q`, min: 0.1, max: 24, def: 1, curve: 'log', unit: 'x', role: 'shape', group, face, fmt: qText, desc: `band ${n}'s width: 1 is about two octaves wide, 4-10 narrow and surgical, 0.5 broad; on a shelf or a cut, the bump at its corner instead (1 none, 2 a 6 dB bump, up to 4)` },
+    {
+      key: `b${n}_on`,
+      label: `BAND ${n} ON`,
+      opts: ['OFF', 'ON'],
+      def: 0,
+      group,
+      face,
+      desc: `band ${n} in (ON) or out (OFF: it does nothing, whatever its settings)`,
+    },
+    {
+      key: `b${n}_type`,
+      label: `BAND ${n} TYPE`,
+      opts: EQ_TYPES,
+      def: 0,
+      group,
+      face,
+      desc: n === 1 ? `band 1's shape. ${SHAPES_DESC}` : `band ${n}'s shape (the same choices as b1_type)`,
+    },
+    {
+      key: `b${n}_freq`,
+      label: `BAND ${n} FREQ`,
+      min: 20,
+      max: 20000,
+      def: park,
+      curve: 'log',
+      unit: 'Hz',
+      role: 'tone',
+      group,
+      face,
+      desc: `band ${n}'s frequency (parked at ${at}, ${WHERE[n - 1]})`,
+    },
+    {
+      key: `b${n}_gain`,
+      label: `BAND ${n} GAIN`,
+      min: -24,
+      max: 24,
+      def: 0,
+      unit: 'dB',
+      role: 'tone',
+      group,
+      face,
+      desc: `band ${n}'s boost (+) or cut (-) for a bell or a shelf: 2-4 dB is a clear move; cuts, notch and band pass ignore it`,
+    },
+    {
+      key: `b${n}_q`,
+      label: `BAND ${n} Q`,
+      min: 0.1,
+      max: 24,
+      def: 1,
+      curve: 'log',
+      unit: 'x',
+      role: 'shape',
+      group,
+      face,
+      fmt: qText,
+      desc: `band ${n}'s width: 1 is about two octaves wide, 4-10 narrow and surgical, 0.5 broad; on a shelf or a cut, the bump at its corner instead (1 none, 2 a 6 dB bump, up to 4)`,
+    },
   );
 }
 params.push(
-  { key: 'out_gain', label: 'OUTPUT', min: -18, max: 18, def: 0, unit: 'dB', role: 'level', group: 'Output', desc: 'the level after the EQ: bring a boost back down or make up for cuts (auto gain does it by itself when ON)' },
-  { key: 'out_auto', label: 'AUTO GAIN', opts: ['OFF', 'ON'], def: 0, role: 'level', group: 'Output', desc: 'ON holds the loudness where it was, so a move is judged at the same level: a trim guessed from the curve at once, then matched to what plays over a few seconds (K-weighted, as a loudness meter hears), too slowly to pump' },
-  { key: 'solo', label: 'SOLO', opts: ['OFF', ...Array.from({ length: EQ_BANDS }, (_, i) => `BAND ${i + 1}`)], def: 0, auto: false, hidden: true, desc: 'monitoring only: the window\'s Solo sets it on the playing device (never in the song) to hear one band\'s region alone. Leave it OFF' },
+  {
+    key: 'out_gain',
+    label: 'OUTPUT',
+    min: -18,
+    max: 18,
+    def: 0,
+    unit: 'dB',
+    role: 'level',
+    group: 'Output',
+    desc: 'the level after the EQ: bring a boost back down or make up for cuts (auto gain does it by itself when ON)',
+  },
+  {
+    key: 'out_auto',
+    label: 'AUTO GAIN',
+    opts: ['OFF', 'ON'],
+    def: 0,
+    role: 'level',
+    group: 'Output',
+    desc: 'ON holds the loudness where it was, so a move is judged at the same level: a trim guessed from the curve at once, then matched to what plays over a few seconds (K-weighted, as a loudness meter hears), too slowly to pump',
+  },
+  {
+    key: 'solo',
+    label: 'SOLO',
+    opts: ['OFF', ...Array.from({ length: EQ_BANDS }, (_, i) => `BAND ${i + 1}`)],
+    def: 0,
+    auto: false,
+    hidden: true,
+    desc: "monitoring only: the window's Solo sets it on the playing device (never in the song) to hear one band's region alone. Leave it OFF",
+  },
 );
 
 // presets: starting points, each a few bands; params left out stay at their defaults (bands off, parked)
-const band = (n, type, freq, gain, q = 1) => ({ [`b${n}_on`]: 1, [`b${n}_type`]: type, [`b${n}_freq`]: freq, [`b${n}_gain`]: gain, [`b${n}_q`]: q });
+const band = (n, type, freq, gain, q = 1) => ({
+  [`b${n}_on`]: 1,
+  [`b${n}_type`]: type,
+  [`b${n}_freq`]: freq,
+  [`b${n}_gain`]: gain,
+  [`b${n}_q`]: q,
+});
 const presets = [
-  { name: 'Clean up the low end', blurb: 'Rumble out below 40 Hz (24 dB/oct), 3 dB of mud out at 280 Hz', params: { ...band(1, 'LOW CUT 24', 40, 0), ...band(3, 'BELL', 280, -3, 1.2) } },
-  { name: 'Vocal presence', blurb: 'Low cut at 90 Hz, less mud at 300 Hz, +3 dB at 3 kHz, air from 10 kHz', params: { ...band(1, 'LOW CUT 12', 90, 0), ...band(3, 'BELL', 300, -2.5, 1.4), ...band(6, 'BELL', 3000, 3, 1), ...band(8, 'HIGH SHELF', 10000, 2) } },
-  { name: 'Air', blurb: 'A high shelf from 10 kHz, +3.5 dB: sheen on top without the bite', params: { ...band(8, 'HIGH SHELF', 10000, 3.5) } },
-  { name: 'Telephone', blurb: 'Only 400 Hz to 3 kHz, a honk at 1.4 kHz, auto gain holding the level', params: { ...band(1, 'LOW CUT 24', 400, 0), ...band(5, 'BELL', 1400, 5, 1.2), ...band(8, 'HIGH CUT 24', 3000, 0), out_auto: 1 } },
-  { name: 'Kick: thump and click', blurb: 'Sub rumble out, +4 dB at 60 Hz, the box out at 350 Hz, click at 3.5 kHz', params: { ...band(1, 'LOW CUT 24', 28, 0), ...band(2, 'BELL', 60, 4, 1.2), ...band(4, 'BELL', 350, -4, 1.5), ...band(6, 'BELL', 3500, 4, 1.4) } },
-  { name: 'Bass: weight and definition', blurb: 'Rumble out, +2.5 dB at 80 Hz, less mud at 250 Hz, +2.5 dB at 800 Hz', params: { ...band(1, 'LOW CUT 24', 30, 0), ...band(2, 'BELL', 80, 2.5, 1.2), ...band(3, 'BELL', 250, -3, 1.4), ...band(5, 'BELL', 800, 2.5, 1.2) } },
-  { name: 'Tame the harsh edge', blurb: '3 dB out around 3.2 kHz, narrow, and a gentle 1.5 dB dip at 7 kHz', params: { ...band(6, 'BELL', 3200, -3, 2), ...band(7, 'BELL', 7000, -1.5, 1.5) } },
+  {
+    name: 'Clean up the low end',
+    blurb: 'Rumble out below 40 Hz (24 dB/oct), 3 dB of mud out at 280 Hz',
+    params: { ...band(1, 'LOW CUT 24', 40, 0), ...band(3, 'BELL', 280, -3, 1.2) },
+  },
+  {
+    name: 'Vocal presence',
+    blurb: 'Low cut at 90 Hz, less mud at 300 Hz, +3 dB at 3 kHz, air from 10 kHz',
+    params: {
+      ...band(1, 'LOW CUT 12', 90, 0),
+      ...band(3, 'BELL', 300, -2.5, 1.4),
+      ...band(6, 'BELL', 3000, 3, 1),
+      ...band(8, 'HIGH SHELF', 10000, 2),
+    },
+  },
+  {
+    name: 'Air',
+    blurb: 'A high shelf from 10 kHz, +3.5 dB: sheen on top without the bite',
+    params: { ...band(8, 'HIGH SHELF', 10000, 3.5) },
+  },
+  {
+    name: 'Telephone',
+    blurb: 'Only 400 Hz to 3 kHz, a honk at 1.4 kHz, auto gain holding the level',
+    params: {
+      ...band(1, 'LOW CUT 24', 400, 0),
+      ...band(5, 'BELL', 1400, 5, 1.2),
+      ...band(8, 'HIGH CUT 24', 3000, 0),
+      out_auto: 1,
+    },
+  },
+  {
+    name: 'Kick: thump and click',
+    blurb: 'Sub rumble out, +4 dB at 60 Hz, the box out at 350 Hz, click at 3.5 kHz',
+    params: {
+      ...band(1, 'LOW CUT 24', 28, 0),
+      ...band(2, 'BELL', 60, 4, 1.2),
+      ...band(4, 'BELL', 350, -4, 1.5),
+      ...band(6, 'BELL', 3500, 4, 1.4),
+    },
+  },
+  {
+    name: 'Bass: weight and definition',
+    blurb: 'Rumble out, +2.5 dB at 80 Hz, less mud at 250 Hz, +2.5 dB at 800 Hz',
+    params: {
+      ...band(1, 'LOW CUT 24', 30, 0),
+      ...band(2, 'BELL', 80, 2.5, 1.2),
+      ...band(3, 'BELL', 250, -3, 1.4),
+      ...band(5, 'BELL', 800, 2.5, 1.2),
+    },
+  },
+  {
+    name: 'Tame the harsh edge',
+    blurb: '3 dB out around 3.2 kHz, narrow, and a gentle 1.5 dB dip at 7 kHz',
+    params: { ...band(6, 'BELL', 3200, -3, 2), ...band(7, 'BELL', 7000, -1.5, 1.5) },
+  },
 ];
 
 // what the library page plays it at (app/library.html: def.demo), as numbers (a demo isn't normalised as presets are)
-const demo = { params: Object.fromEntries(Object.entries(presets[1].params).map(([k, v]) => [k, typeof v === 'string' ? EQ_TYPES.indexOf(v) : v])) };
+const demo = {
+  params: Object.fromEntries(
+    Object.entries(presets[1].params).map(([k, v]) => [k, typeof v === 'string' ? EQ_TYPES.indexOf(v) : v]),
+  ),
+};
 
 // The face's screen in the rack (ui/faces.js): the curve, drawn from the same functions the kernel runs. Called with a
 // 2D context already scaled to CSS pixels, its size and the params; colours from the face.
 function screen(g, { w, h, ink, dim }, values) {
-  const sr = 48000, c = new Float64Array(EQ_BANDS * EQ_STRIDE), ns = new Int32Array(EQ_BANDS), on = [];
+  const sr = 48000,
+    c = new Float64Array(EQ_BANDS * EQ_STRIDE),
+    ns = new Int32Array(EQ_BANDS),
+    on = [];
   for (let n = 1; n <= EQ_BANDS; n++) {
     const v = (k, d) => (Number.isFinite(+values[`b${n}_${k}`]) ? +values[`b${n}_${k}`] : d);
     on[n - 1] = v('on', 0) >= 0.5;
-    ns[n - 1] = eqSections(Math.round(v('type', 0)), v('freq', EQ_PARK[n - 1]), v('gain', 0), v('q', 1), sr, c, (n - 1) * EQ_STRIDE);
+    ns[n - 1] = eqSections(
+      Math.round(v('type', 0)),
+      v('freq', EQ_PARK[n - 1]),
+      v('gain', 0),
+      v('q', 1),
+      sr,
+      c,
+      (n - 1) * EQ_STRIDE,
+    );
   }
-  const lo = Math.log(20), hi = Math.log(20000), range = 18, mid = h / 2;
-  g.strokeStyle = dim; g.lineWidth = 1;
-  for (const f of [100, 1000, 10000]) { const x = Math.round((Math.log(f) - lo) / (hi - lo) * w) + 0.5; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-  g.beginPath(); g.moveTo(0, Math.round(mid) + 0.5); g.lineTo(w, Math.round(mid) + 0.5); g.stroke();
-  g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath();
+  const lo = Math.log(20),
+    hi = Math.log(20000),
+    range = 18,
+    mid = h / 2;
+  g.strokeStyle = dim;
+  g.lineWidth = 1;
+  for (const f of [100, 1000, 10000]) {
+    const x = Math.round(((Math.log(f) - lo) / (hi - lo)) * w) + 0.5;
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.lineTo(x, h);
+    g.stroke();
+  }
+  g.beginPath();
+  g.moveTo(0, Math.round(mid) + 0.5);
+  g.lineTo(w, Math.round(mid) + 0.5);
+  g.stroke();
+  g.strokeStyle = ink;
+  g.lineWidth = 1.5;
+  g.beginPath();
   for (let x = 0; x <= w; x += 1) {
-    const wv = 2 * Math.PI * Math.exp(lo + (hi - lo) * x / w) / sr, cw = Math.cos(wv), c2w = Math.cos(2 * wv), sw = Math.sin(wv), s2w = Math.sin(2 * wv);
+    const wv = (2 * Math.PI * Math.exp(lo + ((hi - lo) * x) / w)) / sr,
+      cw = Math.cos(wv),
+      c2w = Math.cos(2 * wv),
+      sw = Math.sin(wv),
+      s2w = Math.sin(2 * wv);
     let p = 1;
     for (let b = 0; b < EQ_BANDS; b++) if (on[b]) p *= eqBandPow(c, b * EQ_STRIDE, ns[b], cw, c2w, sw, s2w);
-    const db = 10 * Math.log10(Math.max(p, 1e-12)), y = mid - Math.max(-range, Math.min(range, db)) / range * (mid - 2);
-    if (x) g.lineTo(x, y); else g.moveTo(x, y);
+    const db = 10 * Math.log10(Math.max(p, 1e-12)),
+      y = mid - (Math.max(-range, Math.min(range, db)) / range) * (mid - 2);
+    if (x) g.lineTo(x, y);
+    else g.moveTo(x, y);
   }
   g.stroke();
 }
 
 export default defineDevice({
-  id: 'core.eq8', name: 'Slide Rule', kind: 'effect', cat: 'eq', by: 'overdub',
+  id: 'core.eq8',
+  name: 'Slide Rule',
+  kind: 'effect',
+  cat: 'eq',
+  by: 'overdub',
   blurb: 'Eight EQ bands you drag over a live spectrum',
   nod: 'the big-screen parametric EQs mixers draw on, and the console channel EQ before them',
   editor: 'eq8',
@@ -89,7 +273,15 @@ export default defineDevice({
   presets,
   demo,
   // a slide rule: yellowed bamboo under celluloid, engraved in black
-  look: { color: '#d4b16a', ink: '#1c1913', shape: 'rack', finish: 'flat', knob: 'black', label: 'plate', led: '#f3e6c2' },
+  look: {
+    color: '#d4b16a',
+    ink: '#1c1913',
+    shape: 'rack',
+    finish: 'flat',
+    knob: 'black',
+    label: 'plate',
+    led: '#f3e6c2',
+  },
   tail: 0.5,
   kernel: kernel(String.raw`
 // The filter math (devices/builtin/eq8-curve.js): the same functions the device window draws its curve with.

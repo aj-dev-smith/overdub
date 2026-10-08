@@ -11,7 +11,14 @@ import { opsSummary, targetsOf } from './diff.js';
 
 export default function (app) {
   css('agent-history', CSS);
-  app.ui.panel({ id: 'history', region: 'right', title: 'History', icon: 'history', order: 20, mount: (el) => mount(el, app) });
+  app.ui.panel({
+    id: 'history',
+    region: 'right',
+    title: 'History',
+    icon: 'history',
+    order: 20,
+    mount: (el) => mount(el, app),
+  });
 }
 
 // The share of the notes in the song by author, in tape order: people, then agents, then the house (unsigned).
@@ -19,16 +26,26 @@ export default function (app) {
 export function noteShares(project, author) {
   const per = new Map();
   let total = 0;
-  for (const t of project.tracks || []) for (const c of t.clips || []) for (const n of c.notes || []) {
-    const by = n.by || c.by || 'you';
-    per.set(by, (per.get(by) || 0) + 1);
-    total++;
-  }
+  for (const t of project.tracks || [])
+    for (const c of t.clips || [])
+      for (const n of c.notes || []) {
+        const by = n.by || c.by || 'you';
+        per.set(by, (per.get(by) || 0) + 1);
+        total++;
+      }
   const rank = { human: 0, agent: 1, house: 2 };
-  const parts = [...per].map(([by, n]) => { const a = author(by); return { by, kind: a.kind === 'agent' ? 'agent' : a.kind === 'house' ? 'house' : 'human', name: a.name, n }; });
+  const parts = [...per].map(([by, n]) => {
+    const a = author(by);
+    return { by, kind: a.kind === 'agent' ? 'agent' : a.kind === 'house' ? 'house' : 'human', name: a.name, n };
+  });
   // the house's ids (the demo, Band) are one share: it's unsigned, so it reads as one strip of pencil
   const house = parts.filter((p) => p.kind === 'house');
-  const merged = [...parts.filter((p) => p.kind !== 'house'), ...(house.length ? [{ by: house[0].by, kind: 'house', name: 'Overdub', n: house.reduce((s, p) => s + p.n, 0) }] : [])];
+  const merged = [
+    ...parts.filter((p) => p.kind !== 'house'),
+    ...(house.length
+      ? [{ by: house[0].by, kind: 'house', name: 'Overdub', n: house.reduce((s, p) => s + p.n, 0) }]
+      : []),
+  ];
   if (!merged.some((p) => p.by === 'you')) merged.push({ by: 'you', kind: 'human', name: author('you').name, n: 0 });
   merged.sort((a, b) => rank[a.kind] - rank[b.kind] || (a.by === 'you' ? -1 : b.by === 'you' ? 1 : b.n - a.n));
   for (const p of merged) p.pct = total ? Math.round((100 * p.n) / total) : 0;
@@ -46,18 +63,22 @@ function mount(el, app) {
   const filters = h('div.hi-filters', { role: 'tablist', 'aria-label': 'Filter by author' });
   const actions = h('div.hi-actions');
   const list = h('ol.hi-list.ledger', { 'aria-label': 'Changes, newest first' });
-  const empty = h('div.hi-empty.empty', h('p', 'Nothing on tape yet. Every change lands here, signed with who made it and why.'),
-    h('button.btn', { type: 'button', onclick: () => ui.show?.('sketch') }, 'Open Sketch'));
+  const empty = h(
+    'div.hi-empty.empty',
+    h('p', 'Nothing on tape yet. Every change lands here, signed with who made it and why.'),
+    h('button.btn', { type: 'button', onclick: () => ui.show?.('sketch') }, 'Open Sketch'),
+  );
   el.append(h('div.hi-top', share, h('div.hi-frow', filters, actions)), list, empty);
 
-  const kindOf = (by) => store.author(by).kind;     // human | agent | house
+  const kindOf = (by) => store.author(by).kind; // human | agent | house
   const authorsIn = () => {
     const seen = new Map();
     for (const t of store.history) if (!t.audition) seen.set(t.by, (seen.get(t.by) || 0) + 1);
     return seen;
   };
   // a name in its ink; the house signs nothing, so its lines carry a pencil "Overdub" for the eye and nothing more
-  const sign = (by, opts = {}) => byline(by, { app, cap: true, ...opts }) || h('span.hi-house', store.author(by).name || 'Overdub');
+  const sign = (by, opts = {}) =>
+    byline(by, { app, cap: true, ...opts }) || h('span.hi-house', store.author(by).name || 'Overdub');
 
   function render() {
     dirty = false;
@@ -67,24 +88,84 @@ function mount(el, app) {
     const { total, parts } = noteShares(store.get(), (by) => store.author(by));
     const shown = parts.filter((p) => p.n > 0);
     share.replaceChildren(
-      h('header.sheet-head.hi-share-h', h('h3', 'Who wrote the notes'), h('span.aside.mono', `${total} note${total === 1 ? '' : 's'}`)),
-      h('div.hi-bar', { role: 'img', 'aria-label': total ? shown.map((p) => `${p.name} ${p.pct}%`).join(', ') : 'No notes yet' },
-        total ? shown.map((p) => h(`i.hi-b-${p.kind}`, { style: { flexGrow: p.n }, title: `${p.name}: ${p.n} note${p.n === 1 ? '' : 's'}` })) : h('i.hi-b-none')),
-      h('div.hi-legend', parts.filter((p) => p.n > 0 || p.by === 'you').map((p) => h('span.hi-lg', p.kind === 'house' ? h('span.hi-house', p.name) : sign(p.by), ' ', h('span.mono', `${p.pct}%`)))),
-      forkLine(store.get().meta?.forkedFrom, app) || ''); // (replaceChildren prints a null as the text "null")
+      h(
+        'header.sheet-head.hi-share-h',
+        h('h3', 'Who wrote the notes'),
+        h('span.aside.mono', `${total} note${total === 1 ? '' : 's'}`),
+      ),
+      h(
+        'div.hi-bar',
+        { role: 'img', 'aria-label': total ? shown.map((p) => `${p.name} ${p.pct}%`).join(', ') : 'No notes yet' },
+        total
+          ? shown.map((p) =>
+              h(`i.hi-b-${p.kind}`, {
+                style: { flexGrow: p.n },
+                title: `${p.name}: ${p.n} note${p.n === 1 ? '' : 's'}`,
+              }),
+            )
+          : h('i.hi-b-none'),
+      ),
+      h(
+        'div.hi-legend',
+        parts
+          .filter((p) => p.n > 0 || p.by === 'you')
+          .map((p) =>
+            h(
+              'span.hi-lg',
+              p.kind === 'house' ? h('span.hi-house', p.name) : sign(p.by),
+              ' ',
+              h('span.mono', `${p.pct}%`),
+            ),
+          ),
+      ),
+      forkLine(store.get().meta?.forkedFrom, app) || '',
+    ); // (replaceChildren prints a null as the text "null")
 
     // filters: underlined words with their counts
     const auth = authorsIn();
     const chips = [['all', 'All', hist.length]];
     for (const [by, n] of auth) chips.push([by, store.author(by).name, n]);
     if (filter !== 'all' && !auth.has(filter)) filter = 'all';
-    filters.replaceChildren(...chips.map(([id, name, n]) => h(`button.hi-filter${filter === id ? '.on' : ''}${id !== 'all' ? '.k-' + kindOf(id) : ''}`, { type: 'button', role: 'tab', 'aria-selected': String(filter === id), onclick: () => { filter = id; render(); } }, name, h('span.mono', String(n)))));
+    filters.replaceChildren(
+      ...chips.map(([id, name, n]) =>
+        h(
+          `button.hi-filter${filter === id ? '.on' : ''}${id !== 'all' ? '.k-' + kindOf(id) : ''}`,
+          {
+            type: 'button',
+            role: 'tab',
+            'aria-selected': String(filter === id),
+            onclick: () => {
+              filter = id;
+              render();
+            },
+          },
+          name,
+          h('span.mono', String(n)),
+        ),
+      ),
+    );
 
     // revert, one for each agent with changes
     const agents = [...auth.keys()].filter((by) => store.isAgent(by));
-    actions.replaceChildren(...agents.map((by) => h('button.btn.btn-txt.hi-revert', { type: 'button', title: `Undo everything ${store.author(by).name} changed, keeping every edit you made in between`, onclick: () => revertAll(by) }, `Revert all ${store.author(by).name}'s changes (keep mine)`)));
+    actions.replaceChildren(
+      ...agents.map((by) =>
+        h(
+          'button.btn.btn-txt.hi-revert',
+          {
+            type: 'button',
+            title: `Undo everything ${store.author(by).name} changed, keeping every edit you made in between`,
+            onclick: () => revertAll(by),
+          },
+          `Revert all ${store.author(by).name}'s changes (keep mine)`,
+        ),
+      ),
+    );
 
-    const rows = hist.slice().reverse().filter((t) => filter === 'all' || t.by === filter).slice(0, 300);
+    const rows = hist
+      .slice()
+      .reverse()
+      .filter((t) => filter === 'all' || t.by === filter)
+      .slice(0, 300);
     list.replaceChildren(...rows.map(row));
     empty.hidden = rows.length > 0;
   }
@@ -92,23 +173,57 @@ function mount(el, app) {
   function row(t) {
     const k = kindOf(t.by);
     const latestOfAuthor = [...store.history].reverse().find((x) => x.by === t.by && !x.audition) === t;
-    const summary = opsSummary(t.ops, store.get(), { getDevice: app.devices?.getDevice });   // lane edits read in words: "wrote Keyhole cutoff, bars 9–12: 600 Hz → 4.5 kHz"
-    const undoBtn = h('button.btn.btn-txt.hi-undo', { type: 'button', title: latestOfAuthor ? `Undo this (${store.author(t.by).name}'s latest change)` : 'Undo works newest-first per author', onclick: (e) => { e.stopPropagation(); undoOne(t, latestOfAuthor); } }, 'Undo');
+    const summary = opsSummary(t.ops, store.get(), { getDevice: app.devices?.getDevice }); // lane edits read in words: "wrote Keyhole cutoff, bars 9–12: 600 Hz → 4.5 kHz"
+    const undoBtn = h(
+      'button.btn.btn-txt.hi-undo',
+      {
+        type: 'button',
+        title: latestOfAuthor
+          ? `Undo this (${store.author(t.by).name}'s latest change)`
+          : 'Undo works newest-first per author',
+        onclick: (e) => {
+          e.stopPropagation();
+          undoOne(t, latestOfAuthor);
+        },
+      },
+      'Undo',
+    );
     if (!latestOfAuthor) undoBtn.classList.add('dim');
-    return h(`li.hi-row.ledger-row.k-${k}`, { tabIndex: 0, title: 'Show what this touched', onclick: () => point(t), onkeydown: (e) => { if (e.key === 'Enter') point(t); } },
+    return h(
+      `li.hi-row.ledger-row.k-${k}`,
+      {
+        tabIndex: 0,
+        title: 'Show what this touched',
+        onclick: () => point(t),
+        onkeydown: (e) => {
+          if (e.key === 'Enter') point(t);
+        },
+      },
       h('span.when.hi-time', { title: new Date(t.at).toLocaleString() }, clock(t.at)),
       h('span.hi-who', sign(t.by)),
-      h('span.what.hi-label', t.label || '(change)', t.pickedBy ? h('span.hi-picked', ', picked by ', byline(t.pickedBy, { app }) || 'you') : t.keptBy ? h('span.hi-picked', ', kept by ', byline(t.keptBy, { app }) || 'you') : null,
+      h(
+        'span.what.hi-label',
+        t.label || '(change)',
+        t.pickedBy
+          ? h('span.hi-picked', ', picked by ', byline(t.pickedBy, { app }) || 'you')
+          : t.keptBy
+            ? h('span.hi-picked', ', kept by ', byline(t.keptBy, { app }) || 'you')
+            : null,
         t.reason ? h('span.why.hi-reason', t.reason) : null,
-        summary ? h('span.where.hi-sum', summary.replace(/ · /g, ', ')) : null),
-      undoBtn);
+        summary ? h('span.where.hi-sum', summary.replace(/ · /g, ', ')) : null,
+      ),
+      undoBtn,
+    );
   }
 
   function point(t) {
     const tg = targetsOf(t.ops, store.get(), {}, t.inverse);
     const track = tg.tracks.find((id) => store.track(id)) || null;
     const clip = tg.clips.find((id) => store.findClip(id)) || null;
-    if (!track && !clip) { ui.toast('That change has no track or clip to show (it was undone, or it is song-wide)'); return; }
+    if (!track && !clip) {
+      ui.toast('That change has no track or clip to show (it was undone, or it is song-wide)');
+      return;
+    }
     ui.select({ track: track || store.findClip(clip)?.track.id || null, clip, notes: [] });
     app.presence?.highlight({ track, clip }, t.label, t.by, 2500);
   }
@@ -116,31 +231,68 @@ function mount(el, app) {
   // it is still the next redo)
   const redoAction = () => {
     const top = store.redoable[store.redoable.length - 1];
-    return { label: 'Redo', run: () => {
-      if (store.redoable[store.redoable.length - 1] !== top) { ui.toast('That can’t be redone now: the song changed since.'); return; }
-      const r = store.redo();
-      if (!r.ok) ui.toast(r.error, { kind: 'bad' });
-    } };
+    return {
+      label: 'Redo',
+      run: () => {
+        if (store.redoable[store.redoable.length - 1] !== top) {
+          ui.toast('That can’t be redone now: the song changed since.');
+          return;
+        }
+        const r = store.redo();
+        if (!r.ok) ui.toast(r.error, { kind: 'bad' });
+      },
+    };
   };
   function undoOne(t, latest) {
-    if (!latest) { ui.toast(`Undo goes newest-first for each author: undo ${store.author(t.by).name}'s later changes first, or use Revert all.`); return; }
+    if (!latest) {
+      ui.toast(
+        `Undo goes newest-first for each author: undo ${store.author(t.by).name}'s later changes first, or use Revert all.`,
+      );
+      return;
+    }
     const r = store.undo({ by: t.by });
-    ui.toast(r.ok ? `Undid "${r.txn.label}"` : `Couldn't undo it: ${r.error.replace(/^could not undo: /, '')}. A later edit builds on it.`, { kind: r.ok ? 'info' : 'bad', ...(r.ok ? { action: redoAction() } : {}) });
+    ui.toast(
+      r.ok
+        ? `Undid "${r.txn.label}"`
+        : `Couldn't undo it: ${r.error.replace(/^could not undo: /, '')}. A later edit builds on it.`,
+      { kind: r.ok ? 'info' : 'bad', ...(r.ok ? { action: redoAction() } : {}) },
+    );
   }
   function revertAll(by) {
     const name = store.author(by).name;
     const r = store.revertAuthor(by);
-    if (!r.reverted && !r.skipped.length) { ui.toast(`${name} has no changes to revert`); return; }
-    ui.toast(`Reverted ${r.reverted} of ${name}'s change${r.reverted === 1 ? '' : 's'}; yours are untouched.${r.skipped.length ? ` ${r.skipped.length} couldn't be reverted (later edits build on them).` : ''}`, { kind: r.skipped.length ? 'bad' : 'agent', ms: 4500, ...(r.reverted ? { action: redoAction() } : {}) });
+    if (!r.reverted && !r.skipped.length) {
+      ui.toast(`${name} has no changes to revert`);
+      return;
+    }
+    ui.toast(
+      `Reverted ${r.reverted} of ${name}'s change${r.reverted === 1 ? '' : 's'}; yours are untouched.${r.skipped.length ? ` ${r.skipped.length} couldn't be reverted (later edits build on them).` : ''}`,
+      { kind: r.skipped.length ? 'bad' : 'agent', ms: 4500, ...(r.reverted ? { action: redoAction() } : {}) },
+    );
   }
 
-  const offs = [ui.on('history:annotate', () => { dirty = true; })];
+  const offs = [
+    ui.on('history:annotate', () => {
+      dirty = true;
+    }),
+  ];
   let tick = 0;
   return {
-    update() { dirty = true; },
-    frame(now) { if (dirty || store.history.length !== lastLen || now - tick > 15000) { tick = now; render(); } },
-    refresh() { render(); },
-    unmount() { for (const o of offs) o(); },
+    update() {
+      dirty = true;
+    },
+    frame(now) {
+      if (dirty || store.history.length !== lastLen || now - tick > 15000) {
+        tick = now;
+        render();
+      }
+    },
+    refresh() {
+      render();
+    },
+    unmount() {
+      for (const o of offs) o();
+    },
   };
 }
 
@@ -153,15 +305,30 @@ function forkLine(f, app) {
   const who = [];
   list.slice(0, 4).forEach((a, i) => {
     if (i) who.push(i === Math.min(list.length, 4) - 1 ? ' and ' : ', ');
-    who.push(a.kind === 'house' ? h('span.hi-house', a.name) : h(`span.by.by-${a.kind === 'agent' ? 'agent' : 'human'}`, { dataset: { by: a.id || '' } }, a.name));
+    who.push(
+      a.kind === 'house'
+        ? h('span.hi-house', a.name)
+        : h(`span.by.by-${a.kind === 'agent' ? 'agent' : 'human'}`, { dataset: { by: a.id || '' } }, a.name),
+    );
   });
   const when = f.at ? new Date(f.at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-  return h('p.hi-fork', { title: 'Parts from the original keep their authors. The list below starts at the fork.' },
-    'Forked from “', f.title || 'Untitled', '”', who.length ? [' by ', ...who] : null, when ? `, ${when}` : '');
+  return h(
+    'p.hi-fork',
+    { title: 'Parts from the original keep their authors. The list below starts at the fork.' },
+    'Forked from “',
+    f.title || 'Untitled',
+    '”',
+    who.length ? [' by ', ...who] : null,
+    when ? `, ${when}` : '',
+  );
 }
 
 function clock(at) {
-  try { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) { return ''; }
+  try {
+    return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch (e) {
+    return '';
+  }
 }
 
 const CSS = `

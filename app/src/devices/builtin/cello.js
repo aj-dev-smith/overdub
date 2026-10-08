@@ -18,19 +18,35 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const CELLO_HASH = 'sha256-144ed798636d54cb0c61829ba27cf800f860b51b66b584c07cd5459045e161ad';
 
 export default defineDevice({
-  id: 'core.cello', name: 'Endpin', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.cello',
+  name: 'Endpin',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real solo cello, sampled, a straight bow',
   nod: 'Karoryfer x bigcat cello (Karoryfer Samples, CC0): Kamila Borowiak, bowed, two dynamics, looped as Karoryfer looped them',
   data: { kit: CELLO_HASH },
   params: samplerParams({ release: 0.3 }),
   presets: [
     { name: 'Bowed', params: {}, blurb: 'the cello as recorded, close and dry' },
-    { name: 'Sul tasto', params: { dynamics: 60, tone: -40 }, blurb: 'quieter and darker, the bow over the fingerboard' },
+    {
+      name: 'Sul tasto',
+      params: { dynamics: 60, tone: -40 },
+      blurb: 'quieter and darker, the bow over the fingerboard',
+    },
     { name: 'Long bow', params: { release: 1.4 }, blurb: 'every note left to ring after the bow lifts' },
     { name: 'Short bows', params: { release: 0.1 }, blurb: 'the bow lifts at once' },
     { name: 'Bright', params: { tone: 35 }, blurb: 'tilted up, the rosin forward' },
   ],
-  look: { color: '#5a2c14', ink: '#f3e2c4', shape: 'wide', finish: 'wood', knob: 'cream', label: 'script', led: '#ffb347' },
+  look: {
+    color: '#5a2c14',
+    ink: '#f3e2c4',
+    shape: 'wide',
+    finish: 'wood',
+    knob: 'cream',
+    label: 'script',
+    led: '#ffb347',
+  },
   tail: 3,
   kernel: samplerKernel({ makeup: 1, poly: 16, xfade: 8, law: 'power' }),
 });

@@ -34,18 +34,31 @@ const WORK = path.join(OUTDIR, 'cuts');
 const DEST = path.join(ROOT, 'site/assets/social');
 const FFMPEG = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'].find((p) => fs.existsSync(p)) || 'ffmpeg';
 const FFPROBE = FFMPEG.replace(/ffmpeg$/, 'ffprobe');
-const W = 1280, H = 720, DSF = 2, SR = 48000, FPS = 30;
-const MAX_BYTES = 7.6 * 1024 * 1024, GIF_MAX = 2.9 * 1024 * 1024;
+const W = 1280,
+  H = 720,
+  DSF = 2,
+  SR = 48000,
+  FPS = 30;
+const MAX_BYTES = 7.6 * 1024 * 1024,
+  GIF_MAX = 2.9 * 1024 * 1024;
 const URL_TEXT = 'overdubstudio.com';
-const BAR = 2;   // a bar at the session's 120 bpm (the new song the beat is tapped into)
+const BAR = 2; // a bar at the session's 120 bpm (the new song the beat is tapped into)
 fs.mkdirSync(WORK, { recursive: true });
 fs.mkdirSync(DEST, { recursive: true });
 const ff = (args) => {
-  if (process.env.DEBUG_FF) console.log('ffmpeg', args.map((a) => (/[\s;\[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
-  try { return execFileSync(FFMPEG, ['-y', '-loglevel', 'error', ...args], { maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'pipe'] }); }
-  catch (e) { throw new Error('ffmpeg failed: ' + String(e.stderr || e.message).trim()); }
+  if (process.env.DEBUG_FF)
+    console.log('ffmpeg', args.map((a) => (/[\s;\[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
+  try {
+    return execFileSync(FFMPEG, ['-y', '-loglevel', 'error', ...args], {
+      maxBuffer: 1 << 26,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (e) {
+    throw new Error('ffmpeg failed: ' + String(e.stderr || e.message).trim());
+  }
 };
-const probeDur = (f) => +execFileSync(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim();
+const probeDur = (f) =>
+  +execFileSync(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim();
 const mb = (f) => (fs.statSync(f).size / 1048576).toFixed(2) + ' MB';
 const t0 = Date.now();
 const log = (...a) => console.log(`  ${((Date.now() - t0) / 1000).toFixed(1).padStart(6)}s`, ...a);
@@ -55,20 +68,26 @@ const log = (...a) => console.log(`  ${((Date.now() - t0) / 1000).toFixed(1).pad
    frame. Each scene names the studio region that matters (layout px); the in-page zoom fits it into the window. */
 const FORMATS = {
   vertical: {
-    w: 1080, h: 1920, video: { x: 0, y: 664, w: 1080, h: 960 }, laneBeats: 12,   // bars 1-2 in the left 400 px of the lanes
+    w: 1080,
+    h: 1920,
+    video: { x: 0, y: 664, w: 1080, h: 960 },
+    laneBeats: 12, // bars 1-2 in the left 400 px of the lanes
     scenes: {
-      play: () => ({ x: 0, y: 0, w: 620, h: 551 }),                   // the transport, the song, the playhead
-      blank: () => ({ x: 150, y: 64, w: 580, h: 516 }),               // the blank sheet and its Tap a beat
-      tap: () => ({ x: 0, y: 0, w: 700, h: 622 }),                    // the ball and the count, the lane, the beat ruler, the pads
+      play: () => ({ x: 0, y: 0, w: 620, h: 551 }), // the transport, the song, the playhead
+      blank: () => ({ x: 150, y: 64, w: 580, h: 516 }), // the blank sheet and its Tap a beat
+      tap: () => ({ x: 0, y: 0, w: 700, h: 622 }), // the ball and the count, the lane, the beat ruler, the pads
       band: () => ({ x: 0, y: 0, w: 700, h: 622 }),
-      arr: () => ({ x: 0, y: 0, w: 700, h: 622 }),                    // the beat and its band in the arranger
-      ask: () => ({ x: 880, y: 430, w: 400, h: 290 }),                // the agent's input
-      cards: () => ({ x: 880, y: 96, w: 400, h: 540 }),               // its takes
-      history: () => ({ x: 880, y: 52, w: 400, h: 520 }),             // who wrote what
+      arr: () => ({ x: 0, y: 0, w: 700, h: 622 }), // the beat and its band in the arranger
+      ask: () => ({ x: 880, y: 430, w: 400, h: 290 }), // the agent's input
+      cards: () => ({ x: 880, y: 96, w: 400, h: 540 }), // its takes
+      history: () => ({ x: 880, y: 52, w: 400, h: 520 }), // who wrote what
     },
   },
   square: {
-    w: 1080, h: 1080, video: { x: 0, y: 296, w: 1080, h: 784 }, laneBeats: 10,
+    w: 1080,
+    h: 1080,
+    video: { x: 0, y: 296, w: 1080, h: 784 },
+    laneBeats: 10,
     scenes: {
       play: () => ({ x: 0, y: 0, w: 880, h: 639 }),
       blank: () => ({ x: 100, y: 64, w: 700, h: 508 }),
@@ -82,22 +101,38 @@ const FORMATS = {
   },
 };
 for (const f of Object.values(FORMATS)) {
-  const ww = Math.round(H * f.video.w / f.video.h);
+  const ww = Math.round((H * f.video.w) / f.video.h);
   f.win = { x: Math.round((W - ww) / 2), y: 0, w: ww, h: H };
 }
 function readWav(file) {
-  const b = fs.readFileSync(file), c = b.readUInt16LE(22), n = (b.length - 44) / (2 * c), out = Array.from({ length: c }, () => new Float32Array(n));
+  const b = fs.readFileSync(file),
+    c = b.readUInt16LE(22),
+    n = (b.length - 44) / (2 * c),
+    out = Array.from({ length: c }, () => new Float32Array(n));
   for (let i = 0, o = 44; i < n; i++) for (let ch = 0; ch < c; ch++, o += 2) out[ch][i] = b.readInt16LE(o) / 32767;
   return out;
 }
 
 /* ------------------------------------------------------------------ film one format's take of the session */
-const LENGTH = 31.2;   // the end card runs a little longer than the film's
+const LENGTH = 31.2; // the end card runs a little longer than the film's
 async function film(name) {
-  const F = FORMATS[name], dir = path.join(WORK, name), FRAMES = path.join(dir, 'frames');
+  const F = FORMATS[name],
+    dir = path.join(WORK, name),
+    FRAMES = path.join(dir, 'frames');
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const take = await filmSession({ W, H, dsf: DSF, win: F.win, camera: F.scenes, captions: false, laneBeats: F.laneBeats, frames: FRAMES, log: (...a) => log(name, ...a), length: LENGTH });
+  const take = await filmSession({
+    W,
+    H,
+    dsf: DSF,
+    win: F.win,
+    camera: F.scenes,
+    captions: false,
+    laneBeats: F.laneBeats,
+    frames: FRAMES,
+    log: (...a) => log(name, ...a),
+    length: LENGTH,
+  });
   const { frames, marks, v0, dur, info, errors, states, anchors, renders } = take;
   // assemble the frames (only the window, cropped at full resolution)
   await new Promise((r) => setTimeout(r, 400));
@@ -108,23 +143,65 @@ async function film(name) {
   }
   list.push(`file '${frames[frames.length - 1].file}'`);
   fs.writeFileSync(path.join(dir, 'frames.txt'), list.join('\n') + '\n');
-  const c = F.win, V = F.video;
-  ff(['-f', 'concat', '-safe', '0', '-i', path.join(dir, 'frames.txt'),
-    '-vf', `fps=${FPS},crop=${c.w}:${c.h}:${c.x}:${c.y},scale=${V.w}:${V.h}:flags=lanczos,format=rgb24`,
-    '-c:v', 'libx264rgb', '-preset', 'veryfast', '-crf', '4', '-t', dur.toFixed(3), path.join(dir, 'clean.mkv')]);
+  const c = F.win,
+    V = F.video;
+  ff([
+    '-f',
+    'concat',
+    '-safe',
+    '0',
+    '-i',
+    path.join(dir, 'frames.txt'),
+    '-vf',
+    `fps=${FPS},crop=${c.w}:${c.h}:${c.x}:${c.y},scale=${V.w}:${V.h}:flags=lanczos,format=rgb24`,
+    '-c:v',
+    'libx264rgb',
+    '-preset',
+    'veryfast',
+    '-crf',
+    '4',
+    '-t',
+    dur.toFixed(3),
+    path.join(dir, 'clean.mkv'),
+  ]);
   // the soundtrack, exactly as the film builds it; the music holds under the end card, then fades over its last seconds
   const st = soundtrack(take, { fadeAt: marks.end - v0 + 0.6, tailFade: 0.1 });
   wav(path.join(dir, 'soundtrack.wav'), [st.L, st.R]);
-  info.gain = st.gain; info.levels = st.levels;
+  info.gain = st.gain;
+  info.levels = st.levels;
   // the band on its own (the song the moment the band went in), for the loop cut, and where the transport was then
   const bandState = states.findIndex((x) => x.at >= marks.build - 0.05 && x.kind === 'do' && x.by === 'overdub');
-  if (bandState >= 0 && renders[bandState]) wav(path.join(dir, 'band.wav'), [renders[bandState].L, renders[bandState].R]);
+  if (bandState >= 0 && renders[bandState])
+    wav(path.join(dir, 'band.wav'), [renders[bandState].L, renders[bandState].R]);
   const seek = anchors.filter((a) => a.at <= marks.band && a.playing).pop() || anchors[anchors.length - 1];
   const loop = states[bandState]?.loop?.on ? [states[bandState].loop.start, states[bandState].loop.end] : [0, 8];
   const relMarks = Object.fromEntries(Object.entries(marks).map(([k, v]) => [k, +(v - v0).toFixed(3)]));
-  fs.writeFileSync(path.join(dir, 'take.json'), JSON.stringify({ marks: relMarks, dur, info, sync: { tempo: states[bandState]?.tempo || info.tempo, seek: { at: +(seek.at - v0).toFixed(4), beat: seek.beat }, loop }, errors }, null, 2));
+  fs.writeFileSync(
+    path.join(dir, 'take.json'),
+    JSON.stringify(
+      {
+        marks: relMarks,
+        dur,
+        info,
+        sync: {
+          tempo: states[bandState]?.tempo || info.tempo,
+          seek: { at: +(seek.at - v0).toFixed(4), beat: seek.beat },
+          loop,
+        },
+        errors,
+      },
+      null,
+      2,
+    ),
+  );
   fs.rmSync(FRAMES, { recursive: true, force: true });
-  log(name, `filmed ${dur.toFixed(1)} s, ${frames.length} frames; levels ${Object.entries(st.levels).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')}`, JSON.stringify(info));
+  log(
+    name,
+    `filmed ${dur.toFixed(1)} s, ${frames.length} frames; levels ${Object.entries(st.levels)
+      .map(([k, v]) => `${k} ${v.toFixed(1)}`)
+      .join(', ')}`,
+    JSON.stringify(info),
+  );
   if (errors.length) console.log('  page errors:\n    ' + errors.join('\n    '));
 }
 
@@ -202,9 +279,11 @@ window.__cardReady = true;
 </script></body></html>`;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const over = (txt, cls) => `<h2 class="cap d over ${cls || ''}"><span class="over-a">${txt}</span><span class="over-b" aria-hidden="true">${txt}</span></h2>`;
+const over = (txt, cls) =>
+  `<h2 class="cap d over ${cls || ''}"><span class="over-a">${txt}</span><span class="over-b" aria-hidden="true">${txt}</span></h2>`;
 function plateHtml(fmt, p) {
-  const F = FORMATS[fmt], V = F.video;
+  const F = FORMATS[fmt],
+    V = F.video;
   const cap = p.hero ? over(p.cap, 'big') : `<h2 class="cap d">${p.cap}</h2>`;
   const small = p.small ? `<p class="small">${p.small}</p>` : '';
   const win = `<div class="win" style="left:${V.x}px; top:${V.y}px; width:${V.w}px; height:${V.h}px"></div>`;
@@ -247,54 +326,117 @@ async function cardPage(w, h) {
   return cardSession.page;
 }
 async function renderPlate(fmt, p, file) {
-  const F = FORMATS[fmt], page = await cardPage(F.w, F.h);
+  const F = FORMATS[fmt],
+    page = await cardPage(F.w, F.h);
   await page.evaluate(([w, h, html]) => window.__card.set(w, h, html), [F.w, F.h, plateHtml(fmt, p)]);
   await page.screenshot({ path: file, clip: { x: 0, y: 0, width: F.w, height: F.h } });
 }
 // frames of a card with the living Weave on it, the Weave at tape times t0 + i / FPS
 async function renderWeaveFrames(w, h, html, dir, n, startMs = 0) {
   const page = await cardPage(w, h);
-  fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
   await page.evaluate(([a, b, c]) => window.__card.set(a, b, c), [w, h, html]);
   // walk the Weave's clock up to the start (it advances at most 0.1 s per frame)
   let ms = 0;
   await page.evaluate(() => window.__card.weaveAt(0));
-  while (ms < startMs) { ms = Math.min(startMs, ms + 1000 / FPS); await page.evaluate((x) => window.__card.weaveAt(x), ms); }
+  while (ms < startMs) {
+    ms = Math.min(startMs, ms + 1000 / FPS);
+    await page.evaluate((x) => window.__card.weaveAt(x), ms);
+  }
   for (let i = 0; i < n; i++) {
-    await page.evaluate((x) => window.__card.weaveAt(x), startMs + i * 1000 / FPS + 1);
-    await page.screenshot({ path: path.join(dir, String(i).padStart(4, '0') + '.png'), clip: { x: 0, y: 0, width: w, height: h } });
+    await page.evaluate((x) => window.__card.weaveAt(x), startMs + (i * 1000) / FPS + 1);
+    await page.screenshot({
+      path: path.join(dir, String(i).padStart(4, '0') + '.png'),
+      clip: { x: 0, y: 0, width: w, height: h },
+    });
   }
 }
 
 /* ------------------------------------------------------------------ the captions: what is on screen, in the engineer's voice */
 function captions(fmt, take) {
-  const m = take.marks, i = take.info;
+  const m = take.marks,
+    i = take.info;
   const bandLine = i.bandText ? i.bandText.replace(/ One undo takes it back\.$/, '') : '';
   const takes = i.takes || 3;
   const names = { 3: 'Three', 2: 'Two', 4: 'Four' };
   const v = fmt === 'vertical';
   const tap = 'Tap a beat into the&nbsp;song.';
   return [
-    { at: 0, hero: true, cap: 'Play over each&nbsp;other.', small: 'A music studio for <span class="w">you</span> and <span class="c">your agents</span>.' },
+    {
+      at: 0,
+      hero: true,
+      cap: 'Play over each&nbsp;other.',
+      small: 'A music studio for <span class="w">you</span> and <span class="c">your agents</span>.',
+    },
     { at: m.new + 0.05, cap: tap, small: 'A new song. Tap a beat starts the loop and the click.' },
     { at: m.rec + 0.15, cap: tap, small: 'Counting in.' },
     { at: m.pass1 + 0.05, cap: tap, small: esc(i.recNote1 || 'Recording onto Drums, pass 1.') },
-    { at: m.pass2 + 0.05, cap: tap, small: esc(i.recNote2 || 'Recording onto Drums, pass 2.') + (i.readout1 ? `<br>${esc(i.readout1)}` : '') },
+    {
+      at: m.pass2 + 0.05,
+      cap: tap,
+      small: esc(i.recNote2 || 'Recording onto Drums, pass 2.') + (i.readout1 ? `<br>${esc(i.readout1)}` : ''),
+    },
     { at: m.in + 0.05, cap: tap, small: esc(i.beatText || '') },
-    { at: m.z_band + 0.1, cap: 'Build a band around&nbsp;it.', small: esc(i.pickerNote || 'Adds tracks only. Your notes stay as they are.') },
+    {
+      at: m.z_band + 0.1,
+      cap: 'Build a band around&nbsp;it.',
+      small: esc(i.pickerNote || 'Adds tracks only. Your notes stay as they are.'),
+    },
     { at: m.band + 0.1, cap: 'Build a band around&nbsp;it.', small: esc(bandLine) },
-    { at: m.z_ask + 0.3, cap: 'Ask <span class="c">your agent</span> to play over&nbsp;it.', small: 'In words. It works on what you select.' },
-    { at: m.cards + 0.1, cap: '<span class="c">The agent</span> plays over&nbsp;<span class="w">you</span>.', small: `${names[takes] || takes} takes on the bass. You keep one.` },
-    { at: Math.max(m.z_history + 0.3, m.history - 0.5), cap: 'Every take is&nbsp;signed.', small: '<span class="w">Warm is you</span>, <span class="c">cool is the agent</span>.' + (v ? ' Undo the agent’s change and yours stay.' : '') },
+    {
+      at: m.z_ask + 0.3,
+      cap: 'Ask <span class="c">your agent</span> to play over&nbsp;it.',
+      small: 'In words. It works on what you select.',
+    },
+    {
+      at: m.cards + 0.1,
+      cap: '<span class="c">The agent</span> plays over&nbsp;<span class="w">you</span>.',
+      small: `${names[takes] || takes} takes on the bass. You keep one.`,
+    },
+    {
+      at: Math.max(m.z_history + 0.3, m.history - 0.5),
+      cap: 'Every take is&nbsp;signed.',
+      small:
+        '<span class="w">Warm is you</span>, <span class="c">cool is the agent</span>.' +
+        (v ? ' Undo the agent’s change and yours stay.' : ''),
+    },
   ];
 }
 
 /* ------------------------------------------------------------------ compose a cut */
 function encodeFinal(hq, out, { maxBytes = MAX_BYTES, audio = true, crf = 20 } = {}) {
   for (;;) {
-    ff(['-i', hq, '-c:v', 'libx264', '-preset', 'slow', '-crf', String(crf), '-profile:v', 'high', '-level', '4.1', '-x264-params', 'aq-mode=3', '-pix_fmt', 'yuv420p',
-      '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
-      ...(audio ? ['-c:a', 'aac', '-b:a', '128k', '-ar', '48000'] : ['-an']), '-movflags', '+faststart', out]);
+    ff([
+      '-i',
+      hq,
+      '-c:v',
+      'libx264',
+      '-preset',
+      'slow',
+      '-crf',
+      String(crf),
+      '-profile:v',
+      'high',
+      '-level',
+      '4.1',
+      '-x264-params',
+      'aq-mode=3',
+      '-pix_fmt',
+      'yuv420p',
+      '-color_range',
+      'tv',
+      '-colorspace',
+      'bt709',
+      '-color_primaries',
+      'bt709',
+      '-color_trc',
+      'bt709',
+      ...(audio ? ['-c:a', 'aac', '-b:a', '128k', '-ar', '48000'] : ['-an']),
+      '-movflags',
+      '+faststart',
+      out,
+    ]);
     const size = fs.statSync(out).size;
     log(`${path.basename(out)} crf ${crf}: ${mb(out)}`);
     if (size <= maxBytes || crf >= 34) return crf;
@@ -305,16 +447,20 @@ function encodeFinal(hq, out, { maxBytes = MAX_BYTES, audio = true, crf = 20 } =
 const toYuv = 'scale=out_range=tv:out_color_matrix=bt709,format=yuv444p';
 const TAGS = ['-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
 async function compose(fmt) {
-  const F = FORMATS[fmt], dir = path.join(WORK, fmt);
+  const F = FORMATS[fmt],
+    dir = path.join(WORK, fmt);
   const take = JSON.parse(fs.readFileSync(path.join(dir, 'take.json'), 'utf8'));
-  const caps = captions(fmt, take), dur = take.dur, tEnd = take.marks.end;
+  const caps = captions(fmt, take),
+    dur = take.dur,
+    tEnd = take.marks.end;
   const plates = [];
   for (let k = 0; k < caps.length; k++) {
     const file = path.join(dir, `plate-${k}.png`);
     await renderPlate(fmt, caps[k], file);
     plates.push({ file, at: caps[k].at });
   }
-  const endDir = path.join(dir, 'end'), nEnd = Math.ceil((dur - tEnd) * FPS) + 2;
+  const endDir = path.join(dir, 'end'),
+    nEnd = Math.ceil((dur - tEnd) * FPS) + 2;
   await renderWeaveFrames(F.w, F.h, endHtml(fmt), endDir, nEnd, BAR * 1000 * 0.4);
   log(fmt, `${plates.length} plates, ${nEnd} end-card frames`);
 
@@ -332,22 +478,64 @@ async function compose(fmt) {
   g.push(`[${E}:v]format=rgba,fade=t=in:st=0:d=0.5:alpha=1,setpts=PTS-STARTPTS+${tEnd.toFixed(3)}/TB[e]`);
   g.push(`[v1][e]overlay=eof_action=pass:format=rgb,${toYuv}[v]`);
   const hq = path.join(dir, 'hq.mp4');
-  ff([...inputs, '-filter_complex', g.join(';'), '-map', '[v]', '-map', '1:a', '-r', String(FPS), '-t', dur.toFixed(3), '-af', 'volume=0.94',
-    '-c:v', 'libx264', '-preset', 'fast', '-crf', '10', ...TAGS, '-c:a', 'pcm_s16le', '-f', 'matroska', hq]);
+  ff([
+    ...inputs,
+    '-filter_complex',
+    g.join(';'),
+    '-map',
+    '[v]',
+    '-map',
+    '1:a',
+    '-r',
+    String(FPS),
+    '-t',
+    dur.toFixed(3),
+    '-af',
+    'volume=0.94',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'fast',
+    '-crf',
+    '10',
+    ...TAGS,
+    '-c:a',
+    'pcm_s16le',
+    '-f',
+    'matroska',
+    hq,
+  ]);
   const out = path.join(DEST, `overdub-${fmt}.mp4`);
   const crf = encodeFinal(hq, out);
   // the poster: the first minute late in pass 2, with its caption
-  const posterAt = Math.min(take.marks.in - 0.3, take.marks.pass2 + 3.0);   // the first minute, both passes in
-  ff(['-ss', posterAt.toFixed(3), '-i', hq, '-frames:v', '1', '-q:v', '2', path.join(DEST, `overdub-${fmt}-poster.jpg`)]);
+  const posterAt = Math.min(take.marks.in - 0.3, take.marks.pass2 + 3.0); // the first minute, both passes in
+  ff([
+    '-ss',
+    posterAt.toFixed(3),
+    '-i',
+    hq,
+    '-frames:v',
+    '1',
+    '-q:v',
+    '2',
+    path.join(DEST, `overdub-${fmt}-poster.jpg`),
+  ]);
   return { fmt, out, dur, crf, take };
 }
 
 /* ------------------------------------------------------------------ the loop: two bars, the Weave then the studio */
 async function makeLoop() {
-  const sq = path.join(WORK, 'square'), take = JSON.parse(fs.readFileSync(path.join(sq, 'take.json'), 'utf8'));
-  const dir = path.join(WORK, 'loop'); fs.mkdirSync(dir, { recursive: true });
-  const L = 2 * BAR, nL = Math.round(L * FPS), D = nL / FPS;     // 120 frames, 4 s
-  const A = 1.75, X1 = 0.3, B = 1.55, X2 = D - A - X1 - B;      // weave, crossfade, studio, crossfade back
+  const sq = path.join(WORK, 'square'),
+    take = JSON.parse(fs.readFileSync(path.join(sq, 'take.json'), 'utf8'));
+  const dir = path.join(WORK, 'loop');
+  fs.mkdirSync(dir, { recursive: true });
+  const L = 2 * BAR,
+    nL = Math.round(L * FPS),
+    D = nL / FPS; // 120 frames, 4 s
+  const A = 1.75,
+    X1 = 0.3,
+    B = 1.55,
+    X2 = D - A - X1 - B; // weave, crossfade, studio, crossfade back
   // the Weave card: frames for weave time [-X2, A + X1); the loop starts X2 in, so its last crossfade lands on frame 0
   const html = `<div class="sq" style="position:absolute; inset:0">
     <div style="position:absolute; left:52px; right:52px; top:64px; font-size:70px; line-height:1">${over('Play over each&nbsp;other.', 'big')}</div>
@@ -360,30 +548,48 @@ async function makeLoop() {
   // the studio moment: the beat and its band in the arranger, from the square cut (caption and all), from once the
   // band's plate is up, ending before the camera leaves for the agent
   const from = Math.min(take.marks.band + 0.42, take.marks.z_ask - (X1 + B + X2) - 0.05);
-  if (from < take.marks.band + 0.38) log(`loop: the band moment is short; its studio moment starts ${(from - take.marks.band).toFixed(2)} s after the band went in`);
+  if (from < take.marks.band + 0.38)
+    log(
+      `loop: the band moment is short; its studio moment starts ${(from - take.marks.band).toFixed(2)} s after the band went in`,
+    );
   const hq = path.join(sq, 'hq.mp4');
   // music: the band's own loop (the beat and its band: two bars at 120 bpm), turned so that what plays under the
   // studio moment is what that picture was playing. Each pass carries the previous one's tail (as it does in the
   // studio), and any hair the video's frames are short of two bars is crossfaded at the top.
   const [sl, sr] = readWav(path.join(sq, 'band.wav'));
-  const spb = 60 / take.sync.tempo, [la, lb] = take.sync.loop, beats = lb - la;
-  const nLoop = Math.round(beats * spb * SR), n = Math.round(D * SR), xf = Math.round(0.02 * SR);
-  const P = (src, k) => { k = ((k % nLoop) + nLoop) % nLoop; return (src[k] || 0) + (src[k + nLoop] || 0); };
+  const spb = 60 / take.sync.tempo,
+    [la, lb] = take.sync.loop,
+    beats = lb - la;
+  const nLoop = Math.round(beats * spb * SR),
+    n = Math.round(D * SR),
+    xf = Math.round(0.02 * SR);
+  const P = (src, k) => {
+    k = ((k % nLoop) + nLoop) % nLoop;
+    return (src[k] || 0) + (src[k + nLoop] || 0);
+  };
   const beatAt = (t) => take.sync.seek.beat + (t - take.sync.seek.at) / spb;
-  const p0 = Math.round((((beatAt(from - A) - la) % beats) + beats) % beats * spb * SR);
+  const p0 = Math.round(((((beatAt(from - A) - la) % beats) + beats) % beats) * spb * SR);
   const out = [new Float32Array(n), new Float32Array(n)];
-  for (const [ch, src] of [[0, sl], [1, sr]]) {
+  for (const [ch, src] of [
+    [0, sl],
+    [1, sr],
+  ]) {
     for (let i = 0; i < n; i++) {
       let v = P(src, p0 + i);
-      if (i < xf) v = v * (i / xf) + P(src, p0 + n + i) * (1 - i / xf);   // the end of the last pass into the top
+      if (i < xf) v = v * (i / xf) + P(src, p0 + n + i) * (1 - i / xf); // the end of the last pass into the top
       out[ch][i] = v;
     }
   }
   // the level the cut's soundtrack gave the band (its gain and its one master ride), a touch under, never over -1 dBFS
-  let peak = 0; for (const c of out) for (const v of c) peak = Math.max(peak, Math.abs(v));
-  const g = Math.min((take.info.gain || 1) * Math.pow(10, (take.info.ride || 0) / 20) * 0.92, peak > 0 ? 0.89 / peak : 1);
+  let peak = 0;
+  for (const c of out) for (const v of c) peak = Math.max(peak, Math.abs(v));
+  const g = Math.min(
+    (take.info.gain || 1) * Math.pow(10, (take.info.ride || 0) / 20) * 0.92,
+    peak > 0 ? 0.89 / peak : 1,
+  );
   for (const c of out) for (let i = 0; i < n; i++) c[i] *= g;
-  const AUD = path.join(dir, 'loop.wav'); wav(AUD, out);
+  const AUD = path.join(dir, 'loop.wav');
+  wav(AUD, out);
   // weave frames: index 0 is weave time -X2 relative to loop start
   const wd = path.join(dir, 'weave', '%04d.png');
   const gr = [
@@ -396,8 +602,44 @@ async function makeLoop() {
     `[a][w0]xfade=transition=fade:duration=${X2.toFixed(3)}:offset=${(A + B + X1 - 0.0001).toFixed(3)},trim=end=${((nL - 0.5) / FPS).toFixed(4)}[v]`,
   ];
   const hqLoop = path.join(dir, 'hq.mp4');
-  ff(['-framerate', String(FPS), '-i', wd, '-i', hq, '-framerate', String(FPS), '-i', wd, '-i', AUD, '-filter_complex', gr.join(';'),
-    '-map', '[v]', '-map', '3:a', '-fps_mode', 'passthrough', '-frames:v', String(nL), '-t', D.toFixed(4), '-c:v', 'libx264', '-preset', 'fast', '-crf', '10', ...TAGS, '-c:a', 'pcm_s16le', '-f', 'matroska', hqLoop]);
+  ff([
+    '-framerate',
+    String(FPS),
+    '-i',
+    wd,
+    '-i',
+    hq,
+    '-framerate',
+    String(FPS),
+    '-i',
+    wd,
+    '-i',
+    AUD,
+    '-filter_complex',
+    gr.join(';'),
+    '-map',
+    '[v]',
+    '-map',
+    '3:a',
+    '-fps_mode',
+    'passthrough',
+    '-frames:v',
+    String(nL),
+    '-t',
+    D.toFixed(4),
+    '-c:v',
+    'libx264',
+    '-preset',
+    'fast',
+    '-crf',
+    '10',
+    ...TAGS,
+    '-c:a',
+    'pcm_s16le',
+    '-f',
+    'matroska',
+    hqLoop,
+  ]);
   const dest = path.join(DEST, 'overdub-loop.mp4');
   const crf = encodeFinal(hqLoop, dest, { maxBytes: 4 * 1024 * 1024, crf: 18 });
   ff(['-ss', '1.0', '-i', hqLoop, '-frames:v', '1', '-q:v', '2', path.join(DEST, 'overdub-loop-poster.jpg')]);
@@ -406,20 +648,44 @@ async function makeLoop() {
 
 /* ------------------------------------------------------------------ the GIF: a silent preview of the square cut, 600x338 */
 async function makeGif() {
-  const dir = path.join(WORK, 'gif'); fs.mkdirSync(dir, { recursive: true });
+  const dir = path.join(WORK, 'gif');
+  fs.mkdirSync(dir, { recursive: true });
   const side = path.join(dir, 'side.png');
   const page = await cardPage(600, 338);
-  await page.evaluate(([w, h, html]) => window.__card.set(w, h, html), [600, 338, `<div style="position:absolute; inset:0; padding: 0 0 0 26px; width: 262px; display:grid; align-content:center; gap: 16px">
+  await page.evaluate(
+    ([w, h, html]) => window.__card.set(w, h, html),
+    [
+      600,
+      338,
+      `<div style="position:absolute; inset:0; padding: 0 0 0 26px; width: 262px; display:grid; align-content:center; gap: 16px">
     <div class="lockup" style="gap:9px"><img src="/app/assets/logo.svg" style="width:40px" alt=""><img src="/app/assets/wordmark.svg" style="width:150px" alt=""></div>
     <p class="d" style="margin:0; font-size:23px; line-height:1.08; color: var(--text)">Play over each&nbsp;other.</p>
     <p style="margin:0; font: 600 14px/1.4 var(--font-ui); color: var(--text-2)">A music studio for <span class="w">you</span> and <span class="c">your agents</span>.</p>
-    <span style="font: 600 12px/1 var(--font-mono); color: var(--text-3)">${URL_TEXT}</span></div>`]);
+    <span style="font: 600 12px/1 var(--font-mono); color: var(--text-3)">${URL_TEXT}</span></div>`,
+    ],
+  );
   await page.screenshot({ path: side, clip: { x: 0, y: 0, width: 600, height: 338 } });
-  const src = path.join(WORK, 'square', 'hq.mp4'), out = path.join(DEST, 'overdub-square.gif');
-  for (const [fps, colors] of [[10, 128], [8, 96], [6, 64], [5, 48]]) {
-    ff(['-loop', '1', '-i', side, '-i', src, '-filter_complex',
+  const src = path.join(WORK, 'square', 'hq.mp4'),
+    out = path.join(DEST, 'overdub-square.gif');
+  for (const [fps, colors] of [
+    [10, 128],
+    [8, 96],
+    [6, 64],
+    [5, 48],
+  ]) {
+    ff([
+      '-loop',
+      '1',
+      '-i',
+      side,
+      '-i',
+      src,
+      '-filter_complex',
       `[1:v]fps=${fps},scale=338:338:flags=lanczos[s];[0:v][s]overlay=262:0:shortest=1,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`,
-      '-loop', '0', out]);
+      '-loop',
+      '0',
+      out,
+    ]);
     log(`gif ${fps} fps, ${colors} colours: ${mb(out)}`);
     if (fs.statSync(out).size <= GIF_MAX) break;
   }
@@ -433,7 +699,15 @@ const todo = want.length ? want : all;
 const done = [];
 try {
   for (const fmt of ['vertical', 'square']) {
-    if (!todo.includes(fmt) && !(fmt === 'square' && (todo.includes('loop') || todo.includes('gif')) && !fs.existsSync(path.join(WORK, 'square', 'hq.mp4')))) continue;
+    if (
+      !todo.includes(fmt) &&
+      !(
+        fmt === 'square' &&
+        (todo.includes('loop') || todo.includes('gif')) &&
+        !fs.existsSync(path.join(WORK, 'square', 'hq.mp4'))
+      )
+    )
+      continue;
     if (!process.env.REUSE || !fs.existsSync(path.join(WORK, fmt, 'take.json'))) await film(fmt);
     done.push(await compose(fmt));
   }
@@ -442,4 +716,5 @@ try {
 } finally {
   if (cardSession) await cardSession.close();
 }
-for (const d of done) console.log(`demo-cuts: ${path.relative(ROOT, d.out)} ${probeDur(d.out).toFixed(2)} s, ${mb(d.out)}`);
+for (const d of done)
+  console.log(`demo-cuts: ${path.relative(ROOT, d.out)} ${probeDur(d.out).toFixed(2)} s, ${mb(d.out)}`);

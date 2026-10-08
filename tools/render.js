@@ -33,7 +33,10 @@ function args(argv) {
   const o = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (!a.startsWith('--')) { o._.push(a); continue; }
+    if (!a.startsWith('--')) {
+      o._.push(a);
+      continue;
+    }
     const [k, v] = a.slice(2).split('=');
     if (['measure', 'hash', 'strict', 'json', 'no-wav', 'help'].includes(k)) o[k] = true;
     else o[k] = v != null ? v : argv[++i];
@@ -44,23 +47,35 @@ function args(argv) {
 async function main() {
   const o = args(process.argv.slice(2));
   if (o.help || (!o._.length && !o.scene)) {
-    console.log('usage: node tools/render.js song.json [--out song.wav] [--from 0 --to 32] [--tracks Bass,Keys] [--measure] [--hash] [--tail 2] [--assets dir] [--strict] [--json] [--no-wav]');
+    console.log(
+      'usage: node tools/render.js song.json [--out song.wav] [--from 0 --to 32] [--tracks Bass,Keys] [--measure] [--hash] [--tail 2] [--assets dir] [--strict] [--json] [--no-wav]',
+    );
     console.log('       node tools/render.js --scene <name | list> [...]');
     process.exitCode = o.help ? 0 : 1;
     return;
   }
   if (!o.scene) {
     const file = path.resolve(o._[0]);
-    await sandboxed(import.meta.url, { reads: [file, o.assets], writes: o['no-wav'] ? [] : [o.out || file.replace(/\.json$/i, '') + '.wav'] });
+    await sandboxed(import.meta.url, {
+      reads: [file, o.assets],
+      writes: o['no-wav'] ? [] : [o.out || file.replace(/\.json$/i, '') + '.wav'],
+    });
   }
-  let project, assets = null, base, scene = null;
+  let project,
+    assets = null,
+    base,
+    scene = null;
   if (o.scene) {
     const { scenes } = await import('./golden-scenes.js');
     const all = scenes();
-    if (o.scene === 'list') { for (const s of all) console.log(s.name); return; }
+    if (o.scene === 'list') {
+      for (const s of all) console.log(s.name);
+      return;
+    }
     scene = all.find((s) => s.name === o.scene);
     if (!scene) throw new Error(`no scene "${o.scene}" (--scene list)`);
-    project = scene.project; assets = scene.assets;
+    project = scene.project;
+    assets = scene.assets;
     base = path.resolve(scene.name.replace(/[^a-z0-9.-]+/gi, '-'));
   } else {
     const file = path.resolve(o._[0]);
@@ -71,9 +86,14 @@ async function main() {
   const num = (v, d) => (v == null ? d : Number(v));
   const opts = {
     from: num(o.from, scene ? scene.opts.from : 0),
-    to: o.to != null ? Number(o.to) : (scene ? scene.opts.to : undefined),
+    to: o.to != null ? Number(o.to) : scene ? scene.opts.to : undefined,
     tail: num(o.tail, scene ? scene.opts.tail : 2),
-    tracks: o.tracks ? String(o.tracks).split(',').map((s) => s.trim()).filter(Boolean) : null,
+    tracks: o.tracks
+      ? String(o.tracks)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null,
     assets,
   };
   const t0 = Date.now();
@@ -82,22 +102,40 @@ async function main() {
   const secs = r.length / r.sr;
   const out = o['no-wav'] ? null : path.resolve(o.out || base + '.wav');
   if (out) writeWav(out, r, { bits: 24 });
-  const result = { file: out, seconds: +secs.toFixed(3), beats: [r.from, r.to], ms, warnings: r.warnings, skipped: r.skipped };
+  const result = {
+    file: out,
+    seconds: +secs.toFixed(3),
+    beats: [r.from, r.to],
+    ms,
+    warnings: r.warnings,
+    skipped: r.skipped,
+  };
   if (o.hash) result.sha256 = sha256(r);
   if (o.measure) result.measure = measure({ sr: r.sr, channels: r.channels });
-  for (const w of r.warnings) console.error('warning: ' + (w.track ? `[${w.track}${w.insert ? ' ' + w.insert : ''}] ` : '') + w.message);
+  for (const w of r.warnings)
+    console.error('warning: ' + (w.track ? `[${w.track}${w.insert ? ' ' + w.insert : ''}] ` : '') + w.message);
   if (o.json) console.log(JSON.stringify(result, null, 2));
   else {
     const title = project.title ? `"${project.title}"` : 'the song';
-    console.log(`${title}: beats ${r.from}–${r.to} (+${opts.tail} s tail), ${secs.toFixed(2)} s at ${r.sr / 1000} kHz, rendered in ${ms} ms${out ? ` -> ${path.relative(process.cwd(), out) || out} (24-bit WAV)` : ''}`);
-    if (r.skipped.tracks.length || r.skipped.inserts.length) console.log(`skipped tracks: ${r.skipped.tracks.join(', ') || 'none'}; bypassed inserts: ${r.skipped.inserts.join(', ') || 'none'}`);
+    console.log(
+      `${title}: beats ${r.from}–${r.to} (+${opts.tail} s tail), ${secs.toFixed(2)} s at ${r.sr / 1000} kHz, rendered in ${ms} ms${out ? ` -> ${path.relative(process.cwd(), out) || out} (24-bit WAV)` : ''}`,
+    );
+    if (r.skipped.tracks.length || r.skipped.inserts.length)
+      console.log(
+        `skipped tracks: ${r.skipped.tracks.join(', ') || 'none'}; bypassed inserts: ${r.skipped.inserts.join(', ') || 'none'}`,
+      );
     if (result.measure) console.log('measure ' + JSON.stringify(result.measure, null, 2));
     if (result.sha256) console.log('sha256 ' + result.sha256);
   }
   if (o.strict && (r.skipped.tracks.length || r.skipped.inserts.length)) {
-    console.error(`--strict: ${r.skipped.tracks.length} track(s) skipped and ${r.skipped.inserts.length} insert(s) bypassed`);
+    console.error(
+      `--strict: ${r.skipped.tracks.length} track(s) skipped and ${r.skipped.inserts.length} insert(s) bypassed`,
+    );
     process.exitCode = 1;
   }
 }
 
-main().catch((e) => { console.error('render: ' + (e && e.message || e)); process.exitCode = 1; });
+main().catch((e) => {
+  console.error('render: ' + ((e && e.message) || e));
+  process.exitCode = 1;
+});

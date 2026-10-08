@@ -18,7 +18,12 @@ import { installTools } from './tools.js';
 // The Agent panel uses the same test to decide whether to offer the Claude Code command at all.
 export const isLocalHost = (host = location.hostname) => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host);
 
-const slug = (s) => String(s || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'agent';
+const slug = (s) =>
+  String(s || 'agent')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 32) || 'agent';
 
 export default function (app) {
   installPresence(app);
@@ -27,21 +32,33 @@ export default function (app) {
   const page = 'pg_' + Math.random().toString(36).slice(2, 10);
   const B = { state: 'off', page, root: '', agents: () => app.presence.agents().filter((a) => a.source === 'mcp') };
   app.bridge = B;
-  let es = null, backoff = 1000, timer = 0, gone = false;
-  const setState = (state, extra = {}) => { B.state = state; app.ui.emit('bridge:state', { state, root: B.root, ...extra }); };
+  let es = null,
+    backoff = 1000,
+    timer = 0,
+    gone = false;
+  const setState = (state, extra = {}) => {
+    B.state = state;
+    app.ui.emit('bridge:state', { state, root: B.root, ...extra });
+  };
 
   // The bridge is the local server's (server/serve.js): on the public site there is nothing to say hello to.
   const LOCAL = isLocalHost();
   async function hello() {
     if (!LOCAL) return 'absent';
     try {
-      const r = await fetch('/bridge/hello', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ page, tools: app.tools.schemas(), title: app.store.get().title }) });
+      const r = await fetch('/bridge/hello', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ page, tools: app.tools.schemas(), title: app.store.get().title }),
+      });
       if (r.status === 404 || !(r.headers.get('content-type') || '').includes('json')) return 'absent';
       const j = await r.json();
       if (j.root) B.root = j.root;
       for (const name of j.agents || []) join(name);
       return 'ok';
-    } catch (e) { return 'down'; }
+    } catch (e) {
+      return 'down';
+    }
   }
 
   function join(name) {
@@ -58,9 +75,19 @@ export default function (app) {
     try {
       const result = await app.tools.run(ev.tool, ev.input || {}, { by });
       body = { id: ev.id, result };
-    } catch (e) { body = { id: ev.id, error: String(e && e.message || e) }; }
+    } catch (e) {
+      body = { id: ev.id, error: String((e && e.message) || e) };
+    }
     app.presence.status('', by);
-    try { await fetch('/bridge/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) { console.warn('overdub bridge: could not return a result', e); }
+    try {
+      await fetch('/bridge/result', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      console.warn('overdub bridge: could not return a result', e);
+    }
   }
 
   // A call from the Claude Code turn the panel is running (server/local-claude.js): the panel's agent runs it, signed
@@ -70,8 +97,18 @@ export default function (app) {
     try {
       const result = app.agent?.localCall ? await app.agent.localCall(ev) : { error: 'no agent in this tab' };
       body = { id: ev.id, result };
-    } catch (e) { body = { id: ev.id, error: String(e && e.message || e) }; }
-    try { await fetch('/bridge/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) { console.warn('overdub bridge: could not return a result', e); }
+    } catch (e) {
+      body = { id: ev.id, error: String((e && e.message) || e) };
+    }
+    try {
+      await fetch('/bridge/result', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      console.warn('overdub bridge: could not return a result', e);
+    }
   }
 
   async function connect() {
@@ -79,22 +116,42 @@ export default function (app) {
     clearTimeout(timer);
     setState(B.state === 'off' ? 'connecting' : 'reconnecting');
     const h = await hello();
-    if (h === 'absent') { setState('off'); gone = true; return; }   // served without the bridge (a static host)
+    if (h === 'absent') {
+      setState('off');
+      gone = true;
+      return;
+    } // served without the bridge (a static host)
     if (h === 'down') return retry();
     es = new EventSource('/bridge/events?page=' + page);
-    es.onopen = () => { backoff = 1000; setState('on'); hello(); };
+    es.onopen = () => {
+      backoff = 1000;
+      setState('on');
+      hello();
+    };
     es.onmessage = (m) => {
-      let ev; try { ev = JSON.parse(m.data); } catch (e) { return; }
+      let ev;
+      try {
+        ev = JSON.parse(m.data);
+      } catch (e) {
+        return;
+      }
       if (ev.type === 'call' && ev.turn) onTurnCall(ev);
       else if (ev.type === 'call') {
         app.presence.status(statusLine(ev.tool), 'mcp:' + slug(ev.agent));
         onCall(ev);
       } else if (ev.type === 'agent') {
-        if (ev.state === 'leave') { const by = 'mcp:' + slug(ev.agent); app.presence.leave(by); setState(B.state, { agent: ev.agent, event: 'leave' }); }
-        else join(ev.agent);
+        if (ev.state === 'leave') {
+          const by = 'mcp:' + slug(ev.agent);
+          app.presence.leave(by);
+          setState(B.state, { agent: ev.agent, event: 'leave' });
+        } else join(ev.agent);
       }
     };
-    es.onerror = () => { es.close(); es = null; retry(); };
+    es.onerror = () => {
+      es.close();
+      es = null;
+      retry();
+    };
   }
   function retry() {
     setState('reconnecting');
@@ -102,14 +159,36 @@ export default function (app) {
     backoff = Math.min(30000, backoff * 2);
   }
   // the tab you're looking at is the one agents drive (several tabs: the latest focused wins)
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && B.state === 'on') hello(); });
-  app.store.on('change', (e) => { if (e.kind === 'load' && B.state === 'on') hello(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && B.state === 'on') hello();
+  });
+  app.store.on('change', (e) => {
+    if (e.kind === 'load' && B.state === 'on') hello();
+  });
   // a tool registered after the first hello (a module that loads late): send the catalog again
   let reHello = 0;
-  app.ui.on?.('agent:tools', () => { if (B.state !== 'on') return; clearTimeout(reHello); reHello = setTimeout(hello, 50); });
+  app.ui.on?.('agent:tools', () => {
+    if (B.state !== 'on') return;
+    clearTimeout(reHello);
+    reHello = setTimeout(hello, 50);
+  });
   connect();
 }
 
 function statusLine(tool) {
-  return ({ get_project: 'reading the song', get_selection: 'looking at your selection', apply_ops: 'editing the song', render_and_measure: 'listening (rendering)', define_device: 'building a device', adjust: 'adjusting a sound', propose_variations: 'waiting for your pick', ask_human: 'waiting for your answer', list_devices: 'browsing devices', play: 'playing it for you', highlight: 'pointing' })[tool] || 'working';
+  return (
+    {
+      get_project: 'reading the song',
+      get_selection: 'looking at your selection',
+      apply_ops: 'editing the song',
+      render_and_measure: 'listening (rendering)',
+      define_device: 'building a device',
+      adjust: 'adjusting a sound',
+      propose_variations: 'waiting for your pick',
+      ask_human: 'waiting for your answer',
+      list_devices: 'browsing devices',
+      play: 'playing it for you',
+      highlight: 'pointing',
+    }[tool] || 'working'
+  );
 }

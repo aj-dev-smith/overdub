@@ -24,15 +24,28 @@ export async function catalogText() {
   const extra = await import('../app/src/agent/extra-schemas.js');
   const all = await catalogSchemas();
   const gaps = annotationGaps(all, extra);
-  if (gaps.length) throw Object.assign(new Error(`${gaps.length === 1 ? 'a tool has' : `${gaps.length} tools have`} no annotations yet, so the relay can't list ${gaps.length === 1 ? 'it' : 'them'}:\n  ${gaps.join('\n  ')}`), { gaps });
-  const list = all.map(({ name, description, input_schema, annotations }) => ({ name, description, input_schema, annotations }));
+  if (gaps.length)
+    throw Object.assign(
+      new Error(
+        `${gaps.length === 1 ? 'a tool has' : `${gaps.length} tools have`} no annotations yet, so the relay can't list ${gaps.length === 1 ? 'it' : 'them'}:\n  ${gaps.join('\n  ')}`,
+      ),
+      { gaps },
+    );
+  const list = all.map(({ name, description, input_schema, annotations }) => ({
+    name,
+    description,
+    input_schema,
+    annotations,
+  }));
   return JSON.stringify(list, null, 1) + '\n';
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   let want;
-  try { want = await catalogText(); } catch (e) {
+  try {
+    want = await catalogText();
+  } catch (e) {
     if (!e.gaps) throw e;
     console.log(`relay-catalog: ${e.message}`);
     process.exit(1);
@@ -42,11 +55,18 @@ if (isMain) {
   if (process.argv.includes('--check')) {
     if (have === want) console.log(`relay-catalog: server/relay-catalog.json is up to date (${n} tools)`);
     else {
-      const old = have ? JSON.parse(have).map((t) => t.name) : [], now = JSON.parse(want).map((t) => t.name);
-      const added = now.filter((x) => !old.includes(x)), gone = old.filter((x) => !now.includes(x));
-      console.log(`relay-catalog: server/relay-catalog.json is ${have === null ? 'missing' : 'out of date'}${added.length ? `; new: ${added.join(', ')}` : ''}${gone.length ? `; gone: ${gone.join(', ')}` : ''}${have && !added.length && !gone.length ? '; a description, schema or annotation changed' : ''}: run node tools/relay-catalog.js`);
+      const old = have ? JSON.parse(have).map((t) => t.name) : [],
+        now = JSON.parse(want).map((t) => t.name);
+      const added = now.filter((x) => !old.includes(x)),
+        gone = old.filter((x) => !now.includes(x));
+      console.log(
+        `relay-catalog: server/relay-catalog.json is ${have === null ? 'missing' : 'out of date'}${added.length ? `; new: ${added.join(', ')}` : ''}${gone.length ? `; gone: ${gone.join(', ')}` : ''}${have && !added.length && !gone.length ? '; a description, schema or annotation changed' : ''}: run node tools/relay-catalog.js`,
+      );
       process.exitCode = 1;
     }
   } else if (have === want) console.log(`  same  server/relay-catalog.json (${n} tools)`);
-  else { fs.writeFileSync(OUT, want); console.log(`  wrote server/relay-catalog.json (${n} tools, ${(want.length / 1024).toFixed(1)} KB)`); }
+  else {
+    fs.writeFileSync(OUT, want);
+    console.log(`  wrote server/relay-catalog.json (${n} tools, ${(want.length / 1024).toFixed(1)} KB)`);
+  }
 }

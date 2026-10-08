@@ -58,12 +58,51 @@
 import { doorOf } from './start.js';
 import { h, css, icon, canvas, clamp, byline } from './dom.js';
 import {
-  palette, resolveColor, rgba, authorKind, authorName, authorColor, isDrumTrack, deviceName, touched, flasher,
-  presenceList, drawCrop, drawLabel, bylineOf, displayFont, snapTo, floorTo, SNAPS, snapLabel, menu, popover, closePopover, MOD, showAgent, touchFirst,
+  palette,
+  resolveColor,
+  rgba,
+  authorKind,
+  authorName,
+  authorColor,
+  isDrumTrack,
+  deviceName,
+  touched,
+  flasher,
+  presenceList,
+  drawCrop,
+  drawLabel,
+  bylineOf,
+  displayFont,
+  snapTo,
+  floorTo,
+  SNAPS,
+  snapLabel,
+  menu,
+  popover,
+  closePopover,
+  MOD,
+  showAgent,
+  touchFirst,
 } from './arrange-kit.js';
 import {
-  planSectionDuplicate, planTimeInsert, planTimeRemove, planClipRepeat, planClipSplit, planClipTrim, spanLabel, whereLabel, followClips, takeFolders, takeNumber,
-  planTakeComp, planTakeLaneDelete, planTakesFlatten, retake, barBeat, barBeatSpan, planDropTrim,
+  planSectionDuplicate,
+  planTimeInsert,
+  planTimeRemove,
+  planClipRepeat,
+  planClipSplit,
+  planClipTrim,
+  spanLabel,
+  whereLabel,
+  followClips,
+  takeFolders,
+  takeNumber,
+  planTakeComp,
+  planTakeLaneDelete,
+  planTakesFlatten,
+  retake,
+  barBeat,
+  barBeatSpan,
+  planDropTrim,
 } from '../core/arrangement.js';
 import { laneKey, laneAt, lanesOf, valueAt, toPos, laneView } from '../core/automation.js';
 import { DEVICE_CATS } from '../devices/registry.js';
@@ -71,19 +110,48 @@ import * as rackKit from './rack.js';
 import { kitHashes, kitState, kitLine } from './kitload.js';
 import { newPartFor } from '../core/sounds.js';
 import {
-  LANE_H, LANE_H_PHONE, laneState, trackLanes, shownLanes, laneParams, laneInfo, staticValue, fmtValue, drawLaneRow, laneHead,
-  laneEditor, laneKeysOn, SHAPES, laneHeight, setLaneHeight, heightsSig, masterTrack, tipHide, laneSigners,
+  LANE_H,
+  LANE_H_PHONE,
+  laneState,
+  trackLanes,
+  shownLanes,
+  laneParams,
+  laneInfo,
+  staticValue,
+  fmtValue,
+  drawLaneRow,
+  laneHead,
+  laneEditor,
+  laneKeysOn,
+  SHAPES,
+  laneHeight,
+  setLaneHeight,
+  heightsSig,
+  masterTrack,
+  tipHide,
+  laneSigners,
 } from './lanes.js';
 
 const HEAD_W = 244;
-const RULER_H = 50;          // sections 0..20, loop 20..32, bars 32..50
-const SEC_Y = 0, SEC_H = 20, LOOP_Y = 20, LOOP_H = 12, BAR_Y = 32;
+const RULER_H = 50; // sections 0..20, loop 20..32, bars 32..50
+const SEC_Y = 0,
+  SEC_H = 20,
+  LOOP_Y = 20,
+  LOOP_H = 12,
+  BAR_Y = 32;
 const SECTION_NAMES = ['Intro', 'Verse', 'Chorus', 'Verse 2', 'Chorus 2', 'Bridge', 'Chorus 3', 'Outro', 'Coda'];
 const DEVICE_MIME = 'application/x-overdub-device';
 
 export default function (app) {
   css('arranger', CSS);
-  app.ui.panel({ id: 'arranger', region: 'center', title: 'Arrange', icon: 'panelBottom', order: 0, mount: (el) => mountArranger(el, app) });
+  app.ui.panel({
+    id: 'arranger',
+    region: 'center',
+    title: 'Arrange',
+    icon: 'panelBottom',
+    order: 0,
+    mount: (el) => mountArranger(el, app),
+  });
 }
 
 // Touch and hold: fire(pt) after `ms` with the finger still (within `slop` px). iOS Safari never sends contextmenu
@@ -91,22 +159,67 @@ export default function (app) {
 // Chromium) whichever comes first wins and the other is swallowed.
 
 export function longPress(el, fire, { ms = 500, slop = 8, filter = null } = {}) {
-  let timer = 0, x0 = 0, y0 = 0, id = null, firedAt = -1e9;
-  const clear = () => { clearTimeout(timer); timer = 0; };
-  el.addEventListener('pointerdown', (e) => {
-    clear();
-    if (e.pointerType !== 'touch' || (filter && !filter(e))) return;
-    x0 = e.clientX; y0 = e.clientY; id = e.pointerId;
-    const target = e.target;
-    timer = setTimeout(() => { timer = 0; firedAt = performance.now(); fire({ clientX: x0, clientY: y0, pointerId: id, target }); }, ms);
-  }, true);
-  el.addEventListener('pointermove', (e) => { if (timer && e.pointerId === id && Math.hypot(e.clientX - x0, e.clientY - y0) > slop) clear(); }, true);
-  el.addEventListener('pointerup', (e) => { if (e.pointerId === id) clear(); }, true);
-  el.addEventListener('pointercancel', (e) => { if (e.pointerId === id) clear(); }, true);
-  el.addEventListener('contextmenu', (e) => {
-    if (timer) { clear(); return; }                                           // the platform's came first: it opens
-    if (performance.now() - firedAt < 1500) { e.preventDefault(); e.stopImmediatePropagation(); }   // ours already did
-  }, true);
+  let timer = 0,
+    x0 = 0,
+    y0 = 0,
+    id = null,
+    firedAt = -1e9;
+  const clear = () => {
+    clearTimeout(timer);
+    timer = 0;
+  };
+  el.addEventListener(
+    'pointerdown',
+    (e) => {
+      clear();
+      if (e.pointerType !== 'touch' || (filter && !filter(e))) return;
+      x0 = e.clientX;
+      y0 = e.clientY;
+      id = e.pointerId;
+      const target = e.target;
+      timer = setTimeout(() => {
+        timer = 0;
+        firedAt = performance.now();
+        fire({ clientX: x0, clientY: y0, pointerId: id, target });
+      }, ms);
+    },
+    true,
+  );
+  el.addEventListener(
+    'pointermove',
+    (e) => {
+      if (timer && e.pointerId === id && Math.hypot(e.clientX - x0, e.clientY - y0) > slop) clear();
+    },
+    true,
+  );
+  el.addEventListener(
+    'pointerup',
+    (e) => {
+      if (e.pointerId === id) clear();
+    },
+    true,
+  );
+  el.addEventListener(
+    'pointercancel',
+    (e) => {
+      if (e.pointerId === id) clear();
+    },
+    true,
+  );
+  el.addEventListener(
+    'contextmenu',
+    (e) => {
+      if (timer) {
+        clear();
+        return;
+      } // the platform's came first: it opens
+      if (performance.now() - firedAt < 1500) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      } // ours already did
+    },
+    true,
+  );
 }
 
 function nextSectionName(p) {
@@ -119,25 +232,40 @@ function nextSectionName(p) {
 // itself"), the sender first; then each agent's parts (and a device it built, "and the Firefly itself"), signed; then
 // yours, in Sketch. A song from someone else's link always names who sent it, parts or none.
 function credits(pr, app) {
-  const list = (names) => (names.length > 4 ? [...names.slice(0, 3), `${names.length - 3} more`] : names).reduce((s, n, i, a) => s + (i ? (i === a.length - 1 ? ' and ' : ', ') : '') + n, '');
+  const list = (names) =>
+    (names.length > 4 ? [...names.slice(0, 3), `${names.length - 3} more`] : names).reduce(
+      (s, n, i, a) => s + (i ? (i === a.length - 1 ? ' and ' : ', ') : '') + n,
+      '',
+    );
   const kindOf = (by) => authorKind(app, by);
   const guest = (by) => !!by && by !== 'you' && kindOf(by) === 'human';
-  const house = [], people = new Map(), agents = new Map();
-  const row = (m, by) => { if (!m.has(by)) m.set(by, { tracks: [], devices: [] }); return m.get(by); };
+  const house = [],
+    people = new Map(),
+    agents = new Map();
+  const row = (m, by) => {
+    if (!m.has(by)) m.set(by, { tracks: [], devices: [] });
+    return m.get(by);
+  };
   for (const t of pr.tracks) {
     if (!t.clips.length) continue;
-    const by = t.clips.find((c) => kindOf(c.by) === 'agent')?.by || (kindOf(t.by) === 'agent' && t.clips.every((c) => kindOf(c.by) !== 'human') ? t.by : null);
+    const by =
+      t.clips.find((c) => kindOf(c.by) === 'agent')?.by ||
+      (kindOf(t.by) === 'agent' && t.clips.every((c) => kindOf(c.by) !== 'human') ? t.by : null);
     if (by) row(agents, by).tracks.push(t.name);
     else if (t.clips.every((c) => kindOf(c.by) === 'house')) house.push(t.name);
     else {
       // a part someone else played (a link's sender, an earlier guest): whoever played most of its clips
       const n = new Map();
-      for (const c of t.clips) { const b = c.by || t.by; if (guest(b)) n.set(b, (n.get(b) || 0) + 1); }
+      for (const c of t.clips) {
+        const b = c.by || t.by;
+        if (guest(b)) n.set(b, (n.get(b) || 0) + 1);
+      }
       const top = [...n].sort((a, b) => b[1] - a[1])[0];
       if (top) row(people, top[0]).tracks.push(t.name);
     }
     // (a device kept off on this computer isn't registered: its name is the song's)
-    const dev = t.instrument?.device, def = dev && (app.devices?.getDevice?.(dev) || app.devices?.heldDevice?.(dev));
+    const dev = t.instrument?.device,
+      def = dev && (app.devices?.getDevice?.(dev) || app.devices?.heldDevice?.(dev));
     if (def && (kindOf(def.by) === 'agent' || guest(def.by))) {
       const ds = row(kindOf(def.by) === 'agent' ? agents : people, def.by).devices;
       if (!ds.includes(def.name)) ds.push(def.name);
@@ -145,7 +273,9 @@ function credits(pr, app) {
   }
   const line = (a) => {
     const parts = a.tracks.length ? list(a.tracks) : '';
-    const devs = a.devices.length ? `${parts ? ', and ' : ''}the ${list(a.devices)} ${a.devices.length === 1 ? 'itself' : 'themselves'}` : '';
+    const devs = a.devices.length
+      ? `${parts ? ', and ' : ''}the ${list(a.devices)} ${a.devices.length === 1 ? 'itself' : 'themselves'}`
+      : '';
     return `${parts}${devs}`;
   };
   const rows = [];
@@ -170,30 +300,110 @@ function mountArranger(el, app) {
 
   /* ======================================================= DOM */
   // the tools are words (underlined, like a credit you can press), Follow is a toggle lamp, zoom is two glyphs
-  const addBtn = h('button.btn.btn-txt.ar-tool.ar-add', { title: 'Add a track: an instrument, drums or audio', onclick: () => addTrackMenu(addBtn) }, 'Add a track');
-  const snapBtn = h('button.btn.btn-txt.ar-tool', { title: 'Snap: where clips and notes land (hold shift while dragging to ignore it)', onclick: () => menu(snapBtn, [{ head: 'Snap to' }, ...SNAPS.map(([v, l]) => ({ label: l, sub: Math.abs(ui.state.snap - v) < 1e-6 ? '●' : '', run: () => { ui.state.snap = v; ui.emit('snap', v); syncBar(); } }))]) });
-  const zoomOut = h('button.ar-tool.ar-ico', { title: `Zoom out (${MOD}scroll or pinch)`, onclick: () => zoomBy(1 / 1.4) }, icon('minus', { size: 14 }));
-  const zoomIn = h('button.ar-tool.ar-ico', { title: `Zoom in (${MOD}scroll or pinch)`, onclick: () => zoomBy(1.4) }, icon('plus', { size: 14 }));
-  const fitBtn = h('button.btn.btn-txt.ar-tool', { title: 'Fit the whole song in view', onclick: () => fitSong() }, 'Fit');
-  const followBtn = h('button.tog.ar-tool.ar-follow', { title: 'Follow the playhead while playing', onclick: () => { follow = !follow; syncBar(); } }, 'Follow');
+  const addBtn = h(
+    'button.btn.btn-txt.ar-tool.ar-add',
+    { title: 'Add a track: an instrument, drums or audio', onclick: () => addTrackMenu(addBtn) },
+    'Add a track',
+  );
+  const snapBtn = h('button.btn.btn-txt.ar-tool', {
+    title: 'Snap: where clips and notes land (hold shift while dragging to ignore it)',
+    onclick: () =>
+      menu(snapBtn, [
+        { head: 'Snap to' },
+        ...SNAPS.map(([v, l]) => ({
+          label: l,
+          sub: Math.abs(ui.state.snap - v) < 1e-6 ? '●' : '',
+          run: () => {
+            ui.state.snap = v;
+            ui.emit('snap', v);
+            syncBar();
+          },
+        })),
+      ]),
+  });
+  const zoomOut = h(
+    'button.ar-tool.ar-ico',
+    { title: `Zoom out (${MOD}scroll or pinch)`, onclick: () => zoomBy(1 / 1.4) },
+    icon('minus', { size: 14 }),
+  );
+  const zoomIn = h(
+    'button.ar-tool.ar-ico',
+    { title: `Zoom in (${MOD}scroll or pinch)`, onclick: () => zoomBy(1.4) },
+    icon('plus', { size: 14 }),
+  );
+  const fitBtn = h(
+    'button.btn.btn-txt.ar-tool',
+    { title: 'Fit the whole song in view', onclick: () => fitSong() },
+    'Fit',
+  );
+  const followBtn = h(
+    'button.tog.ar-tool.ar-follow',
+    {
+      title: 'Follow the playhead while playing',
+      onclick: () => {
+        follow = !follow;
+        syncBar();
+      },
+    },
+    'Follow',
+  );
   const hint = h('div.ar-hint');
   // (the simple view puts the whole toolbar away, as Track tools: ui/workspace.js)
-  const bar = h('div.ar-bar', { dataset: { feature: 'tracks' } }, addBtn, h('div.ar-sep'), snapBtn, h('div.ar-zoom', zoomOut, zoomIn), fitBtn, followBtn, h('div.ar-flex'), hint);
+  const bar = h(
+    'div.ar-bar',
+    { dataset: { feature: 'tracks' } },
+    addBtn,
+    h('div.ar-sep'),
+    snapBtn,
+    h('div.ar-zoom', zoomOut, zoomIn),
+    fitBtn,
+    followBtn,
+    h('div.ar-flex'),
+    hint,
+  );
 
-  const secAdd = h('button.ar-secadd', { dataset: { feature: 'tracks' }, title: 'Add a section (Verse, Chorus…) after the last one', onclick: () => addSection() }, icon('plus', { size: 12 }));
-  const corner = h('div.ar-corner',
+  const secAdd = h(
+    'button.ar-secadd',
+    {
+      dataset: { feature: 'tracks' },
+      title: 'Add a section (Verse, Chorus…) after the last one',
+      onclick: () => addSection(),
+    },
+    icon('plus', { size: 12 }),
+  );
+  const corner = h(
+    'div.ar-corner',
     h('div.ar-corner-row.ar-c-sec', h('span', 'Sections'), secAdd),
     h('div.ar-corner-row.ar-c-loop', h('span', { dataset: { feature: 'loop' } }, 'Loop')),
-    h('div.ar-corner-row.ar-c-bar', h('span', 'Bars')));
+    h('div.ar-corner-row.ar-c-bar', h('span', 'Bars')),
+  );
   const ruler = canvas('ar-ruler');
   // the section strip is a Tab stop: arrows pick a section (keys below), so a keyboard reaches what a click on it does
-  const rulerWrap = h('div.ar-rulerwrap', { tabindex: 0, role: 'application', 'aria-roledescription': 'section strip',
-    'aria-label': `Sections. Left and right arrows pick one and select its bars, F2 renames it, Shift+F10 opens its menu, ${MOD}D duplicates it.` }, ruler.cv);
+  const rulerWrap = h(
+    'div.ar-rulerwrap',
+    {
+      tabindex: 0,
+      role: 'application',
+      'aria-roledescription': 'section strip',
+      'aria-label': `Sections. Left and right arrows pick one and select its bars, F2 renames it, Shift+F10 opens its menu, ${MOD}D duplicates it.`,
+    },
+    ruler.cv,
+  );
   const headsInner = h('div.ar-heads-inner');
   const heads = h('div.ar-heads', headsInner);
   const lanes = canvas('ar-lanes');
   const spacer = h('div.ar-spacer');
-  const scroller = h('div.ar-scroll', { tabindex: 0, role: 'application', 'aria-roledescription': 'arrangement', 'aria-label': 'Arrangement: clips on tracks over time. Arrow keys move between clips, Enter opens one, F2 renames it, Shift+F10 opens its menu (and the section under it). The section strip above takes the arrow keys too.' }, spacer);
+  const scroller = h(
+    'div.ar-scroll',
+    {
+      tabindex: 0,
+      role: 'application',
+      'aria-roledescription': 'arrangement',
+      'aria-label':
+        'Arrangement: clips on tracks over time. Arrow keys move between clips, Enter opens one, F2 renames it, Shift+F10 opens its menu (and the section under it). The section strip above takes the arrow keys too.',
+    },
+    spacer,
+  );
   const said = h('p.sr-only', { 'aria-live': 'polite', 'aria-atomic': 'true' });
   const playhead = h('div.ar-playhead');
   const dropHi = h('div.ar-drop', { hidden: true });
@@ -216,13 +426,32 @@ function mountArranger(el, app) {
     const KEY = 'overdub:welcomed';
     // (never in the simple view: its first screen is the blank sheet, and Night Shift is one link on it. Marked as
     // seen all the same: a song switched to the full studio later isn't introduced as if it were the demo)
-    try { if (localStorage.getItem(KEY) === '1') return; localStorage.setItem(KEY, '1'); } catch (e) { return; }
+    try {
+      if (localStorage.getItem(KEY) === '1') return;
+      localStorage.setItem(KEY, '1');
+    } catch (e) {
+      return;
+    }
     if (app.ui.workspace?.view?.() === 'simple') return;
     const pr = app.store.get();
     if (!pr.tracks.length) return;
     const offs = [];
-    const close = () => { for (const o of offs.splice(0)) { try { o?.(); } catch (e) { /* ok */ } } if (!card.isConnected || card.classList.contains('out')) return; card.classList.add('out'); setTimeout(() => card.remove(), 220); };
-    const tour = () => { close(); if (!app.onboard?.start?.({ force: true, restart: true })) app.ui.toast('The tour is still loading'); };
+    const close = () => {
+      for (const o of offs.splice(0)) {
+        try {
+          o?.();
+        } catch (e) {
+          /* ok */
+        }
+      }
+      if (!card.isConnected || card.classList.contains('out')) return;
+      card.classList.add('out');
+      setTimeout(() => card.remove(), 220);
+    };
+    const tour = () => {
+      close();
+      if (!app.onboard?.start?.({ force: true, restart: true })) app.ui.toast('The tour is still loading');
+    };
     // the main action: the first minute (docs/research/RECORDING-UX.md 3.3) as Take one's first steps.
     // app.onboard.firstMinute('tap') owns the flow (a Drums track, a 2-bar loop, the click, Sketch on Tap it, the loop
     // running, "Press R and tap along"); without it, the tour starts on its take step with the drums selected (armed)
@@ -230,47 +459,125 @@ function mountArranger(el, app) {
     const tapIn = () => {
       close();
       const ob = app.onboard;
-      if (typeof ob?.firstMinute === 'function') { ob.firstMinute('tap'); return; }
-      if (!ob?.start?.({ force: true, restart: true })) { app.ui.toast('The tour is still loading'); return; }
+      if (typeof ob?.firstMinute === 'function') {
+        ob.firstMinute('tap');
+        return;
+      }
+      if (!ob?.start?.({ force: true, restart: true })) {
+        app.ui.toast('The tour is still loading');
+        return;
+      }
       if (ob.step === 'listen') ob.skip?.();
       const drums = app.store.get().tracks.find((t) => isDrumTrack(app, t));
       if (drums) app.ui.select({ track: drums.id, clip: null, notes: [] });
-      if (app.ui.panels.has('sketch')) { app.ui.show('sketch'); app.input?.emit?.('sketch:mode', 'tap'); }
+      if (app.ui.panels.has('sketch')) {
+        app.ui.show('sketch');
+        app.input?.emit?.('sketch:mode', 'tap');
+      }
     };
-    const own = () => { close(); if (typeof app.onboard?.ownSong === 'function') app.onboard.ownSong(); else tapIn(); };
-    const hear = async () => { const en = app.engine || engine; if (!en || en.playing) return; try { await en.start?.(); await en.play(app.transport?.marker?.beat || 0); } catch (e) { app.ui.toast('Could not play: ' + e.message, { kind: 'bad' }); } };
+    const own = () => {
+      close();
+      if (typeof app.onboard?.ownSong === 'function') app.onboard.ownSong();
+      else tapIn();
+    };
+    const hear = async () => {
+      const en = app.engine || engine;
+      if (!en || en.playing) return;
+      try {
+        await en.start?.();
+        await en.play(app.transport?.marker?.beat || 0);
+      } catch (e) {
+        app.ui.toast('Could not play: ' + e.message, { kind: 'bad' });
+      }
+    };
     void tapIn;
-    const agent = () => { if (!showAgent(app.ui)) app.ui.toast('The agent panel is loading'); };
-    const sketch = () => { if (app.ui.panels.has('sketch')) app.ui.show('sketch'); else app.ui.toast('Sketch is still loading'); };
+    const agent = () => {
+      if (!showAgent(app.ui)) app.ui.toast('The agent panel is loading');
+    };
+    const sketch = () => {
+      if (app.ui.panels.has('sketch')) app.ui.show('sketch');
+      else app.ui.toast('Sketch is still loading');
+    };
     // a guitarist's way in: the Jam room, beside Arrange (ui/jam.js)
-    const jam = () => { if (!app.ui.panels.has('jam')) { app.ui.toast('The Jam room is still loading'); return; } close(); app.ui.show('jam'); };
-    const card = h('div.ar-welcome.paper', { role: 'note', 'aria-label': 'Welcome' },
+    const jam = () => {
+      if (!app.ui.panels.has('jam')) {
+        app.ui.toast('The Jam room is still loading');
+        return;
+      }
+      close();
+      app.ui.show('jam');
+    };
+    const card = h(
+      'div.ar-welcome.paper',
+      { role: 'note', 'aria-label': 'Welcome' },
       // (first in the card: a first tap on "the first button" puts it away)
       h('button.btn.btn-txt.ar-welcome-x', { type: 'button', title: 'Put this away', onclick: close }, 'Got it'),
       h('h3.ar-welcome-h.disp', 'This is ', pr.title || 'your song', '.'),
-      h('ul.ar-credits', credits(pr, app).map(([what, by, link]) => (by
-        ? h('li', h('span.ar-cr-what', link === 'sketch' ? ['Your takes, in ', h('button.ar-link', { type: 'button', onclick: sketch }, 'Sketch')] : what),
-          h('span.ar-cr-lead', { 'aria-hidden': 'true' }), byline(by, { app }))
-        : h('li.ar-cr-house', what)))),
-      h('div.ar-welcome-acts',
-        h('button.btn.ar-welcome-own', { type: 'button', onclick: own, title: `A new song of your own: a beat, then a tune over it. “${pr.title || 'This song'}” goes to Recent songs.` }, 'Make your own'),
-        h('span.ar-welcome-own-s', 'a beat and a tune in two minutes')),
-      h('div.ar-welcome-acts.ar-welcome-more',
+      h(
+        'ul.ar-credits',
+        credits(pr, app).map(([what, by, link]) =>
+          by
+            ? h(
+                'li',
+                h(
+                  'span.ar-cr-what',
+                  link === 'sketch'
+                    ? ['Your takes, in ', h('button.ar-link', { type: 'button', onclick: sketch }, 'Sketch')]
+                    : what,
+                ),
+                h('span.ar-cr-lead', { 'aria-hidden': 'true' }),
+                byline(by, { app }),
+              )
+            : h('li.ar-cr-house', what),
+        ),
+      ),
+      h(
+        'div.ar-welcome-acts',
+        h(
+          'button.btn.ar-welcome-own',
+          {
+            type: 'button',
+            onclick: own,
+            title: `A new song of your own: a beat, then a tune over it. “${pr.title || 'This song'}” goes to Recent songs.`,
+          },
+          'Make your own',
+        ),
+        h('span.ar-welcome-own-s', 'a beat and a tune in two minutes'),
+      ),
+      h(
+        'div.ar-welcome-acts.ar-welcome-more',
         // hearing this one: one click (a finger has no Space bar, so a touch-first screen says tap)
-        h('button.ar-link.ar-welcome-hear', { type: 'button', onclick: hear }, ...(touchFirst() ? ['Tap to play it'] : [h('kbd', 'Space'), ' plays it'])),
+        h(
+          'button.ar-link.ar-welcome-hear',
+          { type: 'button', onclick: hear },
+          ...(touchFirst() ? ['Tap to play it'] : [h('kbd', 'Space'), ' plays it']),
+        ),
         h('button.ar-link.ar-link-tour.ar-welcome-tour', { type: 'button', onclick: tour }, 'the tour'),
-        h('button.ar-link.ar-link-agent', { type: 'button', onclick: agent }, 'ask the agent')),
-      h('p.ar-welcome-jam', 'Play guitar? ', h('button.ar-link.ar-welcome-jamlink', { type: 'button', onclick: jam }, 'The Jam room'), ' puts the chords on a neck.'));
+        h('button.ar-link.ar-link-agent', { type: 'button', onclick: agent }, 'ask the agent'),
+      ),
+      h(
+        'p.ar-welcome-jam',
+        'Play guitar? ',
+        h('button.ar-link.ar-welcome-jamlink', { type: 'button', onclick: jam }, 'The Jam room'),
+        ' puts the chords on a neck.',
+      ),
+    );
     laneWrap.append(card);
     app.welcome = { el: card, close };
     // it introduces this song: when another song is loaded (or this one is cleared), it goes; so does your first move
     // (an edit, a kept take, an undo; the house setting itself up doesn't count)
     // switched to the simple view: it goes (the simple view never shows it)
-    offs.push(app.ui.on?.('workspace', (w) => { if (w?.view === 'simple') close(); }));
-    offs.push(app.store.on('change', (e) => {
-      if (e.kind === 'load' || !app.store.get().tracks.length) return close();
-      if ((e.kind === 'do' || e.kind === 'undo' || e.kind === 'redo') && e.by !== 'overdub') close();
-    }));
+    offs.push(
+      app.ui.on?.('workspace', (w) => {
+        if (w?.view === 'simple') close();
+      }),
+    );
+    offs.push(
+      app.store.on('change', (e) => {
+        if (e.kind === 'load' || !app.store.get().tracks.length) return close();
+        if ((e.kind === 'do' || e.kind === 'undo' || e.kind === 'redo') && e.by !== 'overdub') close();
+      }),
+    );
     // (the first Play leaves it up: Make your own is still one click away after a listen)
   })();
   // A phone: app.css fixes the card to the screen over the lanes (they're too short to hold it above the sheet); it sits
@@ -279,7 +586,14 @@ function mountArranger(el, app) {
   function placeWelcome() {
     const c = app.welcome?.el;
     if (!c || !c.isConnected || c.classList.contains('out')) return;
-    if (!isPhone()) { if (c._top != null) { c._top = null; c.style.top = ''; c.style.maxHeight = ''; } return; }
+    if (!isPhone()) {
+      if (c._top != null) {
+        c._top = null;
+        c.style.top = '';
+        c.style.maxHeight = '';
+      }
+      return;
+    }
     const top = Math.round(bar.getBoundingClientRect().bottom + 6);
     if (c._top === top) return;
     c._top = top;
@@ -288,30 +602,33 @@ function mountArranger(el, app) {
   }
 
   /* ======================================================= state */
-  let dirty = true, rulerDirty = true;
-  let follow = true, followPauseUntil = 0;
-  let selClips = new Set();      // clip ids (the primary one is ui.state.selection.clip)
+  let dirty = true,
+    rulerDirty = true;
+  let follow = true,
+    followPauseUntil = 0;
+  let selClips = new Set(); // clip ids (the primary one is ui.state.selection.clip)
   let selSection = null;
-  let drag = null;               // the gesture in progress
-  let hover = null;              // { clip, zone }
+  let drag = null; // the gesture in progress
+  let hover = null; // { clip, zone }
   let lastPointer = null;
   const flash = flasher(1500);
-  const flashCol = new Map();    // id -> the ink an arrival's crop marks draw in (an agent's edits: cool; show(): the author's)
+  const flashCol = new Map(); // id -> the ink an arrival's crop marks draw in (an agent's edits: cool; show(): the author's)
   const trackFlash = new Map();
-  const preview = new Map();     // clipId -> stats for the mini piano roll
-  const signers = new Map();     // clipId -> who signs it (signersOf)
-  const waves = new Map();       // assetId -> { state, peaks, n, dur }
+  const preview = new Map(); // clipId -> stats for the mini piano roll
+  const signers = new Map(); // clipId -> who signs it (signersOf)
+  const waves = new Map(); // assetId -> { state, peaks, n, dur }
   let headSig = '';
   let presenceSig = '';
-  let takeInfo = new Map();      // clip id -> { group: [clips, oldest first], k (1-based), n, hidden, playing, folder, lanes, first, fs, fe }
-  const takesOpen = new Set();   // the take folders shown open, one lane per take under the clip (this session's view)
+  let takeInfo = new Map(); // clip id -> { group: [clips, oldest first], k (1-based), n, hidden, playing, folder, lanes, first, fs, fe }
+  const takesOpen = new Set(); // the take folders shown open, one lane per take under the clip (this session's view)
   let takesVer = 0;
-  const badges = new Map();      // clip id -> the "3 takes" badge's rect this frame (view coordinates), for clicks
-  const labels = new Map();      // clip id -> what its label line printed at the right last time it was drawn (a byline,
-                                 // "muted", "kept off", or null), for the checks and anyone asking what's on screen
+  const badges = new Map(); // clip id -> the "3 takes" badge's rect this frame (view coordinates), for clicks
+  const labels = new Map(); // clip id -> what its label line printed at the right last time it was drawn (a byline,
+  // "muted", "kept off", or null), for the checks and anyone asking what's on screen
   // a track whose instrument is held (a song's code this browser hasn't allowed, devices/trust.js): it plays silence
-  const keptOffTrack = (t) => !!(t && t.kind !== 'audio' && t.instrument && app.devices?.heldDevice?.(t.instrument.device));
-  let rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null };   // what the take in progress drew
+  const keptOffTrack = (t) =>
+    !!(t && t.kind !== 'audio' && t.instrument && app.devices?.heldDevice?.(t.instrument.device));
+  let rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null }; // what the take in progress drew
 
   const ppb = () => zoom.pxPerBeat;
   const th = () => zoom.trackH;
@@ -323,13 +640,42 @@ function mountArranger(el, app) {
   // the track height change. With no lanes open it is exactly i * trackH, as it always was.
   const isPhone = () => typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
   const laneH = () => (isPhone() ? LANE_H_PHONE : LANE_H);
-  let lay = null, layDirty = true;
+  let lay = null,
+    layDirty = true;
   function rows() {
-    const p = P(), TH = th(), LH = laneH(), ph = isPhone();
+    const p = P(),
+      TH = th(),
+      LH = laneH(),
+      ph = isPhone();
     const hs = heightsSig();
-    if (lay && !layDirty && lay.p === p && lay.TH === TH && lay.LH === LH && lay.n === p.tracks.length && lay.ph === ph && lay.hs === hs && lay.tv === takesVer) return lay;
+    if (
+      lay &&
+      !layDirty &&
+      lay.p === p &&
+      lay.TH === TH &&
+      lay.LH === LH &&
+      lay.n === p.tracks.length &&
+      lay.ph === ph &&
+      lay.hs === hs &&
+      lay.tv === takesVer
+    )
+      return lay;
     const KH = takeRowH();
-    const out = { p, TH, LH, ph, hs, tv: takesVer, n: p.tracks.length, rows: [], tops: [], ends: [], lanes: new Map(), total: 0, end: 0 };
+    const out = {
+      p,
+      TH,
+      LH,
+      ph,
+      hs,
+      tv: takesVer,
+      n: p.tracks.length,
+      rows: [],
+      tops: [],
+      ends: [],
+      lanes: new Map(),
+      total: 0,
+      end: 0,
+    };
     let y = 0;
     p.tracks.forEach((t, i) => {
       out.tops.push(y);
@@ -337,18 +683,23 @@ function mountArranger(el, app) {
       y += TH;
       // an open take folder: one row per take under the track (the comp is the track's own row)
       const open = takesOpen.size ? takeFolders(t).filter((f) => takesOpen.has(f.id) && f.lanes.length > 1) : [];
-      for (let k = 0, nk = Math.max(0, ...open.map((f) => f.lanes.length)); k < nk; k++) { out.rows.push({ kind: 'take', i, t, y, h: KH, k, folders: open }); y += KH; }
+      for (let k = 0, nk = Math.max(0, ...open.map((f) => f.lanes.length)); k < nk; k++) {
+        out.rows.push({ kind: 'take', i, t, y, h: KH, k, folders: open });
+        y += KH;
+      }
       for (const l of shownLanes(app, p, t, { narrow: ph })) {
         const hh = laneHeight(l.key, ph);
         const r = { kind: 'lane', i, t, y, h: hh, addr: l.addr, key: l.key };
-        out.rows.push(r); out.lanes.set(l.key, r);
+        out.rows.push(r);
+        out.lanes.set(l.key, r);
         y += hh;
       }
       out.ends.push(y);
     });
     out.total = y;
     // the master's lanes (lanes.js masterTrack): a block of their own under the last track, a head row then the lanes
-    const mt = masterTrack(p), ml = shownLanes(app, p, mt, { narrow: ph });
+    const mt = masterTrack(p),
+      ml = shownLanes(app, p, mt, { narrow: ph });
     if (ml.length) {
       out.mtop = y;
       out.rows.push({ kind: 'mhead', i: out.n, t: mt, y, h: 26 });
@@ -356,37 +707,51 @@ function mountArranger(el, app) {
       for (const l of ml) {
         const hh = laneHeight(l.key, ph);
         const r = { kind: 'lane', i: out.n, t: mt, y, h: hh, addr: l.addr, key: l.key };
-        out.rows.push(r); out.lanes.set(l.key, r);
+        out.rows.push(r);
+        out.lanes.set(l.key, r);
         y += hh;
       }
     }
     out.end = y;
-    lay = out; layDirty = false;
+    lay = out;
+    layDirty = false;
     return out;
   }
   // the top of track i's row (content y); past the last track, rows of trackH carry on
-  const trackTop = (i) => { const L = rows(); return i < 0 ? i * L.TH : i < L.n ? L.tops[i] : L.total + (i - L.n) * L.TH; };
+  const trackTop = (i) => {
+    const L = rows();
+    return i < 0 ? i * L.TH : i < L.n ? L.tops[i] : L.total + (i - L.n) * L.TH;
+  };
   // the track whose block (its row and its lanes) holds content y; negative above, n and more below the last
   function trackAtY(y) {
     const L = rows();
     if (y < 0) return Math.floor(y / L.TH);
     if (y >= L.total) return L.n + Math.floor((y - L.total) / L.TH);
-    let lo = 0, hi = L.n - 1;
-    while (lo < hi) { const m = (lo + hi) >> 1; if (L.ends[m] > y) hi = m; else lo = m + 1; }
+    let lo = 0,
+      hi = L.n - 1;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (L.ends[m] > y) hi = m;
+      else lo = m + 1;
+    }
     return lo;
   }
   // a take row's height: a little over half a track's, so a take's label and notes still read
-  function takeRowH() { return Math.round(clamp(th() * 0.62, 28, 40)); }
+  function takeRowH() {
+    return Math.round(clamp(th() * 0.62, 28, 40));
+  }
   // the take row at content y, or null
   function takeRowAtY(y) {
-    const L = rows(), i = trackAtY(y);
+    const L = rows(),
+      i = trackAtY(y);
     if (i < 0 || i >= L.n || y < L.tops[i] + L.TH) return null;
     return L.rows.find((r) => r.kind === 'take' && r.i === i && y >= r.y && y < r.y + r.h) || null;
   }
   // the lane row at content y, or null
   function laneRowAtY(y) {
     const L = rows();
-    if (L.mtop != null && y >= L.mtop && y < L.end) return L.rows.find((r) => r.kind === 'lane' && r.i === L.n && y >= r.y && y < r.y + r.h) || null;
+    if (L.mtop != null && y >= L.mtop && y < L.end)
+      return L.rows.find((r) => r.kind === 'lane' && r.i === L.n && y >= r.y && y < r.y + r.h) || null;
     const i = trackAtY(y);
     if (i < 0 || i >= L.n || y < L.tops[i] + L.TH) return null;
     return L.rows.find((r) => r.kind === 'lane' && r.i === i && y >= r.y && y < r.y + r.h) || null;
@@ -408,7 +773,13 @@ function mountArranger(el, app) {
   };
   const contentBeats = () => {
     const bpb = bpbOf();
-    const end = Math.max(app.engine.songEnd?.() || 0, ...P().tracks.flatMap((t) => t.clips.map((c) => c.start + c.length)), ...P().sections.map((s) => s.start + s.length), P().loop?.end || 0, engine.playing ? engine.beat || 0 : 0);
+    const end = Math.max(
+      app.engine.songEnd?.() || 0,
+      ...P().tracks.flatMap((t) => t.clips.map((c) => c.start + c.length)),
+      ...P().sections.map((s) => s.start + s.length),
+      P().loop?.end || 0,
+      engine.playing ? engine.beat || 0 : 0,
+    );
     const view = (scroller.clientWidth || 800) / ppb();
     return Math.ceil(Math.max(end + bpb * 16, view + bpb * 2) / bpb) * bpb;
   };
@@ -440,7 +811,21 @@ function mountArranger(el, app) {
         groups.forEach((group, gi) => {
           const live = group.filter((c) => !c.mute);
           const shown = live.length ? new Set(live.map((c) => c.id)) : new Set([group[group.length - 1].id]);
-          group.forEach((c, k) => out.set(c.id, { group, k: k + 1, n: group.length, hidden: !shown.has(c.id), playing: !c.mute, track: t, folder: f.id, lanes: f.lanes.length, first: gi === host, fs: f.start, fe: f.end }));
+          group.forEach((c, k) =>
+            out.set(c.id, {
+              group,
+              k: k + 1,
+              n: group.length,
+              hidden: !shown.has(c.id),
+              playing: !c.mute,
+              track: t,
+              folder: f.id,
+              lanes: f.lanes.length,
+              first: gi === host,
+              fs: f.start,
+              fe: f.end,
+            }),
+          );
         });
       }
     }
@@ -456,7 +841,10 @@ function mountArranger(el, app) {
     return ti ? { ...ti, track: store.track(ti.track.id) || ti.track } : null;
   }
   // the folder's piece that plays at a beat (a comp joins and cuts pieces, so the clip picked may not be there now)
-  const playingAt = (t, take, beat) => (store.track(t.id) || t).clips.find((c) => c.take === take && !c.mute && c.start <= beat + EPS_T && c.start + c.length > beat + EPS_T) || null;
+  const playingAt = (t, take, beat) =>
+    (store.track(t.id) || t).clips.find(
+      (c) => c.take === take && !c.mute && c.start <= beat + EPS_T && c.start + c.length > beat + EPS_T,
+    ) || null;
   // where a stretch of a folder is, as a DAW counts it: "5.1–6.1" (core/arrangement.js barBeat), everywhere takes are
   const takeBars = (a, b) => barBeatSpan(P(), a, b);
   // One toast at a time about a folder: a later swipe, switch, flatten or delete takes the last one's place, so no line
@@ -471,10 +859,21 @@ function mountArranger(el, app) {
   // folder is cut where the take changes and joined up where it no longer does. One dispatch, one undo step, by you.
   function compTake(t, take, lane, a, b, { quiet = false, label = null } = {}) {
     let plan;
-    try { plan = planTakeComp(P(), { track: t.id, take, lane, start: a, end: b }); } catch (e) { takeToast(e.message, { kind: 'bad' }); return null; }
-    if (!plan.ops.length) { say(plan.summary); return { ok: true, ops: 0, plan }; }
+    try {
+      plan = planTakeComp(P(), { track: t.id, take, lane, start: a, end: b });
+    } catch (e) {
+      takeToast(e.message, { kind: 'bad' });
+      return null;
+    }
+    if (!plan.ops.length) {
+      say(plan.summary);
+      return { ok: true, ops: 0, plan };
+    }
     const r = store.dispatch(plan.ops, { by: 'you', label: label || `comp: ${plan.summary.replace(/\.$/, '')}` });
-    if (!r.ok) { takeToast(r.error, { kind: 'bad' }); return r; }
+    if (!r.ok) {
+      takeToast(r.error, { kind: 'bad' });
+      return r;
+    }
     r.plan = plan;
     if (!quiet) takeToast(plan.summary, { ms: 3200, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
     return r;
@@ -484,26 +883,43 @@ function mountArranger(el, app) {
     const ti = takeInfo.get(c.id);
     if (!ti) return null;
     const name = c.name || t.name;
-    const r = compTake(t, c.take, c.id, c.start, c.start + c.length, { quiet: true, label: `play ${name} on ${t.name}` });
+    const r = compTake(t, c.take, c.id, c.start, c.start + c.length, {
+      quiet: true,
+      label: `play ${name} on ${t.name}`,
+    });
     if (!r || !r.ok || r.ops === 0) return r;
     const now = playingAt(t, c.take, c.start) || c;
     selClips = new Set([now.id]);
     ui.select({ track: t.id, clip: now.id, notes: [], range: null });
-    const whole = ti.lanes === ti.n && Math.abs(c.start - ti.fs) < EPS_T && Math.abs(c.start + c.length - ti.fe) < EPS_T;
+    const whole =
+      ti.lanes === ti.n && Math.abs(c.start - ti.fs) < EPS_T && Math.abs(c.start + c.length - ti.fe) < EPS_T;
     const line = `${name} plays on ${t.name}${whole ? '' : `, ${takeBars(c.start, c.start + c.length)}`}, ${ti.k} of ${ti.n}.`;
-    if (quiet) { say(line); ui.announce?.(line); } else takeToast([line, ...(touchFirst() ? [] : [' ', h('kbd', `${MOD}↑`), ' ', h('kbd', `${MOD}↓`), ' to switch.'])], { ms: 3200, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    if (quiet) {
+      say(line);
+      ui.announce?.(line);
+    } else
+      takeToast([line, ...(touchFirst() ? [] : [' ', h('kbd', `${MOD}↑`), ' ', h('kbd', `${MOD}↓`), ' to switch.'])], {
+        ms: 3200,
+        action: { label: 'Undo', run: () => store.undo({ by: 'you' }) },
+      });
     return r;
   }
   // ⌘↑ / ⌘↓: the previous / next take of the selected clip's stack
   function stepTake(dir) {
     const st = stackOf();
     if (!st) return null;
-    const cur = st.group.find((x) => !x.mute && x.id === ui.state.selection.clip) || st.group.find((x) => !x.mute) || st.group[st.k - 1];
+    const cur =
+      st.group.find((x) => !x.mute && x.id === ui.state.selection.clip) ||
+      st.group.find((x) => !x.mute) ||
+      st.group[st.k - 1];
     const i = st.group.indexOf(cur);
     // (a take with nothing in it is passed over: switching never leaves the bars silent)
     let j = i + dir;
     while (j >= 0 && j < st.group.length && silentTake(st.group[j])) j += dir;
-    if (j < 0 || j >= st.group.length) { say(`${cur.name || st.track.name} is the ${dir < 0 ? 'first' : 'last'} take.`); return null; }
+    if (j < 0 || j >= st.group.length) {
+      say(`${cur.name || st.track.name} is the ${dir < 0 ? 'first' : 'last'} take.`);
+      return null;
+    }
     return useTake(st.track, st.group[j], { quiet: true });
   }
   // The take lanes (the badge, ⌥T, the takes menu): one row per take under the folder; a drag across a row plays that
@@ -513,7 +929,8 @@ function mountArranger(el, app) {
     if (!id) return false;
     const open = on == null ? !takesOpen.has(id) : !!on;
     if (open === takesOpen.has(id)) return open;
-    if (open) takesOpen.add(id); else takesOpen.delete(id);
+    if (open) takesOpen.add(id);
+    else takesOpen.delete(id);
     takesVer++;
     relayout();
     const f = takeFolders(t).find((x) => x.id === id);
@@ -535,43 +952,128 @@ function mountArranger(el, app) {
     const comped = !!f && f.comp.length > 1 && new Set(f.comp.map((x) => x.lane)).size > 1;
     const here = takeBars(st.group[0].start, st.group[0].start + st.group[0].length);
     const whereOf = (x) => {
-      if (!comped) return x === playing ? 'playing' : silentTake(x) ? 'muted, nothing in it' : bylineOf(app, x.by) ? 'muted' : 'muted, as it was';
-      const k = f.lanes.findIndex((l) => l.clips.includes(x)), w = k < 0 ? 'not playing' : compWhere(f, k);
-      return x !== playing && silentTake(x) ? `${w}; nothing in ${here}` : w === 'not playing' && !bylineOf(app, x.by) ? 'not playing, as it was' : w;
+      if (!comped)
+        return x === playing
+          ? 'playing'
+          : silentTake(x)
+            ? 'muted, nothing in it'
+            : bylineOf(app, x.by)
+              ? 'muted'
+              : 'muted, as it was';
+      const k = f.lanes.findIndex((l) => l.clips.includes(x)),
+        w = k < 0 ? 'not playing' : compWhere(f, k);
+      return x !== playing && silentTake(x)
+        ? `${w}; nothing in ${here}`
+        : w === 'not playing' && !bylineOf(app, x.by)
+          ? 'not playing, as it was'
+          : w;
     };
     menu(at, [
-      { head: comped ? `${st.n} takes on ${t.name}, comped: a click plays one in ${here}` : `${st.n} takes on ${t.name}` },
-      ...st.group.map((x) => ({ label: x.name || t.name, sub: whereOf(x), disabled: x !== playing && silentTake(x), title: comped ? `Play ${x.name || t.name} in ${here} and mute the others there` : `Play ${x.name || t.name} and mute the others`, run: () => useTake(t, x) })),
+      {
+        head: comped
+          ? `${st.n} takes on ${t.name}, comped: a click plays one in ${here}`
+          : `${st.n} takes on ${t.name}`,
+      },
+      ...st.group.map((x) => ({
+        label: x.name || t.name,
+        sub: whereOf(x),
+        disabled: x !== playing && silentTake(x),
+        title: comped
+          ? `Play ${x.name || t.name} in ${here} and mute the others there`
+          : `Play ${x.name || t.name} and mute the others`,
+        run: () => useTake(t, x),
+      })),
       '-',
-      { label: open ? 'Hide the take lanes' : 'Show the take lanes', kbd: '⌥T', sub: 'drag across one to comp', run: () => toggleTakes(t, c) },
-      { label: 'Previous take', kbd: `${MOD}↑`, disabled: !playing || !st.group.slice(0, st.group.indexOf(playing)).some((x) => !silentTake(x)), run: () => { selClips = new Set([playing.id]); ui.select({ track: t.id, clip: playing.id }); stepTake(-1); } },
-      { label: 'Next take', kbd: `${MOD}↓`, disabled: !playing || !st.group.slice(st.group.indexOf(playing) + 1).some((x) => !silentTake(x)), run: () => { selClips = new Set([playing.id]); ui.select({ track: t.id, clip: playing.id }); stepTake(1); } },
+      {
+        label: open ? 'Hide the take lanes' : 'Show the take lanes',
+        kbd: '⌥T',
+        sub: 'drag across one to comp',
+        run: () => toggleTakes(t, c),
+      },
+      {
+        label: 'Previous take',
+        kbd: `${MOD}↑`,
+        disabled: !playing || !st.group.slice(0, st.group.indexOf(playing)).some((x) => !silentTake(x)),
+        run: () => {
+          selClips = new Set([playing.id]);
+          ui.select({ track: t.id, clip: playing.id });
+          stepTake(-1);
+        },
+      },
+      {
+        label: 'Next take',
+        kbd: `${MOD}↓`,
+        disabled: !playing || !st.group.slice(st.group.indexOf(playing) + 1).some((x) => !silentTake(x)),
+        run: () => {
+          selClips = new Set([playing.id]);
+          ui.select({ track: t.id, clip: playing.id });
+          stepTake(1);
+        },
+      },
       '-',
-      { label: (takeFolders(t).find((f) => f.id === c.take)?.comp.filter((x) => x.lane >= 0).length || 0) > 1 ? 'Flatten the comp' : `Flatten to ${(playing || c).name || t.name}`, sub: 'one clip of what plays', title: 'Merge what plays into one ordinary clip and delete the rest of the takes', run: () => flattenTakes(t, playing || c) },
-      { label: `Delete ${(playing || c).name || t.name}`, danger: true, sub: 'the take before it plays', run: () => deleteTake(t, playing || c) },
+      {
+        label:
+          (takeFolders(t)
+            .find((f) => f.id === c.take)
+            ?.comp.filter((x) => x.lane >= 0).length || 0) > 1
+            ? 'Flatten the comp'
+            : `Flatten to ${(playing || c).name || t.name}`,
+        sub: 'one clip of what plays',
+        title: 'Merge what plays into one ordinary clip and delete the rest of the takes',
+        run: () => flattenTakes(t, playing || c),
+      },
+      {
+        label: `Delete ${(playing || c).name || t.name}`,
+        danger: true,
+        sub: 'the take before it plays',
+        run: () => deleteTake(t, playing || c),
+      },
     ]);
   }
   // a take goes from the whole folder (its lane); where it played, the newest take left plays
   function deleteTake(t, c) {
     let plan;
-    try { plan = planTakeLaneDelete(P(), { track: t.id, clip: c.id }); } catch (e) { ui.toast(e.message, { kind: 'bad' }); return null; }
+    try {
+      plan = planTakeLaneDelete(P(), { track: t.id, clip: c.id });
+    } catch (e) {
+      ui.toast(e.message, { kind: 'bad' });
+      return null;
+    }
     const r = store.dispatch(plan.ops, { by: 'you', label: `delete ${c.name || t.name} on ${t.name}` });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return r; }
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return r;
+    }
     const now = playingAt(t, c.take, c.start);
-    if (now) { selClips = new Set([now.id]); ui.select({ track: t.id, clip: now.id, notes: [] }); }
-    takeToast(`${plan.summary} ${MOD}Z brings it back.`, { action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    if (now) {
+      selClips = new Set([now.id]);
+      ui.select({ track: t.id, clip: now.id, notes: [] });
+    }
+    takeToast(`${plan.summary} ${MOD}Z brings it back.`, {
+      action: { label: 'Undo', run: () => store.undo({ by: 'you' }) },
+    });
     return r;
   }
   // what plays stays, merged into one ordinary clip (a comp: every piece where it played); the rest goes
   function flattenTakes(t, c) {
     let plan;
-    try { plan = planTakesFlatten(P(), { track: t.id, clip: c.id }); } catch (e) { takeToast(e.message, { kind: 'bad' }); return null; }
+    try {
+      plan = planTakesFlatten(P(), { track: t.id, clip: c.id });
+    } catch (e) {
+      takeToast(e.message, { kind: 'bad' });
+      return null;
+    }
     const r = store.dispatch(plan.ops, { by: 'you', label: `flatten the takes on ${t.name}` });
-    if (!r.ok) { takeToast(r.error, { kind: 'bad' }); return r; }
+    if (!r.ok) {
+      takeToast(r.error, { kind: 'bad' });
+      return r;
+    }
     takesOpen.delete(c.take);
     selClips = new Set(plan.clips);
     ui.select({ track: t.id, clip: plan.clips[0], notes: [] });
-    takeToast(`${plan.summary} ${MOD}Z brings them back.`, { action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+    takeToast(`${plan.summary} ${MOD}Z brings them back.`, {
+      action: { label: 'Undo', run: () => store.undo({ by: 'you' }) },
+    });
     return r;
   }
 
@@ -581,25 +1083,41 @@ function mountArranger(el, app) {
   // (Ctrl), or ⌘-clicking a header, it arms one more, keeping the one selection armed.
   const recorder = () => app.input?.recorder || null;
   function armedIds() {
-    const p = P(), set = new Set(p.tracks.filter((t) => t.arm).map((t) => t.id));
-    if (!set.size) { const tg = recorder()?.target; if (tg) set.add(tg); }
+    const p = P(),
+      set = new Set(p.tracks.filter((t) => t.arm).map((t) => t.id));
+    if (!set.size) {
+      const tg = recorder()?.target;
+      if (tg) set.add(tg);
+    }
     return set;
   }
   function armMore(t) {
     const ops = [];
     const on = !t.arm;
     // (nothing armed on purpose yet: the selected track, armed by selection, stays armed alongside)
-    if (on && !P().tracks.some((x) => x.arm)) for (const id of armedIds()) if (id !== t.id) ops.push({ type: 'track.set', track: id, patch: { arm: true } });
+    if (on && !P().tracks.some((x) => x.arm))
+      for (const id of armedIds()) if (id !== t.id) ops.push({ type: 'track.set', track: id, patch: { arm: true } });
     ops.push({ type: 'track.set', track: t.id, patch: { arm: on } });
     const r = store.dispatch(ops, { by: 'you', label: `${on ? 'arm' : 'disarm'} ${t.name}` });
-    if (r.ok) say(`${t.name} ${on ? 'armed' : 'disarmed'}. Armed: ${[...armedIds()].map((id) => store.track(id)?.name).filter(Boolean).join(', ') || 'none'}.`);
+    if (r.ok)
+      say(
+        `${t.name} ${on ? 'armed' : 'disarmed'}. Armed: ${
+          [...armedIds()]
+            .map((id) => store.track(id)?.name)
+            .filter(Boolean)
+            .join(', ') || 'none'
+        }.`,
+      );
     return r;
   }
   // the R key, no modifier: this track alone, on purpose (again: off)
   function armOnly(t) {
     const others = P().tracks.filter((x) => x.arm && x.id !== t.id);
     const on = !t.arm;
-    const ops = [...others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { type: 'track.set', track: t.id, patch: { arm: on } }];
+    const ops = [
+      ...others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })),
+      { type: 'track.set', track: t.id, patch: { arm: on } },
+    ];
     return store.dispatch(ops, { by: 'you', label: `${on ? 'arm' : 'disarm'} ${t.name}` });
   }
   // a plain click on a header: the track is selected, and so armed; arms set on other tracks give way to it
@@ -607,7 +1125,11 @@ function mountArranger(el, app) {
     ui.select({ track: t.id });
     if (t.arm) return;
     const others = P().tracks.filter((x) => x.arm && x.id !== t.id);
-    if (others.length) store.dispatch(others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })), { by: 'you', label: `arm ${t.name}`, coalesce: 'arm-select' });
+    if (others.length)
+      store.dispatch(
+        others.map((x) => ({ type: 'track.set', track: x.id, patch: { arm: false } })),
+        { by: 'you', label: `arm ${t.name}`, coalesce: 'arm-select' },
+      );
   }
 
   /* ======================================================= automation lanes */
@@ -615,30 +1137,59 @@ function mountArranger(el, app) {
   // or hides a track's lanes, Add a lane and app.arranger.showLane (a knob's Automate) open one. Lanes play hidden too.
   const getDevice = (id) => app.devices?.getDevice?.(id) || null;
   const laneEd = laneEditor(app, {
-    P, ppb, bpb: bpbOf, snapGrid,
-    sx: () => scroller.scrollLeft, sy: () => scroller.scrollTop,
-    scrollTo: (l, t) => { scroller.scrollLeft = l; scroller.scrollTop = t; dirty = true; },
+    P,
+    ppb,
+    bpb: bpbOf,
+    snapGrid,
+    sx: () => scroller.scrollLeft,
+    sy: () => scroller.scrollTop,
+    scrollTo: (l, t) => {
+      scroller.scrollLeft = l;
+      scroller.scrollTop = t;
+      dirty = true;
+    },
     beat: () => (app.engine || engine)?.beat || 0,
-    dirty: () => { dirty = true; },
+    dirty: () => {
+      dirty = true;
+    },
     refresh: () => relayout(),
-    say: (text) => { say(text); },
+    say: (text) => {
+      say(text);
+    },
     row: (key) => rows().lanes.get(key) || null,
     box: () => lanes.cv.getBoundingClientRect(),
     show: (tid, addr) => showLane(tid, addr),
   });
   const laneFlash = flasher(1400);
-  let laneRec = null;           // what app.arranger.recLanes() set: [{ track, insert?, param, from, to }] being written
-  function relayout() { layDirty = true; headSig = ''; layoutSpacer(); buildHeads(); dirty = true; }
-  const findTrack = (id) => (id && id !== 'master' ? store.track(id) || tracks().find((t) => t.name === id || String(t.name).toLowerCase() === String(id).toLowerCase()) || null : null);
+  let laneRec = null; // what app.arranger.recLanes() set: [{ track, insert?, param, from, to }] being written
+  function relayout() {
+    layDirty = true;
+    headSig = '';
+    layoutSpacer();
+    buildHeads();
+    dirty = true;
+  }
+  const findTrack = (id) =>
+    id && id !== 'master'
+      ? store.track(id) ||
+        tracks().find((t) => t.name === id || String(t.name).toLowerCase() === String(id).toLowerCase()) ||
+        null
+      : null;
   // a track, or the master's block (lanes.js masterTrack) for 'master'
   const laneTrack = (id) => (id === 'master' ? masterTrack(P()) : findTrack(id));
   // a lane row's new height (its header's lower edge dragged): the layout follows as it moves, the headers when it lands
   function resizeLane(key, px, done) {
     setLaneHeight(key, px, { save: done });
-    layDirty = true; layoutSpacer(); dirty = true;
-    const r = rows().lanes.get(key), el = [...headsInner.children].find((x) => x._lane === key);
+    layDirty = true;
+    layoutSpacer();
+    dirty = true;
+    const r = rows().lanes.get(key),
+      el = [...headsInner.children].find((x) => x._lane === key);
     if (el && r) el.style.height = r.h + 'px';
-    if (done) { relayout(); if (r) say(`Lane height ${r.h} px.`); }
+    if (done) {
+      relayout();
+      if (r) say(`Lane height ${r.h} px.`);
+    }
   }
   // show (or hide) a track's lanes; with none at all, E opens its Level lane (volume first: the simplest thing)
   function toggleLanes(trackId, on = null) {
@@ -660,7 +1211,10 @@ function mountArranger(el, app) {
   function showLane(trackId, addr = {}) {
     const t = laneTrack(trackId ?? addr.track);
     if (!t) return null;
-    const a = addr.insert && addr.insert !== '' ? { track: t.id, insert: addr.insert, param: addr.param } : { track: t.id, param: addr.param || 'gain' };
+    const a =
+      addr.insert && addr.insert !== ''
+        ? { track: t.id, insert: addr.insert, param: addr.param }
+        : { track: t.id, param: addr.param || 'gain' };
     if (a.insert && a.insert !== 'instrument' && !t.inserts.some((x) => x.id === a.insert)) return null;
     if (a.insert === 'instrument' && !t.instrument) return null;
     if (t.id === 'master' && !a.insert && a.param !== 'gain') return null;
@@ -687,7 +1241,10 @@ function mountArranger(el, app) {
     if (!st.hide.includes(key)) st.hide.push(key);
     if (laneEd.sel?.key === key) laneEd.sel = null;
     if (laneState(ui).draw === key) laneState(ui).draw = null;
-    if (!shownLanes(app, P(), r.t).length) { st.open = false; st.hide = []; }
+    if (!shownLanes(app, P(), r.t).length) {
+      st.open = false;
+      st.hide = [];
+    }
     relayout();
   }
   function revealLane(key) {
@@ -704,16 +1261,29 @@ function mountArranger(el, app) {
   const FOLLOW_KEY = 'overdub:arrange';
   function lanesFollow(on) {
     let cfg = {};
-    try { cfg = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {}; } catch (e) { cfg = {}; }
+    try {
+      cfg = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {};
+    } catch (e) {
+      cfg = {};
+    }
     if (on === undefined) return cfg.followLanes !== false;
     cfg.followLanes = !!on;
-    try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(cfg)); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem(FOLLOW_KEY, JSON.stringify(cfg));
+    } catch (e) {
+      /* private mode */
+    }
     return cfg.followLanes;
   }
   // the auto.writes that carry the lanes under these clips to where they land (core/arrangement.js followClips)
   function followOps(moves) {
     if (!lanesFollow() || !moves.length || !lanesOf(P()).length) return [];
-    try { return followClips(P(), moves, { getDevice }).ops; } catch (e) { console.warn('lanes follow clips', e); return []; }
+    try {
+      return followClips(P(), moves, { getDevice }).ops;
+    } catch (e) {
+      console.warn('lanes follow clips', e);
+      return [];
+    }
   }
   // the track's Automation menu: its lanes (shown or not), Add a lane, Lanes follow clips
   function automationMenu(at, t) {
@@ -725,11 +1295,35 @@ function mountArranger(el, app) {
     const follow = lanesFollow();
     menu(at, [
       { head: `Automation on ${t.name}` },
-      { label: st.open ? 'Hide the lanes' : 'Show the lanes', kbd: 'E', sub: have.length ? `${have.length} with points` : 'none yet', run: () => { ui.select({ track: t.id }); toggleLanes(t.id); } },
-      ...params.filter((q) => have.includes(q.key)).map((q) => ({ label: q.name, sub: shown.has(q.key) ? 'shown' : q.device || 'mixer', run: () => showLane(t.id, q.addr) })),
+      {
+        label: st.open ? 'Hide the lanes' : 'Show the lanes',
+        kbd: 'E',
+        sub: have.length ? `${have.length} with points` : 'none yet',
+        run: () => {
+          ui.select({ track: t.id });
+          toggleLanes(t.id);
+        },
+      },
+      ...params
+        .filter((q) => have.includes(q.key))
+        .map((q) => ({
+          label: q.name,
+          sub: shown.has(q.key) ? 'shown' : q.device || 'mixer',
+          run: () => showLane(t.id, q.addr),
+        })),
       '-',
       { label: 'Add a lane…', sub: 'Level, Pan, any knob', run: () => addLaneMenu(at, t) },
-      { label: 'Lanes follow clips', sub: follow ? 'on' : 'off', title: 'Moving, copying or duplicating clips takes the automation under them along', run: () => { const on = lanesFollow(!follow); ui.toast(on ? 'Lanes follow clips: moving a clip takes its automation along.' : 'Lanes stay put when clips move.'); } },
+      {
+        label: 'Lanes follow clips',
+        sub: follow ? 'on' : 'off',
+        title: 'Moving, copying or duplicating clips takes the automation under them along',
+        run: () => {
+          const on = lanesFollow(!follow);
+          ui.toast(
+            on ? 'Lanes follow clips: moving a clip takes its automation along.' : 'Lanes stay put when clips move.',
+          );
+        },
+      },
     ]);
   }
   // Add a lane: a ledger of what the track can automate, the mixer first, then each device's knobs by label
@@ -739,34 +1333,64 @@ function mountArranger(el, app) {
     const items = [{ head: `Add a lane on ${t.name}` }];
     let dev = null;
     for (const q of laneParams(app, p, t)) {
-      if (q.device !== dev && q.device) { items.push('-', { head: q.device }); }
+      if (q.device !== dev && q.device) {
+        items.push('-', { head: q.device });
+      }
       dev = q.device;
-      items.push({ label: q.name, sub: have.has(q.key) ? 'has a lane' : q.device ? '' : 'mixer', run: () => showLane(t.id, q.addr) });
+      items.push({
+        label: q.name,
+        sub: have.has(q.key) ? 'has a lane' : q.device ? '' : 'mixer',
+        run: () => showLane(t.id, q.addr),
+      });
     }
     // (the master's lanes: its level and its inserts' knobs, in a block under the last track)
     if (t.id !== 'master') {
-      const mt = masterTrack(p), mh = new Set(laneKeysOn(p, mt));
+      const mt = masterTrack(p),
+        mh = new Set(laneKeysOn(p, mt));
       items.push('-', { head: 'Master' });
-      for (const q of laneParams(app, p, mt)) items.push({ label: q.name === 'Level' ? 'Master level' : q.name, sub: mh.has(q.key) ? 'has a lane' : q.device || 'master', run: () => showLane('master', q.addr) });
+      for (const q of laneParams(app, p, mt))
+        items.push({
+          label: q.name === 'Level' ? 'Master level' : q.name,
+          sub: mh.has(q.key) ? 'has a lane' : q.device || 'master',
+          run: () => showLane('master', q.addr),
+        });
     }
     menu(at, items);
   }
   // what the lane menu adds below the editor's own items
-  const laneMenuMore = (r) => ['-', { label: 'Hide this lane', sub: 'it still plays', run: () => hideLane(r.key) }, { label: 'Add a lane…', run: () => addLaneMenu({ x: 40, y: 120 }, r.t) }];
+  const laneMenuMore = (r) => [
+    '-',
+    { label: 'Hide this lane', sub: 'it still plays', run: () => hideLane(r.key) },
+    { label: 'Add a lane…', run: () => addLaneMenu({ x: 40, y: 120 }, r.t) },
+  ];
   // the lanes being written: recLanes()'s list, else while R records with input/autorec.js, the stretches its take
   // has written so far (autorec.writes(): auto.writes with from and to) and, for each control held now
   // (autorec.touching()), the stretch from where the hand took it to the playhead (round the loop: to its end, then
   // from its start)
-  const touchFrom = new Map();   // lane key -> the beat a held control was first seen at, this take
+  const touchFrom = new Map(); // lane key -> the beat a held control was first seen at, this take
   function recList() {
     if (laneRec) return laneRec;
     const ar = app.input?.autorec;
-    if (!ar?.recording) { touchFrom.clear(); return null; }
-    let w = [], held = [];
-    try { w = ar.writes?.() || []; } catch (e) { w = []; }
-    try { held = (ar.touching?.() || []).filter((x) => !x.mode || x.mode === 'rec'); } catch (e) { held = []; }
+    if (!ar?.recording) {
+      touchFrom.clear();
+      return null;
+    }
+    let w = [],
+      held = [];
+    try {
+      w = ar.writes?.() || [];
+    } catch (e) {
+      w = [];
+    }
+    try {
+      held = (ar.touching?.() || []).filter((x) => !x.mode || x.mode === 'rec');
+    } catch (e) {
+      held = [];
+    }
     const out = w.filter((op) => op && op.param && Number.isFinite(op.from) && Number.isFinite(op.to));
-    const now = (app.engine || engine)?.beat || 0, lp = P().loop, seen = new Set();
+    const now = (app.engine || engine)?.beat || 0,
+      lp = P().loop,
+      seen = new Set();
     for (const x of held) {
       const t = findTrack(x.track);
       if (!t || !x.param) continue;
@@ -774,10 +1398,25 @@ function mountArranger(el, app) {
       seen.add(key);
       if (!touchFrom.has(key)) touchFrom.set(key, now);
       const from = touchFrom.get(key);
-      if (now >= from) out.push({ track: t.id, insert: x.insert || null, param: x.param, from, to: Math.max(now, from + 0.01), held: true });
+      if (now >= from)
+        out.push({
+          track: t.id,
+          insert: x.insert || null,
+          param: x.param,
+          from,
+          to: Math.max(now, from + 0.01),
+          held: true,
+        });
       else if (lp?.on) {
         out.push({ track: t.id, insert: x.insert || null, param: x.param, from, to: lp.end, held: true });
-        out.push({ track: t.id, insert: x.insert || null, param: x.param, from: lp.start, to: Math.max(now, lp.start + 0.01), held: true });
+        out.push({
+          track: t.id,
+          insert: x.insert || null,
+          param: x.param,
+          from: lp.start,
+          to: Math.max(now, lp.start + 0.01),
+          held: true,
+        });
       }
     }
     for (const k of [...touchFrom.keys()]) if (!seen.has(k)) touchFrom.delete(k);
@@ -790,12 +1429,19 @@ function mountArranger(el, app) {
     for (const x of list) {
       if (!x || !x.param) continue;
       const t = findTrack(x.track);
-      if (t && laneKey({ track: t.id, insert: x.insert || null, param: x.param }) === key && x.to > x.from) out.push({ from: x.from, to: x.to });
+      if (t && laneKey({ track: t.id, insert: x.insert || null, param: x.param }) === key && x.to > x.from)
+        out.push({ from: x.from, to: x.to });
     }
     return out.length ? out : null;
   }
   function drawLaneRows(g, now, L) {
-    const p = P(), pal = palette(), W = lanes.w, H = lanes.h, sx = scroller.scrollLeft, sy = scroller.scrollTop, pb = ppb();
+    const p = P(),
+      pal = palette(),
+      W = lanes.w,
+      H = lanes.h,
+      sx = scroller.scrollLeft,
+      sy = scroller.scrollTop,
+      pb = ppb();
     const recs = L.lanes.size ? recList() : null;
     for (const r of L.rows) {
       if (r.kind !== 'lane') continue;
@@ -804,7 +1450,9 @@ function mountArranger(el, app) {
       const lane = laneAt(p, r.addr);
       const info = laneInfo(app, p, r.addr);
       if (!info.spec) {
-        g.font = `400 11px ${pal.ui}`; g.fillStyle = pal.text3; g.textBaseline = 'middle';
+        g.font = `400 11px ${pal.ui}`;
+        g.fillStyle = pal.text3;
+        g.textBaseline = 'middle';
         g.fillText(`${info.name}: its device has no such param any more, so this lane does nothing.`, 10, y + r.h / 2);
         continue;
       }
@@ -813,15 +1461,36 @@ function mountArranger(el, app) {
       g.save();
       if (quiet) g.globalAlpha = 0.55;
       drawLaneRow(g, {
-        y, h: r.h, W, sx, pb, t: r.t, spec: info.spec, pts: v.pts, held: !!lane?.off, stat: staticValue(p, r.addr, info.spec),
-        sel: v.sel, selPts: v.selPts, rec: recOf(r.key, recs), empty: v.pts.length ? null : 'Not automated yet. Click the line to add a point.',
+        y,
+        h: r.h,
+        W,
+        sx,
+        pb,
+        t: r.t,
+        spec: info.spec,
+        pts: v.pts,
+        held: !!lane?.off,
+        stat: staticValue(p, r.addr, info.spec),
+        sel: v.sel,
+        selPts: v.selPts,
+        rec: recOf(r.key, recs),
+        empty: v.pts.length ? null : 'Not automated yet. Click the line to add a point.',
       });
       g.restore();
       // an agent's lane arriving: crop marks in its ink over what it wrote, then gone
       const fl = laneFlash.level(r.key, now);
       if (fl > 0 && v.pts.length) {
-        const x0 = Math.max(2, v.pts[0].t * pb - sx), x1 = Math.min(W - 2, v.pts[v.pts.length - 1].t * pb - sx);
-        if (x1 > x0) arrivals.push({ x: x0, y: y + 4, w: Math.max(8, x1 - x0), h: r.h - 9, color: lane?.by ? (authorKind(app, lane.by) === 'agent' ? pal.agent : pal.human) : pal.agent, a: Math.min(1, fl * 4) });
+        const x0 = Math.max(2, v.pts[0].t * pb - sx),
+          x1 = Math.min(W - 2, v.pts[v.pts.length - 1].t * pb - sx);
+        if (x1 > x0)
+          arrivals.push({
+            x: x0,
+            y: y + 4,
+            w: Math.max(8, x1 - x0),
+            h: r.h - 9,
+            color: lane?.by ? (authorKind(app, lane.by) === 'agent' ? pal.agent : pal.human) : pal.agent,
+            a: Math.min(1, fl * 4),
+          });
       }
     }
   }
@@ -830,7 +1499,8 @@ function mountArranger(el, app) {
   function syncLaneValues(now) {
     if (now - laneValT < 100) return;
     laneValT = now;
-    const p = P(), beat = (app.engine || engine)?.beat || 0;
+    const p = P(),
+      beat = (app.engine || engine)?.beat || 0;
     for (const row of headsInner.children) {
       if (!row._lane) continue;
       const r = rows().lanes.get(row._lane);
@@ -852,54 +1522,168 @@ function mountArranger(el, app) {
     const sec = !n && selSection ? P().sections.find((x) => x.id === selSection) : null;
     const st = n === 1 ? takeInfo.get([...selClips][0]) : null;
     const ls = laneEd.sel && rows().lanes.get(laneEd.sel.key);
-    if (ls) { hint.textContent = `${laneInfo(app, P(), ls.addr).name}: click adds a point, Alt-drag bends, double-click deletes, right-click for shapes`; return; }
-    hint.textContent = sec ? `${sec.name}: ${MOD}D duplicates it with its clips, Shift+F10 or a right-click for more` : st ? `${(st.group[st.k - 1].name || st.track.name)}, ${st.k} of ${st.n} takes: ${MOD}↑ ${MOD}↓ switch takes, ⌥T or the badge opens the take lanes` : n > 1 ? `${n} clips: Delete removes them, ${MOD}D duplicates, 0 mutes` : n === 1 ? `Double-click to edit, Alt-drag to copy, 0 mutes it` : 'Double-click a lane for a new clip, or drag across bars to select them for your agent';
+    if (ls) {
+      hint.textContent = `${laneInfo(app, P(), ls.addr).name}: click adds a point, Alt-drag bends, double-click deletes, right-click for shapes`;
+      return;
+    }
+    hint.textContent = sec
+      ? `${sec.name}: ${MOD}D duplicates it with its clips, Shift+F10 or a right-click for more`
+      : st
+        ? `${st.group[st.k - 1].name || st.track.name}, ${st.k} of ${st.n} takes: ${MOD}↑ ${MOD}↓ switch takes, ⌥T or the badge opens the take lanes`
+        : n > 1
+          ? `${n} clips: Delete removes them, ${MOD}D duplicates, 0 mutes`
+          : n === 1
+            ? `Double-click to edit, Alt-drag to copy, 0 mutes it`
+            : 'Double-click a lane for a new clip, or drag across bars to select them for your agent';
   }
 
   /* ======================================================= headers */
   function buildHeads() {
     const p = P();
-    const L = rows(), ls = laneState(ui);
-    const laneSig = L.rows.filter((r) => r.kind === 'lane').map((r) => { const l = laneAt(p, r.addr), inf = laneInfo(app, p, r.addr); return [r.key, r.h, l?.by, l ? laneSigners(app, l).join() : '', !!l?.off, ls.draw === r.key, inf.name, inf.device, !!inf.spec]; });
-    const takeSig = L.rows.filter((r) => r.kind === 'take').map((r) => [r.i, r.k, r.h, r.folders.map((f) => (f.lanes[r.k] ? [f.lanes[r.k].name, f.lanes[r.k].clips[0].by, f.comp.map((x) => `${x.lane}@${x.start}-${x.end}`).join()] : null))]);
+    const L = rows(),
+      ls = laneState(ui);
+    const laneSig = L.rows
+      .filter((r) => r.kind === 'lane')
+      .map((r) => {
+        const l = laneAt(p, r.addr),
+          inf = laneInfo(app, p, r.addr);
+        return [
+          r.key,
+          r.h,
+          l?.by,
+          l ? laneSigners(app, l).join() : '',
+          !!l?.off,
+          ls.draw === r.key,
+          inf.name,
+          inf.device,
+          !!inf.spec,
+        ];
+      });
+    const takeSig = L.rows
+      .filter((r) => r.kind === 'take')
+      .map((r) => [
+        r.i,
+        r.k,
+        r.h,
+        r.folders.map((f) =>
+          f.lanes[r.k]
+            ? [f.lanes[r.k].name, f.lanes[r.k].clips[0].by, f.comp.map((x) => `${x.lane}@${x.start}-${x.end}`).join()]
+            : null,
+        ),
+      ]);
     const heldOn = keptOffTrack;
     // the sound card's state: the trial (its track shows "Light Table, trying"), the tracks whose Sounds is pending,
     // and the ghost lane (a new track R's take would make, or the one a take's card previews)
-    const tried = app.sounds?.trying?.() || null, gh = ghostInfo();
-    const sig = JSON.stringify([th(), p.tracks.map((t) => [t.id, t.name, t.color, t.kind, t.mute, t.solo, t.arm, t.by, t.instrument?.device, t.inserts.length, t.inserts.length ? t.inserts.slice(0, 3).map((x) => x.device).join() : '', laneKeysOn(p, t).length > 0, !!ls.tracks[t.id]?.open, heldOn(t), deviceName(app, t.instrument?.device), ((d) => d && [d.by, d.via])(app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device)), !!app.sounds?.pending?.(t.id)]), laneSig, takeSig, !!app.sounds, tried && [tried.track, tried.device, tried.newTrack], gh && [gh.track, gh.name]]);
-    if (sig === headSig) { syncHeadSel(); return; }
+    const tried = app.sounds?.trying?.() || null,
+      gh = ghostInfo();
+    const sig = JSON.stringify([
+      th(),
+      p.tracks.map((t) => [
+        t.id,
+        t.name,
+        t.color,
+        t.kind,
+        t.mute,
+        t.solo,
+        t.arm,
+        t.by,
+        t.instrument?.device,
+        t.inserts.length,
+        t.inserts.length
+          ? t.inserts
+              .slice(0, 3)
+              .map((x) => x.device)
+              .join()
+          : '',
+        laneKeysOn(p, t).length > 0,
+        !!ls.tracks[t.id]?.open,
+        heldOn(t),
+        deviceName(app, t.instrument?.device),
+        ((d) => d && [d.by, d.via])(
+          app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device),
+        ),
+        !!app.sounds?.pending?.(t.id),
+      ]),
+      laneSig,
+      takeSig,
+      !!app.sounds,
+      tried && [tried.track, tried.device, tried.newTrack],
+      gh && [gh.track, gh.name],
+    ]);
+    if (sig === headSig) {
+      syncHeadSel();
+      return;
+    }
     headSig = sig;
     const anySolo = p.tracks.some((t) => t.solo);
     const heads0 = p.tracks.map((t, i) => {
       const color = resolveColor(t.color);
       const ak = authorKind(app, t.by);
       // (M and S are also the keys, for the selected track: ui/mixer.js)
-      const flag = (k, label, title, key = null) => h(`button.ar-hb.ar-hb-${k}` + (t[k] ? '.on' : ''), {
-        ...(k === 'arm' ? { dataset: { feature: 'record-options' } } : {}),
-        title: key ? `${title} (${key})` : title, 'aria-label': `${title}: ${t.name}`, 'aria-pressed': String(!!t[k]),
-        onclick: (e) => {
-          e.stopPropagation();
-          if (k === 'arm') { if (e.metaKey || e.ctrlKey) armMore(t); else armOnly(t); return; }
-          store.dispatch({ type: 'track.set', track: t.id, patch: { [k]: !t[k] } }, { by: 'you', label: `${t[k] ? 'un' : ''}${k} ${t.name}` });
-        },
-      }, label);
+      const flag = (k, label, title, key = null) =>
+        h(
+          `button.ar-hb.ar-hb-${k}` + (t[k] ? '.on' : ''),
+          {
+            ...(k === 'arm' ? { dataset: { feature: 'record-options' } } : {}),
+            title: key ? `${title} (${key})` : title,
+            'aria-label': `${title}: ${t.name}`,
+            'aria-pressed': String(!!t[k]),
+            onclick: (e) => {
+              e.stopPropagation();
+              if (k === 'arm') {
+                if (e.metaKey || e.ctrlKey) armMore(t);
+                else armOnly(t);
+                return;
+              }
+              store.dispatch(
+                { type: 'track.set', track: t.id, patch: { [k]: !t[k] } },
+                { by: 'you', label: `${t[k] ? 'un' : ''}${k} ${t.name}` },
+              );
+            },
+          },
+          label,
+        );
       const name = h('span.ar-hname' + (t.mute ? '.struck' : ''), { title: 'Double-click to rename' }, t.name);
       const meterFill = h('div.ar-hmeter-fill');
       const inFill = h('i.ar-hin-fill');
-      const dev = t.kind === 'audio' ? (t.inserts.length ? t.inserts.map((x) => deviceName(app, x.device)).slice(0, 2).join(', ') + (t.inserts.length > 2 ? ' …' : '') : 'Audio in') : deviceName(app, t.instrument?.device);
+      const dev =
+        t.kind === 'audio'
+          ? t.inserts.length
+            ? t.inserts
+                .map((x) => deviceName(app, x.device))
+                .slice(0, 2)
+                .join(', ') + (t.inserts.length > 2 ? ' …' : '')
+            : 'Audio in'
+          : deviceName(app, t.instrument?.device);
       // the byline: whoever built the device ("Firefly, by Claude"), else an agent or a guest who wrote the part; the
       // house and you are unsigned here (your parts are signed on their clips). A held instrument (its code hasn't been
       // allowed on this computer) says "kept off" where the byline goes, the way a muted part says "muted"
       const held = heldOn(t);
-      const devDef = t.kind === 'instrument' ? app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device) || null : null;
+      const devDef =
+        t.kind === 'instrument'
+          ? app.devices?.getDevice?.(t.instrument?.device) || app.devices?.heldDevice?.(t.instrument?.device) || null
+          : null;
       const devBy = devDef?.by || null;
-      const signer = held ? null : [devBy, t.by].find((b) => b && b !== 'you' && authorKind(app, b) !== 'house') || null;
+      const signer = held
+        ? null
+        : [devBy, t.by].find((b) => b && b !== 'you' && authorKind(app, b) !== 'house') || null;
       // a device that came through someone else's link says whose ("Tape Organ, by Sam via Jo"; in full on its title)
       const devVia = devDef?.via && devDef.via !== devBy && signer === devBy ? devDef.via : null;
-      const devCredit = devBy && authorKind(app, devBy) !== 'house' ? `${dev}, made by ${devBy === 'you' ? 'you' : authorName(app, devBy)}${devVia ? `, via ${authorName(app, devVia)}’s link` : ''}` : '';
+      const devCredit =
+        devBy && authorKind(app, devBy) !== 'house'
+          ? `${dev}, made by ${devBy === 'you' ? 'you' : authorName(app, devBy)}${devVia ? `, via ${authorName(app, devVia)}’s link` : ''}`
+          : '';
       // (the simple view puts away the swatch (Track tools), R (Recording options) and the devices button (Sound): the
       // header keeps the name, the byline, the instrument (its name, which opens it big), M and S; ui/workspace.js)
-      const swatch = h('button.ar-swatch', { dataset: { feature: 'tracks' }, title: 'Track colour', 'aria-label': `Colour of ${t.name}`, onclick: (e) => { e.stopPropagation(); colorMenu(e.currentTarget, t); } });
+      const swatch = h('button.ar-swatch', {
+        dataset: { feature: 'tracks' },
+        title: 'Track colour',
+        'aria-label': `Colour of ${t.name}`,
+        onclick: (e) => {
+          e.stopPropagation();
+          colorMenu(e.currentTarget, t);
+        },
+      });
       const tall = th() >= 46;
       // the previewed new track of a take's sound card is drawn as the ghost lane, not as a track
       if (gh && gh.track === t.id) return ghostHead(gh);
@@ -908,63 +1692,162 @@ function mountArranger(el, app) {
       const pending = !!app.sounds?.pending?.(t.id);
       // The instrument as a button: the name opens it big (the device window, app.plugin); a held one opens the Devices
       // tab, where Play it lives. Only the name and its glyph open: the swatch and the header's space select.
-      const inst = isInst ? h('button.ar-hinst' + (trying ? '.trying' : ''), {
-        type: 'button',
-        title: held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : `Open ${dev} big: its sound, presets and a keyboard`,
-        'aria-label': `Open ${dev}, the instrument on ${t.name}${held ? ', kept off' : ''}`,
-        onclick: (e) => { e.stopPropagation(); openInstrument(t); },
-      }, h('span.ar-hinst-n', trying ? `${dev}, trying` : dev || 'No device'), icon('open', { size: 12 })) : null;
+      const inst = isInst
+        ? h(
+            'button.ar-hinst' + (trying ? '.trying' : ''),
+            {
+              type: 'button',
+              title: held
+                ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it'
+                : `Open ${dev} big: its sound, presets and a keyboard`,
+              'aria-label': `Open ${dev}, the instrument on ${t.name}${held ? ', kept off' : ''}`,
+              onclick: (e) => {
+                e.stopPropagation();
+                openInstrument(t);
+              },
+            },
+            h('span.ar-hinst-n', trying ? `${dev}, trying` : dev || 'No device'),
+            icon('open', { size: 12 }),
+          )
+        : null;
       // the devices button (Sound, put away in the simple view): an instrument track's effects, one click away
-      const devBtn = h('button.ar-hdev' + (isInst ? '.ar-hdev-fx' : ''), {
-        type: 'button', dataset: { feature: 'devices' },
-        title: (devCredit ? devCredit + '. ' : '') + (held ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it' : isInst ? `Open its devices: ${t.inserts.length ? t.inserts.map((x) => deviceName(app, x.device)).join(', ') : 'no effects yet'}` : 'Open its devices'),
-        'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`,
-        onclick: (e) => {
-          e.stopPropagation();
-          const had = e.currentTarget === document.activeElement;
-          ui.select({ track: t.id }); if (ui.panels.has('rack')) ui.show('rack');
-          // (selecting redraws the header: focus goes to the same button on the new one, not to the page)
-          if (had) requestAnimationFrame(() => { if (document.activeElement && document.activeElement !== document.body) return; headsInner.querySelector(`.ar-head[data-track="${t.id}"] .ar-hdev`)?.focus({ preventScroll: true }); });
+      const devBtn = h(
+        'button.ar-hdev' + (isInst ? '.ar-hdev-fx' : ''),
+        {
+          type: 'button',
+          dataset: { feature: 'devices' },
+          title:
+            (devCredit ? devCredit + '. ' : '') +
+            (held
+              ? 'Kept off: its code hasn’t run on this computer. Open its devices to play it'
+              : isInst
+                ? `Open its devices: ${t.inserts.length ? t.inserts.map((x) => deviceName(app, x.device)).join(', ') : 'no effects yet'}`
+                : 'Open its devices'),
+          'aria-label': `Devices on ${t.name}: ${devCredit || dev || 'none'}${held ? ', kept off' : ''}`,
+          onclick: (e) => {
+            e.stopPropagation();
+            const had = e.currentTarget === document.activeElement;
+            ui.select({ track: t.id });
+            if (ui.panels.has('rack')) ui.show('rack');
+            // (selecting redraws the header: focus goes to the same button on the new one, not to the page)
+            if (had)
+              requestAnimationFrame(() => {
+                if (document.activeElement && document.activeElement !== document.body) return;
+                headsInner.querySelector(`.ar-head[data-track="${t.id}"] .ar-hdev`)?.focus({ preventScroll: true });
+              });
+          },
         },
-      }, isInst ? icon('knob', { size: 13 }) : dev || 'No device');
+        isInst ? icon('knob', { size: 13 }) : dev || 'No device',
+      );
       // Sounds: on the selected track, on one the pointer is over or focus is in (CSS, over the name's end, so the
       // header never shifts), and pending on a new track until its card has been opened once
-      const sounds = isInst && app.sounds ? h('button.btn.btn-txt.ar-hsounds', {
-        type: 'button', title: `Hear ${t.name} on other instruments`, 'aria-label': `Sounds for ${t.name}`,
-        onclick: (e) => { e.stopPropagation(); if (ui.state.selection.track !== t.id) selectTrackArm(t); app.sounds.offer({ track: t.id, from: 'header', anchor: e.currentTarget }); },
-      }, 'Sounds') : null;
-      const row = h('div.ar-head' + (ui.state.selection.track === t.id ? '.sel' : '') + (t.mute || (anySolo && !t.solo) ? '.quiet' : '') + (pending ? '.pending' : '') + (tall ? '' : '.short'), {
-        dataset: { track: t.id, author: ak }, style: { height: th() + 'px' },
-        title: ak === 'house' ? t.name : `${t.name}, by ${authorName(app, t.by)}`,
-      },
-      // the header's own target, under its words and keys: a tap anywhere that isn't a key lands here and selects the
-      // track. (A finger beside the name landed on S: the browser takes a tap to the nearest thing that can be pressed,
-      // and the header's empty space wasn't one. A click listener makes it one; the row's pointer handlers select.)
-      h('div.ar-htap', { 'aria-hidden': 'true', onclick: () => {} }),
-      h('span.ar-hnum.num', { 'aria-hidden': 'true' }, String(i + 1).padStart(2, '0')),
-      h('div.ar-hmain',
-        h('div.ar-hrow', tall ? h('i.ar-hsw', { 'aria-hidden': 'true' }) : [h('i.ar-hsw.ar-hsw-off', { 'aria-hidden': 'true' }), swatch], name, sounds),
-        tall ? h('div.ar-hsub', swatch, inst,
-          isInst ? null : devBtn,
-          held ? h('span.ar-hby.ar-hheld', ', kept off') : signer ? h('span.ar-hby', ', by ', byline(signer, { app }), ...(devVia ? [' via ', byline(devVia, { app })] : [])) : null,
-          isInst ? devBtn : null) : null),
-      h('div.ar-hbtns', flag('mute', 'M', 'Mute', 'M'), flag('solo', 'S', 'Solo', 'S'), flag('arm', 'R', `${t.kind === 'audio' ? 'Arm to record audio' : 'Arm to record what you play'} (a selected track is armed; ${MOD}click arms one more)`),
-        // the simple view's R: a lamp on the track R records onto, not a button (Onto, in Sketch, picks another)
-        h('span.ar-hlamp', { role: 'img', 'aria-label': `R records onto ${t.name}`, title: `R records onto ${t.name}. Onto in Sketch picks another.` }, 'R'),
-        autoKey(t)),
-      h('div.ar-hmeter', meterFill),
-      // the armed track's input: a 2 px meter along the header's bottom edge
-      h('div.ar-hin', { 'aria-hidden': 'true' }, inFill),
-      // a sampled instrument's samples on their way: a hairline over that edge that fills as they come, until they're
-      // in (its words in its label; ui/kitload.js)
-      isInst && !held && kitHashes(devDef).length && kitState(devDef) !== 'ready' ? kitLine(devDef, { bare: true }) : null);
-      row.style.setProperty('--tc', color);   // (a custom property only takes through setProperty)
+      const sounds =
+        isInst && app.sounds
+          ? h(
+              'button.btn.btn-txt.ar-hsounds',
+              {
+                type: 'button',
+                title: `Hear ${t.name} on other instruments`,
+                'aria-label': `Sounds for ${t.name}`,
+                onclick: (e) => {
+                  e.stopPropagation();
+                  if (ui.state.selection.track !== t.id) selectTrackArm(t);
+                  app.sounds.offer({ track: t.id, from: 'header', anchor: e.currentTarget });
+                },
+              },
+              'Sounds',
+            )
+          : null;
+      const row = h(
+        'div.ar-head' +
+          (ui.state.selection.track === t.id ? '.sel' : '') +
+          (t.mute || (anySolo && !t.solo) ? '.quiet' : '') +
+          (pending ? '.pending' : '') +
+          (tall ? '' : '.short'),
+        {
+          dataset: { track: t.id, author: ak },
+          style: { height: th() + 'px' },
+          title: ak === 'house' ? t.name : `${t.name}, by ${authorName(app, t.by)}`,
+        },
+        // the header's own target, under its words and keys: a tap anywhere that isn't a key lands here and selects the
+        // track. (A finger beside the name landed on S: the browser takes a tap to the nearest thing that can be pressed,
+        // and the header's empty space wasn't one. A click listener makes it one; the row's pointer handlers select.)
+        h('div.ar-htap', { 'aria-hidden': 'true', onclick: () => {} }),
+        h('span.ar-hnum.num', { 'aria-hidden': 'true' }, String(i + 1).padStart(2, '0')),
+        h(
+          'div.ar-hmain',
+          h(
+            'div.ar-hrow',
+            tall
+              ? h('i.ar-hsw', { 'aria-hidden': 'true' })
+              : [h('i.ar-hsw.ar-hsw-off', { 'aria-hidden': 'true' }), swatch],
+            name,
+            sounds,
+          ),
+          tall
+            ? h(
+                'div.ar-hsub',
+                swatch,
+                inst,
+                isInst ? null : devBtn,
+                held
+                  ? h('span.ar-hby.ar-hheld', ', kept off')
+                  : signer
+                    ? h(
+                        'span.ar-hby',
+                        ', by ',
+                        byline(signer, { app }),
+                        ...(devVia ? [' via ', byline(devVia, { app })] : []),
+                      )
+                    : null,
+                isInst ? devBtn : null,
+              )
+            : null,
+        ),
+        h(
+          'div.ar-hbtns',
+          flag('mute', 'M', 'Mute', 'M'),
+          flag('solo', 'S', 'Solo', 'S'),
+          flag(
+            'arm',
+            'R',
+            `${t.kind === 'audio' ? 'Arm to record audio' : 'Arm to record what you play'} (a selected track is armed; ${MOD}click arms one more)`,
+          ),
+          // the simple view's R: a lamp on the track R records onto, not a button (Onto, in Sketch, picks another)
+          h(
+            'span.ar-hlamp',
+            {
+              role: 'img',
+              'aria-label': `R records onto ${t.name}`,
+              title: `R records onto ${t.name}. Onto in Sketch picks another.`,
+            },
+            'R',
+          ),
+          autoKey(t),
+        ),
+        h('div.ar-hmeter', meterFill),
+        // the armed track's input: a 2 px meter along the header's bottom edge
+        h('div.ar-hin', { 'aria-hidden': 'true' }, inFill),
+        // a sampled instrument's samples on their way: a hairline over that edge that fills as they come, until they're
+        // in (its words in its label; ui/kitload.js)
+        isInst && !held && kitHashes(devDef).length && kitState(devDef) !== 'ready'
+          ? kitLine(devDef, { bare: true })
+          : null,
+      );
+      row.style.setProperty('--tc', color); // (a custom property only takes through setProperty)
       row._fill = meterFill;
       row._in = inFill;
       row._arm = row.querySelector('.ar-hb-arm');
       row._track = t.id;
       headDrag(row, t, i);
-      row.addEventListener('contextmenu', (e) => { e.preventDefault(); if (row._touch) { if (!row._lift) liftHead(row, t, e); return; } trackMenu({ x: e.clientX, y: e.clientY }, t); });
+      row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (row._touch) {
+          if (!row._lift) liftHead(row, t, e);
+          return;
+        }
+        trackMenu({ x: e.clientX, y: e.clientY }, t);
+      });
       longPress(row, (pt) => liftHead(row, t, pt), { slop: 8, filter: (e) => !e.target.closest('button,input') });
       return row;
     });
@@ -975,42 +1858,100 @@ function mountArranger(el, app) {
       const mine = L.rows.filter((r) => r.kind === 'lane' && r.i === i);
       mine.forEach((r, k) => {
         const lane = laneAt(p, r.addr);
-        all.push(laneHead(app, {
-          t, addr: r.addr, key: r.key, lane, info: laneInfo(app, p, r.addr), height: r.h, draw: ls.draw === r.key, last: k === mine.length - 1,
-          onDraw: () => { ls.draw = ls.draw === r.key ? null : r.key; headSig = ''; buildHeads(); say(ls.draw ? 'Draw is on: drag across the lane to paint it.' : 'Draw is off.'); },
-          onBack: () => laneEd.back(r.addr),
-          onHide: () => hideLane(r.key),
-          onMenu: (pt) => laneEd.openMenu(pt, r, null, laneMenuMore(r)),
-          onPick: () => { ui.state.focus = 'arranger'; if (laneEd.pick(r.addr)) scroller.focus({ preventScroll: true }); },
-          onChoose: (pt) => laneEd.paramMenu(pt, t, r),
-          onAdd: (pt) => laneEd.paramMenu(pt, t, null),
-          onResize: (px, done) => resizeLane(r.key, px, done),
-        }));
+        all.push(
+          laneHead(app, {
+            t,
+            addr: r.addr,
+            key: r.key,
+            lane,
+            info: laneInfo(app, p, r.addr),
+            height: r.h,
+            draw: ls.draw === r.key,
+            last: k === mine.length - 1,
+            onDraw: () => {
+              ls.draw = ls.draw === r.key ? null : r.key;
+              headSig = '';
+              buildHeads();
+              say(ls.draw ? 'Draw is on: drag across the lane to paint it.' : 'Draw is off.');
+            },
+            onBack: () => laneEd.back(r.addr),
+            onHide: () => hideLane(r.key),
+            onMenu: (pt) => laneEd.openMenu(pt, r, null, laneMenuMore(r)),
+            onPick: () => {
+              ui.state.focus = 'arranger';
+              if (laneEd.pick(r.addr)) scroller.focus({ preventScroll: true });
+            },
+            onChoose: (pt) => laneEd.paramMenu(pt, t, r),
+            onAdd: (pt) => laneEd.paramMenu(pt, t, null),
+            onResize: (px, done) => resizeLane(r.key, px, done),
+          }),
+        );
       });
     };
-    p.tracks.forEach((t, i) => { all.push(heads0[i]); for (const r of L.rows) if (r.kind === 'take' && r.i === i) all.push(takeHead(t, r)); laneHeads(t, i); });
+    p.tracks.forEach((t, i) => {
+      all.push(heads0[i]);
+      for (const r of L.rows) if (r.kind === 'take' && r.i === i) all.push(takeHead(t, r));
+      laneHeads(t, i);
+    });
     const mrow = L.rows.find((r) => r.kind === 'mhead');
     if (mrow) {
-      all.push(h('div.ar-mhead', { style: { height: mrow.h + 'px' }, dataset: { master: '1' } },
-        h('span.ar-mname', 'Master'),
-        h('button.btn.btn-txt.ar-lhide', { type: 'button', title: 'Hide the master\'s lanes (they still play)', onclick: (e) => { e.stopPropagation(); toggleLanes('master', false); } }, 'Hide')));
+      all.push(
+        h(
+          'div.ar-mhead',
+          { style: { height: mrow.h + 'px' }, dataset: { master: '1' } },
+          h('span.ar-mname', 'Master'),
+          h(
+            'button.btn.btn-txt.ar-lhide',
+            {
+              type: 'button',
+              title: "Hide the master's lanes (they still play)",
+              onclick: (e) => {
+                e.stopPropagation();
+                toggleLanes('master', false);
+              },
+            },
+            'Hide',
+          ),
+        ),
+      );
       laneHeads(mrow.t, L.n);
     }
-    const addRow = h('button.ar-addrow', { dataset: { feature: 'tracks' }, style: { height: Math.max(40, Math.min(56, th())) + 'px' }, onclick: (e) => addTrackMenu(e.currentTarget) }, h('span', 'Add a track'));
+    const addRow = h(
+      'button.ar-addrow',
+      {
+        dataset: { feature: 'tracks' },
+        style: { height: Math.max(40, Math.min(56, th())) + 'px' },
+        onclick: (e) => addTrackMenu(e.currentTarget),
+      },
+      h('span', 'Add a track'),
+    );
     // the ghost lane's head at the foot, when R would make a new track (a previewed one took its own track's place)
     const ghostRow = gh && !gh.track ? ghostHead(gh) : null;
     headsInner.replaceChildren(...all, ...(ghostRow ? [ghostRow] : []), addRow);
-    ghostAt = gh ? (gh.track ? Math.max(0, p.tracks.findIndex((t) => t.id === gh.track)) : p.tracks.length) : -1;
+    ghostAt = gh
+      ? gh.track
+        ? Math.max(
+            0,
+            p.tracks.findIndex((t) => t.id === gh.track),
+          )
+        : p.tracks.length
+      : -1;
     syncGhost();
     laneValT = 0;
     presenceSig = '';
-    armSig = ''; syncArm();
+    armSig = '';
+    syncArm();
   }
   // Where a lane of a folder plays in its comp, in bar.beat: "plays" (all of it), "plays 5.1–6.1", "plays 5.1–5.3,
   // 6.1–6.2", "not playing" (the take lanes' heads and the takes menu say the same)
   function compWhere(f, k) {
     const mine = [];
-    for (const x of f.comp) { const l = mine[mine.length - 1]; if (x.lane !== k) continue; if (l && Math.abs(l.end - x.start) < EPS_T) l.end = x.end; else mine.push({ start: x.start, end: x.end }); }
+    for (const x of f.comp) {
+      const l = mine[mine.length - 1];
+      if (x.lane !== k) continue;
+      if (l && Math.abs(l.end - x.start) < EPS_T) l.end = x.end;
+      else mine.push({ start: x.start, end: x.end });
+    }
     if (!mine.length) return 'not playing';
     if (f.comp.every((x) => x.lane === k)) return 'plays';
     return `plays ${mine.map((x) => takeBars(x.start, x.end)).join(', ')}`;
@@ -1018,32 +1959,64 @@ function mountArranger(el, app) {
   // A take lane's header: the take's name (a click plays it over the whole folder), who played it, and where it plays
   // in the comp ("plays 9.1–11.1", "plays", "not playing")
   function takeHead(t, r) {
-    const f = r.folders.find((x) => x.lanes[r.k]), lane = f.lanes[r.k];
+    const f = r.folders.find((x) => x.lanes[r.k]),
+      lane = f.lanes[r.k];
     const name = lane.name || t.name;
     const where = compWhere(f, r.k);
-    const by = lane.clips[0].by, signed = by && authorKind(app, by) !== 'house';
-    return h('div.ar-takehead' + (where !== 'not playing' ? '.on' : ''), { style: { height: r.h + 'px' }, title: `${name}: ${where}`, dataset: { takeLane: String(r.k), takeTrack: t.id } },
-      h('button.ar-tkname', { type: 'button', title: `Play ${name} over the whole folder`, onclick: (e) => { e.stopPropagation(); compTake(t, f.id, r.k, f.start, f.end); } }, name),
+    const by = lane.clips[0].by,
+      signed = by && authorKind(app, by) !== 'house';
+    return h(
+      'div.ar-takehead' + (where !== 'not playing' ? '.on' : ''),
+      {
+        style: { height: r.h + 'px' },
+        title: `${name}: ${where}`,
+        dataset: { takeLane: String(r.k), takeTrack: t.id },
+      },
+      h(
+        'button.ar-tkname',
+        {
+          type: 'button',
+          title: `Play ${name} over the whole folder`,
+          onclick: (e) => {
+            e.stopPropagation();
+            compTake(t, f.id, r.k, f.start, f.end);
+          },
+        },
+        name,
+      ),
       signed ? h('span.ar-tkby', byline(by, { app })) : null,
-      h('span.ar-tkwhere', where));
+      h('span.ar-tkwhere', where),
+    );
   }
   // the A key beside M S R: on a track with lanes (or with its lanes open); lit while they show
   function autoKey(t) {
-    const p = P(), open = !!laneState(ui).tracks[t.id]?.open;
+    const p = P(),
+      open = !!laneState(ui).tracks[t.id]?.open;
     if (!open && !laneKeysOn(p, t).length) return null;
-    return h('button.ar-hb.ar-hb-auto' + (open ? '.on' : ''), {
-      title: 'Automation lanes: show or hide them (E)', 'aria-label': `Automation lanes: ${t.name}`, 'aria-pressed': String(open),
-      onclick: (e) => { e.stopPropagation(); toggleLanes(t.id); },
-    }, 'A');
+    return h(
+      'button.ar-hb.ar-hb-auto' + (open ? '.on' : ''),
+      {
+        title: 'Automation lanes: show or hide them (E)',
+        'aria-label': `Automation lanes: ${t.name}`,
+        'aria-pressed': String(open),
+        onclick: (e) => {
+          e.stopPropagation();
+          toggleLanes(t.id);
+        },
+      },
+      'A',
+    );
   }
   function syncHeadSel() {
-    for (const row of headsInner.children) if (row._track) row.classList.toggle('sel', row._track === ui.state.selection.track);
+    for (const row of headsInner.children)
+      if (row._track) row.classList.toggle('sel', row._track === ui.state.selection.track);
     syncArm();
   }
   // the R keys: lit on every armed track (on purpose, or the selected one by selection)
   let armSig = '';
   function syncArm() {
-    const lit = armedIds(), aim = aimId();
+    const lit = armedIds(),
+      aim = aimId();
     const sig = [...lit].join(',') + '|' + (aim || '');
     if (sig === armSig) return;
     armSig = sig;
@@ -1052,7 +2025,10 @@ function mountArranger(el, app) {
       const on = lit.has(row._track);
       row.classList.toggle('aimed', aim === row._track);
       row.classList.toggle('armed', on);
-      if (row._arm) { row._arm.classList.toggle('on', on); row._arm.setAttribute('aria-pressed', String(on)); }
+      if (row._arm) {
+        row._arm.classList.toggle('on', on);
+        row._arm.setAttribute('aria-pressed', String(on));
+      }
       if (!on && row._in) row._in.style.clipPath = 'inset(0 100% 0 0)';
     }
   }
@@ -1062,34 +2038,69 @@ function mountArranger(el, app) {
   function aimId() {
     const R = recorder();
     if (!R || typeof R.lands !== 'function') return null;
-    try { return R.lands()?.id || null; } catch (e) { return null; }
+    try {
+      return R.lands()?.id || null;
+    } catch (e) {
+      return null;
+    }
   }
   function ghostInfo() {
     const tr = app.sounds?.trying?.();
-    if (tr?.newTrack && tr.track && store.track(tr.track)) return { track: tr.track, name: `A new track, ${tr.name || deviceName(app, store.track(tr.track)?.instrument?.device)}` };
+    if (tr?.newTrack && tr.track && store.track(tr.track))
+      return {
+        track: tr.track,
+        name: `A new track, ${tr.name || deviceName(app, store.track(tr.track)?.instrument?.device)}`,
+      };
     if (!tracks().length) return null;
     const R = recorder();
     if (!R || typeof R.lands !== 'function') return null;
     const busy = R.state && R.state !== 'idle';
     if (!busy && !ui.visible?.('sketch')) return null;
     let lands;
-    try { lands = R.lands(); } catch (e) { return null; }
+    try {
+      lands = R.lands();
+    } catch (e) {
+      return null;
+    }
     if (lands !== null) return null;
     let hum = false;
-    try { hum = !!R.humming?.(); } catch (e) { hum = false; }
+    try {
+      hum = !!R.humming?.();
+    } catch (e) {
+      hum = false;
+    }
     const kind = hum ? 'hum' : app.input?.mode === 'tap' ? 'pads' : 'keys';
     const part = app.sounds?.newPart?.(kind) || { device: kind === 'pads' ? 'core.drums' : 'core.keys' };
     return { track: null, name: `A new track, ${deviceName(app, part.device)}` };
   }
   function ghostHead(gh) {
-    return h('div.ar-ghost', { style: { height: th() + 'px' }, dataset: { ghost: gh.track ? 'preview' : 'aim' }, title: gh.name },
+    return h(
+      'div.ar-ghost',
+      { style: { height: th() + 'px' }, dataset: { ghost: gh.track ? 'preview' : 'aim' }, title: gh.name },
       h('span.ar-hnum.num', { 'aria-hidden': 'true' }, ''),
       h('div.ar-hmain', h('span.ar-gname', gh.name)),
-      h('div.ar-hbtns', h('span.ar-hlamp.on', { role: 'img', 'aria-label': 'R records onto a new track', title: 'R records onto a new track' }, 'R')));
+      h(
+        'div.ar-hbtns',
+        h(
+          'span.ar-hlamp.on',
+          { role: 'img', 'aria-label': 'R records onto a new track', title: 'R records onto a new track' },
+          'R',
+        ),
+      ),
+    );
   }
-  let ghostAt = -1, ghostSig = '', ghostPos = '', aimT = 0;
+  let ghostAt = -1,
+    ghostSig = '',
+    ghostPos = '',
+    aimT = 0;
   function syncGhost() {
-    if (ghostAt < 0) { if (!ghostLane.hidden) { ghostLane.hidden = true; ghostPos = ''; } return; }
+    if (ghostAt < 0) {
+      if (!ghostLane.hidden) {
+        ghostLane.hidden = true;
+        ghostPos = '';
+      }
+      return;
+    }
     const pos = `top:${Math.round(trackTop(ghostAt) - scroller.scrollTop)}px;left:0;right:0;height:${th()}px`;
     if (pos === ghostPos && !ghostLane.hidden) return;
     ghostPos = pos;
@@ -1102,54 +2113,134 @@ function mountArranger(el, app) {
     aimT = now;
     const gh = ghostInfo();
     const sig = gh ? `${gh.track}|${gh.name}` : '';
-    if (sig !== ghostSig) { ghostSig = sig; headSig = ''; buildHeads(); dirty = true; }
-    else syncGhost();
+    if (sig !== ghostSig) {
+      ghostSig = sig;
+      headSig = '';
+      buildHeads();
+      dirty = true;
+    } else syncGhost();
     syncArm();
   }
   // the instrument opened big; a held one (kept off here) opens the Devices tab instead, where Play it is
   function openInstrument(t) {
     selectTrackArm(t);
-    if (keptOffTrack(t)) { ui.show('rack'); return; }
+    if (keptOffTrack(t)) {
+      ui.show('rack');
+      return;
+    }
     const r = app.plugin?.open?.({ track: t.id, slot: 'instrument' });
-    if (r && !r.ok) { if (r.held) ui.show('rack'); else ui.toast(r.error, { kind: 'bad' }); }
+    if (r && !r.ok) {
+      if (r.held) ui.show('rack');
+      else ui.toast(r.error, { kind: 'bad' });
+    }
   }
   function renameTrack(t, nameEl) {
     const inp = h('input.ar-hinput', { value: t.name, 'aria-label': 'Track name', maxlength: 40 });
     nameEl.replaceWith(inp);
-    inp.focus(); inp.select();
+    inp.focus();
+    inp.select();
     let done = false;
     const fin = (ok) => {
-      if (done) return; done = true;
+      if (done) return;
+      done = true;
       const v = inp.value.trim();
-      if (ok && v && v !== t.name) store.dispatch({ type: 'track.set', track: t.id, patch: { name: v } }, { by: 'you', label: `rename track to ${v}` });
-      headSig = ''; buildHeads();
+      if (ok && v && v !== t.name)
+        store.dispatch(
+          { type: 'track.set', track: t.id, patch: { name: v } },
+          { by: 'you', label: `rename track to ${v}` },
+        );
+      headSig = '';
+      buildHeads();
     };
-    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') fin(true); if (e.key === 'Escape') fin(false); });
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') fin(true);
+      if (e.key === 'Escape') fin(false);
+    });
     inp.addEventListener('blur', () => fin(true));
     inp.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
   function colorMenu(anchor, t) {
     const cols = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `var(--c-${i})`);
-    const grid = h('div.ar-colors', cols.map((c) => h('button.ar-color' + (t.color === c ? '.on' : ''), {
-      style: { background: c }, 'aria-label': 'colour ' + c, onclick: () => { closePopover(); store.dispatch({ type: 'track.set', track: t.id, patch: { color: c } }, { by: 'you', label: `colour ${t.name}` }); },
-    })));
+    const grid = h(
+      'div.ar-colors',
+      cols.map((c) =>
+        h('button.ar-color' + (t.color === c ? '.on' : ''), {
+          style: { background: c },
+          'aria-label': 'colour ' + c,
+          onclick: () => {
+            closePopover();
+            store.dispatch(
+              { type: 'track.set', track: t.id, patch: { color: c } },
+              { by: 'you', label: `colour ${t.name}` },
+            );
+          },
+        }),
+      ),
+    );
     popover(anchor, [h('div.ek-head', 'Track colour'), grid]);
   }
   function trackMenu(at, t) {
     const i = tracks().indexOf(t);
     menu(at, [
       { head: t.name },
-      { label: 'Rename', run: () => { const n = headsInner.querySelector(`[data-track="${t.id}"] .ar-hname`); if (n) renameTrack(t, n); } },
-      { label: 'Colour…', run: () => colorMenu(headsInner.querySelector(`[data-track="${t.id}"] .ar-swatch`) || at, t) },
-      ...(t.kind === 'instrument' && t.instrument ? [
-        { label: `Open ${deviceName(app, t.instrument.device)}`, sub: keptOffTrack(t) ? 'kept off: its devices' : 'its sound, presets and a keyboard', run: () => openInstrument(t) },
-        ...(app.sounds ? [{ label: 'Sounds', sub: 'hear it on other instruments', run: () => { if (ui.state.selection.track !== t.id) selectTrackArm(t); app.sounds.offer({ track: t.id, from: 'header', anchor: headsInner.querySelector(`[data-track="${t.id}"]`) || null }); } }] : []),
-      ] : []),
-      { label: `Devices on ${t.name}`, run: () => { ui.select({ track: t.id }); ui.show('rack'); } },
+      {
+        label: 'Rename',
+        run: () => {
+          const n = headsInner.querySelector(`[data-track="${t.id}"] .ar-hname`);
+          if (n) renameTrack(t, n);
+        },
+      },
+      {
+        label: 'Colour…',
+        run: () => colorMenu(headsInner.querySelector(`[data-track="${t.id}"] .ar-swatch`) || at, t),
+      },
+      ...(t.kind === 'instrument' && t.instrument
+        ? [
+            {
+              label: `Open ${deviceName(app, t.instrument.device)}`,
+              sub: keptOffTrack(t) ? 'kept off: its devices' : 'its sound, presets and a keyboard',
+              run: () => openInstrument(t),
+            },
+            ...(app.sounds
+              ? [
+                  {
+                    label: 'Sounds',
+                    sub: 'hear it on other instruments',
+                    run: () => {
+                      if (ui.state.selection.track !== t.id) selectTrackArm(t);
+                      app.sounds.offer({
+                        track: t.id,
+                        from: 'header',
+                        anchor: headsInner.querySelector(`[data-track="${t.id}"]`) || null,
+                      });
+                    },
+                  },
+                ]
+              : []),
+          ]
+        : []),
+      {
+        label: `Devices on ${t.name}`,
+        run: () => {
+          ui.select({ track: t.id });
+          ui.show('rack');
+        },
+      },
       { label: 'Automation…', kbd: 'E', sub: 'lanes under the track', run: () => automationMenu(at, t) },
       { label: 'Duplicate track', run: () => duplicateTrack(t) },
-      { label: 'Move up', disabled: i <= 0, run: () => store.dispatch({ type: 'track.move', track: t.id, index: i - 1 }, { by: 'you', label: `move ${t.name}` }) },
-      { label: 'Move down', disabled: i >= tracks().length - 1, run: () => store.dispatch({ type: 'track.move', track: t.id, index: i + 1 }, { by: 'you', label: `move ${t.name}` }) },
+      {
+        label: 'Move up',
+        disabled: i <= 0,
+        run: () =>
+          store.dispatch({ type: 'track.move', track: t.id, index: i - 1 }, { by: 'you', label: `move ${t.name}` }),
+      },
+      {
+        label: 'Move down',
+        disabled: i >= tracks().length - 1,
+        run: () =>
+          store.dispatch({ type: 'track.move', track: t.id, index: i + 1 }, { by: 'you', label: `move ${t.name}` }),
+      },
       ...sectionItem(at, sectionAt((app.engine || engine)?.beat || 0)),
       '-',
       { label: 'Delete track', danger: true, run: () => deleteTrack(t) },
@@ -1157,17 +2248,28 @@ function mountArranger(el, app) {
   }
   function deleteTrack(t) {
     const r = store.dispatch({ type: 'track.remove', track: t.id }, { by: 'you', label: `delete track ${t.name}` });
-    if (r.ok) ui.toast(`Deleted ${t.name}. ${MOD}Z brings it back.`, { action: { label: 'Undo', run: () => store.undo() } });
+    if (r.ok)
+      ui.toast(`Deleted ${t.name}. ${MOD}Z brings it back.`, { action: { label: 'Undo', run: () => store.undo() } });
     else ui.toast(r.error, { kind: 'bad' });
     return r;
   }
   function duplicateTrack(t) {
     const copy = JSON.parse(JSON.stringify(t));
-    delete copy.id; delete copy.by;
+    delete copy.id;
+    delete copy.by;
     copy.name = t.name + ' 2';
-    copy.clips = copy.clips.map((c) => { delete c.id; return c; });
-    copy.inserts = copy.inserts.map((x) => { delete x.id; return x; });
-    const r = store.dispatch({ type: 'track.add', track: copy, index: tracks().indexOf(t) + 1 }, { by: 'you', label: `duplicate ${t.name}` });
+    copy.clips = copy.clips.map((c) => {
+      delete c.id;
+      return c;
+    });
+    copy.inserts = copy.inserts.map((x) => {
+      delete x.id;
+      return x;
+    });
+    const r = store.dispatch(
+      { type: 'track.add', track: copy, index: tracks().indexOf(t) + 1 },
+      { by: 'you', label: `duplicate ${t.name}` },
+    );
     if (!r.ok) ui.toast(r.error, { kind: 'bad' });
   }
   // drag a header to reorder; a click selects. A finger: a drag scrolls the tracks (one finger always does); held
@@ -1177,11 +2279,20 @@ function mountArranger(el, app) {
     row.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || e.target.closest('button,input')) return;
       ui.state.focus = 'arranger';
-      const y0 = e.clientY, st0 = scroller.scrollTop, touch = e.pointerType === 'touch';
-      let moving = false, panning = false, to = -1;
-      row._lift = false; row._touch = touch;
+      const y0 = e.clientY,
+        st0 = scroller.scrollTop,
+        touch = e.pointerType === 'touch';
+      let moving = false,
+        panning = false,
+        to = -1;
+      row._lift = false;
+      row._touch = touch;
       const from = tracks().indexOf(t);
-      try { row.setPointerCapture(e.pointerId); } catch (_) { /* a synthetic pointer: the events still come here */ }
+      try {
+        row.setPointerCapture(e.pointerId);
+      } catch (_) {
+        /* a synthetic pointer: the events still come here */
+      }
       const mv = (ev) => {
         const dy = ev.clientY - y0;
         if (touch && !row._lift) {
@@ -1189,7 +2300,11 @@ function mountArranger(el, app) {
           if (panning) scroller.scrollTop = Math.max(0, st0 - dy);
           return;
         }
-        if (!moving && Math.abs(dy) > (row._lift ? 8 : 4)) { moving = true; row.classList.add('dragging'); if (row._lift) closePopover(); }
+        if (!moving && Math.abs(dy) > (row._lift ? 8 : 4)) {
+          moving = true;
+          row.classList.add('dragging');
+          if (row._lift) closePopover();
+        }
         if (!moving) return;
         row.style.transform = `translateY(${dy - (scroller.scrollTop - st0)}px)`;
         const r = heads.getBoundingClientRect();
@@ -1201,28 +2316,42 @@ function mountArranger(el, app) {
         laneWrap.append(dropHi);
       };
       const up = (ev) => {
-        row.removeEventListener('pointermove', mv); row.removeEventListener('pointerup', up); row.removeEventListener('pointercancel', up);
-        row.classList.remove('dragging'); row.style.transform = '';
+        row.removeEventListener('pointermove', mv);
+        row.removeEventListener('pointerup', up);
+        row.removeEventListener('pointercancel', up);
+        row.classList.remove('dragging');
+        row.style.transform = '';
         dropHi.hidden = true;
         const lifted = row._lift;
-        row._lift = false; row._touch = false;
+        row._lift = false;
+        row._touch = false;
         if (panning) return;
-        if (lifted && !moving) return;   // picked up and let go where it was: its menu stays open
+        if (lifted && !moving) return; // picked up and let go where it was: its menu stays open
         if (!moving) {
           if (ev.type === 'pointercancel') return;
           const now = performance.now();
-          const dbl = row._lastClick != null && now - row._lastClick < 400;   // (performance.now() starts at the page load)
+          const dbl = row._lastClick != null && now - row._lastClick < 400; // (performance.now() starts at the page load)
           row._lastClick = now;
-          if (dbl && e.target.closest('.ar-hname')) { renameTrack(t, row.querySelector('.ar-hname')); return; }
+          if (dbl && e.target.closest('.ar-hname')) {
+            renameTrack(t, row.querySelector('.ar-hname'));
+            return;
+          }
           // selecting a track arms it; ⌘-click arms one more
-          if (e.metaKey || e.ctrlKey) armMore(t); else selectTrackArm(t);
+          if (e.metaKey || e.ctrlKey) armMore(t);
+          else selectTrackArm(t);
           return;
         }
         const idx = to > from ? to - 1 : to;
-        if (idx >= 0 && idx !== from) store.dispatch({ type: 'track.move', track: t.id, index: idx }, { by: 'you', label: `move ${t.name}` });
-        else { headSig = ''; buildHeads(); }
+        if (idx >= 0 && idx !== from)
+          store.dispatch({ type: 'track.move', track: t.id, index: idx }, { by: 'you', label: `move ${t.name}` });
+        else {
+          headSig = '';
+          buildHeads();
+        }
       };
-      row.addEventListener('pointermove', mv); row.addEventListener('pointerup', up); row.addEventListener('pointercancel', up);
+      row.addEventListener('pointermove', mv);
+      row.addEventListener('pointerup', up);
+      row.addEventListener('pointercancel', up);
     });
   }
   // a finger held on a header picks the track up: its menu opens, and a drag from there moves it (the first time, a
@@ -1233,10 +2362,23 @@ function mountArranger(el, app) {
     row.classList.add('dragging');
     const r = row.getBoundingClientRect();
     trackMenu({ x: pt?.clientX ?? r.left + 20, y: pt?.clientY ?? r.top + r.height / 2 }, t);
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try {
+      navigator.vibrate?.(12);
+    } catch (e) {
+      /* no buzz */
+    }
     let first = false;
-    try { first = localStorage.getItem(HEAD_LIFT_HINT) !== '1'; if (first) localStorage.setItem(HEAD_LIFT_HINT, '1'); } catch (e) { first = false; }
-    if (first) ui.toast(`Holding ${t.name} opens its menu; keep holding and drag up or down to move it. M mutes it; a drag without holding scrolls.`, { ms: 7000 });
+    try {
+      first = localStorage.getItem(HEAD_LIFT_HINT) !== '1';
+      if (first) localStorage.setItem(HEAD_LIFT_HINT, '1');
+    } catch (e) {
+      first = false;
+    }
+    if (first)
+      ui.toast(
+        `Holding ${t.name} opens its menu; keep holding and drag up or down to move it. M mutes it; a drag without holding scrolls.`,
+        { ms: 7000 },
+      );
     else say(`${t.name}: its menu. Keep holding and drag to move it.`);
   }
 
@@ -1245,8 +2387,14 @@ function mountArranger(el, app) {
     const p = P();
     const i = p.tracks.length;
     const track = { color: `var(--c-${(i % 8) + 1})`, ...spec };
-    const r = store.dispatch({ type: 'track.add', track, ref: 'new' }, { by: 'you', label: `add track ${track.name || ''}`.trim() });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return null; }
+    const r = store.dispatch(
+      { type: 'track.add', track, ref: 'new' },
+      { by: 'you', label: `add track ${track.name || ''}`.trim() },
+    );
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return null;
+    }
     const id = r.created.new || r.created.track;
     if (select) ui.select({ track: id, clip: null, notes: [] });
     requestAnimationFrame(() => revealTrack(id));
@@ -1257,7 +2405,8 @@ function mountArranger(el, app) {
   const cutWords = (s, n = 34) => {
     s = String(s).trim();
     if (s.length <= n) return s;
-    const head = s.slice(0, n + 1), at = head.lastIndexOf(' ');
+    const head = s.slice(0, n + 1),
+      at = head.lastIndexOf(' ');
     return (at > 0 ? head.slice(0, at) : s.slice(0, n)).replace(/[\s,;:.–—-]+$/, '') + '…';
   };
   // Every instrument the studio has (the built-ins, the house shelf, this song's own), by kind: Synths, Keys, Drums,
@@ -1266,9 +2415,17 @@ function mountArranger(el, app) {
   function addTrackMenu(anchor) {
     const inst = app.devices.listDevices({ kind: 'instrument' });
     const by = new Map();
-    for (const d of inst) { if (!by.has(d.cat)) by.set(d.cat, []); by.get(d.cat).push(d); }
+    for (const d of inst) {
+      if (!by.has(d.cat)) by.set(d.cat, []);
+      by.get(d.cat).push(d);
+    }
     if (!by.has('drums')) by.set('drums', [{ id: 'core.drums', name: 'Drums', blurb: 'a drum kit', cat: 'drums' }]);
-    const cats = [...DEVICE_CATS, ...[...by.keys()].filter((c) => !DEVICE_CATS.some(([k]) => k === c)).map((c) => [c, c ? c[0].toUpperCase() + c.slice(1) : 'Other'])];
+    const cats = [
+      ...DEVICE_CATS,
+      ...[...by.keys()]
+        .filter((c) => !DEVICE_CATS.some(([k]) => k === c))
+        .map((c) => [c, c ? c[0].toUpperCase() + c.slice(1) : 'Other']),
+    ];
     const items = [];
     for (const [cat, label] of cats) {
       const ds = by.get(cat);
@@ -1277,23 +2434,57 @@ function mountArranger(el, app) {
       items.push({ head: label });
       for (const d of ds) {
         const spec = { kind: 'instrument', name: d.name, instrument: { device: d.id, params: {} } };
-        items.push(cat === 'drums'
-          ? { label: d.name, sub: d.blurb ? cutWords(d.blurb) : 'drum grid', title: d.blurb, run: () => { const id = addTrack(spec); if (id) newClipAt(id, floorTo(Math.max(0, engine.beat || 0), bpbOf()), { open: true }); } }
-          : { label: d.name, sub: d.blurb ? cutWords(d.blurb) : d.cat, title: d.blurb, run: () => addTrack(spec) });
+        items.push(
+          cat === 'drums'
+            ? {
+                label: d.name,
+                sub: d.blurb ? cutWords(d.blurb) : 'drum grid',
+                title: d.blurb,
+                run: () => {
+                  const id = addTrack(spec);
+                  if (id) newClipAt(id, floorTo(Math.max(0, engine.beat || 0), bpbOf()), { open: true });
+                },
+              }
+            : { label: d.name, sub: d.blurb ? cutWords(d.blurb) : d.cat, title: d.blurb, run: () => addTrack(spec) },
+        );
       }
     }
-    if (!inst.length) items.unshift({ head: 'Synths' }, { label: 'Synth', sub: 'core.poly', run: () => addTrack({ kind: 'instrument', name: 'Synth', instrument: { device: 'core.poly', params: {} } }) }, '-');
-    items.push('-', { head: 'Audio' }, { label: 'Audio track', sub: 'mic, guitar, a file', run: () => addTrack({ kind: 'audio', name: 'Audio', instrument: null }) });
+    if (!inst.length)
+      items.unshift(
+        { head: 'Synths' },
+        {
+          label: 'Synth',
+          sub: 'core.poly',
+          run: () => addTrack({ kind: 'instrument', name: 'Synth', instrument: { device: 'core.poly', params: {} } }),
+        },
+        '-',
+      );
+    items.push(
+      '-',
+      { head: 'Audio' },
+      {
+        label: 'Audio track',
+        sub: 'mic, guitar, a file',
+        run: () => addTrack({ kind: 'audio', name: 'Audio', instrument: null }),
+      },
+    );
     menu(anchor, items, { label: 'Add a track' });
   }
 
   /* ======================================================= sections */
   function addSection() {
-    const p = P(), bpb = bpbOf();
+    const p = P(),
+      bpb = bpbOf();
     const end = p.sections.reduce((m, s) => Math.max(m, s.start + s.length), 0);
     const name = nextSectionName(p);
-    const r = store.dispatch({ type: 'section.add', section: { name, start: end, length: bpb * 4 }, ref: 'sec' }, { by: 'you', label: `add section ${name}` });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
+    const r = store.dispatch(
+      { type: 'section.add', section: { name, start: end, length: bpb * 4 }, ref: 'sec' },
+      { by: 'you', label: `add section ${name}` },
+    );
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return;
+    }
     const id = r.created.sec || r.created.section;
     selSection = id;
     reveal(end);
@@ -1304,19 +2495,34 @@ function mountArranger(el, app) {
     if (!s) return;
     const x = s.start * ppb() - scroller.scrollLeft;
     const w = Math.max(90, s.length * ppb());
-    const inp = h('input.ar-secinput', { value: s.name, maxlength: 32, 'aria-label': 'Section name', style: { left: Math.max(0, x) + 'px', width: Math.min(w, 220) + 'px' } });
+    const inp = h('input.ar-secinput', {
+      value: s.name,
+      maxlength: 32,
+      'aria-label': 'Section name',
+      style: { left: Math.max(0, x) + 'px', width: Math.min(w, 220) + 'px' },
+    });
     const back = focusBack();
     rulerWrap.append(inp);
-    inp.focus(); inp.select();
+    inp.focus();
+    inp.select();
     let done = false;
     const fin = (ok, keyed = false) => {
-      if (done) return; done = true;
+      if (done) return;
+      done = true;
       const v = inp.value.trim();
       inp.remove();
       if (keyed) back();
-      if (ok && v && v !== s.name) store.dispatch({ type: 'section.set', section: id, patch: { name: v } }, { by: 'you', label: `rename section to ${v}` });
+      if (ok && v && v !== s.name)
+        store.dispatch(
+          { type: 'section.set', section: id, patch: { name: v } },
+          { by: 'you', label: `rename section to ${v}` },
+        );
     };
-    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') fin(true, true); if (e.key === 'Escape') fin(false, true); });
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') fin(true, true);
+      if (e.key === 'Escape') fin(false, true);
+    });
     inp.addEventListener('blur', () => fin(true));
   }
   // a rename field that came from the keyboard (the lanes or the section strip, or a menu opened from them) hands focus
@@ -1324,19 +2530,59 @@ function mountArranger(el, app) {
   function focusBack() {
     const from = document.activeElement;
     const to = from === rulerWrap || from === scroller ? from : null;
-    return () => { if (to && to.isConnected && (!document.activeElement || document.activeElement === document.body)) to.focus({ preventScroll: true }); };
+    return () => {
+      if (to && to.isConnected && (!document.activeElement || document.activeElement === document.body))
+        to.focus({ preventScroll: true });
+    };
   }
   function sectionMenu(at, s) {
     menu(at, [
       { head: s.name },
       { label: 'Rename', run: () => renameSection(s.id) },
-      { label: 'Select its bars', sub: 'for you or your agent', run: () => { selSection = s.id; ui.select({ range: { from: s.start, to: s.start + s.length } }); } },
-      { label: 'Loop it', run: () => store.dispatch({ type: 'project.set', patch: { loop: { on: true, start: s.start, end: s.start + s.length } } }, { by: 'you', label: `loop ${s.name}` }) },
+      {
+        label: 'Select its bars',
+        sub: 'for you or your agent',
+        run: () => {
+          selSection = s.id;
+          ui.select({ range: { from: s.start, to: s.start + s.length } });
+        },
+      },
+      {
+        label: 'Loop it',
+        run: () =>
+          store.dispatch(
+            { type: 'project.set', patch: { loop: { on: true, start: s.start, end: s.start + s.length } } },
+            { by: 'you', label: `loop ${s.name}` },
+          ),
+      },
       '-',
-      { label: 'Duplicate', kbd: `${MOD}D`, sub: 'with its clips', title: 'Copy the section and its clips right after it; what comes after moves right', run: () => duplicateSection(s) },
-      { label: 'Insert bars after', sub: '1, 2, 4 or 8', run: () => menu(at, [{ head: `Insert after ${s.name}` }, ...[1, 2, 4, 8].map((n) => ({ label: spanLabel(P(), n * bpbOf()), run: () => insertBars(s.start + s.length, n) }))]) },
+      {
+        label: 'Duplicate',
+        kbd: `${MOD}D`,
+        sub: 'with its clips',
+        title: 'Copy the section and its clips right after it; what comes after moves right',
+        run: () => duplicateSection(s),
+      },
+      {
+        label: 'Insert bars after',
+        sub: '1, 2, 4 or 8',
+        run: () =>
+          menu(at, [
+            { head: `Insert after ${s.name}` },
+            ...[1, 2, 4, 8].map((n) => ({
+              label: spanLabel(P(), n * bpbOf()),
+              run: () => insertBars(s.start + s.length, n),
+            })),
+          ]),
+      },
       '-',
-      { label: 'Delete section', danger: true, sub: 'keeps the clips', run: () => store.dispatch({ type: 'section.remove', section: s.id }, { by: 'you', label: `delete section ${s.name}` }) },
+      {
+        label: 'Delete section',
+        danger: true,
+        sub: 'keeps the clips',
+        run: () =>
+          store.dispatch({ type: 'section.remove', section: s.id }, { by: 'you', label: `delete section ${s.name}` }),
+      },
       { label: 'Delete these bars', danger: true, sub: 'and what’s in them', run: () => deleteBars(s) },
     ]);
   }
@@ -1345,39 +2591,65 @@ function mountArranger(el, app) {
   // Plan from the song as it is, then one undo step by you; a plan that can't be made says why.
   function arrange(plan, args, label) {
     let pl;
-    try { pl = plan(P(), args); } catch (e) { ui.toast(e.message, { kind: 'bad' }); return null; }
+    try {
+      pl = plan(P(), args);
+    } catch (e) {
+      ui.toast(e.message, { kind: 'bad' });
+      return null;
+    }
     if (!pl.ops.length) return pl;
     const r = store.dispatch(pl.ops, { by: 'you', label });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return null; }
-    dirty = true; rulerDirty = true;
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return null;
+    }
+    dirty = true;
+    rulerDirty = true;
     return pl;
   }
   // (an undo refuses when someone has since written into a clip it would rewrite or remove: say so, don't go quiet)
-  const undoToast = (text) => ui.toast(text, { action: { label: 'Undo', run: () => {
-    const u = store.undo({ by: 'you' });
-    if (!u.ok) ui.toast(`Couldn't undo it: ${u.error.replace(/^could not undo: (op \d+ of \d+ \([^)]*\) failed: )?/, '').replace(/ — nothing was changed.*$/, '')}.`, { kind: 'bad' });
-  } } });
+  const undoToast = (text) =>
+    ui.toast(text, {
+      action: {
+        label: 'Undo',
+        run: () => {
+          const u = store.undo({ by: 'you' });
+          if (!u.ok)
+            ui.toast(
+              `Couldn't undo it: ${u.error.replace(/^could not undo: (op \d+ of \d+ \([^)]*\) failed: )?/, '').replace(/ — nothing was changed.*$/, '')}.`,
+              { kind: 'bad' },
+            );
+        },
+      },
+    });
   function duplicateSection(s) {
     const r = arrange(planSectionDuplicate, { section: s.id, push: true }, `duplicate ${s.name}`);
     if (!r) return null;
-    selSection = r.section; selClips.clear();
+    selSection = r.section;
+    selClips.clear();
     ui.select({ clip: null, range: { from: r.to, to: r.to + r.length } });
     reveal(r.to + r.length / 2);
     undoToast(r.summary);
     return r;
   }
   function insertBars(at, bars) {
-    const r = arrange(planTimeInsert, { at, length: bars * bpbOf() }, `insert ${spanLabel(P(), bars * bpbOf())} at ${whereLabel(P(), at)}`);
+    const r = arrange(
+      planTimeInsert,
+      { at, length: bars * bpbOf() },
+      `insert ${spanLabel(P(), bars * bpbOf())} at ${whereLabel(P(), at)}`,
+    );
     if (r && !r.ops.length) ui.toast(`Nothing comes after ${whereLabel(P(), at)}, so there was nothing to move.`);
     else if (r) undoToast(r.summary);
     return r;
   }
   function deleteBars(s) {
-    const a = Math.floor(s.start / bpbOf() + 1e-9) + 1, b = Math.ceil((s.start + s.length) / bpbOf() - 1e-9);
+    const a = Math.floor(s.start / bpbOf() + 1e-9) + 1,
+      b = Math.ceil((s.start + s.length) / bpbOf() - 1e-9);
     const what = `${s.name} (${a === b ? `bar ${a}` : `bars ${a}–${b}`})`;
     const r = arrange(planTimeRemove, { at: s.start, length: s.length }, `delete the bars of ${s.name}`);
     if (!r) return null;
-    selSection = null; selClips.clear();
+    selSection = null;
+    selClips.clear();
     ui.select({ clip: null, range: null });
     undoToast(`${r.summary.replace(/^Deleted [^:.]*/, `Deleted ${what}`)} ${MOD}Z brings them back.`);
     return r;
@@ -1388,7 +2660,11 @@ function mountArranger(el, app) {
     selClips = new Set([c.id, ...r.clips]);
     // the view stays where it was, on the clip you repeated (the copies run on to the right; the toast says how far).
     // Only a clip that wasn't in view (a repeat from the inspector or an agent's call) is brought into it.
-    if (c.start * ppb() + 8 > scroller.scrollLeft + scroller.clientWidth || (c.start + c.length) * ppb() < scroller.scrollLeft + 8) reveal(c.start);
+    if (
+      c.start * ppb() + 8 > scroller.scrollLeft + scroller.clientWidth ||
+      (c.start + c.length) * ppb() < scroller.scrollLeft + 8
+    )
+      reveal(c.start);
     undoToast(r.summary);
     return r;
   }
@@ -1407,13 +2683,20 @@ function mountArranger(el, app) {
     const g = at == null ? ui.state.snap || 0 : 0;
     at = g > 0 ? snapTo(raw, g) : raw;
     if (!(at > c.start + 1e-6 && at < c.start + c.length - 1e-6)) {
-      ui.toast(`On the ${snapLabel(g)} grid the playhead sits on the edge of ${name}, so there’s nothing to cut. Move it in, or set snap off.${note}`, { ms });
+      ui.toast(
+        `On the ${snapLabel(g)} grid the playhead sits on the edge of ${name}, so there’s nothing to cut. Move it in, or set snap off.${note}`,
+        { ms },
+      );
       return null;
     }
     const r = arrange(planClipSplit, { track: t.id, clip: c.id, at }, `split ${name}`);
     if (!r) return null;
     // a take folder split in two: both halves are folders, open if it was
-    if (r.side && takesOpen.has(c.take)) { takesOpen.add(r.side); takesVer++; relayout(); }
+    if (r.side && takesOpen.has(c.take)) {
+      takesOpen.add(r.side);
+      takesVer++;
+      relayout();
+    }
     selClips = new Set([r.clip]);
     ui.select({ track: t.id, clip: r.clip, notes: [] });
     ui.toast(r.summary.replace(` at ${whereLabel(P(), at)}`, ` at ${barBeat(at)}`) + note, { ms });
@@ -1421,7 +2704,9 @@ function mountArranger(el, app) {
   }
   // "bar 3" on a bar line, else "bar 1, beat 3.25" (beats counted from 1 within the bar)
   function barBeat(beat) {
-    const bpb = bpbOf(), bar = Math.floor(beat / bpb + 1e-9), inBar = beat - bar * bpb;
+    const bpb = bpbOf(),
+      bar = Math.floor(beat / bpb + 1e-9),
+      inBar = beat - bar * bpb;
     if (Math.abs(inBar) < 1e-6) return `bar ${bar + 1}`;
     return `bar ${bar + 1}, beat ${Math.round((inBar + 1) * 1000) / 1000}`;
   }
@@ -1433,20 +2718,40 @@ function mountArranger(el, app) {
     const b = playheadBeat();
     const under = list.filter(({ c }) => b > c.start && b < c.start + c.length);
     if (under.length === 1) return splitClip(under[0].t, under[0].c, null, { note });
-    ui.toast((under.length ? `${under.length} of the selected clips are under the playhead. Select one to split it.` : `None of the ${list.length} selected clips is under the playhead. Select one, or click the ruler where the cut goes.`) + note, { ms: note ? 6000 : undefined });
+    ui.toast(
+      (under.length
+        ? `${under.length} of the selected clips are under the playhead. Select one to split it.`
+        : `None of the ${list.length} selected clips is under the playhead. Select one, or click the ruler where the cut goes.`) +
+        note,
+      { ms: note ? 6000 : undefined },
+    );
     return null;
   }
-  const splitKey = () => splitSelected({ note: ui.keys.firstPress?.('mod+KeyE') ? ` \`${MOD}E\` splits now, as in Ableton Live. ${ui.keys.movedNote || ''}`.trimEnd() : '' });
+  const splitKey = () =>
+    splitSelected({
+      note: ui.keys.firstPress?.('mod+KeyE')
+        ? ` \`${MOD}E\` splits now, as in Ableton Live. ${ui.keys.movedNote || ''}`.trimEnd()
+        : '',
+    });
 
   /* ======================================================= clips */
   function newClipAt(trackId, beat, { open = false } = {}) {
     const t = store.track(trackId);
     if (!t) return null;
-    if (t.kind === 'audio') { ui.toast(`${t.name} is an audio track: arm it (●) and record, or drop a sound on it.`); return null; }
+    if (t.kind === 'audio') {
+      ui.toast(`${t.name} is an audio track: arm it (●) and record, or drop a sound on it.`);
+      return null;
+    }
     const bpb = bpbOf();
     const start = Math.max(0, floorTo(beat, bpb));
-    const r = store.dispatch({ type: 'clip.add', track: trackId, clip: { kind: 'notes', start, length: bpb * 4, notes: [] }, ref: 'clip' }, { by: 'you', label: `new clip on ${t.name}` });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return null; }
+    const r = store.dispatch(
+      { type: 'clip.add', track: trackId, clip: { kind: 'notes', start, length: bpb * 4, notes: [] }, ref: 'clip' },
+      { by: 'you', label: `new clip on ${t.name}` },
+    );
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return null;
+    }
     const id = r.created.clip;
     selClips = new Set([id]);
     ui.select({ track: trackId, clip: id, notes: [], range: null });
@@ -1470,8 +2775,13 @@ function mountArranger(el, app) {
   // A take folder moves whole: a drag of any of its clips takes every take in it along (the comp and the takes under
   // it), so a drag never pulls a take out of its folder (or leaves the folder's muted takes behind). -> the drag's items
   function moveItems(list) {
-    const out = [], seen = new Set();
-    const add = (t, c) => { if (seen.has(c.id)) return; seen.add(c.id); out.push({ t, c, row: tracks().indexOf(t), start: c.start }); };
+    const out = [],
+      seen = new Set();
+    const add = (t, c) => {
+      if (seen.has(c.id)) return;
+      seen.add(c.id);
+      out.push({ t, c, row: tracks().indexOf(t), start: c.start });
+    };
     for (const { t, c } of list) {
       add(t, c);
       if (c.take) for (const x of t.clips) if (x.take === c.take) add(t, x);
@@ -1483,7 +2793,8 @@ function mountArranger(el, app) {
   function deleteSelected() {
     if (selSection && !selClips.size) {
       const s = P().sections.find((x) => x.id === selSection);
-      if (s) store.dispatch({ type: 'section.remove', section: s.id }, { by: 'you', label: `delete section ${s.name}` });
+      if (s)
+        store.dispatch({ type: 'section.remove', section: s.id }, { by: 'you', label: `delete section ${s.name}` });
       selSection = null;
       return true;
     }
@@ -1492,7 +2803,9 @@ function mountArranger(el, app) {
     const ops = list.map(({ t, c }) => ({ type: 'clip.remove', track: t.id, clip: c.id }));
     // a take that was playing goes: the newest take left in its stack plays, as the badge's Delete does (else the
     // bars go silent under muted takes). Same undo step.
-    const gone = new Set(list.map(({ c }) => c.id)), seen = new Set(), plays = [];
+    const gone = new Set(list.map(({ c }) => c.id)),
+      seen = new Set(),
+      plays = [];
     for (const { c } of list) {
       const st = stackOf(c.id);
       if (!st || seen.has(st.group[0].id)) continue;
@@ -1503,14 +2816,24 @@ function mountArranger(el, app) {
       ops.push({ type: 'clip.set', track: st.track.id, clip: next.id, patch: { mute: false } });
       plays.push(next.name || st.track.name);
     }
-    const r = store.dispatch(ops, { by: 'you', label: list.length > 1 ? `delete ${list.length} clips` : `delete clip ${list[0].c.name || ''}`.trim() });
-    if (r.ok) { selClips.clear(); ui.select({ clip: null, notes: [] }); if (plays.length) say(`${plays.join(', ')} ${plays.length > 1 ? 'play' : 'plays'} in ${plays.length > 1 ? 'their' : 'its'} place.`); }
-    else ui.toast(r.error, { kind: 'bad' });
+    const r = store.dispatch(ops, {
+      by: 'you',
+      label: list.length > 1 ? `delete ${list.length} clips` : `delete clip ${list[0].c.name || ''}`.trim(),
+    });
+    if (r.ok) {
+      selClips.clear();
+      ui.select({ clip: null, notes: [] });
+      if (plays.length)
+        say(
+          `${plays.join(', ')} ${plays.length > 1 ? 'play' : 'plays'} in ${plays.length > 1 ? 'their' : 'its'} place.`,
+        );
+    } else ui.toast(r.error, { kind: 'bad' });
     return true;
   }
   function copyOf(c, start, keepName = true) {
     const x = JSON.parse(JSON.stringify(c));
-    delete x.id; delete x.by;
+    delete x.id;
+    delete x.by;
     x.start = Math.max(0, start);
     if (!keepName) delete x.name;
     return x;
@@ -1521,12 +2844,24 @@ function mountArranger(el, app) {
     const from = Math.min(...list.map(({ c }) => c.start));
     const to = Math.max(...list.map(({ c }) => c.start + c.length));
     const span = to - from;
-    const adds = list.map(({ t, c }, i) => ({ type: 'clip.add', track: t.id, clip: copyOf(c, c.start + span), ref: 'd' + i }));
-    retake(adds.map((o) => o.clip));   // (copies of takes never join the source's folder)
-    const ops = adds
-      .concat(followOps(list.map(({ t, c }) => ({ track: t.id, clip: c.id, start: c.start + span, copy: true }))));
-    const r = store.dispatch(ops, { by: 'you', label: list.length > 1 ? `duplicate ${list.length} clips` : 'duplicate clip' });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
+    const adds = list.map(({ t, c }, i) => ({
+      type: 'clip.add',
+      track: t.id,
+      clip: copyOf(c, c.start + span),
+      ref: 'd' + i,
+    }));
+    retake(adds.map((o) => o.clip)); // (copies of takes never join the source's folder)
+    const ops = adds.concat(
+      followOps(list.map(({ t, c }) => ({ track: t.id, clip: c.id, start: c.start + span, copy: true }))),
+    );
+    const r = store.dispatch(ops, {
+      by: 'you',
+      label: list.length > 1 ? `duplicate ${list.length} clips` : 'duplicate clip',
+    });
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return;
+    }
     selClips = new Set(list.map((_, i) => r.created['d' + i]).filter(Boolean));
     const first = list[0];
     ui.select({ track: first.t.id, clip: r.created.d0, notes: [] });
@@ -1552,15 +2887,29 @@ function mountArranger(el, app) {
   // to be findable: DECISION.md, amendment 6); after that, one line.
   const MUTE_HINT = 'overdub:clip-mute-hint';
   function muteToast(list, mute) {
-    const one = list.length === 1, c = list[0].c, name = one ? c.name || list[0].t.name : `${list.length} clips`;
+    const one = list.length === 1,
+      c = list[0].c,
+      name = one ? c.name || list[0].t.name : `${list.length} clips`;
     const where = one ? `, ${barsOf(c)}` : '';
     let first = false;
-    try { first = mute && localStorage.getItem(MUTE_HINT) !== '1'; if (first) localStorage.setItem(MUTE_HINT, '1'); } catch (e) { first = false; }
+    try {
+      first = mute && localStorage.getItem(MUTE_HINT) !== '1';
+      if (first) localStorage.setItem(MUTE_HINT, '1');
+    } catch (e) {
+      first = false;
+    }
     const key = touchFirst() ? null : h('kbd', '0');
     const them = one ? 'it' : 'them';
-    const text = !mute ? [`${name} ${one ? 'plays' : 'play'} again${where}.`]
-      : first ? [`${name} muted${where}. ${one ? 'It stays' : 'They stay'} in the song, silent; `, ...(key ? ['press ', key, ` on ${them} to hear ${them} again.`] : [`hold ${them} and pick Unmute to hear ${them} again.`])]
-      : [`${name} muted${where}.`, ...(key ? [' ', key, ' brings ', them, ' back.'] : [])];
+    const text = !mute
+      ? [`${name} ${one ? 'plays' : 'play'} again${where}.`]
+      : first
+        ? [
+            `${name} muted${where}. ${one ? 'It stays' : 'They stay'} in the song, silent; `,
+            ...(key
+              ? ['press ', key, ` on ${them} to hear ${them} again.`]
+              : [`hold ${them} and pick Unmute to hear ${them} again.`]),
+          ]
+        : [`${name} muted${where}.`, ...(key ? [' ', key, ' brings ', them, ' back.'] : [])];
     ui.toast(text, { ms: first ? 7000 : 3200, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
   }
   function toggleMuteSelected() {
@@ -1573,7 +2922,12 @@ function mountArranger(el, app) {
   // take of a folder gives back what it no longer covers (what played there before plays again). Shared by the edge
   // drags and "Trim to the loop". -> { ops, uncovered } (ops empty when it can't be planned: the toast says why)
   function trimPlan(t, c, start, end) {
-    try { return planClipTrim(P(), { track: t.id, clip: c.id, start, end }); } catch (e) { ui.toast(e.message, { kind: 'bad' }); return { ops: [], uncovered: [] }; }
+    try {
+      return planClipTrim(P(), { track: t.id, clip: c.id, start, end });
+    } catch (e) {
+      ui.toast(e.message, { kind: 'bad' });
+      return { ops: [], uncovered: [] };
+    }
   }
   // What "Trim to the loop" would do to these clips: [{ t, c, start, end }] for the ones it changes.
   function loopTrims(list) {
@@ -1581,8 +2935,9 @@ function mountArranger(el, app) {
     const out = [];
     if (!(l.end > l.start)) return out;
     for (const { t, c } of list) {
-      const s = Math.max(c.start, l.start), e = Math.min(c.start + c.length, l.end);
-      if (e - s < 0.25 - 1e-9) continue;   // outside the loop (or a sliver of it): left alone
+      const s = Math.max(c.start, l.start),
+        e = Math.min(c.start + c.length, l.end);
+      if (e - s < 0.25 - 1e-9) continue; // outside the loop (or a sliver of it): left alone
       if (Math.abs(s - c.start) < 1e-9 && Math.abs(e - (c.start + c.length)) < 1e-9) continue;
       out.push({ t, c, start: s, end: e });
     }
@@ -1590,20 +2945,39 @@ function mountArranger(el, app) {
   }
   // "bars 5–8" (whole bars) or "beats 3–7.5"
   function loopSpan() {
-    const l = P().loop, bpb = bpbOf(), a = l.start / bpb, b = l.end / bpb, r = (x) => Math.round(x * 1000) / 1000;
+    const l = P().loop,
+      bpb = bpbOf(),
+      a = l.start / bpb,
+      b = l.end / bpb,
+      r = (x) => Math.round(x * 1000) / 1000;
     const whole = Math.abs(a - Math.round(a)) < 1e-6 && Math.abs(b - Math.round(b)) < 1e-6;
-    return whole ? (b - a === 1 ? `bar ${b}` : `bars ${Math.round(a) + 1}–${Math.round(b)}`) : `beats ${r(l.start)}–${r(l.end)}`;
+    return whole
+      ? b - a === 1
+        ? `bar ${b}`
+        : `bars ${Math.round(a) + 1}–${Math.round(b)}`
+      : `beats ${r(l.start)}–${r(l.end)}`;
   }
   function trimToLoop(list) {
     const todo = loopTrims(list);
-    if (!todo.length) { ui.toast('Nothing to trim: the clip is already inside the loop, or outside it.'); return null; }
+    if (!todo.length) {
+      ui.toast('Nothing to trim: the clip is already inside the loop, or outside it.');
+      return null;
+    }
     const plans = todo.map(({ t, c, start, end }) => trimPlan(t, c, start, end));
     const ops = plans.flatMap((x) => x.ops);
     if (!ops.length) return null;
-    const r = store.dispatch(ops, { by: 'you', label: todo.length > 1 ? `trim ${todo.length} clips to the loop` : 'trim clip to the loop' });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return r; }
+    const r = store.dispatch(ops, {
+      by: 'you',
+      label: todo.length > 1 ? `trim ${todo.length} clips to the loop` : 'trim clip to the loop',
+    });
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return r;
+    }
     const back = plans.some((x) => x.uncovered.length) ? ' What played under it plays again around it.' : '';
-    ui.toast(`Trimmed ${todo.length > 1 ? `${todo.length} clips` : 'the clip'} to the loop (${loopSpan()}).${back} ${MOD}Z puts ${todo.length > 1 ? 'them' : 'it'} back.`);
+    ui.toast(
+      `Trimmed ${todo.length > 1 ? `${todo.length} clips` : 'the clip'} to the loop (${loopSpan()}).${back} ${MOD}Z puts ${todo.length > 1 ? 'them' : 'it'} back.`,
+    );
     return r;
   }
   function clipMenu(at, t, c) {
@@ -1619,11 +2993,42 @@ function mountArranger(el, app) {
       { label: 'Repeat ×2', sub: 'once more after it', run: () => repeatClip(t, c, 2) },
       { label: 'Repeat ×4', sub: 'three more', run: () => repeatClip(t, c, 4) },
       { label: 'Split at playhead', kbd: `${MOD}E`, sub: 'on the snap grid', run: () => splitClip(t, c) },
-      { label: 'Loop this clip', run: () => store.dispatch({ type: 'project.set', patch: { loop: { on: true, start: c.start, end: c.start + c.length } } }, { by: 'you', label: 'loop clip' }) },
-      { label: (allMuted ? 'Unmute' : 'Mute') + many, kbd: '0', sub: allMuted ? 'play it again' : 'keep it, silent', run: () => muteClips(list, !allMuted) },
-      { label: 'Trim to the loop' + many, disabled: !trims.length, sub: loopSpan(), title: 'Cut the clip down to the loop’s bars: a long take keeps just the part you looped', run: () => trimToLoop(list) },
-      { label: 'Select its bars', sub: 'for your agent', run: () => ui.select({ track: t.id, clip: c.id, range: { from: c.start, to: c.start + c.length } }) },
-      ...(takeInfo.has(c.id) ? [{ label: `Takes (${takeInfo.get(c.id).n})…`, kbd: `${MOD}↑ ${MOD}↓`, sub: 'pick, flatten or delete', run: () => takeMenu(at, t, c) }] : []),
+      {
+        label: 'Loop this clip',
+        run: () =>
+          store.dispatch(
+            { type: 'project.set', patch: { loop: { on: true, start: c.start, end: c.start + c.length } } },
+            { by: 'you', label: 'loop clip' },
+          ),
+      },
+      {
+        label: (allMuted ? 'Unmute' : 'Mute') + many,
+        kbd: '0',
+        sub: allMuted ? 'play it again' : 'keep it, silent',
+        run: () => muteClips(list, !allMuted),
+      },
+      {
+        label: 'Trim to the loop' + many,
+        disabled: !trims.length,
+        sub: loopSpan(),
+        title: 'Cut the clip down to the loop’s bars: a long take keeps just the part you looped',
+        run: () => trimToLoop(list),
+      },
+      {
+        label: 'Select its bars',
+        sub: 'for your agent',
+        run: () => ui.select({ track: t.id, clip: c.id, range: { from: c.start, to: c.start + c.length } }),
+      },
+      ...(takeInfo.has(c.id)
+        ? [
+            {
+              label: `Takes (${takeInfo.get(c.id).n})…`,
+              kbd: `${MOD}↑ ${MOD}↓`,
+              sub: 'pick, flatten or delete',
+              run: () => takeMenu(at, t, c),
+            },
+          ]
+        : []),
       ...sectionItem(at, sectionAt(c.start)),
       '-',
       { label: 'Delete', kbd: '⌫', danger: true, run: () => deleteSelected() },
@@ -1632,19 +3037,35 @@ function mountArranger(el, app) {
   function renameClip(t, c) {
     const r = clipRect(t, c);
     if (!r) return;
-    const inp = h('input.ar-clipinput', { value: c.name || '', placeholder: t.name, maxlength: 40, 'aria-label': 'Clip name', style: { left: Math.max(0, r.x + 4) + 'px', top: r.y + 1 + 'px', width: clamp(r.w - 8, 80, 220) + 'px' } });
+    const inp = h('input.ar-clipinput', {
+      value: c.name || '',
+      placeholder: t.name,
+      maxlength: 40,
+      'aria-label': 'Clip name',
+      style: { left: Math.max(0, r.x + 4) + 'px', top: r.y + 1 + 'px', width: clamp(r.w - 8, 80, 220) + 'px' },
+    });
     const back = focusBack();
     laneWrap.append(inp);
-    inp.focus(); inp.select();
+    inp.focus();
+    inp.select();
     let done = false;
     const fin = (ok, keyed = false) => {
-      if (done) return; done = true;
+      if (done) return;
+      done = true;
       const v = inp.value.trim();
       inp.remove();
       if (keyed) back();
-      if (ok && v !== (c.name || '')) store.dispatch({ type: 'clip.set', track: t.id, clip: c.id, patch: { name: v || null } }, { by: 'you', label: v ? `name clip ${v}` : 'unname clip' });
+      if (ok && v !== (c.name || ''))
+        store.dispatch(
+          { type: 'clip.set', track: t.id, clip: c.id, patch: { name: v || null } },
+          { by: 'you', label: v ? `name clip ${v}` : 'unname clip' },
+        );
     };
-    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') fin(true, true); if (e.key === 'Escape') fin(false, true); });
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') fin(true, true);
+      if (e.key === 'Escape') fin(false, true);
+    });
     inp.addEventListener('blur', () => fin(true));
   }
 
@@ -1657,8 +3078,19 @@ function mountArranger(el, app) {
   }
   function at(e) {
     const r = scroller.getBoundingClientRect();
-    const x = e.clientX - r.left + scroller.scrollLeft, y = e.clientY - r.top + scroller.scrollTop;
-    return { x, y, beat: x / ppb(), row: trackAtY(y), lane: laneRowAtY(y), take: takeRowAtY(y), vx: e.clientX - r.left, vy: e.clientY - r.top, touch: e.pointerType === 'touch' };
+    const x = e.clientX - r.left + scroller.scrollLeft,
+      y = e.clientY - r.top + scroller.scrollTop;
+    return {
+      x,
+      y,
+      beat: x / ppb(),
+      row: trackAtY(y),
+      lane: laneRowAtY(y),
+      take: takeRowAtY(y),
+      vx: e.clientX - r.left,
+      vy: e.clientY - r.top,
+      touch: e.pointerType === 'touch',
+    };
   }
   function hit(pt) {
     if (pt.lane && pt.lane.t.id === 'master') return { t: pt.lane.t, c: null, lane: pt.lane };
@@ -1666,21 +3098,34 @@ function mountArranger(el, app) {
     if (!t) return null;
     if (pt.lane) return { t, c: null, lane: pt.lane };
     if (pt.take) return { t, c: null, take: pt.take };
-    const y0 = trackTop(pt.row) + 3, y1 = trackTop(pt.row) + th() - 3;
+    const y0 = trackTop(pt.row) + 3,
+      y1 = trackTop(pt.row) + th() - 3;
     if (pt.y < y0 || pt.y > y1) return { t, c: null };
     for (let i = t.clips.length - 1; i >= 0; i--) {
       const c = t.clips[i];
-      if (hiddenTake(c)) continue;   // a muted take under the playing one: reached through its stack's badge
-      const x0 = c.start * ppb(), x1 = (c.start + c.length) * ppb();
+      if (hiddenTake(c)) continue; // a muted take under the playing one: reached through its stack's badge
+      const x0 = c.start * ppb(),
+        x1 = (c.start + c.length) * ppb();
       if (pt.x < x0 - 1 || pt.x > x1 + 1) continue;
       const bd = badges.get(c.id);
       // (a finger gets a 40 px target: the badge is a 16 px label)
-      const px = pt.touch ? Math.max(2, (40 - bd?.w) / 2) : 2, py = pt.touch ? Math.max(2, (40 - bd?.h) / 2) : 2;
-      if (bd && pt.vx != null && pt.vx >= bd.x - px && pt.vx <= bd.x + bd.w + px && pt.vy >= bd.y - py && pt.vy <= bd.y + bd.h + py) return { t, c, zone: 'takes' };
+      const px = pt.touch ? Math.max(2, (40 - bd?.w) / 2) : 2,
+        py = pt.touch ? Math.max(2, (40 - bd?.h) / 2) : 2;
+      if (
+        bd &&
+        pt.vx != null &&
+        pt.vx >= bd.x - px &&
+        pt.vx <= bd.x + bd.w + px &&
+        pt.vy >= bd.y - py &&
+        pt.vy <= bd.y + bd.h + py
+      )
+        return { t, c, zone: 'takes' };
       const edge = Math.min(8, (x1 - x0) / 4);
       // (a comp's inner edges aren't trim handles: they are where the take changes; the take lanes move them)
-      const ti = takeInfo.get(c.id), lOk = !ti || c.start <= ti.fs + EPS_T, rOk = !ti || c.start + c.length >= ti.fe - EPS_T;
-      const zone = pt.x > x1 - edge && rOk ? 'r' : pt.x < x0 + edge && lOk ? 'l' : (pt.y < y0 + 16 ? 'head' : 'body');
+      const ti = takeInfo.get(c.id),
+        lOk = !ti || c.start <= ti.fs + EPS_T,
+        rOk = !ti || c.start + c.length >= ti.fe - EPS_T;
+      const zone = pt.x > x1 - edge && rOk ? 'r' : pt.x < x0 + edge && lOk ? 'l' : pt.y < y0 + 16 ? 'head' : 'body';
       return { t, c, zone };
     }
     return { t, c: null };
@@ -1691,7 +3136,11 @@ function mountArranger(el, app) {
     if (e.button !== 0) return;
     if (e.target !== scroller && e.target !== spacer) return;
     // the scrollbars
-    if (e.clientX - scroller.getBoundingClientRect().left > scroller.clientWidth || e.clientY - scroller.getBoundingClientRect().top > scroller.clientHeight) return;
+    if (
+      e.clientX - scroller.getBoundingClientRect().left > scroller.clientWidth ||
+      e.clientY - scroller.getBoundingClientRect().top > scroller.clientHeight
+    )
+      return;
     ui.state.focus = 'arranger';
     closePopover();
     const pt = at(e);
@@ -1700,8 +3149,13 @@ function mountArranger(el, app) {
     lastPointer = e;
     if (hi?.lane) {
       // an automation lane (lanes.js): a point, the line, a bend, freehand, or a stretch of bars
-      selClips.clear(); selSection = null;
-      if (hi.t.id !== 'master' && (ui.state.selection.track !== hi.t.id || ui.state.selection.clip || ui.state.selection.range)) ui.select({ track: hi.t.id, clip: null, notes: [], range: null });
+      selClips.clear();
+      selSection = null;
+      if (
+        hi.t.id !== 'master' &&
+        (ui.state.selection.track !== hi.t.id || ui.state.selection.clip || ui.state.selection.range)
+      )
+        ui.select({ track: hi.t.id, clip: null, notes: [], range: null });
       laneEd.down(e, pt, hi.lane, clicks);
       drag = { mode: 'lane', pt0: pt, moved: false, lane: hi.lane };
       scroller.setPointerCapture(e.pointerId);
@@ -1714,9 +3168,14 @@ function mountArranger(el, app) {
     if (hi?.take) {
       // a take lane of an open folder: a drag across it plays that take there (a comp); a click, in the stretch under
       // it. A finger's drag scrolls; its tap is the click.
-      const f = hi.take.folders.find((x) => x.lanes[hi.take.k] && pt.beat >= x.start - EPS_T && pt.beat < x.end + EPS_T) || null;
+      const f =
+        hi.take.folders.find((x) => x.lanes[hi.take.k] && pt.beat >= x.start - EPS_T && pt.beat < x.end + EPS_T) ||
+        null;
       selSection = null;
-      const pan = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop } : null;
+      const pan =
+        e.pointerType === 'touch'
+          ? { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop }
+          : null;
       drag = { mode: 'comp', clicks, pt0: pt, t: hi.t, f, row: hi.take, moved: false, range: null, pan };
       scroller.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -1726,7 +3185,8 @@ function mountArranger(el, app) {
     }
     if (hi?.c && hi.zone === 'takes' && e.pointerType !== 'touch') {
       // the "3 takes" badge: the take lanes open (or close) under the folder
-      selClips = new Set([hi.c.id]); selSection = null;
+      selClips = new Set([hi.c.id]);
+      selSection = null;
       ui.select({ track: hi.t.id, clip: hi.c.id, notes: [], range: null });
       e.preventDefault();
       toggleTakes(hi.t, hi.c);
@@ -1738,11 +3198,22 @@ function mountArranger(el, app) {
       // it picks the clip up (lift(), from the long press below): then a drag moves it (or its edge trims it) and
       // letting go without one opens its menu (Mute, Split, Trim to the loop...). On the "3 takes" badge a tap opens
       // the take lanes (on the tap, not the touch: a scroll can start there too)
-      drag = { mode: 'touchclip', clicks, pt0: pt, t: hi.t, c: hi.c, zone: hi.zone, moved: false, pan: { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop } };
+      drag = {
+        mode: 'touchclip',
+        clicks,
+        pt0: pt,
+        t: hi.t,
+        c: hi.c,
+        zone: hi.zone,
+        moved: false,
+        pan: { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop },
+      };
     } else if (hi?.c) {
       const { t, c } = hi;
-      if (e.shiftKey) { if (selClips.has(c.id)) selClips.delete(c.id); else selClips.add(c.id); }
-      else if (!selClips.has(c.id)) selClips = new Set([c.id]);
+      if (e.shiftKey) {
+        if (selClips.has(c.id)) selClips.delete(c.id);
+        else selClips.add(c.id);
+      } else if (!selClips.has(c.id)) selClips = new Set([c.id]);
       ui.select({ track: t.id, clip: selClips.has(c.id) ? c.id : [...selClips][0] || null, notes: [], range: null });
       selSection = null;
       if (hi.zone === 'body' && compedPiece(t, c)) {
@@ -1751,13 +3222,30 @@ function mountArranger(el, app) {
         drag = { mode: 'range', clicks, pt0: pt, moved: false, row: pt.row, t, pan: null, onClip: { t, c } };
       } else {
         const mode = hi.zone === 'r' ? 'resize-r' : hi.zone === 'l' ? 'resize-l' : 'move';
-        const items = mode === 'move' ? moveItems(selectedList()) : [{ t, c, row: tracks().indexOf(t), start: c.start }];
-        drag = { mode, clicks, pt0: pt, items, t, c, copy: e.altKey, moved: false, dBeat: 0, dRow: 0, len: c.length, start: c.start };
+        const items =
+          mode === 'move' ? moveItems(selectedList()) : [{ t, c, row: tracks().indexOf(t), start: c.start }];
+        drag = {
+          mode,
+          clicks,
+          pt0: pt,
+          items,
+          t,
+          c,
+          copy: e.altKey,
+          moved: false,
+          dBeat: 0,
+          dRow: 0,
+          len: c.length,
+          start: c.start,
+        };
       }
     } else if (hi?.t || pt.row >= 0) {
       selSection = null;
       // touch: a tap on a lane is a click (select, double-tap for a new clip); a finger drag scrolls (there is no wheel)
-      const pan = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop } : null;
+      const pan =
+        e.pointerType === 'touch'
+          ? { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop }
+          : null;
       drag = { mode: 'range', clicks, pt0: pt, moved: false, row: pt.row, t: hi?.t || null, pan };
     } else return;
     scroller.setPointerCapture(e.pointerId);
@@ -1767,24 +3255,34 @@ function mountArranger(el, app) {
   });
   scroller.addEventListener('pointermove', (e) => {
     lastPointer = e;
-    if (!drag) { hoverAt(e); return; }
+    if (!drag) {
+      hoverAt(e);
+      return;
+    }
     moveDrag(e);
   });
   function moveDrag(e) {
     const d = drag;
-    if (d.mode === 'lane') { laneEd.move(e, at(e)); return; }
+    if (d.mode === 'lane') {
+      laneEd.move(e, at(e));
+      return;
+    }
     if (d.pan) {
-      const dx = e.clientX - d.pan.x, dy = e.clientY - d.pan.y;
+      const dx = e.clientX - d.pan.x,
+        dy = e.clientY - d.pan.y;
       if (!d.moved && Math.hypot(dx, dy) < 8) return;
-      d.moved = true; d.mode = 'pan';
-      scroller.scrollLeft = d.pan.sl - dx; scroller.scrollTop = d.pan.st - dy;
+      d.moved = true;
+      d.mode = 'pan';
+      scroller.scrollLeft = d.pan.sl - dx;
+      scroller.scrollTop = d.pan.st - dy;
       dirty = true;
       return;
     }
     const pt = at(e);
-    const dx = pt.x - d.pt0.x, dy = pt.y - d.pt0.y;
+    const dx = pt.x - d.pt0.x,
+      dy = pt.y - d.pt0.y;
     if (!d.moved && Math.hypot(dx, dy) < (d.lifted ? 8 : 4)) return;
-    if (!d.moved && d.lifted) closePopover();   // (held, then dragged: the menu goes, the clip moves)
+    if (!d.moved && d.lifted) closePopover(); // (held, then dragged: the menu goes, the clip moves)
     d.moved = true;
     const g = snapGrid(e);
     const bpb = bpbOf();
@@ -1800,7 +3298,10 @@ function mountArranger(el, app) {
       const target = trackAtY(trackTop(d.pt0.row) + th() / 2 + dy) - d.pt0.row;
       d.dRow = clamp(target, -Math.min(...rws), n - 1 - Math.max(...rws));
       d.copy = e.altKey;
-      d.bad = d.items.some((it) => { const to = tracks()[it.row + d.dRow]; return !to || to.kind !== it.t.kind; });
+      d.bad = d.items.some((it) => {
+        const to = tracks()[it.row + d.dRow];
+        return !to || to.kind !== it.t.kind;
+      });
     } else if (d.mode === 'resize-r') {
       let end = d.c.start + d.c.length + dx / ppb();
       end = g ? snapTo(end, g) : end;
@@ -1810,67 +3311,120 @@ function mountArranger(el, app) {
       let s = d.c.start + dx / ppb();
       s = g ? snapTo(s, g) : s;
       // (an audio clip opens no earlier than its recording starts: past that the file would slide off the beat)
-      const lo = d.c.kind === 'audio' ? Math.max(0, d.c.start - (+d.c.offset || 0) * P().tempo / 60) : 0;
+      const lo = d.c.kind === 'audio' ? Math.max(0, d.c.start - ((+d.c.offset || 0) * P().tempo) / 60) : 0;
       s = clamp(s, Math.min(lo, end - (g || 0.25)), end - (g || 0.25));
-      d.start = s; d.len = end - s;
+      d.start = s;
+      d.len = end - s;
     } else if (d.mode === 'comp') {
       if (!d.f) return;
       d.range = compRange(d, pt, g);
     } else if (d.mode === 'range') {
-      const a = Math.max(0, Math.min(d.pt0.beat, pt.beat)), b = Math.max(d.pt0.beat, pt.beat);
+      const a = Math.max(0, Math.min(d.pt0.beat, pt.beat)),
+        b = Math.max(d.pt0.beat, pt.beat);
       const gg = g || 0;
       const from = gg ? floorTo(a, Math.max(gg, 1)) : a;
       const to = gg ? Math.ceil(b / Math.max(gg, 1) - 1e-9) * Math.max(gg, 1) : b;
       d.range = { from, to: Math.max(to, from + (gg || 0.25)) };
-      d.rows = [clamp(Math.min(d.pt0.row, pt.row), 0, tracks().length - 1), clamp(Math.max(d.pt0.row, pt.row), 0, tracks().length - 1)];
+      d.rows = [
+        clamp(Math.min(d.pt0.row, pt.row), 0, tracks().length - 1),
+        clamp(Math.max(d.pt0.row, pt.row), 0, tracks().length - 1),
+      ];
     }
     void bpb;
-    scroller.style.cursor = d.mode === 'move' ? (d.bad ? 'not-allowed' : d.copy ? 'copy' : 'grabbing') : d.mode === 'range' || d.mode === 'comp' ? 'text' : 'ew-resize';
+    scroller.style.cursor =
+      d.mode === 'move'
+        ? d.bad
+          ? 'not-allowed'
+          : d.copy
+            ? 'copy'
+            : 'grabbing'
+        : d.mode === 'range' || d.mode === 'comp'
+          ? 'text'
+          : 'ew-resize';
     dirty = true;
   }
   // A comp drag's stretch: each edge on the snap grid line nearest where the pointer went down and where it is now (or
   // let go), never pushed outward to the next line, inside the folder; at least one grid step
   function compRange(d, pt, g) {
-    const a = Math.min(d.pt0.beat, pt.beat), b = Math.max(d.pt0.beat, pt.beat);
-    let from = g ? snapTo(a, g) : a, to = g ? snapTo(b, g) : b;
-    from = Math.max(d.f.start, from); to = Math.min(d.f.end, to);
-    if (to - from < (g || 0.25) - EPS_T) { if (from + (g || 0.25) <= d.f.end + EPS_T) to = from + (g || 0.25); else from = to - (g || 0.25); }
+    const a = Math.min(d.pt0.beat, pt.beat),
+      b = Math.max(d.pt0.beat, pt.beat);
+    let from = g ? snapTo(a, g) : a,
+      to = g ? snapTo(b, g) : b;
+    from = Math.max(d.f.start, from);
+    to = Math.min(d.f.end, to);
+    if (to - from < (g || 0.25) - EPS_T) {
+      if (from + (g || 0.25) <= d.f.end + EPS_T) to = from + (g || 0.25);
+      else from = to - (g || 0.25);
+    }
     return { from, to };
   }
   scroller.addEventListener('pointerup', (e) => endDrag(e));
-  scroller.addEventListener('pointercancel', () => { if (drag?.mode === 'lane') laneEd.cancel(); drag = null; dirty = true; });
-  scroller.addEventListener('lostpointercapture', () => { if (drag) { if (drag.mode === 'lane') laneEd.cancel(); drag = null; dirty = true; } });
+  scroller.addEventListener('pointercancel', () => {
+    if (drag?.mode === 'lane') laneEd.cancel();
+    drag = null;
+    dirty = true;
+  });
+  scroller.addEventListener('lostpointercapture', () => {
+    if (drag) {
+      if (drag.mode === 'lane') laneEd.cancel();
+      drag = null;
+      dirty = true;
+    }
+  });
   function endDrag(e) {
     const d = drag;
     drag = null;
     dirty = true;
     if (!d) return;
-    try { scroller.releasePointerCapture(e.pointerId); } catch (_) { /* gone */ }
-    if (d.mode === 'lane') { laneEd.up(e, at(e)); syncBar(); return; }
-    if (d.mode === 'pan') { syncBar(); return; }
+    try {
+      scroller.releasePointerCapture(e.pointerId);
+    } catch (_) {
+      /* gone */
+    }
+    if (d.mode === 'lane') {
+      laneEd.up(e, at(e));
+      syncBar();
+      return;
+    }
+    if (d.mode === 'pan') {
+      syncBar();
+      return;
+    }
     if (d.mode === 'comp') {
       if (!d.f) return;
       // (where it was let go: a last move may not have come before the release)
       if (d.moved) d.range = compRange(d, at(e), snapGrid(e));
       const lane = d.f.lanes[d.row.k];
       // a click: the stretch of the folder under it (between two cuts of the comp)
-      const s0 = d.f.comp.find((x) => d.pt0.beat >= x.start - EPS_T && d.pt0.beat < x.end) || d.f.comp[d.f.comp.length - 1];
+      const s0 =
+        d.f.comp.find((x) => d.pt0.beat >= x.start - EPS_T && d.pt0.beat < x.end) || d.f.comp[d.f.comp.length - 1];
       const rg = d.moved && d.range ? d.range : { from: s0.start, to: s0.end };
-      if (!lane.clips.some((c) => c.start < rg.to - EPS_T && c.start + c.length > rg.from + EPS_T)) { say(`${lane.name || d.t.name} has nothing there.`); return; }
+      if (!lane.clips.some((c) => c.start < rg.to - EPS_T && c.start + c.length > rg.from + EPS_T)) {
+        say(`${lane.name || d.t.name} has nothing there.`);
+        return;
+      }
       compTake(d.t, d.f.id, d.row.k, rg.from, rg.to);
       syncBar();
       return;
     }
     if (d.mode === 'touchclip') {
       // a tap: select the clip (a double tap opens it); on the badge, the take lanes
-      selClips = new Set([d.c.id]); selSection = null;
+      selClips = new Set([d.c.id]);
+      selSection = null;
       ui.select({ track: d.t.id, clip: d.c.id, notes: [], range: null });
-      if (d.zone === 'takes') { toggleTakes(d.t, d.c); syncBar(); return; }
+      if (d.zone === 'takes') {
+        toggleTakes(d.t, d.c);
+        syncBar();
+        return;
+      }
       if (d.clicks >= 2) editClip(d.t.id, d.c.id);
       syncBar();
       return;
     }
-    if (d.lifted && !d.moved) { syncBar(); return; }   // picked up and let go where it was: its menu stays open
+    if (d.lifted && !d.moved) {
+      syncBar();
+      return;
+    } // picked up and let go where it was: its menu stays open
     if (!d.moved) {
       if (d.mode === 'range' && d.onClip) {
         // a click on a comp's piece: it stays selected, as any clip does; a double-click opens it
@@ -1879,16 +3433,23 @@ function mountArranger(el, app) {
         selClips.clear();
         ui.select({ track: d.t?.id ?? null, clip: null, notes: [], range: null });
         // a click in a lane puts the start marker on its bar (shift: the snap grid); playing, the song plays on
-        if (d.clicks < 2) app.transport?.marker?.set(e.shiftKey ? floorTo(d.pt0.beat, snapGrid() || 0) : floorTo(d.pt0.beat, bpbOf()), { announce: true });
+        if (d.clicks < 2)
+          app.transport?.marker?.set(e.shiftKey ? floorTo(d.pt0.beat, snapGrid() || 0) : floorTo(d.pt0.beat, bpbOf()), {
+            announce: true,
+          });
         if (d.clicks >= 2 && d.t) newClipAt(d.t.id, d.pt0.beat);
       } else if (d.clicks >= 2 && d.c) {
-        if (d.items?.length === 1 && hit(d.pt0)?.zone === 'head') renameClip(d.t, d.c); else editClip(d.t.id, d.c.id);
+        if (d.items?.length === 1 && hit(d.pt0)?.zone === 'head') renameClip(d.t, d.c);
+        else editClip(d.t.id, d.c.id);
       }
       syncBar();
       return;
     }
     if (d.mode === 'move') {
-      if (d.bad) { ui.toast('Notes clips live on instrument tracks, audio clips on audio tracks.'); return; }
+      if (d.bad) {
+        ui.toast('Notes clips live on instrument tracks, audio clips on audio tracks.');
+        return;
+      }
       if (!d.dBeat && !d.dRow && !d.copy) return;
       let ops = d.items.map((it, i) => {
         const to = tracks()[it.row + d.dRow];
@@ -1896,19 +3457,54 @@ function mountArranger(el, app) {
         if (d.copy) return { type: 'clip.add', track: to.id, clip: copyOf(it.c, start), ref: 'k' + i };
         return { type: 'clip.move', track: it.t.id, clip: it.c.id, ...(to !== it.t ? { toTrack: to.id } : {}), start };
       });
-      if (d.copy) retake(ops.map((o) => o.clip));   // (copies of takes never join the source's folder)
+      if (d.copy) retake(ops.map((o) => o.clip)); // (copies of takes never join the source's folder)
       // the lanes under the clips go with them (Lanes follow clips), in the same undo step
-      ops = ops.concat(followOps(d.items.map((it) => { const to = tracks()[it.row + d.dRow]; return { track: it.t.id, clip: it.c.id, ...(to !== it.t ? { toTrack: to.id } : {}), start: Math.max(0, it.start + d.dBeat), copy: !!d.copy }; })));
+      ops = ops.concat(
+        followOps(
+          d.items.map((it) => {
+            const to = tracks()[it.row + d.dRow];
+            return {
+              track: it.t.id,
+              clip: it.c.id,
+              ...(to !== it.t ? { toTrack: to.id } : {}),
+              start: Math.max(0, it.start + d.dBeat),
+              copy: !!d.copy,
+            };
+          }),
+        ),
+      );
       // what lies under them where they land is cut away there (core/arrangement.js planDropTrim), same undo step: a
       // dropped clip takes those beats, as in Live, so nothing under it plays along
       let trim = null;
       try {
-        trim = planDropTrim(P(), d.items.map((it) => { const s = Math.max(0, it.start + d.dBeat); return { track: tracks()[it.row + d.dRow].id, start: s, end: s + it.c.length }; }), { keep: d.copy ? [] : d.items.map((it) => it.c.id) });
-      } catch (err) { console.warn('drop trim', err); trim = null; }
+        trim = planDropTrim(
+          P(),
+          d.items.map((it) => {
+            const s = Math.max(0, it.start + d.dBeat);
+            return { track: tracks()[it.row + d.dRow].id, start: s, end: s + it.c.length };
+          }),
+          { keep: d.copy ? [] : d.items.map((it) => it.c.id) },
+        );
+      } catch (err) {
+        console.warn('drop trim', err);
+        trim = null;
+      }
       if (trim?.ops.length) ops = ops.concat(trim.ops);
       const nc = d.items.length;
-      const r = store.dispatch(ops, { by: 'you', label: d.copy ? (nc > 1 ? `copy ${nc} clips` : 'copy clip') : (nc > 1 ? `move ${nc} clips` : `move clip ${d.c.name || ''}`.trim()) });
-      if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
+      const r = store.dispatch(ops, {
+        by: 'you',
+        label: d.copy
+          ? nc > 1
+            ? `copy ${nc} clips`
+            : 'copy clip'
+          : nc > 1
+            ? `move ${nc} clips`
+            : `move clip ${d.c.name || ''}`.trim(),
+      });
+      if (!r.ok) {
+        ui.toast(r.error, { kind: 'bad' });
+        return;
+      }
       if (d.copy) {
         selClips = new Set(d.items.map((_, i) => r.created['k' + i]).filter(Boolean));
         ui.select({ track: tracks()[d.items[0].row + d.dRow].id, clip: r.created.k0 || null, notes: [] });
@@ -1916,24 +3512,35 @@ function mountArranger(el, app) {
       if (trim?.summary) {
         // (a folder it cut in two: the part after opens as the folder was). What it cut is in plain sight, and the
         // move's one undo step puts it back: it's said, not toasted, as Live says nothing either
-        for (const [take, ids] of Object.entries(trim.sides || {})) if (takesOpen.has(take)) { for (const id of ids) takesOpen.add(id); takesVer++; relayout(); }
-        say(`${trim.summary} ${MOD}Z undoes the ${d.copy ? 'copy' : 'move'} and puts ${trim.cut + trim.removed === 1 ? 'it' : 'them'} back.`);
+        for (const [take, ids] of Object.entries(trim.sides || {}))
+          if (takesOpen.has(take)) {
+            for (const id of ids) takesOpen.add(id);
+            takesVer++;
+            relayout();
+          }
+        say(
+          `${trim.summary} ${MOD}Z undoes the ${d.copy ? 'copy' : 'move'} and puts ${trim.cut + trim.removed === 1 ? 'it' : 'them'} back.`,
+        );
       }
     } else if (d.mode === 'resize-r') {
       if (Math.abs(d.len - d.c.length) < 1e-6) return;
-      const ops = trimPlan(d.t, d.c, d.c.start, d.c.start + d.len).ops;   // (a shortened take gives back what it covered)
-      const r = ops.length ? store.dispatch(ops, { by: 'you', label: d.len > d.c.length ? 'lengthen clip' : 'shorten clip' }) : null;
+      const ops = trimPlan(d.t, d.c, d.c.start, d.c.start + d.len).ops; // (a shortened take gives back what it covered)
+      const r = ops.length
+        ? store.dispatch(ops, { by: 'you', label: d.len > d.c.length ? 'lengthen clip' : 'shorten clip' })
+        : null;
       if (r && !r.ok) ui.toast(r.error, { kind: 'bad' });
     } else if (d.mode === 'resize-l') {
       const delta = d.start - d.c.start;
       if (Math.abs(delta) < 1e-6) return;
-      const ops = trimPlan(d.t, d.c, d.start, d.start + d.len).ops;   // notes stay where they sound in the song; the window moves
-      const r = ops.length ? store.dispatch(ops, { by: 'you', label: delta > 0 ? 'trim clip start' : 'extend clip start' }) : null;
+      const ops = trimPlan(d.t, d.c, d.start, d.start + d.len).ops; // notes stay where they sound in the song; the window moves
+      const r = ops.length
+        ? store.dispatch(ops, { by: 'you', label: delta > 0 ? 'trim clip start' : 'extend clip start' })
+        : null;
       if (r && !r.ok) ui.toast(r.error, { kind: 'bad' });
     } else if (d.mode === 'range' && d.range) {
       selClips.clear();
       const t = tracks()[d.rows[0]];
-      ui.select({ track: d.rows[0] === d.rows[1] ? t?.id ?? null : null, clip: null, notes: [], range: d.range });
+      ui.select({ track: d.rows[0] === d.rows[1] ? (t?.id ?? null) : null, clip: null, notes: [], range: d.range });
       rangeRows = d.rows;
     }
     syncBar();
@@ -1952,27 +3559,59 @@ function mountArranger(el, app) {
     const pt = at(e);
     const hi = hit(pt);
     const key = hi?.c ? hi.c.id + hi.zone : '';
-    if (key !== (hover?.key || '')) { hover = hi?.c ? { key, clip: hi.c.id, zone: hi.zone } : null; dirty = true; }
-    scroller.style.cursor = hi?.lane ? 'crosshair' : hi?.c ? (hi.zone === 'r' || hi.zone === 'l' ? 'ew-resize' : hi.zone === 'body' && compedPiece(hi.t, hi.c) ? 'text' : 'grab') : 'default';
+    if (key !== (hover?.key || '')) {
+      hover = hi?.c ? { key, clip: hi.c.id, zone: hi.zone } : null;
+      dirty = true;
+    }
+    scroller.style.cursor = hi?.lane
+      ? 'crosshair'
+      : hi?.c
+        ? hi.zone === 'r' || hi.zone === 'l'
+          ? 'ew-resize'
+          : hi.zone === 'body' && compedPiece(hi.t, hi.c)
+            ? 'text'
+            : 'grab'
+        : 'default';
     laneEd.hover(e, pt, hi?.lane || null);
   }
-  scroller.addEventListener('pointerleave', () => { tipHide(); if (hover) { hover = null; dirty = true; } });
+  scroller.addEventListener('pointerleave', () => {
+    tipHide();
+    if (hover) {
+      hover = null;
+      dirty = true;
+    }
+  });
   scroller.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     // (a platform's own long press on a clip: it picks the clip up, as ours does)
-    if (drag?.mode === 'touchclip' && !drag.moved) { lift(drag); return; }
+    if (drag?.mode === 'touchclip' && !drag.moved) {
+      lift(drag);
+      return;
+    }
     if (drag?.lifted) return;
     if (liftPoint(e)) return;
     laneMenu(e);
   });
   // iOS sends no contextmenu on a long press: a touch held still for half a second opens the same menu
-  longPress(scroller, (pt) => {
-    if (drag?.mode === 'touchclip' && !drag.moved) { lift(drag); return; }
-    if (liftPoint(pt)) return;
-    drag = null; dirty = true;
-    try { scroller.releasePointerCapture(pt.pointerId); } catch (_) { /* gone */ }
-    laneMenu(pt);
-  }, { filter: (e) => e.target === scroller || e.target === spacer });
+  longPress(
+    scroller,
+    (pt) => {
+      if (drag?.mode === 'touchclip' && !drag.moved) {
+        lift(drag);
+        return;
+      }
+      if (liftPoint(pt)) return;
+      drag = null;
+      dirty = true;
+      try {
+        scroller.releasePointerCapture(pt.pointerId);
+      } catch (_) {
+        /* gone */
+      }
+      laneMenu(pt);
+    },
+    { filter: (e) => e.target === scroller || e.target === spacer },
+  );
   // A held finger picks the clip up: selected, its menu open (Mute, Split, Trim to the loop...), and a drag from there
   // closes the menu and moves it (its edge: trims it). The first time, a toast says what holding does, and where Mute is.
   const LIFT_HINT = 'overdub:clip-lift-hint';
@@ -1983,15 +3622,42 @@ function mountArranger(el, app) {
     selSection = null;
     const mode = d.zone === 'r' ? 'resize-r' : d.zone === 'l' ? 'resize-l' : 'move';
     const items = mode === 'move' ? moveItems(selectedList()) : [{ t, c, row: tracks().indexOf(t), start: c.start }];
-    Object.assign(d, { mode, items, copy: false, moved: false, dBeat: 0, dRow: 0, len: c.length, start: c.start, lifted: true });
+    Object.assign(d, {
+      mode,
+      items,
+      copy: false,
+      moved: false,
+      dBeat: 0,
+      dRow: 0,
+      len: c.length,
+      start: c.start,
+      lifted: true,
+    });
     delete d.pan;
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try {
+      navigator.vibrate?.(12);
+    } catch (e) {
+      /* no buzz */
+    }
     // its menu opens while it is held (a drag from here closes it and moves the clip)
-    clipMenu({ x: d.pt0.vx + scroller.getBoundingClientRect().left, y: d.pt0.vy + scroller.getBoundingClientRect().top }, t, c);
+    clipMenu(
+      { x: d.pt0.vx + scroller.getBoundingClientRect().left, y: d.pt0.vy + scroller.getBoundingClientRect().top },
+      t,
+      c,
+    );
     let first = false;
-    try { first = localStorage.getItem(LIFT_HINT) !== '1'; if (first) localStorage.setItem(LIFT_HINT, '1'); } catch (e) { first = false; }
+    try {
+      first = localStorage.getItem(LIFT_HINT) !== '1';
+      if (first) localStorage.setItem(LIFT_HINT, '1');
+    } catch (e) {
+      first = false;
+    }
     const name = c.name || t.name;
-    if (first) ui.toast(`Holding ${name} opens its menu (Mute is in it); keep holding and drag to move it. A drag without holding scrolls.`, { ms: 7000 });
+    if (first)
+      ui.toast(
+        `Holding ${name} opens its menu (Mute is in it); keep holding and drag to move it. A drag without holding scrolls.`,
+        { ms: 7000 },
+      );
     else say(`${name}: its menu. Keep holding and drag to move it.`);
     dirty = true;
     syncBar();
@@ -2021,31 +3687,59 @@ function mountArranger(el, app) {
     if (hi?.lane) {
       laneEd.cancel();
       if (drag?.mode === 'lane') drag = null;
-      laneEd.openMenu({ x: e.clientX, y: e.clientY }, hi.lane, { ...pt, touch: e.pointerType === 'touch' || pt.touch }, laneMenuMore(hi.lane));
+      laneEd.openMenu(
+        { x: e.clientX, y: e.clientY },
+        hi.lane,
+        { ...pt, touch: e.pointerType === 'touch' || pt.touch },
+        laneMenuMore(hi.lane),
+      );
       return;
     }
     if (hi?.c) {
-      if (!selClips.has(hi.c.id)) { selClips = new Set([hi.c.id]); ui.select({ track: hi.t.id, clip: hi.c.id, notes: [] }); }
+      if (!selClips.has(hi.c.id)) {
+        selClips = new Set([hi.c.id]);
+        ui.select({ track: hi.t.id, clip: hi.c.id, notes: [] });
+      }
       clipMenu({ x: e.clientX, y: e.clientY }, hi.t, hi.c);
     } else if (hi?.t) {
       const beat = at(e).beat;
-      menu({ x: e.clientX, y: e.clientY }, [{ head: hi.t.name },
-        { label: 'New clip here', kbd: 'dbl-click', disabled: hi.t.kind === 'audio', run: () => newClipAt(hi.t.id, beat) },
-        { label: 'Paste nothing yet', disabled: true },
-        { label: 'Automation…', kbd: 'E', sub: 'lanes under the track', run: () => automationMenu({ x: e.clientX, y: e.clientY }, hi.t) },
-        { label: 'Track options…', run: () => trackMenu({ x: e.clientX, y: e.clientY }, hi.t) }].filter((x) => !x.disabled || x.label !== 'Paste nothing yet'));
+      menu(
+        { x: e.clientX, y: e.clientY },
+        [
+          { head: hi.t.name },
+          {
+            label: 'New clip here',
+            kbd: 'dbl-click',
+            disabled: hi.t.kind === 'audio',
+            run: () => newClipAt(hi.t.id, beat),
+          },
+          { label: 'Paste nothing yet', disabled: true },
+          {
+            label: 'Automation…',
+            kbd: 'E',
+            sub: 'lanes under the track',
+            run: () => automationMenu({ x: e.clientX, y: e.clientY }, hi.t),
+          },
+          { label: 'Track options…', run: () => trackMenu({ x: e.clientX, y: e.clientY }, hi.t) },
+        ].filter((x) => !x.disabled || x.label !== 'Paste nothing yet'),
+      );
     }
   }
 
   /* ======================================================= scroll and zoom */
-  scroller.addEventListener('scroll', () => {
-    ui.state.scrollX = scroller.scrollLeft;
-    ui.state.scrollY = scroller.scrollTop;
-    headsInner.style.transform = `translateY(${-scroller.scrollTop}px)`;
-    dirty = true; rulerDirty = true;
-    if (engine.playing && !programmatic) followPauseUntil = performance.now() + 2500;
-    programmatic = false;
-  }, { passive: true });
+  scroller.addEventListener(
+    'scroll',
+    () => {
+      ui.state.scrollX = scroller.scrollLeft;
+      ui.state.scrollY = scroller.scrollTop;
+      headsInner.style.transform = `translateY(${-scroller.scrollTop}px)`;
+      dirty = true;
+      rulerDirty = true;
+      if (engine.playing && !programmatic) followPauseUntil = performance.now() + 2500;
+      programmatic = false;
+    },
+    { passive: true },
+  );
   let programmatic = false;
   const onWheel = (e) => {
     if (e.ctrlKey || e.metaKey) {
@@ -2056,7 +3750,11 @@ function mountArranger(el, app) {
     } else if (e.altKey) {
       e.preventDefault();
       zoom.trackH = clamp(Math.round(th() * Math.exp(-e.deltaY * 0.004)), 34, 160);
-      layDirty = true; headSig = ''; layoutSpacer(); buildHeads(); dirty = true;
+      layDirty = true;
+      headSig = '';
+      layoutSpacer();
+      buildHeads();
+      dirty = true;
     } else if (e.currentTarget !== scroller) {
       e.preventDefault();
       scroller.scrollLeft += e.shiftKey ? e.deltaY : e.deltaX;
@@ -2064,70 +3762,116 @@ function mountArranger(el, app) {
     }
   };
   scroller.addEventListener('wheel', onWheel, { passive: false });
-  rulerWrap.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey) return onWheel(e); e.preventDefault(); scroller.scrollLeft += e.deltaX || e.deltaY; }, { passive: false });
-  heads.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey || e.altKey) return onWheel(e); e.preventDefault(); scroller.scrollTop += e.deltaY; }, { passive: false });
+  rulerWrap.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.ctrlKey || e.metaKey) return onWheel(e);
+      e.preventDefault();
+      scroller.scrollLeft += e.deltaX || e.deltaY;
+    },
+    { passive: false },
+  );
+  heads.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return onWheel(e);
+      e.preventDefault();
+      scroller.scrollTop += e.deltaY;
+    },
+    { passive: false },
+  );
   function zoomBy(f, px = scroller.clientWidth / 2) {
     const beat = (scroller.scrollLeft + px) / ppb();
     zoom.pxPerBeat = clamp(ppb() * f, 3, 320);
     layoutSpacer();
     programmatic = true;
     scroller.scrollLeft = Math.max(0, beat * ppb() - px);
-    dirty = true; rulerDirty = true;
+    dirty = true;
+    rulerDirty = true;
     ui.emit('zoom', zoom);
   }
   // the song: where its last clip ends (a section past every clip is just a name on the ruler), 4 bars at least, and
   // the loop when it runs past them
   function songSpan() {
-    const p = P(), bpb = bpbOf();
+    const p = P(),
+      bpb = bpbOf();
     const clipEnd = Math.max(0, ...p.tracks.flatMap((t) => t.clips.map((c) => c.start + c.length)));
     const secEnd = clipEnd ? 0 : Math.max(0, ...p.sections.map((s) => s.start + s.length));
     const loopEnd = p.loop?.on ? p.loop.end || 0 : 0;
     return Math.ceil(Math.max(bpb * 4, clipEnd, secEnd, loopEnd) / bpb - 1e-9) * bpb;
   }
-  function fitSong() { zoomTo(0, songSpan()); }
+  function fitSong() {
+    zoomTo(0, songSpan());
+  }
   // (the lanes not laid out yet, a hidden pane or a phone's other tab: the zoom waits for a width to fit, or a 2-bar
   // song fitted into a 200 px guess shows 17 bars once the pane opens)
   let pendingZoom = null;
   function zoomTo(from, to) {
-    if (scroller.clientWidth < 80) { pendingZoom = [from, to]; return; }
+    if (scroller.clientWidth < 80) {
+      pendingZoom = [from, to];
+      return;
+    }
     pendingZoom = null;
     const w = Math.max(200, scroller.clientWidth - 24);
     zoom.pxPerBeat = clamp(w / Math.max(1, to - from), 3, 320);
     layoutSpacer();
     programmatic = true;
     scroller.scrollLeft = Math.max(0, from * ppb() - 8);
-    dirty = true; rulerDirty = true;
+    dirty = true;
+    rulerDirty = true;
   }
   function reveal(beat) {
     const x = beat * ppb();
-    if (x < scroller.scrollLeft + 20 || x > scroller.scrollLeft + scroller.clientWidth - 40) { programmatic = true; scroller.scrollLeft = Math.max(0, x - scroller.clientWidth * 0.25); }
+    if (x < scroller.scrollLeft + 20 || x > scroller.scrollLeft + scroller.clientWidth - 40) {
+      programmatic = true;
+      scroller.scrollLeft = Math.max(0, x - scroller.clientWidth * 0.25);
+    }
   }
   // New clips (a kept take, a band): scroll them into view and mark them once with crop marks in their author's ink
   // (the house's in cream: it has no ink of its own). Next frame, once the lanes are laid out for them.
   function showClips(ids, by) {
     const found = (ids || []).map((id) => store.findClip(id)).filter(Boolean);
     if (!found.length) return;
-    const pal = palette(), k = authorKind(app, by ?? found[0].clip.by);
+    const pal = palette(),
+      k = authorKind(app, by ?? found[0].clip.by);
     const col = k === 'house' ? pal.text : authorColor(app, by ?? found[0].clip.by);
     const now = performance.now();
-    for (const f of found) { flash.mark(f.clip.id, now); flashCol.set(f.clip.id, col); }
+    for (const f of found) {
+      flash.mark(f.clip.id, now);
+      flashCol.set(f.clip.id, col);
+    }
     dirty = true;
     const rows = tracks().map((t) => t.id);
     const top = found.slice().sort((a, b) => rows.indexOf(a.track.id) - rows.indexOf(b.track.id))[0];
-    const from = Math.min(...found.map((f) => f.clip.start)), to = Math.max(...found.map((f) => f.clip.start + f.clip.length));
+    const from = Math.min(...found.map((f) => f.clip.start)),
+      to = Math.max(...found.map((f) => f.clip.start + f.clip.length));
     // a take that grew the song (it ran past the last clip's end): its end stays in view, zoomed out to it if need be
     const idSet = new Set(found.map((f) => f.clip.id));
-    const before = Math.max(0, ...tracks().flatMap((t) => t.clips.filter((c) => !idSet.has(c.id)).map((c) => c.start + c.length)));
+    const before = Math.max(
+      0,
+      ...tracks().flatMap((t) => t.clips.filter((c) => !idSet.has(c.id)).map((c) => c.start + c.length)),
+    );
     const grew = to > before + 1e-6;
     requestAnimationFrame(() => {
       layoutSpacer();
-      if (grew && (to - from) * ppb() > scroller.clientWidth - 56) zoomTo(Math.max(0, from - bpbOf() / 2), to + bpbOf() / 2);
-      const x0 = from * ppb(), x1 = to * ppb(), vw = scroller.clientWidth;
+      if (grew && (to - from) * ppb() > scroller.clientWidth - 56)
+        zoomTo(Math.max(0, from - bpbOf() / 2), to + bpbOf() / 2);
+      const x0 = from * ppb(),
+        x1 = to * ppb(),
+        vw = scroller.clientWidth;
       // the start in view; the whole span when it fits
-      if (x0 < scroller.scrollLeft + 8 || Math.min(x1, x0 + vw - 48) > scroller.scrollLeft + vw - 8) { programmatic = true; scroller.scrollLeft = Math.max(0, x0 - Math.min(vw * 0.15, 48)); }
+      if (x0 < scroller.scrollLeft + 8 || Math.min(x1, x0 + vw - 48) > scroller.scrollLeft + vw - 8) {
+        programmatic = true;
+        scroller.scrollLeft = Math.max(0, x0 - Math.min(vw * 0.15, 48));
+      }
       // the top new row in view (a phone's lanes can be a single row tall: then that row at the top)
-      const ri = tracks().findIndex((t) => t.id === top.track.id), ry = ri < 0 ? -1 : trackTop(ri), ch = scroller.clientHeight;
-      if (ry >= 0 && (ry < scroller.scrollTop || ry + th() > scroller.scrollTop + ch)) { programmatic = true; scroller.scrollTop = Math.max(0, ch >= 2 * th() ? ry - th() : ry); }
+      const ri = tracks().findIndex((t) => t.id === top.track.id),
+        ry = ri < 0 ? -1 : trackTop(ri),
+        ch = scroller.clientHeight;
+      if (ry >= 0 && (ry < scroller.scrollTop || ry + th() > scroller.scrollTop + ch)) {
+        programmatic = true;
+        scroller.scrollTop = Math.max(0, ch >= 2 * th() ? ry - th() : ry);
+      }
       for (const f of found) flash.mark(f.clip.id, performance.now());
       dirty = true;
     });
@@ -2136,7 +3880,10 @@ function mountArranger(el, app) {
     const i = tracks().findIndex((t) => t.id === id);
     if (i < 0) return;
     const y = trackTop(i);
-    if (y < scroller.scrollTop || y + th() > scroller.scrollTop + scroller.clientHeight) { programmatic = true; scroller.scrollTop = Math.max(0, y - th()); }
+    if (y < scroller.scrollTop || y + th() > scroller.scrollTop + scroller.clientHeight) {
+      programmatic = true;
+      scroller.scrollTop = Math.max(0, y - th());
+    }
   }
 
   /* ======================================================= ruler gestures */
@@ -2144,7 +3891,8 @@ function mountArranger(el, app) {
     if (e.button !== 0 || e.target.tagName === 'INPUT') return;
     ui.state.focus = 'arranger';
     const r = rulerWrap.getBoundingClientRect();
-    const y = e.clientY - r.top, x = e.clientX - r.left + scroller.scrollLeft;
+    const y = e.clientY - r.top,
+      x = e.clientX - r.left + scroller.scrollLeft;
     const beat = Math.max(0, x / ppb());
     const bpb = bpbOf();
     const p = P();
@@ -2153,9 +3901,11 @@ function mountArranger(el, app) {
     if (y < SEC_Y + SEC_H) {
       const s = [...p.sections].reverse().find((s) => beat >= s.start && beat <= s.start + s.length);
       if (s) {
-        const x0 = s.start * ppb(), x1 = (s.start + s.length) * ppb();
+        const x0 = s.start * ppb(),
+          x1 = (s.start + s.length) * ppb();
         const zone = x > x1 - 6 ? 'r' : x < x0 + 6 && s.start > 0 ? 'l' : 'body';
-        selSection = s.id; selClips.clear();
+        selSection = s.id;
+        selClips.clear();
         ui.select({ clip: null, range: { from: s.start, to: s.start + s.length } });
         rulerWrap.focus({ preventScroll: true });
         d = { kind: 'section', s, zone, x0: x, start: s.start, length: s.length };
@@ -2166,15 +3916,30 @@ function mountArranger(el, app) {
           const next = p.sections.find((q) => q.start > start);
           const length = next ? Math.min(bpb * 4, next.start - start) : bpb * 4;
           const name = nextSectionName(p);
-          const rr = store.dispatch({ type: 'section.add', section: { name, start, length }, ref: 'sec' }, { by: 'you', label: `add section ${name}` });
-          if (rr.ok) { selSection = rr.created.sec; requestAnimationFrame(() => renameSection(rr.created.sec)); }
+          const rr = store.dispatch(
+            { type: 'section.add', section: { name, start, length }, ref: 'sec' },
+            { by: 'you', label: `add section ${name}` },
+          );
+          if (rr.ok) {
+            selSection = rr.created.sec;
+            requestAnimationFrame(() => renameSection(rr.created.sec));
+          }
         }
-        rulerDirty = true; dirty = true;
+        rulerDirty = true;
+        dirty = true;
         return;
       }
     } else if (y < LOOP_Y + LOOP_H && loopShown()) {
       const l = p.loop;
-      d = { kind: 'loop', zone: loopZone(x, e.pointerType === 'touch'), x0: x, start: l.start, end: l.end, beat0: beat, on: l.on };
+      d = {
+        kind: 'loop',
+        zone: loopZone(x, e.pointerType === 'touch'),
+        x0: x,
+        start: l.start,
+        end: l.end,
+        beat0: beat,
+        on: l.on,
+      };
     } else {
       // the start marker: the bar clicked (shift: the snap grid, or free); playing, the song jumps there too
       d = { kind: 'seek', x0: x };
@@ -2183,7 +3948,8 @@ function mountArranger(el, app) {
     rulerDrag = { ...d, clicks, moved: false };
     rulerWrap.setPointerCapture(e.pointerId);
     e.preventDefault();
-    rulerDirty = true; dirty = true;
+    rulerDirty = true;
+    dirty = true;
   });
   let rulerDrag = null;
   // the loop strip is Loop's (ui/workspace.js): put away in the simple view, its row of the ruler is the bars' (a click
@@ -2192,12 +3958,16 @@ function mountArranger(el, app) {
   // The loop strip: its ends resize it (7 px either side, more to a finger), its middle (the grip, the thicker stretch
   // of the line) moves it, and a drag anywhere else draws a new loop there. A click without a drag turns it on or off.
   function loopGrip() {
-    const l = P().loop, x0 = l.start * ppb(), x1 = l.end * ppb(), w = x1 - x0;
+    const l = P().loop,
+      x0 = l.start * ppb(),
+      x1 = l.end * ppb(),
+      w = x1 - x0;
     const half = w < 48 ? w / 2 : clamp(w / 6, 12, 40);
     return { x0, x1, a: (x0 + x1) / 2 - half, b: (x0 + x1) / 2 + half };
   }
   function loopZone(x, touch = false) {
-    const gp = loopGrip(), e = touch ? 12 : 7;
+    const gp = loopGrip(),
+      e = touch ? 12 : 7;
     if (Math.abs(x - gp.x1) < e) return 'r';
     if (Math.abs(x - gp.x0) < e) return 'l';
     return x >= gp.a && x <= gp.b ? 'body' : 'new';
@@ -2216,9 +3986,17 @@ function mountArranger(el, app) {
       const y = e.clientY - r.top;
       const p = P();
       let cur = 'default';
-      if (y < SEC_H) { const s = p.sections.find((s) => beat >= s.start && beat <= s.start + s.length); if (s) cur = (Math.abs(x - (s.start + s.length) * ppb()) < 6 || (Math.abs(x - s.start * ppb()) < 6 && s.start > 0)) ? 'ew-resize' : 'grab'; }
-      else if (y < LOOP_Y + LOOP_H && loopShown()) { const z = loopZone(x); cur = z === 'r' || z === 'l' ? 'ew-resize' : z === 'body' ? 'grab' : 'col-resize'; }
-      else cur = 'pointer';
+      if (y < SEC_H) {
+        const s = p.sections.find((s) => beat >= s.start && beat <= s.start + s.length);
+        if (s)
+          cur =
+            Math.abs(x - (s.start + s.length) * ppb()) < 6 || (Math.abs(x - s.start * ppb()) < 6 && s.start > 0)
+              ? 'ew-resize'
+              : 'grab';
+      } else if (y < LOOP_Y + LOOP_H && loopShown()) {
+        const z = loopZone(x);
+        cur = z === 'r' || z === 'l' ? 'ew-resize' : z === 'body' ? 'grab' : 'col-resize';
+      } else cur = 'pointer';
       rulerWrap.style.cursor = cur;
       return;
     }
@@ -2232,52 +4010,109 @@ function mountArranger(el, app) {
     if (d.kind === 'seek') placeMarker(snapTo(beat, lg));
     else if (d.kind === 'section') {
       const db = snapTo(dx / ppb(), g);
-      if (d.zone === 'body') d.nStart = Math.max(0, d.start + db), d.nLength = d.length;
-      else if (d.zone === 'r') d.nStart = d.start, d.nLength = Math.max(g, d.length + db);
-      else { const end = d.start + d.length; d.nStart = clamp(d.start + db, 0, end - g); d.nLength = end - d.nStart; }
+      if (d.zone === 'body') (d.nStart = Math.max(0, d.start + db)), (d.nLength = d.length);
+      else if (d.zone === 'r') (d.nStart = d.start), (d.nLength = Math.max(g, d.length + db));
+      else {
+        const end = d.start + d.length;
+        d.nStart = clamp(d.start + db, 0, end - g);
+        d.nLength = end - d.nStart;
+      }
     } else if (d.kind === 'loop') {
-      const lgrid = e.shiftKey ? (lg || 0.25) : Math.max(1, lg);
+      const lgrid = e.shiftKey ? lg || 0.25 : Math.max(1, lg);
       const b = snapTo(beat, lgrid);
-      if (d.zone === 'body') { const len = d.end - d.start; const s = Math.max(0, snapTo(d.start + dx / ppb(), lgrid)); d.nStart = s; d.nEnd = s + len; }
-      else if (d.zone === 'r') { d.nStart = d.start; d.nEnd = Math.max(d.start + lgrid, b); }
-      else if (d.zone === 'l') { d.nEnd = d.end; d.nStart = Math.min(d.end - lgrid, b); }
-      else { const a = snapTo(d.beat0, lgrid); d.nStart = Math.min(a, b); d.nEnd = Math.max(a, b); if (d.nEnd - d.nStart < lgrid) d.nEnd = d.nStart + lgrid; }
+      if (d.zone === 'body') {
+        const len = d.end - d.start;
+        const s = Math.max(0, snapTo(d.start + dx / ppb(), lgrid));
+        d.nStart = s;
+        d.nEnd = s + len;
+      } else if (d.zone === 'r') {
+        d.nStart = d.start;
+        d.nEnd = Math.max(d.start + lgrid, b);
+      } else if (d.zone === 'l') {
+        d.nEnd = d.end;
+        d.nStart = Math.min(d.end - lgrid, b);
+      } else {
+        const a = snapTo(d.beat0, lgrid);
+        d.nStart = Math.min(a, b);
+        d.nEnd = Math.max(a, b);
+        if (d.nEnd - d.nStart < lgrid) d.nEnd = d.nStart + lgrid;
+      }
     }
-    rulerDirty = true; dirty = true;
+    rulerDirty = true;
+    dirty = true;
   });
   const rulerUp = (e) => {
     const d = rulerDrag;
     rulerDrag = null;
     if (!d) return;
-    rulerDirty = true; dirty = true;
-    if (d.kind === 'seek') { app.transport?.marker?.set(app.transport.marker.beat, { announce: true }); return; }
+    rulerDirty = true;
+    dirty = true;
+    if (d.kind === 'seek') {
+      app.transport?.marker?.set(app.transport.marker.beat, { announce: true });
+      return;
+    }
     if (d.kind === 'section') {
-      if (!d.moved) { if (d.clicks >= 2) renameSection(d.s.id); return; }
+      if (!d.moved) {
+        if (d.clicks >= 2) renameSection(d.s.id);
+        return;
+      }
       if (d.nStart == null) return;
       const patch = {};
       if (d.nStart !== d.s.start) patch.start = d.nStart;
       if (d.nLength !== d.s.length) patch.length = d.nLength;
       if (Object.keys(patch).length) {
-        store.dispatch({ type: 'section.set', section: d.s.id, patch }, { by: 'you', label: `${patch.length != null && patch.start == null ? 'resize' : 'move'} ${d.s.name}` });
+        store.dispatch(
+          { type: 'section.set', section: d.s.id, patch },
+          { by: 'you', label: `${patch.length != null && patch.start == null ? 'resize' : 'move'} ${d.s.name}` },
+        );
         ui.select({ range: { from: d.nStart, to: d.nStart + d.nLength } });
       }
     } else if (d.kind === 'loop') {
-      if (!d.moved) { app.transport?.toggleLoop ? app.transport.toggleLoop() : store.dispatch({ type: 'project.set', patch: { loop: { on: !P().loop.on } } }, { by: 'you', label: 'loop' }); return; }
+      if (!d.moved) {
+        app.transport?.toggleLoop
+          ? app.transport.toggleLoop()
+          : store.dispatch(
+              { type: 'project.set', patch: { loop: { on: !P().loop.on } } },
+              { by: 'you', label: 'loop' },
+            );
+        return;
+      }
       if (d.nStart == null || d.nEnd <= d.nStart) return;
-      store.dispatch({ type: 'project.set', patch: { loop: { on: true, start: d.nStart, end: d.nEnd } } }, { by: 'you', label: 'set loop' });
+      store.dispatch(
+        { type: 'project.set', patch: { loop: { on: true, start: d.nStart, end: d.nEnd } } },
+        { by: 'you', label: 'set loop' },
+      );
     }
   };
   rulerWrap.addEventListener('pointerup', rulerUp);
-  rulerWrap.addEventListener('pointercancel', () => { rulerDrag = null; rulerDirty = true; });
+  rulerWrap.addEventListener('pointercancel', () => {
+    rulerDrag = null;
+    rulerDirty = true;
+  });
   const rulerMenu = (e) => {
     const r = rulerWrap.getBoundingClientRect();
     const beat = (e.clientX - r.left + scroller.scrollLeft) / ppb();
     const s = P().sections.find((s) => beat >= s.start && beat <= s.start + s.length);
     if (s && e.clientY - r.top < SEC_H) sectionMenu({ x: e.clientX, y: e.clientY }, s);
   };
-  rulerWrap.addEventListener('contextmenu', (e) => { e.preventDefault(); rulerMenu(e); });
-  longPress(rulerWrap, (pt) => { rulerDrag = null; rulerDirty = true; try { rulerWrap.releasePointerCapture(pt.pointerId); } catch (_) { /* gone */ } rulerMenu(pt); },
-    { filter: (e) => e.target.tagName !== 'INPUT' && e.clientY - rulerWrap.getBoundingClientRect().top < SEC_H });
+  rulerWrap.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    rulerMenu(e);
+  });
+  longPress(
+    rulerWrap,
+    (pt) => {
+      rulerDrag = null;
+      rulerDirty = true;
+      try {
+        rulerWrap.releasePointerCapture(pt.pointerId);
+      } catch (_) {
+        /* gone */
+      }
+      rulerMenu(pt);
+    },
+    { filter: (e) => e.target.tagName !== 'INPUT' && e.clientY - rulerWrap.getBoundingClientRect().top < SEC_H },
+  );
 
   /* ======================================================= device drops */
   const dropTarget = (e) => {
@@ -2290,11 +4125,19 @@ function mountArranger(el, app) {
   // (a drag's data can't be read until the drop, so the device being dragged is noted as the drag starts: the lane's
   // line can say a melodic instrument over a drum lane makes a new track)
   let dragDev = null;
-  const onDragStart = (e) => { const id = e.target?.closest?.('[data-device]')?.dataset?.device; dragDev = id ? app.devices.getDevice(id) || null : null; };
-  const onDragEnd = () => { dragDev = null; };
+  const onDragStart = (e) => {
+    const id = e.target?.closest?.('[data-device]')?.dataset?.device;
+    dragDev = id ? app.devices.getDevice(id) || null : null;
+  };
+  const onDragEnd = () => {
+    dragDev = null;
+  };
   document.addEventListener('dragstart', onDragStart, true);
   document.addEventListener('dragend', onDragEnd, true);
-  const offDrag = () => { document.removeEventListener('dragstart', onDragStart, true); document.removeEventListener('dragend', onDragEnd, true); };
+  const offDrag = () => {
+    document.removeEventListener('dragstart', onDragStart, true);
+    document.removeEventListener('dragend', onDragEnd, true);
+  };
   for (const zone of [laneWrap, heads]) {
     zone.addEventListener('dragover', (e) => {
       if (!hasDevice(e)) return;
@@ -2306,24 +4149,41 @@ function mountArranger(el, app) {
       dropHi.className = 'ar-drop' + (track && !split ? '' : ' ar-drop-new');
       const top = trackTop(track ? row : tracks().length) - scroller.scrollTop;
       dropHi.style.cssText = `top:${top}px;left:0;right:0;height:${track ? th() : 44}px`;
-      dropHi.textContent = split ? `Drop for a new track with ${dragDev.name}` : track ? `Drop on ${track.name}` : 'Drop for a new track';
+      dropHi.textContent = split
+        ? `Drop for a new track with ${dragDev.name}`
+        : track
+          ? `Drop on ${track.name}`
+          : 'Drop for a new track';
     });
-    zone.addEventListener('dragleave', (e) => { if (!zone.contains(e.relatedTarget)) dropHi.hidden = true; });
+    zone.addEventListener('dragleave', (e) => {
+      if (!zone.contains(e.relatedTarget)) dropHi.hidden = true;
+    });
     zone.addEventListener('drop', (e) => {
       if (!hasDevice(e)) return;
       e.preventDefault();
       dropHi.hidden = true;
       let info;
-      try { info = JSON.parse(e.dataTransfer.getData(DEVICE_MIME)); } catch (_) { return; }
+      try {
+        info = JSON.parse(e.dataTransfer.getData(DEVICE_MIME));
+      } catch (_) {
+        return;
+      }
       dropDevice(info, dropTarget(e).track);
     });
   }
   // A melodic instrument on a drum track, or a kit on a pitched track with notes: a drop there makes a new track rather
   // than turning the hits into notes (rack.js isMismatch when the browser's package has it; the same rule here)
   function mismatch(def, t) {
-    if (typeof rackKit.isMismatch === 'function') { try { return !!rackKit.isMismatch(def, t, P()); } catch (e) { /* the rule below */ } }
+    if (typeof rackKit.isMismatch === 'function') {
+      try {
+        return !!rackKit.isMismatch(def, t, P());
+      } catch (e) {
+        /* the rule below */
+      }
+    }
     if (!def || def.kind !== 'instrument' || !t || t.kind !== 'instrument') return false;
-    const kit = def.cat === 'drums', drums = isDrumTrack(app, t);
+    const kit = def.cat === 'drums',
+      drums = isDrumTrack(app, t);
     if (!kit && drums) return true;
     return kit && !drums && t.clips.some((c) => c.kind === 'notes' && c.notes?.length);
   }
@@ -2331,26 +4191,47 @@ function mountArranger(el, app) {
   // browser is a trial). A track still named after its old instrument takes the new one's name in the same step.
   function dropDevice(info, track) {
     const def = app.devices.getDevice(info?.id);
-    if (!def) { ui.toast(`No device "${info?.id}"`, { kind: 'bad' }); return; }
+    if (!def) {
+      ui.toast(`No device "${info?.id}"`, { kind: 'bad' });
+      return;
+    }
     const kind = info.kind || def.kind;
     if (track && kind === 'instrument' && track.kind === 'instrument' && mismatch(def, track)) {
       const id = addTrack({ kind: 'instrument', name: def.name, instrument: { device: def.id, params: {} } });
-      if (id) ui.toast(`New track with ${def.name}; ${track.name} keeps ${deviceName(app, track.instrument?.device)}.`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
+      if (id)
+        ui.toast(`New track with ${def.name}; ${track.name} keeps ${deviceName(app, track.instrument?.device)}.`, {
+          kind: 'ok',
+          action: { label: 'Undo', run: () => store.undo({ by: 'you' }) },
+        });
     } else if (track && kind === 'instrument' && track.kind === 'instrument') {
       const was = deviceName(app, track.instrument?.device);
-      if (track.instrument?.device === def.id) { ui.toast(`${track.name} plays ${def.name} already.`); ui.select({ track: track.id }); return; }
+      if (track.instrument?.device === def.id) {
+        ui.toast(`${track.name} plays ${def.name} already.`);
+        ui.select({ track: track.id });
+        return;
+      }
       // (a sound being tried on that track gives way to the one dropped: Back, quietly, then the drop)
       const tr = app.sounds?.trying?.();
       if (tr && !tr.newTrack && tr.track === track.id) app.sounds.back({ quiet: true });
       const name = track.name;
       const ops = [{ type: 'instrument.set', track: track.id, device: def.id }];
-      if (name === was && def.name !== name) ops.push({ type: 'track.set', track: track.id, patch: { name: def.name } });
+      if (name === was && def.name !== name)
+        ops.push({ type: 'track.set', track: track.id, patch: { name: def.name } });
       const r = store.dispatch(ops, { by: 'you', label: `${name}: ${def.name} (was ${was})` });
-      if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
+      if (!r.ok) {
+        ui.toast(r.error, { kind: 'bad' });
+        return;
+      }
       ui.select({ track: track.id });
-      ui.toast(`${name} plays ${def.name} now (was ${was}).`, { kind: 'ok', action: { label: 'Undo', run: () => store.undo({ id: r.txn?.id }) } });
+      ui.toast(`${name} plays ${def.name} now (was ${was}).`, {
+        kind: 'ok',
+        action: { label: 'Undo', run: () => store.undo({ id: r.txn?.id }) },
+      });
     } else if (track && kind === 'effect') {
-      store.dispatch({ type: 'insert.add', track: track.id, insert: { device: def.id } }, { by: 'you', label: `add ${def.name} to ${track.name}` });
+      store.dispatch(
+        { type: 'insert.add', track: track.id, insert: { device: def.id } },
+        { by: 'you', label: `add ${def.name} to ${track.name}` },
+      );
       ui.select({ track: track.id });
     } else if (kind === 'instrument') {
       addTrack({ kind: 'instrument', name: def.name, instrument: { device: def.id, params: {} } });
@@ -2372,18 +4253,31 @@ function mountArranger(el, app) {
     const t = sel.track && sel.track !== 'master' ? store.track(sel.track) : null;
     return t ? { t, c: null } : null;
   }
-  function say(text) { said.textContent = ''; setTimeout(() => { said.textContent = text; }, 30); }
+  function say(text) {
+    said.textContent = '';
+    setTimeout(() => {
+      said.textContent = text;
+    }, 30);
+  }
   function describe(t, c) {
     const bpb = bpbOf();
-    if (!c) return `Track ${t.name}, ${t.clips.length ? `${t.clips.length} clip${t.clips.length === 1 ? '' : 's'}` : 'no clips'}.`;
-    const b0 = Math.floor(c.start / bpb + 1e-9) + 1, b1 = Math.max(b0, Math.ceil((c.start + c.length) / bpb - 1e-9));
+    if (!c)
+      return `Track ${t.name}, ${t.clips.length ? `${t.clips.length} clip${t.clips.length === 1 ? '' : 's'}` : 'no clips'}.`;
+    const b0 = Math.floor(c.start / bpb + 1e-9) + 1,
+      b1 = Math.max(b0, Math.ceil((c.start + c.length) / bpb - 1e-9));
     const what = c.kind === 'notes' ? `${c.notes.length} note${c.notes.length === 1 ? '' : 's'}` : 'audio';
-    const by = signersOf(c).length ? { text: signedText(signersOf(c)) } : null;   // (the house is unsigned, read aloud too)
+    const by = signersOf(c).length ? { text: signedText(signersOf(c)) } : null; // (the house is unsigned, read aloud too)
     return `Track ${t.name}, clip ${c.name || t.name}, ${b0 === b1 ? `bar ${b0}` : `bars ${b0}–${b1}`}, ${what}${takeInfo.has(c.id) ? `, take ${takeInfo.get(c.id).k} of ${takeInfo.get(c.id).n}` : ''}${c.mute ? ', muted' : keptOffTrack(t) ? ', kept off: its instrument is silent until you play it' : ''}${by ? `, by ${by.text}` : ''}.`;
   }
   function moveTo(t, c) {
-    if (c) { selClips = new Set([c.id]); ui.select({ track: t.id, clip: c.id, notes: [], range: null }); reveal(c.start); }
-    else { selClips.clear(); ui.select({ track: t.id, clip: null, notes: [], range: null }); }
+    if (c) {
+      selClips = new Set([c.id]);
+      ui.select({ track: t.id, clip: c.id, notes: [], range: null });
+      reveal(c.start);
+    } else {
+      selClips.clear();
+      ui.select({ track: t.id, clip: null, notes: [], range: null });
+    }
     revealTrack(t.id);
     dirty = true;
     say(describe(t, c));
@@ -2393,11 +4287,28 @@ function mountArranger(el, app) {
     const t = cur?.t || tracks().find((x) => x.clips.length) || tracks()[0];
     if (!t) return;
     const list = bySt(t);
-    if (!list.length) { moveTo(t, null); return; }
+    if (!list.length) {
+      moveTo(t, null);
+      return;
+    }
     let i = cur?.c ? list.findIndex((x) => x.id === cur.c.id) : -1;
     if (i < 0) {
       const b = engine.beat || 0;
-      i = dir > 0 ? Math.max(0, list.findIndex((x) => x.start + x.length > b)) : Math.max(0, list.length - 1 - list.slice().reverse().findIndex((x) => x.start <= b));
+      i =
+        dir > 0
+          ? Math.max(
+              0,
+              list.findIndex((x) => x.start + x.length > b),
+            )
+          : Math.max(
+              0,
+              list.length -
+                1 -
+                list
+                  .slice()
+                  .reverse()
+                  .findIndex((x) => x.start <= b),
+            );
     } else i = clamp(i + dir, 0, list.length - 1);
     moveTo(t, list[i]);
   }
@@ -2407,10 +4318,13 @@ function mountArranger(el, app) {
     if (!all.length) return;
     const i = cur ? all.indexOf(cur.t) : -1;
     const t = all[clamp(i < 0 ? 0 : i + dir, 0, all.length - 1)];
-    const at0 = cur?.c ? cur.c.start : (engine.beat || 0);
+    const at0 = cur?.c ? cur.c.start : engine.beat || 0;
     // the clip on the new track that sounds at the same time, else the nearest one
     const list = bySt(t);
-    const c = list.find((x) => x.start <= at0 + 1e-6 && x.start + x.length > at0) || list.slice().sort((a, b) => Math.abs(a.start - at0) - Math.abs(b.start - at0))[0] || null;
+    const c =
+      list.find((x) => x.start <= at0 + 1e-6 && x.start + x.length > at0) ||
+      list.slice().sort((a, b) => Math.abs(a.start - at0) - Math.abs(b.start - at0))[0] ||
+      null;
     moveTo(t, c);
   }
   function cursorMenu() {
@@ -2419,40 +4333,60 @@ function mountArranger(el, app) {
     const r = cur.c ? clipRect(cur.t, cur.c) : null;
     const box = scroller.getBoundingClientRect();
     const i = tracks().indexOf(cur.t);
-    const pt = r ? { x: box.left + clamp(r.x + 12, 0, box.width - 20), y: box.top + clamp(r.y + 18, 0, box.height - 10) } : { x: box.left + 20, y: box.top + clamp(trackTop(i) - scroller.scrollTop + 18, 0, box.height - 10) };
-    if (cur.c) clipMenu(pt, cur.t, cur.c); else trackMenu(pt, cur.t);
+    const pt = r
+      ? { x: box.left + clamp(r.x + 12, 0, box.width - 20), y: box.top + clamp(r.y + 18, 0, box.height - 10) }
+      : { x: box.left + 20, y: box.top + clamp(trackTop(i) - scroller.scrollTop + 18, 0, box.height - 10) };
+    if (cur.c) clipMenu(pt, cur.t, cur.c);
+    else trackMenu(pt, cur.t);
   }
 
   /* ======================================================= keyboard: the section strip */
   // The selected section is the cursor here. ←/→ walk the sections in time order and select each one's bars (what a
   // click on it does), so mod+D, Delete and the menu act on it; every move is announced.
   const rulerFocused = () => document.activeElement === rulerWrap;
-  const sectionsInOrder = () => P().sections.slice().sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  const sectionsInOrder = () =>
+    P()
+      .sections.slice()
+      .sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
   const curSection = () => P().sections.find((x) => x.id === selSection) || null;
   function barsOf(s) {
     const bpb = bpbOf();
-    const a = Math.floor(s.start / bpb + 1e-9) + 1, b = Math.max(a, Math.ceil((s.start + s.length) / bpb - 1e-9));
+    const a = Math.floor(s.start / bpb + 1e-9) + 1,
+      b = Math.max(a, Math.ceil((s.start + s.length) / bpb - 1e-9));
     return a === b ? `bar ${a}` : `bars ${a}–${b}`;
   }
   function pickSection(s) {
-    selSection = s.id; selClips.clear();
+    selSection = s.id;
+    selClips.clear();
     ui.select({ clip: null, notes: [], range: { from: s.start, to: s.start + s.length } });
     reveal(s.start);
-    rulerDirty = true; dirty = true;
+    rulerDirty = true;
+    dirty = true;
     syncBar();
     const list = sectionsInOrder();
     say(`Section ${s.name}, ${barsOf(s)}, ${list.indexOf(s) + 1} of ${list.length}.`);
   }
   function stepSection(dir) {
     const list = sectionsInOrder();
-    if (!list.length) { say('No sections yet. The plus beside Sections adds one.'); return; }
+    if (!list.length) {
+      say('No sections yet. The plus beside Sections adds one.');
+      return;
+    }
     let i = list.findIndex((x) => x.id === selSection);
     if (dir === -Infinity) i = 0;
     else if (dir === Infinity) i = list.length - 1;
     else if (i < 0) {
       // nothing picked yet: start from the playhead, as a cursor (on a section's first beat, ← is the one before it)
       const b = engine.beat || 0;
-      i = dir > 0 ? list.findIndex((x) => x.start + x.length > b) : list.length - 1 - list.slice().reverse().findIndex((x) => x.start < b - 1e-9);
+      i =
+        dir > 0
+          ? list.findIndex((x) => x.start + x.length > b)
+          : list.length -
+            1 -
+            list
+              .slice()
+              .reverse()
+              .findIndex((x) => x.start < b - 1e-9);
       if (i < 0 || i >= list.length) i = dir > 0 ? list.length - 1 : 0;
     } else i = clamp(i + dir, 0, list.length - 1);
     pickSection(list[i]);
@@ -2460,22 +4394,41 @@ function mountArranger(el, app) {
   // where a section's menu opens from the keyboard: under its name on the strip
   function sectionPoint(s) {
     const r = rulerWrap.getBoundingClientRect();
-    return { x: r.left + clamp(s.start * ppb() - scroller.scrollLeft + 12, 0, Math.max(0, r.width - 20)), y: r.top + SEC_H };
+    return {
+      x: r.left + clamp(s.start * ppb() - scroller.scrollLeft + 12, 0, Math.max(0, r.width - 20)),
+      y: r.top + SEC_H,
+    };
   }
   function sectionKeyMenu() {
     let s = curSection();
-    if (!s) { stepSection(1); s = curSection(); }
+    if (!s) {
+      stepSection(1);
+      s = curSection();
+    }
     if (s) sectionMenu(sectionPoint(s), s);
   }
   // the section a clip starts in, or the one under the playhead (for the clip and track menus)
-  const sectionAt = (beat) => sectionsInOrder().find((x) => beat >= x.start - 1e-6 && beat < x.start + x.length - 1e-6) || null;
-  const sectionItem = (at, s) => (s ? ['-', { label: `Section ${s.name}…`, sub: 'duplicate, insert or delete bars', title: `${s.name}, ${barsOf(s)}: duplicate it, insert bars after it, or delete its bars`, run: () => sectionMenu(at, s) }] : []);
+  const sectionAt = (beat) =>
+    sectionsInOrder().find((x) => beat >= x.start - 1e-6 && beat < x.start + x.length - 1e-6) || null;
+  const sectionItem = (at, s) =>
+    s
+      ? [
+          '-',
+          {
+            label: `Section ${s.name}…`,
+            sub: 'duplicate, insert or delete bars',
+            title: `${s.name}, ${barsOf(s)}: duplicate it, insert bars after it, or delete its bars`,
+            run: () => sectionMenu(at, s),
+          },
+        ]
+      : [];
 
   /* ======================================================= keys */
   const mine = () => !ui.state.focus || ui.state.focus === 'arranger';
   // the selected bars, when L would loop something new: a range that isn't already the loop playing
   function loopableRange() {
-    const r = ui.state.selection.range, l = P().loop;
+    const r = ui.state.selection.range,
+      l = P().loop;
     if (!r || !(r.to - r.from >= 0.25 - 1e-9)) return null;
     if (l?.on && Math.abs(l.start - r.from) < 1e-6 && Math.abs(l.end - r.to) < 1e-6) return null;
     return r;
@@ -2483,70 +4436,391 @@ function mountArranger(el, app) {
   function loopSelection() {
     const r = loopableRange();
     if (!r) return null;
-    const res = store.dispatch({ type: 'project.set', patch: { loop: { on: true, start: r.from, end: r.to } } }, { by: 'you', label: 'loop the selected bars' });
-    if (!res.ok) { ui.toast(res.error, { kind: 'bad' }); return res; }
-    ui.toast([`Looping ${loopSpan()}. `, ...(touchFirst() ? [] : [h('kbd', 'L'), ' again turns the loop off.'])], { ms: 2600 });
-    rulerDirty = true; dirty = true;
+    const res = store.dispatch(
+      { type: 'project.set', patch: { loop: { on: true, start: r.from, end: r.to } } },
+      { by: 'you', label: 'loop the selected bars' },
+    );
+    if (!res.ok) {
+      ui.toast(res.error, { kind: 'bad' });
+      return res;
+    }
+    ui.toast([`Looping ${loopSpan()}. `, ...(touchFirst() ? [] : [h('kbd', 'L'), ' again turns the loop off.'])], {
+      ms: 2600,
+    });
+    rulerDirty = true;
+    dirty = true;
     return res;
   }
   // a lane point selected (lanes.js): these come first, so they win over the clip keys while it is
   const laneSel = () => !!laneEd.sel && rows().lanes.has(laneEd.sel.key);
-  const selTrack = () => { const id = ui.state.selection.track; return id && id !== 'master' ? store.track(id) : null; };
+  const selTrack = () => {
+    const id = ui.state.selection.track;
+    return id && id !== 'master' ? store.track(id) : null;
+  };
   const offs = [
-    ui.keys.add({ key: 'KeyE', when: () => mine() && !app.input?.qwerty?.on, run: () => { if (selTrack()) toggleLanes(selTrack().id); else ui.toast('Select a track first: E shows its automation lanes.', { ms: 2400 }); }, label: 'Show or hide the selected track’s automation lanes', group: 'Arrange' }),
-    ui.keys.add({ key: 'KeyC', mod: 'mod', when: () => mine() && laneSel(), run: () => laneEd.copy(), label: 'Copy the selected lane points', group: 'Arrange' }),
-    ui.keys.add({ key: 'KeyV', mod: 'mod', when: () => mine() && laneEd.canPaste() && (laneSel() || rows().lanes.size > 0), run: () => laneEd.paste(), label: 'Paste lane points at the playhead', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowRight', when: () => lanesFocused() && laneSel(), run: () => laneEd.stepPoint(1), label: 'The next point on the lane', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowLeft', when: () => lanesFocused() && laneSel(), run: () => laneEd.stepPoint(-1), label: 'The previous point on the lane', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowUp', when: () => lanesFocused() && laneSel(), run: () => laneEd.nudge(1, false), label: 'Raise the selected points', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowDown', when: () => lanesFocused() && laneSel(), run: () => laneEd.nudge(-1, false), label: 'Lower the selected points', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowUp', mod: 'shift', when: () => lanesFocused() && laneSel(), run: () => laneEd.nudge(1, true), label: 'Raise the selected points a lot', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'ArrowDown', mod: 'shift', when: () => lanesFocused() && laneSel(), run: () => laneEd.nudge(-1, true), label: 'Lower the selected points a lot', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'Delete', when: () => mine() && laneSel(), run: () => laneEd.deleteSelected(), label: 'Delete the selected lane points', group: 'Arrange' }),
-    ui.keys.add({ key: 'Backspace', when: () => mine() && laneSel(), run: () => laneEd.deleteSelected(), label: 'Delete the selected lane points', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'Escape', when: () => mine() && laneSel(), run: () => { laneEd.sel = null; }, label: 'Clear the lane selection', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'ArrowRight', when: lanesFocused, run: () => stepClip(1), label: 'The next clip on the track', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowLeft', when: lanesFocused, run: () => stepClip(-1), label: 'The previous clip on the track', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowDown', when: lanesFocused, run: () => stepTrack(1), label: 'The track below', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowUp', when: lanesFocused, run: () => stepTrack(-1), label: 'The track above', group: 'Arrange' }),
-    ui.keys.add({ key: 'Enter', when: () => lanesFocused() && !!cursor()?.c, run: () => { const c = cursor(); editClip(c.t.id, c.c.id); }, label: 'Open the clip in its editor', group: 'Arrange' }),
-    ui.keys.add({ key: 'F2', when: () => lanesFocused() && !!cursor(), run: () => { const c = cursor(); if (c.c) renameClip(c.t, c.c); else { const n = headsInner.querySelector(`[data-track="${c.t.id}"] .ar-hname`); if (n) renameTrack(c.t, n); } }, label: 'Rename the clip (or track)', group: 'Arrange' }),
-    ui.keys.add({ key: 'F10', mod: 'shift', when: () => lanesFocused() && laneSel(), run: laneKeyMenu, label: 'The lane point’s menu: its curve, shapes', group: 'Arrange' }),
-    ui.keys.add({ key: 'ContextMenu', when: () => lanesFocused() && laneSel(), run: laneKeyMenu, label: 'The lane point’s menu', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'F10', mod: 'shift', when: () => lanesFocused() && !!cursor(), run: cursorMenu, label: 'The clip’s menu', group: 'Arrange' }),
-    ui.keys.add({ key: 'ContextMenu', when: () => lanesFocused() && !!cursor(), run: cursorMenu, label: 'The clip’s menu', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'ArrowRight', when: rulerFocused, run: () => stepSection(1), label: 'The next section (the section strip focused)', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowLeft', when: rulerFocused, run: () => stepSection(-1), label: 'The previous section', group: 'Arrange' }),
-    ui.keys.add({ key: 'Home', when: rulerFocused, run: () => stepSection(-Infinity), label: 'The first section', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'End', when: rulerFocused, run: () => stepSection(Infinity), label: 'The last section', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'F2', when: () => rulerFocused() && !!curSection(), run: () => renameSection(selSection), label: 'Rename the section', group: 'Arrange' }),
-    ui.keys.add({ key: 'F10', mod: 'shift', when: rulerFocused, run: sectionKeyMenu, label: 'The section’s menu: duplicate, insert or delete bars', group: 'Arrange' }),
-    ui.keys.add({ key: 'ContextMenu', when: rulerFocused, run: sectionKeyMenu, label: 'The section’s menu', group: 'Arrange', hidden: true }),
-    ui.keys.add({ key: 'Delete', when: () => mine() && (selClips.size > 0 || !!selSection), run: deleteSelected, label: 'Delete the selected clips', group: 'Arrange' }),
-    ui.keys.add({ key: 'Backspace', when: () => mine() && (selClips.size > 0 || !!selSection), run: deleteSelected, label: 'Delete the selected clips', group: 'Arrange' }),
-    ui.keys.add({ key: 'KeyD', mod: 'mod', when: () => mine() && selClips.size > 0, run: duplicateSelected, label: 'Duplicate the selected clips after themselves', group: 'Arrange' }),
-    ui.keys.add({ key: 'KeyD', mod: 'mod', when: () => mine() && !selClips.size && P().sections.some((x) => x.id === selSection), run: () => duplicateSection(P().sections.find((x) => x.id === selSection)), label: 'Duplicate the selected section and its clips', group: 'Arrange' }),
+    ui.keys.add({
+      key: 'KeyE',
+      when: () => mine() && !app.input?.qwerty?.on,
+      run: () => {
+        if (selTrack()) toggleLanes(selTrack().id);
+        else ui.toast('Select a track first: E shows its automation lanes.', { ms: 2400 });
+      },
+      label: 'Show or hide the selected track’s automation lanes',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'KeyC',
+      mod: 'mod',
+      when: () => mine() && laneSel(),
+      run: () => laneEd.copy(),
+      label: 'Copy the selected lane points',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'KeyV',
+      mod: 'mod',
+      when: () => mine() && laneEd.canPaste() && (laneSel() || rows().lanes.size > 0),
+      run: () => laneEd.paste(),
+      label: 'Paste lane points at the playhead',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowRight',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.stepPoint(1),
+      label: 'The next point on the lane',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowLeft',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.stepPoint(-1),
+      label: 'The previous point on the lane',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowUp',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.nudge(1, false),
+      label: 'Raise the selected points',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowDown',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.nudge(-1, false),
+      label: 'Lower the selected points',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowUp',
+      mod: 'shift',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.nudge(1, true),
+      label: 'Raise the selected points a lot',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'ArrowDown',
+      mod: 'shift',
+      when: () => lanesFocused() && laneSel(),
+      run: () => laneEd.nudge(-1, true),
+      label: 'Lower the selected points a lot',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'Delete',
+      when: () => mine() && laneSel(),
+      run: () => laneEd.deleteSelected(),
+      label: 'Delete the selected lane points',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Backspace',
+      when: () => mine() && laneSel(),
+      run: () => laneEd.deleteSelected(),
+      label: 'Delete the selected lane points',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'Escape',
+      when: () => mine() && laneSel(),
+      run: () => {
+        laneEd.sel = null;
+      },
+      label: 'Clear the lane selection',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'ArrowRight',
+      when: lanesFocused,
+      run: () => stepClip(1),
+      label: 'The next clip on the track',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowLeft',
+      when: lanesFocused,
+      run: () => stepClip(-1),
+      label: 'The previous clip on the track',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowDown',
+      when: lanesFocused,
+      run: () => stepTrack(1),
+      label: 'The track below',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowUp',
+      when: lanesFocused,
+      run: () => stepTrack(-1),
+      label: 'The track above',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Enter',
+      when: () => lanesFocused() && !!cursor()?.c,
+      run: () => {
+        const c = cursor();
+        editClip(c.t.id, c.c.id);
+      },
+      label: 'Open the clip in its editor',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'F2',
+      when: () => lanesFocused() && !!cursor(),
+      run: () => {
+        const c = cursor();
+        if (c.c) renameClip(c.t, c.c);
+        else {
+          const n = headsInner.querySelector(`[data-track="${c.t.id}"] .ar-hname`);
+          if (n) renameTrack(c.t, n);
+        }
+      },
+      label: 'Rename the clip (or track)',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'F10',
+      mod: 'shift',
+      when: () => lanesFocused() && laneSel(),
+      run: laneKeyMenu,
+      label: 'The lane point’s menu: its curve, shapes',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ContextMenu',
+      when: () => lanesFocused() && laneSel(),
+      run: laneKeyMenu,
+      label: 'The lane point’s menu',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'F10',
+      mod: 'shift',
+      when: () => lanesFocused() && !!cursor(),
+      run: cursorMenu,
+      label: 'The clip’s menu',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ContextMenu',
+      when: () => lanesFocused() && !!cursor(),
+      run: cursorMenu,
+      label: 'The clip’s menu',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'ArrowRight',
+      when: rulerFocused,
+      run: () => stepSection(1),
+      label: 'The next section (the section strip focused)',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowLeft',
+      when: rulerFocused,
+      run: () => stepSection(-1),
+      label: 'The previous section',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Home',
+      when: rulerFocused,
+      run: () => stepSection(-Infinity),
+      label: 'The first section',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'End',
+      when: rulerFocused,
+      run: () => stepSection(Infinity),
+      label: 'The last section',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'F2',
+      when: () => rulerFocused() && !!curSection(),
+      run: () => renameSection(selSection),
+      label: 'Rename the section',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'F10',
+      mod: 'shift',
+      when: rulerFocused,
+      run: sectionKeyMenu,
+      label: 'The section’s menu: duplicate, insert or delete bars',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ContextMenu',
+      when: rulerFocused,
+      run: sectionKeyMenu,
+      label: 'The section’s menu',
+      group: 'Arrange',
+      hidden: true,
+    }),
+    ui.keys.add({
+      key: 'Delete',
+      when: () => mine() && (selClips.size > 0 || !!selSection),
+      run: deleteSelected,
+      label: 'Delete the selected clips',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Backspace',
+      when: () => mine() && (selClips.size > 0 || !!selSection),
+      run: deleteSelected,
+      label: 'Delete the selected clips',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'KeyD',
+      mod: 'mod',
+      when: () => mine() && selClips.size > 0,
+      run: duplicateSelected,
+      label: 'Duplicate the selected clips after themselves',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'KeyD',
+      mod: 'mod',
+      when: () => mine() && !selClips.size && P().sections.some((x) => x.id === selSection),
+      run: () => duplicateSection(P().sections.find((x) => x.id === selSection)),
+      label: 'Duplicate the selected section and its clips',
+      group: 'Arrange',
+    }),
     // ⌘E splits from any panel: nothing else uses it, and the selected clips are the arrangement's (no clip selected,
     // the shell says what it would split)
-    ui.keys.add({ key: 'KeyE', mod: 'mod', when: () => selectedList().length > 0, run: splitKey, label: 'Split the selected clips at the playhead (on the snap grid)', group: 'Arrange' }),
-    ui.keys.add({ key: 'Digit0', when: () => mine() && selClips.size > 0, run: toggleMuteSelected, label: 'Mute / unmute the selected clips', group: 'Arrange' }),
-    ui.keys.add({ key: 'KeyA', mod: 'mod', when: mine, run: () => { selClips = new Set(tracks().flatMap((t) => t.clips.map((c) => c.id))); dirty = true; syncBar(); }, label: 'Select every clip', group: 'Arrange' }),
-    ui.keys.add({ key: 'Escape', when: () => mine() && (selClips.size > 0 || !!ui.state.selection.range || !!selSection), run: () => { selClips.clear(); selSection = null; ui.select({ clip: null, range: null, notes: [] }); dirty = true; syncBar(); }, label: 'Clear the selection', group: 'Arrange' }),
+    ui.keys.add({
+      key: 'KeyE',
+      mod: 'mod',
+      when: () => selectedList().length > 0,
+      run: splitKey,
+      label: 'Split the selected clips at the playhead (on the snap grid)',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Digit0',
+      when: () => mine() && selClips.size > 0,
+      run: toggleMuteSelected,
+      label: 'Mute / unmute the selected clips',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'KeyA',
+      mod: 'mod',
+      when: mine,
+      run: () => {
+        selClips = new Set(tracks().flatMap((t) => t.clips.map((c) => c.id)));
+        dirty = true;
+        syncBar();
+      },
+      label: 'Select every clip',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'Escape',
+      when: () => mine() && (selClips.size > 0 || !!ui.state.selection.range || !!selSection),
+      run: () => {
+        selClips.clear();
+        selSection = null;
+        ui.select({ clip: null, range: null, notes: [] });
+        dirty = true;
+        syncBar();
+      },
+      label: 'Clear the selection',
+      group: 'Arrange',
+    }),
     // a take stack: the selected clip's previous / next take (free in every panel: Notes uses plain, Shift and Alt arrows)
-    ui.keys.add({ key: 'ArrowUp', mod: 'mod', when: () => !!stackOf(), run: () => stepTake(-1), label: 'The previous take of the selected clip', group: 'Arrange' }),
-    ui.keys.add({ key: 'ArrowDown', mod: 'mod', when: () => !!stackOf(), run: () => stepTake(1), label: 'The next take of the selected clip', group: 'Arrange' }),
+    ui.keys.add({
+      key: 'ArrowUp',
+      mod: 'mod',
+      when: () => !!stackOf(),
+      run: () => stepTake(-1),
+      label: 'The previous take of the selected clip',
+      group: 'Arrange',
+    }),
+    ui.keys.add({
+      key: 'ArrowDown',
+      mod: 'mod',
+      when: () => !!stackOf(),
+      run: () => stepTake(1),
+      label: 'The next take of the selected clip',
+      group: 'Arrange',
+    }),
     // its take lanes, one per take under it: drag across one to comp
     // (with no take selected it closes any that are open)
-    ui.keys.add({ key: 'KeyT', mod: 'alt', when: () => !!stackOf() || takesOpen.size > 0, run: () => {
-      const st = stackOf(), f = st && store.findClip(ui.state.selection.clip);
-      if (f) { toggleTakes(st.track, f.clip); return; }
-      takesOpen.clear(); takesVer++; relayout(); say('The take lanes are closed.');
-    }, label: 'Show or hide the take lanes of the selected clip', group: 'Arrange' }),
+    ui.keys.add({
+      key: 'KeyT',
+      mod: 'alt',
+      when: () => !!stackOf() || takesOpen.size > 0,
+      run: () => {
+        const st = stackOf(),
+          f = st && store.findClip(ui.state.selection.clip);
+        if (f) {
+          toggleTakes(st.track, f.clip);
+          return;
+        }
+        takesOpen.clear();
+        takesVer++;
+        relayout();
+        say('The take lanes are closed.');
+      },
+      label: 'Show or hide the take lanes of the selected clip',
+      group: 'Arrange',
+    }),
     // L with bars selected loops them (L alone, or on the bars already looping, is the transport's: the loop on / off;
     // while the home row plays notes or pads, or a take runs, L is theirs)
-    ui.keys.add({ key: 'KeyL', when: () => !!loopableRange() && !app.input?.mode && !app.input?.qwerty?.on && !app.transport?.locked?.(), run: loopSelection, label: 'Loop the selected bars', group: 'Arrange', feature: 'loop' }),
+    ui.keys.add({
+      key: 'KeyL',
+      when: () => !!loopableRange() && !app.input?.mode && !app.input?.qwerty?.on && !app.transport?.locked?.(),
+      run: loopSelection,
+      label: 'Loop the selected bars',
+      group: 'Arrange',
+      feature: 'loop',
+    }),
     ui.keys.add({ key: 'Equal', mod: 'mod', when: mine, run: () => zoomBy(1.4), label: 'Zoom in', group: 'Arrange' }),
-    ui.keys.add({ key: 'Minus', mod: 'mod', when: mine, run: () => zoomBy(1 / 1.4), label: 'Zoom out', group: 'Arrange' }),
+    ui.keys.add({
+      key: 'Minus',
+      mod: 'mod',
+      when: mine,
+      run: () => zoomBy(1 / 1.4),
+      label: 'Zoom out',
+      group: 'Arrange',
+    }),
   ];
 
   /* ======================================================= empty state */
@@ -2555,7 +4829,8 @@ function mountArranger(el, app) {
   let emptyTake = '';
   const takeNote = h('div.ar-empty-take', { role: 'status', 'aria-live': 'polite', hidden: true });
   function syncEmptyTake(live) {
-    const st = live ? live.state : '', name = live && !live.track ? newPartFor(app.input?.recorder?.humming?.() ? 'hum' : 'keys', store.get()).name : '';
+    const st = live ? live.state : '',
+      name = live && !live.track ? newPartFor(app.input?.recorder?.humming?.() ? 'hum' : 'keys', store.get()).name : '';
     const key = `${st}:${name}`;
     if (key === emptyTake) return;
     emptyTake = key;
@@ -2564,8 +4839,15 @@ function mountArranger(el, app) {
     takeNote.hidden = !st;
     if (!st) return;
     const bpb = Math.ceil(bpbOf() - 1e-9);
-    takeNote.replaceChildren(h('h2.ar-empty-title.disp', st === 'count' ? 'Counting in.' : 'Recording.'),
-      h('p.ar-empty-text', st === 'count' ? `Come in right after the ${bpb}.` : `The take lands here${name ? ` on a new track, ${name},` : ''} when you stop.`));
+    takeNote.replaceChildren(
+      h('h2.ar-empty-title.disp', st === 'count' ? 'Counting in.' : 'Recording.'),
+      h(
+        'p.ar-empty-text',
+        st === 'count'
+          ? `Come in right after the ${bpb}.`
+          : `The take lands here${name ? ` on a new track, ${name},` : ''} when you stop.`,
+      ),
+    );
   }
   function syncEmpty() {
     const isEmpty = tracks().length === 0;
@@ -2576,11 +4858,22 @@ function mountArranger(el, app) {
     empty.append(takeNote);
     // the blank song's door (ui/start.js): Tap a beat (the primary), Hum a tune, Play the keys, the ways with no playing
     // in time, and a finished song to hear
-    empty.append(doorOf(app, {
-      addTrackMenu: (el) => addTrackMenu(el),
-      showAgent: () => { if (!showAgent(ui)) ui.toast('The agent panel is loading'); },
-      openDemo: async () => { if (app.exporter?.openDemo) { app.exporter.openDemo(); return; } const m = await import('../core/demo.js'); store.load(m.demoProject(), { by: 'overdub' }); },
-    }));
+    empty.append(
+      doorOf(app, {
+        addTrackMenu: (el) => addTrackMenu(el),
+        showAgent: () => {
+          if (!showAgent(ui)) ui.toast('The agent panel is loading');
+        },
+        openDemo: async () => {
+          if (app.exporter?.openDemo) {
+            app.exporter.openDemo();
+            return;
+          }
+          const m = await import('../core/demo.js');
+          store.load(m.demoProject(), { by: 'overdub' });
+        },
+      }),
+    );
   }
 
   /* ======================================================= drawing */
@@ -2590,14 +4883,24 @@ function mountArranger(el, app) {
     let list = signers.get(c.id);
     if (list) return list;
     list = [];
-    const add = (by) => { if (!by || list.some((x) => x.by === by)) return; const b = bylineOf(app, by); if (b) list.push({ by, ...b }); };
+    const add = (by) => {
+      if (!by || list.some((x) => x.by === by)) return;
+      const b = bylineOf(app, by);
+      if (b) list.push({ by, ...b });
+    };
     add(c.by);
     if (c.kind === 'notes') for (const n of c.notes) add(n.by);
     signers.set(c.id, list);
     return list;
   }
   // "you", "you and Claude", "you, Claude and Ana"
-  const signedText = (list) => (list.length < 2 ? list.map((x) => x.text).join('') : `${list.slice(0, -1).map((x) => x.text).join(', ')} and ${list[list.length - 1].text}`);
+  const signedText = (list) =>
+    list.length < 2
+      ? list.map((x) => x.text).join('')
+      : `${list
+          .slice(0, -1)
+          .map((x) => x.text)
+          .join(', ')} and ${list[list.length - 1].text}`;
   function statsOf(c) {
     let s = preview.get(c.id);
     if (s) return s;
@@ -2606,7 +4909,8 @@ function mountArranger(el, app) {
       const idx = new Map(ps.map((p, i) => [p, i]));
       s = { rows: Math.max(ps.length, 4), row: (p) => idx.get(p) + Math.max(0, (4 - ps.length) / 2) };
     } else if (ps.length) {
-      const hi = ps[0] + 1, lo = ps[ps.length - 1] - 1;
+      const hi = ps[0] + 1,
+        lo = ps[ps.length - 1] - 1;
       s = { rows: hi - lo + 1, row: (p) => hi - p };
     } else s = { rows: 1, row: () => 0 };
     preview.set(c.id, s);
@@ -2617,41 +4921,61 @@ function mountArranger(el, app) {
     if (w) return w;
     w = { state: 'loading' };
     waves.set(asset, w);
-    Promise.resolve(engine.assets?.get?.(asset)).then((buf) => {
-      if (!buf || !buf.length) { w.state = 'missing'; dirty = true; return; }
-      const n = Math.min(200000, Math.max(256, Math.round(buf.duration * 300)));
-      const peaks = new Float32Array(n * 2);
-      const chs = [];
-      for (let c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
-      const per = buf.length / n;
-      for (let i = 0; i < n; i++) {
-        let mn = 0, mx = 0;
-        const a = Math.floor(i * per), b = Math.min(buf.length, Math.floor((i + 1) * per));
-        const step = Math.max(1, Math.floor((b - a) / 64));
-        for (let j = a; j < b; j += step) for (const ch of chs) { const v = ch[j]; if (v < mn) mn = v; if (v > mx) mx = v; }
-        peaks[i * 2] = mn; peaks[i * 2 + 1] = mx;
-      }
-      Object.assign(w, { state: 'ready', peaks, n, dur: buf.duration });
-      dirty = true;
-    }).catch(() => { w.state = 'missing'; dirty = true; });
+    Promise.resolve(engine.assets?.get?.(asset))
+      .then((buf) => {
+        if (!buf || !buf.length) {
+          w.state = 'missing';
+          dirty = true;
+          return;
+        }
+        const n = Math.min(200000, Math.max(256, Math.round(buf.duration * 300)));
+        const peaks = new Float32Array(n * 2);
+        const chs = [];
+        for (let c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+        const per = buf.length / n;
+        for (let i = 0; i < n; i++) {
+          let mn = 0,
+            mx = 0;
+          const a = Math.floor(i * per),
+            b = Math.min(buf.length, Math.floor((i + 1) * per));
+          const step = Math.max(1, Math.floor((b - a) / 64));
+          for (let j = a; j < b; j += step)
+            for (const ch of chs) {
+              const v = ch[j];
+              if (v < mn) mn = v;
+              if (v > mx) mx = v;
+            }
+          peaks[i * 2] = mn;
+          peaks[i * 2 + 1] = mx;
+        }
+        Object.assign(w, { state: 'ready', peaks, n, dur: buf.duration });
+        dirty = true;
+      })
+      .catch(() => {
+        w.state = 'missing';
+        dirty = true;
+      });
     return w;
   }
 
   // phones: a clip's label shows no byline unless the clip is selected (design/LINER-NOTES-KIT.md, bylines)
   const narrow = () => typeof matchMedia === 'function' && matchMedia('(max-width: 700px)').matches;
-  let arrivals = [];             // crop marks to draw over the clips this frame: { x, y, w, h, color, a }
+  let arrivals = []; // crop marks to draw over the clips this frame: { x, y, w, h, color, a }
 
   function drawLanes(now) {
     const { g, w: W, h: H } = lanes;
     const pal = palette();
     const p = P();
     const bpb = bpbOf();
-    const sx = scroller.scrollLeft, sy = scroller.scrollTop;
-    const pb = ppb(), TH = th();
+    const sx = scroller.scrollLeft,
+      sy = scroller.scrollTop;
+    const pb = ppb(),
+      TH = th();
     g.clearRect(0, 0, W, H);
     g.fillStyle = pal.bg;
     g.fillRect(0, 0, W, H);
-    const b0 = Math.max(0, Math.floor(sx / pb)), b1 = Math.ceil((sx + W) / pb);
+    const b0 = Math.max(0, Math.floor(sx / pb)),
+      b1 = Math.ceil((sx + W) / pb);
     const anySolo = p.tracks.some((t) => t.solo);
     const sel = ui.state.selection;
     const L = rows();
@@ -2673,7 +4997,8 @@ function mountArranger(el, app) {
     for (const r of L.rows) {
       const y = r.y + r.h - sy - 1;
       if (y < -1 || y > H) continue;
-      g.fillStyle = pal.line; g.fillRect(0, y, W, 1);
+      g.fillStyle = pal.line;
+      g.fillRect(0, y, W, 1);
     }
     // section starts: a pencil hairline down through the lanes
     for (const s of p.sections) {
@@ -2685,23 +5010,36 @@ function mountArranger(el, app) {
     // the loop's two ends, dotted in grease pencil (the loop itself is the line on the ruler)
     if (p.loop?.on) {
       g.save();
-      g.strokeStyle = rgba(pal.accent2, 0.5); g.lineWidth = 1; g.setLineDash([2, 3]);
+      g.strokeStyle = rgba(pal.accent2, 0.5);
+      g.lineWidth = 1;
+      g.setLineDash([2, 3]);
       for (const b of [p.loop.start, p.loop.end]) {
         const x = Math.round(b * pb - sx) + 0.5;
         if (x < -1 || x > W + 1) continue;
-        g.beginPath(); g.moveTo(x, 0); g.lineTo(x, Math.max(0, rowsEnd)); g.stroke();
+        g.beginPath();
+        g.moveTo(x, 0);
+        g.lineTo(x, Math.max(0, rowsEnd));
+        g.stroke();
       }
       g.restore();
     }
     // the selected bars: a cream hairline frame around them
     if (sel.range) {
-      const x0 = sel.range.from * pb - sx, x1 = sel.range.to * pb - sx;
-      const rows = sel.track ? [p.tracks.findIndex((t) => t.id === sel.track)] : rangeRows && !selSection ? rangeRows : [0, p.tracks.length - 1];
-      const r0 = Math.max(0, rows[0]), r1 = Math.max(r0, rows[1] ?? rows[0]);
-      const y0 = trackTop(r0) - sy, y1 = trackTop(r1) + TH - sy;
+      const x0 = sel.range.from * pb - sx,
+        x1 = sel.range.to * pb - sx;
+      const rows = sel.track
+        ? [p.tracks.findIndex((t) => t.id === sel.track)]
+        : rangeRows && !selSection
+          ? rangeRows
+          : [0, p.tracks.length - 1];
+      const r0 = Math.max(0, rows[0]),
+        r1 = Math.max(r0, rows[1] ?? rows[0]);
+      const y0 = trackTop(r0) - sy,
+        y1 = trackTop(r1) + TH - sy;
       g.fillStyle = rgba(pal.text, 0.035);
       g.fillRect(x0, y0, x1 - x0, y1 - y0);
-      g.strokeStyle = rgba(pal.text, 0.5); g.lineWidth = 1;
+      g.strokeStyle = rgba(pal.text, 0.5);
+      g.lineWidth = 1;
       g.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5, Math.round(x1 - x0) - 1, Math.round(y1 - y0) - 1);
     }
 
@@ -2715,34 +5053,63 @@ function mountArranger(el, app) {
       const quiet = t.mute || (anySolo && !t.solo);
       for (const c of t.clips) {
         if (hiddenTake(c)) continue;
-        let start = c.start, length = c.length;
+        let start = c.start,
+          length = c.length;
         if (d && d.moved && d.c === c && d.mode === 'resize-r') length = d.len;
-        if (d && d.moved && d.c === c && d.mode === 'resize-l') { start = d.start; length = d.len; }
-        const x = start * pb - sx, w = length * pb;
+        if (d && d.moved && d.c === c && d.mode === 'resize-l') {
+          start = d.start;
+          length = d.len;
+        }
+        const x = start * pb - sx,
+          w = length * pb;
         if (x > W || x + w < 0) continue;
         const ghost = moving && movingIds.has(c.id) && !d.copy;
-        drawClip(g, t, c, x, y + 4, w, TH - 8, { quiet, ghost, now, start, length, trimL: d && d.moved && d.c === c && d.mode === 'resize-l' ? d.start - c.start : 0 });
+        drawClip(g, t, c, x, y + 4, w, TH - 8, {
+          quiet,
+          ghost,
+          now,
+          start,
+          length,
+          trimL: d && d.moved && d.c === c && d.mode === 'resize-l' ? d.start - c.start : 0,
+        });
       }
     });
     // the clips being moved, at their new place (they float, so they cast the one shadow)
     if (moving) {
       for (const it of d.items) {
-        if (hiddenTake(it.c)) continue;   // (a folder's muted takes go along unseen, as they sit unseen)
+        if (hiddenTake(it.c)) continue; // (a folder's muted takes go along unseen, as they sit unseen)
         const row = it.row + d.dRow;
-        const x = (it.start + d.dBeat) * pb - sx, y = trackTop(row) - sy + 4;
+        const x = (it.start + d.dBeat) * pb - sx,
+          y = trackTop(row) - sy + 4;
         g.save();
         g.globalAlpha = d.bad ? 0.4 : 0.94;
-        drawClip(g, it.t, it.c, x, y, it.c.length * pb, TH - 8, { lifted: true, now, start: it.start, length: it.c.length });
+        drawClip(g, it.t, it.c, x, y, it.c.length * pb, TH - 8, {
+          lifted: true,
+          now,
+          start: it.start,
+          length: it.c.length,
+        });
         g.restore();
-        if (d.bad) { g.strokeStyle = pal.rec; g.setLineDash([4, 3]); g.lineWidth = 1.5; g.strokeRect(Math.round(x) + 0.75, y + 0.75, Math.round(it.c.length * pb) - 1.5, TH - 9.5); g.setLineDash([]); }
+        if (d.bad) {
+          g.strokeStyle = pal.rec;
+          g.setLineDash([4, 3]);
+          g.lineWidth = 1.5;
+          g.strokeRect(Math.round(x) + 0.75, y + 0.75, Math.round(it.c.length * pb) - 1.5, TH - 9.5);
+          g.setLineDash([]);
+        }
       }
     }
     // the bars being dragged across
     if (d && d.mode === 'range' && d.moved && d.range) {
-      const x0 = d.range.from * pb - sx, x1 = d.range.to * pb - sx;
-      const y0 = trackTop(d.rows[0]) - sy, y1 = trackTop(d.rows[1]) + TH - sy;
-      g.fillStyle = rgba(pal.text, 0.06); g.fillRect(x0, y0, x1 - x0, y1 - y0);
-      g.strokeStyle = rgba(pal.text, 0.8); g.lineWidth = 1; g.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5, Math.round(x1 - x0) - 1, Math.round(y1 - y0) - 1);
+      const x0 = d.range.from * pb - sx,
+        x1 = d.range.to * pb - sx;
+      const y0 = trackTop(d.rows[0]) - sy,
+        y1 = trackTop(d.rows[1]) + TH - sy;
+      g.fillStyle = rgba(pal.text, 0.06);
+      g.fillRect(x0, y0, x1 - x0, y1 - y0);
+      g.strokeStyle = rgba(pal.text, 0.8);
+      g.lineWidth = 1;
+      g.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5, Math.round(x1 - x0) - 1, Math.round(y1 - y0) - 1);
     }
     // an open take folder's lanes under its track
     drawTakeRows(g, now, L);
@@ -2751,7 +5118,12 @@ function mountArranger(el, app) {
     // the take being written: its region in record ink, what lands in it, the count-in numeral
     drawRecording(g, now);
     // parts just arriving: crop marks in their author's ink, then gone
-    for (const a of arrivals) { g.save(); g.globalAlpha = a.a; drawCrop(g, a.x, a.y, a.w, a.h, { color: a.color }); g.restore(); }
+    for (const a of arrivals) {
+      g.save();
+      g.globalAlpha = a.a;
+      drawCrop(g, a.x, a.y, a.w, a.h, { color: a.color });
+      g.restore();
+    }
     // what an agent is pointing at: grease-pencil crop marks and its note
     drawPresence(g);
   }
@@ -2759,8 +5131,14 @@ function mountArranger(el, app) {
   // The take lanes of an open folder: each take's clips in a row of its own, the pieces that play (the comp) printed
   // as clips are, the rest in outline; the stretch being dragged across in a cream frame
   function drawTakeRows(g, now, L) {
-    const W = lanes.w, H = lanes.h, sx = scroller.scrollLeft, sy = scroller.scrollTop, pb = ppb(), pal = palette();
-    const anySolo = P().tracks.some((t) => t.solo), d = drag;
+    const W = lanes.w,
+      H = lanes.h,
+      sx = scroller.scrollLeft,
+      sy = scroller.scrollTop,
+      pb = ppb(),
+      pal = palette();
+    const anySolo = P().tracks.some((t) => t.solo),
+      d = drag;
     for (const r of L.rows) {
       if (r.kind !== 'take') continue;
       const y = r.y - sy;
@@ -2770,15 +5148,20 @@ function mountArranger(el, app) {
         const lane = f.lanes[r.k];
         if (!lane) continue;
         for (const c of lane.clips) {
-          const x = c.start * pb - sx, w = c.length * pb;
+          const x = c.start * pb - sx,
+            w = c.length * pb;
           if (x > W || x + w < 0) continue;
           drawClip(g, r.t, c, x, y + 2, w, r.h - 4, { quiet, now, inLane: true });
         }
       }
       if (d && d.mode === 'comp' && d.moved && d.range && d.row.t === r.t && d.row.k === r.k) {
-        const x0 = d.range.from * pb - sx, x1 = d.range.to * pb - sx;
-        g.fillStyle = rgba(pal.text, 0.08); g.fillRect(x0, y + 1, x1 - x0, r.h - 2);
-        g.strokeStyle = pal.text; g.lineWidth = 1.5; g.strokeRect(Math.round(x0) + 0.75, Math.round(y) + 1.75, Math.round(x1 - x0) - 1.5, r.h - 3.5);
+        const x0 = d.range.from * pb - sx,
+          x1 = d.range.to * pb - sx;
+        g.fillStyle = rgba(pal.text, 0.08);
+        g.fillRect(x0, y + 1, x1 - x0, r.h - 2);
+        g.strokeStyle = pal.text;
+        g.lineWidth = 1.5;
+        g.strokeRect(Math.round(x0) + 0.75, Math.round(y) + 1.75, Math.round(x1 - x0) - 1.5, r.h - 3.5);
       }
     }
   }
@@ -2798,23 +5181,39 @@ function mountArranger(el, app) {
     const by = bylineOf(app, c.by);
     // whole pixels, so the hairlines are crisp
     const X = Math.round(x);
-    w = Math.max(3, Math.round(x + w) - X); x = X; y = Math.round(y);
+    w = Math.max(3, Math.round(x + w) - X);
+    x = X;
+    y = Math.round(y);
     g.save();
     if (o.ghost) g.globalAlpha = 0.28;
     else if (o.quiet) g.globalAlpha = 0.45;
     if (o.lifted) {
       // it floats: the room under it (opaque, so it reads over the lanes) casts the shadow, nothing else does
-      g.save(); g.shadowColor = 'rgba(8, 7, 5, .6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
-      g.fillStyle = pal.bg; g.fillRect(x, y, w, hh); g.restore();
+      g.save();
+      g.shadowColor = 'rgba(8, 7, 5, .6)';
+      g.shadowBlur = 14;
+      g.shadowOffsetY = 4;
+      g.fillStyle = pal.bg;
+      g.fillRect(x, y, w, hh);
+      g.restore();
     }
-    if (!muted) { g.fillStyle = rgba(col, hov && !sel ? 0.17 : 0.13); g.fillRect(x, y, w, hh); }
+    if (!muted) {
+      g.fillStyle = rgba(col, hov && !sel ? 0.17 : 0.13);
+      g.fillRect(x, y, w, hh);
+    }
     g.save();
-    g.beginPath(); g.rect(x, y, w, hh); g.clip();
+    g.beginPath();
+    g.rect(x, y, w, hh);
+    g.clip();
     // (a piece in a take lane has no label line: the lane's head names the take and signs it, and a comp's every cut
     // would otherwise print "Tak…" and a byline again on each piece)
     const HH = o.inLane ? 0 : Math.min(16, Math.max(0, Math.floor(hh * 0.4)));
-    if (sel && HH >= 8) { g.fillStyle = pal.text; g.fillRect(x, y, w, HH); }
-    const top = y + HH + 2, bot = y + hh - 3;
+    if (sel && HH >= 8) {
+      g.fillStyle = pal.text;
+      g.fillRect(x, y, w, HH);
+    }
+    const top = y + HH + 2,
+      bot = y + hh - 3;
     if (c.kind === 'notes') drawNotesPreview(g, c, x, top, w, bot - top, col, { ...o, muted, by });
     else drawWave(g, c, x, top, w, bot - top, muted ? pal.text3 : col, muted);
     if (w > 18 && HH >= 11) drawClipLabel(g, t, c, x, y, w, HH, { sel, muted, off, by, col, inLane: !!o.inLane });
@@ -2822,16 +5221,20 @@ function mountArranger(el, app) {
     g.restore();
     // the frame
     if (sel) {
-      g.strokeStyle = pal.text; g.lineWidth = 1.5;
+      g.strokeStyle = pal.text;
+      g.lineWidth = 1.5;
       if (muted) g.setLineDash([4, 3]);
       g.strokeRect(x + 0.75, y + 0.75, w - 1.5, hh - 1.5);
       g.setLineDash([]);
     } else if (muted) {
-      g.strokeStyle = hov ? pal.text3 : pal.line2; g.lineWidth = 1; g.setLineDash([4, 3]);
+      g.strokeStyle = hov ? pal.text3 : pal.line2;
+      g.lineWidth = 1;
+      g.setLineDash([4, 3]);
       g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1);
       g.setLineDash([]);
     } else {
-      g.strokeStyle = rgba(col, hov ? 0.7 : 0.42); g.lineWidth = 1;
+      g.strokeStyle = rgba(col, hov ? 0.7 : 0.42);
+      g.lineWidth = 1;
       g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1);
     }
     // the edge under the pointer: a trim handle (drag it to cut a long take down)
@@ -2842,7 +5245,8 @@ function mountArranger(el, app) {
     g.restore();
     // arriving (an agent's edit, a kept take, a band): crop marks in the author's ink, drawn once the lanes are done
     const fl = Math.max(flash.level(c.id, o.now), flash.level(t.id, o.now));
-    if (fl > 0 && !o.lifted && !o.ghost) arrivals.push({ x, y, w, h: hh, color: flashCol.get(c.id) || pal.agent, a: Math.min(1, fl * 4) });
+    if (fl > 0 && !o.lifted && !o.ghost)
+      arrivals.push({ x, y, w, h: hh, color: flashCol.get(c.id) || pal.agent, a: Math.min(1, fl * 4) });
   }
 
   // The label line: the name at the left, the byline (or "muted") at the right. Crowded, the byline drops first;
@@ -2861,7 +5265,10 @@ function mountArranger(el, app) {
       const list = signersOf(c).length ? signersOf(c) : [{ ...by }];
       const ink = (x) => (sel ? pal.bg : x.kind === 'agent' ? pal.agent : pal.human);
       const segs = [];
-      list.forEach((x, i) => { if (i) segs.push({ text: i === list.length - 1 ? ' and ' : ', ', color: sel ? pal.bg : pal.text3, join: true }); segs.push({ text: x.text, color: ink(x) }); });
+      list.forEach((x, i) => {
+        if (i) segs.push({ text: i === list.length - 1 ? ' and ' : ', ', color: sel ? pal.bg : pal.text3, join: true });
+        segs.push({ text: x.text, color: ink(x) });
+      });
       right = { text: signedText(list), segs, color: ink(list[0]), font: `600 11px ${pal.ui}` };
     }
     const nameFont = `600 11.5px ${pal.ui}`;
@@ -2869,7 +5276,15 @@ function mountArranger(el, app) {
     g.font = nameFont;
     const nw = g.measureText(name).width;
     let rw = 0;
-    if (right) { g.font = right.font; rw = right.segs ? right.segs.reduce((m, sg) => { g.font = sg.join ? `400 11px ${pal.ui}` : right.font; return m + g.measureText(sg.text).width; }, 0) : g.measureText(right.text).width; }
+    if (right) {
+      g.font = right.font;
+      rw = right.segs
+        ? right.segs.reduce((m, sg) => {
+            g.font = sg.join ? `400 11px ${pal.ui}` : right.font;
+            return m + g.measureText(sg.text).width;
+          }, 0)
+        : g.measureText(right.text).width;
+    }
     let room = w - pad * 2;
     // a take stack: "3 takes" in mono before the byline (the byline drops first, then this)
     const st = inLane ? null : takeInfo.get(c.id);
@@ -2878,21 +5293,41 @@ function mountArranger(el, app) {
     const stub = whole ? 0 : Math.min(nw, 14);
     const badge = st && st.first ? { text: `${st.lanes} takes`, font: `400 10.5px ${pal.mono}` } : null;
     let bw = 0;
-    if (badge) { g.font = badge.font; bw = Math.ceil(g.measureText(badge.text).width); }
-    if (right && nw + 10 + rw + (badge ? bw + 10 : 0) > room && (!muted || room - rw - 10 - (badge ? bw + 10 : 0) < Math.min(nw, 26))) right = null;
+    if (badge) {
+      g.font = badge.font;
+      bw = Math.ceil(g.measureText(badge.text).width);
+    }
+    if (
+      right &&
+      nw + 10 + rw + (badge ? bw + 10 : 0) > room &&
+      (!muted || room - rw - 10 - (badge ? bw + 10 : 0) < Math.min(nw, 26))
+    )
+      right = null;
     if (!inLane) labels.set(c.id, right ? right.text : null);
     if (right) {
       g.font = right.font;
       if (right.segs) {
         let rx = x + w - pad - rw;
-        for (const sg of right.segs) { g.font = sg.join ? `400 11px ${pal.ui}` : right.font; g.fillStyle = sg.color; g.fillText(sg.text, rx, mid); rx += g.measureText(sg.text).width; }
-      } else { g.fillStyle = right.color; g.fillText(right.text, x + w - pad - rw, mid); }
+        for (const sg of right.segs) {
+          g.font = sg.join ? `400 11px ${pal.ui}` : right.font;
+          g.fillStyle = sg.color;
+          g.fillText(sg.text, rx, mid);
+          rx += g.measureText(sg.text).width;
+        }
+      } else {
+        g.fillStyle = right.color;
+        g.fillText(right.text, x + w - pad - rw, mid);
+      }
       room -= rw + 10;
     }
     if (badge && room - bw - (stub ? 10 : 0) >= stub) {
       // (on a clip longer than the view, it stays in sight at the view's right edge)
-      const bx = Math.max(x + pad + (stub ? stub + 10 : 0), Math.min(x + pad + room - bw, lanes.w - pad - bw - (right ? rw + 10 : 0)));
-      g.font = badge.font; g.fillStyle = sel ? pal.bg : pal.text2;
+      const bx = Math.max(
+        x + pad + (stub ? stub + 10 : 0),
+        Math.min(x + pad + room - bw, lanes.w - pad - bw - (right ? rw + 10 : 0)),
+      );
+      g.font = badge.font;
+      g.fillStyle = sel ? pal.bg : pal.text2;
       g.fillText(badge.text, bx, mid);
       // (underlined, like a word you can press: it opens the stack's menu)
       g.fillRect(bx, Math.round(mid + 6), bw, 1);
@@ -2926,26 +5361,43 @@ function mountArranger(el, app) {
     const len = o.length ?? c.length;
     const base = o.ghost ? 0.28 : o.quiet ? 0.45 : 1;
     // x is already in view coordinates (scroll taken off), so the first visible beat of the clip is just -x / pb
-    const left = Math.max(0, -x / pb) + trim, right = left + (lanes.w + 4) / pb;
+    const left = Math.max(0, -x / pb) + trim,
+      right = left + (lanes.w + 4) / pb;
     g.lineWidth = 1;
-    if (o.muted) g.strokeStyle = pal.text3; else g.fillStyle = col;
+    if (o.muted) g.strokeStyle = pal.text3;
+    else g.fillStyle = col;
     const mixed = !o.muted && !o.ghost && signersOf(c).length > 1;
-    const inkOf = (by) => { const k = by && by !== c.by ? authorKind(app, by) : 'house'; return k === 'agent' ? pal.agent : k === 'human' ? pal.human : null; };
+    const inkOf = (by) => {
+      const k = by && by !== c.by ? authorKind(app, by) : 'house';
+      return k === 'agent' ? pal.agent : k === 'human' ? pal.human : null;
+    };
     for (const n of c.notes) {
       const t = n.t - trim;
       if (t >= len || t + n.d <= 0 || n.t + n.d < left || n.t > right + len) continue;
-      const nx = x + Math.max(0, t) * pb, nw = Math.max(1.5, Math.min(n.d, len - t) * pb - (pb > 8 ? 1 : 0));
+      const nx = x + Math.max(0, t) * pb,
+        nw = Math.max(1.5, Math.min(n.d, len - t) * pb - (pb > 8 ? 1 : 0));
       const ny = y + s.row(n.p) * rowH + (rowH - nh) / 2;
       if (o.muted) {
         g.globalAlpha = base * 0.75;
-        g.strokeRect(Math.round(nx) + 0.5, Math.round(ny) + 0.5, Math.max(1, Math.round(nw) - 1), Math.max(1, Math.round(nh) - 1));
+        g.strokeRect(
+          Math.round(nx) + 0.5,
+          Math.round(ny) + 0.5,
+          Math.max(1, Math.round(nw) - 1),
+          Math.max(1, Math.round(nh) - 1),
+        );
       } else {
         g.globalAlpha = base * (0.55 + 0.45 * n.v);
         g.fillRect(nx, ny, nw, nh);
         const ink = mixed ? inkOf(n.by) : null;
         if (ink) {
-          g.globalAlpha = base; g.strokeStyle = ink;
-          g.strokeRect(Math.round(nx) - 0.5, Math.round(ny) - 0.5, Math.max(1, Math.round(nw)) + 1, Math.max(1, Math.round(nh)) + 1);
+          g.globalAlpha = base;
+          g.strokeStyle = ink;
+          g.strokeRect(
+            Math.round(nx) - 0.5,
+            Math.round(ny) - 0.5,
+            Math.max(1, Math.round(nw)) + 1,
+            Math.max(1, Math.round(nh)) + 1,
+          );
         }
       }
     }
@@ -2959,44 +5411,72 @@ function mountArranger(el, app) {
     if (wv.state !== 'ready') {
       g.fillStyle = rgba(col, 0.5);
       g.fillRect(x + 4, mid, w - 8, 1);
-      if (w > 80) { g.font = `400 11px ${pal.ui}`; g.fillStyle = pal.text3; g.textBaseline = 'alphabetic'; g.fillText(wv.state === 'loading' ? 'loading the audio' : 'audio not found', x + 6, mid - 5); }
+      if (w > 80) {
+        g.font = `400 11px ${pal.ui}`;
+        g.fillStyle = pal.text3;
+        g.textBaseline = 'alphabetic';
+        g.fillText(wv.state === 'loading' ? 'loading the audio' : 'audio not found', x + 6, mid - 5);
+      }
       return;
     }
     const spb = 60 / P().tempo;
     const pb = ppb();
-    const xs = Math.max(x, 0), xe = Math.min(x + w, lanes.w);
+    const xs = Math.max(x, 0),
+      xe = Math.min(x + w, lanes.w);
     g.fillStyle = muted ? rgba(col, 0.55) : col;
     const amp = hh / 2;
     for (let px = Math.floor(xs); px < xe; px++) {
-      const sec0 = (c.offset || 0) + ((px - x) / pb) * spb, sec1 = (c.offset || 0) + ((px + 1 - x) / pb) * spb;
+      const sec0 = (c.offset || 0) + ((px - x) / pb) * spb,
+        sec1 = (c.offset || 0) + ((px + 1 - x) / pb) * spb;
       if (sec0 >= wv.dur) break;
-      const i0 = Math.floor((sec0 / wv.dur) * wv.n), i1 = Math.max(i0 + 1, Math.floor((sec1 / wv.dur) * wv.n));
-      let mn = 0, mx = 0;
-      for (let i = i0; i < i1 && i < wv.n; i++) { if (wv.peaks[i * 2] < mn) mn = wv.peaks[i * 2]; if (wv.peaks[i * 2 + 1] > mx) mx = wv.peaks[i * 2 + 1]; }
+      const i0 = Math.floor((sec0 / wv.dur) * wv.n),
+        i1 = Math.max(i0 + 1, Math.floor((sec1 / wv.dur) * wv.n));
+      let mn = 0,
+        mx = 0;
+      for (let i = i0; i < i1 && i < wv.n; i++) {
+        if (wv.peaks[i * 2] < mn) mn = wv.peaks[i * 2];
+        if (wv.peaks[i * 2 + 1] > mx) mx = wv.peaks[i * 2 + 1];
+      }
       const gain = Math.pow(10, (c.gain || 0) / 20);
-      g.fillRect(px, mid - clamp(mx * gain, 0, 1) * amp, 1, Math.max(1, (clamp(mx * gain, 0, 1) - clamp(mn * gain, -1, 0)) * amp));
+      g.fillRect(
+        px,
+        mid - clamp(mx * gain, 0, 1) * amp,
+        1,
+        Math.max(1, (clamp(mx * gain, 0, 1) - clamp(mn * gain, -1, 0)) * amp),
+      );
     }
   }
 
   function presenceRects(pr) {
-    const p = P(), pb = ppb(), sx = scroller.scrollLeft, sy = scroller.scrollTop, TH = th();
+    const p = P(),
+      pb = ppb(),
+      sx = scroller.scrollLeft,
+      sy = scroller.scrollTop,
+      TH = th();
     const W = lanes.w;
     const rowOf = (id) => p.tracks.findIndex((t) => t.id === id || t.name === id);
     if (pr.clip) {
       const f = store.findClip(pr.clip);
-      if (f) { const i = p.tracks.indexOf(f.track); return { x: f.clip.start * pb - sx, y: trackTop(i) - sy + 4, w: f.clip.length * pb, h: TH - 8 }; }
+      if (f) {
+        const i = p.tracks.indexOf(f.track);
+        return { x: f.clip.start * pb - sx, y: trackTop(i) - sy + 4, w: f.clip.length * pb, h: TH - 8 };
+      }
     }
     const range = pr.range || (pr.bars ? { from: (pr.bars[0] - 1) * bpbOf(), to: pr.bars[1] * bpbOf() } : null);
     if (pr.track && pr.track !== 'master') {
       const i = rowOf(pr.track);
       if (i < 0) return null;
       // pointing at a lane ({ track, insert?, param }): its row when it's open
-      const lr = pr.param ? rows().lanes.get(laneKey({ track: p.tracks[i].id, insert: pr.insert || null, param: pr.param })) : null;
-      const y = lr ? lr.y - sy + 3 : trackTop(i) - sy + 4, hh = lr ? lr.h - 6 : TH - 8;
+      const lr = pr.param
+        ? rows().lanes.get(laneKey({ track: p.tracks[i].id, insert: pr.insert || null, param: pr.param }))
+        : null;
+      const y = lr ? lr.y - sy + 3 : trackTop(i) - sy + 4,
+        hh = lr ? lr.h - 6 : TH - 8;
       if (range) return { x: range.from * pb - sx, y, w: (range.to - range.from) * pb, h: hh };
       return { x: 4, y, w: W - 8, h: hh };
     }
-    if (range) return { x: range.from * pb - sx, y: 4, w: (range.to - range.from) * pb, h: Math.max(TH, rows().total - sy) - 8 };
+    if (range)
+      return { x: range.from * pb - sx, y: 4, w: (range.to - range.from) * pb, h: Math.max(TH, rows().total - sy) - 8 };
     return null;
   }
   // The take being written (docs/research/RECORDING-UX.md 3.11, 3.14), from recorder.live(): on each track it records
@@ -3005,11 +5485,18 @@ function mountArranger(el, app) {
   // short blocks in four drum rows, in the track's colour (earlier loop passes at 45%); the mic's peaks and the hum's
   // pitch trace in --text-2. During the count-in, the numeral (4 3 2 1) over the target lane at the playhead. When the
   // take goes in, the band fades over 200 ms into the clip (arranger.show marks the clip).
-  const DRUM_ROWS = [46, 42, 38, 36];   // open hat at the top, kick at the bottom (input/tap.js ROWS)
-  const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DRUM_ROWS = [46, 42, 38, 36]; // open hat at the top, kick at the bottom (input/tap.js ROWS)
+  const reducedMotion = () =>
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function drawRecording(g, now) {
     const live = rec.live;
-    const pal = palette(), p = P(), pb = ppb(), sx = scroller.scrollLeft, sy = scroller.scrollTop, TH = th(), W = lanes.w;
+    const pal = palette(),
+      p = P(),
+      pb = ppb(),
+      sx = scroller.scrollLeft,
+      sy = scroller.scrollTop,
+      TH = th(),
+      W = lanes.w;
     const rowOf = (id) => p.tracks.findIndex((t) => t.id === id);
     if (!live) {
       // the band fading into the committed clip
@@ -3017,11 +5504,29 @@ function mountArranger(el, app) {
       if (f) {
         const a = 1 - (now - f.at) / 200;
         if (a <= 0 || reducedMotion()) rec.fade = null;
-        else for (const b of f.bands) { g.fillStyle = rgba(pal.rec, 0.1 * a); g.fillRect(b.x0, b.y, b.x1 - b.x0, b.h); g.fillStyle = rgba(pal.rec, a); g.fillRect(b.x0, b.y, b.x1 - b.x0, 1); g.fillRect(b.x0, b.y + b.h - 1, b.x1 - b.x0, 1); }
+        else
+          for (const b of f.bands) {
+            g.fillStyle = rgba(pal.rec, 0.1 * a);
+            g.fillRect(b.x0, b.y, b.x1 - b.x0, b.h);
+            g.fillStyle = rgba(pal.rec, a);
+            g.fillRect(b.x0, b.y, b.x1 - b.x0, 1);
+            g.fillRect(b.x0, b.y + b.h - 1, b.x1 - b.x0, 1);
+          }
       }
       return;
     }
-    const view = { state: live.state, take: live.take, track: live.track, bands: [], marks: 0, held: 0, count: null, peaks: 0, trace: 0, punch: !!live.loop };
+    const view = {
+      state: live.state,
+      take: live.take,
+      track: live.track,
+      bands: [],
+      marks: 0,
+      held: 0,
+      count: null,
+      peaks: 0,
+      trace: 0,
+      punch: !!live.loop,
+    };
     const nowB = Number.isFinite(live.now) ? live.now : engine.beat || 0;
     const ids = [...new Set([live.track, ...(live.tracks || [])].filter(Boolean))];
     if (live.state === 'rec') {
@@ -3031,16 +5536,24 @@ function mountArranger(el, app) {
         const i = rowOf(id);
         if (i < 0) continue;
         const t = p.tracks[i];
-        const y = trackTop(i) - sy + 4, hh = TH - 8;
+        const y = trackTop(i) - sy + 4,
+          hh = TH - 8;
         if (y > lanes.h || y + hh < 0) continue;
-        const x0 = Math.round(from * pb - sx), x1 = Math.max(x0, Math.round(nowB * pb - sx));
+        const x0 = Math.round(from * pb - sx),
+          x1 = Math.max(x0, Math.round(nowB * pb - sx));
         const passes = live.passes.filter((ps) => ps.track === id);
         // what played here before is set back under the band, so what you play reads as it lands: a new take
         // replaces it (the room over it, nearly opaque); layered hits sit on top of it (half the room over it)
-        const layer = passes.length ? passes.every((ps) => ps.mode === 'layer') : (recorder()?.modeFor?.(id) || (isDrumTrack(app, t) ? 'layer' : 'take')) === 'layer';
-        g.fillStyle = rgba(pal.bg, layer ? 0.55 : 0.86); g.fillRect(x0, y, x1 - x0, hh);
-        g.fillStyle = rgba(pal.rec, 0.1); g.fillRect(x0, y, x1 - x0, hh);
-        g.fillStyle = pal.rec; g.fillRect(x0, y, x1 - x0, 1); g.fillRect(x0, y + hh - 1, x1 - x0, 1);
+        const layer = passes.length
+          ? passes.every((ps) => ps.mode === 'layer')
+          : (recorder()?.modeFor?.(id) || (isDrumTrack(app, t) ? 'layer' : 'take')) === 'layer';
+        g.fillStyle = rgba(pal.bg, layer ? 0.55 : 0.86);
+        g.fillRect(x0, y, x1 - x0, hh);
+        g.fillStyle = rgba(pal.rec, 0.1);
+        g.fillRect(x0, y, x1 - x0, hh);
+        g.fillStyle = pal.rec;
+        g.fillRect(x0, y, x1 - x0, 1);
+        g.fillRect(x0, y + hh - 1, x1 - x0, 1);
         view.bands.push({ track: id, from, to: nowB, x0, x1, y, h: hh });
         const col = resolveColor(t.color);
         const held = (live.held || []).filter((n) => n.track === id);
@@ -3050,18 +5563,28 @@ function mountArranger(el, app) {
         let rowsN, rowOfP;
         if (drums) {
           const ps = [...new Set([...DRUM_ROWS, ...all.map((n) => n.p)])].sort((a, b) => b - a);
-          rowsN = ps.length; rowOfP = (q) => ps.indexOf(q);
+          rowsN = ps.length;
+          rowOfP = (q) => ps.indexOf(q);
         } else {
-          const lo0 = Math.min(...all.map((n) => n.p), 127), hi0 = Math.max(...all.map((n) => n.p), 0);
-          const mid = all.length ? (lo0 + hi0) / 2 : 60, span = Math.max(12, (all.length ? hi0 - lo0 : 0) + 2);
+          const lo0 = Math.min(...all.map((n) => n.p), 127),
+            hi0 = Math.max(...all.map((n) => n.p), 0);
+          const mid = all.length ? (lo0 + hi0) / 2 : 60,
+            span = Math.max(12, (all.length ? hi0 - lo0 : 0) + 2);
           const hi = Math.round(mid + span / 2);
-          rowsN = span + 1; rowOfP = (q) => hi - q;
+          rowsN = span + 1;
+          rowOfP = (q) => hi - q;
         }
-        const top = y + 3, ih = hh - 6, rh = ih / rowsN, nh = clamp(rh - 1, 2, drums ? 8 : 5);
+        const top = y + 3,
+          ih = hh - 6,
+          rh = ih / rowsN,
+          nh = clamp(rh - 1, 2, drums ? 8 : 5);
         g.save();
-        g.beginPath(); g.rect(0, y, W, hh); g.clip();
+        g.beginPath();
+        g.rect(0, y, W, hh);
+        g.clip();
         // your notes: the track's colour with a warm outline (the kit: notes keep their colour, the outline says who)
-        g.lineWidth = 1; g.strokeStyle = pal.human;
+        g.lineWidth = 1;
+        g.strokeStyle = pal.human;
         const mark = (n, a, isHeld) => {
           const nx = n.t * pb - sx;
           if (nx > W || nx < -200) return;
@@ -3070,10 +5593,17 @@ function mountArranger(el, app) {
           g.globalAlpha = a;
           g.fillStyle = col;
           g.fillRect(nx, ny, nw, nh);
-          if (nh >= 3 && nw >= 3) g.strokeRect(Math.round(nx) + 0.5, Math.round(ny) + 0.5, Math.max(1, Math.round(nw) - 1), Math.max(1, Math.round(nh) - 1));
+          if (nh >= 3 && nw >= 3)
+            g.strokeRect(
+              Math.round(nx) + 0.5,
+              Math.round(ny) + 0.5,
+              Math.max(1, Math.round(nw) - 1),
+              Math.max(1, Math.round(nh) - 1),
+            );
           view.marks++;
           if (isHeld) view.held++;
-          if (a === 1) view.at = { b: n.t, p: n.p, x: Math.round(nx + Math.min(nw, 6) / 2), y: Math.round(ny + nh / 2) };
+          if (a === 1)
+            view.at = { b: n.t, p: n.p, x: Math.round(nx + Math.min(nw, 6) / 2), y: Math.round(ny + nh / 2) };
         };
         for (const ps of passes) for (const n of ps.notes) mark(n, ps.n === live.pass ? 1 : 0.45, false);
         for (const n of held) mark(n, 1, true);
@@ -3095,16 +5625,29 @@ function mountArranger(el, app) {
         // the hum: its pitch trace, a 1.5 px line, broken where the voice stops
         if (t.kind !== 'audio' && !drums && rec.trace.length && id === recorder()?.targetFor?.('hum')?.id) {
           const ms = rec.trace.filter((x) => x.midi > 0).map((x) => x.midi);
-          const lo = Math.min(...ms), hi = Math.max(...ms), span = Math.max(12, hi - lo + 2), hiY = (lo + hi) / 2 + span / 2;
-          g.strokeStyle = pal.text2; g.lineWidth = 1.5; g.lineJoin = 'round';
+          const lo = Math.min(...ms),
+            hi = Math.max(...ms),
+            span = Math.max(12, hi - lo + 2),
+            hiY = (lo + hi) / 2 + span / 2;
+          g.strokeStyle = pal.text2;
+          g.lineWidth = 1.5;
+          g.lineJoin = 'round';
           g.beginPath();
-          let pen = false, lastB = null;
+          let pen = false,
+            lastB = null;
           for (const tr of rec.trace) {
-            if (!(tr.midi > 0) || tr.pass !== live.pass) { pen = false; continue; }
+            if (!(tr.midi > 0) || tr.pass !== live.pass) {
+              pen = false;
+              continue;
+            }
             if (lastB != null && Math.abs(tr.b - lastB) > 0.5) pen = false;
-            const px = tr.b * pb - sx, py = top + (hiY - tr.midi) / span * ih;
-            if (pen) g.lineTo(px, py); else g.moveTo(px, py);
-            pen = true; lastB = tr.b; view.trace++;
+            const px = tr.b * pb - sx,
+              py = top + ((hiY - tr.midi) / span) * ih;
+            if (pen) g.lineTo(px, py);
+            else g.moveTo(px, py);
+            pen = true;
+            lastB = tr.b;
+            view.trace++;
           }
           g.stroke();
         }
@@ -3136,7 +5679,8 @@ function mountArranger(el, app) {
         g.lineJoin = 'round';
         // (Sketch's beat band counts in, in Tap it and Hum it: one count in view, not two; ui/sketch.js bandShown)
         g.globalAlpha = app.sketch?.bandShown?.() ? 0 : reducedMotion() ? 1 : 1 - 0.35 * phase;
-        g.strokeStyle = pal.bg; g.lineWidth = 8;
+        g.strokeStyle = pal.bg;
+        g.lineWidth = 8;
         g.strokeText(String(k), cx, cy + 2);
         g.fillStyle = pal.text;
         g.fillText(String(k), cx, cy + 2);
@@ -3154,20 +5698,34 @@ function mountArranger(el, app) {
   // The view never scrolls for it: the person is looking where they're looking. (What was drawn: presenceMarks().)
   let presMarks = [];
   function drawPresence(g) {
-    const pal = palette(), W = lanes.w, H = lanes.h;
-    const textW = (t) => { g.save(); g.font = `600 10.5px ${pal.ui}`; const w = Math.min(260, g.measureText(t).width) + 6; g.restore(); return Math.ceil(w); };
+    const pal = palette(),
+      W = lanes.w,
+      H = lanes.h;
+    const textW = (t) => {
+      g.save();
+      g.font = `600 10.5px ${pal.ui}`;
+      const w = Math.min(260, g.measureText(t).width) + 6;
+      g.restore();
+      return Math.ceil(w);
+    };
     presMarks = [];
     for (const pr of presenceList(ui)) {
       const r = presenceRects(pr);
       if (!r) continue;
       const who = authorName(app, pr.by || 'claude');
       const label = pr.note ? `${who}: ${pr.note}` : who;
-      const vx0 = Math.max(r.x, 0), vx1 = Math.min(r.x + r.w, W), vy0 = Math.max(r.y, 0), vy1 = Math.min(r.y + r.h, H);
+      const vx0 = Math.max(r.x, 0),
+        vx1 = Math.min(r.x + r.w, W),
+        vy0 = Math.max(r.y, 0),
+        vy1 = Math.min(r.y + r.h, H);
       if (vx1 - vx0 > 1 && vy1 - vy0 > 1) {
         drawCrop(g, r.x, r.y, r.w, r.h, { color: pal.accent2 });
         // the note over the top right of what's in view, as drawCrop places it over the whole
-        const tw = textW(label), x1 = Math.round(vx1) + 3, y0 = Math.round(vy0) - 3;
-        const lx = clamp(Math.max(Math.round(vx0) - 3, x1 - 2 - tw), 2, Math.max(2, W - tw - 2)), ly = y0 - 15 >= 0 ? y0 - 15 : Math.max(0, y0) + 4;
+        const tw = textW(label),
+          x1 = Math.round(vx1) + 3,
+          y0 = Math.round(vy0) - 3;
+        const lx = clamp(Math.max(Math.round(vx0) - 3, x1 - 2 - tw), 2, Math.max(2, W - tw - 2)),
+          ly = y0 - 15 >= 0 ? y0 - 15 : Math.max(0, y0) + 4;
         drawLabel(g, lx, ly, label, { color: pal.accent2 });
         presMarks.push({ id: pr.id || null, text: label, x: lx, y: ly, w: tw, edge: null });
         continue;
@@ -3177,11 +5735,15 @@ function mountArranger(el, app) {
       const arrow = { right: '→', left: '←', below: '↓', above: '↑' }[edge];
       const text = edge === 'left' || edge === 'above' ? `${arrow} ${label}` : `${label} ${arrow}`;
       const tw = textW(text);
-      const midY = clamp(r.y + r.h / 2 - 7, 2, Math.max(2, H - 16)), midX = clamp(r.x + r.w / 2 - tw / 2, 4, Math.max(4, W - tw - 4));
-      const x = edge === 'right' ? W - tw - 4 : edge === 'left' ? 4 : midX, y = edge === 'below' ? H - 18 : edge === 'above' ? 4 : midY;
+      const midY = clamp(r.y + r.h / 2 - 7, 2, Math.max(2, H - 16)),
+        midX = clamp(r.x + r.w / 2 - tw / 2, 4, Math.max(4, W - tw - 4));
+      const x = edge === 'right' ? W - tw - 4 : edge === 'left' ? 4 : midX,
+        y = edge === 'below' ? H - 18 : edge === 'above' ? 4 : midY;
       g.fillStyle = pal.accent2;
-      if (edge === 'right') g.fillRect(W - 2, y - 3, 2, 20); else if (edge === 'left') g.fillRect(0, y - 3, 2, 20);
-      else if (edge === 'below') g.fillRect(x - 3, H - 2, tw + 6, 2); else g.fillRect(x - 3, 0, tw + 6, 2);
+      if (edge === 'right') g.fillRect(W - 2, y - 3, 2, 20);
+      else if (edge === 'left') g.fillRect(0, y - 3, 2, 20);
+      else if (edge === 'below') g.fillRect(x - 3, H - 2, tw + 6, 2);
+      else g.fillRect(x - 3, 0, tw + 6, 2);
       drawLabel(g, x, y, text, { color: pal.accent2 });
       presMarks.push({ id: pr.id || null, text, x, y, w: tw, edge });
     }
@@ -3194,57 +5756,87 @@ function mountArranger(el, app) {
     const pal = palette();
     const p = P();
     const bpb = bpbOf();
-    const pb = ppb(), sx = scroller.scrollLeft;
+    const pb = ppb(),
+      sx = scroller.scrollLeft;
     g.clearRect(0, 0, W, H);
-    g.fillStyle = pal.bg; g.fillRect(0, 0, W, H);
-    g.fillStyle = pal.line; g.fillRect(0, H - 1, W, 1);
+    g.fillStyle = pal.bg;
+    g.fillRect(0, 0, W, H);
+    g.fillStyle = pal.line;
+    g.fillRect(0, H - 1, W, 1);
 
     // sections
     const rd = rulerDrag;
     p.sections.forEach((s) => {
-      let start = s.start, length = s.length;
-      if (rd && rd.kind === 'section' && rd.s.id === s.id && rd.nStart != null) { start = rd.nStart; length = rd.nLength; }
-      const x = Math.round(start * pb - sx), w = Math.round(length * pb);
+      let start = s.start,
+        length = s.length;
+      if (rd && rd.kind === 'section' && rd.s.id === s.id && rd.nStart != null) {
+        start = rd.nStart;
+        length = rd.nLength;
+      }
+      const x = Math.round(start * pb - sx),
+        w = Math.round(length * pb);
       if (x > W || x + w < 0) return;
       const isSel = selSection === s.id;
       const fl = flash.level(s.id, now);
       g.save();
-      g.beginPath(); g.rect(x, 0, Math.max(0, w - 2), SEC_H); g.clip();
+      g.beginPath();
+      g.rect(x, 0, Math.max(0, w - 2), SEC_H);
+      g.clip();
       displayFont(g, 13, { stretch: 'semi-expanded' });
       g.textBaseline = 'alphabetic';
       const tw = Math.ceil(g.measureText(s.name).width);
-      const lx = Math.max(x, Math.min(0, x + w - tw - 16));   // the name stays in view while its section is
+      const lx = Math.max(x, Math.min(0, x + w - tw - 16)); // the name stays in view while its section is
       if (isSel) {
-        g.fillStyle = pal.text; g.fillRect(lx, 2, Math.min(tw + 12, w), SEC_H - 4);
+        g.fillStyle = pal.text;
+        g.fillRect(lx, 2, Math.min(tw + 12, w), SEC_H - 4);
         g.fillRect(x, SEC_H - 2, w, 1);
-      } else { g.fillStyle = pal.text3; g.fillRect(x, 4, 1, SEC_H - 7); }
-      if (w > 18) { g.fillStyle = isSel ? pal.bg : fl ? pal.agent : pal.text; g.fillText(s.name, lx + 6, SEC_H - 6); }
+      } else {
+        g.fillStyle = pal.text3;
+        g.fillRect(x, 4, 1, SEC_H - 7);
+      }
+      if (w > 18) {
+        g.fillStyle = isSel ? pal.bg : fl ? pal.agent : pal.text;
+        g.fillText(s.name, lx + 6, SEC_H - 6);
+      }
       g.restore();
     });
 
     // the loop: a grease-pencil line with its ends turned down (when off: a dotted one, to say where it would be)
-    let ls = p.loop.start, le = p.loop.end;
-    if (rd && rd.kind === 'loop' && rd.nStart != null) { ls = rd.nStart; le = rd.nEnd; }
-    const lx0 = Math.round(ls * pb - sx), lx1 = Math.round(le * pb - sx);
+    let ls = p.loop.start,
+      le = p.loop.end;
+    if (rd && rd.kind === 'loop' && rd.nStart != null) {
+      ls = rd.nStart;
+      le = rd.nEnd;
+    }
+    const lx0 = Math.round(ls * pb - sx),
+      lx1 = Math.round(le * pb - sx);
     const on = p.loop.on || (rd && rd.kind === 'loop' && rd.moved);
     const ly = LOOP_Y + 4;
     if (on) {
       g.fillStyle = pal.accent2;
       g.fillRect(lx0, ly, Math.max(2, lx1 - lx0), 3);
-      g.fillRect(lx0, ly, 2, 7); g.fillRect(lx1 - 2, ly, 2, 7);
+      g.fillRect(lx0, ly, 2, 7);
+      g.fillRect(lx1 - 2, ly, 2, 7);
       // the grip: the middle stretch, thicker (drag it to move the loop; elsewhere a drag draws a new one)
-      if (lx1 - lx0 >= 48) { const mid = (lx0 + lx1) / 2, half = clamp((lx1 - lx0) / 6, 12, 40); g.fillRect(Math.round(mid - half), ly - 1, Math.round(half * 2), 5); }
+      if (lx1 - lx0 >= 48) {
+        const mid = (lx0 + lx1) / 2,
+          half = clamp((lx1 - lx0) / 6, 12, 40);
+        g.fillRect(Math.round(mid - half), ly - 1, Math.round(half * 2), 5);
+      }
     } else if (loopShown()) {
       g.fillStyle = rgba(pal.accent2, 0.5);
       for (let x = lx0; x < lx1; x += 5) g.fillRect(x, ly + 1, 2, 1);
-      g.fillRect(lx0, ly, 1, 6); g.fillRect(lx1 - 1, ly, 1, 6);
+      g.fillRect(lx0, ly, 1, 6);
+      g.fillRect(lx1 - 1, ly, 1, 6);
     }
 
     // the punch: while a take records with the loop on, the loop is the punch range, a record-ink line over it
     const rl = rec.live;
     if (rl && rl.loop) {
-      const a = Math.round(rl.loop.start * pb - sx), b = Math.round(rl.loop.end * pb - sx);
-      g.fillStyle = pal.rec; g.fillRect(a, ly - 3, Math.max(2, b - a), 2);
+      const a = Math.round(rl.loop.start * pb - sx),
+        b = Math.round(rl.loop.end * pb - sx);
+      g.fillStyle = pal.rec;
+      g.fillRect(a, ly - 3, Math.max(2, b - a), 2);
     }
 
     // bars and beats
@@ -3259,33 +5851,57 @@ function mountArranger(el, app) {
     for (let b = firstBar; b <= lastBar; b++) {
       const x = Math.round(b * barPx - sx);
       if (b % every === 0) {
-        g.fillStyle = pal.line2; g.fillRect(x, H - 10, 1, 9);
-        g.fillStyle = b === here ? pal.text : pal.text2; g.fillText(String(b + 1), x + 5, H - 4);
-      } else { g.fillStyle = pal.line2; g.fillRect(x, H - 6, 1, 5); }
-      if (barPx >= 40) for (let k = 1; k < bpb; k++) { const bx = Math.round(x + k * pb); g.fillStyle = pal.line; g.fillRect(bx, H - 4, 1, 3); }
+        g.fillStyle = pal.line2;
+        g.fillRect(x, H - 10, 1, 9);
+        g.fillStyle = b === here ? pal.text : pal.text2;
+        g.fillText(String(b + 1), x + 5, H - 4);
+      } else {
+        g.fillStyle = pal.line2;
+        g.fillRect(x, H - 6, 1, 5);
+      }
+      if (barPx >= 40)
+        for (let k = 1; k < bpb; k++) {
+          const bx = Math.round(x + k * pb);
+          g.fillStyle = pal.line;
+          g.fillRect(bx, H - 4, 1, 3);
+        }
     }
     // the selected bars
     const sel = ui.state.selection.range;
-    if (sel) { g.fillStyle = rgba(pal.text, 0.08); g.fillRect(sel.from * pb - sx, BAR_Y, (sel.to - sel.from) * pb, H - BAR_Y); g.fillStyle = rgba(pal.text, 0.6); g.fillRect(sel.from * pb - sx, H - 2, (sel.to - sel.from) * pb, 1); }
+    if (sel) {
+      g.fillStyle = rgba(pal.text, 0.08);
+      g.fillRect(sel.from * pb - sx, BAR_Y, (sel.to - sel.from) * pb, H - BAR_Y);
+      g.fillStyle = rgba(pal.text, 0.6);
+      g.fillRect(sel.from * pb - sx, H - 2, (sel.to - sel.from) * pb, 1);
+    }
     // the start marker: its bar number printed in reverse (a cream tab from the bar line), apart from the playhead
     const mk = app.transport?.marker?.beat;
     if (Number.isFinite(mk)) {
       const mx = Math.round(mk * pb - sx);
-      const bar = Math.floor(mk / bpb + 1e-9), inBar = mk - bar * bpb;
+      const bar = Math.floor(mk / bpb + 1e-9),
+        inBar = mk - bar * bpb;
       const lab = inBar < 1e-6 ? String(bar + 1) : `${bar + 1}.${Math.floor(inBar + 1e-9) + 1}`;
       displayFont(g, 14);
       const tw = Math.ceil(g.measureText(lab).width) + 10;
       if (mx > -tw && mx < W) {
-        g.fillStyle = pal.bg; g.fillRect(mx - 1, BAR_Y, tw + 2, H - BAR_Y - 1);
-        g.fillStyle = pal.text; g.fillRect(mx, BAR_Y + 1, tw, H - BAR_Y - 2);
-        g.fillStyle = pal.bg; g.fillText(lab, mx + 5, H - 4);
+        g.fillStyle = pal.bg;
+        g.fillRect(mx - 1, BAR_Y, tw + 2, H - BAR_Y - 1);
+        g.fillStyle = pal.text;
+        g.fillRect(mx, BAR_Y + 1, tw, H - BAR_Y - 2);
+        g.fillStyle = pal.bg;
+        g.fillText(lab, mx + 5, H - 4);
       }
     }
     // playhead
     const px = (engine.beat || 0) * pb - sx;
     if (px > -8 && px < W + 8) {
       g.fillStyle = pal.accent;
-      g.beginPath(); g.moveTo(px - 5, BAR_Y); g.lineTo(px + 5, BAR_Y); g.lineTo(px, BAR_Y + 7); g.closePath(); g.fill();
+      g.beginPath();
+      g.moveTo(px - 5, BAR_Y);
+      g.lineTo(px + 5, BAR_Y);
+      g.lineTo(px, BAR_Y + 7);
+      g.closePath();
+      g.fill();
       g.fillRect(Math.round(px) - 0.5, BAR_Y + 6, 1.5, H - BAR_Y - 6);
     }
   }
@@ -3295,32 +5911,65 @@ function mountArranger(el, app) {
     if (s.clip && !selClips.has(s.clip)) selClips = new Set([s.clip]);
     if (!s.clip && selClips.size === 1) selClips.clear();
     if (s.range == null) rangeRows = null;
-    buildHeads(); dirty = true; rulerDirty = true;
+    buildHeads();
+    dirty = true;
+    rulerDirty = true;
     syncBar();
   });
-  const offPres = ui.on('presence', () => { dirty = true; presenceSig = ''; });
-  const offResize = ui.on('resize', () => { dirty = true; rulerDirty = true; layDirty = true; });
+  const offPres = ui.on('presence', () => {
+    dirty = true;
+    presenceSig = '';
+  });
+  const offResize = ui.on('resize', () => {
+    dirty = true;
+    rulerDirty = true;
+    layDirty = true;
+  });
   const offSnap = ui.on('snap', () => syncBar());
-  const offTr = engine.on?.('transport', () => { rulerDirty = true; }) || (() => {});
+  const offTr =
+    engine.on?.('transport', () => {
+      rulerDirty = true;
+    }) || (() => {});
   // the workspace changed (Loop added or put away): the ruler's loop row is drawn again
-  const offWs = ui.on?.('workspace', () => { rulerDirty = true; dirty = true; }) || (() => {});
+  const offWs =
+    ui.on?.('workspace', () => {
+      rulerDirty = true;
+      dirty = true;
+    }) || (() => {});
   // the sound card (ui/sounds.js): a trial, a pending Sounds, the previewed new track
-  const offSounds = ui.on?.('sounds', () => { buildHeads(); dirty = true; }) || (() => {});
+  const offSounds =
+    ui.on?.('sounds', () => {
+      buildHeads();
+      dirty = true;
+    }) || (() => {});
   // the registry changed (a held device let play, a device defined, removed or put back): the headers name devices, and
   // a held one's clips say "kept off", so both redraw once it has all landed. Play it holds the set first and defines
   // the device after (main.js syncProjectDevices), so a redraw on the held event alone printed the device's id
   // ("tape-organ") until something else redrew: the microtask waits for the define.
   let headsSoon = false;
-  const offDevs = app.devices?.onDevices?.(() => {
-    if (headsSoon) return;
-    headsSoon = true;
-    queueMicrotask(() => { headsSoon = false; buildHeads(); dirty = true; });
-  }) || (() => {});
+  const offDevs =
+    app.devices?.onDevices?.(() => {
+      if (headsSoon) return;
+      headsSoon = true;
+      queueMicrotask(() => {
+        headsSoon = false;
+        buildHeads();
+        dirty = true;
+      });
+    }) || (() => {});
 
   function onChange(evt) {
-    preview.clear(); signers.clear();
+    preview.clear();
+    signers.clear();
     buildTakes();
-    if (evt.kind === 'load') { selClips.clear(); selSection = null; waves.clear(); labels.clear(); empty.replaceChildren(); openedSong = true; }
+    if (evt.kind === 'load') {
+      selClips.clear();
+      selSection = null;
+      waves.clear();
+      labels.clear();
+      empty.replaceChildren();
+      openedSong = true;
+    }
     // drop selections that no longer exist
     const ids = new Set(tracks().flatMap((t) => t.clips.map((c) => c.id)));
     for (const id of [...selClips]) if (!ids.has(id)) selClips.delete(id);
@@ -3328,8 +5977,14 @@ function mountArranger(el, app) {
     if (store.isAgent?.(evt.by) && (evt.kind === 'do' || evt.kind === 'redo')) {
       const now = performance.now();
       const tch = touched(evt);
-      for (const c of tch.clips) { flash.mark(c, now); flashCol.delete(c); }
-      for (const t of tch.tracks) { flash.mark(t, now); trackFlash.set(t, now); }
+      for (const c of tch.clips) {
+        flash.mark(c, now);
+        flashCol.delete(c);
+      }
+      for (const t of tch.tracks) {
+        flash.mark(t, now);
+        trackFlash.set(t, now);
+      }
       for (const s of tch.sections) flash.mark(s, now);
     }
     if (flashTrackSoon) flashTrackSoon = false;
@@ -3348,9 +6003,13 @@ function mountArranger(el, app) {
     buildHeads();
     syncEmpty();
     syncBar();
-    dirty = true; rulerDirty = true;
+    dirty = true;
+    rulerDirty = true;
     // another song: it opens at the top (its first track in view), fitted, with 4 bars at least
-    if (openedSong) { openedSong = false; openView(); }
+    if (openedSong) {
+      openedSong = false;
+      openView();
+    }
   }
   let openedSong = false;
   function openView() {
@@ -3359,7 +6018,13 @@ function mountArranger(el, app) {
     ui.state.scrollY = 0;
     headsInner.style.transform = 'translateY(0px)';
     fitSong();
-    requestAnimationFrame(() => { if (scroller.scrollTop) { programmatic = true; scroller.scrollTop = 0; } fitSong(); });
+    requestAnimationFrame(() => {
+      if (scroller.scrollTop) {
+        programmatic = true;
+        scroller.scrollTop = 0;
+      }
+      fitSong();
+    });
   }
 
   // header flashes and presence (DOM): a track an agent just changed has its number in cool ink for a moment; one it
@@ -3367,7 +6032,11 @@ function mountArranger(el, app) {
   function syncHeadExtras(now) {
     for (const [id, t0] of trackFlash) {
       const row = headsInner.querySelector(`[data-track="${id}"]`);
-      if (row) { row.classList.add('flash'); clearTimeout(row._flashT); row._flashT = setTimeout(() => row.classList.remove('flash'), 1500); }
+      if (row) {
+        row.classList.add('flash');
+        clearTimeout(row._flashT);
+        row._flashT = setTimeout(() => row.classList.remove('flash'), 1500);
+      }
       trackFlash.delete(id);
       void t0;
     }
@@ -3376,14 +6045,17 @@ function mountArranger(el, app) {
     if (sig !== presenceSig) {
       presenceSig = sig;
       const on = new Set(sig.split(',').filter(Boolean));
-      for (const row of headsInner.children) if (row._track) row.classList.toggle('presence', on.has(row._track) || on.has(store.track(row._track)?.name));
+      for (const row of headsInner.children)
+        if (row._track) row.classList.toggle('presence', on.has(row._track) || on.has(store.track(row._track)?.name));
     }
     void now;
   }
 
   /* ======================================================= the loop */
-  let meterT = 0, lastPres = '';
-  let wasPlaying = false, stopRevealUntil = 0;
+  let meterT = 0,
+    lastPres = '';
+  let wasPlaying = false,
+    stopRevealUntil = 0;
   // what a take in progress lands, at the beat it landed: the mic's level and the hum's pitch, once a frame
   function sampleTake(now, inLv) {
     const R = recorder();
@@ -3391,10 +6063,24 @@ function mountArranger(el, app) {
     if (!empty.hidden) syncEmptyTake(live);
     if (!live) {
       if (rec.live && rec.view?.bands?.length) rec.fade = { at: now, bands: rec.view.bands };
-      if (rec.live) { rec.live = null; rec.view = null; rec.take = null; rec.peaks = []; rec.trace = []; rec.lastTrace = null; dirty = true; }
+      if (rec.live) {
+        rec.live = null;
+        rec.view = null;
+        rec.take = null;
+        rec.peaks = [];
+        rec.trace = [];
+        rec.lastTrace = null;
+        dirty = true;
+      }
       return;
     }
-    if (live.take !== rec.take) { rec.take = live.take; rec.peaks = []; rec.trace = []; rec.lastTrace = null; rec.fade = null; }
+    if (live.take !== rec.take) {
+      rec.take = live.take;
+      rec.peaks = [];
+      rec.trace = [];
+      rec.lastTrace = null;
+      rec.fade = null;
+    }
     rec.live = live;
     if (live.state !== 'rec') return;
     const b = Number.isFinite(live.now) ? live.now : engine.beat || 0;
@@ -3418,9 +6104,16 @@ function mountArranger(el, app) {
   const autoOpened = new Set();
   function openHeldLanes() {
     const ar = app.input?.autorec;
-    if (!ar?.recording) { if (autoOpened.size) autoOpened.clear(); return; }
+    if (!ar?.recording) {
+      if (autoOpened.size) autoOpened.clear();
+      return;
+    }
     let held = [];
-    try { held = ar.touching?.() || []; } catch (e) { held = []; }
+    try {
+      held = ar.touching?.() || [];
+    } catch (e) {
+      held = [];
+    }
     let changed = false;
     for (const x of held) {
       if (x.mode && x.mode !== 'rec') continue;
@@ -3441,7 +6134,10 @@ function mountArranger(el, app) {
   }
   function frame(now) {
     placeWelcome();
-    if (lanes.fit()) { dirty = true; layoutSpacer(); }
+    if (lanes.fit()) {
+      dirty = true;
+      layoutSpacer();
+    }
     if (pendingZoom && scroller.clientWidth >= 80) zoomTo(...pendingZoom);
     if (ruler.fit()) rulerDirty = true;
     // follow the playhead (page flips)
@@ -3452,12 +6148,26 @@ function mountArranger(el, app) {
       const x = beat * ppb() - scroller.scrollLeft;
       // while the loop plays (a take looping over it too) and it fits, the loop stays in view: a page flip at its end
       // would show the bars after it, where nothing plays, and flip back at once (docs/FRESH-EYES-3.md)
-      const lp = P().loop, cw = scroller.clientWidth, pb = ppb();
-      const inLoop = lp?.on && lp.end > lp.start && beat >= lp.start - 1e-6 && beat <= lp.end + 1e-6 && (lp.end - lp.start) * pb <= cw - 70;
+      const lp = P().loop,
+        cw = scroller.clientWidth,
+        pb = ppb();
+      const inLoop =
+        lp?.on &&
+        lp.end > lp.start &&
+        beat >= lp.start - 1e-6 &&
+        beat <= lp.end + 1e-6 &&
+        (lp.end - lp.start) * pb <= cw - 70;
       if (inLoop) {
-        const lo = lp.end * pb - (cw - 30), hi = lp.start * pb - 40;   // the scroll positions that show all of it
-        if (scroller.scrollLeft < lo - 1 || scroller.scrollLeft > hi + 1) { programmatic = true; scroller.scrollLeft = Math.max(0, Math.min(hi, Math.max(lo, scroller.scrollLeft))); }
-      } else if (x > cw - 30 || x < 0) { programmatic = true; scroller.scrollLeft = Math.max(0, beat * pb - 40); }
+        const lo = lp.end * pb - (cw - 30),
+          hi = lp.start * pb - 40; // the scroll positions that show all of it
+        if (scroller.scrollLeft < lo - 1 || scroller.scrollLeft > hi + 1) {
+          programmatic = true;
+          scroller.scrollLeft = Math.max(0, Math.min(hi, Math.max(lo, scroller.scrollLeft)));
+        }
+      } else if (x > cw - 30 || x < 0) {
+        programmatic = true;
+        scroller.scrollLeft = Math.max(0, beat * pb - 40);
+      }
     }
     // stopping with Follow on: the playhead goes back to the marker, and the view goes with it (a few frames, while
     // the transport puts it there)
@@ -3469,11 +6179,19 @@ function mountArranger(el, app) {
       const r = scroller.getBoundingClientRect();
       const ex = lastPointer.clientX - r.left;
       const step = ex > r.width - 30 ? 12 : ex < 30 && scroller.scrollLeft > 0 ? -12 : 0;
-      if (step) { programmatic = true; scroller.scrollLeft += step; moveDrag(lastPointer); }
+      if (step) {
+        programmatic = true;
+        scroller.scrollLeft += step;
+        moveDrag(lastPointer);
+      }
     }
     // (presence marks are still: redraw when the list changes or one expires, not every frame)
-    const pl = presenceList(ui), pk = pl.map((x) => x.id || x.track || x.clip).join(',');
-    if (pk !== lastPres) { lastPres = pk; dirty = true; }
+    const pl = presenceList(ui),
+      pk = pl.map((x) => x.id || x.track || x.clip).join(',');
+    if (pk !== lastPres) {
+      lastPres = pk;
+      dirty = true;
+    }
     // a take in progress: the lanes redraw every frame while it grows
     const lit = armedIds();
     const A = app.input?.audio;
@@ -3482,7 +6200,15 @@ function mountArranger(el, app) {
     openHeldLanes();
     if (rec.live || rec.fade) dirty = true;
     if (lay && lay.ph !== isPhone()) relayout();
-    if (dirty || flash.active() || laneFlash.active() || ((laneRec || app.input?.autorec?.recording) && lay?.lanes.size)) { drawLanes(now); dirty = false; }
+    if (
+      dirty ||
+      flash.active() ||
+      laneFlash.active() ||
+      ((laneRec || app.input?.autorec?.recording) && lay?.lanes.size)
+    ) {
+      drawLanes(now);
+      dirty = false;
+    }
     syncLaneValues(now);
     drawRuler(now);
     rulerDirty = false;
@@ -3517,7 +6243,10 @@ function mountArranger(el, app) {
 
   /* ======================================================= go */
   // the canvas sets its labels in the page's faces: draw again once they have loaded
-  const refont = () => { dirty = true; rulerDirty = true; };
+  const refont = () => {
+    dirty = true;
+    rulerDirty = true;
+  };
   document.fonts?.ready?.then(refont);
   document.fonts?.addEventListener?.('loadingdone', refont);
   layoutSpacer();
@@ -3525,7 +6254,10 @@ function mountArranger(el, app) {
   buildHeads();
   syncEmpty();
   syncBar();
-  if (ui.state.scrollX) { programmatic = true; scroller.scrollLeft = ui.state.scrollX; }
+  if (ui.state.scrollX) {
+    programmatic = true;
+    scroller.scrollLeft = ui.state.scrollX;
+  }
   // a first view that shows the song
   requestAnimationFrame(() => {
     const end = Math.max(...tracks().flatMap((t) => t.clips.map((c) => c.start + c.length)), 0);
@@ -3534,7 +6266,9 @@ function mountArranger(el, app) {
   });
 
   app.arranger = {
-    reveal, zoomTo, fitSong,
+    reveal,
+    zoomTo,
+    fitSong,
     // new clips into view, marked once in their author's ink: capture.keep, the Band picker
     show: (ids, by) => showClips(ids, by),
     // tests: the ink a clip's arrival marks are drawn in now (null once they're gone)
@@ -3548,65 +6282,161 @@ function mountArranger(el, app) {
     },
     // where a beat is on screen (clientX), and a track's row (clientY of its middle): the ruler and the lanes share x
     xOf: (beat) => scroller.getBoundingClientRect().left + beat * ppb() - scroller.scrollLeft,
-    yOf: (trackId) => { const i = tracks().findIndex((t) => t.id === trackId); return i < 0 ? null : laneWrap.getBoundingClientRect().top + trackTop(i) + th() / 2 - scroller.scrollTop; },
+    yOf: (trackId) => {
+      const i = tracks().findIndex((t) => t.id === trackId);
+      return i < 0 ? null : laneWrap.getBoundingClientRect().top + trackTop(i) + th() / 2 - scroller.scrollTop;
+    },
     selectedClips: () => selectedList().map(({ t, c }) => ({ track: t.id, clip: c.id })),
-    selectClips(ids) { selClips = new Set(ids); dirty = true; syncBar(); },
+    selectClips(ids) {
+      selClips = new Set(ids);
+      dirty = true;
+      syncBar();
+    },
     // the same paths as the menus and keys, for buttons that don't depend on a gesture (the inspector's)
-    duplicateClip(clipId) { if (!store.findClip(clipId)) return; selClips = new Set([clipId]); duplicateSelected(); },
+    duplicateClip(clipId) {
+      if (!store.findClip(clipId)) return;
+      selClips = new Set([clipId]);
+      duplicateSelected();
+    },
     // arrangement (core/arrangement.js): the same paths as the section and clip menus and keys
-    repeatClip(clipId, times = 2) { const f = store.findClip(clipId); return f ? repeatClip(f.track, f.clip, times) : null; },
+    repeatClip(clipId, times = 2) {
+      const f = store.findClip(clipId);
+      return f ? repeatClip(f.track, f.clip, times) : null;
+    },
     // no beat: at the playhead, on the snap grid (the inspector's button); a beat: there exactly
-    splitClip(clipId, at) { const f = store.findClip(clipId); return f ? splitClip(f.track, f.clip, at ?? null) : null; },
-    duplicateSection(id) { const s = P().sections.find((x) => x.id === id || x.name === id); return s ? duplicateSection(s) : null; },
-    insertBars(at, bars) { return insertBars(at, bars); },
-    deleteBars(id) { const s = P().sections.find((x) => x.id === id || x.name === id); return s ? deleteBars(s) : null; },
+    splitClip(clipId, at) {
+      const f = store.findClip(clipId);
+      return f ? splitClip(f.track, f.clip, at ?? null) : null;
+    },
+    duplicateSection(id) {
+      const s = P().sections.find((x) => x.id === id || x.name === id);
+      return s ? duplicateSection(s) : null;
+    },
+    insertBars(at, bars) {
+      return insertBars(at, bars);
+    },
+    deleteBars(id) {
+      const s = P().sections.find((x) => x.id === id || x.name === id);
+      return s ? deleteBars(s) : null;
+    },
     deleteClip(clipId) {
       const f = store.findClip(clipId);
       if (!f) return;
-      selClips = new Set([clipId]); selSection = null;
+      selClips = new Set([clipId]);
+      selSection = null;
       const name = f.clip.name || f.track.name;
-      if (deleteSelected()) ui.toast(`Deleted the clip ${name}. ${MOD}Z brings it back.`, { action: { label: 'Undo', run: () => store.undo() } });
+      if (deleteSelected())
+        ui.toast(`Deleted the clip ${name}. ${MOD}Z brings it back.`, {
+          action: { label: 'Undo', run: () => store.undo() },
+        });
     },
     // take stacks: a clip's stack ({ takes: [{ clip, name, playing, hidden }], k, n } or null), which take plays (one
     // clip.set mute pair, one undo step), ⌘↑ / ⌘↓, the badge's menu actions
-    takes(clipId) { const st = stackOf(clipId); return st ? { k: st.k, n: st.n, track: st.track.id, takes: st.group.map((c) => ({ clip: c.id, name: c.name || st.track.name, playing: !c.mute, hidden: hiddenTake(c) })) } : null; },
-    useTake(clipId) { const f = store.findClip(clipId); return f ? useTake(f.track, f.clip) : null; },
+    takes(clipId) {
+      const st = stackOf(clipId);
+      return st
+        ? {
+            k: st.k,
+            n: st.n,
+            track: st.track.id,
+            takes: st.group.map((c) => ({
+              clip: c.id,
+              name: c.name || st.track.name,
+              playing: !c.mute,
+              hidden: hiddenTake(c),
+            })),
+          }
+        : null;
+    },
+    useTake(clipId) {
+      const f = store.findClip(clipId);
+      return f ? useTake(f.track, f.clip) : null;
+    },
     // the take lanes (comping): open or close a clip's folder (on: true / false, or toggle); the take rows on screen
     // [{ track, k, name, top, bottom, mid (clientY) }]; comp(clipId of a take, from, to): that take plays there
-    takeLanes(clipId, on = null) { const f = store.findClip(clipId); return f ? toggleTakes(f.track, f.clip, on) : false; },
+    takeLanes(clipId, on = null) {
+      const f = store.findClip(clipId);
+      return f ? toggleTakes(f.track, f.clip, on) : false;
+    },
     takeRows() {
       const r = laneWrap.getBoundingClientRect();
-      return rows().rows.filter((x) => x.kind === 'take').map((x) => ({ track: x.t.id, k: x.k, name: x.folders.find((f) => f.lanes[x.k])?.lanes[x.k].name || null, top: r.top + x.y - scroller.scrollTop, bottom: r.top + x.y + x.h - scroller.scrollTop, mid: r.top + x.y + x.h / 2 - scroller.scrollTop }));
+      return rows()
+        .rows.filter((x) => x.kind === 'take')
+        .map((x) => ({
+          track: x.t.id,
+          k: x.k,
+          name: x.folders.find((f) => f.lanes[x.k])?.lanes[x.k].name || null,
+          top: r.top + x.y - scroller.scrollTop,
+          bottom: r.top + x.y + x.h - scroller.scrollTop,
+          mid: r.top + x.y + x.h / 2 - scroller.scrollTop,
+        }));
     },
-    comp(clipId, from, to) { const f = store.findClip(clipId); return f && f.clip.take ? compTake(f.track, f.clip.take, f.clip.id, from, to) : null; },
+    comp(clipId, from, to) {
+      const f = store.findClip(clipId);
+      return f && f.clip.take ? compTake(f.track, f.clip.take, f.clip.id, from, to) : null;
+    },
     stepTake: (dir) => stepTake(dir),
     // who signs a clip's label line ("you and Claude": its maker, then whoever wrote notes in it), or '' (the house)
-    signedBy(clipId) { const f = store.findClip(clipId); return f ? signedText(signersOf(f.clip)) : null; },
+    signedBy(clipId) {
+      const f = store.findClip(clipId);
+      return f ? signedText(signersOf(f.clip)) : null;
+    },
     // what a clip's label line printed at its right end when it was last drawn: a byline, "muted", "kept off" (its
     // track's instrument is held, so it plays silence), or null (nothing, or not drawn); undefined: never drawn
     clipLabel: (clipId) => (labels.has(clipId) ? labels.get(clipId) : undefined),
-    flattenTakes(clipId) { const f = store.findClip(clipId); return f ? flattenTakes(f.track, f.clip) : null; },
-    deleteTake(clipId) { const f = store.findClip(clipId); return f ? deleteTake(f.track, f.clip) : null; },
+    flattenTakes(clipId) {
+      const f = store.findClip(clipId);
+      return f ? flattenTakes(f.track, f.clip) : null;
+    },
+    deleteTake(clipId) {
+      const f = store.findClip(clipId);
+      return f ? deleteTake(f.track, f.clip) : null;
+    },
     // where the badge of a clip's stack is on screen (clientX, clientY of its middle), or null when it isn't drawn
-    badgeAt(clipId) { const b = badges.get(clipId), r = scroller.getBoundingClientRect(); return b ? { x: r.left + b.x + b.w / 2, y: r.top + b.y + b.h / 2 } : null; },
+    badgeAt(clipId) {
+      const b = badges.get(clipId),
+        r = scroller.getBoundingClientRect();
+      return b ? { x: r.left + b.x + b.w / 2, y: r.top + b.y + b.h / 2 } : null;
+    },
     // the record targets lit on the headers (armed on purpose, or by selection)
     armed: () => [...armedIds()],
     // tests: what the take in progress drew last frame ({ state, bands: [{ track, from, to, x0, x1, y, h }], marks,
     // held, count, peaks, trace, punch }), or null
     recView: () => (rec.view ? JSON.parse(JSON.stringify(rec.view)) : null),
-    duplicateTrack(trackId) { const t = store.track(trackId); if (t) duplicateTrack(t); },
-    deleteTrack(trackId) { const t = store.track(trackId); if (t) deleteTrack(t); },
+    duplicateTrack(trackId) {
+      const t = store.track(trackId);
+      if (t) duplicateTrack(t);
+    },
+    deleteTrack(trackId) {
+      const t = store.track(trackId);
+      if (t) deleteTrack(t);
+    },
     // automation lanes (lanes.js). showLane(trackId, { insert?, param }): open that param's lane under its track and
     // scroll to it (a knob's Automate calls this; insert: an insert id or 'instrument', none for the mixer's 'gain' or
     // 'pan'); { key, track, insert, param } or null when the track or param isn't there
     showLane: (trackId, addr) => showLane(trackId, addr || {}),
     // show / hide a track's lanes (E); on: true / false, or toggle
     toggleLanes: (trackId, on = null) => toggleLanes(trackId, on),
-    hideLane: (trackId, addr) => { const t = findTrack(trackId); if (t) hideLane(laneKey({ track: t.id, insert: addr?.insert || null, param: addr?.param })); },
+    hideLane: (trackId, addr) => {
+      const t = findTrack(trackId);
+      if (t) hideLane(laneKey({ track: t.id, insert: addr?.insert || null, param: addr?.param }));
+    },
     // the lane rows on screen: [{ key, track, insert, param, top, bottom, mid (clientY), y (content) }]
     laneRows() {
       const r = laneWrap.getBoundingClientRect();
-      return rows().rows.filter((x) => x.kind === 'lane').map((x) => ({ key: x.key, track: x.t.id, insert: x.addr.insert || null, param: x.addr.param, y: x.y, h: x.h, top: r.top + x.y - scroller.scrollTop, bottom: r.top + x.y + x.h - scroller.scrollTop, mid: r.top + x.y + x.h / 2 - scroller.scrollTop }));
+      return rows()
+        .rows.filter((x) => x.kind === 'lane')
+        .map((x) => ({
+          key: x.key,
+          track: x.t.id,
+          insert: x.addr.insert || null,
+          param: x.addr.param,
+          y: x.y,
+          h: x.h,
+          top: r.top + x.y - scroller.scrollTop,
+          bottom: r.top + x.y + x.h - scroller.scrollTop,
+          mid: r.top + x.y + x.h / 2 - scroller.scrollTop,
+        }));
     },
     // where a value sits on a lane row on screen (clientY), for the checks and other panels
     laneY(key, v) {
@@ -3614,13 +6444,28 @@ function mountArranger(el, app) {
       if (!x) return null;
       const info = laneInfo(app, P(), x.addr);
       const pos = info.spec ? Math.min(1, Math.max(0, toPos(laneView(info.spec), v))) : 0.5;
-      const top = laneWrap.getBoundingClientRect().top + x.y - scroller.scrollTop + 6, bh = Math.max(4, x.h - 13);
+      const top = laneWrap.getBoundingClientRect().top + x.y - scroller.scrollTop + 6,
+        bh = Math.max(4, x.h - 13);
       return top + (1 - pos) * bh;
     },
     // the lane selection ({ key, from, to } or null), a shape on bars of a lane (the menu's), lanes follow clips
     laneSel: () => (laneEd.sel ? { key: laneEd.sel.key, from: laneEd.sel.from, to: laneEd.sel.to } : null),
-    selectLaneRange(trackId, addr, from, to) { const t = laneTrack(trackId); if (!t) return; const a = addr.insert ? { track: t.id, insert: addr.insert, param: addr.param } : { track: t.id, param: addr.param }; laneEd.sel = { key: laneKey(a), addr: a, from, to }; },
-    laneShape(trackId, addr, shape, from, to) { const t = findTrack(trackId); if (!t) return null; const a = addr.insert ? { track: t.id, insert: addr.insert, param: addr.param } : { track: t.id, param: addr.param }; return laneEd.applyShape(a, shape, from, to); },
+    selectLaneRange(trackId, addr, from, to) {
+      const t = laneTrack(trackId);
+      if (!t) return;
+      const a = addr.insert
+        ? { track: t.id, insert: addr.insert, param: addr.param }
+        : { track: t.id, param: addr.param };
+      laneEd.sel = { key: laneKey(a), addr: a, from, to };
+    },
+    laneShape(trackId, addr, shape, from, to) {
+      const t = findTrack(trackId);
+      if (!t) return null;
+      const a = addr.insert
+        ? { track: t.id, insert: addr.insert, param: addr.param }
+        : { track: t.id, param: addr.param };
+      return laneEd.applyShape(a, shape, from, to);
+    },
     shapes: () => SHAPES.map(([id, label]) => ({ id, label })),
     lanesFollow: (on) => lanesFollow(on),
     // tests: is a lane wearing an agent's arrival crop marks now
@@ -3629,17 +6474,41 @@ function mountArranger(el, app) {
     // lies past, or null when it's in view)
     presenceMarks: () => presMarks.map((m) => ({ ...m })),
     // tests: how long one full draw of the lanes canvas takes now (ms)
-    drawMs: () => { const t0 = performance.now(); drawLanes(performance.now()); return performance.now() - t0; },
+    drawMs: () => {
+      const t0 = performance.now();
+      drawLanes(performance.now());
+      return performance.now() - t0;
+    },
     // the lanes being written, drawn in record ink: [{ track, insert?, param, from, to }] (input/autorec.js can use this
     // or offer live()); null clears it
-    recLanes(list) { laneRec = list && list.length ? list : null; dirty = true; },
+    recLanes(list) {
+      laneRec = list && list.length ? list : null;
+      dirty = true;
+    },
   };
 
   return {
     update: onChange,
     frame,
-    refresh() { dirty = true; rulerDirty = true; headSig = ''; buildHeads(); },
-    unmount() { offSel(); offPres(); offResize(); offSnap(); offTr(); offWs(); offSounds(); offDrag(); offDevs(); offs.forEach((f) => f()); document.fonts?.removeEventListener?.('loadingdone', refont); },
+    refresh() {
+      dirty = true;
+      rulerDirty = true;
+      headSig = '';
+      buildHeads();
+    },
+    unmount() {
+      offSel();
+      offPres();
+      offResize();
+      offSnap();
+      offTr();
+      offWs();
+      offSounds();
+      offDrag();
+      offDevs();
+      offs.forEach((f) => f());
+      document.fonts?.removeEventListener?.('loadingdone', refont);
+    },
   };
 }
 

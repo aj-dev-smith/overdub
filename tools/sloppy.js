@@ -16,14 +16,26 @@ import fs from 'node:fs';
 import { phrase, render } from './hum-bench.js';
 
 export function rng(seed = 1) {
-  let s = (seed >>> 0) || 1;
-  const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
-  r.gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += r(); return (u - 3) * 1.41; };
+  let s = seed >>> 0 || 1;
+  const r = () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  r.gauss = () => {
+    let u = 0;
+    for (let i = 0; i < 6; i++) u += r();
+    return (u - 3) * 1.41;
+  };
   return r;
 }
 
-export function perform(pattern, { bpm = 100, bars = 2, bpb = 4, jitter = 0.025, drift = 0, rush = {}, start = 1, seed = 1 } = {}) {
-  const r = rng(seed), total = bars * bpb, out = [];
+export function perform(
+  pattern,
+  { bpm = 100, bars = 2, bpb = 4, jitter = 0.025, drift = 0, rush = {}, start = 1, seed = 1 } = {},
+) {
+  const r = rng(seed),
+    total = bars * bpb,
+    out = [];
   for (let b = 0; b < bars; b++) {
     for (const [bt, p] of pattern) {
       const beat = b * bpb + bt;
@@ -36,9 +48,14 @@ export function perform(pattern, { bpm = 100, bars = 2, bpb = 4, jitter = 0.025,
 }
 
 export function sloppyHum(melody, { tempo = 100, sloppy = 0.05, seed = 5, range = 'tenor' } = {}) {
-  const ph = phrase(melody.map(([m, beats, gap = 0]) => ({ m, beats, gap })), { tempo, style: 'hum', range, seed: 11 + seed });
-  const r = rng(seed), spb = 60 / tempo;
-  let at = 0.3, beat = 0;
+  const ph = phrase(
+    melody.map(([m, beats, gap = 0]) => ({ m, beats, gap })),
+    { tempo, style: 'hum', range, seed: 11 + seed },
+  );
+  const r = rng(seed),
+    spb = 60 / tempo;
+  let at = 0.3,
+    beat = 0;
   const want = [];
   ph.notes.forEach((n, i) => {
     want.push({ m: melody[i][0], beat });
@@ -55,11 +72,23 @@ export function sloppyHum(melody, { tempo = 100, sloppy = 0.05, seed = 5, range 
 export function wav(x, sr, file, { lead = 0.6, tail = 1.5, gain = 0.35 } = {}) {
   let pk = 0;
   for (const v of x) pk = Math.max(pk, Math.abs(v));
-  const N = Math.round((lead + x.length / sr + tail) * sr), y = new Float32Array(N), o = Math.round(lead * sr);
+  const N = Math.round((lead + x.length / sr + tail) * sr),
+    y = new Float32Array(N),
+    o = Math.round(lead * sr);
   for (let i = 0; i < x.length && i + o < N; i++) y[i + o] = (x[i] / (pk || 1)) * gain;
   const b = Buffer.alloc(44 + N * 2);
-  b.write('RIFF', 0); b.writeUInt32LE(36 + N * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
-  b.writeUInt32LE(sr, 24); b.writeUInt32LE(sr * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(N * 2, 40);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(36 + N * 2, 4);
+  b.write('WAVEfmt ', 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(sr, 24);
+  b.writeUInt32LE(sr * 2, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(N * 2, 40);
   for (let i = 0; i < N; i++) b.writeInt16LE(Math.round(Math.max(-1, Math.min(1, y[i])) * 32767), 44 + i * 2);
   fs.writeFileSync(file, b);
   return N / sr;

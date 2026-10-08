@@ -57,17 +57,18 @@ export const BY = 'claude.ai';
 // who may sign a call that came through an account (the relay sends the agent the person allowed)
 export const AGENT_RE = /^(claude\.ai|mcp:[a-z0-9-]{1,32})$/;
 const MODE_KEY = 'overdub:remote-mode';
-const RENEW_MS = 2 * 60e3;       // a new tab ticket this often (each lives 5 minutes)
-const MOVED_MS = 2 * 60e3, MOVED_TIMES = 3;   // live lost this often in this long: say so, and offer Sign out everywhere
-const GRANTS_EVERY_MS = 5000;    // Connected apps is asked for again at most this often (focus, an agent joining, the sheet)
+const RENEW_MS = 2 * 60e3; // a new tab ticket this often (each lives 5 minutes)
+const MOVED_MS = 2 * 60e3,
+  MOVED_TIMES = 3; // live lost this often in this long: say so, and offer Sign out everywhere
+const GRANTS_EVERY_MS = 5000; // Connected apps is asked for again at most this often (focus, an agent joining, the sheet)
 export const SECRET_HEADER = 'x-overdub-tab-secret';
-export const TOKEN_PREFIX = 'overdub-relay-token/v1:';   // the relay's too (server/relay.js tokenFor)
+export const TOKEN_PREFIX = 'overdub-relay-token/v1:'; // the relay's too (server/relay.js tokenFor)
 const SECRET_KEY = 'overdub:remote-secret';
-const OLD_TOKEN_KEY = 'overdub:remote-token';   // before the secret: read once, then removed
+const OLD_TOKEN_KEY = 'overdub:remote-token'; // before the secret: read once, then removed
 const NOTICE_KEY = 'overdub:remote-notice';
 const ON_KEY = 'overdub:remote-on';
-const MAX_RESULT = 950 * 1024;   // the relay takes 1 MB bodies
-const STALL_MS = 45000;          // the relay pings every 15 s: three missed and the stream is dead, so reconnect
+const MAX_RESULT = 950 * 1024; // the relay takes 1 MB bodies
+const STALL_MS = 45000; // the relay pings every 15 s: three missed and the stream is dead, so reconnect
 const MAX_EVENT = 4 * 1024 * 1024;
 
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
@@ -80,7 +81,9 @@ export function relayOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) { return null; /* not a URL */ }
+  } catch (e) {
+    return null; /* not a URL */
+  }
 }
 const relayBase = () => relayOverride() || RELAY;
 // The account service a ?cloud= asks for: the same rules as ?relay= (a studio on this machine, an http(s) origin).
@@ -91,11 +94,14 @@ export function cloudOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) { return null; /* not a URL */ }
+  } catch (e) {
+    return null; /* not a URL */
+  }
 }
 // The account service, when account mode is on here: locally both ?relay= and ?cloud=; live, ACCOUNT_LIVE. Else null.
 export function accountApi(search = location.search, host = location.hostname) {
-  const relay = relayOverride(search, host), cloud = cloudOverride(search, host);
+  const relay = relayOverride(search, host),
+    cloud = cloudOverride(search, host);
   if (relay && cloud) return cloud;
   return ACCOUNT_LIVE ? ACCOUNT_API : null;
 }
@@ -110,14 +116,34 @@ export function relayPreview(search = location.search) {
   else if (q === '0') put(PREVIEW_KEY, null);
   return get(PREVIEW_KEY) === '1';
 }
-function b64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
 const newSecret = () => b64url(crypto.getRandomValues(new Uint8Array(32)));
 // The connector token for a tab secret: the first 22 characters of base64url(SHA-256(prefix + secret)).
 export async function tokenFor(secret) {
-  return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(TOKEN_PREFIX + secret)))).slice(0, 22);
+  return b64url(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(TOKEN_PREFIX + secret))),
+  ).slice(0, 22);
 }
-const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-const put = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* storage blocked: this session only */ } };
+const get = (k) => {
+  try {
+    return localStorage.getItem(k);
+  } catch (e) {
+    return null;
+  }
+};
+const put = (k, v) => {
+  try {
+    if (v == null) localStorage.removeItem(k);
+    else localStorage.setItem(k, v);
+  } catch (e) {
+    /* storage blocked: this session only */
+  }
+};
 
 // This browser's pair. A missing or malformed secret gets a new one; a token kept from before the secret is dropped
 // (it opened both sides, so its URL is retired) and the Connect tab says once that the link changed.
@@ -125,7 +151,8 @@ async function loadKeys() {
   let secret = get(SECRET_KEY);
   const old = get(OLD_TOKEN_KEY);
   if (!/^[A-Za-z0-9_-]{43}$/.test(secret || '')) {
-    secret = newSecret(); put(SECRET_KEY, secret);
+    secret = newSecret();
+    put(SECRET_KEY, secret);
     if (old != null) put(NOTICE_KEY, '1');
   }
   if (old != null) put(OLD_TOKEN_KEY, null);
@@ -137,7 +164,7 @@ export default async function (app) {
   installTools(app);
   if (app.remote) return;
   if (!RELAY_LIVE && !ACCOUNT_LIVE && !relayOverride() && !relayPreview()) return; // (see RELAY_LIVE and relayPreview)
-  if (!globalThis.crypto?.subtle) return;      // only in a secure context (the live site and localhost are)
+  if (!globalThis.crypto?.subtle) return; // only in a secure context (the live site and localhost are)
   const { ui, store } = app;
   if (!store.authors[BY]) store.addAuthor(BY, { kind: 'agent', name: 'claude.ai' });
 
@@ -148,10 +175,15 @@ export default async function (app) {
   let keys = await loadKeys();
   const newTab = () => 'tab_' + b64url(crypto.getRandomValues(new Uint8Array(9)));
   let tab = newTab();
-  let moved = [], grantsAt = 0;   // when this tab lost live lately; when Connected apps was last asked for
-  let stream = null, timer = 0, backoff = 1000, epoch = 0, renewer = 0;
-  let ticket = null;           // { ticket, expiresAt }: in memory only, never in a URL or storage
-  const running = new Map();   // call id -> AbortController
+  let moved = [],
+    grantsAt = 0; // when this tab lost live lately; when Connected apps was last asked for
+  let stream = null,
+    timer = 0,
+    backoff = 1000,
+    epoch = 0,
+    renewer = 0;
+  let ticket = null; // { ticket, expiresAt }: in memory only, never in a URL or storage
+  const running = new Map(); // call id -> AbortController
   // Which way this browser connects. With accounts available, a browser that already had a private link on keeps it
   // until the person switches; everyone else starts with the account.
   // It's written down the first time, so the next load reads it back rather than guessing from 'overdub:remote-on' (which
@@ -166,22 +198,58 @@ export default async function (app) {
   };
 
   const R = {
-    state: 'off', agent: false, agents: new Map(), live: true, relay: base, tab, notice: keys.notice, mode: startMode(), account: acct, grants: null,
-    connectError: '', moving: false,
-    get enabled() { return get(ON_KEY) === '1' || R._on; },
-    get token() { return keys.token; },
-    get url() { return R.mode === 'account' ? `${accountBase}/mcp` : `${base}/s/${keys.token}/mcp`; },
-    get accountRelay() { return accountBase; },
-    enable, disable, rotate, copy, seen, setMode, playHere, loadGrants, disconnectGrant, disconnectAll, signOutEverywhere,
+    state: 'off',
+    agent: false,
+    agents: new Map(),
+    live: true,
+    relay: base,
+    tab,
+    notice: keys.notice,
+    mode: startMode(),
+    account: acct,
+    grants: null,
+    connectError: '',
+    moving: false,
+    get enabled() {
+      return get(ON_KEY) === '1' || R._on;
+    },
+    get token() {
+      return keys.token;
+    },
+    get url() {
+      return R.mode === 'account' ? `${accountBase}/mcp` : `${base}/s/${keys.token}/mcp`;
+    },
+    get accountRelay() {
+      return accountBase;
+    },
+    enable,
+    disable,
+    rotate,
+    copy,
+    seen,
+    setMode,
+    playHere,
+    loadGrants,
+    disconnectGrant,
+    disconnectAll,
+    signOutEverywhere,
     _on: false,
   };
   app.remote = R;
   const account = () => R.mode === 'account';
   const route = (r) => (account() ? `${accountBase}/tab/${r}` : `${base}/s/${keys.token}/${r}`);
   // the secret (or the ticket) goes in a header, never the URL
-  const headers = (more = {}) => (account() ? { authorization: `Bearer ${ticket?.ticket || ''}`, ...more } : { [SECRET_HEADER]: keys.secret, ...more });
+  const headers = (more = {}) =>
+    account()
+      ? { authorization: `Bearer ${ticket?.ticket || ''}`, ...more }
+      : { [SECRET_HEADER]: keys.secret, ...more };
   const emit = () => ui.emit('remote:state', { state: R.state, agent: R.agent });
-  const set = (state) => { if (R.state !== state) { R.state = state; emit(); } };
+  const set = (state) => {
+    if (R.state !== state) {
+      R.state = state;
+      emit();
+    }
+  };
   const waitOf = (r) => Math.max(0, Math.min(300, Number(r?.headers?.get('retry-after')) || 0)) * 1000;
 
   // A ticket for the relay, from the account service: a fresh one when there's none or it runs out within a minute.
@@ -193,13 +261,22 @@ export default async function (app) {
       // expiresAt is ms since the epoch (seconds are read as such too, in case)
       const at = Number(t.expiresAt) || 0;
       ticket = { ticket: t.ticket, expiresAt: at > 1e12 ? at : at > 0 ? at * 1000 : Date.now() + 300e3 };
-      if (R.connectError) { R.connectError = ''; emit(); }
+      if (R.connectError) {
+        R.connectError = '';
+        emit();
+      }
       return true;
     } catch (e) {
       ticket = null;
       // said in the Connect tab, not only retried: the tab would sit at "Reconnecting…" with no reason given
-      const why = e.status === 429 ? 'Too many studio tabs are connecting from this browser. Close a few, or wait a few minutes.' : '';
-      if (why !== R.connectError) { R.connectError = why; emit(); }
+      const why =
+        e.status === 429
+          ? 'Too many studio tabs are connecting from this browser. Close a few, or wait a few minutes.'
+          : '';
+      if (why !== R.connectError) {
+        R.connectError = why;
+        emit();
+      }
       return false;
     }
   }
@@ -210,8 +287,17 @@ export default async function (app) {
     try {
       if (account() && !(await getTicket())) return { ok: false };
       const body = account() ? { tab, ...(focus ? {} : { renew: true }), ...(recheck ? { recheck } : {}) } : { tab };
-      let r = await fetch(route('hello'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify(body) });
-      if (r.status === 401 && account() && (await getTicket(true))) r = await fetch(route('hello'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify(body) });
+      let r = await fetch(route('hello'), {
+        method: 'POST',
+        headers: headers({ 'content-type': 'application/json' }),
+        body: JSON.stringify(body),
+      });
+      if (r.status === 401 && account() && (await getTicket(true)))
+        r = await fetch(route('hello'), {
+          method: 'POST',
+          headers: headers({ 'content-type': 'application/json' }),
+          body: JSON.stringify(body),
+        });
       if (!r.ok) return { ok: false, wait: waitOf(r) };
       const j = await r.json();
       if (account()) {
@@ -219,13 +305,18 @@ export default async function (app) {
         if (typeof j.live === 'boolean') liveIs(j.live);
       } else agentState(!!j.agent);
       return { ok: true };
-    } catch (e) { return { ok: false }; }
+    } catch (e) {
+      return { ok: false };
+    }
   }
 
   // Who is connected. A private link only ever has claude.ai; an account may have several (claude.ai and Claude Code,
   // say), each shown by name.
-  const nameOf = (agent, name) => String(name || (agent === BY ? 'claude.ai' : agent.replace(/^mcp:/, ''))).slice(0, 40);
-  function authorFor(agent, name) { if (!store.authors[agent]) store.addAuthor(agent, { kind: 'agent', name: nameOf(agent, name) }); }
+  const nameOf = (agent, name) =>
+    String(name || (agent === BY ? 'claude.ai' : agent.replace(/^mcp:/, ''))).slice(0, 40);
+  function authorFor(agent, name) {
+    if (!store.authors[agent]) store.addAuthor(agent, { kind: 'agent', name: nameOf(agent, name) });
+  }
   function join(agent, name) {
     if (!AGENT_RE.test(agent) || R.agents.has(agent)) return;
     name = nameOf(agent, name);
@@ -245,12 +336,15 @@ export default async function (app) {
     app.presence.leave(agent);
     emit();
   }
-  function agentState(on) {   // (a private link: claude.ai or no one)
+  function agentState(on) {
+    // (a private link: claude.ai or no one)
     if (on) join(BY, 'claude.ai');
     else for (const a of [...R.agents.keys()]) leave(a);
   }
   function agentsAre(list) {
-    const now = new Map(list.filter((x) => x && typeof x.agent === 'string' && AGENT_RE.test(x.agent)).map((x) => [x.agent, x.agentName]));
+    const now = new Map(
+      list.filter((x) => x && typeof x.agent === 'string' && AGENT_RE.test(x.agent)).map((x) => [x.agent, x.agentName]),
+    );
     for (const a of [...R.agents.keys()]) if (!now.has(a)) leave(a);
     for (const [a, n] of now) join(a, n);
   }
@@ -258,7 +352,14 @@ export default async function (app) {
   function liveIs(live) {
     if (live === R.live) return;
     R.live = live;
-    if (!live) { ui.toast?.('Claude moved to another tab.', { kind: 'agent', ms: 6000, action: { label: 'Play here', run: () => playHere() } }); movedAway(); }
+    if (!live) {
+      ui.toast?.('Claude moved to another tab.', {
+        kind: 'agent',
+        ms: 6000,
+        action: { label: 'Play here', run: () => playHere() },
+      });
+      movedAway();
+    }
     emit();
   }
   // Three moves away in two minutes is more than a person switching tabs: someone else may hold this account's
@@ -268,16 +369,34 @@ export default async function (app) {
     moved = [...moved.filter((x) => t - x < MOVED_MS), t];
     const was = R.moving;
     R.moving = moved.length >= MOVED_TIMES;
-    if (R.moving && !was) ui.toast?.('Claude keeps moving to another tab. If you didn’t open one, open Connect.', { kind: 'agent', ms: 10000, action: { label: 'Open Connect', run: () => ui.show?.('connect') } });
+    if (R.moving && !was)
+      ui.toast?.('Claude keeps moving to another tab. If you didn’t open one, open Connect.', {
+        kind: 'agent',
+        ms: 10000,
+        action: { label: 'Open Connect', run: () => ui.show?.('connect') },
+      });
   }
-  function playHere() { return R.state === 'on' ? hello({ focus: true }) : null; }
+  function playHere() {
+    return R.state === 'on' ? hello({ focus: true }) : null;
+  }
 
   async function onCall(ev) {
     // who signs it: a private link's calls are claude.ai's; an account's carry the agent the person allowed, and a call
     // signed by anything else edits nothing
     const by = account() ? ev.agent : BY;
     if (typeof by !== 'string' || !AGENT_RE.test(by)) {
-      try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify({ id: ev.id, error: 'this call’s author couldn’t be read, so the studio didn’t run it' }) }); } catch (e) { /* the call times out */ }
+      try {
+        await fetch(route('result'), {
+          method: 'POST',
+          headers: headers({ 'content-type': 'application/json' }),
+          body: JSON.stringify({
+            id: ev.id,
+            error: 'this call’s author couldn’t be read, so the studio didn’t run it',
+          }),
+        });
+      } catch (e) {
+        /* the call times out */
+      }
       return;
     }
     const name = nameOf(by, ev.agentName || R.agents.get(by));
@@ -292,30 +411,63 @@ export default async function (app) {
       body = { id: ev.id, result };
       let text = JSON.stringify(body);
       if (text.length > MAX_RESULT && result && typeof result === 'object' && result.image) {
-        body = { id: ev.id, result: { ...result, image: undefined, image_dropped: 'the spectrogram was too large to send; ask for a shorter range' } };
+        body = {
+          id: ev.id,
+          result: {
+            ...result,
+            image: undefined,
+            image_dropped: 'the spectrogram was too large to send; ask for a shorter range',
+          },
+        };
         text = JSON.stringify(body);
       }
-      if (text.length > MAX_RESULT) body = { id: ev.id, error: 'the result is too large to send', hint: 'ask for less: a summary, one track, a shorter range' };
-    } catch (e) { body = { id: ev.id, error: String(e && e.message || e) }; }
+      if (text.length > MAX_RESULT)
+        body = {
+          id: ev.id,
+          error: 'the result is too large to send',
+          hint: 'ask for less: a summary, one track, a shorter range',
+        };
+    } catch (e) {
+      body = { id: ev.id, error: String((e && e.message) || e) };
+    }
     running.delete(ev.id);
     app.presence.status('', by);
-    try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify(body) }); } catch (e) { console.warn('overdub remote: could not return a result'); }
+    try {
+      await fetch(route('result'), {
+        method: 'POST',
+        headers: headers({ 'content-type': 'application/json' }),
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      console.warn('overdub remote: could not return a result');
+    }
   }
 
   function onEvent(data) {
-    let ev; try { ev = JSON.parse(data); } catch (e) { return; }
+    let ev;
+    try {
+      ev = JSON.parse(data);
+    } catch (e) {
+      return;
+    }
     if (ev.type === 'call') onCall(ev);
     else if (ev.type === 'cancel') running.get(ev.id)?.abort();
-    else if (ev.type === 'agent' && account()) { if (ev.state === 'join') join(String(ev.agent || ''), ev.agentName); else leave(String(ev.agent || '')); }
-    else if (ev.type === 'agent') agentState(ev.state === 'join');
-    else if (ev.type === 'ready' && account()) { if (!ev.sessions) agentState(false); if (typeof ev.live === 'boolean') liveIs(ev.live); }
-    else if (ev.type === 'ready') agentState((ev.sessions || 0) > 0);
+    else if (ev.type === 'agent' && account()) {
+      if (ev.state === 'join') join(String(ev.agent || ''), ev.agentName);
+      else leave(String(ev.agent || ''));
+    } else if (ev.type === 'agent') agentState(ev.state === 'join');
+    else if (ev.type === 'ready' && account()) {
+      if (!ev.sessions) agentState(false);
+      if (typeof ev.live === 'boolean') liveIs(ev.live);
+    } else if (ev.type === 'ready') agentState((ev.sessions || 0) > 0);
     else if (ev.type === 'live') liveIs(!!ev.live);
     else if (ev.type === 'replaced' && account()) {
       // another connection took this tab's id at the relay (it was in this tab's requests): take a new id, which
       // reconnects as a new tab, and count it as a move away
-      tab = newTab(); R.tab = tab;
-      if (R.live) liveIs(false); else movedAway();
+      tab = newTab();
+      R.tab = tab;
+      if (R.live) liveIs(false);
+      else movedAway();
       emit();
     }
   }
@@ -325,20 +477,49 @@ export default async function (app) {
     const ac = new AbortController();
     stream = ac;
     let res = null;
-    try { res = await fetch(`${route('events')}?tab=${tab}`, { headers: headers({ accept: 'text/event-stream' }), signal: ac.signal, cache: 'no-store' }); } catch (e) { /* offline, refused, aborted */ }
-    if (my !== epoch) { ac.abort(); return; }
-    if (res && res.status === 401 && account()) ticket = null;   // a new ticket on the next try
+    try {
+      res = await fetch(`${route('events')}?tab=${tab}`, {
+        headers: headers({ accept: 'text/event-stream' }),
+        signal: ac.signal,
+        cache: 'no-store',
+      });
+    } catch (e) {
+      /* offline, refused, aborted */
+    }
+    if (my !== epoch) {
+      ac.abort();
+      return;
+    }
+    if (res && res.status === 401 && account()) ticket = null; // a new ticket on the next try
     // every one of the account's tab slots at the relay is connected: say so here, and keep trying
     if (res && res.status === 409 && account()) {
       let why = '';
-      try { why = String((await res.json())?.error || '').slice(0, 200); } catch (e) { /* no body */ }
-      if (why && why !== R.connectError) { R.connectError = why; emit(); }
-    } else if (res && res.ok && R.connectError) { R.connectError = ''; emit(); }
-    if (!res || !res.ok || !res.body) { if (stream === ac) stream = null; return retry(waitOf(res)); }
-    backoff = 1000; set('on');
-    const reader = res.body.getReader(), dec = new TextDecoder();
-    let buf = '', last = Date.now();
-    const watch = setInterval(() => { if (Date.now() - last > STALL_MS) ac.abort(); }, 5000);
+      try {
+        why = String((await res.json())?.error || '').slice(0, 200);
+      } catch (e) {
+        /* no body */
+      }
+      if (why && why !== R.connectError) {
+        R.connectError = why;
+        emit();
+      }
+    } else if (res && res.ok && R.connectError) {
+      R.connectError = '';
+      emit();
+    }
+    if (!res || !res.ok || !res.body) {
+      if (stream === ac) stream = null;
+      return retry(waitOf(res));
+    }
+    backoff = 1000;
+    set('on');
+    const reader = res.body.getReader(),
+      dec = new TextDecoder();
+    let buf = '',
+      last = Date.now();
+    const watch = setInterval(() => {
+      if (Date.now() - last > STALL_MS) ac.abort();
+    }, 5000);
     try {
       for (;;) {
         const { value, done } = await reader.read();
@@ -347,13 +528,20 @@ export default async function (app) {
         buf += dec.decode(value, { stream: true });
         let i;
         while ((i = buf.indexOf('\n\n')) >= 0) {
-          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-          const data = chunk.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).replace(/^ /, '')).join('\n');
+          const chunk = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          const data = chunk
+            .split('\n')
+            .filter((l) => l.startsWith('data:'))
+            .map((l) => l.slice(5).replace(/^ /, ''))
+            .join('\n');
           if (data) onEvent(data);
         }
-        if (buf.length > MAX_EVENT) break;   // a runaway event: drop the stream and connect again
+        if (buf.length > MAX_EVENT) break; // a runaway event: drop the stream and connect again
       }
-    } catch (e) { /* aborted, or the connection dropped */ }
+    } catch (e) {
+      /* aborted, or the connection dropped */
+    }
     clearInterval(watch);
     ac.abort();
     if (stream === ac) stream = null;
@@ -363,7 +551,10 @@ export default async function (app) {
   async function connect() {
     const my = epoch;
     if (!R.enabled) return;
-    if (account() && acct.state !== 'signed-in') { set('off'); return; }   // signing in connects (below)
+    if (account() && acct.state !== 'signed-in') {
+      set('off');
+      return;
+    } // signing in connects (below)
     clearTimeout(timer);
     set(R.state === 'on' || R.state === 'reconnecting' ? 'reconnecting' : 'connecting');
     const hi = await hello();
@@ -371,56 +562,98 @@ export default async function (app) {
     if (!hi.ok) return retry(hi.wait);
     if (account()) {
       clearInterval(renewer);
-      renewer = setInterval(async () => { if (my === epoch && (await getTicket(true))) hello({ focus: false }); }, RENEW_MS);
+      renewer = setInterval(async () => {
+        if (my === epoch && (await getTicket(true))) hello({ focus: false });
+      }, RENEW_MS);
     }
     listen(my);
   }
   function retry(wait = 0) {
     set('reconnecting');
     clearTimeout(timer);
-    const my = epoch, ms = Math.max(wait, backoff + Math.round(backoff * 0.2 * Math.random()));
-    timer = setTimeout(() => { if (my === epoch) connect(); }, ms);
+    const my = epoch,
+      ms = Math.max(wait, backoff + Math.round(backoff * 0.2 * Math.random()));
+    timer = setTimeout(() => {
+      if (my === epoch) connect();
+    }, ms);
     backoff = Math.min(30000, backoff * 2);
   }
   function stop() {
     epoch++;
-    clearTimeout(timer); clearInterval(renewer);
-    stream?.abort(); stream = null;
+    clearTimeout(timer);
+    clearInterval(renewer);
+    stream?.abort();
+    stream = null;
     for (const ac of running.values()) ac.abort();
     running.clear();
     agentState(false);
     backoff = 1000;
   }
 
-  function enable() { R._on = true; put(ON_KEY, '1'); stop(); set('connecting'); connect(); }
-  function disable() { R._on = false; put(ON_KEY, null); stop(); set('off'); }
+  function enable() {
+    R._on = true;
+    put(ON_KEY, '1');
+    stop();
+    set('connecting');
+    connect();
+  }
+  function disable() {
+    R._on = false;
+    put(ON_KEY, null);
+    stop();
+    set('off');
+  }
   async function rotate() {
     const secret = newSecret();
     keys = { secret, token: await tokenFor(secret) };
     put(SECRET_KEY, secret);
-    seen(); R.notice = false;
+    seen();
+    R.notice = false;
     emit();
-    if (R.enabled) { stop(); set('connecting'); connect(); }
+    if (R.enabled) {
+      stop();
+      set('connecting');
+      connect();
+    }
     return R.url;
   }
   async function copy(text = R.url) {
-    try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
   // Account or private link. Switching drops this tab's connection and makes it again the other way, if Connect is on.
   function setMode(mode) {
     if (!acct || (mode !== 'account' && mode !== 'link') || mode === R.mode) return;
     stop();
-    R.mode = mode; put(MODE_KEY, mode); ticket = null; R.live = true;
-    set('off'); emit();
-    if (R.enabled) { set('connecting'); connect(); }
+    R.mode = mode;
+    put(MODE_KEY, mode);
+    ticket = null;
+    R.live = true;
+    set('off');
+    emit();
+    if (R.enabled) {
+      set('connecting');
+      connect();
+    }
   }
   // The apps this account has allowed (claude.ai, Claude Code, …), for the Connect tab, and Disconnect. Asked for on
   // sign-in, when the Connect tab is shown, when this tab gets focus and when an agent joins (soon: at most every 5 s).
   async function loadGrants({ soon = false } = {}) {
-    if (!acct || acct.state !== 'signed-in') { R.grants = null; return null; }
+    if (!acct || acct.state !== 'signed-in') {
+      R.grants = null;
+      return null;
+    }
     if (soon && Date.now() - grantsAt < GRANTS_EVERY_MS) return R.grants;
     grantsAt = Date.now();
-    try { R.grants = await acct.grants(); } catch (e) { R.grants = R.grants || []; }
+    try {
+      R.grants = await acct.grants();
+    } catch (e) {
+      R.grants = R.grants || [];
+    }
     emit();
     return R.grants;
   }
@@ -447,11 +680,14 @@ export default async function (app) {
   }
   async function signOutEverywhere() {
     await acct.signOutEverywhere();
-    moved = []; R.moving = false;
+    moved = [];
+    R.moving = false;
     emit();
   }
   // The person has seen the Connect tab since the link changed: the note stays for this visit, not the next.
-  function seen() { if (get(NOTICE_KEY) != null) put(NOTICE_KEY, null); }
+  function seen() {
+    if (get(NOTICE_KEY) != null) put(NOTICE_KEY, null);
+  }
 
   // the tab you're looking at is the one Claude drives (two tabs on one link: the latest focused wins)
   document.addEventListener('visibilitychange', () => {
@@ -459,21 +695,52 @@ export default async function (app) {
     if (R.state === 'on') hello();
     if (account()) loadGrants({ soon: true });
   });
-  window.addEventListener('pagehide', () => { stream?.abort(); });
+  window.addEventListener('pagehide', () => {
+    stream?.abort();
+  });
   if (acct) {
-    window.addEventListener('focus', () => { if (account() && R.state === 'on') hello(); if (account()) loadGrants({ soon: true }); });
-    ui.on?.('show', (e) => { if (e?.id === 'connect' && account()) loadGrants({ soon: true }); });
+    window.addEventListener('focus', () => {
+      if (account() && R.state === 'on') hello();
+      if (account()) loadGrants({ soon: true });
+    });
+    ui.on?.('show', (e) => {
+      if (e?.id === 'connect' && account()) loadGrants({ soon: true });
+    });
     // signing in (here, or by the link in another tab of this browser) connects; signing out stops at once
     acct.on('state', (st) => {
-      if (st === 'signed-in') { if (account() && R.enabled && (R.state === 'off')) { stop(); set('connecting'); connect(); } loadGrants(); }
-      else if (st === 'signed-out' && account()) { stop(); ticket = null; R.grants = null; set('off'); }
+      if (st === 'signed-in') {
+        if (account() && R.enabled && R.state === 'off') {
+          stop();
+          set('connecting');
+          connect();
+        }
+        loadGrants();
+      } else if (st === 'signed-out' && account()) {
+        stop();
+        ticket = null;
+        R.grants = null;
+        set('off');
+      }
       emit();
     });
-    acct.load().then(() => { if (acct.state === 'signed-in') loadGrants(); emit(); });
+    acct.load().then(() => {
+      if (acct.state === 'signed-in') loadGrants();
+      emit();
+    });
   }
 
-  ui.panel({ id: 'connect', region: 'right', title: 'Connect', icon: 'bolt', order: 15, mount: (el) => mountCard(el, app, R) });
-  if (R.enabled) { R._on = true; connect(); }
+  ui.panel({
+    id: 'connect',
+    region: 'right',
+    title: 'Connect',
+    icon: 'bolt',
+    order: 15,
+    mount: (el) => mountCard(el, app, R),
+  });
+  if (R.enabled) {
+    R._on = true;
+    connect();
+  }
 }
 
 /* ------------------------------------------------------------------------------------------------ the card */
@@ -487,114 +754,427 @@ function mountCard(el, app, R) {
     reconnecting: ['busy', 'Reconnecting…'],
     on: ['ready', 'On: waiting for Claude'],
   };
-  const A = { email: '', code: '', busy: false, error: '', confirm: null, copied: 0, copiedCmd: 0, older: false };   // the account card's own state
+  const A = { email: '', code: '', busy: false, error: '', confirm: null, copied: 0, copiedCmd: 0, older: false }; // the account card's own state
   function render() {
     if (R.mode === 'account') return renderAccount();
-    if (R.notice && ui.visible?.('connect')) R.seen();   // shown on screen once: gone on the next visit
+    if (R.notice && ui.visible?.('connect')) R.seen(); // shown on screen once: gone on the next visit
     const [cls, text] = R.agent && R.state === 'on' ? ['live', 'claude.ai is connected'] : STATE[R.state] || STATE.off;
-    const url = h('input.ew-input.rc-url', { value: R.url, readonly: true, 'aria-label': 'Connector URL', onfocus: (e) => e.target.select() });
-    const copyBtn = h('button.ew-btn.rc-copy', { onclick: async () => {
-      if (await R.copy()) { copied = Date.now(); render(); setTimeout(render, 1600); } else { url.focus(); url.select(); ui.toast('Select the link and copy it (the clipboard is blocked here)'); }
-    } }, icon(Date.now() - copied < 1500 ? 'check' : 'copy', { size: 14 }), Date.now() - copied < 1500 ? 'Copied' : 'Copy');
-    el.replaceChildren(h('div.rc-wrap', h('div.rc-card',
-      h('div.rc-title', h('span.rc-orb', icon('bolt', { size: 18 })), h('div', h('b', 'Connect to Claude'), h('span', 'claude.ai on the web, and the Claude apps'))),
-      R.notice ? h('p.rc-note.rc-changed', { role: 'status' }, icon('bolt', { size: 12 }), h('span', h('b', 'This studio has a new link. '), 'Connect now keeps a second key in this browser, so the old URL no longer reaches the studio. Copy the one below into claude.ai (Settings → Connectors) in place of the old one.')) : null,
-      h('p.rc-p', 'Add this studio to Claude as a custom connector. Claude then plays in this tab: it reads the song, makes takes you can hear, and signs every edit.'),
-      h('div.rc-row',
-        h(`button.ew-btn.rc-toggle${R.enabled ? '.on' : '.ew-btn-agent'}`, { onclick: () => (R.enabled ? R.disable() : R.enable()), 'aria-pressed': String(R.enabled) }, icon('power', { size: 14 }), R.enabled ? 'Turn off' : 'Turn on'),
-        h(`span.rc-state.${cls}`, { role: 'status' }, h('span.rc-dot'), text)),
-      h('div.rc-label', 'Connector URL'),
-      h('div.rc-row', url, copyBtn),
-      h('ol.rc-steps',
-        h('li', 'In claude.ai, open ', h('b', 'Settings → Connectors'), '.'),
-        h('li', 'Choose ', h('b', 'Add custom connector'), ', name it Overdub and paste the URL.'),
-        h('li', 'In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. Keep this tab open.')),
-      h('p.rc-p', 'claude.ai will say this connector has no sign-in. That\'s expected: the link is your key, and ', h('b', 'New link'), ' swaps it for a fresh one, so the old one stops reaching this tab.'),
-      h('p.rc-note', icon('bolt', { size: 12 }), h('span', h('b', 'Anyone with this link can edit the song in this tab while Connect is on. '), 'Keep it to yourself. A new link turns the old one off.')),
-      h('div.rc-row.rc-foot',
-        h('button.rc-rotate', { onclick: async () => { await R.rotate(); ui.toast('New link made. Paste it into claude.ai: the old one no longer reaches this studio.'); } }, 'New link'),
-        h('span.rc-small', `Relay: ${R.relay.replace(/^https?:\/\//, '')}`)),
-      R.account ? h('div.rc-row.rc-foot', h('button.rc-rotate.rc-to-account', { onclick: () => R.setMode('account') }, 'Use your Overdub account instead')) : null,
-    )));
+    const url = h('input.ew-input.rc-url', {
+      value: R.url,
+      readonly: true,
+      'aria-label': 'Connector URL',
+      onfocus: (e) => e.target.select(),
+    });
+    const copyBtn = h(
+      'button.ew-btn.rc-copy',
+      {
+        onclick: async () => {
+          if (await R.copy()) {
+            copied = Date.now();
+            render();
+            setTimeout(render, 1600);
+          } else {
+            url.focus();
+            url.select();
+            ui.toast('Select the link and copy it (the clipboard is blocked here)');
+          }
+        },
+      },
+      icon(Date.now() - copied < 1500 ? 'check' : 'copy', { size: 14 }),
+      Date.now() - copied < 1500 ? 'Copied' : 'Copy',
+    );
+    el.replaceChildren(
+      h(
+        'div.rc-wrap',
+        h(
+          'div.rc-card',
+          h(
+            'div.rc-title',
+            h('span.rc-orb', icon('bolt', { size: 18 })),
+            h('div', h('b', 'Connect to Claude'), h('span', 'claude.ai on the web, and the Claude apps')),
+          ),
+          R.notice
+            ? h(
+                'p.rc-note.rc-changed',
+                { role: 'status' },
+                icon('bolt', { size: 12 }),
+                h(
+                  'span',
+                  h('b', 'This studio has a new link. '),
+                  'Connect now keeps a second key in this browser, so the old URL no longer reaches the studio. Copy the one below into claude.ai (Settings → Connectors) in place of the old one.',
+                ),
+              )
+            : null,
+          h(
+            'p.rc-p',
+            'Add this studio to Claude as a custom connector. Claude then plays in this tab: it reads the song, makes takes you can hear, and signs every edit.',
+          ),
+          h(
+            'div.rc-row',
+            h(
+              `button.ew-btn.rc-toggle${R.enabled ? '.on' : '.ew-btn-agent'}`,
+              { onclick: () => (R.enabled ? R.disable() : R.enable()), 'aria-pressed': String(R.enabled) },
+              icon('power', { size: 14 }),
+              R.enabled ? 'Turn off' : 'Turn on',
+            ),
+            h(`span.rc-state.${cls}`, { role: 'status' }, h('span.rc-dot'), text),
+          ),
+          h('div.rc-label', 'Connector URL'),
+          h('div.rc-row', url, copyBtn),
+          h(
+            'ol.rc-steps',
+            h('li', 'In claude.ai, open ', h('b', 'Settings → Connectors'), '.'),
+            h('li', 'Choose ', h('b', 'Add custom connector'), ', name it Overdub and paste the URL.'),
+            h(
+              'li',
+              'In a chat, turn Overdub on in the tools menu and ask Claude to look at your song. Keep this tab open.',
+            ),
+          ),
+          h(
+            'p.rc-p',
+            "claude.ai will say this connector has no sign-in. That's expected: the link is your key, and ",
+            h('b', 'New link'),
+            ' swaps it for a fresh one, so the old one stops reaching this tab.',
+          ),
+          h(
+            'p.rc-note',
+            icon('bolt', { size: 12 }),
+            h(
+              'span',
+              h('b', 'Anyone with this link can edit the song in this tab while Connect is on. '),
+              'Keep it to yourself. A new link turns the old one off.',
+            ),
+          ),
+          h(
+            'div.rc-row.rc-foot',
+            h(
+              'button.rc-rotate',
+              {
+                onclick: async () => {
+                  await R.rotate();
+                  ui.toast('New link made. Paste it into claude.ai: the old one no longer reaches this studio.');
+                },
+              },
+              'New link',
+            ),
+            h('span.rc-small', `Relay: ${R.relay.replace(/^https?:\/\//, '')}`),
+          ),
+          R.account
+            ? h(
+                'div.rc-row.rc-foot',
+                h(
+                  'button.rc-rotate.rc-to-account',
+                  { onclick: () => R.setMode('account') },
+                  'Use your Overdub account instead',
+                ),
+              )
+            : null,
+        ),
+      ),
+    );
   }
 
   // Account mode: sign in (email, then the code), then one URL for every Claude app.
   function renderAccount() {
     const acct = R.account;
-    const head = (sub) => h('div.rc-title', h('span.rc-orb', icon('bolt', { size: 18 })), h('div', h('b', 'Connect to Claude'), h('span', sub)));
+    const head = (sub) =>
+      h(
+        'div.rc-title',
+        h('span.rc-orb', icon('bolt', { size: 18 })),
+        h('div', h('b', 'Connect to Claude'), h('span', sub)),
+      );
     const why = A.error || acct.error?.message || R.connectError;
     const err = why ? h('p.rc-err', { role: 'alert' }, why) : null;
-    const linkInstead = h('button.rc-rotate.rc-to-link', { onclick: () => R.setMode('link') }, 'Use a private link instead (no account)');
+    const linkInstead = h(
+      'button.rc-rotate.rc-to-link',
+      { onclick: () => R.setMode('link') },
+      'Use a private link instead (no account)',
+    );
     if (acct.state !== 'signed-in') {
       const inbox = acct.state === 'check-inbox';
-      const email = h('input.ew-input.rc-email', { type: 'email', placeholder: 'you@example.com', autocomplete: 'email', 'aria-label': 'Email', value: A.email, disabled: inbox || A.busy, oninput: (e) => { A.email = e.target.value; } });
-      const code = h('input.ew-input.rc-code', { inputmode: 'numeric', autocomplete: 'one-time-code', placeholder: '6-digit code', 'aria-label': 'Code from the email', value: A.code, maxlength: 12, oninput: (e) => { A.code = e.target.value; } });
+      const email = h('input.ew-input.rc-email', {
+        type: 'email',
+        placeholder: 'you@example.com',
+        autocomplete: 'email',
+        'aria-label': 'Email',
+        value: A.email,
+        disabled: inbox || A.busy,
+        oninput: (e) => {
+          A.email = e.target.value;
+        },
+      });
+      const code = h('input.ew-input.rc-code', {
+        inputmode: 'numeric',
+        autocomplete: 'one-time-code',
+        placeholder: '6-digit code',
+        'aria-label': 'Code from the email',
+        value: A.code,
+        maxlength: 12,
+        oninput: (e) => {
+          A.code = e.target.value;
+        },
+      });
       const send = async () => {
-        A.error = ''; A.busy = true; render();
-        try { await acct.signIn(A.email, { frameHost: el.querySelector('.rc-bot-host') }); } catch (e) { A.error = e.message; }
-        A.busy = false; render();
+        A.error = '';
+        A.busy = true;
+        render();
+        try {
+          await acct.signIn(A.email, { frameHost: el.querySelector('.rc-bot-host') });
+        } catch (e) {
+          A.error = e.message;
+        }
+        A.busy = false;
+        render();
         el.querySelector('.rc-code')?.focus();
       };
       const enter = async () => {
-        A.error = ''; A.busy = true; render();
-        try { await acct.enterCode(A.email, A.code); A.code = ''; } catch (e) { A.error = e.message; }
-        A.busy = false; render();
+        A.error = '';
+        A.busy = true;
+        render();
+        try {
+          await acct.enterCode(A.email, A.code);
+          A.code = '';
+        } catch (e) {
+          A.error = e.message;
+        }
+        A.busy = false;
+        render();
       };
-      el.replaceChildren(h('div.rc-wrap', h('div.rc-card',
-        head('claude.ai, the Claude apps and Claude Code'),
-        h('p.rc-p', 'Sign in to connect. A free Overdub account lets Claude find this studio from any Claude app. No card, no credits.'),
-        h('form.rc-row', { onsubmit: (e) => { e.preventDefault(); if (!inbox) send(); } }, email,
-          inbox ? null : h('button.ew-btn.ew-btn-agent.rc-send', { type: 'submit', disabled: A.busy }, A.busy ? 'Sending…' : 'Send code')),
-        h('div.rc-bot-host'),
-        inbox ? h('p.rc-p.rc-inbox', { role: 'status' }, `Check your inbox: a code is on its way to ${A.email || acct.pendingEmail}. Type it here, or open the link in this browser.`) : null,
-        inbox ? h('form.rc-row', { onsubmit: (e) => { e.preventDefault(); enter(); } }, code, h('button.ew-btn.ew-btn-agent.rc-enter', { type: 'submit', disabled: A.busy }, 'Sign in')) : null,
-        inbox ? h('button.rc-rotate', { onclick: () => { acct.cancelSignIn(); A.code = ''; render(); } }, 'Use a different email') : null,
-        err,
-        h('div.rc-row.rc-foot', linkInstead),
-      )));
+      el.replaceChildren(
+        h(
+          'div.rc-wrap',
+          h(
+            'div.rc-card',
+            head('claude.ai, the Claude apps and Claude Code'),
+            h(
+              'p.rc-p',
+              'Sign in to connect. A free Overdub account lets Claude find this studio from any Claude app. No card, no credits.',
+            ),
+            h(
+              'form.rc-row',
+              {
+                onsubmit: (e) => {
+                  e.preventDefault();
+                  if (!inbox) send();
+                },
+              },
+              email,
+              inbox
+                ? null
+                : h(
+                    'button.ew-btn.ew-btn-agent.rc-send',
+                    { type: 'submit', disabled: A.busy },
+                    A.busy ? 'Sending…' : 'Send code',
+                  ),
+            ),
+            h('div.rc-bot-host'),
+            inbox
+              ? h(
+                  'p.rc-p.rc-inbox',
+                  { role: 'status' },
+                  `Check your inbox: a code is on its way to ${A.email || acct.pendingEmail}. Type it here, or open the link in this browser.`,
+                )
+              : null,
+            inbox
+              ? h(
+                  'form.rc-row',
+                  {
+                    onsubmit: (e) => {
+                      e.preventDefault();
+                      enter();
+                    },
+                  },
+                  code,
+                  h('button.ew-btn.ew-btn-agent.rc-enter', { type: 'submit', disabled: A.busy }, 'Sign in'),
+                )
+              : null,
+            inbox
+              ? h(
+                  'button.rc-rotate',
+                  {
+                    onclick: () => {
+                      acct.cancelSignIn();
+                      A.code = '';
+                      render();
+                    },
+                  },
+                  'Use a different email',
+                )
+              : null,
+            err,
+            h('div.rc-row.rc-foot', linkInstead),
+          ),
+        ),
+      );
       return;
     }
     const names = [...R.agents.values()].map((n) => (n === 'claude.ai' ? 'Claude' : n));
-    const STATE = { off: ['off', 'Off'], connecting: ['busy', 'Connecting to the relay…'], reconnecting: ['busy', 'Reconnecting…'], on: ['ready', 'On: waiting for Claude'] };
-    const [cls, text] = R.agent && R.state === 'on' ? ['live', `${names.join(' and ')} ${names.length > 1 ? 'are' : 'is'} connected`] : STATE[R.state] || STATE.off;
+    const STATE = {
+      off: ['off', 'Off'],
+      connecting: ['busy', 'Connecting to the relay…'],
+      reconnecting: ['busy', 'Reconnecting…'],
+      on: ['ready', 'On: waiting for Claude'],
+    };
+    const [cls, text] =
+      R.agent && R.state === 'on'
+        ? ['live', `${names.join(' and ')} ${names.length > 1 ? 'are' : 'is'} connected`]
+        : STATE[R.state] || STATE.off;
     const cmd = `claude mcp add --transport http overdub ${R.url}`;
-    const url = h('input.ew-input.rc-url', { value: R.url, readonly: true, 'aria-label': 'Connector URL', onfocus: (e) => e.target.select() });
-    const copyBtn = (what, key, field) => h('button.ew-btn.rc-copy', { onclick: async () => {
-      if (await R.copy(what)) { A[key] = Date.now(); render(); setTimeout(render, 1600); } else { field?.focus(); field?.select?.(); ui.toast('Select it and copy it (the clipboard is blocked here)'); }
-    } }, icon(Date.now() - A[key] < 1500 ? 'check' : 'copy', { size: 14 }), Date.now() - A[key] < 1500 ? 'Copied' : 'Copy');
+    const url = h('input.ew-input.rc-url', {
+      value: R.url,
+      readonly: true,
+      'aria-label': 'Connector URL',
+      onfocus: (e) => e.target.select(),
+    });
+    const copyBtn = (what, key, field) =>
+      h(
+        'button.ew-btn.rc-copy',
+        {
+          onclick: async () => {
+            if (await R.copy(what)) {
+              A[key] = Date.now();
+              render();
+              setTimeout(render, 1600);
+            } else {
+              field?.focus();
+              field?.select?.();
+              ui.toast('Select it and copy it (the clipboard is blocked here)');
+            }
+          },
+        },
+        icon(Date.now() - A[key] < 1500 ? 'check' : 'copy', { size: 14 }),
+        Date.now() - A[key] < 1500 ? 'Copied' : 'Copy',
+      );
     const cmdField = h('code.rc-cmd', cmd);
-    el.replaceChildren(h('div.rc-wrap', h('div.rc-card',
-      head(acct.email || 'Signed in'),
-      h('div.rc-row',
-        h(`button.ew-btn.rc-toggle${R.enabled ? '.on' : '.ew-btn-agent'}`, { onclick: () => (R.enabled ? R.disable() : R.enable()), 'aria-pressed': String(R.enabled) }, icon('power', { size: 14 }), R.enabled ? 'Turn off' : 'Turn on'),
-        h(`span.rc-state.${cls}`, { role: 'status' }, h('span.rc-dot'), text)),
-      R.state === 'on' && !R.live ? h('p.rc-note.rc-elsewhere', { role: 'status' }, icon('bolt', { size: 12 }), h('span', 'Claude is playing in another tab. '), h('button.rc-rotate.rc-play-here', { onclick: () => R.playHere() }, 'Play here')) : null,
-      R.moving ? movingNote() : null,
-      h('div.rc-label', 'Connector URL'),
-      h('div.rc-row', url, copyBtn(R.url, 'copied', url)),
-      h('p.rc-p', h('b', 'claude.ai and the Claude apps: '), 'Customize → Connectors → Add custom connector. Paste the URL and add it, then press Connect and allow Overdub.'),
-      h('p.rc-p', h('b', 'Claude Code: '), 'run this, then ', h('b', '/mcp'), ' to sign in.'),
-      h('div.rc-row', cmdField, copyBtn(cmd, 'copiedCmd', null)),
-      h('p.rc-p', 'Claude plays in the tab you last had in front of you. Keep it open.'),
-      h('div.rc-label', 'Connected apps'),
-      grantList(),
-      h('p.rc-small.rc-signout-note', 'Signing out of this studio leaves them connected. Disconnect them here.'),
-      err,
-      h('div.rc-row.rc-foot', linkInstead,
-        h('button.rc-rotate.rc-signout', { onclick: async () => { try { await acct.signOut(); } catch (e) { A.error = e.message; render(); } } }, 'Sign out')),
-    )));
+    el.replaceChildren(
+      h(
+        'div.rc-wrap',
+        h(
+          'div.rc-card',
+          head(acct.email || 'Signed in'),
+          h(
+            'div.rc-row',
+            h(
+              `button.ew-btn.rc-toggle${R.enabled ? '.on' : '.ew-btn-agent'}`,
+              { onclick: () => (R.enabled ? R.disable() : R.enable()), 'aria-pressed': String(R.enabled) },
+              icon('power', { size: 14 }),
+              R.enabled ? 'Turn off' : 'Turn on',
+            ),
+            h(`span.rc-state.${cls}`, { role: 'status' }, h('span.rc-dot'), text),
+          ),
+          R.state === 'on' && !R.live
+            ? h(
+                'p.rc-note.rc-elsewhere',
+                { role: 'status' },
+                icon('bolt', { size: 12 }),
+                h('span', 'Claude is playing in another tab. '),
+                h('button.rc-rotate.rc-play-here', { onclick: () => R.playHere() }, 'Play here'),
+              )
+            : null,
+          R.moving ? movingNote() : null,
+          h('div.rc-label', 'Connector URL'),
+          h('div.rc-row', url, copyBtn(R.url, 'copied', url)),
+          h(
+            'p.rc-p',
+            h('b', 'claude.ai and the Claude apps: '),
+            'Customize → Connectors → Add custom connector. Paste the URL and add it, then press Connect and allow Overdub.',
+          ),
+          h('p.rc-p', h('b', 'Claude Code: '), 'run this, then ', h('b', '/mcp'), ' to sign in.'),
+          h('div.rc-row', cmdField, copyBtn(cmd, 'copiedCmd', null)),
+          h('p.rc-p', 'Claude plays in the tab you last had in front of you. Keep it open.'),
+          h('div.rc-label', 'Connected apps'),
+          grantList(),
+          h('p.rc-small.rc-signout-note', 'Signing out of this studio leaves them connected. Disconnect them here.'),
+          err,
+          h(
+            'div.rc-row.rc-foot',
+            linkInstead,
+            h(
+              'button.rc-rotate.rc-signout',
+              {
+                onclick: async () => {
+                  try {
+                    await acct.signOut();
+                  } catch (e) {
+                    A.error = e.message;
+                    render();
+                  }
+                },
+              },
+              'Sign out',
+            ),
+          ),
+        ),
+      ),
+    );
   }
   // Claude keeps leaving this tab: likely someone else holds this account's session (a leaked tab ticket, say).
   function movingNote() {
     if (A.confirm === 'everywhere') {
-      return h('div.rc-note.rc-moving', { role: 'alert' }, icon('bolt', { size: 12 }), h('div',
-        h('span', 'Sign out everywhere? Every browser signed in as you is signed out, this one too, and apps allowed from other browsers are disconnected. Then sign in again here.'),
-        h('div.rc-row', h('button.ew-btn.rc-everywhere-yes', { onclick: async () => { A.confirm = null; try { await R.signOutEverywhere(); } catch (e) { A.error = e.message; } render(); } }, 'Sign out everywhere'),
-          h('button.rc-rotate', { onclick: () => { A.confirm = null; render(); } }, 'Keep'))));
+      return h(
+        'div.rc-note.rc-moving',
+        { role: 'alert' },
+        icon('bolt', { size: 12 }),
+        h(
+          'div',
+          h(
+            'span',
+            'Sign out everywhere? Every browser signed in as you is signed out, this one too, and apps allowed from other browsers are disconnected. Then sign in again here.',
+          ),
+          h(
+            'div.rc-row',
+            h(
+              'button.ew-btn.rc-everywhere-yes',
+              {
+                onclick: async () => {
+                  A.confirm = null;
+                  try {
+                    await R.signOutEverywhere();
+                  } catch (e) {
+                    A.error = e.message;
+                  }
+                  render();
+                },
+              },
+              'Sign out everywhere',
+            ),
+            h(
+              'button.rc-rotate',
+              {
+                onclick: () => {
+                  A.confirm = null;
+                  render();
+                },
+              },
+              'Keep',
+            ),
+          ),
+        ),
+      );
     }
-    return h('div.rc-note.rc-moving', { role: 'alert' }, icon('bolt', { size: 12 }), h('div',
-      h('span', h('b', 'Claude keeps moving to another tab. '), 'If you didn’t open one, someone else may be signed in as you.'),
-      h('button.rc-rotate.rc-everywhere', { onclick: () => { A.confirm = 'everywhere'; render(); } }, 'Sign out everywhere')));
+    return h(
+      'div.rc-note.rc-moving',
+      { role: 'alert' },
+      icon('bolt', { size: 12 }),
+      h(
+        'div',
+        h(
+          'span',
+          h('b', 'Claude keeps moving to another tab. '),
+          'If you didn’t open one, someone else may be signed in as you.',
+        ),
+        h(
+          'button.rc-rotate.rc-everywhere',
+          {
+            onclick: () => {
+              A.confirm = 'everywhere';
+              render();
+            },
+          },
+          'Sign out everywhere',
+        ),
+      ),
+    );
   }
   function grantList() {
     const list = R.grants;
@@ -607,42 +1187,175 @@ function mountCard(el, app, R) {
     const ago = (v) => {
       const m = Math.floor((Date.now() - ms(v)) / 60e3);
       const n = (k, u) => `${k} ${u}${k === 1 ? '' : 's'} ago`;
-      return !Number.isFinite(m) ? '' : m < 1 ? 'just now' : m < 60 ? n(m, 'minute') : m < 48 * 60 ? n(Math.floor(m / 60), 'hour') : n(Math.floor(m / 1440), 'day');
+      return !Number.isFinite(m)
+        ? ''
+        : m < 1
+          ? 'just now'
+          : m < 60
+            ? n(m, 'minute')
+            : m < 48 * 60
+              ? n(Math.floor(m / 60), 'hour')
+              : n(Math.floor(m / 1440), 'day');
     };
     const row = (g) => {
-      const name = label(g), host = name.includes(' · ') ? '' : String(g.clientHost || '').slice(0, 60);
+      const name = label(g),
+        host = name.includes(' · ') ? '' : String(g.clientHost || '').slice(0, 60);
       const asking = A.confirm === g.id;
-      return h('li.rc-app', { 'data-grant': g.id },
-        h('div.rc-app-name', h('b', name), host ? h('span', ` · ${host}`) : null,
-          h('span.rc-small', [g.createdAt ? `connected ${ago(g.createdAt)}` : '', g.lastUsedAt ? `last used ${ago(g.lastUsedAt)}` : ''].filter(Boolean).join(' · '))),
+      return h(
+        'li.rc-app',
+        { 'data-grant': g.id },
+        h(
+          'div.rc-app-name',
+          h('b', name),
+          host ? h('span', ` · ${host}`) : null,
+          h(
+            'span.rc-small',
+            [g.createdAt ? `connected ${ago(g.createdAt)}` : '', g.lastUsedAt ? `last used ${ago(g.lastUsedAt)}` : '']
+              .filter(Boolean)
+              .join(' · '),
+          ),
+        ),
         asking
-          ? h('div.rc-app-ask', h('span', `Disconnect ${g.agentName === 'claude.ai' ? 'Claude' : String(g.agentName || name).slice(0, 40)}? It loses access to your studio, usually within a minute. You can connect it again from Claude.`),
-            h('button.ew-btn.rc-app-yes', { onclick: async () => { A.confirm = null; try { await R.disconnectGrant(g.id); } catch (e) { A.error = e.message; } render(); } }, 'Disconnect'),
-            h('button.rc-rotate', { onclick: () => { A.confirm = null; render(); } }, 'Keep'))
-          : h('button.rc-rotate.rc-app-off', { onclick: () => { A.confirm = g.id; render(); } }, 'Disconnect'));
+          ? h(
+              'div.rc-app-ask',
+              h(
+                'span',
+                `Disconnect ${g.agentName === 'claude.ai' ? 'Claude' : String(g.agentName || name).slice(0, 40)}? It loses access to your studio, usually within a minute. You can connect it again from Claude.`,
+              ),
+              h(
+                'button.ew-btn.rc-app-yes',
+                {
+                  onclick: async () => {
+                    A.confirm = null;
+                    try {
+                      await R.disconnectGrant(g.id);
+                    } catch (e) {
+                      A.error = e.message;
+                    }
+                    render();
+                  },
+                },
+                'Disconnect',
+              ),
+              h(
+                'button.rc-rotate',
+                {
+                  onclick: () => {
+                    A.confirm = null;
+                    render();
+                  },
+                },
+                'Keep',
+              ),
+            )
+          : h(
+              'button.rc-rotate.rc-app-off',
+              {
+                onclick: () => {
+                  A.confirm = g.id;
+                  render();
+                },
+              },
+              'Disconnect',
+            ),
+      );
     };
     // rows unused for two weeks fold under Older (each Allow is its own row, so dead ones pile up): docs/OAUTH.md 6.2
     const idle = (g) => Date.now() - ms(g.lastUsedAt || g.createdAt) > 14 * 86400e3;
-    const recent = list.filter((g) => !idle(g)), older = list.filter(idle);
-    const all = A.confirm === 'all'
-      ? h('div.rc-app-ask.rc-all-ask', h('span', 'Disconnect every app? They lose access to your studio, usually within a minute. You can connect them again from Claude.'),
-        h('button.ew-btn.rc-all-yes', { onclick: async () => { A.confirm = null; try { await R.disconnectAll(); } catch (e) { A.error = e.message; } render(); } }, 'Disconnect all'),
-        h('button.rc-rotate', { onclick: () => { A.confirm = null; render(); } }, 'Keep'))
-      : h('button.rc-rotate.rc-all', { onclick: () => { A.confirm = 'all'; render(); } }, 'Disconnect all');
-    return h('div.rc-apps-wrap',
+    const recent = list.filter((g) => !idle(g)),
+      older = list.filter(idle);
+    const all =
+      A.confirm === 'all'
+        ? h(
+            'div.rc-app-ask.rc-all-ask',
+            h(
+              'span',
+              'Disconnect every app? They lose access to your studio, usually within a minute. You can connect them again from Claude.',
+            ),
+            h(
+              'button.ew-btn.rc-all-yes',
+              {
+                onclick: async () => {
+                  A.confirm = null;
+                  try {
+                    await R.disconnectAll();
+                  } catch (e) {
+                    A.error = e.message;
+                  }
+                  render();
+                },
+              },
+              'Disconnect all',
+            ),
+            h(
+              'button.rc-rotate',
+              {
+                onclick: () => {
+                  A.confirm = null;
+                  render();
+                },
+              },
+              'Keep',
+            ),
+          )
+        : h(
+            'button.rc-rotate.rc-all',
+            {
+              onclick: () => {
+                A.confirm = 'all';
+                render();
+              },
+            },
+            'Disconnect all',
+          );
+    return h(
+      'div.rc-apps-wrap',
       recent.length ? h('ul.rc-apps', ...recent.map(row)) : null,
-      older.length ? h('button.rc-rotate.rc-older', { onclick: () => { A.older = !A.older; render(); }, 'aria-expanded': String(A.older) }, `Older (${older.length})`) : null,
+      older.length
+        ? h(
+            'button.rc-rotate.rc-older',
+            {
+              onclick: () => {
+                A.older = !A.older;
+                render();
+              },
+              'aria-expanded': String(A.older),
+            },
+            `Older (${older.length})`,
+          )
+        : null,
       older.length && A.older ? h('ul.rc-apps.rc-apps-older', ...older.map(row)) : null,
-      all);
+      all,
+    );
   }
   render();
   if (R.mode === 'account' && R.account?.state === 'signed-in') R.loadGrants({ soon: true });
   const off = ui.on('remote:state', render);
-  return { refresh: render, update() {}, unmount() { off?.(); } };
+  return {
+    refresh: render,
+    update() {},
+    unmount() {
+      off?.();
+    },
+  };
 }
 
 function statusLine(tool) {
-  return ({ get_project: 'reading the song', get_selection: 'looking at your selection', apply_ops: 'editing the song', render_and_measure: 'listening (rendering)', define_device: 'building a device', adjust: 'adjusting a sound', propose_variations: 'waiting for your pick', ask_human: 'waiting for your answer', list_devices: 'browsing devices', play: 'playing it for you', highlight: 'pointing' })[tool] || 'working';
+  return (
+    {
+      get_project: 'reading the song',
+      get_selection: 'looking at your selection',
+      apply_ops: 'editing the song',
+      render_and_measure: 'listening (rendering)',
+      define_device: 'building a device',
+      adjust: 'adjusting a sound',
+      propose_variations: 'waiting for your pick',
+      ask_human: 'waiting for your answer',
+      list_devices: 'browsing devices',
+      play: 'playing it for you',
+      highlight: 'pointing',
+    }[tool] || 'working'
+  );
 }
 
 const CSS = `

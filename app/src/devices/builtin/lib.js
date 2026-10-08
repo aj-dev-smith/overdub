@@ -191,7 +191,22 @@ function panLR(p) { const a = (clamp(p, -1, 1) + 1) * Math.PI / 4; return [Math.
 const DIVS = [['1/32', 0.125], ['1/16T', 1 / 6], ['1/16', 0.25], ['1/16D', 0.375], ['1/8T', 1 / 3], ['1/8', 0.5], ['1/8D', 0.75], ['1/4T', 2 / 3], ['1/4', 1], ['1/4D', 1.5], ['1/2', 2], ['1/2D', 3], ['1 BAR', 4], ['2 BARS', 8]];
 `;
 
-export const DIV_LABELS = ['1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8', '1/8D', '1/4T', '1/4', '1/4D', '1/2', '1/2D', '1 BAR', '2 BARS'];
+export const DIV_LABELS = [
+  '1/32',
+  '1/16T',
+  '1/16',
+  '1/16D',
+  '1/8T',
+  '1/8',
+  '1/8D',
+  '1/4T',
+  '1/4',
+  '1/4D',
+  '1/2',
+  '1/2D',
+  '1 BAR',
+  '2 BARS',
+];
 
 // The kernel source for a built-in: the prelude, then the device's body, which ends by returning the kernel object.
 export const kernel = (body) => `(() => {\n${LIB}\n${body}\n})()`;

@@ -23,4 +23,19 @@ import * as vacancy from './vacancy.js';
 import * as serviceLift from './service-lift.js';
 import * as boilerRoom from './boiler-room.js';
 
-export const MORE_DEMOS = [dustJacket, halation, lido, sodium, redEye, lateCheckout, wakeUpCall, lobbyBar, roomService, turndown, iceMachine, vacancy, serviceLift, boilerRoom].map((m) => ({ ...m.META, make: m.make }));
+export const MORE_DEMOS = [
+  dustJacket,
+  halation,
+  lido,
+  sodium,
+  redEye,
+  lateCheckout,
+  wakeUpCall,
+  lobbyBar,
+  roomService,
+  turndown,
+  iceMachine,
+  vacancy,
+  serviceLift,
+  boilerRoom,
+].map((m) => ({ ...m.META, make: m.make }));

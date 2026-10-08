@@ -10,7 +10,9 @@ export function optedOut(nav = navigator, win = window) {
   try {
     const dnt = nav.doNotTrack ?? win.doNotTrack ?? nav.msDoNotTrack;
     return dnt === '1' || dnt === 'yes' || dnt === 1 || nav.globalPrivacyControl === true;
-  } catch (e) { return true; }
+  } catch (e) {
+    return true;
+  }
 }
 
 export function referrerHost(ref) {
@@ -18,7 +20,9 @@ export function referrerHost(ref) {
   try {
     const h = new URL(ref).hostname.toLowerCase().replace(/^www\./, '');
     return /^[a-z0-9.-]{1,64}$/.test(h) ? h : '';
-  } catch (e) { return ''; }
+  } catch (e) {
+    return '';
+  }
 }
 
 (function view() {
@@ -29,6 +33,14 @@ export function referrerHost(ref) {
     if (r) q.set('r', r);
     const url = '/site/e.gif?' + q;
     (window.__overdub_site_counts = window.__overdub_site_counts || []).push(url);
-    fetch(url, { mode: 'no-cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', keepalive: true }).catch(() => {});
-  } catch (e) { /* never let counting break the page */ }
+    fetch(url, {
+      mode: 'no-cors',
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) {
+    /* never let counting break the page */
+  }
 })();

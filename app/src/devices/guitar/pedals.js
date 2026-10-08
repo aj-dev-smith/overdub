@@ -7,7 +7,19 @@ import { clawd, workletFiles } from './clawd.js';
 
 // clawd-o-matic's pedal categories -> Overdub's (registry DEVICE_CATS). 'synth' there means a guitar-synth effect
 // (a synth voice, a freeze, an arpeggiator): Overdub's 'synth' is for instruments, so those file under pitch.
-const CAT = { dynamics: 'dynamics', filter: 'filter', pitch: 'pitch', drive: 'drive', fuzz: 'fuzz', synth: 'pitch', mod: 'mod', time: 'time', ambient: 'ambient', glitch: 'glitch', utility: 'utility' };
+const CAT = {
+  dynamics: 'dynamics',
+  filter: 'filter',
+  pitch: 'pitch',
+  drive: 'drive',
+  fuzz: 'fuzz',
+  synth: 'pitch',
+  mod: 'mod',
+  time: 'time',
+  ambient: 'ambient',
+  glitch: 'glitch',
+  utility: 'utility',
+};
 
 // Role from the label (and the pedal's category where a word means two things)
 export function roleOf(label, cat) {
@@ -37,7 +49,11 @@ export function roleOf(label, cat) {
 export function unitOf(k) {
   if (k.type === 'switch' || k.type === 'tap' || !k.fmt) return null;
   let s = '';
-  try { s = String(k.fmt(k.def)); } catch (e) { return null; }
+  try {
+    s = String(k.fmt(k.def));
+  } catch (e) {
+    return null;
+  }
   if (k.fmt === clawd.PFX.noteFmt || /^1\/(2|4|8|16|32)(\.|T)?$/.test(s)) return 'note';
   if (/dB$/.test(s)) return 'dB';
   if (/\d\s*k?Hz$/.test(s) || /^\d+(\.\d+)?k$/.test(s)) return 'Hz';
@@ -66,19 +82,45 @@ export function pedalParam(k, cat) {
 // here. Tape Crab and Ping Pong Prawn (feedback delays) sometimes move early in that check and sometimes don't, so
 // all of their knobs are out. The vendored pedals are never edited.
 export const NO_LANE = {
-  wub: ['rate', 'shape'], riser: ['bars'], jellypulse: ['rate'], spinlobster: ['width'], sidestep: ['rate'],
-  clawchop: ['pat', 'len'], tapecrab: ['time', 'int', 'age', 'mix'], pingprawn: ['time', 'fb', 'tone', 'width', 'mix'], lowbatt: ['batt'],
+  wub: ['rate', 'shape'],
+  riser: ['bars'],
+  jellypulse: ['rate'],
+  spinlobster: ['width'],
+  sidestep: ['rate'],
+  clawchop: ['pat', 'len'],
+  tapecrab: ['time', 'int', 'age', 'mix'],
+  pingprawn: ['time', 'fb', 'tone', 'width', 'mix'],
+  lowbatt: ['batt'],
 };
 
 // One clawd-o-matic def (normalised by its pedalDef) -> an Overdub device def.
 export function pedalDevice(d) {
   const L = d.look || {};
   return {
-    id: 'pedal.' + d.id, name: d.name, kind: 'effect', cat: CAT[d.cat] || 'other', pedalCat: d.cat, pedal: d.id,
-    kindLabel: d.kind, blurb: d.blurb, nod: d.nod, by: 'clawd', source: 'clawd-o-matic',
-    params: d.knobs.map((k) => { const q = pedalParam(k, d.cat); if ((NO_LANE[d.id] || []).includes(k.key)) q.auto = false; return q; }),
+    id: 'pedal.' + d.id,
+    name: d.name,
+    kind: 'effect',
+    cat: CAT[d.cat] || 'other',
+    pedalCat: d.cat,
+    pedal: d.id,
+    kindLabel: d.kind,
+    blurb: d.blurb,
+    nod: d.nod,
+    by: 'clawd',
+    source: 'clawd-o-matic',
+    params: d.knobs.map((k) => {
+      const q = pedalParam(k, d.cat);
+      if ((NO_LANE[d.id] || []).includes(k.key)) q.auto = false;
+      return q;
+    }),
     look: Object.assign({ color: d.color, ink: d.ink }, L),
-    where: d.where, trails: !!d.trails, trim: d.trim || 0, latency: d.latency || 0, drone: !!d.drone, tail: d.tail || 0, stereo: !!d.stereo,
+    where: d.where,
+    trails: !!d.trails,
+    trim: d.trim || 0,
+    latency: d.latency || 0,
+    drone: !!d.drone,
+    tail: d.tail || 0,
+    stereo: !!d.stereo,
     worklets: d.worklets ? workletFiles(d.worklets, d.id) : null, // (the files the vendored sources were written to)
     build: d.build,
   };
@@ -87,7 +129,11 @@ export function pedalDevice(d) {
 export function registerPedals() {
   const out = [];
   for (const d of clawd.PEDAL_LIST) {
-    try { out.push(defineDevice(pedalDevice(d))); } catch (e) { console.error('guitar: pedal ' + d.id + ' not registered:', e.message); }
+    try {
+      out.push(defineDevice(pedalDevice(d)));
+    } catch (e) {
+      console.error('guitar: pedal ' + d.id + ' not registered:', e.message);
+    }
   }
   return out;
 }

@@ -19,7 +19,11 @@ const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 export function cloudOrigin(value) {
   if (typeof value !== 'string' || !value) return null;
   let u;
-  try { u = new URL(value); } catch (e) { return null; }
+  try {
+    u = new URL(value);
+  } catch (e) {
+    return null;
+  }
   if (u.username || u.password) return null;
   if (u.protocol === 'https:') return u.origin;
   if (u.protocol === 'http:' && LOOPBACK.test(u.hostname)) return u.origin;
@@ -43,7 +47,9 @@ export function loadSiteConfig({ fetch: f = globalThis.fetch, search, host, fres
     try {
       const r = await f('site-config.json', { cache: 'no-store', credentials: 'same-origin' });
       if (r.ok && (r.headers.get('content-type') || '').includes('json')) j = await r.json();
-    } catch (e) { j = null; }
+    } catch (e) {
+      j = null;
+    }
     const api = cloudOrigin(j?.cloud?.api);
     return { cloud: api ? { api } : null };
   })();

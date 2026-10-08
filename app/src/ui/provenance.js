@@ -47,7 +47,7 @@ export function normCheck(c, source, at = null) {
   const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : null);
   const warnings = Array.isArray(c.warnings) ? c.warnings.map(String) : [];
   return {
-    source,                                   // 'built' (this session, by the agent's own call) | 'rerun' (for this report) | 'house' (the library's)
+    source, // 'built' (this session, by the agent's own call) | 'rerun' (for this report) | 'house' (the library's)
     at,
     ok: c.ok !== false,
     checked: c.checked !== false,
@@ -68,7 +68,11 @@ export function normCheck(c, source, at = null) {
 // Every device a song uses: where it sits and who put it there.
 function placements(p) {
   const out = new Map(); // id -> [{ track, slot, by }]
-  const add = (id, track, slot, by) => { if (!id) return; if (!out.has(id)) out.set(id, []); out.get(id).push({ track, slot, by }); };
+  const add = (id, track, slot, by) => {
+    if (!id) return;
+    if (!out.has(id)) out.set(id, []);
+    out.get(id).push({ track, slot, by });
+  };
   for (const t of p.tracks || []) {
     if (t.instrument?.device) add(t.instrument.device, t.name, 'instrument', t.by);
     for (const fx of t.inserts || []) add(fx.device, t.name, 'effect', fx.by);
@@ -77,47 +81,130 @@ function placements(p) {
   return out;
 }
 
-export function provenanceModel(p, { history = [], author = null, getDevice = () => null, held = () => null, checks = {}, session = {}, now = Date.now() } = {}) {
-  const who = (id) => { const a = (author ? author(id) : defaultAuthor(id, p)) || defaultAuthor(id, p); return { kind: a.kind || 'human', name: a.name || String(id) }; };
+export function provenanceModel(
+  p,
+  {
+    history = [],
+    author = null,
+    getDevice = () => null,
+    held = () => null,
+    checks = {},
+    session = {},
+    now = Date.now(),
+  } = {},
+) {
+  const who = (id) => {
+    const a = (author ? author(id) : defaultAuthor(id, p)) || defaultAuthor(id, p);
+    return { kind: a.kind || 'human', name: a.name || String(id) };
+  };
   const tempo = Number(p.tempo) || 120;
   const authors = new Map();
   const A = (id) => {
     const key = id || 'unsigned';
     if (!authors.has(key)) {
       const a = id ? who(id) : { kind: 'unsigned', name: 'Unsigned' };
-      authors.set(key, { id: key, name: a.name, kind: a.kind, notes: 0, beats: 0, clips: 0, tracks: 0, audioClips: 0, audioBeats: 0, audioSecs: 0, effects: 0, devices: 0, edits: 0, notesPct: 0, beatsPct: 0 });
+      authors.set(key, {
+        id: key,
+        name: a.name,
+        kind: a.kind,
+        notes: 0,
+        beats: 0,
+        clips: 0,
+        tracks: 0,
+        audioClips: 0,
+        audioBeats: 0,
+        audioSecs: 0,
+        effects: 0,
+        devices: 0,
+        edits: 0,
+        notesPct: 0,
+        beatsPct: 0,
+      });
     }
     return authors.get(key);
   };
-  let totalNotes = 0, totalBeats = 0, totalAudioSecs = 0;
+  let totalNotes = 0,
+    totalBeats = 0,
+    totalAudioSecs = 0;
   const tracks = [];
   for (const t of p.tracks || []) {
     if (t.by) A(t.by).tracks++;
     const per = new Map();
-    const P = (id) => { const k = id || 'unsigned'; if (!per.has(k)) per.set(k, { id: k, notes: 0, beats: 0, clips: 0, audioSecs: 0 }); return per.get(k); };
-    let tn = 0, tb = 0, ta = 0;
+    const P = (id) => {
+      const k = id || 'unsigned';
+      if (!per.has(k)) per.set(k, { id: k, notes: 0, beats: 0, clips: 0, audioSecs: 0 });
+      return per.get(k);
+    };
+    let tn = 0,
+      tb = 0,
+      ta = 0;
     for (const c of t.clips || []) {
       const len = Math.max(0, Number(c.length) || 0);
-      A(c.by).clips++; P(c.by).clips++;
+      A(c.by).clips++;
+      P(c.by).clips++;
       if (c.kind === 'audio') {
-        const secs = len * 60 / tempo;
-        const a = A(c.by); a.audioClips++; a.audioBeats += len; a.audioSecs += secs;
-        P(c.by).audioSecs += secs; ta += secs; totalAudioSecs += secs;
+        const secs = (len * 60) / tempo;
+        const a = A(c.by);
+        a.audioClips++;
+        a.audioBeats += len;
+        a.audioSecs += secs;
+        P(c.by).audioSecs += secs;
+        ta += secs;
+        totalAudioSecs += secs;
         continue;
       }
       for (const n of c.notes || []) {
-        const sounds = n.t >= 0 && n.t < len ? Math.max(0, Math.min(Number(n.d) || 0, len - n.t)) : 0;   // how long it plays
-        const a = A(n.by); a.notes++; a.beats += sounds;
-        const q = P(n.by); q.notes++; q.beats += sounds;
-        tn++; tb += sounds;
+        const sounds = n.t >= 0 && n.t < len ? Math.max(0, Math.min(Number(n.d) || 0, len - n.t)) : 0; // how long it plays
+        const a = A(n.by);
+        a.notes++;
+        a.beats += sounds;
+        const q = P(n.by);
+        q.notes++;
+        q.beats += sounds;
+        tn++;
+        tb += sounds;
       }
     }
     for (const fx of t.inserts || []) if (fx.by) A(fx.by).effects++;
-    totalNotes += tn; totalBeats += tb;
-    const shares = [...per.values()].map((s) => ({ ...s, name: A(s.id).name, kind: A(s.id).kind, beats: r2(s.beats), audioSecs: r1(s.audioSecs), notesPct: tn ? r1((s.notes / tn) * 100) : 0, beatsPct: tb ? r1((s.beats / tb) * 100) : 0 }))
+    totalNotes += tn;
+    totalBeats += tb;
+    const shares = [...per.values()]
+      .map((s) => ({
+        ...s,
+        name: A(s.id).name,
+        kind: A(s.id).kind,
+        beats: r2(s.beats),
+        audioSecs: r1(s.audioSecs),
+        notesPct: tn ? r1((s.notes / tn) * 100) : 0,
+        beatsPct: tb ? r1((s.beats / tb) * 100) : 0,
+      }))
       .sort((a, b) => b.notes - a.notes || b.audioSecs - a.audioSecs);
-    const dev = (ref) => (ref && ref.device ? { id: ref.device, name: getDevice(ref.device)?.name || p.devices?.[ref.device]?.name || ref.device, by: ref.by || null, placedBy: ref.by ? who(ref.by).name : null, on: ref.on !== false, writtenBy: devAuthor(ref.device), ...(held(ref.device) ? { held: true } : {}) } : null);
-    tracks.push({ id: t.id, name: t.name, color: t.color, kind: t.kind, by: t.by || null, byName: t.by ? who(t.by).name : null, instrument: t.instrument ? dev({ ...t.instrument, by: t.by }) : null, inserts: (t.inserts || []).map(dev), notes: tn, beats: r2(tb), audioSecs: r1(ta), shares });
+    const dev = (ref) =>
+      ref && ref.device
+        ? {
+            id: ref.device,
+            name: getDevice(ref.device)?.name || p.devices?.[ref.device]?.name || ref.device,
+            by: ref.by || null,
+            placedBy: ref.by ? who(ref.by).name : null,
+            on: ref.on !== false,
+            writtenBy: devAuthor(ref.device),
+            ...(held(ref.device) ? { held: true } : {}),
+          }
+        : null;
+    tracks.push({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      kind: t.kind,
+      by: t.by || null,
+      byName: t.by ? who(t.by).name : null,
+      instrument: t.instrument ? dev({ ...t.instrument, by: t.by }) : null,
+      inserts: (t.inserts || []).map(dev),
+      notes: tn,
+      beats: r2(tb),
+      audioSecs: r1(ta),
+      shares,
+    });
   }
   for (const fx of p.master?.inserts || []) if (fx.by) A(fx.by).effects++;
   function devAuthor(id) {
@@ -127,13 +214,15 @@ export function provenanceModel(p, { history = [], author = null, getDevice = ()
     const by = src?.by || (def && (def.source === 'library' || def.source === 'project') ? def.by : null) || null;
     if (!by || by === 'overdub') return null;
     const w = who(by);
-    return { id: by, ...w, name: src?.via ? `${w.name}, per the sender` : w.name };   // via: a share link vouched for it
+    return { id: by, ...w, name: src?.via ? `${w.name}, per the sender` : w.name }; // via: a share link vouched for it
   }
 
   /* ---- devices written in the song, and the house shelf's agent-written ones it uses */
   const used = placements(p);
   const defineTxns = new Map(); // device id -> the latest transaction that wrote it
-  for (const t of history) for (const op of t.ops || []) if (op.type === 'device.define' && op.device?.id) defineTxns.set(String(op.device.id).toLowerCase(), t);
+  for (const t of history)
+    for (const op of t.ops || [])
+      if (op.type === 'device.define' && op.device?.id) defineTxns.set(String(op.device.id).toLowerCase(), t);
   const devices = [];
   const seen = new Set();
   const deviceEntry = (id, src, origin) => {
@@ -141,27 +230,48 @@ export function provenanceModel(p, { history = [], author = null, getDevice = ()
     const a = who(by);
     const txn = defineTxns.get(id) || null;
     const ses = session[id] || null;
-    const kept = origin === 'song' && !!held(id);   // held: kept off here, never checked for the report
+    const kept = origin === 'song' && !!held(id); // held: kept off here, never checked for the report
     const check = kept ? null : checks[id] || (ses?.check ? normCheck(ses.check, 'built', ses.at) : null);
     return {
       ...(kept ? { held: true } : {}),
-      id, name: src.name || id, kind: src.kind || null, cat: src.cat || null, blurb: src.blurb || null, origin,   // 'song' | 'library'
-      by, author: src.via ? `${a.name}, per the sender` : a.name, via: src.via || null, authorKind: a.kind, version: src.version || 1, created: src.created || null, modified: src.modified || null,
+      id,
+      name: src.name || id,
+      kind: src.kind || null,
+      cat: src.cat || null,
+      blurb: src.blurb || null,
+      origin, // 'song' | 'library'
+      by,
+      author: src.via ? `${a.name}, per the sender` : a.name,
+      via: src.via || null,
+      authorKind: a.kind,
+      version: src.version || 1,
+      created: src.created || null,
+      modified: src.modified || null,
       request: src.request || ses?.request || null,
       requestBy: src.request ? null : ses?.requestBy || null,
-      reason: txn?.reason || null, label: txn?.label || null, at: txn?.at || null,
+      reason: txn?.reason || null,
+      label: txn?.label || null,
+      at: txn?.at || null,
       usedOn: (used.get(id) || []).map((u) => ({ ...u, placedBy: u.by ? who(u.by).name : null })),
       check,
     };
   };
-  for (const [id, src] of Object.entries(p.devices || {})) { seen.add(id); devices.push(deviceEntry(id, src, 'song')); if (src.by) A(src.by).devices++; }
+  for (const [id, src] of Object.entries(p.devices || {})) {
+    seen.add(id);
+    devices.push(deviceEntry(id, src, 'song'));
+    if (src.by) A(src.by).devices++;
+  }
   for (const id of used.keys()) {
     if (seen.has(id)) continue;
     const def = getDevice(id);
     if (!def || !def.by || def.by === 'overdub' || who(def.by).kind !== 'agent') continue;
     devices.push(deviceEntry(id, def, def.source === 'library' ? 'library' : 'song'));
   }
-  devices.sort((a, b) => (a.authorKind === 'agent' ? 0 : 1) - (b.authorKind === 'agent' ? 0 : 1) || String(a.name).localeCompare(String(b.name)));
+  devices.sort(
+    (a, b) =>
+      (a.authorKind === 'agent' ? 0 : 1) - (b.authorKind === 'agent' ? 0 : 1) ||
+      String(a.name).localeCompare(String(b.name)),
+  );
 
   /* ---- the timeline: this session's history, collapsed into runs */
   const auditions = history.filter((t) => t.audition).length;
@@ -175,17 +285,23 @@ export function provenanceModel(p, { history = [], author = null, getDevice = ()
       run = { by: t.by, name: a.name, kind: a.kind, from: t.at, to: t.at, count: 0, items: [] };
       runs.push(run);
     }
-    run.count++; run.to = t.at;
-    const label = t.label || 'change', reason = t.reason || '';
+    run.count++;
+    run.to = t.at;
+    const label = t.label || 'change',
+      reason = t.reason || '';
     const last = run.items[run.items.length - 1];
-    if (last && last.label === label && last.reason === reason) { last.n++; last.to = t.at; }
-    else run.items.push({ label, reason, n: 1, at: t.at, to: t.at, id: t.id });
+    if (last && last.label === label && last.reason === reason) {
+      last.n++;
+      last.to = t.at;
+    } else run.items.push({ label, reason, n: 1, at: t.at, to: t.at, id: t.id });
   }
 
   /* ---- totals and shares */
   const list = [...authors.values()].filter((a) => a.notes || a.clips || a.tracks || a.effects || a.devices || a.edits);
   for (const a of list) {
-    a.beats = r2(a.beats); a.audioBeats = r2(a.audioBeats); a.audioSecs = r1(a.audioSecs);
+    a.beats = r2(a.beats);
+    a.audioBeats = r2(a.audioBeats);
+    a.audioSecs = r1(a.audioSecs);
     a.notesPct = totalNotes ? r1((a.notes / totalNotes) * 100) : 0;
     a.beatsPct = totalBeats ? r1((a.beats / totalBeats) * 100) : 0;
     a.audioPct = totalAudioSecs ? r1((a.audioSecs / totalAudioSecs) * 100) : 0;
@@ -194,91 +310,190 @@ export function provenanceModel(p, { history = [], author = null, getDevice = ()
   const byKind = {};
   for (const a of list) {
     const k = byKind[a.kind] || (byKind[a.kind] = { notes: 0, beats: 0, audioSecs: 0 });
-    k.notes += a.notes; k.beats += a.beats; k.audioSecs += a.audioSecs;
+    k.notes += a.notes;
+    k.beats += a.beats;
+    k.audioSecs += a.audioSecs;
   }
-  for (const k of Object.values(byKind)) { k.notesPct = totalNotes ? r1((k.notes / totalNotes) * 100) : 0; k.beatsPct = totalBeats ? r1((k.beats / totalBeats) * 100) : 0; k.beats = r2(k.beats); k.audioSecs = r1(k.audioSecs); }
+  for (const k of Object.values(byKind)) {
+    k.notesPct = totalNotes ? r1((k.notes / totalNotes) * 100) : 0;
+    k.beatsPct = totalBeats ? r1((k.beats / totalBeats) * 100) : 0;
+    k.beats = r2(k.beats);
+    k.audioSecs = r1(k.audioSecs);
+  }
 
   return {
     format: 'overdub-provenance-report/0',
     made: new Date(now).toISOString(),
-    song: { id: p.id, title: p.title || 'Untitled', tempo, meter: Array.isArray(p.meter) ? p.meter : [4, 4], key: p.key || null, created: p.meta?.created || null, modified: p.meta?.modified || null, tracks: (p.tracks || []).length },
+    song: {
+      id: p.id,
+      title: p.title || 'Untitled',
+      tempo,
+      meter: Array.isArray(p.meter) ? p.meter : [4, 4],
+      key: p.key || null,
+      created: p.meta?.created || null,
+      modified: p.meta?.modified || null,
+      tracks: (p.tracks || []).length,
+    },
     forkedFrom: p.meta?.forkedFrom || null,
-    totals: { notes: totalNotes, beats: r2(totalBeats), audioSecs: r1(totalAudioSecs), edits: runs.reduce((s, r) => s + r.count, 0), auditions },
+    totals: {
+      notes: totalNotes,
+      beats: r2(totalBeats),
+      audioSecs: r1(totalAudioSecs),
+      edits: runs.reduce((s, r) => s + r.count, 0),
+      auditions,
+    },
     authors: list,
     byKind,
     tracks,
     devices,
-    timeline: { runs, truncated: history.length >= HISTORY_MAX, first: history[0]?.at || null, last: history[history.length - 1]?.at || null },
+    timeline: {
+      runs,
+      truncated: history.length >= HISTORY_MAX,
+      first: history[0]?.at || null,
+      last: history[history.length - 1]?.at || null,
+    },
   };
 }
 
 /* ================================================================ the page */
-export const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+export const escHtml = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 const E = escHtml;
 const MINUS = (x) => String(x).replace(/^-/, '−');
 const pct = (x) => (x > 0 && x < 0.1 ? '<0.1%' : `${r1(x)}%`);
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const fmtBeats = (b) => `${r2(b)} ${b === 1 ? 'beat' : 'beats'}`;
-const fmtSecs = (s) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${r1(s)} s`);
+const fmtSecs = (s) =>
+  s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${r1(s)} s`;
 function fmtDate(x, { time = true } = {}) {
   if (!x) return '';
   const d = new Date(x);
   if (Number.isNaN(+d)) return '';
-  try { return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', ...(time ? { hour: '2-digit', minute: '2-digit' } : {}) }); } catch (e) { return d.toISOString(); }
+  try {
+    return d.toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      ...(time ? { hour: '2-digit', minute: '2-digit' } : {}),
+    });
+  } catch (e) {
+    return d.toISOString();
+  }
 }
 function fmtTime(x) {
   const d = new Date(x);
   if (Number.isNaN(+d)) return '';
-  try { return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return d.toISOString().slice(11, 19); }
+  try {
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch (e) {
+    return d.toISOString().slice(11, 19);
+  }
 }
-const INKS = { 'c-1': '#e98a6c', 'c-2': '#dcb45e', 'c-3': '#a8c470', 'c-4': '#95c6a8', 'c-5': '#a2a6c6', 'c-6': '#b69cd8', 'c-7': '#e68ba8', 'c-8': '#d9c8a4' };
-const ink = (c) => { const m = /^var\(--(c-\d)\)$/.exec(String(c || '')); if (m) return INKS[m[1]] || '#d9c8a4'; return /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#d9c8a4'; };
+const INKS = {
+  'c-1': '#e98a6c',
+  'c-2': '#dcb45e',
+  'c-3': '#a8c470',
+  'c-4': '#95c6a8',
+  'c-5': '#a2a6c6',
+  'c-6': '#b69cd8',
+  'c-7': '#e68ba8',
+  'c-8': '#d9c8a4',
+};
+const ink = (c) => {
+  const m = /^var\(--(c-\d)\)$/.exec(String(c || ''));
+  if (m) return INKS[m[1]] || '#d9c8a4';
+  return /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#d9c8a4';
+};
 // 'overdub' signs both the demo songs and what the studio's own tools write when someone asks (Band's chords, bass and
 // drums), so the house is named for both: never "the demo" in a song that started from nothing. The house is unsigned:
 // its name prints in plain ink, never as a byline.
-const kindWord = { human: 'person', agent: 'agent', house: 'Overdub’s demo songs and its own tools, like Band', unsigned: 'no signature' };
+const kindWord = {
+  human: 'person',
+  agent: 'agent',
+  house: 'Overdub’s demo songs and its own tools, like Band',
+  unsigned: 'no signature',
+};
 
 // a share bar: a strip of tape, one segment per author laid end to end, warm for people, cool for agents, pencil for
 // the house
 function bar(parts, key, total) {
   if (!total) return '<div class="bar bar-empty"></div>';
   const seen = { human: 0, agent: 0 };
-  return `<div class="bar" role="img" aria-label="${E(parts.filter((p) => p[key] > 0).map((p) => `${p.name} ${pct((p[key] / total) * 100)}`).join(', '))}">`
-    + parts.filter((p) => p[key] > 0).map((p) => {
-      const shade = p.kind === 'human' || p.kind === 'agent' ? seen[p.kind]++ % 3 : 0;
-      return `<i class="k-${E(p.kind)} s${shade}" style="flex:${p[key]}" title="${E(p.name)}: ${E(pct((p[key] / total) * 100))}"></i>`;
-    }).join('') + '</div>';
+  return (
+    `<div class="bar" role="img" aria-label="${E(
+      parts
+        .filter((p) => p[key] > 0)
+        .map((p) => `${p.name} ${pct((p[key] / total) * 100)}`)
+        .join(', '),
+    )}">` +
+    parts
+      .filter((p) => p[key] > 0)
+      .map((p) => {
+        const shade = p.kind === 'human' || p.kind === 'agent' ? seen[p.kind]++ % 3 : 0;
+        return `<i class="k-${E(p.kind)} s${shade}" style="flex:${p[key]}" title="${E(p.name)}: ${E(pct((p[key] / total) * 100))}"></i>`;
+      })
+      .join('') +
+    '</div>'
+  );
 }
 // a byline: the name in its ink (warm for a person, cool for an agent), at the size of the text it signs; the house
 // and the unsigned print plain
 const chip = (name, kind) => `<span class="by k-${E(kind)}">${E(name)}</span>`;
-const head = (title, aside = '') => `<header class="sh"><h2>${E(title)}</h2>${aside ? `<span class="aside">${aside}</span>` : ''}</header>`;
+const head = (title, aside = '') =>
+  `<header class="sh"><h2>${E(title)}</h2>${aside ? `<span class="aside">${aside}</span>` : ''}</header>`;
 
 function checkLine(c, kind, held = false) {
-  if (held) return '<p class="check none"><span class="lab">Kept off</span> Its code came with the song and hasn’t been allowed to run on this computer, so it wasn’t checked for this report, and nothing here played it.</p>';
-  if (!c) return '<p class="check none">No check report for it in this report: open the song in Overdub with audio on and make the report again, or ask the agent to run its check.</p>';
-  if (!c.checked) return `<p class="check none">Only its syntax was checked when it was built (the device check wasn’t available in that build).</p>`;
-  const src = c.source === 'built' ? `Checked when it was built${c.at ? `, ${E(fmtDate(c.at))}` : ''}`
-    : c.source === 'house' ? `The house check${c.at ? `, measured ${E(fmtDate(c.at, { time: false }))}` : ''}`
-      : 'Checked again for this report (quick check)';
+  if (held)
+    return '<p class="check none"><span class="lab">Kept off</span> Its code came with the song and hasn’t been allowed to run on this computer, so it wasn’t checked for this report, and nothing here played it.</p>';
+  if (!c)
+    return '<p class="check none">No check report for it in this report: open the song in Overdub with audio on and make the report again, or ask the agent to run its check.</p>';
+  if (!c.checked)
+    return `<p class="check none">Only its syntax was checked when it was built (the device check wasn’t available in that build).</p>`;
+  const src =
+    c.source === 'built'
+      ? `Checked when it was built${c.at ? `, ${E(fmtDate(c.at))}` : ''}`
+      : c.source === 'house'
+        ? `The house check${c.at ? `, measured ${E(fmtDate(c.at, { time: false }))}` : ''}`
+        : 'Checked again for this report (quick check)';
   const bits = [];
   bits.push(c.ok ? '<b class="pass">passes</b>' : '<b class="fail">fails</b>');
   if (c.lufs != null) bits.push(`${MINUS(r1(c.lufs))} LUFS${kind === 'instrument' ? ' on the test phrase' : ''}`);
-  if (kind !== 'instrument' && c.deltaLU != null) bits.push(`${c.deltaLU > 0 ? '+' : ''}${MINUS(r1(c.deltaLU))} LU against the dry signal`);
+  if (kind !== 'instrument' && c.deltaLU != null)
+    bits.push(`${c.deltaLU > 0 ? '+' : ''}${MINUS(r1(c.deltaLU))} LU against the dry signal`);
   if (c.truePeak != null) bits.push(`true peak ${MINUS(r1(c.truePeak))} dBTP`);
   if (c.tail != null) bits.push(`tail ${r1(c.tail)} s`);
   if (c.cpu != null) bits.push(`CPU ${r1(c.cpu)}% of real time`);
-  if (c.deterministic != null) bits.push(c.deterministic ? 'bit-exact on two renders' : '<b class="fail">two renders differ</b>');
+  if (c.deterministic != null)
+    bits.push(c.deterministic ? 'bit-exact on two renders' : '<b class="fail">two renders differ</b>');
   if (c.nan) bits.push('<b class="fail">made NaN</b>');
-  const w = c.warnings.length ? `<ul class="warns">${c.warnings.slice(0, 4).map((x) => `<li>${E(x)}</li>`).join('')}${c.warnings.length > 4 ? `<li>and ${c.warnings.length - 4} more</li>` : ''}</ul>`
-    : c.warningCount ? `<span class="muted">, ${plural(c.warningCount, 'warning')}</span>` : '';
+  const w = c.warnings.length
+    ? `<ul class="warns">${c.warnings
+        .slice(0, 4)
+        .map((x) => `<li>${E(x)}</li>`)
+        .join('')}${c.warnings.length > 4 ? `<li>and ${c.warnings.length - 4} more</li>` : ''}</ul>`
+    : c.warningCount
+      ? `<span class="muted">, ${plural(c.warningCount, 'warning')}</span>`
+      : '';
   return `<p class="check"><span class="lab">Device check</span> ${src}: ${bits.join(', ')}.${w}</p>`;
 }
 
 export function provenanceHtml(m, { logo = null, wordmark = null, fonts = '', fontSrc = 'data:' } = {}) {
   const s = m.song;
-  const meta = [`${r1(s.tempo)} bpm`, `${s.meter[0]}/${s.meter[1]}`, s.key?.root ? `${s.key.root} ${s.key.scale || ''}`.trim() : null, plural(s.tracks, 'track')].filter(Boolean).join(', ');
-  const people = m.authors.filter((a) => a.kind === 'human'), agents = m.authors.filter((a) => a.kind === 'agent');
+  const meta = [
+    `${r1(s.tempo)} bpm`,
+    `${s.meter[0]}/${s.meter[1]}`,
+    s.key?.root ? `${s.key.root} ${s.key.scale || ''}`.trim() : null,
+    plural(s.tracks, 'track'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const people = m.authors.filter((a) => a.kind === 'human'),
+    agents = m.authors.filter((a) => a.kind === 'agent');
   const T = m.totals;
 
   // the lede: what was played, then by whom, then the numbers
@@ -286,49 +501,90 @@ export function provenanceHtml(m, { logo = null, wordmark = null, fonts = '', fo
   if (T.notes) {
     const k = m.byKind;
     const parts = [];
-    if (k.human?.notes) parts.push(`${people.length > 1 ? 'people' : E(people[0]?.name === 'You' ? 'you' : people[0]?.name || 'people')} ${pct(k.human.notesPct)}`);
-    if (k.agent?.notes) parts.push(`${agents.length > 1 ? 'agents' : E(agents[0]?.name || 'agents')} ${pct(k.agent.notesPct)}`);
+    if (k.human?.notes)
+      parts.push(
+        `${people.length > 1 ? 'people' : E(people[0]?.name === 'You' ? 'you' : people[0]?.name || 'people')} ${pct(k.human.notesPct)}`,
+      );
+    if (k.agent?.notes)
+      parts.push(`${agents.length > 1 ? 'agents' : E(agents[0]?.name || 'agents')} ${pct(k.agent.notesPct)}`);
     if (k.house?.notes) parts.push(`Overdub ${pct(k.house.notesPct)}`);
     if (k.unsigned?.notes) parts.push(`unsigned ${pct(k.unsigned.notesPct)}`);
-    lead.push(`${plural(T.notes, 'note')} in the song, sounding for ${fmtBeats(T.beats)} in all. By count: ${parts.join(', ')}.`);
+    lead.push(
+      `${plural(T.notes, 'note')} in the song, sounding for ${fmtBeats(T.beats)} in all. By count: ${parts.join(', ')}.`,
+    );
     const bl = [];
-    if (k.human?.notes) bl.push(`${people.length > 1 ? 'people' : E(people[0]?.name === 'You' ? 'you' : people[0]?.name)} ${pct(k.human.beatsPct)}`);
+    if (k.human?.notes)
+      bl.push(
+        `${people.length > 1 ? 'people' : E(people[0]?.name === 'You' ? 'you' : people[0]?.name)} ${pct(k.human.beatsPct)}`,
+      );
     if (k.agent?.notes) bl.push(`${agents.length > 1 ? 'agents' : E(agents[0]?.name)} ${pct(k.agent.beatsPct)}`);
     if (k.house?.notes) bl.push(`Overdub ${pct(k.house.beatsPct)}`);
     if (k.unsigned?.notes) bl.push(`unsigned ${pct(k.unsigned.beatsPct)}`);
     lead.push(`By how long they sound: ${bl.join(', ')}.`);
-    if (k.house?.notes) lead.push('Overdub’s parts are its demo songs’ or ones its own tools wrote when asked (Band’s chords, bass and drums).');
+    if (k.house?.notes)
+      lead.push(
+        'Overdub’s parts are its demo songs’ or ones its own tools wrote when asked (Band’s chords, bass and drums).',
+      );
   } else lead.push('No notes in the song yet.');
   if (T.audioSecs) lead.push(`${fmtSecs(T.audioSecs)} of recorded audio on the tracks.`);
   const agentDevs = m.devices.filter((d) => d.authorKind === 'agent');
   if (agentDevs.length) lead.push(`${plural(agentDevs.length, 'device')} written by an agent.`);
 
   // the credits: who played on it, as a sleeve lists them (the part, a dotted leader, the name)
-  const credits = m.authors.filter((a) => a.notes || a.audioSecs || a.devices).map((a) => {
-    const what = [a.notes ? plural(a.notes, 'note') : '', a.audioSecs ? `${fmtSecs(a.audioSecs)} recorded` : '', a.devices ? plural(a.devices, 'device') : ''].filter(Boolean).join(', ');
-    return `<li><span>${what}</span><i class="lead"></i>${chip(a.name, a.kind)}</li>`;
-  }).join('');
+  const credits = m.authors
+    .filter((a) => a.notes || a.audioSecs || a.devices)
+    .map((a) => {
+      const what = [
+        a.notes ? plural(a.notes, 'note') : '',
+        a.audioSecs ? `${fmtSecs(a.audioSecs)} recorded` : '',
+        a.devices ? plural(a.devices, 'device') : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+      return `<li><span>${what}</span><i class="lead"></i>${chip(a.name, a.kind)}</li>`;
+    })
+    .join('');
 
-  const authorRows = m.authors.map((a) => `<tr>
+  const authorRows = m.authors
+    .map(
+      (a) => `<tr>
       <th scope="row">${chip(a.name, a.kind)}<small>${E(kindWord[a.kind] || a.kind)}</small></th>
       <td class="n">${a.notes}</td><td class="n">${pct(a.notesPct)}</td>
       <td class="n">${r2(a.beats)}</td><td class="n">${pct(a.beatsPct)}</td>
       <td class="n">${a.audioSecs ? fmtSecs(a.audioSecs) : '–'}</td>
-      <td class="n">${a.clips}</td><td class="n">${a.edits}</td></tr>`).join('');
+      <td class="n">${a.clips}</td><td class="n">${a.edits}</td></tr>`,
+    )
+    .join('');
 
   const writtenBy = (w) => (w ? `, written by ${chip(w.name, w.kind)}` : '');
-  const trackCards = m.tracks.map((t) => {
-    const keptOff = (d) => (d.held ? ' <span class="muted">(kept off)</span>' : '');
-    const fx = t.inserts.filter(Boolean).map((d) => `${E(d.name)}${writtenBy(d.writtenBy)}${d.on ? '' : ' <span class="muted">(off)</span>'}${keptOff(d)}`).join('; ');
-    const inst = t.instrument ? `${E(t.instrument.name)}${writtenBy(t.instrument.writtenBy)}${keptOff(t.instrument)}` : (t.kind === 'audio' ? 'audio track' : '–');
-    const rows = t.shares.map((sh) => `<tr><th scope="row">${chip(sh.name, sh.kind)}</th>${t.notes ? `<td class="n">${sh.notes}</td><td class="n">${pct(sh.notesPct)}</td><td class="n">${r2(sh.beats)}</td><td class="n">${pct(sh.beatsPct)}</td>` : ''}${t.audioSecs ? `<td class="n">${sh.audioSecs ? fmtSecs(sh.audioSecs) : '–'}</td>` : ''}</tr>`).join('');
-    const thead = `<tr><th></th>${t.notes ? '<th class="n">Notes</th><th class="n">Share</th><th class="n">Beats</th><th class="n">Share</th>' : ''}${t.audioSecs ? '<th class="n">Recorded</th>' : ''}</tr>`;
-    return `<article class="track" style="--tc:${E(ink(t.color))}">
+  const trackCards = m.tracks
+    .map((t) => {
+      const keptOff = (d) => (d.held ? ' <span class="muted">(kept off)</span>' : '');
+      const fx = t.inserts
+        .filter(Boolean)
+        .map(
+          (d) => `${E(d.name)}${writtenBy(d.writtenBy)}${d.on ? '' : ' <span class="muted">(off)</span>'}${keptOff(d)}`,
+        )
+        .join('; ');
+      const inst = t.instrument
+        ? `${E(t.instrument.name)}${writtenBy(t.instrument.writtenBy)}${keptOff(t.instrument)}`
+        : t.kind === 'audio'
+          ? 'audio track'
+          : '–';
+      const rows = t.shares
+        .map(
+          (sh) =>
+            `<tr><th scope="row">${chip(sh.name, sh.kind)}</th>${t.notes ? `<td class="n">${sh.notes}</td><td class="n">${pct(sh.notesPct)}</td><td class="n">${r2(sh.beats)}</td><td class="n">${pct(sh.beatsPct)}</td>` : ''}${t.audioSecs ? `<td class="n">${sh.audioSecs ? fmtSecs(sh.audioSecs) : '–'}</td>` : ''}</tr>`,
+        )
+        .join('');
+      const thead = `<tr><th></th>${t.notes ? '<th class="n">Notes</th><th class="n">Share</th><th class="n">Beats</th><th class="n">Share</th>' : ''}${t.audioSecs ? '<th class="n">Recorded</th>' : ''}</tr>`;
+      return `<article class="track" style="--tc:${E(ink(t.color))}">
       <header><i class="sw"></i><h3>${E(t.name)}</h3><span class="muted">${inst}${t.byName && t.by !== 'overdub' ? `, arranged by ${chip(t.byName, m.authors.find((a) => a.id === t.by)?.kind || 'human')}` : ''}</span></header>
       ${t.notes || t.audioSecs ? `${t.notes ? `<div class="bars"><span>Count</span>${bar(t.shares, 'notes', t.notes)}<span>Length</span>${bar(t.shares, 'beats', t.beats)}</div>` : ''}<div class="wrap"><table class="mini">${thead}${rows}</table></div>` : '<p class="muted">Nothing on this track yet.</p>'}
       ${fx ? `<p class="fx"><span class="lab">Effects</span> ${fx}</p>` : ''}
     </article>`;
-  }).join('');
+    })
+    .join('');
 
   const devCard = (d) => `<article class="device k-${E(d.authorKind)}">
       <header><h3>${E(d.name)}</h3><code>${E(d.id)}</code>${d.version > 1 ? `<span class="muted">, version ${d.version}</span>` : ''}</header>
@@ -341,24 +597,42 @@ export function provenanceHtml(m, { logo = null, wordmark = null, fonts = '', fo
   const agentCards = agentDevs.map(devCard).join('');
   const otherDevs = m.devices.filter((d) => d.authorKind !== 'agent');
   const otherCards = otherDevs.map(devCard).join('');
-  const heldDevs = m.devices.filter((d) => d.held), heldN = heldDevs.length;
-  const heldNames = heldDevs.map((d) => d.name).reduce((s, n, i, a) => s + (i ? (i === a.length - 1 ? ' and ' : ', ') : '') + n, '');
+  const heldDevs = m.devices.filter((d) => d.held),
+    heldN = heldDevs.length;
+  const heldNames = heldDevs
+    .map((d) => d.name)
+    .reduce((s, n, i, a) => s + (i ? (i === a.length - 1 ? ' and ' : ', ') : '') + n, '');
 
   // the timeline is a ledger: the time in the margin, the name where you'd sign it, what changed and why
   const runs = m.timeline.runs;
-  const runRows = runs.slice().reverse().map((r) => `<li class="run k-${E(r.kind)}">
+  const runRows = runs
+    .slice()
+    .reverse()
+    .map(
+      (r) => `<li class="run k-${E(r.kind)}">
       <span class="when">${E(fmtTime(r.from))}${r.to !== r.from ? `<br>${E(fmtTime(r.to))}` : ''}</span>
       <span class="who">${chip(r.name, r.kind)}<small>${plural(r.count, 'change')}</small></span>
-      <ul>${r.items.slice().reverse().map((it) => `<li><span class="lbl">${E(it.label)}</span>${it.n > 1 ? ` <span class="x">×${it.n}</span>` : ''}${it.reason ? `<span class="why">${E(it.reason)}</span>` : ''}</li>`).join('')}</ul>
-    </li>`).join('');
+      <ul>${r.items
+        .slice()
+        .reverse()
+        .map(
+          (it) =>
+            `<li><span class="lbl">${E(it.label)}</span>${it.n > 1 ? ` <span class="x">×${it.n}</span>` : ''}${it.reason ? `<span class="why">${E(it.reason)}</span>` : ''}</li>`,
+        )
+        .join('')}</ul>
+    </li>`,
+    )
+    .join('');
 
   const f = m.forkedFrom;
-  const fork = f ? `<p>Forked from <b>“${E(f.title || 'Untitled')}”</b>${f.at ? ` on ${E(fmtDate(f.at))}` : ''}${f.id ? ` <code>${E(f.id)}</code>` : ''}, by way of a share link. ${(f.authors || []).length ? `Its authors were ${(f.authors || []).map((a) => `${chip(a.name, a.kind)}`).join(', ')}.` : 'The link named no authors.'} Parts that came from it keep their original signatures; the sender’s own parts are signed to them as a guest. The timeline below starts at the fork.</p>`
+  const fork = f
+    ? `<p>Forked from <b>“${E(f.title || 'Untitled')}”</b>${f.at ? ` on ${E(fmtDate(f.at))}` : ''}${f.id ? ` <code>${E(f.id)}</code>` : ''}, by way of a share link. ${(f.authors || []).length ? `Its authors were ${(f.authors || []).map((a) => `${chip(a.name, a.kind)}`).join(', ')}.` : 'The link named no authors.'} Parts that came from it keep their original signatures; the sender’s own parts are signed to them as a guest. The timeline below starts at the fork.</p>`
     : `<p>Not forked: this song didn’t arrive by a share link${s.created ? `. It was started on ${E(fmtDate(s.created))}` : ''}.</p>`;
 
-  const lockup = logo || wordmark
-    ? `<div class="lockup">${logo ? `<img src="${E(logo)}" alt="" width="40" height="40">` : ''}${wordmark ? `<img src="${E(wordmark)}" alt="overdub" height="22">` : '<span class="wm">overdub</span>'}</div>`
-    : '<div class="lockup"><span class="wm">overdub</span></div>';
+  const lockup =
+    logo || wordmark
+      ? `<div class="lockup">${logo ? `<img src="${E(logo)}" alt="" width="40" height="40">` : ''}${wordmark ? `<img src="${E(wordmark)}" alt="overdub" height="22">` : '<span class="wm">overdub</span>'}</div>`
+      : '<div class="lockup"><span class="wm">overdub</span></div>';
 
   return `<!doctype html>
 <html lang="en">
@@ -420,8 +694,11 @@ export function provenanceHtml(m, { logo = null, wordmark = null, fonts = '', fo
 
   <section>
     ${head('The edit timeline', runs.length ? plural(T.edits, 'change') : '')}
-    ${runs.length ? `<p class="note">${plural(T.edits, 'change')} this session, newest first${m.timeline.first ? `, from ${E(fmtDate(m.timeline.first))}` : ''}. Changes in a row by the same author are gathered into one run; repeats of the same change are counted (×). ${m.timeline.truncated ? 'Overdub keeps the last 500 changes, so the oldest have rolled off. ' : ''}${T.auditions ? `${plural(T.auditions, 'audition')} (takes heard and not kept) are left out.` : ''}</p><ol class="timeline">${runRows}</ol>`
-      : '<p class="muted">No changes in this session yet. The signatures above still stand: they travel with the song.</p>'}
+    ${
+      runs.length
+        ? `<p class="note">${plural(T.edits, 'change')} this session, newest first${m.timeline.first ? `, from ${E(fmtDate(m.timeline.first))}` : ''}. Changes in a row by the same author are gathered into one run; repeats of the same change are counted (×). ${m.timeline.truncated ? 'Overdub keeps the last 500 changes, so the oldest have rolled off. ' : ''}${T.auditions ? `${plural(T.auditions, 'audition')} (takes heard and not kept) are left out.` : ''}</p><ol class="timeline">${runRows}</ol>`
+        : '<p class="muted">No changes in this session yet. The signatures above still stand: they travel with the song.</p>'
+    }
   </section>
 
   <section>
@@ -571,7 +848,9 @@ async function svgDataUrl(path) {
     if (!r.ok) return null;
     const t = await r.text();
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t);
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
 }
 
 // The report's type: the brand's three families, from style/fonts.css (the studio's own copies), never another host.
@@ -588,17 +867,35 @@ function reportFontCss(inline = false) {
       const sheet = new URL('../../style/fonts.css', import.meta.url);
       const r = await fetch(sheet);
       if (!r.ok) throw new Error('fonts.css: ' + r.status);
-      const rules = [...(await r.text()).matchAll(/@font-face\s*\{[^}]*\}/g)].map((x) => x[0]).filter((x) => REPORT_FAMILIES.test(x));
-      const fileOf = (rule) => new URL(String(/url\(([^)]+)\)/.exec(rule)?.[1] || '').replace(/^['"]|['"]$/g, ''), sheet);
-      if (!inline) return { css: rules.map((rule) => rule.replace(/url\([^)]+\)/, `url(${fileOf(rule).href})`)).join('\n'), src: sheet.origin };
+      const rules = [...(await r.text()).matchAll(/@font-face\s*\{[^}]*\}/g)]
+        .map((x) => x[0])
+        .filter((x) => REPORT_FAMILIES.test(x));
+      const fileOf = (rule) =>
+        new URL(String(/url\(([^)]+)\)/.exec(rule)?.[1] || '').replace(/^['"]|['"]$/g, ''), sheet);
+      if (!inline)
+        return {
+          css: rules.map((rule) => rule.replace(/url\([^)]+\)/, `url(${fileOf(rule).href})`)).join('\n'),
+          src: sheet.origin,
+        };
       const data = async (rule) => {
         const f = await fetch(fileOf(rule));
         if (!f.ok) throw new Error('font: ' + f.status);
         const blob = new Blob([await f.arrayBuffer()], { type: 'font/woff2' });
-        return rule.replace(/url\([^)]+\)/, `url(${await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(fr.error); fr.readAsDataURL(blob); })})`);
+        return rule.replace(
+          /url\([^)]+\)/,
+          `url(${await new Promise((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(String(fr.result));
+            fr.onerror = () => rej(fr.error);
+            fr.readAsDataURL(blob);
+          })})`,
+        );
       };
       return { css: (await Promise.all(rules.map(data))).join('\n'), src: 'data:' };
-    })().catch(() => { delete reportFonts[way]; return { css: '', src: 'data:' }; });
+    })().catch(() => {
+      delete reportFonts[way];
+      return { css: '', src: 'data:' };
+    });
   }
   return reportFonts[way];
 }
@@ -608,22 +905,46 @@ function reportFontCss(inline = false) {
 async function gatherChecks(app, model) {
   const out = {};
   const ses = app.provenance?.session || {};
-  let REPORTS = null, MEASURED = null;
-  try { const m = await import('../devices/library/reports.js'); REPORTS = m.REPORTS; MEASURED = m.MEASURED; } catch (e) { /* none */ }
+  let REPORTS = null,
+    MEASURED = null;
+  try {
+    const m = await import('../devices/library/reports.js');
+    REPORTS = m.REPORTS;
+    MEASURED = m.MEASURED;
+  } catch (e) {
+    /* none */
+  }
   let checkDevice = null;
   for (const d of model.devices) {
     // a held device's code is never run for the report (it isn't registered either: nothing here could check it)
     if (d.held || app.devices?.heldDevice?.(d.id)) continue;
-    if (ses[d.id]?.check) { out[d.id] = normCheck(ses[d.id].check, 'built', ses[d.id].at); continue; }
+    if (ses[d.id]?.check) {
+      out[d.id] = normCheck(ses[d.id].check, 'built', ses[d.id].at);
+      continue;
+    }
     const def = app.devices?.getDevice?.(d.id);
     const house = REPORTS?.[d.id];
-    if (house && def && (!house.hash || house.hash === def.hash)) { out[d.id] = normCheck(house, 'house', house.measured || MEASURED); continue; }
+    if (house && def && (!house.hash || house.hash === def.hash)) {
+      out[d.id] = normCheck(house, 'house', house.measured || MEASURED);
+      continue;
+    }
     if (!def || !def.kernel) continue;
-    if (!checkDevice) { try { checkDevice = (await import('../kernel/check.js')).checkDevice; } catch (e) { break; } }
+    if (!checkDevice) {
+      try {
+        checkDevice = (await import('../kernel/check.js')).checkDevice;
+      } catch (e) {
+        break;
+      }
+    }
     try {
-      const rep = await Promise.race([checkDevice({ ...def }, { quick: true }), new Promise((res) => setTimeout(() => res(null), 12000))]);
+      const rep = await Promise.race([
+        checkDevice({ ...def }, { quick: true }),
+        new Promise((res) => setTimeout(() => res(null), 12000)),
+      ]);
       if (rep) out[d.id] = normCheck(rep, 'rerun', Date.now());
-    } catch (e) { /* leave it unchecked: the page says so */ }
+    } catch (e) {
+      /* leave it unchecked: the page says so */
+    }
   }
   return out;
 }
@@ -643,8 +964,20 @@ function modelFor(app, checks = {}) {
 export async function openProvenanceReport(app) {
   // open the tab now, inside the click, so the popup blocker lets it through; fill it in when the report is ready
   let w = null;
-  try { w = window.open('', '_blank'); } catch (e) { w = null; }
-  try { if (w) { w.document.title = 'Provenance report'; w.document.body.style.cssText = 'margin:0;padding:32px;background:#f4ead6;color:#16130f;font:15px system-ui'; w.document.body.textContent = 'Writing the provenance report…'; } } catch (e) { /* cross-origin or closed */ }
+  try {
+    w = window.open('', '_blank');
+  } catch (e) {
+    w = null;
+  }
+  try {
+    if (w) {
+      w.document.title = 'Provenance report';
+      w.document.body.style.cssText = 'margin:0;padding:32px;background:#f4ead6;color:#16130f;font:15px system-ui';
+      w.document.body.textContent = 'Writing the provenance report…';
+    }
+  } catch (e) {
+    /* cross-origin or closed */
+  }
   const pre = modelFor(app);
   const checks = await gatherChecks(app, pre);
   const model = modelFor(app, checks);
@@ -652,62 +985,162 @@ export async function openProvenanceReport(app) {
   // the page as the tab shows it (fonts by URL, from the site) or as a file keeps it (fonts inside it)
   const page = async (inline) => {
     const fonts = await reportFontCss(inline);
-    const url = URL.createObjectURL(new Blob([provenanceHtml(model, { logo, wordmark, fonts: fonts.css, fontSrc: fonts.src })], { type: 'text/html' }));
+    const url = URL.createObjectURL(
+      new Blob([provenanceHtml(model, { logo, wordmark, fonts: fonts.css, fontSrc: fonts.src })], {
+        type: 'text/html',
+      }),
+    );
     setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
     return url;
   };
-  const title = String(model.song.title || 'Untitled').replace(/[\\/:*?"<>|]+/g, '').trim().slice(0, 80) || 'Untitled';
+  const title =
+    String(model.song.title || 'Untitled')
+      .replace(/[\\/:*?"<>|]+/g, '')
+      .trim()
+      .slice(0, 80) || 'Untitled';
   if (w && !w.closed) {
     const url = await page(false);
     w.location.href = url;
-    app.ui?.toast?.(`The provenance report is open in a new tab: ${plural(model.totals.notes, 'note')}, ${plural(model.authors.length, 'author')}. ⌘P saves it as a PDF.`, { kind: 'ok' });
+    app.ui?.toast?.(
+      `The provenance report is open in a new tab: ${plural(model.totals.notes, 'note')}, ${plural(model.authors.length, 'author')}. ⌘P saves it as a PDF.`,
+      { kind: 'ok' },
+    );
     return { ok: true, url, model };
   }
   // the tab was blocked: hand over the page as a file instead
   const url = await page(true);
   const a = document.createElement('a');
-  a.href = url; a.download = `${title} provenance.html`; a.style.display = 'none';
-  document.body.append(a); a.click(); a.remove();
-  app.ui?.toast?.(`The browser blocked the new tab, so the report was saved as “${title} provenance.html”. Open it, then ⌘P to save a PDF.`, { kind: 'ok', ms: 8000 });
+  a.href = url;
+  a.download = `${title} provenance.html`;
+  a.style.display = 'none';
+  document.body.append(a);
+  a.click();
+  a.remove();
+  app.ui?.toast?.(
+    `The browser blocked the new tab, so the report was saved as “${title} provenance.html”. Open it, then ⌘P to save a PDF.`,
+    { kind: 'ok', ms: 8000 },
+  );
   return { ok: true, url, downloaded: true, model };
 }
 
 const TOOL = {
-  ...PROVENANCE_SCHEMA,   // name, description, input_schema (agent/extra-schemas.js: Node lists it with no tab open)
+  ...PROVENANCE_SCHEMA, // name, description, input_schema (agent/extra-schemas.js: Node lists it with no tab open)
   run(input = {}, ctx = {}) {
     const app = ctx.app || globalThis.window?.overdub;
     const m = modelFor(app);
     // names, requests and reasons can come from someone else's file: trimmed, and each request says where it came from
-    const N = (x) => capText(x, 80), T = (x) => capText(x, 300);
-    const short = (a) => ({ id: a.id, name: N(a.name), kind: a.kind, notes: a.notes, notes_pct: a.notesPct, beats: a.beats, beats_pct: a.beatsPct, recorded_s: a.audioSecs, clips: a.clips, edits: a.edits });
+    const N = (x) => capText(x, 80),
+      T = (x) => capText(x, 300);
+    const short = (a) => ({
+      id: a.id,
+      name: N(a.name),
+      kind: a.kind,
+      notes: a.notes,
+      notes_pct: a.notesPct,
+      beats: a.beats,
+      beats_pct: a.beatsPct,
+      recorded_s: a.audioSecs,
+      clips: a.clips,
+      edits: a.edits,
+    });
     return {
-      song: N(m.song.title), made: m.made,
+      song: N(m.song.title),
+      made: m.made,
       totals: m.totals,
       authors: m.authors.map(short),
-      tracks: m.tracks.map((t) => ({ name: N(t.name), notes: t.notes, beats: t.beats, recorded_s: t.audioSecs, shares: t.shares.map((s) => ({ name: N(s.name), kind: s.kind, notes: s.notes, notes_pct: s.notesPct, beats_pct: s.beatsPct, recorded_s: s.audioSecs })) })),
-      devices_by_agents: m.devices.filter((d) => d.authorKind === 'agent').map((d) => ({ id: d.id, name: N(d.name), by: N(d.author), origin: d.origin, ...(d.held ? { held: true } : {}), request: T(d.request), request_from: d.request ? (d.requestBy ? 'this_session' : 'from_file') : undefined, reason: T(d.reason), used_on: d.usedOn.map((u) => N(u.track)), check: d.check ? { source: d.check.source, ok: d.check.ok, lufs: d.check.lufs, truePeak: d.check.truePeak } : null })),
+      tracks: m.tracks.map((t) => ({
+        name: N(t.name),
+        notes: t.notes,
+        beats: t.beats,
+        recorded_s: t.audioSecs,
+        shares: t.shares.map((s) => ({
+          name: N(s.name),
+          kind: s.kind,
+          notes: s.notes,
+          notes_pct: s.notesPct,
+          beats_pct: s.beatsPct,
+          recorded_s: s.audioSecs,
+        })),
+      })),
+      devices_by_agents: m.devices
+        .filter((d) => d.authorKind === 'agent')
+        .map((d) => ({
+          id: d.id,
+          name: N(d.name),
+          by: N(d.author),
+          origin: d.origin,
+          ...(d.held ? { held: true } : {}),
+          request: T(d.request),
+          request_from: d.request ? (d.requestBy ? 'this_session' : 'from_file') : undefined,
+          reason: T(d.reason),
+          used_on: d.usedOn.map((u) => N(u.track)),
+          check: d.check
+            ? { source: d.check.source, ok: d.check.ok, lufs: d.check.lufs, truePeak: d.check.truePeak }
+            : null,
+        })),
       // the song's devices kept off here: never checked or played for the report
-      ...(m.devices.some((d) => d.held) ? { held: m.devices.filter((d) => d.held).map((d) => ({ id: d.id, name: N(d.name), kind: d.kind, by: N(d.author) })), held_note: 'These devices came with the song and are kept off on this computer: their code hasn\'t been allowed to run here, so they weren\'t checked. Only the person can let them play.' } : {}),
-      ...(input.timeline === false ? {} : { timeline: m.timeline.runs.map((r) => ({ by: N(r.name), kind: r.kind, changes: r.count, from: new Date(r.from).toISOString(), items: r.items.map((i) => ({ label: N(i.label), n: i.n, reason: T(i.reason) || undefined })) })) }),
+      ...(m.devices.some((d) => d.held)
+        ? {
+            held: m.devices
+              .filter((d) => d.held)
+              .map((d) => ({ id: d.id, name: N(d.name), kind: d.kind, by: N(d.author) })),
+            held_note:
+              "These devices came with the song and are kept off on this computer: their code hasn't been allowed to run here, so they weren't checked. Only the person can let them play.",
+          }
+        : {}),
+      ...(input.timeline === false
+        ? {}
+        : {
+            timeline: m.timeline.runs.map((r) => ({
+              by: N(r.name),
+              kind: r.kind,
+              changes: r.count,
+              from: new Date(r.from).toISOString(),
+              items: r.items.map((i) => ({ label: N(i.label), n: i.n, reason: T(i.reason) || undefined })),
+            })),
+          }),
       forked_from: m.forkedFrom ? { title: N(m.forkedFrom.title), at: m.forkedFrom.at } : null,
-      note: 'A record of who did what in this file (signatures on notes, clips, tracks, devices; this session\'s history), not a legal opinion. The human can open it as a printable page: Song menu → Provenance report.',
+      note: "A record of who did what in this file (signatures on notes, clips, tracks, devices; this session's history), not a legal opinion. The human can open it as a printable page: Song menu → Provenance report.",
     };
   },
 };
 
 export function installProvenance(app) {
   if (app.provenance) return app.provenance;
-  const session = {};          // device id -> { check, at, by, request, requestBy }
-  let lastAsk = null;          // the latest thing the person asked the in-app agent
-  app.provenance = { session, model: () => modelFor(app), html: () => provenanceHtml(modelFor(app)), open: () => openProvenanceReport(app), TOOL };
-  const hookAgent = () => { try { app.agent?.on?.('user', (e) => { if (e && e.text) lastAsk = { text: String(e.text).slice(0, 600), at: Date.now() }; }); } catch (e) { /* no in-app agent */ } };
+  const session = {}; // device id -> { check, at, by, request, requestBy }
+  let lastAsk = null; // the latest thing the person asked the in-app agent
+  app.provenance = {
+    session,
+    model: () => modelFor(app),
+    html: () => provenanceHtml(modelFor(app)),
+    open: () => openProvenanceReport(app),
+    TOOL,
+  };
+  const hookAgent = () => {
+    try {
+      app.agent?.on?.('user', (e) => {
+        if (e && e.text) lastAsk = { text: String(e.text).slice(0, 600), at: Date.now() };
+      });
+    } catch (e) {
+      /* no in-app agent */
+    }
+  };
   app.ui?.on?.('agent:tool', (e) => {
     if (!e || e.phase !== 'end' || e.name !== 'define_device' || !e.result || !e.result.ok || !e.result.id) return;
     const fromChat = e.by === 'claude' && lastAsk && Date.now() - lastAsk.at < 30 * 60 * 1000;
-    session[e.result.id] = { check: e.result.check || null, at: Date.now(), by: e.by, request: fromChat ? lastAsk.text : null, requestBy: fromChat ? (app.store.author('you')?.name || 'You') : null };
+    session[e.result.id] = {
+      check: e.result.check || null,
+      at: Date.now(),
+      by: e.by,
+      request: fromChat ? lastAsk.text : null,
+      requestBy: fromChat ? app.store.author('you')?.name || 'You' : null,
+    };
   });
-  if (app.agent) hookAgent(); else app.ui?.on?.('ready', hookAgent);
+  if (app.agent) hookAgent();
+  else app.ui?.on?.('ready', hookAgent);
   // the agent tool (tools.js is the agent layer's; load it lazily so this module stays importable anywhere)
-  import('../agent/tools.js').then((m) => m.installTools(app).register(TOOL)).catch((e) => console.warn('provenance_report tool', e.message));
+  import('../agent/tools.js')
+    .then((m) => m.installTools(app).register(TOOL))
+    .catch((e) => console.warn('provenance_report tool', e.message));
   return app.provenance;
 }

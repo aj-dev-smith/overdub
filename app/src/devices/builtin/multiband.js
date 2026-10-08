@@ -52,68 +52,286 @@ const CLASSIC = {
 };
 const params = [];
 for (const B of MB_BANDS) {
-  const b = B.id, U = N[b], group = B.name, face = false, [dt, dr, ut, ur, at, rl, gn] = CLASSIC[b];
+  const b = B.id,
+    U = N[b],
+    group = B.name,
+    face = false,
+    [dt, dr, ut, ur, at, rl, gn] = CLASSIC[b];
   params.push(
-    { key: `${b}_down_thresh`, label: `${U} DOWN THRESH`, min: -60, max: 0, def: dt, unit: 'dB', role: 'level', group, face,
-      desc: `${WHAT[b]}: above this level it is pulled down at ${U} DOWN RATIO. Lower it to hold more of the band down; 0 dB leaves it alone` },
-    { key: `${b}_down_ratio`, label: `${U} DOWN RATIO`, min: 1, max: 50, def: dr, curve: 'log', unit: 'x', role: 'depth', group, face, fmt: ratioText,
-      desc: `how hard the ${B.word} band's loud parts are held down above ${U} DOWN THRESH: 1 none, 2-4 gentle, 10 and up a wall` },
-    { key: `${b}_up_thresh`, label: `${U} UP THRESH`, min: -70, max: 0, def: ut, unit: 'dB', role: 'level', group, face,
-      desc: `${WHAT[b]}: below this level it is lifted at ${U} UP RATIO, by at most 30 dB (nothing under about -70 dB is lifted, so silence stays silent). Raise it to bring more quiet detail up; it never sits above ${U} DOWN THRESH` },
-    { key: `${b}_up_ratio`, label: `${U} UP RATIO`, min: 1, max: 20, def: ur, curve: 'log', unit: 'x', role: 'depth', group, face, fmt: ratioText,
-      desc: `how hard the ${B.word} band's quiet parts are lifted toward ${U} UP THRESH: 1 none, 2 half the way, 4 most of it` },
-    { key: `${b}_attack`, label: `${U} ATTACK`, min: 0.1, max: 300, def: at, curve: 'log', unit: 'ms', role: 'attack', group, face,
-      desc: `how fast the ${B.word} band reacts as it gets louder: fast (under 5 ms) catches a hit's front (it hears 5 ms ahead) and flattens transients; slower (20-60 ms) lets a hit's front through before it clamps, which is punchier` },
-    { key: `${b}_release`, label: `${U} RELEASE`, min: 5, max: 3000, def: rl, curve: 'log', unit: 'ms', role: 'release', group, face,
-      desc: `how fast the ${B.word} band lets go as it gets quieter: fast (under 80 ms) is louder and more breathless, slow (300 ms and up) smoother` },
-    { key: `${b}_gain`, label: `${U} GAIN`, min: -24, max: 24, def: gn, unit: 'dB', role: 'level', group, face,
-      desc: `the ${B.word} band's level after its compression: makeup for what it holds down, or a tilt between the bands` },
+    {
+      key: `${b}_down_thresh`,
+      label: `${U} DOWN THRESH`,
+      min: -60,
+      max: 0,
+      def: dt,
+      unit: 'dB',
+      role: 'level',
+      group,
+      face,
+      desc: `${WHAT[b]}: above this level it is pulled down at ${U} DOWN RATIO. Lower it to hold more of the band down; 0 dB leaves it alone`,
+    },
+    {
+      key: `${b}_down_ratio`,
+      label: `${U} DOWN RATIO`,
+      min: 1,
+      max: 50,
+      def: dr,
+      curve: 'log',
+      unit: 'x',
+      role: 'depth',
+      group,
+      face,
+      fmt: ratioText,
+      desc: `how hard the ${B.word} band's loud parts are held down above ${U} DOWN THRESH: 1 none, 2-4 gentle, 10 and up a wall`,
+    },
+    {
+      key: `${b}_up_thresh`,
+      label: `${U} UP THRESH`,
+      min: -70,
+      max: 0,
+      def: ut,
+      unit: 'dB',
+      role: 'level',
+      group,
+      face,
+      desc: `${WHAT[b]}: below this level it is lifted at ${U} UP RATIO, by at most 30 dB (nothing under about -70 dB is lifted, so silence stays silent). Raise it to bring more quiet detail up; it never sits above ${U} DOWN THRESH`,
+    },
+    {
+      key: `${b}_up_ratio`,
+      label: `${U} UP RATIO`,
+      min: 1,
+      max: 20,
+      def: ur,
+      curve: 'log',
+      unit: 'x',
+      role: 'depth',
+      group,
+      face,
+      fmt: ratioText,
+      desc: `how hard the ${B.word} band's quiet parts are lifted toward ${U} UP THRESH: 1 none, 2 half the way, 4 most of it`,
+    },
+    {
+      key: `${b}_attack`,
+      label: `${U} ATTACK`,
+      min: 0.1,
+      max: 300,
+      def: at,
+      curve: 'log',
+      unit: 'ms',
+      role: 'attack',
+      group,
+      face,
+      desc: `how fast the ${B.word} band reacts as it gets louder: fast (under 5 ms) catches a hit's front (it hears 5 ms ahead) and flattens transients; slower (20-60 ms) lets a hit's front through before it clamps, which is punchier`,
+    },
+    {
+      key: `${b}_release`,
+      label: `${U} RELEASE`,
+      min: 5,
+      max: 3000,
+      def: rl,
+      curve: 'log',
+      unit: 'ms',
+      role: 'release',
+      group,
+      face,
+      desc: `how fast the ${B.word} band lets go as it gets quieter: fast (under 80 ms) is louder and more breathless, slow (300 ms and up) smoother`,
+    },
+    {
+      key: `${b}_gain`,
+      label: `${U} GAIN`,
+      min: -24,
+      max: 24,
+      def: gn,
+      unit: 'dB',
+      role: 'level',
+      group,
+      face,
+      desc: `the ${B.word} band's level after its compression: makeup for what it holds down, or a tilt between the bands`,
+    },
   );
 }
 params.push(
-  { key: 'xover_lo', label: 'LOW-MID SPLIT', min: 30, max: 1000, def: 120, curve: 'log', unit: 'Hz', role: 'tone', group: 'Crossover', face: false,
-    desc: 'where the low band ends and the mid band starts (24 dB per octave): 80-150 Hz keeps the kick and bass on their own' },
-  { key: 'xover_hi', label: 'MID-HIGH SPLIT', min: 600, max: 16000, def: 2500, curve: 'log', unit: 'Hz', role: 'tone', group: 'Crossover', face: false,
-    desc: 'where the mid band ends and the high band starts; always at least 1.5 times LOW-MID SPLIT (it moves up out of the way)' },
-  { key: 'depth', label: 'DEPTH', min: 0, max: 100, def: 40, unit: '%', role: 'mix', group: 'Main',
-    desc: 'how much of the compressed sound you hear, the main control: 0% is the dry sound, untouched; 20-40% adds density and detail; 100% is the full, dense sound, and the louder for it' },
-  { key: 'in_gain', label: 'INPUT', min: -12, max: 12, def: 0, unit: 'dB', role: 'drive', group: 'Main',
-    desc: 'the level into it: more pushes every band harder against its thresholds (more squash, more lift); the dry part comes up too' },
-  { key: 'out_gain', label: 'OUTPUT', min: -12, max: 12, def: 0, unit: 'dB', role: 'level', group: 'Main',
-    desc: 'the level out, after everything; a safety ceiling then holds everything it puts out at -1 dBTP, at any setting' },
-  { key: 'time', label: 'TIME', min: 10, max: 1000, def: 100, curve: 'log', unit: '%', role: 'time', group: 'Main',
-    desc: 'scales every attack and release together: under 100% everything reacts faster (more aggressive, more pumping), over 100% slower (smoother, more of each attack gets through)' },
+  {
+    key: 'xover_lo',
+    label: 'LOW-MID SPLIT',
+    min: 30,
+    max: 1000,
+    def: 120,
+    curve: 'log',
+    unit: 'Hz',
+    role: 'tone',
+    group: 'Crossover',
+    face: false,
+    desc: 'where the low band ends and the mid band starts (24 dB per octave): 80-150 Hz keeps the kick and bass on their own',
+  },
+  {
+    key: 'xover_hi',
+    label: 'MID-HIGH SPLIT',
+    min: 600,
+    max: 16000,
+    def: 2500,
+    curve: 'log',
+    unit: 'Hz',
+    role: 'tone',
+    group: 'Crossover',
+    face: false,
+    desc: 'where the mid band ends and the high band starts; always at least 1.5 times LOW-MID SPLIT (it moves up out of the way)',
+  },
+  {
+    key: 'depth',
+    label: 'DEPTH',
+    min: 0,
+    max: 100,
+    def: 40,
+    unit: '%',
+    role: 'mix',
+    group: 'Main',
+    desc: 'how much of the compressed sound you hear, the main control: 0% is the dry sound, untouched; 20-40% adds density and detail; 100% is the full, dense sound, and the louder for it',
+  },
+  {
+    key: 'in_gain',
+    label: 'INPUT',
+    min: -12,
+    max: 12,
+    def: 0,
+    unit: 'dB',
+    role: 'drive',
+    group: 'Main',
+    desc: 'the level into it: more pushes every band harder against its thresholds (more squash, more lift); the dry part comes up too',
+  },
+  {
+    key: 'out_gain',
+    label: 'OUTPUT',
+    min: -12,
+    max: 12,
+    def: 0,
+    unit: 'dB',
+    role: 'level',
+    group: 'Main',
+    desc: 'the level out, after everything; a safety ceiling then holds everything it puts out at -1 dBTP, at any setting',
+  },
+  {
+    key: 'time',
+    label: 'TIME',
+    min: 10,
+    max: 1000,
+    def: 100,
+    curve: 'log',
+    unit: '%',
+    role: 'time',
+    group: 'Main',
+    desc: 'scales every attack and release together: under 100% everything reacts faster (more aggressive, more pumping), over 100% slower (smoother, more of each attack gets through)',
+  },
   // (appended: the two big knobs, how much of every band's lift and of its hold is used)
-  { key: 'upward', label: 'UPWARD', min: 0, max: 200, def: 100, unit: '%', role: 'depth', group: 'Main',
-    desc: 'how much every band lifts its quiet parts, as a share of what its UP settings ask: less on a bass that hisses or a room that gets too big, more for more detail' },
-  { key: 'downward', label: 'DOWNWARD', min: 0, max: 200, def: 100, unit: '%', role: 'depth', group: 'Main',
-    desc: 'how much every band holds its loud parts down, as a share of what its DOWN settings ask: more on a top end that bites, less to keep the punch' },
+  {
+    key: 'upward',
+    label: 'UPWARD',
+    min: 0,
+    max: 200,
+    def: 100,
+    unit: '%',
+    role: 'depth',
+    group: 'Main',
+    desc: 'how much every band lifts its quiet parts, as a share of what its UP settings ask: less on a bass that hisses or a room that gets too big, more for more detail',
+  },
+  {
+    key: 'downward',
+    label: 'DOWNWARD',
+    min: 0,
+    max: 200,
+    def: 100,
+    unit: '%',
+    role: 'depth',
+    group: 'Main',
+    desc: 'how much every band holds its loud parts down, as a share of what its DOWN settings ask: more on a top end that bites, less to keep the punch',
+  },
 );
 
 // presets: each is the whole sound; params left out take their defaults
 const band = (b, [downThresh, downRatio, upThresh, upRatio, attack, release, gain]) => ({
-  [`${b}_down_thresh`]: downThresh, [`${b}_down_ratio`]: downRatio, [`${b}_up_thresh`]: upThresh, [`${b}_up_ratio`]: upRatio,
-  [`${b}_attack`]: attack, [`${b}_release`]: release, [`${b}_gain`]: gain,
+  [`${b}_down_thresh`]: downThresh,
+  [`${b}_down_ratio`]: downRatio,
+  [`${b}_up_thresh`]: upThresh,
+  [`${b}_up_ratio`]: upRatio,
+  [`${b}_attack`]: attack,
+  [`${b}_release`]: release,
+  [`${b}_gain`]: gain,
 });
 // (set by measurement on the house's test signals and drum parts: docs/research/MULTIBAND.md. Full depth, Drum smash and
 // Vocal presence come out 1 to 3 LU louder on drums, the crest factor down; the others within about a decibel)
 export const PRESETS = [
-  { name: 'Full depth', blurb: 'The classic, all of it: the room, the tails and the quiet detail brought right up, the peaks held, half a decibel up',
-    params: { depth: 100, out_gain: 0.5 } },
-  { name: 'Glue (bus)', blurb: 'Gentle on a bus: low ratios, slow attacks, the quiet parts lifted a little, about half in',
-    params: { ...band('low', [-12, 1.5, -24, 3, 60, 125, 2]), ...band('mid', [-14, 1.5, -22, 3, 40, 100, 0.5]), ...band('high', [-18, 1.5, -44, 3, 20, 80, 0.5]), depth: 60 } },
-  { name: 'Drum smash', blurb: 'The kick held hard and fast, the room and the tails pulled right up, the click pulled back: loud, roomy drums',
-    params: { ...band('low', [-6, 30, -20, 6, 4, 45, 4]), ...band('mid', [-2, 4, -18, 6, 1.5, 40, 3]), ...band('high', [-4, 4, -42, 6, 0.5, 30, -6]), xover_lo: 110, xover_hi: 3000, depth: 80, time: 80 } },
-  { name: 'Vocal presence', blurb: 'The lows steady; the mids and highs lifted hard and quick to come back, so every word and breath is up front',
-    params: { ...band('low', [-6, 1.2, -38, 2, 70, 100, 3]), ...band('mid', [-2, 4, -16, 6, 30, 40, 1]), ...band('high', [-10, 2, -28, 6, 15, 30, 2]), xover_lo: 150, xover_hi: 3000, depth: 70 } },
-  { name: 'Bass tighten', blurb: 'The low end evened out: each note\'s tail lifted toward its front, the fizz above it pulled back a little',
-    params: { ...band('low', [-4, 2, -24, 4, 45, 80, 2]), ...band('mid', [-4, 2, -18, 4, 30, 80, 1]), ...band('high', [-6, 2, -60, 1, 15, 60, -3]), xover_lo: 100, xover_hi: 1800, depth: 70 } },
-  { name: 'Subtle 30%', blurb: 'The classic at 30%: density and detail, the dynamics still there',
-    params: { depth: 30 } },
-  { name: 'Bass density', tags: ['bass-music', 'growl', 'reese'], blurb: 'On a growl or a reese: the classic at 60%, less lift (60%) so the hiss stays down',
-    params: { depth: 60, upward: 60, downward: 100 } },
-  { name: 'Drum density', tags: ['bass-music', 'drums', 'bus'], blurb: 'On a drum bus: the room and tails up, the hits held harder (downward 130%), 50% in',
-    params: { depth: 50, upward: 90, downward: 130, time: 80 } },
+  {
+    name: 'Full depth',
+    blurb:
+      'The classic, all of it: the room, the tails and the quiet detail brought right up, the peaks held, half a decibel up',
+    params: { depth: 100, out_gain: 0.5 },
+  },
+  {
+    name: 'Glue (bus)',
+    blurb: 'Gentle on a bus: low ratios, slow attacks, the quiet parts lifted a little, about half in',
+    params: {
+      ...band('low', [-12, 1.5, -24, 3, 60, 125, 2]),
+      ...band('mid', [-14, 1.5, -22, 3, 40, 100, 0.5]),
+      ...band('high', [-18, 1.5, -44, 3, 20, 80, 0.5]),
+      depth: 60,
+    },
+  },
+  {
+    name: 'Drum smash',
+    blurb:
+      'The kick held hard and fast, the room and the tails pulled right up, the click pulled back: loud, roomy drums',
+    params: {
+      ...band('low', [-6, 30, -20, 6, 4, 45, 4]),
+      ...band('mid', [-2, 4, -18, 6, 1.5, 40, 3]),
+      ...band('high', [-4, 4, -42, 6, 0.5, 30, -6]),
+      xover_lo: 110,
+      xover_hi: 3000,
+      depth: 80,
+      time: 80,
+    },
+  },
+  {
+    name: 'Vocal presence',
+    blurb:
+      'The lows steady; the mids and highs lifted hard and quick to come back, so every word and breath is up front',
+    params: {
+      ...band('low', [-6, 1.2, -38, 2, 70, 100, 3]),
+      ...band('mid', [-2, 4, -16, 6, 30, 40, 1]),
+      ...band('high', [-10, 2, -28, 6, 15, 30, 2]),
+      xover_lo: 150,
+      xover_hi: 3000,
+      depth: 70,
+    },
+  },
+  {
+    name: 'Bass tighten',
+    blurb: "The low end evened out: each note's tail lifted toward its front, the fizz above it pulled back a little",
+    params: {
+      ...band('low', [-4, 2, -24, 4, 45, 80, 2]),
+      ...band('mid', [-4, 2, -18, 4, 30, 80, 1]),
+      ...band('high', [-6, 2, -60, 1, 15, 60, -3]),
+      xover_lo: 100,
+      xover_hi: 1800,
+      depth: 70,
+    },
+  },
+  {
+    name: 'Subtle 30%',
+    blurb: 'The classic at 30%: density and detail, the dynamics still there',
+    params: { depth: 30 },
+  },
+  {
+    name: 'Bass density',
+    tags: ['bass-music', 'growl', 'reese'],
+    blurb: 'On a growl or a reese: the classic at 60%, less lift (60%) so the hiss stays down',
+    params: { depth: 60, upward: 60, downward: 100 },
+  },
+  {
+    name: 'Drum density',
+    tags: ['bass-music', 'drums', 'bus'],
+    blurb: 'On a drum bus: the room and tails up, the hits held harder (downward 130%), 50% in',
+    params: { depth: 50, upward: 90, downward: 130, time: 80 },
+  },
 ];
 
 // what the library page plays it at (app/library.html: def.demo)
@@ -130,7 +348,10 @@ export function describe(values = {}) {
     const k = (s) => +v[`${B.id}_${s}`];
     return `${B.word}: down above ${dbs(k('down_thresh'))} at ${ratioText(k('down_ratio'))}, up below ${dbs(k('up_thresh'))} at ${ratioText(k('up_ratio'))}, attack ${r1(k('attack'))} ms, release ${Math.round(k('release'))} ms, gain ${dbs(k('gain'))}`;
   };
-  const ud = +v.upward !== 100 || +v.downward !== 100 ? `upward ${Math.round(+v.upward)}%, downward ${Math.round(+v.downward)}%, ` : '';
+  const ud =
+    +v.upward !== 100 || +v.downward !== 100
+      ? `upward ${Math.round(+v.upward)}%, downward ${Math.round(+v.downward)}%, `
+      : '';
   return `depth ${Math.round(+v.depth)}%, ${ud}splits at ${hzs(+v.xover_lo)} and ${hzs(+v.xover_hi)}; ${MB_BANDS.map(bandText).join('; ')}; input ${dbs(+v.in_gain)}, output ${dbs(+v.out_gain)}, time ${Math.round(+v.time)}%`;
 }
 
@@ -138,20 +359,42 @@ export function describe(values = {}) {
 // function (multiband-curve.js transfer). Called with a 2D context already scaled to CSS pixels, its size and the params.
 function screen(g, { w, h, ink, dim }, values) {
   const v = { ...DEFAULTS, ...values };
-  const pad = 6, gap = 10, cw = (w - 2 * pad - 2 * gap) / 3, ch = h - 2 * pad, lo = -60, hi = 0;
+  const pad = 6,
+    gap = 10,
+    cw = (w - 2 * pad - 2 * gap) / 3,
+    ch = h - 2 * pad,
+    lo = -60,
+    hi = 0;
   MB_BANDS.forEach((B, i) => {
-    const x0 = pad + i * (cw + gap), y0 = pad;
-    const X = (db) => x0 + (db - lo) / (hi - lo) * cw, Y = (db) => y0 + ch - (Math.max(lo, Math.min(hi + 6, db)) - lo) / (hi + 6 - lo) * ch;
-    g.strokeStyle = dim; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(X(lo), Y(lo)); g.lineTo(X(hi), Y(hi)); g.stroke();
-    g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath();
-    for (let k = 0; k <= 40; k++) { const db = lo + (hi - lo) * k / 40, y = Y(transfer(v, B.id, db)); if (k) g.lineTo(X(db), y); else g.moveTo(X(db), y); }
+    const x0 = pad + i * (cw + gap),
+      y0 = pad;
+    const X = (db) => x0 + ((db - lo) / (hi - lo)) * cw,
+      Y = (db) => y0 + ch - ((Math.max(lo, Math.min(hi + 6, db)) - lo) / (hi + 6 - lo)) * ch;
+    g.strokeStyle = dim;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(X(lo), Y(lo));
+    g.lineTo(X(hi), Y(hi));
+    g.stroke();
+    g.strokeStyle = ink;
+    g.lineWidth = 1.5;
+    g.beginPath();
+    for (let k = 0; k <= 40; k++) {
+      const db = lo + ((hi - lo) * k) / 40,
+        y = Y(transfer(v, B.id, db));
+      if (k) g.lineTo(X(db), y);
+      else g.moveTo(X(db), y);
+    }
     g.stroke();
   });
 }
 
 export default defineDevice({
-  id: 'core.multiband', name: 'Gaffer Tape', kind: 'effect', cat: 'dynamics', by: 'overdub',
+  id: 'core.multiband',
+  name: 'Gaffer Tape',
+  kind: 'effect',
+  cat: 'dynamics',
+  by: 'overdub',
   blurb: 'Three bands: quiet detail lifted, peaks held, one depth',
   nod: 'the aggressive three-band upward and downward compression producers put on synths, drum buses and vocals',
   editor: 'multiband',
@@ -161,8 +404,17 @@ export default defineDevice({
   presets: PRESETS,
   demo,
   // gaffer tape, the fluorescent pink kind that marks the stage, written on in black marker
-  look: { color: '#ec5a96', ink: '#1d1216', shape: 'rack', finish: 'flat', knob: 'black', label: 'script', led: '#ffe3ef' },
-  latency: 328 / 48000, tail: 0.1,
+  look: {
+    color: '#ec5a96',
+    ink: '#1d1216',
+    shape: 'rack',
+    finish: 'flat',
+    knob: 'black',
+    label: 'script',
+    led: '#ffe3ef',
+  },
+  latency: 328 / 48000,
+  tail: 0.1,
   kernel: kernel(String.raw`
 // The detectors' crossover, the dynamics and the shelves (devices/builtin/multiband-curve.js): the same functions the
 // device window draws and reads with.

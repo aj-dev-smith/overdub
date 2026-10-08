@@ -28,7 +28,7 @@ export const HOUSE = 'overdub';
 export const AGENT = 'claude';
 
 export function rng(seed = 1) {
-  let s = (seed >>> 0) || 1;
+  let s = seed >>> 0 || 1;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
     let t = s;
@@ -39,12 +39,34 @@ export function rng(seed = 1) {
 }
 
 export const clip = (start, length, notes, name, by = HOUSE) =>
-  idNotes({ id: newId('c'), kind: 'notes', start, length, name, by, notes: notes.map((n) => ({ ...normNote(n), by })) });
+  idNotes({
+    id: newId('c'),
+    kind: 'notes',
+    start,
+    length,
+    name,
+    by,
+    notes: notes.map((n) => ({ ...normNote(n), by })),
+  });
 
 export const fx = (device, params = {}, by = HOUSE) => ({ id: newId('fx'), device, on: true, params, by });
 
 export function track({ name, color, device, params = {}, inserts = [], clips = [], gain = 0, pan = 0, by = HOUSE }) {
-  return { id: newId('t'), name, color, kind: 'instrument', instrument: { device, params }, inserts, clips, gain, pan, mute: false, solo: false, arm: false, by };
+  return {
+    id: newId('t'),
+    name,
+    color,
+    kind: 'instrument',
+    instrument: { device, params },
+    inserts,
+    clips,
+    gain,
+    pan,
+    mute: false,
+    solo: false,
+    arm: false,
+    by,
+  };
 }
 
 // fn(bar) -> notes in that bar (t from 0); returns them all, offset bar by bar
@@ -54,7 +76,22 @@ export function bars(n, fn, len = 4) {
   return out;
 }
 
-const DRUM = { kick: 36, rim: 37, snare: 38, clap: 39, hat: 42, pedal: 44, open: 46, crash: 49, ride: 51, tamb: 54, shaker: 70, tom: 45, ltom: 43, htom: 50 };
+const DRUM = {
+  kick: 36,
+  rim: 37,
+  snare: 38,
+  clap: 39,
+  hat: 42,
+  pedal: 44,
+  open: 46,
+  crash: 49,
+  ride: 51,
+  tamb: 54,
+  shaker: 70,
+  tom: 45,
+  ltom: 43,
+  htom: 50,
+};
 const HIT = { X: 1, x: 0.8, O: 0.6, o: 0.45, '-': 0.3 };
 // one bar of drums from 16-step rows; d is short so hats don't hang over
 export function grid(rows) {
@@ -85,19 +122,26 @@ export function groove(notes, { seed = 1, swing = 0.5, push = {}, vel = 0.06, ti
 // a voicing on each hit: [[t, d, v], ...], with an optional strum (beats between strings, low to high)
 export function chordHits(voicing, hits, { strum = 0 } = {}) {
   const out = [];
-  for (const [t, d, v] of hits) voicing.forEach((p, i) => out.push({ p, t: t + i * strum, d: Math.max(0.05, d - i * strum), v }));
+  for (const [t, d, v] of hits)
+    voicing.forEach((p, i) => out.push({ p, t: t + i * strum, d: Math.max(0.05, d - i * strum), v }));
   return out;
 }
 
 export function demo({ title, tempo, key, sections, tracks, master, bars: n }) {
   const now = new Date().toISOString();
   return createProject({
-    title, tempo, key,
+    title,
+    tempo,
+    key,
     loop: { on: true, start: 0, end: n * 4 },
     sections: sections.map(([name, start, length]) => ({ id: newId('s'), name, start: start * 4, length: length * 4 })),
     tracks,
     master,
-    meta: { created: now, modified: now, authors: { [HOUSE]: { kind: 'house', name: 'Overdub' }, [AGENT]: { kind: 'agent', name: 'Claude' } } },
+    meta: {
+      created: now,
+      modified: now,
+      authors: { [HOUSE]: { kind: 'house', name: 'Overdub' }, [AGENT]: { kind: 'agent', name: 'Claude' } },
+    },
   });
 }
 

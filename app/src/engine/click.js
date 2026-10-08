@@ -16,14 +16,20 @@
 export const CLICK = { beat: 0.5, bar: 0.71, f: 1780, fBar: 2380, ms: 60 };
 
 export function clickSamples(sr, accent = false) {
-  const n = Math.round((CLICK.ms / 1000) * sr), x = new Float32Array(n);
+  const n = Math.round((CLICK.ms / 1000) * sr),
+    x = new Float32Array(n);
   const f = accent ? CLICK.fBar : CLICK.f;
   // [frequency, level, decay (s)]: the knock, a brighter overtone that dies first, and a low body under them
-  const parts = [[f, 1, 0.024], [f * 2.71, 0.5, 0.009], [f * 0.37, 0.22, 0.02]];
+  const parts = [
+    [f, 1, 0.024],
+    [f * 2.71, 0.5, 0.009],
+    [f * 0.37, 0.22, 0.02],
+  ];
   const atk = Math.max(1, Math.round(0.0006 * sr));
   let pk = 0;
   for (let i = 0; i < n; i++) {
-    const t = i / sr, a = i < atk ? i / atk : 1;
+    const t = i / sr,
+      a = i < atk ? i / atk : 1;
     let v = 0;
     for (const [fr, lv, tau] of parts) v += lv * Math.exp(-t / tau) * Math.sin(2 * Math.PI * fr * t);
     x[i] = v * a;

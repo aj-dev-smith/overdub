@@ -22,17 +22,72 @@ import { kernel } from './lib.js';
 import { TABLES } from './tables.js';
 
 export default defineDevice({
-  id: 'core.choir', name: 'Risers', kind: 'instrument', cat: 'synth', by: 'overdub',
+  id: 'core.choir',
+  name: 'Risers',
+  kind: 'instrument',
+  cat: 'synth',
+  by: 'overdub',
   blurb: 'A choir: oohs and aahs, basses to sopranos, in a hall',
   nod: 'a mixed choir singing vowels, with consonant onsets',
   params: [
-    { key: 'vowel', label: 'VOWEL', min: 0, max: 1, def: 0.5, role: 'shape', desc: 'OO, OH, AH, EH, EE across the knob' },
-    { key: 'onset', label: 'ONSET', opts: ['NONE', 'M', 'D', 'L'], def: 0, role: 'shape', desc: 'how each note starts: the vowel at once, or a hummed m, a d, an l' },
-    { key: 'ensemble', label: 'ENSEMBLE', min: 0, max: 1, def: 0.5, role: 'width', desc: 'a tight chamber choir to a big, loose one' },
-    { key: 'vibrato', label: 'VIBRATO', min: 0, max: 1, def: 0.3, role: 'depth', desc: 'how much the singers\' pitch moves on held notes' },
+    {
+      key: 'vowel',
+      label: 'VOWEL',
+      min: 0,
+      max: 1,
+      def: 0.5,
+      role: 'shape',
+      desc: 'OO, OH, AH, EH, EE across the knob',
+    },
+    {
+      key: 'onset',
+      label: 'ONSET',
+      opts: ['NONE', 'M', 'D', 'L'],
+      def: 0,
+      role: 'shape',
+      desc: 'how each note starts: the vowel at once, or a hummed m, a d, an l',
+    },
+    {
+      key: 'ensemble',
+      label: 'ENSEMBLE',
+      min: 0,
+      max: 1,
+      def: 0.5,
+      role: 'width',
+      desc: 'a tight chamber choir to a big, loose one',
+    },
+    {
+      key: 'vibrato',
+      label: 'VIBRATO',
+      min: 0,
+      max: 1,
+      def: 0.3,
+      role: 'depth',
+      desc: "how much the singers' pitch moves on held notes",
+    },
     { key: 'breath', label: 'BREATH', min: 0, max: 1, def: 0.3, role: 'mix', desc: 'air in the voices' },
-    { key: 'attack', label: 'ATTACK', min: 0.01, max: 3, def: 0.15, curve: 'log', unit: 's', role: 'attack', desc: 'how slowly the voices come in (louder notes come in faster)' },
-    { key: 'release', label: 'RELEASE', min: 0.05, max: 4, def: 0.5, curve: 'log', unit: 's', role: 'release', desc: 'how long the voices take to stop' },
+    {
+      key: 'attack',
+      label: 'ATTACK',
+      min: 0.01,
+      max: 3,
+      def: 0.15,
+      curve: 'log',
+      unit: 's',
+      role: 'attack',
+      desc: 'how slowly the voices come in (louder notes come in faster)',
+    },
+    {
+      key: 'release',
+      label: 'RELEASE',
+      min: 0.05,
+      max: 4,
+      def: 0.5,
+      curve: 'log',
+      unit: 's',
+      role: 'release',
+      desc: 'how long the voices take to stop',
+    },
     { key: 'hall', label: 'HALL', min: 0, max: 1, def: 0.35, role: 'mix', desc: 'how much of the hall you hear' },
   ],
   presets: [
@@ -42,9 +97,19 @@ export default defineDevice({
     { name: 'Da da', params: { vowel: 0.5, onset: 2, attack: 0.03, release: 0.25, vibrato: 0.15, hall: 0.25 } },
     { name: 'Cathedral', params: { vowel: 0.35, ensemble: 0.85, attack: 0.6, release: 1.6, hall: 0.8 } },
   ],
-  look: { color: '#2f3a4a', ink: '#ecebe4', shape: 'wide', finish: 'flat', knob: 'cream', label: 'script', led: '#c9d8ff' },
+  look: {
+    color: '#2f3a4a',
+    ink: '#ecebe4',
+    shape: 'wide',
+    finish: 'flat',
+    knob: 'cream',
+    label: 'script',
+    led: '#c9d8ff',
+  },
   tail: 6,
-  kernel: kernel(TABLES + String.raw`
+  kernel: kernel(
+    TABLES +
+      String.raw`
 // the source: a flat buzz (every harmonic equal); effort tilts the formants above the first (setF)
 const FLAT = wavetable(() => 0.2);
 // formants [F1..F5 Hz, A1..A5 dB, B1..B5 Hz] by section and vowel (u o a e i), from the Csound manual's table
@@ -249,5 +314,6 @@ return {
     };
   },
 };
-`),
+`,
+  ),
 });

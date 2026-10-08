@@ -41,7 +41,9 @@ export function optedOut(nav = globalThis.navigator, win = globalThis) {
   try {
     const dnt = nav?.doNotTrack ?? win?.doNotTrack ?? nav?.msDoNotTrack;
     return dnt === '1' || dnt === 'yes' || dnt === 1 || nav?.globalPrivacyControl === true;
-  } catch (e) { return true; }
+  } catch (e) {
+    return true;
+  }
 }
 
 // Only the deployed site, over https, in a person's browser (automation sets navigator.webdriver).
@@ -50,7 +52,9 @@ export function allowed(loc = globalThis.location, nav = globalThis.navigator, w
     if (!loc || loc.hostname !== HOST || loc.protocol !== 'https:') return false;
     if (nav?.webdriver) return false;
     return !optedOut(nav, win);
-  } catch (e) { return false; }
+  } catch (e) {
+    return false;
+  }
 }
 
 // The referrer's host, nothing else: no path, no query, no port, no "www.". '' when there is none or it looks odd.
@@ -59,7 +63,9 @@ export function referrerHost(ref) {
   try {
     const h = new URL(ref).hostname.toLowerCase().replace(/^www\./, '');
     return /^[a-z0-9.-]{1,64}$/.test(h) ? h : '';
-  } catch (e) { return ''; }
+  } catch (e) {
+    return '';
+  }
 }
 
 // The URL for one count, or null if the event or its field isn't on the list.
@@ -67,8 +73,11 @@ export function beaconUrl(e, p, { r = '', base = BEACON } = {}) {
   if (!Object.prototype.hasOwnProperty.call(EVENTS, e)) return null;
   const opts = EVENTS[e];
   const q = new URLSearchParams({ e });
-  if (opts) { if (!opts.includes(p)) return null; q.set('p', p); }
-  if (r && (e === 'open') && /^[a-z0-9.-]{1,64}$/.test(r)) q.set('r', r);
+  if (opts) {
+    if (!opts.includes(p)) return null;
+    q.set('p', p);
+  }
+  if (r && e === 'open' && /^[a-z0-9.-]{1,64}$/.test(r)) q.set('r', r);
   return base + '?' + q;
 }
 
@@ -77,18 +86,37 @@ export function beaconUrl(e, p, { r = '', base = BEACON } = {}) {
 function sendBeacon(url) {
   try {
     if (typeof fetch === 'function') {
-      fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', keepalive: true }).catch(() => {});
+      fetch(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        keepalive: true,
+      }).catch(() => {});
     } else {
-      const img = new Image(); img.referrerPolicy = 'no-referrer'; img.src = url;
+      const img = new Image();
+      img.referrerPolicy = 'no-referrer';
+      img.src = url;
     }
-  } catch (e) { /* never let counting break the studio */ }
+  } catch (e) {
+    /* never let counting break the studio */
+  }
 }
 
 const EXPORTS = [
-  [/\.overdub-device\.json$/i, 'device'], [/\.overdub\.json$/i, 'song'], [/ attribution\.json$/i, 'log'],
-  [/ stems\.zip$/i, 'stems'], [/\.wav$/i, 'wav'], [/\.midi?$/i, 'midi'], [/\.(webm|mp4|mov)$/i, 'video'],
+  [/\.overdub-device\.json$/i, 'device'],
+  [/\.overdub\.json$/i, 'song'],
+  [/ attribution\.json$/i, 'log'],
+  [/ stems\.zip$/i, 'stems'],
+  [/\.wav$/i, 'wav'],
+  [/\.midi?$/i, 'midi'],
+  [/\.(webm|mp4|mov)$/i, 'video'],
 ];
-export const exportKind = (name) => { for (const [re, k] of EXPORTS) if (re.test(name || '')) return k; return 'other'; };
+export const exportKind = (name) => {
+  for (const [re, k] of EXPORTS) if (re.test(name || '')) return k;
+  return 'other';
+};
 
 export default function (app) {
   const enabled = allowed();
@@ -100,7 +128,8 @@ export default function (app) {
     if (ONCE.has(e) && counts[e]) return false;
     const url = beaconUrl(e, p, extra);
     if (!url) return false;
-    counts[e] = (counts[e] || 0) + 1; total++;
+    counts[e] = (counts[e] || 0) + 1;
+    total++;
     sent.push(url);
     sendBeacon(url);
     return true;
@@ -112,48 +141,74 @@ export default function (app) {
   const params = new URLSearchParams(location.search);
 
   // the studio opened: how, and from where (the host only)
-  const how = app.share?.incoming?.ok ? 'link' : params.has('device') ? 'device' : EVENTS.open.includes(app.opened) ? app.opened : 'demo';
+  const how = app.share?.incoming?.ok
+    ? 'link'
+    : params.has('device')
+      ? 'device'
+      : EVENTS.open.includes(app.opened)
+        ? app.opened
+        : 'demo';
   count('open', how, { r: referrerHost(document.referrer) });
 
   // play: the first time the transport starts
-  engine?.on?.('transport', (t) => { if (t && t.playing) count('play'); });
+  engine?.on?.('transport', (t) => {
+    if (t && t.playing) count('play');
+  });
 
   // agents: each message you send the in-app one; an outside agent's first tool call
   // (asks on Claude on Overdub credits count as 'hosted', never as the person's own Claude)
-  app.agent?.on?.('user', () => count('agent', app.agent.provider === 'mock' ? 'demo' : app.agent.provider === 'cloud' ? 'hosted' : 'local'));
+  app.agent?.on?.('user', () =>
+    count('agent', app.agent.provider === 'mock' ? 'demo' : app.agent.provider === 'cloud' ? 'hosted' : 'local'),
+  );
   const outside = new Set();
   ui?.on?.('agent:tool', (d) => {
     if (!d || d.phase !== 'start' || typeof d.by !== 'string') return;
     const p = d.by === 'claude.ai' ? 'claude.ai' : d.by.startsWith('mcp:') ? 'mcp' : null;
-    if (p && !outside.has(p)) { outside.add(p); count('agent', p); }
+    if (p && !outside.has(p)) {
+      outside.add(p);
+      count('agent', p);
+    }
   });
 
   // devices written (a new kernel or a new version), by a person or an agent; undo, redo and loading a song don't count
   store?.on?.('change', (c) => {
     if (!c || c.kind !== 'do') return;
-    for (const op of c.ops || []) if (op && op.type === 'device.define') count('device', store.isAgent?.(c.by) ? 'agent' : 'you');
+    for (const op of c.ops || [])
+      if (op && op.type === 'device.define') count('device', store.isAgent?.(c.by) ? 'agent' : 'you');
   });
 
   // exports: every file the studio hands you is an <a download> click; only its kind is counted, never its name
-  document.addEventListener('click', (ev) => {
-    const a = ev.target && ev.target.closest && ev.target.closest('a[download]');
-    if (a) count('export', exportKind(a.getAttribute('download')));
-  }, true);
+  document.addEventListener(
+    'click',
+    (ev) => {
+      const a = ev.target && ev.target.closest && ev.target.closest('a[download]');
+      if (a) count('export', exportKind(a.getAttribute('download')));
+    },
+    true,
+  );
 
   // shares: a link made for you (app.share.copy, whoever calls it), one an agent made, a shared song made yours, and
   // anything else that says ui.emit('share', { kind })
   const share = app.share;
   if (share && typeof share.copy === 'function' && !share.copy.counted) {
     const copy = share.copy;
-    share.copy = Object.assign(async function (...args) {
-      const r = await copy.apply(this, args);
-      if (r && r.ok) count('share', 'link');
-      return r;
-    }, { counted: true });
+    share.copy = Object.assign(
+      async function (...args) {
+        const r = await copy.apply(this, args);
+        if (r && r.ok) count('share', 'link');
+        return r;
+      },
+      { counted: true },
+    );
   }
-  ui?.on?.('agent:tool', (d) => { if (d && d.phase === 'end' && d.name === 'share_link' && d.result && d.result.url) count('share', 'agent'); });
+  ui?.on?.('agent:tool', (d) => {
+    if (d && d.phase === 'end' && d.name === 'share_link' && d.result && d.result.url) count('share', 'agent');
+  });
   ui?.on?.('share:fork', () => count('share', 'fork'));
-  ui?.on?.('share', (d) => { const k = typeof d === 'string' ? d : d && d.kind; count('share', EVENTS.share.includes(k) ? k : 'other'); });
+  ui?.on?.('share', (d) => {
+    const k = typeof d === 'string' ? d : d && d.kind;
+    count('share', EVENTS.share.includes(k) ? k : 'other');
+  });
 
   // hums that became notes, and ideas kept as clips (capture.keep stamps phrase.kept with the time it happened)
   const keptSeen = new Set();
@@ -163,7 +218,10 @@ export default function (app) {
     const last = Array.isArray(phrase.kept) ? phrase.kept[phrase.kept.length - 1] : null;
     if (what === 'update' && last && typeof last.at === 'number' && Math.abs(Date.now() - last.at) < 5000) {
       const k = phrase.id + ':' + last.at + ':' + phrase.kept.length;
-      if (!keptSeen.has(k)) { keptSeen.add(k); count('keep', 'idea'); }
+      if (!keptSeen.has(k)) {
+        keptSeen.add(k);
+        count('keep', 'idea');
+      }
     }
   });
 
@@ -172,6 +230,7 @@ export default function (app) {
   ui?.on?.('agent:request', ({ id, req } = {}) => {
     if (!req || req.kind !== 'variations' || req.status !== 'done' || picked.has(id)) return;
     picked.add(id);
-    if (req.result && req.result.picked !== 'original' && req.result.picked != null && !req.result.error) count('keep', 'take');
+    if (req.result && req.result.picked !== 'original' && req.result.picked != null && !req.result.error)
+      count('keep', 'take');
   });
 }

@@ -49,7 +49,18 @@ const sine = `({
   },
 })`;
 
-const def = (id, name, kernel) => ({ id, name, kind: 'instrument', cat: 'other', by: 'overdub', blurb: 'a bench test source', params: [], tail: 0.1, kernel, version: 1 });
+const def = (id, name, kernel) => ({
+  id,
+  name,
+  kind: 'instrument',
+  cat: 'other',
+  by: 'overdub',
+  blurb: 'a bench test source',
+  params: [],
+  tail: 0.1,
+  kernel,
+  version: 1,
+});
 
 export const PROBE_DEVICES = {
   'bench.click': def('bench.click', 'Bench Click', click),

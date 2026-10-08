@@ -5,10 +5,25 @@ import { openUrl, tally } from './pw.js';
 const BASE = process.argv[2] || 'https://overdubstudio.com';
 const t = tally('prod');
 
-for (const [route, type] of [['/', 'text/html'], ['/app/', 'text/html'], ['/app/src/main.js', 'text/javascript'], ['/llms.txt', 'text/plain'], ['/docs/AGENTS.md', 'text/markdown'], ['/app', null]]) {
+for (const [route, type] of [
+  ['/', 'text/html'],
+  ['/app/', 'text/html'],
+  ['/app/src/main.js', 'text/javascript'],
+  ['/llms.txt', 'text/plain'],
+  ['/docs/AGENTS.md', 'text/markdown'],
+  ['/app', null],
+]) {
   const r = await fetch(BASE + route, { redirect: 'manual' });
-  if (type) t.ok(r.status === 200 && (r.headers.get('content-type') || '').startsWith(type), `${route} → ${r.status} ${r.headers.get('content-type')}`);
-  else t.ok(r.status === 301 && r.headers.get('location') === '/app/', `${route} redirects to /app/ (${r.status} ${r.headers.get('location')})`);
+  if (type)
+    t.ok(
+      r.status === 200 && (r.headers.get('content-type') || '').startsWith(type),
+      `${route} → ${r.status} ${r.headers.get('content-type')}`,
+    );
+  else
+    t.ok(
+      r.status === 301 && r.headers.get('location') === '/app/',
+      `${route} redirects to /app/ (${r.status} ${r.headers.get('location')})`,
+    );
 }
 const head = await fetch(BASE + '/', { method: 'HEAD' });
 t.ok(/max-age=\d+/.test(head.headers.get('strict-transport-security') || ''), 'HSTS on');
@@ -38,7 +53,10 @@ t.ok(/max-age=\d+/.test(head.headers.get('strict-transport-security') || ''), 'H
     }
     return { lufs: +m.lufs.toFixed(1), tp: +m.truePeak.toFixed(1), missing, devices: app.devices.listDevices().length };
   });
-  t.ok(r.missing.length === 0 && r.devices > 140, `studio: ${r.devices} devices, every device in the demo resolves ${r.missing.join(' ')}`);
+  t.ok(
+    r.missing.length === 0 && r.devices > 140,
+    `studio: ${r.devices} devices, every device in the demo resolves ${r.missing.join(' ')}`,
+  );
   t.ok(r.lufs > -13 && r.lufs < -8 && r.tp <= -1, `studio: the demo renders at ${r.lufs} LUFS, ${r.tp} dBTP`);
   const real = errors.filter((e) => !/\/bridge\//.test(e));
   t.ok(!real.length, 'studio: no console errors (the local-only MCP bridge excepted) ' + real.slice(0, 3).join(' | '));

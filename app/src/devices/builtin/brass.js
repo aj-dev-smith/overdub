@@ -25,18 +25,88 @@ import { kernel } from './lib.js';
 import { TABLES } from './tables.js';
 
 export default defineDevice({
-  id: 'core.brass', name: 'Brass Rail', kind: 'instrument', cat: 'synth', by: 'overdub',
+  id: 'core.brass',
+  name: 'Brass Rail',
+  kind: 'instrument',
+  cat: 'synth',
+  by: 'overdub',
   blurb: 'A horn section: stabs, swells and falls that bite',
   nod: 'a brass and sax section: trumpets, trombones and saxes',
   params: [
-    { key: 'horn', label: 'HORN', opts: ['HORNS', 'TRUMPET', 'TROMBONE', 'SAX'], def: 0, role: 'shape', desc: 'a mixed section (a trumpet leading saxes and trombones), or all one horn' },
-    { key: 'players', label: 'PLAYERS', opts: ['SOLO', 'TRIO', 'FIVE'], def: 1, role: 'width', desc: 'one player, or a lead with a pair or two around them' },
-    { key: 'bite', label: 'BITE', min: 0, max: 1, def: 0.5, role: 'tone', desc: 'how brassy loud notes get: mellow to blaring' },
-    { key: 'scoop', label: 'SCOOP', min: 0, max: 1, def: 0.4, role: 'pitch', desc: 'how far below the note each one starts before it lips up' },
-    { key: 'breath', label: 'BREATH', min: 0, max: 1, def: 0.35, role: 'mix', desc: 'air in the sound, most on the attack' },
-    { key: 'vibrato', label: 'VIBRATO', min: 0, max: 1, def: 0.25, role: 'depth', desc: 'vibrato on held notes (it comes in after the attack)' },
-    { key: 'attack', label: 'ATTACK', min: 0.005, max: 1.5, def: 0.06, curve: 'log', unit: 's', role: 'attack', desc: 'how fast the air gets going: stab to swell (harder is faster)' },
-    { key: 'release', label: 'RELEASE', min: 0.02, max: 2, def: 0.12, curve: 'log', unit: 's', role: 'release', desc: 'how fast a note stops when you let go' },
+    {
+      key: 'horn',
+      label: 'HORN',
+      opts: ['HORNS', 'TRUMPET', 'TROMBONE', 'SAX'],
+      def: 0,
+      role: 'shape',
+      desc: 'a mixed section (a trumpet leading saxes and trombones), or all one horn',
+    },
+    {
+      key: 'players',
+      label: 'PLAYERS',
+      opts: ['SOLO', 'TRIO', 'FIVE'],
+      def: 1,
+      role: 'width',
+      desc: 'one player, or a lead with a pair or two around them',
+    },
+    {
+      key: 'bite',
+      label: 'BITE',
+      min: 0,
+      max: 1,
+      def: 0.5,
+      role: 'tone',
+      desc: 'how brassy loud notes get: mellow to blaring',
+    },
+    {
+      key: 'scoop',
+      label: 'SCOOP',
+      min: 0,
+      max: 1,
+      def: 0.4,
+      role: 'pitch',
+      desc: 'how far below the note each one starts before it lips up',
+    },
+    {
+      key: 'breath',
+      label: 'BREATH',
+      min: 0,
+      max: 1,
+      def: 0.35,
+      role: 'mix',
+      desc: 'air in the sound, most on the attack',
+    },
+    {
+      key: 'vibrato',
+      label: 'VIBRATO',
+      min: 0,
+      max: 1,
+      def: 0.25,
+      role: 'depth',
+      desc: 'vibrato on held notes (it comes in after the attack)',
+    },
+    {
+      key: 'attack',
+      label: 'ATTACK',
+      min: 0.005,
+      max: 1.5,
+      def: 0.06,
+      curve: 'log',
+      unit: 's',
+      role: 'attack',
+      desc: 'how fast the air gets going: stab to swell (harder is faster)',
+    },
+    {
+      key: 'release',
+      label: 'RELEASE',
+      min: 0.02,
+      max: 2,
+      def: 0.12,
+      curve: 'log',
+      unit: 's',
+      role: 'release',
+      desc: 'how fast a note stops when you let go',
+    },
   ],
   presets: [
     { name: 'Horn section', params: {} },
@@ -45,9 +115,19 @@ export default defineDevice({
     { name: 'Tenor sax', params: { horn: 3, players: 0, bite: 0.55, scoop: 0.6, breath: 0.55, vibrato: 0.45 } },
     { name: 'Solo trumpet', params: { horn: 1, players: 0, bite: 0.6, vibrato: 0.4 } },
   ],
-  look: { color: '#5a3d12', ink: '#f6e2b0', shape: 'wide', finish: 'brushed', knob: 'chrome', label: 'script', led: '#ffd166' },
+  look: {
+    color: '#5a3d12',
+    ink: '#f6e2b0',
+    shape: 'wide',
+    finish: 'brushed',
+    knob: 'chrome',
+    label: 'script',
+    led: '#ffd166',
+  },
   tail: 3,
-  kernel: kernel(TABLES + String.raw`
+  kernel: kernel(
+    TABLES +
+      String.raw`
 const SAW = wavetable((k) => (k & 1 ? 1 : -1) * 0.6366197723675814 / k);
 // the sax's pulse (width 0.42): a saw less itself shifted by the width, as one table
 const PW = 0.42, sawA = (k) => (k & 1 ? 1 : -1) * 0.6366197723675814 / k;
@@ -272,5 +352,6 @@ return {
     };
   },
 };
-`),
+`,
+  ),
 });

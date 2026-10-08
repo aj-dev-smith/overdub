@@ -1,7 +1,11 @@
 /* Studio-wide styles that aren't any one panel's. The shell's own CSS is injected by ui/shell.js; each panel injects
    its own with css(id, text). Use the tokens (tokens.css). */
-::selection { background: var(--accent-wash, rgba(217, 243, 106, .16)); }
-a { color: var(--accent); }
+::selection {
+  background: var(--accent-wash, rgba(217, 243, 106, 0.16));
+}
+a {
+  color: var(--accent);
+}
 
 /* ================================================================================ Liner notes: the shared kit
    The studio is set like the back of a record sleeve (design/DECISION.md). Every class here is described, with when to
@@ -10,114 +14,450 @@ a { color: var(--accent); }
    (only a lit lamp), no stripes; authorship is a byline. */
 
 /* Type: the display face for numbers and a few heads; never for paragraphs or buttons. */
-.num { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 125%; font-variation-settings: var(--font-display-vars); font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1; }
-.disp { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 125%; font-variation-settings: var(--font-display-vars); letter-spacing: -.012em; line-height: 1.05; }
-.disp-s { font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 112%; font-variation-settings: 'wdth' 112; letter-spacing: -.005em; }
-.mono { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.t2 { color: var(--text-2); }
-.t3 { color: var(--text-3); }
+.num {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 125%;
+  font-variation-settings: var(--font-display-vars);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.disp {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 125%;
+  font-variation-settings: var(--font-display-vars);
+  letter-spacing: -0.012em;
+  line-height: 1.05;
+}
+.disp-s {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-variation-settings: "wdth" 112;
+  letter-spacing: -0.005em;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.t2 {
+  color: var(--text-2);
+}
+.t3 {
+  color: var(--text-3);
+}
 
 /* Bylines (byline(by) in ui/dom.js): the author's name in their ink, at the size of the text it signs. People are warm,
    agents cool; the house is unsigned. Never a stripe, a tint, a fill or a dot alone. */
-.by { font-weight: 600; white-space: nowrap; }
-.by.by-human { color: var(--human); }
-.by.by-agent { color: var(--agent); }
+.by {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.by.by-human {
+  color: var(--human);
+}
+.by.by-agent {
+  color: var(--agent);
+}
 /* The old names, until every surface has moved (tests and tools/shots.js select by them): the pills are bylines now,
    and .by-human / .by-agent on a container no longer draw anything (they were the side stripe). */
-.badge-agent, .badge-human { display: inline; padding: 0; border: 0; border-radius: 0; background: none; font-size: inherit; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
-.badge-agent { color: var(--agent); }
-.badge-human { color: var(--human); }
+.badge-agent,
+.badge-human {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.badge-agent {
+  color: var(--agent);
+}
+.badge-human {
+  color: var(--human);
+}
 
 /* Keys are keycaps: the one bordered inline element. */
-kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; line-height: 16px; padding: 0 4px; border: var(--rule-2); border-radius: var(--r-press); background: none; color: var(--text-2); }
+kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 0 4px;
+  border: var(--rule-2);
+  border-radius: var(--r-press);
+  background: none;
+  color: var(--text-2);
+}
 
 /* Buttons. .btn is rule-edged; .btn-go is the one primary action in a region (leader green); .btn-txt is an underlined
    word for everything secondary; .btn-held is a button you are holding down ("Hold to hear"). */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 11px; border: var(--rule-2); border-radius: var(--r-press); background: none; color: var(--text); font: 600 12.5px/1 var(--font-ui); white-space: nowrap; cursor: pointer; }
-.btn:hover { border-color: var(--text-3); }
-.btn:disabled, .btn[aria-disabled="true"] { color: var(--text-3); border-color: var(--line); cursor: default; }
-.btn-go { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-.btn-go:hover { border-color: var(--accent); filter: brightness(1.06); }
-.btn-txt { height: auto; min-height: 24px; padding: 0 2px; border-color: transparent; color: var(--text-2); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
-.btn-txt:hover { border-color: transparent; color: var(--text); text-decoration-color: var(--text-3); }
-.btn-held, .btn:active:not(.btn-txt):not(:disabled) { background: var(--text); border-color: var(--text); color: var(--bg); }
-.btn-rec { border-color: color-mix(in srgb, var(--rec) 55%, transparent); }
-.btn .ico, .btn svg { flex: none; }
-.btn:focus-visible, .tog:focus-visible, .ledger-row:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: var(--rule-2);
+  border-radius: var(--r-press);
+  background: none;
+  color: var(--text);
+  font: 600 12.5px / 1 var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--text-3);
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  color: var(--text-3);
+  border-color: var(--line);
+  cursor: default;
+}
+.btn-go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.btn-go:hover {
+  border-color: var(--accent);
+  filter: brightness(1.06);
+}
+.btn-txt {
+  height: auto;
+  min-height: 24px;
+  padding: 0 2px;
+  border-color: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.btn-txt:hover {
+  border-color: transparent;
+  color: var(--text);
+  text-decoration-color: var(--text-3);
+}
+.btn-held,
+.btn:active:not(.btn-txt):not(:disabled) {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+.btn-rec {
+  border-color: color-mix(in srgb, var(--rec) 55%, transparent);
+}
+.btn .ico,
+.btn svg {
+  flex: none;
+}
+.btn:focus-visible,
+.tog:focus-visible,
+.ledger-row:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 1px;
+}
 
 /* Toggles: a square lamp beside a word (Click, Loop, Snap). The only controls that light up, and the lamp is the only
    thing that glows. Put aria-pressed on the button; .on also works. */
-.tog { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px; border: 0; border-radius: var(--r-press); background: none; color: var(--text-3); font: 600 12.5px/1 var(--font-ui); white-space: nowrap; cursor: pointer; }
-.tog::before { content: ''; flex: none; width: 6px; height: 6px; background: var(--line-2); }
-.tog:hover { color: var(--text-2); }
-.tog.on, .tog[aria-pressed="true"] { color: var(--text); }
-.tog.on::before, .tog[aria-pressed="true"]::before { background: var(--accent-2); box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 50%, transparent); }
-.tog.tog-rec.on::before, .tog.tog-rec[aria-pressed="true"]::before { background: var(--rec); box-shadow: 0 0 6px color-mix(in srgb, var(--rec) 60%, transparent); }
+.tog {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-press);
+  background: none;
+  color: var(--text-3);
+  font: 600 12.5px / 1 var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tog::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--line-2);
+}
+.tog:hover {
+  color: var(--text-2);
+}
+.tog.on,
+.tog[aria-pressed="true"] {
+  color: var(--text);
+}
+.tog.on::before,
+.tog[aria-pressed="true"]::before {
+  background: var(--accent-2);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 50%, transparent);
+}
+.tog.tog-rec.on::before,
+.tog.tog-rec[aria-pressed="true"]::before {
+  background: var(--rec);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--rec) 60%, transparent);
+}
 
 /* A sheet head: a display-italic title sitting on a heavy rule, like a credit block on a sleeve. At most two per
    screen; every other head is plain text (.head). */
-.sheet-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; margin: 0; border-bottom: var(--rule-heavy); }
-.sheet-head > :is(h1, h2, h3, h4, h5, b, .sheet-title) { margin: 0; font-family: var(--font-display); font-style: italic; font-weight: 800; font-stretch: 125%; font-variation-settings: var(--font-display-vars); font-size: 19px; line-height: 1.05; letter-spacing: -.012em; color: var(--text); }
-.sheet-head > .aside { margin-left: auto; font-size: 11.5px; color: var(--text-3); }
-.head { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 8px;
+  margin: 0;
+  border-bottom: var(--rule-heavy);
+}
+.sheet-head > :is(h1, h2, h3, h4, h5, b, .sheet-title) {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 125%;
+  font-variation-settings: var(--font-display-vars);
+  font-size: 19px;
+  line-height: 1.05;
+  letter-spacing: -0.012em;
+  color: var(--text);
+}
+.sheet-head > .aside {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.head {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
 
 /* A ledger: a track sheet of rows, one hairline under each, no card and no background per row. Columns are the
    surface's business (set grid-template-columns); .ledger-row.sel is reverse print. */
-.ledger { margin: 0; padding: 0; list-style: none; }
-.ledger > li, .ledger-row { display: grid; grid-template-columns: var(--ledger-cols, 40px 56px 1fr auto); gap: 0 10px; align-items: baseline; padding: 9px 0; border-bottom: var(--rule); }
-.ledger .when, .ledger .where { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
-.ledger .what { font-size: 13px; }
-.ledger .why { display: block; margin-top: 2px; font-size: 12px; font-style: italic; color: var(--text-2); }
-.ledger-row:hover { background: var(--bg-3); }
+.ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ledger > li,
+.ledger-row {
+  display: grid;
+  grid-template-columns: var(--ledger-cols, 40px 56px 1fr auto);
+  gap: 0 10px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: var(--rule);
+}
+.ledger .when,
+.ledger .where {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.ledger .what {
+  font-size: 13px;
+}
+.ledger .why {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-2);
+}
+.ledger-row:hover {
+  background: var(--bg-3);
+}
 
 /* Selected is reverse print: a cream ground with room-coloured text, like a highlighted credit. */
-.sel-print, .ledger-row.sel { background: var(--text); color: var(--bg); }
-.sel-print .by, .ledger-row.sel .by, .ledger-row.sel .t3, .ledger-row.sel .when, .ledger-row.sel .where, .ledger-row.sel .why { color: var(--bg); }
+.sel-print,
+.ledger-row.sel {
+  background: var(--text);
+  color: var(--bg);
+}
+.sel-print .by,
+.ledger-row.sel .by,
+.ledger-row.sel .t3,
+.ledger-row.sel .when,
+.ledger-row.sel .where,
+.ledger-row.sel .why {
+  color: var(--bg);
+}
 
 /* Muted is printed in outline: a dashed frame, the name struck through, the word "muted" where the byline was. */
-.is-muted { outline: 1px dashed var(--line-2); outline-offset: -1px; background: none; }
-.is-muted .name, .struck { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.is-muted {
+  outline: 1px dashed var(--line-2);
+  outline-offset: -1px;
+  background: none;
+}
+.is-muted .name,
+.struck {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
 
 /* Crop marks: what the agent is pointing at gets a printer's grease-pencil marks at its four corners and a one-line
    label. Put .crop (with four empty <i> and an optional <span> label) inside a positioned box; it overlays it. */
-.crop { position: absolute; inset: 0; pointer-events: none; }
-.crop > i { position: absolute; width: 10px; height: 10px; border: 0 solid var(--accent-2); }
-.crop > i:nth-of-type(1) { left: -3px; top: -3px; border-left-width: 2px; border-top-width: 2px; }
-.crop > i:nth-of-type(2) { right: -3px; top: -3px; border-right-width: 2px; border-top-width: 2px; }
-.crop > i:nth-of-type(3) { left: -3px; bottom: -3px; border-left-width: 2px; border-bottom-width: 2px; }
-.crop > i:nth-of-type(4) { right: -3px; bottom: -3px; border-right-width: 2px; border-bottom-width: 2px; }
-.crop > span { position: absolute; right: 0; top: -3px; transform: translateY(-100%); padding: 0 3px; background: var(--bg); color: var(--accent-2); font: 600 10.5px/14px var(--font-ui); white-space: nowrap; }
+.crop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.crop > i {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 0 solid var(--accent-2);
+}
+.crop > i:nth-of-type(1) {
+  left: -3px;
+  top: -3px;
+  border-left-width: 2px;
+  border-top-width: 2px;
+}
+.crop > i:nth-of-type(2) {
+  right: -3px;
+  top: -3px;
+  border-right-width: 2px;
+  border-top-width: 2px;
+}
+.crop > i:nth-of-type(3) {
+  left: -3px;
+  bottom: -3px;
+  border-left-width: 2px;
+  border-bottom-width: 2px;
+}
+.crop > i:nth-of-type(4) {
+  right: -3px;
+  bottom: -3px;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+.crop > span {
+  position: absolute;
+  right: 0;
+  top: -3px;
+  transform: translateY(-100%);
+  padding: 0 3px;
+  background: var(--bg);
+  color: var(--accent-2);
+  font: 600 10.5px / 14px var(--font-ui);
+  white-space: nowrap;
+}
 
 /* An empty state is a sentence and a button. No icon tile, no card. */
-.empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px; color: var(--text-2); font-size: 13px; line-height: 1.5; max-width: 46ch; }
-.empty > p { margin: 0; }
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 46ch;
+}
+.empty > p {
+  margin: 0;
+}
 
 /* Paper: the one printed surface in the studio (the welcome insert, the provenance print). Ink on cream, the deeper
    paper inks for bylines, and the one shadow, because it floats. */
-.paper { background: var(--paper); color: var(--ink); box-shadow: var(--shadow-2); border-radius: 0; }
-.paper .t2, .paper p { color: var(--ink-2); }
-.paper .t3 { color: var(--ink-3); }
-.paper .by.by-human, .paper .badge-human { color: var(--ink-human); }
-.paper .by.by-agent, .paper .badge-agent { color: var(--ink-agent); }
-.paper kbd { color: var(--ink); border-color: var(--paper-rule); }
-.paper .btn { color: var(--ink); border-color: var(--ink); }
-.paper .btn-txt { border-color: transparent; text-decoration-color: var(--paper-rule); }
-.paper .sheet-head { border-bottom-color: var(--ink); }
-.paper .sheet-head > :is(h1, h2, h3, h4, h5, b, .sheet-title) { color: var(--ink); }
-.paper .ledger > li, .paper .ledger-row { border-bottom-color: var(--paper-rule); }
-.paper ::selection { background: rgba(22, 19, 15, .14); }
+.paper {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  border-radius: 0;
+}
+.paper .t2,
+.paper p {
+  color: var(--ink-2);
+}
+.paper .t3 {
+  color: var(--ink-3);
+}
+.paper .by.by-human,
+.paper .badge-human {
+  color: var(--ink-human);
+}
+.paper .by.by-agent,
+.paper .badge-agent {
+  color: var(--ink-agent);
+}
+.paper kbd {
+  color: var(--ink);
+  border-color: var(--paper-rule);
+}
+.paper .btn {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.paper .btn-txt {
+  border-color: transparent;
+  text-decoration-color: var(--paper-rule);
+}
+.paper .sheet-head {
+  border-bottom-color: var(--ink);
+}
+.paper .sheet-head > :is(h1, h2, h3, h4, h5, b, .sheet-title) {
+  color: var(--ink);
+}
+.paper .ledger > li,
+.paper .ledger-row {
+  border-bottom-color: var(--paper-rule);
+}
+.paper ::selection {
+  background: rgba(22, 19, 15, 0.14);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .tog::before { transition: none; }
+  .tog::before {
+    transition: none;
+  }
 }
 /* The name in the top bar is the wordmark: lower case, Archivo Expanded ExtraBold Italic (docs/BRAND.md). */
-.ew-top .ew-word { font-style: italic; font-weight: 800; text-transform: lowercase; letter-spacing: -.01em; font-size: 18px; }
+.ew-top .ew-word {
+  font-style: italic;
+  font-weight: 800;
+  text-transform: lowercase;
+  letter-spacing: -0.01em;
+  font-size: 18px;
+}
 /* Primary buttons carry ink on leader green. */
-.ew-shell .ew-btn-primary { color: var(--bg); }
+.ew-shell .ew-btn-primary {
+  color: var(--bg);
+}
 /* Leader green is for the playhead and the one primary action; the open tab is marked in cream. */
-.ew-shell .ew-tab.on { box-shadow: inset 0 -2px 0 var(--text-2); }
+.ew-shell .ew-tab.on {
+  box-shadow: inset 0 -2px 0 var(--text-2);
+}
 /* Read by screen readers, never drawn (live announcements, labels for canvas content). */
-.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ------------------------------------------------------------------------------------------------ phones
    The panels' side of the phone layout (the shell's is in ui/shell.js). Everything here sits under 900 px and is
@@ -125,206 +465,685 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
    text 12 px, tap targets 40 px (44 for tabs and the sheet controls). Device faces are drawn gear and keep their
    printed sizes; the rack scales them as a whole. tools/phone-test.js measures all of it. */
 @media (max-width: 900px) {
-  .ew-shell .ew-btn { height: 40px; padding: 0 14px; font-size: 13px; }
-  .ew-shell .ew-btn-small { height: 40px; padding: 0 12px; font-size: 12px; }
-  .ew-shell .ew-input { height: 40px; font-size: 16px; }      /* 16 px: Safari zooms the page into anything smaller */
-  .ew-shell kbd { font-size: 12px; }
-  .ew-shell .btn, .ew-shell .tog { height: 40px; font-size: 13px; }
-  .ew-shell .btn-txt { height: auto; min-height: 40px; }
-  .ew-shell .by, .ew-shell .badge-agent, .ew-shell .badge-human { font-size: max(12px, 1em); }
-  .ew-shell .sm-btn { height: 40px; }
+  .ew-shell .ew-btn {
+    height: 40px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+  .ew-shell .ew-btn-small {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  .ew-shell .ew-input {
+    height: 40px;
+    font-size: 16px;
+  } /* 16 px: Safari zooms the page into anything smaller */
+  .ew-shell kbd {
+    font-size: 12px;
+  }
+  .ew-shell .btn,
+  .ew-shell .tog {
+    height: 40px;
+    font-size: 13px;
+  }
+  .ew-shell .btn-txt {
+    height: auto;
+    min-height: 40px;
+  }
+  .ew-shell .by,
+  .ew-shell .badge-agent,
+  .ew-shell .badge-human {
+    font-size: max(12px, 1em);
+  }
+  .ew-shell .sm-btn {
+    height: 40px;
+  }
 }
 /* The top bar in two rows: the song (mark, title, menu, panes), then the transport (stop, play, record, where,
    tempo ... undo, redo). The transport's own groups become the bar's items, so its container steps don't apply. */
 @media (max-width: 640px) {
-  .ew-shell .ew-top { flex-wrap: wrap; column-gap: 2px; row-gap: 0; padding-bottom: 4px; }
-  .ew-shell .ew-top::after { content: ''; order: 5; flex-basis: 100%; height: 0; }
-  .ew-shell .ew-region-top, .ew-shell .ew-region-top > .ew-panel, .ew-shell [data-panel="transport"] > .tp-row, .ew-shell .ew-toggles { display: contents; }
-  .ew-shell .ew-brand { order: 1; height: 48px; padding: 0 6px 0 2px; }
-  .ew-shell .tp-g-title { order: 2; flex: 1 1 0; min-width: 0; max-width: none; }
-  .ew-shell .tp-title { padding: 6px 8px; font-size: 17px; }
-  .ew-shell .sm-btn { order: 3; min-width: 44px; padding: 0 12px 0 10px; margin-right: 4px; }
-  .ew-shell .sm-btn:not(.busy) .sm-l { display: inline; }
-  .ew-shell .ew-toggles > .ew-iconbtn { order: 4; }
-  .ew-shell .ew-toggles > .ew-t-panelBottom { display: none; }    /* the sheet's handle does it */
-  .ew-shell .tp-g-play { order: 6; }
-  .ew-shell .tp-g-pos { order: 7; margin-left: 6px; }
-  .ew-shell .tp-g-tempo { order: 8; }
-  .ew-shell .tp-g-song, .ew-shell .tp-g-mode { order: 9; }
-  .ew-shell .tp-spacer { order: 10; flex: 1; }
-  .ew-shell .tp-g-edit { order: 11; }
-  .ew-shell .tp-g-meter, .ew-shell .tp-tap { display: none; }
-  .ew-shell .ew-top .tp-row > .tp-group.tp-group::before { content: none; }
-  .ew-shell .tp-btn { width: 40px; height: 44px; }
-  .ew-shell .tp-play { width: 48px; }
-  .ew-shell .tp-pos { height: 40px; min-width: 64px; padding: 0 8px; }
-  .ew-shell .tp-pos-time { display: none; }
-  .ew-shell .tp-tempo { height: 40px; align-items: center; padding: 0 8px; }
-  .ew-shell .tp-unit { font-size: 12px; }
-  .ew-shell .tp-chip { height: 40px; font-size: 13px; }
+  .ew-shell .ew-top {
+    flex-wrap: wrap;
+    column-gap: 2px;
+    row-gap: 0;
+    padding-bottom: 4px;
+  }
+  .ew-shell .ew-top::after {
+    content: "";
+    order: 5;
+    flex-basis: 100%;
+    height: 0;
+  }
+  .ew-shell .ew-region-top,
+  .ew-shell .ew-region-top > .ew-panel,
+  .ew-shell [data-panel="transport"] > .tp-row,
+  .ew-shell .ew-toggles {
+    display: contents;
+  }
+  .ew-shell .ew-brand {
+    order: 1;
+    height: 48px;
+    padding: 0 6px 0 2px;
+  }
+  .ew-shell .tp-g-title {
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .ew-shell .tp-title {
+    padding: 6px 8px;
+    font-size: 17px;
+  }
+  .ew-shell .sm-btn {
+    order: 3;
+    min-width: 44px;
+    padding: 0 12px 0 10px;
+    margin-right: 4px;
+  }
+  .ew-shell .sm-btn:not(.busy) .sm-l {
+    display: inline;
+  }
+  .ew-shell .ew-toggles > .ew-iconbtn {
+    order: 4;
+  }
+  .ew-shell .ew-toggles > .ew-t-panelBottom {
+    display: none;
+  } /* the sheet's handle does it */
+  .ew-shell .tp-g-play {
+    order: 6;
+  }
+  .ew-shell .tp-g-pos {
+    order: 7;
+    margin-left: 6px;
+  }
+  .ew-shell .tp-g-tempo {
+    order: 8;
+  }
+  .ew-shell .tp-g-song,
+  .ew-shell .tp-g-mode {
+    order: 9;
+  }
+  .ew-shell .tp-spacer {
+    order: 10;
+    flex: 1;
+  }
+  .ew-shell .tp-g-edit {
+    order: 11;
+  }
+  .ew-shell .tp-g-meter,
+  .ew-shell .tp-tap {
+    display: none;
+  }
+  .ew-shell .ew-top .tp-row > .tp-group.tp-group::before {
+    content: none;
+  }
+  .ew-shell .tp-btn {
+    width: 40px;
+    height: 44px;
+  }
+  .ew-shell .tp-play {
+    width: 48px;
+  }
+  .ew-shell .tp-pos {
+    height: 40px;
+    min-width: 64px;
+    padding: 0 8px;
+  }
+  .ew-shell .tp-pos-time {
+    display: none;
+  }
+  .ew-shell .tp-tempo {
+    height: 40px;
+    align-items: center;
+    padding: 0 8px;
+  }
+  .ew-shell .tp-unit {
+    font-size: 12px;
+  }
+  .ew-shell .tp-chip {
+    height: 40px;
+    font-size: 13px;
+  }
 }
 /* Under 460 px (every phone held upright) the key, meter, loop and metronome don't fit the bar: key and meter are in the
    inspector, the ruler's loop strip toggles the loop, and the song menu gets a Metronome item (ui/export.js). */
 @media (max-width: 460px) {
-  .ew-shell .tp-g-song, .ew-shell .tp-g-mode { display: none; }
+  .ew-shell .tp-g-song,
+  .ew-shell .tp-g-mode {
+    display: none;
+  }
 }
 /* The arranger on a phone: narrower track headers (name over M and S), lanes a finger can land in (the shell
    starts trackH at 72 under 900 px), a toolbar of 40 px targets. */
 @media (max-width: 900px) {
-  .ew-shell .ar-bar { gap: 4px; padding: 0 6px; }
-  .ew-shell .ar-tool { height: 40px; padding: 0 10px; font-size: 13px; }
-  .ew-shell .ar-ico { width: 40px; padding: 0; }
-  .ew-shell .ar-corner-row { font-size: 12px; line-height: 1; }
+  .ew-shell .ar-bar {
+    gap: 4px;
+    padding: 0 6px;
+  }
+  .ew-shell .ar-tool {
+    height: 40px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .ew-shell .ar-ico {
+    width: 40px;
+    padding: 0;
+  }
+  .ew-shell .ar-corner-row {
+    font-size: 12px;
+    line-height: 1;
+  }
   /* the + sits in the 20 px sections row beside its label: its target reaches 20 px down over the Loop label and back
      over the end of its own, for 44 x 40 */
-  .ew-shell .ar-c-sec { padding-right: 0; }
-  .ew-shell .ar-secadd { position: relative; width: 34px; height: 20px; }
-  .ew-shell .ar-secadd::after { content: ''; position: absolute; left: -10px; right: 0; top: 0; bottom: -20px; }
+  .ew-shell .ar-c-sec {
+    padding-right: 0;
+  }
+  .ew-shell .ar-secadd {
+    position: relative;
+    width: 34px;
+    height: 20px;
+  }
+  .ew-shell .ar-secadd::after {
+    content: "";
+    position: absolute;
+    left: -10px;
+    right: 0;
+    top: 0;
+    bottom: -20px;
+  }
   /* a rename field on the ruler or a clip: tall enough to tap into, at 16 px (Safari zooms into less) */
-  .ew-shell .ar-secinput, .ew-shell .ar-clipinput { height: 32px; font-size: 16px; }
+  .ew-shell .ar-secinput,
+  .ew-shell .ar-clipinput {
+    height: 32px;
+    font-size: 16px;
+  }
 }
 @media (max-width: 700px) {
-  .ew-shell .ar-main { grid-template-columns: 112px 1fr; }
+  .ew-shell .ar-main {
+    grid-template-columns: 112px 1fr;
+  }
   /* the name (after its square swatch) over M and S | meter: the name and the buttons sit together mid-lane. No track
      number: M takes its place (design/DECISION.md, amendment 4) */
-  .ew-shell .ar-head { display: grid; grid-template-columns: minmax(0, 1fr) 6px; grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr); padding-left: 8px; }
-  .ew-shell .ar-head > .ar-hmeter { grid-area: 1 / 2 / -1 / 3; margin: 8px 0; }
-  .ew-shell .ar-head > .ar-hmain { grid-area: 2 / 1 / 3 / 2; padding: 0 2px 5px 0; }
-  .ew-shell .ar-head > .ar-hbtns { grid-area: 3 / 1 / 4 / 2; padding: 0; gap: 6px; }
-  .ew-shell .ar-hname { font-size: 14px; }
-  .ew-shell .ar-hbtns .ar-hb-solo { display: inline-grid; }
-  .ew-shell .ar-head > .ar-hbtns { gap: 4px; }
-  .ew-shell .ar-hb { width: 40px; height: 40px; border-radius: var(--r-press); font-size: 12px; }
+  .ew-shell .ar-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6px;
+    grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr);
+    padding-left: 8px;
+  }
+  .ew-shell .ar-head > .ar-hmeter {
+    grid-area: 1 / 2 / -1 / 3;
+    margin: 8px 0;
+  }
+  .ew-shell .ar-head > .ar-hmain {
+    grid-area: 2 / 1 / 3 / 2;
+    padding: 0 2px 5px 0;
+  }
+  .ew-shell .ar-head > .ar-hbtns {
+    grid-area: 3 / 1 / 4 / 2;
+    padding: 0;
+    gap: 6px;
+  }
+  .ew-shell .ar-hname {
+    font-size: 14px;
+  }
+  .ew-shell .ar-hbtns .ar-hb-solo {
+    display: inline-grid;
+  }
+  .ew-shell .ar-head > .ar-hbtns {
+    gap: 4px;
+  }
+  .ew-shell .ar-hb {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r-press);
+    font-size: 12px;
+  }
 }
 /* Text on a phone is 12 px at the least: each panel's small print, lifted. */
 @media (max-width: 900px) {
   /* the arranger */
-  .ew-shell .ar-hint, .ew-shell .ar-secinput, .ew-shell .ar-clipinput, .ew-shell .ar-hdev, .ew-shell .ar-empty-slate, .ew-shell .ar-welcome,
-  .ew-shell .ar-welcome-foot { font-size: 12px; }
+  .ew-shell .ar-hint,
+  .ew-shell .ar-secinput,
+  .ew-shell .ar-clipinput,
+  .ew-shell .ar-hdev,
+  .ew-shell .ar-empty-slate,
+  .ew-shell .ar-welcome,
+  .ew-shell .ar-welcome-foot {
+    font-size: 12px;
+  }
   /* Sketch */
-  .ew-shell .sk-mode kbd, .ew-shell .sk-small, .ew-shell .sk-chip, .ew-shell .sk-seg button, .ew-shell .sk-big kbd, .ew-shell .sk-rectime,
-  .ew-shell .sk-cap, .ew-shell .sk-pad small, .ew-shell .sk-lbl, .ew-shell .sk-arm, .ew-shell .sk-chain, .ew-shell .sk-lat, .ew-shell .sk-hint,
-  .ew-shell .sk-calres, .ew-shell .sk-count, .ew-shell .sk-older, .ew-shell .sk-ago, .ew-shell .sk-idea-meta, .ew-shell .sk-menu-h, .ew-shell .sk-mode-l { font-size: 12px; }
+  .ew-shell .sk-mode kbd,
+  .ew-shell .sk-small,
+  .ew-shell .sk-chip,
+  .ew-shell .sk-seg button,
+  .ew-shell .sk-big kbd,
+  .ew-shell .sk-rectime,
+  .ew-shell .sk-cap,
+  .ew-shell .sk-pad small,
+  .ew-shell .sk-lbl,
+  .ew-shell .sk-arm,
+  .ew-shell .sk-chain,
+  .ew-shell .sk-lat,
+  .ew-shell .sk-hint,
+  .ew-shell .sk-calres,
+  .ew-shell .sk-count,
+  .ew-shell .sk-older,
+  .ew-shell .sk-ago,
+  .ew-shell .sk-idea-meta,
+  .ew-shell .sk-menu-h,
+  .ew-shell .sk-mode-l {
+    font-size: 12px;
+  }
   /* Notes */
-  .ew-shell .pr-count, .ew-shell .pr-velcorner, .ew-shell .pr-qval, .ew-shell .pr-qhint, .ew-shell .pr-txgroup, .ew-shell .pr-txsel { font-size: 12px; }
+  .ew-shell .pr-count,
+  .ew-shell .pr-velcorner,
+  .ew-shell .pr-qval,
+  .ew-shell .pr-qhint,
+  .ew-shell .pr-txgroup,
+  .ew-shell .pr-txsel {
+    font-size: 12px;
+  }
   /* Beat */
-  .ew-shell .dg-lbl, .ew-shell .dg-swingval, .ew-shell .dg-page, .ew-shell .dg-lhead, .ew-shell .dg-rowcount, .ew-shell .dg-row { font-size: 12px; }
+  .ew-shell .dg-lbl,
+  .ew-shell .dg-swingval,
+  .ew-shell .dg-page,
+  .ew-shell .dg-lhead,
+  .ew-shell .dg-rowcount,
+  .ew-shell .dg-row {
+    font-size: 12px;
+  }
   /* Devices */
-  .ew-shell .rk-lat, .ew-shell .rk-cap, .ew-shell .rk-role, .ew-shell .rk-ib, .ew-shell .rk-missing b, .ew-shell .rk-node small, .ew-shell .rk-chip,
-  .ew-shell .rk-pres, .ew-shell .rk-pcat, .ew-shell .rk-prow small, .ew-shell .rk-note, .ew-shell .rk-info-h small, .ew-shell .rk-name { font-size: 12px; }
+  .ew-shell .rk-lat,
+  .ew-shell .rk-cap,
+  .ew-shell .rk-role,
+  .ew-shell .rk-ib,
+  .ew-shell .rk-missing b,
+  .ew-shell .rk-node small,
+  .ew-shell .rk-chip,
+  .ew-shell .rk-pres,
+  .ew-shell .rk-pcat,
+  .ew-shell .rk-prow small,
+  .ew-shell .rk-note,
+  .ew-shell .rk-info-h small,
+  .ew-shell .rk-name {
+    font-size: 12px;
+  }
   /* the mixer */
-  .ew-shell .mx-fx, .ew-shell .mx-pan-v, .ew-shell .mx-b, .ew-shell .mx-loud span, .ew-shell .mx-loud small, .ew-shell .mx-scale span,
-  .ew-shell .mx-peak, .ew-shell .mx-db, .ew-shell .mx-dbin, .ew-shell .mx-pres { font-size: 12px; }
+  .ew-shell .mx-fx,
+  .ew-shell .mx-pan-v,
+  .ew-shell .mx-b,
+  .ew-shell .mx-loud span,
+  .ew-shell .mx-loud small,
+  .ew-shell .mx-scale span,
+  .ew-shell .mx-peak,
+  .ew-shell .mx-db,
+  .ew-shell .mx-dbin,
+  .ew-shell .mx-pres {
+    font-size: 12px;
+  }
   /* the browser */
-  .ew-shell .br-target, .ew-shell .br-sec, .ew-shell .br-sec em, .ew-shell .br-subh em, .ew-shell .br-new, .ew-shell .br-tag, .ew-shell .br-blurb,
-  .ew-shell .br-ask { font-size: 12px; }
+  .ew-shell .br-target,
+  .ew-shell .br-sec,
+  .ew-shell .br-sec em,
+  .ew-shell .br-subh em,
+  .ew-shell .br-new,
+  .ew-shell .br-tag,
+  .ew-shell .br-blurb,
+  .ew-shell .br-ask {
+    font-size: 12px;
+  }
   /* the inspector */
-  .ew-shell .in-h span, .ew-shell .in-l, .ew-shell .in-unit, .ew-shell .in-out, .ew-shell .in-fact small, .ew-shell .in-fact span, .ew-shell .in-house,
-  .ew-shell .in-legend { font-size: 12px; }
+  .ew-shell .in-h span,
+  .ew-shell .in-l,
+  .ew-shell .in-unit,
+  .ew-shell .in-out,
+  .ew-shell .in-fact small,
+  .ew-shell .in-fact span,
+  .ew-shell .in-house,
+  .ew-shell .in-legend {
+    font-size: 12px;
+  }
   /* Reference */
-  .ew-shell .rf-ab-b, .ew-shell .rf-d, .ew-shell .rf-stat { font-size: 12px; }
+  .ew-shell .rf-ab-b,
+  .ew-shell .rf-d,
+  .ew-shell .rf-stat {
+    font-size: 12px;
+  }
   /* the song menu (a popover, so it lives outside the shell) and the keys sheet */
-  .ew-shell .sm-prog, .ew-pop .sm-head small, .ew-pop .sm-i small, .ew-pop .sm-sep, .ew-pop .sm-prov small,
-  .tpk .tpk-single small, .tpk .tpk-g h3, .tpk .tpk-g kbd, .tpk .tpk-or { font-size: 12px; }
+  .ew-shell .sm-prog,
+  .ew-pop .sm-head small,
+  .ew-pop .sm-i small,
+  .ew-pop .sm-sep,
+  .ew-pop .sm-prov small,
+  .tpk .tpk-single small,
+  .tpk .tpk-g h3,
+  .tpk .tpk-g kbd,
+  .tpk .tpk-or {
+    font-size: 12px;
+  }
   /* the agent */
-  .ew-shell .ag-pill, .ew-shell .ag-bridge, .ew-shell .ag-ctx-chip, .ew-shell .ag-via, .ew-shell .ag-time, .ew-shell .ag-text code,
-  .ew-shell .ag-bubble code, .ew-shell .ag-text pre, .ew-shell .ag-chip, .ew-shell .ag-card-foot, .ew-shell .ag-link, .ew-shell .ag-letter,
-  .ew-shell .ag-take-why, .ew-shell .ag-take-diff, .ew-shell .ag-hold, .ew-shell .ag-keep, .ew-shell .ag-kc-label, .ew-shell .ag-model span,
-  .ew-shell .ag-kc-or, .ew-shell .ag-cmd code, .ew-shell .ag-kc-small, .ew-shell .ag-w-n, .ew-shell .ag-wl-mini, .ew-shell .ag-sug, .ew-shell .ag-hint,
-  .ew-shell .ag-hint kbd { font-size: 12px; }
+  .ew-shell .ag-pill,
+  .ew-shell .ag-bridge,
+  .ew-shell .ag-ctx-chip,
+  .ew-shell .ag-via,
+  .ew-shell .ag-time,
+  .ew-shell .ag-text code,
+  .ew-shell .ag-bubble code,
+  .ew-shell .ag-text pre,
+  .ew-shell .ag-chip,
+  .ew-shell .ag-card-foot,
+  .ew-shell .ag-link,
+  .ew-shell .ag-letter,
+  .ew-shell .ag-take-why,
+  .ew-shell .ag-take-diff,
+  .ew-shell .ag-hold,
+  .ew-shell .ag-keep,
+  .ew-shell .ag-kc-label,
+  .ew-shell .ag-model span,
+  .ew-shell .ag-kc-or,
+  .ew-shell .ag-cmd code,
+  .ew-shell .ag-kc-small,
+  .ew-shell .ag-w-n,
+  .ew-shell .ag-wl-mini,
+  .ew-shell .ag-sug,
+  .ew-shell .ag-hint,
+  .ew-shell .ag-hint kbd {
+    font-size: 12px;
+  }
   /* History */
-  .ew-shell .hi-share-h, .ew-shell .hi-legend, .ew-shell .hi-fork, .ew-shell .hi-filter, .ew-shell .hi-filter span, .ew-shell .hi-revert,
-  .ew-shell .hi-row-h, .ew-shell .hi-time, .ew-shell .hi-undo, .ew-shell .hi-picked, .ew-shell .hi-reason, .ew-shell .hi-sum { font-size: 12px; }
+  .ew-shell .hi-share-h,
+  .ew-shell .hi-legend,
+  .ew-shell .hi-fork,
+  .ew-shell .hi-filter,
+  .ew-shell .hi-filter span,
+  .ew-shell .hi-revert,
+  .ew-shell .hi-row-h,
+  .ew-shell .hi-time,
+  .ew-shell .hi-undo,
+  .ew-shell .hi-picked,
+  .ew-shell .hi-reason,
+  .ew-shell .hi-sum {
+    font-size: 12px;
+  }
 }
 /* The song menu on a phone: rows a thumb can hit. */
 @media (max-width: 900px) {
-  .ew-pop .sm-i { min-height: 44px; }
-  .ew-pop .sm-i kbd { display: none; }       /* no keyboard to press them on */
+  .ew-pop .sm-i {
+    min-height: 44px;
+  }
+  .ew-pop .sm-i kbd {
+    display: none;
+  } /* no keyboard to press them on */
 }
 /* Devices and the mixer on a phone: the chain still runs left to right (swipe along it), with bigger buttons;
    the mixer's dB scale is wider for its 12 px marks (ui/mixer.js keeps only the marks that clear each other). */
 @media (max-width: 900px) {
-  .ew-shell .rk-track { height: 40px; }
-  .ew-shell .rk-ib { width: 32px; height: 32px; }
-  .ew-shell .rk-chip { height: 36px; padding: 0 12px; }
-  .ew-shell .mx-b { height: 32px; }
-  .ew-shell .mx-track { --mx-sl: 26px; }
+  .ew-shell .rk-track {
+    height: 40px;
+  }
+  .ew-shell .rk-ib {
+    width: 32px;
+    height: 32px;
+  }
+  .ew-shell .rk-chip {
+    height: 36px;
+    padding: 0 12px;
+  }
+  .ew-shell .mx-b {
+    height: 32px;
+  }
+  .ew-shell .mx-track {
+    --mx-sl: 26px;
+  }
 }
 /* Devices on a phone (ui/rack.js adds .rk-phone and sets --rk-bw, the board's width, and --rkz, each face's zoom): one
    device per page at the sheet's width, at the top of the board, snapping whole; the ‹ › sit in a row under it. The
    faces' printed labels and readouts get a floor so that, zoomed, they read at 12 px, and readouts never touch. On its
    side (.rk-land, below) a phone keeps the floors and the chain runs left to right. */
 @media (max-width: 640px) {
-  .ew-shell .rk-phone .rk-board { overflow: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
-  .ew-shell .rk-phone .rk-rail { align-items: flex-start; padding: 12px 0 64px; }
-  .ew-shell .rk-phone .rk-cable { display: none; }
-  .ew-shell .rk-phone .rk-card, .ew-shell .rk-phone .rk-node, .ew-shell .rk-phone .rk-hint, .ew-shell .rk-phone .rk-add {
-    flex: 0 0 auto; box-sizing: border-box; width: var(--rk-bw, 100vw); margin: 0; scroll-snap-align: start; scroll-snap-stop: always; }
-  .ew-shell .rk-phone .rk-card { padding: 0 16px 2px; }
-  .ew-shell .rk-phone .rk-node { padding: 24px 16px; border: 0; background: none; box-shadow: none; }
-  .ew-shell .rk-phone .rk-add { height: 160px; border: 0; background: none; }
-  .ew-shell .rk-phone .rk-add svg { width: 44px; height: 44px; padding: 10px; border: 1.5px dashed var(--line-2); border-radius: var(--r-press); box-sizing: border-box; }
-  .ew-shell .rk-phone .rk-hint { border: 0; background: none; padding: 8px 20px; font-size: 13px; }
-  .ew-shell .rk-phone .rk-cap { height: 26px; font-size: 13px; }
-  .ew-shell .rk-phone .rk-role { font-size: 12px; }
-  .ew-shell .rk-phone .rk-ib { width: 36px; height: 36px; }
+  .ew-shell .rk-phone .rk-board {
+    overflow: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+  .ew-shell .rk-phone .rk-rail {
+    align-items: flex-start;
+    padding: 12px 0 64px;
+  }
+  .ew-shell .rk-phone .rk-cable {
+    display: none;
+  }
+  .ew-shell .rk-phone .rk-card,
+  .ew-shell .rk-phone .rk-node,
+  .ew-shell .rk-phone .rk-hint,
+  .ew-shell .rk-phone .rk-add {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: var(--rk-bw, 100vw);
+    margin: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .ew-shell .rk-phone .rk-card {
+    padding: 0 16px 2px;
+  }
+  .ew-shell .rk-phone .rk-node {
+    padding: 24px 16px;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .ew-shell .rk-phone .rk-add {
+    height: 160px;
+    border: 0;
+    background: none;
+  }
+  .ew-shell .rk-phone .rk-add svg {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border: 1.5px dashed var(--line-2);
+    border-radius: var(--r-press);
+    box-sizing: border-box;
+  }
+  .ew-shell .rk-phone .rk-hint {
+    border: 0;
+    background: none;
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+  .ew-shell .rk-phone .rk-cap {
+    height: 26px;
+    font-size: 13px;
+  }
+  .ew-shell .rk-phone .rk-role {
+    font-size: 12px;
+  }
+  .ew-shell .rk-phone .rk-ib {
+    width: 36px;
+    height: 36px;
+  }
 }
 @media (max-width: 640px), (max-width: 900px) and (max-height: 500px) {
-  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-l, .ew-shell :is(.rk-phone, .rk-land) .rk-face .ms-l { font-size: max(6px, calc(12.5px / var(--rkz, 1))) !important; }
-  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-v, .ew-shell :is(.rk-phone, .rk-land) .rk-face .ms-o { font-size: max(8px, calc(12.5px / var(--rkz, 1))) !important; white-space: nowrap; }
-  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn { width: auto; min-width: calc(var(--ks, 32px) + 4px); }
-  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-dial { width: max(var(--ks, 32px), calc(44.5px / var(--rkz, 1))) !important; height: max(var(--ks, 32px), calc(44.5px / var(--rkz, 1))) !important; }
-  .ew-shell :is(.rk-phone, .rk-land) .rk-face .pd-knobs { column-gap: max(4px, calc(10px / var(--rkz, 1))); }
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-l,
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .ms-l {
+    font-size: max(6px, calc(12.5px / var(--rkz, 1))) !important;
+  }
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-v,
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .ms-o {
+    font-size: max(8px, calc(12.5px / var(--rkz, 1))) !important;
+    white-space: nowrap;
+  }
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn {
+    width: auto;
+    min-width: calc(var(--ks, 32px) + 4px);
+  }
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .kn-dial {
+    width: max(var(--ks, 32px), calc(44.5px / var(--rkz, 1))) !important;
+    height: max(var(--ks, 32px), calc(44.5px / var(--rkz, 1))) !important;
+  }
+  .ew-shell :is(.rk-phone, .rk-land) .rk-face .pd-knobs {
+    column-gap: max(4px, calc(10px / var(--rkz, 1)));
+  }
 }
 @media (max-width: 640px) {
-  .ew-shell .rk-phone .rk-more { top: auto; bottom: 8px; width: 56px; height: 48px; padding: 0 6px; background: none; }
-  .ew-shell .rk-phone .rk-more svg { width: 44px; height: 44px; padding: 12px; }
+  .ew-shell .rk-phone .rk-more {
+    top: auto;
+    bottom: 8px;
+    width: 56px;
+    height: 48px;
+    padding: 0 6px;
+    background: none;
+  }
+  .ew-shell .rk-phone .rk-more svg {
+    width: 44px;
+    height: 44px;
+    padding: 12px;
+  }
 }
 /* The welcome card on a phone sits just under the top bar, over the lanes (the lanes are too short to hold it
    above the sheet), with a close a thumb can hit. Its key hint is for keyboards. */
 @media (max-width: 700px) {
-  .ew-shell .ar-welcome { position: fixed; top: calc(env(safe-area-inset-top) + 104px + var(--sh-h, 0px)); bottom: auto; left: 10px; right: 10px; width: auto;
-    max-height: calc(100% - env(safe-area-inset-top) - 120px - var(--sh-h, 0px)); overflow: auto; padding: 12px 48px 12px 14px; z-index: 40; }
-  .ew-shell .ar-welcome-x { top: 4px; right: 4px; width: 40px; height: 40px; }
-  .ew-shell .ar-welcome-foot { display: none; }
+  .ew-shell .ar-welcome {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 104px + var(--sh-h, 0px));
+    bottom: auto;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: calc(100% - env(safe-area-inset-top) - 120px - var(--sh-h, 0px));
+    overflow: auto;
+    padding: 12px 48px 12px 14px;
+    z-index: 40;
+  }
+  .ew-shell .ar-welcome-x {
+    top: 4px;
+    right: 4px;
+    width: 40px;
+    height: 40px;
+  }
+  .ew-shell .ar-welcome-foot {
+    display: none;
+  }
 }
 /* The browser on a phone: rows and headings a finger can land on; the search field at 16 px (Safari zooms into less). */
 @media (max-width: 900px) {
-  .ew-shell .br-row { min-height: 44px; }
-  .ew-shell .br-n { font-size: 14px; }
-  .ew-shell .br-sec, .ew-shell .br-subh { min-height: 40px; }
-  .ew-shell .br-search { height: 44px; }
-  .ew-shell .br-q { font-size: 16px; }
+  .ew-shell .br-row {
+    min-height: 44px;
+  }
+  .ew-shell .br-n {
+    font-size: 14px;
+  }
+  .ew-shell .br-sec,
+  .ew-shell .br-subh {
+    min-height: 40px;
+  }
+  .ew-shell .br-search {
+    height: 44px;
+  }
+  .ew-shell .br-q {
+    font-size: 16px;
+  }
 }
 /* Fields you type into on a phone are 16 px: Safari zooms the whole page into a smaller one when it takes focus. */
 @media (max-width: 900px) {
-  .ew-shell .ag-input, .ew-shell .ew-input, .ew-shell .br-q, .ew-shell .ar-hinput, .ew-shell .ar-secinput, .ew-shell .ar-clipinput { font-size: 16px; }
+  .ew-shell .ag-input,
+  .ew-shell .ew-input,
+  .ew-shell .br-q,
+  .ew-shell .ar-hinput,
+  .ew-shell .ar-secinput,
+  .ew-shell .ar-clipinput {
+    font-size: 16px;
+  }
 }
 /* The first-run path on a phone: the tour card's close and skip, the agent's take cards and its header buttons are
    40 px targets like the rest (tools/phone-test.js measures them). */
 @media (max-width: 900px) {
-  .ew-shell .ob-x { width: 40px; height: 40px; margin: -8px -8px -8px 0; }
-  .ew-shell .ob-skip { min-height: 40px; padding: 0 4px; font-size: 12px; }
-  .ew-shell .ob-small, .ew-shell .ob-note, .ew-shell .ob-slate { font-size: 12px; }
-  .ew-shell .ag-hold, .ew-shell .ag-keep { height: 40px; }
-  .ew-shell .ag-hbtn { width: 40px; height: 40px; }
-  .ew-shell .ag-card-foot .ag-link { min-height: 40px; padding: 0 6px; }
+  .ew-shell .ob-x {
+    width: 40px;
+    height: 40px;
+    margin: -8px -8px -8px 0;
+  }
+  .ew-shell .ob-skip {
+    min-height: 40px;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+  .ew-shell .ob-small,
+  .ew-shell .ob-note,
+  .ew-shell .ob-slate {
+    font-size: 12px;
+  }
+  .ew-shell .ag-hold,
+  .ew-shell .ag-keep {
+    height: 40px;
+  }
+  .ew-shell .ag-hbtn {
+    width: 40px;
+    height: 40px;
+  }
+  .ew-shell .ag-card-foot .ag-link {
+    min-height: 40px;
+    padding: 0 6px;
+  }
 }
 /* Small chips and buttons under a finger: each reaches 40 px tall to the touch, the drawn pill stays its size. A
    transparent ::before is the target; a chip row that scrolls sideways gets room above and below for it (a scroller
    clips what pokes out). Desktop with a mouse never sees this. tools/phone-test.js taps the edges of each. */
 @media (pointer: coarse), (max-width: 640px) {
-  .ew-shell .hi-undo, .ew-shell .hi-filter, .ew-shell .sk-chip, .ew-shell .sk-seg button, .ew-shell .ag-ctx-x,
-  .band-pop .band-chip, .band-pop .band-foot .ew-btn { position: relative; }
-  .ew-shell .hi-undo::before, .ew-shell .hi-filter::before, .ew-shell .sk-chip::before, .ew-shell .sk-seg button::before,
-  .band-pop .band-chip::before, .band-pop .band-foot .ew-btn::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 40px; transform: translateY(-50%); }
-  .ew-shell .ag-ctx-x::before { content: ''; position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); }
-  .ew-shell .hi-filters, .ew-shell .sk-opts { padding-block: 8px; }
-  .ew-shell .sk-seg { overflow: visible; }
-  .ew-shell .sk-seg button:first-child { border-radius: var(--r-press) 0 0 var(--r-press); }
-  .ew-shell .sk-seg button:last-child { border-radius: 0 var(--r-press) var(--r-press) 0; }
-  .band-pop .band-row { row-gap: 14px; }
-  .band-pop .band-foot { margin-top: 12px; }
+  .ew-shell .hi-undo,
+  .ew-shell .hi-filter,
+  .ew-shell .sk-chip,
+  .ew-shell .sk-seg button,
+  .ew-shell .ag-ctx-x,
+  .band-pop .band-chip,
+  .band-pop .band-foot .ew-btn {
+    position: relative;
+  }
+  .ew-shell .hi-undo::before,
+  .ew-shell .hi-filter::before,
+  .ew-shell .sk-chip::before,
+  .ew-shell .sk-seg button::before,
+  .band-pop .band-chip::before,
+  .band-pop .band-foot .ew-btn::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 40px;
+    transform: translateY(-50%);
+  }
+  .ew-shell .ag-ctx-x::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    transform: translate(-50%, -50%);
+  }
+  .ew-shell .hi-filters,
+  .ew-shell .sk-opts {
+    padding-block: 8px;
+  }
+  .ew-shell .sk-seg {
+    overflow: visible;
+  }
+  .ew-shell .sk-seg button:first-child {
+    border-radius: var(--r-press) 0 0 var(--r-press);
+  }
+  .ew-shell .sk-seg button:last-child {
+    border-radius: 0 var(--r-press) var(--r-press) 0;
+  }
+  .band-pop .band-row {
+    row-gap: 14px;
+  }
+  .band-pop .band-foot {
+    margin-top: 12px;
+  }
 }
 /* On a touch screen (a coarse pointer) the small keys a finger lands on are 44 px: the items of a clip's or a lane's
    menu, the Devices track picker's rows, a device's i, ⌄ and × keys, the mixer's M, S and ● and its pan knob (a strip
@@ -333,23 +1152,75 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
    sheet is shorter than a strip), the Follow lamp, and the welcome card's links. tools/phone-test.js measures each one
    and that the master covers no strip's S or ●. */
 @media (pointer: coarse) {
-  .ek-pop .ek-item { min-height: 44px; }
-  .ek-pop .ek-sub, .ek-pop .ek-head, .ek-pop .ek-kbd { font-size: 12px; }
-  .ew-pop .rk-mi { min-height: 44px; }
-  .ew-shell .rk-ib, .ew-shell .rk-phone .rk-ib { width: 44px; height: 44px; }
-  .ew-shell .rk-cap, .ew-shell .rk-phone .rk-cap { height: auto; min-height: 44px; }
-  .ew-shell .ar-tool.tog { height: 44px; }
-  .ew-shell .ar-welcome-more .ar-link { display: inline-flex; align-items: center; min-height: 44px; }
-  .ew-shell .ar-welcome .ar-cr-what .ar-link { position: relative; }
-  .ew-shell .ar-welcome .ar-cr-what .ar-link::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
-  .ew-shell .mx { overflow: auto; }
-  .ew-shell .mx-lane { min-height: 300px; }
-  .ew-shell .mx-strips { padding-left: 0; }
-  .ew-shell .mx-strip:not(.mx-master) { width: var(--mx-sw, 148px); padding: 0 6px 7px; scroll-snap-align: start; }
-  .ew-shell .mx { scroll-snap-type: x mandatory; }
-  .ew-shell .mx-master { width: 84px; margin: 6px 0 6px 0; padding: 0 6px 7px; }
-  .ew-shell .mx-btns { gap: 2px; }
-  .ew-shell .mx-b { height: 44px; }
+  .ek-pop .ek-item {
+    min-height: 44px;
+  }
+  .ek-pop .ek-sub,
+  .ek-pop .ek-head,
+  .ek-pop .ek-kbd {
+    font-size: 12px;
+  }
+  .ew-pop .rk-mi {
+    min-height: 44px;
+  }
+  .ew-shell .rk-ib,
+  .ew-shell .rk-phone .rk-ib {
+    width: 44px;
+    height: 44px;
+  }
+  .ew-shell .rk-cap,
+  .ew-shell .rk-phone .rk-cap {
+    height: auto;
+    min-height: 44px;
+  }
+  .ew-shell .ar-tool.tog {
+    height: 44px;
+  }
+  .ew-shell .ar-welcome-more .ar-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .ew-shell .ar-welcome .ar-cr-what .ar-link {
+    position: relative;
+  }
+  .ew-shell .ar-welcome .ar-cr-what .ar-link::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+  .ew-shell .mx {
+    overflow: auto;
+  }
+  .ew-shell .mx-lane {
+    min-height: 300px;
+  }
+  .ew-shell .mx-strips {
+    padding-left: 0;
+  }
+  .ew-shell .mx-strip:not(.mx-master) {
+    width: var(--mx-sw, 148px);
+    padding: 0 6px 7px;
+    scroll-snap-align: start;
+  }
+  .ew-shell .mx {
+    scroll-snap-type: x mandatory;
+  }
+  .ew-shell .mx-master {
+    width: 84px;
+    margin: 6px 0 6px 0;
+    padding: 0 6px 7px;
+  }
+  .ew-shell .mx-btns {
+    gap: 2px;
+  }
+  .ew-shell .mx-b {
+    height: 44px;
+  }
 }
 /* ------------------------------------------------------------------------------------------------ a phone on its side
    Under 900 px wide and 500 px tall (a phone held sideways). The song keeps a band at the top of the room whatever the
@@ -362,50 +1233,179 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
    12 px), and the pane scrolls down to it when the sheet is shorter. tools/phone-test.js turns a phone on its side and
    measures all of it. */
 @media (max-width: 900px) and (max-height: 500px) {
-  .ew-shell { --keep: clamp(100px, 36vh, 150px); }
-  .ew-shell .ew-main { border-top: var(--keep) solid transparent; grid-template-rows: minmax(0, 1fr) 22px minmax(0, var(--bottom-h)); }
-  .ew-shell.ew-closed-bottom .ew-main { grid-template-rows: minmax(0, 1fr) 22px auto; }
-  .ew-shell .ew-main > .ew-region-center { margin-top: calc(-1 * var(--keep)); }
-  .ew-shell .tp-g-title { display: flex; flex: 1 1 auto; min-width: 64px; max-width: 220px; }
-  .ew-shell .tp-title { font-size: 16px; }
-  .ew-shell .tp-credits:not([hidden]) { display: block; font-size: 12px; }
-  .ew-shell .tp-group { padding: 0 5px; }
-  .ew-shell .tp-g-play .tp-btn, .ew-shell .tp-g-play .tp-btn:not(.tp-play) { width: 40px; height: 44px; }
-  .ew-shell .tp-g-play .tp-play { width: 48px; }
-  .ew-shell .tp-pos-bar { font-size: 24px; width: calc((var(--tp-bar-digits, 2) + 1) * 1ch + .45em); }
-  .ew-shell .tp-pos-six, .ew-shell .tp-take, .ew-shell .tp-hold { display: none; }
-  .ew-shell .tp-kill { height: 40px; padding: 0 12px; font-size: 13px; }
-  .ew-shell .ew-toggles { margin-left: 2px; padding-left: 0; border-left: 0; }
-  .ew-shell .ew-toggles > .ew-t-panelBottom { display: none; }
-  .ew-shell .ew-iconbtn.ew-labelled { display: inline-flex; align-items: center; width: auto; height: 40px; padding: 0 9px; margin-left: 4px; border: var(--rule-2); border-radius: var(--r-press); color: var(--text); font-size: 13px; font-weight: 600; }
-  .ew-shell .ew-iconbtn.ew-labelled .ew-t-ico { display: none; }
-  .ew-shell .ew-iconbtn.ew-labelled .ew-t-label { display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
-  .ew-shell .ew-iconbtn.ew-labelled .ew-t-mark { display: inline-grid; color: var(--agent); }
-  .ew-shell .ew-iconbtn.ew-labelled[aria-expanded="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
-  .ew-shell .ar-hint { display: none; }
-  .ew-shell .ar-main { grid-template-columns: 196px 1fr; }
-  .ew-shell .ar-head { display: grid; grid-template-columns: minmax(0, 1fr) 6px; grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr); padding-left: 10px; }
-  .ew-shell .ar-head > .ar-hnum, .ew-shell .ar-hsub { display: none; }
-  .ew-shell .ar-hsw { display: block; }
-  .ew-shell .ar-head > .ar-hmeter { grid-area: 1 / 2 / -1 / 3; margin: 8px 0; }
-  .ew-shell .ar-head > .ar-hmain { grid-area: 2 / 1 / 3 / 2; padding: 0 2px 4px 0; }
-  .ew-shell .ar-head > .ar-hbtns { grid-area: 3 / 1 / 4 / 2; padding: 0; gap: 4px; }
-  .ew-shell .ar-hb { width: 40px; height: 40px; font-size: 12px; }
-  .ew-shell .ar-lhead { padding-left: 10px; }
-  .ew-shell .ar-ldev, .ew-shell .ar-lby, .ew-shell .ar .ar-lhead .tog, .ew-shell .ar .ar-lhead .btn { display: none; }
-  .ew-shell .ar-lname { max-width: 100%; }
-  .ew-shell .ar-lname::after { content: ''; position: absolute; inset: 0; }
+  .ew-shell {
+    --keep: clamp(100px, 36vh, 150px);
+  }
+  .ew-shell .ew-main {
+    border-top: var(--keep) solid transparent;
+    grid-template-rows: minmax(0, 1fr) 22px minmax(0, var(--bottom-h));
+  }
+  .ew-shell.ew-closed-bottom .ew-main {
+    grid-template-rows: minmax(0, 1fr) 22px auto;
+  }
+  .ew-shell .ew-main > .ew-region-center {
+    margin-top: calc(-1 * var(--keep));
+  }
+  .ew-shell .tp-g-title {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 64px;
+    max-width: 220px;
+  }
+  .ew-shell .tp-title {
+    font-size: 16px;
+  }
+  .ew-shell .tp-credits:not([hidden]) {
+    display: block;
+    font-size: 12px;
+  }
+  .ew-shell .tp-group {
+    padding: 0 5px;
+  }
+  .ew-shell .tp-g-play .tp-btn,
+  .ew-shell .tp-g-play .tp-btn:not(.tp-play) {
+    width: 40px;
+    height: 44px;
+  }
+  .ew-shell .tp-g-play .tp-play {
+    width: 48px;
+  }
+  .ew-shell .tp-pos-bar {
+    font-size: 24px;
+    width: calc((var(--tp-bar-digits, 2) + 1) * 1ch + 0.45em);
+  }
+  .ew-shell .tp-pos-six,
+  .ew-shell .tp-take,
+  .ew-shell .tp-hold {
+    display: none;
+  }
+  .ew-shell .tp-kill {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .ew-shell .ew-toggles {
+    margin-left: 2px;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ew-shell .ew-toggles > .ew-t-panelBottom {
+    display: none;
+  }
+  .ew-shell .ew-iconbtn.ew-labelled {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    height: 40px;
+    padding: 0 9px;
+    margin-left: 4px;
+    border: var(--rule-2);
+    border-radius: var(--r-press);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .ew-shell .ew-iconbtn.ew-labelled .ew-t-ico {
+    display: none;
+  }
+  .ew-shell .ew-iconbtn.ew-labelled .ew-t-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1;
+  }
+  .ew-shell .ew-iconbtn.ew-labelled .ew-t-mark {
+    display: inline-grid;
+    color: var(--agent);
+  }
+  .ew-shell .ew-iconbtn.ew-labelled[aria-expanded="true"] {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+  }
+  .ew-shell .ar-hint {
+    display: none;
+  }
+  .ew-shell .ar-main {
+    grid-template-columns: 196px 1fr;
+  }
+  .ew-shell .ar-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6px;
+    grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr);
+    padding-left: 10px;
+  }
+  .ew-shell .ar-head > .ar-hnum,
+  .ew-shell .ar-hsub {
+    display: none;
+  }
+  .ew-shell .ar-hsw {
+    display: block;
+  }
+  .ew-shell .ar-head > .ar-hmeter {
+    grid-area: 1 / 2 / -1 / 3;
+    margin: 8px 0;
+  }
+  .ew-shell .ar-head > .ar-hmain {
+    grid-area: 2 / 1 / 3 / 2;
+    padding: 0 2px 4px 0;
+  }
+  .ew-shell .ar-head > .ar-hbtns {
+    grid-area: 3 / 1 / 4 / 2;
+    padding: 0;
+    gap: 4px;
+  }
+  .ew-shell .ar-hb {
+    width: 40px;
+    height: 40px;
+    font-size: 12px;
+  }
+  .ew-shell .ar-lhead {
+    padding-left: 10px;
+  }
+  .ew-shell .ar-ldev,
+  .ew-shell .ar-lby,
+  .ew-shell .ar .ar-lhead .tog,
+  .ew-shell .ar .ar-lhead .btn {
+    display: none;
+  }
+  .ew-shell .ar-lname {
+    max-width: 100%;
+  }
+  .ew-shell .ar-lname::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
   /* (the board keeps a height a face can be used at, and the pane scrolls down to it when the sheet is shorter) */
-  .ew-shell .rk-land { height: auto; min-height: 100%; }
-  .ew-shell .rk-land .rk-board { flex: 1 0 auto; min-height: 210px; overflow: auto; }
-  .ew-shell .rk-land .rk-rail { align-items: flex-start; min-height: 0; padding: 10px 16px 16px; }
-  .ew-shell .rk-land .rk-hint { width: 320px; }
-  .ew-shell .rk-land .rk-more { bottom: auto; height: 72px; }
+  .ew-shell .rk-land {
+    height: auto;
+    min-height: 100%;
+  }
+  .ew-shell .rk-land .rk-board {
+    flex: 1 0 auto;
+    min-height: 210px;
+    overflow: auto;
+  }
+  .ew-shell .rk-land .rk-rail {
+    align-items: flex-start;
+    min-height: 0;
+    padding: 10px 16px 16px;
+  }
+  .ew-shell .rk-land .rk-hint {
+    width: 320px;
+  }
+  .ew-shell .rk-land .rk-more {
+    bottom: auto;
+    height: 72px;
+  }
 }
 /* a narrower phone on its side (an iPhone in Safari, 750 px): the beat squares give the title their room (the position
    still counts in, in record ink) */
 @media (max-width: 819px) and (max-height: 500px) {
-  .ew-shell .tp-ball { display: none; }
+  .ew-shell .tp-ball {
+    display: none;
+  }
 }
 /* The keys a finger lands on that were under 44 px: the logo, the transport's back and record keys (40 wide), undo and
    redo (28 wide, shown on a tablet), the blank sheet's doors and its two links (16 tall). Drawn sizes stay where a
@@ -413,12 +1413,32 @@ kbd { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; l
    A phone on its side keeps its 40 px keys (the title needs the room). tools/phone-test.js measures the transport's
    keys and the logo. */
 @media (pointer: coarse) {
-  .ew-shell .ew-brand { min-width: 44px; justify-content: center; }
-  .ew-shell .tp-g-edit .tp-btn { width: 44px; height: 44px; }
-  .ew-shell .ar-empty-actions .btn { min-height: 44px; }
-  .ew-shell .ar-empty-foot .ar-link { position: relative; }
-  .ew-shell .ar-empty-foot .ar-link::before { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); }
+  .ew-shell .ew-brand {
+    min-width: 44px;
+    justify-content: center;
+  }
+  .ew-shell .tp-g-edit .tp-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .ew-shell .ar-empty-actions .btn {
+    min-height: 44px;
+  }
+  .ew-shell .ar-empty-foot .ar-link {
+    position: relative;
+  }
+  .ew-shell .ar-empty-foot .ar-link::before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
 }
 @media (pointer: coarse) and (min-height: 501px) {
-  .ew-shell .tp-g-play .tp-btn:not(.tp-play) { width: 44px; }
+  .ew-shell .tp-g-play .tp-btn:not(.tp-play) {
+    width: 44px;
+  }
 }

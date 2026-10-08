@@ -39,28 +39,116 @@ import { MB_SOURCE } from './multiband-curve.js';
 export const WARPS = ['OFF', 'SYNC', 'BEND', 'PW', 'MIRROR', 'FM'];
 export const FILTERS = ['LP12', 'LP24', 'HP', 'BP', 'NOTCH', 'COMB', 'FORMANT'];
 export const LFO_SHAPES = ['SINE', 'TRI', 'SAW UP', 'SAW DN', 'SQUARE', 'S&H', 'DRIFT'];
-export const LFO_SYNCS = ['OFF', '1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8', '1/8D', '1/4T', '1/4', '1/4D', '1/2', '1/2D', '1 BAR', '2 BARS', '4 BARS'];
+export const LFO_SYNCS = [
+  'OFF',
+  '1/32',
+  '1/16T',
+  '1/16',
+  '1/16D',
+  '1/8T',
+  '1/8',
+  '1/8D',
+  '1/4T',
+  '1/4',
+  '1/4D',
+  '1/2',
+  '1/2D',
+  '1 BAR',
+  '2 BARS',
+  '4 BARS',
+];
 export const LFO_MODES = ['FREE', 'RETRIG', 'ENV'];
 export const DELAY_TIMES = ['1/16', '1/8T', '1/8', '1/8D', '1/4T', '1/4', '1/4D', '1/2'];
 export const VOICE_MODES = ['POLY', 'MONO', 'LEGATO'];
 export const DIST_MODES = ['TANH', 'HARD', 'FOLD', 'SINE FOLD', 'RECTIFY', 'DOWNSAMPLE'];
-export const SOURCES = ['OFF', 'ENV1', 'ENV2', 'ENV3', 'LFO1', 'LFO2', 'LFO3', 'LFO4', 'VELOCITY', 'NOTE', 'MOD WHEEL', 'MACRO 1', 'MACRO 2', 'MACRO 3', 'MACRO 4', 'RANDOM'];
-export const DESTS = ['OFF', 'A POS', 'A WARP', 'A PITCH', 'A LEVEL', 'A PAN', 'A DETUNE', 'B POS', 'B WARP', 'B PITCH', 'B LEVEL', 'B PAN', 'B DETUNE',
-  'SUB LEVEL', 'NOISE LEVEL', 'CUTOFF', 'RESO', 'FLT DRIVE', 'PITCH', 'FINE', 'AMP', 'PAN', 'LFO1 RATE', 'LFO2 RATE', 'LFO3 RATE', 'LFO4 RATE',
-  'M1 AMT', 'M2 AMT', 'M3 AMT', 'M4 AMT', 'M5 AMT', 'M6 AMT', 'M7 AMT', 'M8 AMT', 'DRIVE', 'CHORUS MIX', 'DELAY MIX', 'VERB MIX',
+export const SOURCES = [
+  'OFF',
+  'ENV1',
+  'ENV2',
+  'ENV3',
+  'LFO1',
+  'LFO2',
+  'LFO3',
+  'LFO4',
+  'VELOCITY',
+  'NOTE',
+  'MOD WHEEL',
+  'MACRO 1',
+  'MACRO 2',
+  'MACRO 3',
+  'MACRO 4',
+  'RANDOM',
+];
+export const DESTS = [
+  'OFF',
+  'A POS',
+  'A WARP',
+  'A PITCH',
+  'A LEVEL',
+  'A PAN',
+  'A DETUNE',
+  'B POS',
+  'B WARP',
+  'B PITCH',
+  'B LEVEL',
+  'B PAN',
+  'B DETUNE',
+  'SUB LEVEL',
+  'NOISE LEVEL',
+  'CUTOFF',
+  'RESO',
+  'FLT DRIVE',
+  'PITCH',
+  'FINE',
+  'AMP',
+  'PAN',
+  'LFO1 RATE',
+  'LFO2 RATE',
+  'LFO3 RATE',
+  'LFO4 RATE',
+  'M1 AMT',
+  'M2 AMT',
+  'M3 AMT',
+  'M4 AMT',
+  'M5 AMT',
+  'M6 AMT',
+  'M7 AMT',
+  'M8 AMT',
+  'DRIVE',
+  'CHORUS MIX',
+  'DELAY MIX',
+  'VERB MIX',
   // (appended: global, as DRIVE is)
-  'MULTIBAND', 'DRIVE MIX'];
+  'MULTIBAND',
+  'DRIVE MIX',
+];
 // What an amount of 1 does at each destination (the editor draws it as an arc on the knob; agents read it here):
 // a param's own destination moves it its knob's whole travel (CUTOFF: 10 octaves); PITCH and A/B PITCH 24 semitones;
 // FINE 1 semitone; AMP multiplies the voice by 1 + amount x source (0..2); Mn AMT adds to slot n's amount.
 export const DEST_SCALE = {
-  'A POS': 'the whole table (1 = POS 0 to 1)', 'A WARP': 'the warp amount\'s travel', 'A PITCH': '24 semitones', 'A LEVEL': 'the level\'s travel',
-  'A PAN': 'the pan\'s travel (0.5 = centre to one side)', 'A DETUNE': 'the detune\'s travel', 'SUB LEVEL': 'the level\'s travel', 'NOISE LEVEL': 'the level\'s travel',
-  CUTOFF: 'the cutoff knob\'s travel, 10 octaves (0.1 = an octave)', RESO: 'the resonance\'s travel', 'FLT DRIVE': 'the drive\'s travel',
-  PITCH: '24 semitones on every oscillator', FINE: '1 semitone on every oscillator (0.2 x an LFO = a 20-cent vibrato)', AMP: 'the voice\'s level times 1 + amount x source (0 to 2)',
-  PAN: 'the voice\'s pan travel', 'LFO1 RATE': 'the rate knob\'s travel (11 octaves; RETRIG and ENV modes)', 'M1 AMT': 'added to slot 1\'s amount',
-  DRIVE: 'the drive\'s travel (global: the newest note\'s value)', 'CHORUS MIX': 'the mix\'s travel (global)', 'DELAY MIX': 'the mix\'s travel (global)', 'VERB MIX': 'the mix\'s travel (global)',
-  MULTIBAND: 'the multiband\'s travel, 0 to 100% (global)', 'DRIVE MIX': 'the drive mix\'s travel (global)',
+  'A POS': 'the whole table (1 = POS 0 to 1)',
+  'A WARP': "the warp amount's travel",
+  'A PITCH': '24 semitones',
+  'A LEVEL': "the level's travel",
+  'A PAN': "the pan's travel (0.5 = centre to one side)",
+  'A DETUNE': "the detune's travel",
+  'SUB LEVEL': "the level's travel",
+  'NOISE LEVEL': "the level's travel",
+  CUTOFF: "the cutoff knob's travel, 10 octaves (0.1 = an octave)",
+  RESO: "the resonance's travel",
+  'FLT DRIVE': "the drive's travel",
+  PITCH: '24 semitones on every oscillator',
+  FINE: '1 semitone on every oscillator (0.2 x an LFO = a 20-cent vibrato)',
+  AMP: "the voice's level times 1 + amount x source (0 to 2)",
+  PAN: "the voice's pan travel",
+  'LFO1 RATE': "the rate knob's travel (11 octaves; RETRIG and ENV modes)",
+  'M1 AMT': "added to slot 1's amount",
+  DRIVE: "the drive's travel (global: the newest note's value)",
+  'CHORUS MIX': "the mix's travel (global)",
+  'DELAY MIX': "the mix's travel (global)",
+  'VERB MIX': "the mix's travel (global)",
+  MULTIBAND: "the multiband's travel, 0 to 100% (global)",
+  'DRIVE MIX': "the drive mix's travel (global)",
 };
 
 // the tables built in code come first (14); the AKWF families follow them in the switch
@@ -69,7 +157,13 @@ const BUILT_IN = TABLE_NAMES.length - AKWF_FAMILIES.length;
 export const LIBRARY = {
   about: `AKWF (Adventure Kid Waveforms, CC0): ${AKWF_FAMILIES.reduce((n, f) => n + f.waves.length, 0)} recorded single cycles in ${AKWF_FAMILIES.length} families, a table each. A wave plays on osc A with its params; for osc B use b_table and b_pos. Between two waves POS morphs`,
   groups: AKWF_FAMILIES.map((f) => ({ name: f.label, table: f.table, count: f.waves.length })),
-  items: AKWF_FAMILIES.flatMap((f) => f.waves.map((name, i) => ({ name, group: f.label, params: { a_table: f.table, a_pos: +(i / (f.waves.length - 1)).toFixed(6) } }))),
+  items: AKWF_FAMILIES.flatMap((f) =>
+    f.waves.map((name, i) => ({
+      name,
+      group: f.label,
+      params: { a_table: f.table, a_pos: +(i / (f.waves.length - 1)).toFixed(6) },
+    })),
+  ),
 };
 
 /* ------------------------------------------------------------------------------------------------ the params */
@@ -77,14 +171,62 @@ const P = [];
 const sw = (key, label, opts, def, role, desc) => P.push({ key, label, opts, def, role, desc });
 const kn = (key, label, min, max, def, role, desc, x = {}) => P.push({ key, label, min, max, def, role, desc, ...x });
 function osc(o, d) {
-  const O = o.toUpperCase(), K = o + '_';
-  sw(K + 'table', `${O} TABLE`, TABLE_NAMES, d.table, 'shape', `osc ${O}'s wavetable: ${TABLE_NAMES.slice(0, BUILT_IN).join(', ')} (built in code; what each sounds like: docs/research/LIGHT-TABLE.md), then ${TABLE_NAMES.slice(BUILT_IN).join(', ')} (recorded single cycles from AKWF, nine a table: POS i/8 plays wave i exactly, between them it morphs)`);
-  kn(K + 'pos', `${O} POS`, 0, 1, d.pos, 'shape', 'where in the table: 0 is the first frame, 1 the last; it morphs smoothly between');
-  sw(K + 'warp', `${O} WARP`, WARPS, 0, 'shape', `bends the wave: SYNC (hard sync up to 8x), BEND (the cycle pushed to its middle), PW (squeezed into a shorter pulse), MIRROR (played forward then back), FM (phase-modulated by osc ${O === 'A' ? 'B' : 'A'}, even at its level 0)`);
+  const O = o.toUpperCase(),
+    K = o + '_';
+  sw(
+    K + 'table',
+    `${O} TABLE`,
+    TABLE_NAMES,
+    d.table,
+    'shape',
+    `osc ${O}'s wavetable: ${TABLE_NAMES.slice(0, BUILT_IN).join(', ')} (built in code; what each sounds like: docs/research/LIGHT-TABLE.md), then ${TABLE_NAMES.slice(BUILT_IN).join(', ')} (recorded single cycles from AKWF, nine a table: POS i/8 plays wave i exactly, between them it morphs)`,
+  );
+  kn(
+    K + 'pos',
+    `${O} POS`,
+    0,
+    1,
+    d.pos,
+    'shape',
+    'where in the table: 0 is the first frame, 1 the last; it morphs smoothly between',
+  );
+  sw(
+    K + 'warp',
+    `${O} WARP`,
+    WARPS,
+    0,
+    'shape',
+    `bends the wave: SYNC (hard sync up to 8x), BEND (the cycle pushed to its middle), PW (squeezed into a shorter pulse), MIRROR (played forward then back), FM (phase-modulated by osc ${O === 'A' ? 'B' : 'A'}, even at its level 0)`,
+  );
   kn(K + 'warp_amt', `${O} WARP AMT`, 0, 1, 0, 'depth', 'how far the warp bends it (0 is the plain wave)');
-  kn(K + 'unison', `${O} UNISON`, 1, 8, d.unison, 'width', 'voices per note: 1 is one oscillator; up to 8 detuned copies', { step: 1 });
-  kn(K + 'detune', `${O} DETUNE`, 0, 1, d.detune, 'width', 'how far the unison voices spread in pitch: 0.3 is about 9 cents at the edges, 1 a whole semitone');
-  kn(K + 'blend', `${O} BLEND`, 0, 1, 0.75, 'mix', 'the detuned voices against the centre one: 0 is the centre alone, 1 all equal');
+  kn(
+    K + 'unison',
+    `${O} UNISON`,
+    1,
+    8,
+    d.unison,
+    'width',
+    'voices per note: 1 is one oscillator; up to 8 detuned copies',
+    { step: 1 },
+  );
+  kn(
+    K + 'detune',
+    `${O} DETUNE`,
+    0,
+    1,
+    d.detune,
+    'width',
+    'how far the unison voices spread in pitch: 0.3 is about 9 cents at the edges, 1 a whole semitone',
+  );
+  kn(
+    K + 'blend',
+    `${O} BLEND`,
+    0,
+    1,
+    0.75,
+    'mix',
+    'the detuned voices against the centre one: 0 is the centre alone, 1 all equal',
+  );
   kn(K + 'spread', `${O} SPREAD`, 0, 1, 0.6, 'width', 'the unison voices across the stereo field: 0 mono, 1 wide');
   kn(K + 'oct', `${O} OCT`, -3, 3, d.oct, 'pitch', 'octaves up or down', { step: 1 });
   kn(K + 'semi', `${O} SEMI`, -12, 12, 0, 'pitch', 'semitones up or down', { step: 1, unit: 'st' });
@@ -94,63 +236,229 @@ function osc(o, d) {
 }
 osc('a', { table: 0, pos: 0.62, unison: 3, detune: 0.22, oct: 0, level: 0.8 });
 osc('b', { table: 0, pos: 1 / 3, unison: 1, detune: 0.2, oct: -1, level: 0 });
-sw('sub_shape', 'SUB WAVE', ['SINE', 'TRI', 'SQUARE'], 0, 'shape', 'the sub oscillator\'s wave');
+sw('sub_shape', 'SUB WAVE', ['SINE', 'TRI', 'SQUARE'], 0, 'shape', "the sub oscillator's wave");
 sw('sub_oct', 'SUB OCT', ['-1', '-2'], 0, 'pitch', 'one or two octaves under the note');
 kn('sub_level', 'SUB LEVEL', 0, 1, 0, 'level', 'the sub oscillator: weight under the note (0 is off)');
 kn('noise_level', 'NOISE', 0, 1, 0, 'level', 'seeded stereo noise (0 is off): breath, air, the scrape of an attack');
 kn('noise_color', 'NOISE COLOR', 0, 1, 0.6, 'tone', 'dark rumble at 0, white hiss at 1');
-sw('flt_type', 'FILTER', FILTERS, 1, 'shape', 'LP12 / LP24 low-pass (LP24 a ladder that sings at full resonance), HP high-pass, BP band-pass, NOTCH, COMB (peaks at the cutoff and its multiples), FORMANT (vowels: the cutoff sweeps U O A E I)');
-kn('flt_cutoff', 'CUTOFF', 20, 20000, 2200, 'tone', 'where the filter works: brighter as it opens (low-pass)', { curve: 'log', unit: 'Hz' });
+sw(
+  'flt_type',
+  'FILTER',
+  FILTERS,
+  1,
+  'shape',
+  'LP12 / LP24 low-pass (LP24 a ladder that sings at full resonance), HP high-pass, BP band-pass, NOTCH, COMB (peaks at the cutoff and its multiples), FORMANT (vowels: the cutoff sweeps U O A E I)',
+);
+kn('flt_cutoff', 'CUTOFF', 20, 20000, 2200, 'tone', 'where the filter works: brighter as it opens (low-pass)', {
+  curve: 'log',
+  unit: 'Hz',
+});
 kn('flt_res', 'RESO', 0, 1, 0.15, 'tone', 'resonance: a peak at the cutoff, ringing toward the top');
 kn('flt_drive', 'FLT DRIVE', 0, 1, 0, 'drive', 'saturation into the filter: warmth, then grit');
 kn('flt_key', 'KEY TRACK', 0, 1, 0.4, 'tone', 'how far the cutoff follows the keys: 1 is an octave per octave');
-kn('flt_env', 'FLT ENV', -1, 1, 0.3, 'depth', 'how far envelope 2 moves the cutoff: 1 is 6 octaves up, -1 down; harder notes move it a little further');
-kn('flt_vel', 'FLT VEL', 0, 1, 0.8, 'sens', 'velocity on the cutoff: harder notes open the filter, softer ones close it (0 off; at 1 a soft note is an octave darker than a medium one)');
-for (const [k, l, n] of [['flt_a', 'A > FLT', 'osc A'], ['flt_b', 'B > FLT', 'osc B'], ['flt_sub', 'SUB > FLT', 'the sub'], ['flt_noise', 'NOISE > FLT', 'the noise']]) sw(k, l, ['OFF', 'ON'], 1, 'shape', `whether ${n} goes through the filter (OFF: around it, straight to the amp)`);
+kn(
+  'flt_env',
+  'FLT ENV',
+  -1,
+  1,
+  0.3,
+  'depth',
+  'how far envelope 2 moves the cutoff: 1 is 6 octaves up, -1 down; harder notes move it a little further',
+);
+kn(
+  'flt_vel',
+  'FLT VEL',
+  0,
+  1,
+  0.8,
+  'sens',
+  'velocity on the cutoff: harder notes open the filter, softer ones close it (0 off; at 1 a soft note is an octave darker than a medium one)',
+);
+for (const [k, l, n] of [
+  ['flt_a', 'A > FLT', 'osc A'],
+  ['flt_b', 'B > FLT', 'osc B'],
+  ['flt_sub', 'SUB > FLT', 'the sub'],
+  ['flt_noise', 'NOISE > FLT', 'the noise'],
+])
+  sw(k, l, ['OFF', 'ON'], 1, 'shape', `whether ${n} goes through the filter (OFF: around it, straight to the amp)`);
 function env(n, d) {
-  const K = `env${n}_`, L = n === 1 ? 'AMP ' : `ENV${n} `, what = n === 1 ? 'the amp envelope' : `envelope ${n}`;
+  const K = `env${n}_`,
+    L = n === 1 ? 'AMP ' : `ENV${n} `,
+    what = n === 1 ? 'the amp envelope' : `envelope ${n}`;
   kn(K + 'attack', L + 'ATTACK', 0.001, 8, d[0], 'attack', `${what}: time to rise`, { curve: 'log', unit: 's' });
-  kn(K + 'decay', L + 'DECAY', 0.005, 10, d[1], 'decay', `${what}: time to fall to the sustain level`, { curve: 'log', unit: 's' });
+  kn(K + 'decay', L + 'DECAY', 0.005, 10, d[1], 'decay', `${what}: time to fall to the sustain level`, {
+    curve: 'log',
+    unit: 's',
+  });
   kn(K + 'sustain', L + 'SUSTAIN', 0, 1, d[2], 'level', `${what}: the level held while the key is down`);
-  kn(K + 'release', L + 'RELEASE', 0.005, 12, d[3], 'release', `${what}: time to fall after the key lets go`, { curve: 'log', unit: 's' });
-  kn(K + 'curve', L + 'CURVE', -1, 1, d[4], 'shape', `${what}'s segments: -1 linear (a slow-starting swell), 0 analogue, 1 snappy (a fast rise, fast falls)`);
+  kn(K + 'release', L + 'RELEASE', 0.005, 12, d[3], 'release', `${what}: time to fall after the key lets go`, {
+    curve: 'log',
+    unit: 's',
+  });
+  kn(
+    K + 'curve',
+    L + 'CURVE',
+    -1,
+    1,
+    d[4],
+    'shape',
+    `${what}'s segments: -1 linear (a slow-starting swell), 0 analogue, 1 snappy (a fast rise, fast falls)`,
+  );
 }
 env(1, [0.004, 0.6, 0.8, 0.35, 0]);
-kn('env1_vel', 'AMP VEL', 0, 1, 0.5, 'sens', 'how much softer a soft note plays: 0 every note the same, 1 fully by velocity');
+kn(
+  'env1_vel',
+  'AMP VEL',
+  0,
+  1,
+  0.5,
+  'sens',
+  'how much softer a soft note plays: 0 every note the same, 1 fully by velocity',
+);
 env(2, [0.003, 0.45, 0.25, 0.4, 0.3]);
 env(3, [0.002, 0.3, 0, 0.3, 0]);
-const lfoDef = [[0, 2], [1, 0.5], [3, 4], [5, 3]];
+const lfoDef = [
+  [0, 2],
+  [1, 0.5],
+  [3, 4],
+  [5, 3],
+];
 for (let n = 1; n <= 4; n++) {
-  const K = `lfo${n}_`, L = `LFO${n} `;
-  sw(K + 'shape', L + 'SHAPE', LFO_SHAPES, lfoDef[n - 1][0], 'shape', `LFO ${n}'s wave (-1..1): S&H steps to a new random value each cycle, DRIFT wanders smoothly`);
-  kn(K + 'rate', L + 'RATE', 0.02, 40, lfoDef[n - 1][1], 'rate', `LFO ${n}'s speed when SYNC is OFF`, { curve: 'log', unit: 'Hz' });
-  sw(K + 'sync', L + 'SYNC', LFO_SYNCS, 0, 'time', `one cycle per note value at the song's tempo (OFF: RATE); in FREE mode it is locked to the song's beat while it plays`);
-  sw(K + 'mode', L + 'MODE', LFO_MODES, 1, 'shape', 'FREE: one phase for every voice (locked to the song when synced); RETRIG: each note starts it from 0; ENV: one cycle from each note, then it holds');
+  const K = `lfo${n}_`,
+    L = `LFO${n} `;
+  sw(
+    K + 'shape',
+    L + 'SHAPE',
+    LFO_SHAPES,
+    lfoDef[n - 1][0],
+    'shape',
+    `LFO ${n}'s wave (-1..1): S&H steps to a new random value each cycle, DRIFT wanders smoothly`,
+  );
+  kn(K + 'rate', L + 'RATE', 0.02, 40, lfoDef[n - 1][1], 'rate', `LFO ${n}'s speed when SYNC is OFF`, {
+    curve: 'log',
+    unit: 'Hz',
+  });
+  sw(
+    K + 'sync',
+    L + 'SYNC',
+    LFO_SYNCS,
+    0,
+    'time',
+    `one cycle per note value at the song's tempo (OFF: RATE); in FREE mode it is locked to the song's beat while it plays`,
+  );
+  sw(
+    K + 'mode',
+    L + 'MODE',
+    LFO_MODES,
+    1,
+    'shape',
+    'FREE: one phase for every voice (locked to the song when synced); RETRIG: each note starts it from 0; ENV: one cycle from each note, then it holds',
+  );
 }
 for (let n = 1; n <= 8; n++) {
-  const K = `m${n}_`, L = `M${n} `;
-  sw(K + 'src', L + 'SOURCE', SOURCES, 0, 'shape', `mod slot ${n}'s source: envelopes and macros 0..1, LFOs, NOTE (C4 = 0, 4 octaves = 1) and RANDOM (a new value each note) -1..1`);
-  sw(K + 'dst', L + 'DEST', DESTS, 0, 'shape', `what slot ${n} moves (an amount of 1 moves a knob its whole travel: CUTOFF 10 octaves, PITCH 24 semitones, FINE 1 semitone)`);
-  kn(K + 'amt', L + 'AMOUNT', -1, 1, 0, 'depth', `slot ${n}'s amount: how far, and which way, the source moves its destination`);
+  const K = `m${n}_`,
+    L = `M${n} `;
+  sw(
+    K + 'src',
+    L + 'SOURCE',
+    SOURCES,
+    0,
+    'shape',
+    `mod slot ${n}'s source: envelopes and macros 0..1, LFOs, NOTE (C4 = 0, 4 octaves = 1) and RANDOM (a new value each note) -1..1`,
+  );
+  sw(
+    K + 'dst',
+    L + 'DEST',
+    DESTS,
+    0,
+    'shape',
+    `what slot ${n} moves (an amount of 1 moves a knob its whole travel: CUTOFF 10 octaves, PITCH 24 semitones, FINE 1 semitone)`,
+  );
+  kn(
+    K + 'amt',
+    L + 'AMOUNT',
+    -1,
+    1,
+    0,
+    'depth',
+    `slot ${n}'s amount: how far, and which way, the source moves its destination`,
+  );
 }
-for (let n = 1; n <= 4; n++) kn(`macro${n}`, `MACRO ${n}`, 0, 1, 0, 'depth', `macro ${n}: a knob for one or several mod slots (MACRO ${n} as their source); it does nothing until a slot uses it`);
+for (let n = 1; n <= 4; n++)
+  kn(
+    `macro${n}`,
+    `MACRO ${n}`,
+    0,
+    1,
+    0,
+    'depth',
+    `macro ${n}: a knob for one or several mod slots (MACRO ${n} as their source); it does nothing until a slot uses it`,
+  );
 kn('fx_drive', 'DRIVE', 0, 1, 0, 'drive', 'the output drive, oversampled: warmth to crunch');
 kn('fx_drive_mix', 'DRIVE MIX', 0, 1, 1, 'mix', 'how much of the drive is heard against the clean sound');
-kn('fx_chorus_depth', 'CHORUS', 0, 1, 0.5, 'depth', 'the chorus\'s sweep: a gentle double to a wide wobble');
+kn('fx_chorus_depth', 'CHORUS', 0, 1, 0.5, 'depth', "the chorus's sweep: a gentle double to a wide wobble");
 kn('fx_chorus_mix', 'CHORUS MIX', 0, 1, 0, 'mix', 'how much chorus (0 is off)');
-sw('fx_delay_time', 'DELAY TIME', DELAY_TIMES, 3, 'time', 'the echo\'s note value at the song\'s tempo (ping-pong: left, then right)');
+sw(
+  'fx_delay_time',
+  'DELAY TIME',
+  DELAY_TIMES,
+  3,
+  'time',
+  "the echo's note value at the song's tempo (ping-pong: left, then right)",
+);
 kn('fx_delay_fb', 'DELAY FB', 0, 0.9, 0.35, 'feedback', 'how many repeats');
 kn('fx_delay_mix', 'DELAY MIX', 0, 1, 0, 'mix', 'how loud the echoes are (0 is off)');
 kn('fx_verb_size', 'VERB SIZE', 0, 1, 0.45, 'size', 'the room: a small booth to a long hall');
 kn('fx_verb_mix', 'VERB MIX', 0, 1, 0.12, 'mix', 'how much room (0 is off)');
-sw('voice_mode', 'VOICES', VOICE_MODES, 0, 'shape', 'POLY plays 8 notes; MONO one at a time, retriggering; LEGATO one, sliding between overlapping notes');
-kn('voice_glide', 'GLIDE', 0, 1000, 0, 'time', 'slide time to each new note (MONO always, LEGATO between overlapping notes, POLY from the last note)', { unit: 'ms' });
+sw(
+  'voice_mode',
+  'VOICES',
+  VOICE_MODES,
+  0,
+  'shape',
+  'POLY plays 8 notes; MONO one at a time, retriggering; LEGATO one, sliding between overlapping notes',
+);
+kn(
+  'voice_glide',
+  'GLIDE',
+  0,
+  1000,
+  0,
+  'time',
+  'slide time to each new note (MONO always, LEGATO between overlapping notes, POLY from the last note)',
+  { unit: 'ms' },
+);
 kn('voice_level', 'VOLUME', -24, 6, 0, 'level', 'the output level', { unit: 'dB' });
 // (appended for bass music: the drive's other shapes, and Gaffer Tape's three-band dynamics inside the synth, so one
 // preset can be a whole growl)
-sw('fx_dist', 'DIST MODE', DIST_MODES, 0, 'shape', 'the drive\'s shape: TANH (warm, the original), HARD (clipped flat), FOLD (folded back on itself: buzz that grows with DRIVE), SINE FOLD (folded round: vocal, metallic), RECTIFY (folded up: an octave up and grit), DOWNSAMPLE (held steps: lo-fi crunch)');
-kn('fx_mband', 'MULTIBAND', 0, 100, 0, 'mix', 'the three-band upward and downward compression after the drive (Gaffer Tape\'s, at its classic settings): 30-60% thickens a growl and brings its grit forward, 100% is all of it (0 is off)', { unit: '%' });
-kn('fx_mband_time', 'MB TIME', 10, 1000, 100, 'time', 'the multiband\'s attack and release, scaled: under 100% faster and more aggressive, over 100% smoother', { curve: 'log', unit: '%' });
+sw(
+  'fx_dist',
+  'DIST MODE',
+  DIST_MODES,
+  0,
+  'shape',
+  "the drive's shape: TANH (warm, the original), HARD (clipped flat), FOLD (folded back on itself: buzz that grows with DRIVE), SINE FOLD (folded round: vocal, metallic), RECTIFY (folded up: an octave up and grit), DOWNSAMPLE (held steps: lo-fi crunch)",
+);
+kn(
+  'fx_mband',
+  'MULTIBAND',
+  0,
+  100,
+  0,
+  'mix',
+  "the three-band upward and downward compression after the drive (Gaffer Tape's, at its classic settings): 30-60% thickens a growl and brings its grit forward, 100% is all of it (0 is off)",
+  { unit: '%' },
+);
+kn(
+  'fx_mband_time',
+  'MB TIME',
+  10,
+  1000,
+  100,
+  'time',
+  "the multiband's attack and release, scaled: under 100% faster and more aggressive, over 100% smoother",
+  { curve: 'log', unit: '%' },
+);
 export const PARAMS = P;
 
 /* ------------------------------------------------------------------------------------------------ the kernel */
@@ -1311,94 +1619,586 @@ const slot = (n, src, dst, amt) => ({ [`m${n}_src`]: src, [`m${n}_dst`]: dst, [`
 // and riser on the test phrase).
 const BM_DRY = { fx_verb_mix: 0, fx_chorus_mix: 0, fx_delay_mix: 0, noise_level: 0, sub_level: 0 };
 const BM_MONO = { a_unison: 1, a_spread: 0, a_pan: 0, b_unison: 1, b_spread: 0, b_pan: 0 };
-const BM_BASE = { ...BM_DRY, env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.08, voice_mode: 'MONO', voice_glide: 15, flt_env: 0, flt_vel: 0 };
+const BM_BASE = {
+  ...BM_DRY,
+  env1_attack: 0.003,
+  env1_decay: 1,
+  env1_sustain: 1,
+  env1_release: 0.08,
+  voice_mode: 'MONO',
+  voice_glide: 15,
+  flt_env: 0,
+  flt_vel: 0,
+};
 const BASS_MUSIC = [
-  { name: 'Dark Slide', tags: ['bass-music', 'sub'], blurb: 'Bass: a pure sine sub, mono and clean (macro 1: its octave, for small speakers)', params: {
-    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0, flt_a: 'OFF', flt_b: 'OFF',
-    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_curve: 0, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, ...slot(1, 'MACRO 1', 'B LEVEL', 0.25), voice_level: 1 } },
-  { name: 'Contact Sheet', tags: ['bass-music', 'sub'], blurb: 'Bass: a sine sub with a little of its octave, mono (macro 1: warmth)', params: {
-    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0.07, flt_a: 'OFF', flt_b: 'OFF',
-    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, fx_drive: 0.1, ...slot(1, 'MACRO 1', 'DRIVE', 0.4), voice_level: 0.1 } },
-  { name: 'Push Process', tags: ['bass-music', 'sub'], blurb: 'Bass: a rounded triangle sub, mono, a touch of edge (macro 1: more edge)', params: {
-    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0.22, a_level: 0.8, b_level: 0, flt_a: 'OFF', flt_b: 'OFF',
-    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, ...slot(1, 'MACRO 1', 'A POS', 0.15), voice_level: 2.1 } },
-  { name: 'Fixer', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a growl that yawns every beat, FM from osc B (macro 1: more FM)', params: {
-    ...BM_BASE,
-    a_table: 'BASIC', a_pos: 2 / 3, a_warp: 'FM', a_warp_amt: 0.3, a_unison: 3, a_detune: 0.1, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0,
-    flt_type: 'LP24', flt_cutoff: 3200, flt_res: 0.25, flt_drive: 0.35, flt_key: 0.5,
-    lfo1_shape: 'SINE', lfo1_sync: '1/4', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'A WARP', 0.4), ...slot(2, 'LFO1', 'CUTOFF', 0.2), ...slot(3, 'MACRO 1', 'A WARP', 0.4),
-    fx_dist: 'HARD', fx_drive: 0.55, fx_mband: 70, voice_level: -8.1 } },
-  { name: 'Stop Bath', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a comb growl that says yoi in eighths (macro 1: more ring)', params: {
-    ...BM_BASE,
-    a_table: 'GROWL', a_pos: 0.35, a_unison: 3, a_detune: 0.12, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 6, b_level: 0.4,
-    flt_type: 'COMB', flt_cutoff: 700, flt_res: 0.4, flt_drive: 0.3, flt_key: 1,
-    lfo1_shape: 'TRI', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.6), ...slot(2, 'LFO1', 'A POS', 0.8), ...slot(3, 'MACRO 1', 'RESO', 0.3),
-    fx_dist: 'HARD', fx_drive: 0.5, fx_mband: 70, voice_level: -11.8 } },
-  { name: 'Emulsion', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a talking growl, U to E each beat; the wheel and macro 1 talk', params: {
-    ...BM_BASE,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.1, a_spread: 0.2, a_level: 0.75, b_table: 'GROWL', b_pos: 0.5, b_oct: 0, b_level: 0.5,
-    flt_type: 'FORMANT', flt_cutoff: 700, flt_res: 0.6, flt_drive: 0.4, flt_key: 0,
-    lfo1_shape: 'SINE', lfo1_sync: '1/4', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.18), ...slot(2, 'MOD WHEEL', 'CUTOFF', 0.5), ...slot(3, 'MACRO 1', 'CUTOFF', 0.3),
-    fx_dist: 'SINE FOLD', fx_drive: 0.45, fx_mband: 60, voice_level: -7.9 } },
-  { name: 'Halation', tags: ['bass-music', 'dubstep', 'riddim', 'growl'], blurb: 'Bass: a wavefolded growl buzzing in eighths (macro 1: more fold)', params: {
-    ...BM_BASE,
-    a_table: 'BASIC', a_pos: 0.55, a_unison: 1, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 1, b_fine: 7, b_level: 0.6,
-    flt_type: 'LP24', flt_cutoff: 2500, flt_res: 0.2, flt_key: 0.3,
-    lfo1_shape: 'SINE', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'DRIVE', 0.3), ...slot(2, 'LFO1', 'CUTOFF', 0.3), ...slot(3, 'MACRO 1', 'DRIVE', 0.3),
-    fx_dist: 'FOLD', fx_drive: 0.85, fx_mband: 60, voice_level: -11.8 } },
-  { name: 'Hard Cut', tags: ['bass-music', 'riddim', 'stab'], blurb: 'Bass: a riddim stab, a clipped square, short and loud (macro 1: brighter)', params: {
-    ...BM_BASE,
-    a_table: 'PULSE', a_pos: 0, a_unison: 2, a_detune: 0.06, a_spread: 0.15, a_level: 0.8, b_table: 'PULSE', b_pos: 0.25, b_oct: 0, b_fine: 8, b_level: 0.45,
-    flt_type: 'BP', flt_cutoff: 1000, flt_res: 0.1, flt_drive: 0.4, flt_key: 0.3, flt_env: 0.25,
-    env1_attack: 0.002, env1_decay: 0.2, env1_sustain: 0.75, env1_release: 0.03, env2_attack: 0.001, env2_decay: 0.12, env2_sustain: 0.2, env2_release: 0.05,
-    voice_mode: 'MONO', voice_glide: 0, ...slot(1, 'MACRO 1', 'CUTOFF', 0.25), fx_dist: 'HARD', fx_drive: 0.6, fx_mband: 75, voice_level: -5.9 } },
-  { name: 'Jump Cut', tags: ['bass-music', 'riddim', 'stab'], blurb: 'Bass: a metallic riddim stab, sync through a comb (macro 1: harsher)', params: {
-    ...BM_BASE,
-    a_table: 'SYNC', a_pos: 0.55, a_unison: 2, a_detune: 0.05, a_spread: 0.15, a_level: 0.8, b_table: 'FM', b_pos: 0.6, b_oct: 0, b_fine: 9, b_level: 0.4,
-    flt_type: 'COMB', flt_cutoff: 1200, flt_res: 0.55, flt_key: 1, flt_env: 0.2,
-    env1_attack: 0.001, env1_decay: 0.18, env1_sustain: 0.7, env1_release: 0.03, env2_attack: 0.001, env2_decay: 0.1, env2_sustain: 0.1, env2_release: 0.05,
-    voice_mode: 'MONO', voice_glide: 0, ...slot(1, 'ENV2', 'A POS', 0.25), ...slot(2, 'MACRO 1', 'A POS', 0.35), fx_dist: 'RECTIFY', fx_drive: 0.45, fx_mband: 75, voice_level: -0.7 } },
-  { name: 'Double Exposure', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a rolling drum and bass Reese, wide and dark (macro 1: opens it)', params: {
-    ...BM_DRY,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.3, a_blend: 1, a_spread: 0.5, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 25, b_unison: 2, b_detune: 0.3, b_blend: 1, b_spread: 0.5, b_level: 0.6,
-    flt_type: 'LP24', flt_cutoff: 1800, flt_res: 0.2, flt_drive: 0.4, flt_key: 0, flt_env: 0.1,
-    env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 40,
-    lfo1_shape: 'SINE', lfo1_rate: 0.15, lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'A DETUNE', 0.1), ...slot(2, 'MACRO 1', 'CUTOFF', 0.3), fx_dist: 'TANH', fx_drive: 0.25, fx_mband: 35, fx_chorus_mix: 0.15, voice_level: 0.7 } },
-  { name: 'Cross Process', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a neuro Reese, notched and clipped, sweeping (macro 1: grit)', params: {
-    ...BM_DRY,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.6, a_blend: 1, a_spread: 0.6, a_level: 0.7, b_table: 'HOLLOW', b_pos: 0.5, b_oct: 1, b_fine: -30, b_unison: 2, b_detune: 0.25, b_spread: 0.7, b_level: 0.6,
-    flt_type: 'NOTCH', flt_cutoff: 900, flt_res: 0.5, flt_drive: 0.6, flt_key: 0.5,
-    env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 40,
-    lfo1_shape: 'TRI', lfo1_sync: '1/2', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.25), ...slot(2, 'MACRO 1', 'DRIVE', 0.35), fx_dist: 'HARD', fx_drive: 0.45, fx_mband: 60, voice_level: -12.5 } },
-  { name: 'Strobe', tags: ['bass-music', 'dubstep', 'wobble'], blurb: 'Bass: a wobble in eighths, locked to the song (macro 1: deeper)', params: {
-    ...BM_BASE,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.1, a_spread: 0.15, a_level: 0.8, b_table: 'BASIC', b_pos: 1, b_oct: 1, b_fine: -5, b_level: 0.5,
-    flt_type: 'LP24', flt_cutoff: 1000, flt_res: 0.55, flt_drive: 0.45, flt_key: 0.3,
-    lfo1_shape: 'SINE', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.27), ...slot(2, 'MACRO 1', 'M1 AMT', 0.6), fx_dist: 'TANH', fx_drive: 0.45, fx_mband: 45, voice_level: -7.2 } },
-  { name: 'Iris', tags: ['bass-music', 'dubstep', 'wobble'], blurb: 'Bass: a wobble in eighth triplets, locked to the song (macro 1: deeper)', params: {
-    ...BM_BASE,
-    a_table: 'BASIC', a_pos: 0.8, a_unison: 2, a_detune: 0.1, a_spread: 0.15, a_level: 0.75, b_table: 'GROWL', b_pos: 0.3, b_oct: 1, b_level: 0.6,
-    flt_type: 'LP24', flt_cutoff: 1000, flt_res: 0.6, flt_drive: 0.45, flt_key: 0.3,
-    lfo1_shape: 'SINE', lfo1_sync: '1/8T', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.27), ...slot(2, 'MACRO 1', 'M1 AMT', 0.6), fx_dist: 'TANH', fx_drive: 0.45, fx_mband: 45, voice_level: -5.7 } },
-  { name: 'Wide Angle', tags: ['bass-music', 'melodic', 'chords'], blurb: 'Poly: supersaw chords for a melodic drop, wide and bright (macro 1: opens)', params: {
-    ...BM_DRY,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 7, a_detune: 0.45, a_blend: 0.8, a_spread: 0.9, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 1, b_unison: 5, b_detune: 0.35, b_spread: 0.9, b_level: 0.3,
-    flt_type: 'LP24', flt_cutoff: 5500, flt_res: 0.1, flt_key: 0.3, flt_env: 0.15,
-    env1_attack: 0.01, env1_decay: 0.6, env1_sustain: 0.9, env1_release: 0.45, voice_mode: 'POLY',
-    fx_chorus_mix: 0.25, fx_chorus_depth: 0.45, fx_delay_time: '1/8D', fx_delay_fb: 0.25, fx_delay_mix: 0.1, fx_verb_mix: 0.25, fx_verb_size: 0.7, ...slot(1, 'MACRO 1', 'CUTOFF', 0.3), voice_level: 0.3 } },
-  { name: 'Key Light', tags: ['bass-music', 'melodic', 'lead'], blurb: 'Lead: a melodic bass lead, saws gliding into echoes (macro 1: brighter)', params: {
-    ...BM_DRY,
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.2, a_spread: 0.6, a_level: 0.75, b_table: 'PULSE', b_pos: 0.2, b_oct: 0, b_fine: 6, b_level: 0.35,
-    flt_type: 'LP24', flt_cutoff: 4500, flt_res: 0.2, flt_key: 0.5, flt_env: 0.2,
-    env1_attack: 0.005, env1_decay: 0.6, env1_sustain: 0.85, env1_release: 0.25, voice_mode: 'LEGATO', voice_glide: 60,
-    fx_delay_time: '1/4D', fx_delay_fb: 0.3, fx_delay_mix: 0.18, fx_verb_mix: 0.2, fx_verb_size: 0.6, fx_chorus_mix: 0.15, ...slot(1, 'MACRO 1', 'CUTOFF', 0.25), ...slot(2, 'MOD WHEEL', 'FINE', 0.2), voice_level: 4.1 } },
-  { name: 'Fade Up', tags: ['bass-music', 'fx'], blurb: 'FX: an eight-second riser, sync and noise sweeping up (macro 1: more noise)', params: {
-    ...BM_DRY,
-    a_table: 'SYNC', a_pos: 0.2, a_unison: 5, a_detune: 0.3, a_spread: 0.9, a_level: 1, b_level: 0, noise_level: 0.55, noise_color: 0.7,
-    flt_type: 'BP', flt_cutoff: 300, flt_res: 0.3, flt_key: 0,
-    env1_attack: 0.5, env1_decay: 1, env1_sustain: 1, env1_release: 0.6, env3_attack: 8, env3_decay: 1, env3_sustain: 1, env3_release: 0.5, env3_curve: -0.6,
-    voice_mode: 'MONO', ...slot(1, 'ENV3', 'PITCH', 0.5), ...slot(2, 'ENV3', 'CUTOFF', 0.65), ...slot(3, 'ENV3', 'A POS', 0.7), ...slot(4, 'MACRO 1', 'NOISE LEVEL', 0.5),
-    fx_delay_time: '1/8', fx_delay_fb: 0.4, fx_delay_mix: 0.15, fx_verb_mix: 0.35, fx_verb_size: 0.8, voice_level: 5.1 } },
+  {
+    name: 'Dark Slide',
+    tags: ['bass-music', 'sub'],
+    blurb: 'Bass: a pure sine sub, mono and clean (macro 1: its octave, for small speakers)',
+    params: {
+      ...BM_DRY,
+      ...BM_MONO,
+      a_table: 'BASIC',
+      a_pos: 0,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 0,
+      b_oct: 1,
+      b_level: 0,
+      flt_a: 'OFF',
+      flt_b: 'OFF',
+      env1_attack: 0.003,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.06,
+      env1_curve: 0,
+      env1_vel: 0.2,
+      voice_mode: 'LEGATO',
+      voice_glide: 25,
+      ...slot(1, 'MACRO 1', 'B LEVEL', 0.25),
+      voice_level: 1,
+    },
+  },
+  {
+    name: 'Contact Sheet',
+    tags: ['bass-music', 'sub'],
+    blurb: 'Bass: a sine sub with a little of its octave, mono (macro 1: warmth)',
+    params: {
+      ...BM_DRY,
+      ...BM_MONO,
+      a_table: 'BASIC',
+      a_pos: 0,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 0,
+      b_oct: 1,
+      b_level: 0.07,
+      flt_a: 'OFF',
+      flt_b: 'OFF',
+      env1_attack: 0.003,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.06,
+      env1_vel: 0.2,
+      voice_mode: 'LEGATO',
+      voice_glide: 25,
+      fx_drive: 0.1,
+      ...slot(1, 'MACRO 1', 'DRIVE', 0.4),
+      voice_level: 0.1,
+    },
+  },
+  {
+    name: 'Push Process',
+    tags: ['bass-music', 'sub'],
+    blurb: 'Bass: a rounded triangle sub, mono, a touch of edge (macro 1: more edge)',
+    params: {
+      ...BM_DRY,
+      ...BM_MONO,
+      a_table: 'BASIC',
+      a_pos: 0.22,
+      a_level: 0.8,
+      b_level: 0,
+      flt_a: 'OFF',
+      flt_b: 'OFF',
+      env1_attack: 0.003,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.06,
+      env1_vel: 0.2,
+      voice_mode: 'LEGATO',
+      voice_glide: 25,
+      ...slot(1, 'MACRO 1', 'A POS', 0.15),
+      voice_level: 2.1,
+    },
+  },
+  {
+    name: 'Fixer',
+    tags: ['bass-music', 'dubstep', 'growl'],
+    blurb: 'Bass: a growl that yawns every beat, FM from osc B (macro 1: more FM)',
+    params: {
+      ...BM_BASE,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_warp: 'FM',
+      a_warp_amt: 0.3,
+      a_unison: 3,
+      a_detune: 0.1,
+      a_spread: 0.2,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 0,
+      b_oct: 1,
+      b_level: 0,
+      flt_type: 'LP24',
+      flt_cutoff: 3200,
+      flt_res: 0.25,
+      flt_drive: 0.35,
+      flt_key: 0.5,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/4',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'A WARP', 0.4),
+      ...slot(2, 'LFO1', 'CUTOFF', 0.2),
+      ...slot(3, 'MACRO 1', 'A WARP', 0.4),
+      fx_dist: 'HARD',
+      fx_drive: 0.55,
+      fx_mband: 70,
+      voice_level: -8.1,
+    },
+  },
+  {
+    name: 'Stop Bath',
+    tags: ['bass-music', 'dubstep', 'growl'],
+    blurb: 'Bass: a comb growl that says yoi in eighths (macro 1: more ring)',
+    params: {
+      ...BM_BASE,
+      a_table: 'GROWL',
+      a_pos: 0.35,
+      a_unison: 3,
+      a_detune: 0.12,
+      a_spread: 0.2,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 0,
+      b_fine: 6,
+      b_level: 0.4,
+      flt_type: 'COMB',
+      flt_cutoff: 700,
+      flt_res: 0.4,
+      flt_drive: 0.3,
+      flt_key: 1,
+      lfo1_shape: 'TRI',
+      lfo1_sync: '1/8',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'CUTOFF', 0.6),
+      ...slot(2, 'LFO1', 'A POS', 0.8),
+      ...slot(3, 'MACRO 1', 'RESO', 0.3),
+      fx_dist: 'HARD',
+      fx_drive: 0.5,
+      fx_mband: 70,
+      voice_level: -11.8,
+    },
+  },
+  {
+    name: 'Emulsion',
+    tags: ['bass-music', 'dubstep', 'growl'],
+    blurb: 'Bass: a talking growl, U to E each beat; the wheel and macro 1 talk',
+    params: {
+      ...BM_BASE,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 3,
+      a_detune: 0.1,
+      a_spread: 0.2,
+      a_level: 0.75,
+      b_table: 'GROWL',
+      b_pos: 0.5,
+      b_oct: 0,
+      b_level: 0.5,
+      flt_type: 'FORMANT',
+      flt_cutoff: 700,
+      flt_res: 0.6,
+      flt_drive: 0.4,
+      flt_key: 0,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/4',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'CUTOFF', 0.18),
+      ...slot(2, 'MOD WHEEL', 'CUTOFF', 0.5),
+      ...slot(3, 'MACRO 1', 'CUTOFF', 0.3),
+      fx_dist: 'SINE FOLD',
+      fx_drive: 0.45,
+      fx_mband: 60,
+      voice_level: -7.9,
+    },
+  },
+  {
+    name: 'Halation',
+    tags: ['bass-music', 'dubstep', 'riddim', 'growl'],
+    blurb: 'Bass: a wavefolded growl buzzing in eighths (macro 1: more fold)',
+    params: {
+      ...BM_BASE,
+      a_table: 'BASIC',
+      a_pos: 0.55,
+      a_unison: 1,
+      a_level: 0.7,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 1,
+      b_fine: 7,
+      b_level: 0.6,
+      flt_type: 'LP24',
+      flt_cutoff: 2500,
+      flt_res: 0.2,
+      flt_key: 0.3,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/8',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'DRIVE', 0.3),
+      ...slot(2, 'LFO1', 'CUTOFF', 0.3),
+      ...slot(3, 'MACRO 1', 'DRIVE', 0.3),
+      fx_dist: 'FOLD',
+      fx_drive: 0.85,
+      fx_mband: 60,
+      voice_level: -11.8,
+    },
+  },
+  {
+    name: 'Hard Cut',
+    tags: ['bass-music', 'riddim', 'stab'],
+    blurb: 'Bass: a riddim stab, a clipped square, short and loud (macro 1: brighter)',
+    params: {
+      ...BM_BASE,
+      a_table: 'PULSE',
+      a_pos: 0,
+      a_unison: 2,
+      a_detune: 0.06,
+      a_spread: 0.15,
+      a_level: 0.8,
+      b_table: 'PULSE',
+      b_pos: 0.25,
+      b_oct: 0,
+      b_fine: 8,
+      b_level: 0.45,
+      flt_type: 'BP',
+      flt_cutoff: 1000,
+      flt_res: 0.1,
+      flt_drive: 0.4,
+      flt_key: 0.3,
+      flt_env: 0.25,
+      env1_attack: 0.002,
+      env1_decay: 0.2,
+      env1_sustain: 0.75,
+      env1_release: 0.03,
+      env2_attack: 0.001,
+      env2_decay: 0.12,
+      env2_sustain: 0.2,
+      env2_release: 0.05,
+      voice_mode: 'MONO',
+      voice_glide: 0,
+      ...slot(1, 'MACRO 1', 'CUTOFF', 0.25),
+      fx_dist: 'HARD',
+      fx_drive: 0.6,
+      fx_mband: 75,
+      voice_level: -5.9,
+    },
+  },
+  {
+    name: 'Jump Cut',
+    tags: ['bass-music', 'riddim', 'stab'],
+    blurb: 'Bass: a metallic riddim stab, sync through a comb (macro 1: harsher)',
+    params: {
+      ...BM_BASE,
+      a_table: 'SYNC',
+      a_pos: 0.55,
+      a_unison: 2,
+      a_detune: 0.05,
+      a_spread: 0.15,
+      a_level: 0.8,
+      b_table: 'FM',
+      b_pos: 0.6,
+      b_oct: 0,
+      b_fine: 9,
+      b_level: 0.4,
+      flt_type: 'COMB',
+      flt_cutoff: 1200,
+      flt_res: 0.55,
+      flt_key: 1,
+      flt_env: 0.2,
+      env1_attack: 0.001,
+      env1_decay: 0.18,
+      env1_sustain: 0.7,
+      env1_release: 0.03,
+      env2_attack: 0.001,
+      env2_decay: 0.1,
+      env2_sustain: 0.1,
+      env2_release: 0.05,
+      voice_mode: 'MONO',
+      voice_glide: 0,
+      ...slot(1, 'ENV2', 'A POS', 0.25),
+      ...slot(2, 'MACRO 1', 'A POS', 0.35),
+      fx_dist: 'RECTIFY',
+      fx_drive: 0.45,
+      fx_mband: 75,
+      voice_level: -0.7,
+    },
+  },
+  {
+    name: 'Double Exposure',
+    tags: ['bass-music', 'dnb', 'reese'],
+    blurb: 'Bass: a rolling drum and bass Reese, wide and dark (macro 1: opens it)',
+    params: {
+      ...BM_DRY,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 2,
+      a_detune: 0.3,
+      a_blend: 1,
+      a_spread: 0.5,
+      a_level: 0.7,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 0,
+      b_fine: 25,
+      b_unison: 2,
+      b_detune: 0.3,
+      b_blend: 1,
+      b_spread: 0.5,
+      b_level: 0.6,
+      flt_type: 'LP24',
+      flt_cutoff: 1800,
+      flt_res: 0.2,
+      flt_drive: 0.4,
+      flt_key: 0,
+      flt_env: 0.1,
+      env1_attack: 0.005,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.15,
+      voice_mode: 'LEGATO',
+      voice_glide: 40,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 0.15,
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'A DETUNE', 0.1),
+      ...slot(2, 'MACRO 1', 'CUTOFF', 0.3),
+      fx_dist: 'TANH',
+      fx_drive: 0.25,
+      fx_mband: 35,
+      fx_chorus_mix: 0.15,
+      voice_level: 0.7,
+    },
+  },
+  {
+    name: 'Cross Process',
+    tags: ['bass-music', 'dnb', 'reese'],
+    blurb: 'Bass: a neuro Reese, notched and clipped, sweeping (macro 1: grit)',
+    params: {
+      ...BM_DRY,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 3,
+      a_detune: 0.6,
+      a_blend: 1,
+      a_spread: 0.6,
+      a_level: 0.7,
+      b_table: 'HOLLOW',
+      b_pos: 0.5,
+      b_oct: 1,
+      b_fine: -30,
+      b_unison: 2,
+      b_detune: 0.25,
+      b_spread: 0.7,
+      b_level: 0.6,
+      flt_type: 'NOTCH',
+      flt_cutoff: 900,
+      flt_res: 0.5,
+      flt_drive: 0.6,
+      flt_key: 0.5,
+      env1_attack: 0.005,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.15,
+      voice_mode: 'LEGATO',
+      voice_glide: 40,
+      lfo1_shape: 'TRI',
+      lfo1_sync: '1/2',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'CUTOFF', 0.25),
+      ...slot(2, 'MACRO 1', 'DRIVE', 0.35),
+      fx_dist: 'HARD',
+      fx_drive: 0.45,
+      fx_mband: 60,
+      voice_level: -12.5,
+    },
+  },
+  {
+    name: 'Strobe',
+    tags: ['bass-music', 'dubstep', 'wobble'],
+    blurb: 'Bass: a wobble in eighths, locked to the song (macro 1: deeper)',
+    params: {
+      ...BM_BASE,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 2,
+      a_detune: 0.1,
+      a_spread: 0.15,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 1,
+      b_oct: 1,
+      b_fine: -5,
+      b_level: 0.5,
+      flt_type: 'LP24',
+      flt_cutoff: 1000,
+      flt_res: 0.55,
+      flt_drive: 0.45,
+      flt_key: 0.3,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/8',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'CUTOFF', 0.27),
+      ...slot(2, 'MACRO 1', 'M1 AMT', 0.6),
+      fx_dist: 'TANH',
+      fx_drive: 0.45,
+      fx_mband: 45,
+      voice_level: -7.2,
+    },
+  },
+  {
+    name: 'Iris',
+    tags: ['bass-music', 'dubstep', 'wobble'],
+    blurb: 'Bass: a wobble in eighth triplets, locked to the song (macro 1: deeper)',
+    params: {
+      ...BM_BASE,
+      a_table: 'BASIC',
+      a_pos: 0.8,
+      a_unison: 2,
+      a_detune: 0.1,
+      a_spread: 0.15,
+      a_level: 0.75,
+      b_table: 'GROWL',
+      b_pos: 0.3,
+      b_oct: 1,
+      b_level: 0.6,
+      flt_type: 'LP24',
+      flt_cutoff: 1000,
+      flt_res: 0.6,
+      flt_drive: 0.45,
+      flt_key: 0.3,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/8T',
+      lfo1_mode: 'FREE',
+      ...slot(1, 'LFO1', 'CUTOFF', 0.27),
+      ...slot(2, 'MACRO 1', 'M1 AMT', 0.6),
+      fx_dist: 'TANH',
+      fx_drive: 0.45,
+      fx_mband: 45,
+      voice_level: -5.7,
+    },
+  },
+  {
+    name: 'Wide Angle',
+    tags: ['bass-music', 'melodic', 'chords'],
+    blurb: 'Poly: supersaw chords for a melodic drop, wide and bright (macro 1: opens)',
+    params: {
+      ...BM_DRY,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 7,
+      a_detune: 0.45,
+      a_blend: 0.8,
+      a_spread: 0.9,
+      a_level: 0.7,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 1,
+      b_unison: 5,
+      b_detune: 0.35,
+      b_spread: 0.9,
+      b_level: 0.3,
+      flt_type: 'LP24',
+      flt_cutoff: 5500,
+      flt_res: 0.1,
+      flt_key: 0.3,
+      flt_env: 0.15,
+      env1_attack: 0.01,
+      env1_decay: 0.6,
+      env1_sustain: 0.9,
+      env1_release: 0.45,
+      voice_mode: 'POLY',
+      fx_chorus_mix: 0.25,
+      fx_chorus_depth: 0.45,
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.25,
+      fx_delay_mix: 0.1,
+      fx_verb_mix: 0.25,
+      fx_verb_size: 0.7,
+      ...slot(1, 'MACRO 1', 'CUTOFF', 0.3),
+      voice_level: 0.3,
+    },
+  },
+  {
+    name: 'Key Light',
+    tags: ['bass-music', 'melodic', 'lead'],
+    blurb: 'Lead: a melodic bass lead, saws gliding into echoes (macro 1: brighter)',
+    params: {
+      ...BM_DRY,
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 3,
+      a_detune: 0.2,
+      a_spread: 0.6,
+      a_level: 0.75,
+      b_table: 'PULSE',
+      b_pos: 0.2,
+      b_oct: 0,
+      b_fine: 6,
+      b_level: 0.35,
+      flt_type: 'LP24',
+      flt_cutoff: 4500,
+      flt_res: 0.2,
+      flt_key: 0.5,
+      flt_env: 0.2,
+      env1_attack: 0.005,
+      env1_decay: 0.6,
+      env1_sustain: 0.85,
+      env1_release: 0.25,
+      voice_mode: 'LEGATO',
+      voice_glide: 60,
+      fx_delay_time: '1/4D',
+      fx_delay_fb: 0.3,
+      fx_delay_mix: 0.18,
+      fx_verb_mix: 0.2,
+      fx_verb_size: 0.6,
+      fx_chorus_mix: 0.15,
+      ...slot(1, 'MACRO 1', 'CUTOFF', 0.25),
+      ...slot(2, 'MOD WHEEL', 'FINE', 0.2),
+      voice_level: 4.1,
+    },
+  },
+  {
+    name: 'Fade Up',
+    tags: ['bass-music', 'fx'],
+    blurb: 'FX: an eight-second riser, sync and noise sweeping up (macro 1: more noise)',
+    params: {
+      ...BM_DRY,
+      a_table: 'SYNC',
+      a_pos: 0.2,
+      a_unison: 5,
+      a_detune: 0.3,
+      a_spread: 0.9,
+      a_level: 1,
+      b_level: 0,
+      noise_level: 0.55,
+      noise_color: 0.7,
+      flt_type: 'BP',
+      flt_cutoff: 300,
+      flt_res: 0.3,
+      flt_key: 0,
+      env1_attack: 0.5,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.6,
+      env3_attack: 8,
+      env3_decay: 1,
+      env3_sustain: 1,
+      env3_release: 0.5,
+      env3_curve: -0.6,
+      voice_mode: 'MONO',
+      ...slot(1, 'ENV3', 'PITCH', 0.5),
+      ...slot(2, 'ENV3', 'CUTOFF', 0.65),
+      ...slot(3, 'ENV3', 'A POS', 0.7),
+      ...slot(4, 'MACRO 1', 'NOISE LEVEL', 0.5),
+      fx_delay_time: '1/8',
+      fx_delay_fb: 0.4,
+      fx_delay_mix: 0.15,
+      fx_verb_mix: 0.35,
+      fx_verb_size: 0.8,
+      voice_level: 5.1,
+    },
+  },
 ];
 // what each bass-music preset is (tools/bassmusic-test.js measures each against its part's target): kind, and for a
 // growl or a wobble its LFO's cycle in beats (per) and where in it the LFO puts the darkest point (phase)
@@ -1406,151 +2206,899 @@ export const BASS_MUSIC_PARTS = {
   'Dark Slide': { kind: 'sub' },
   'Contact Sheet': { kind: 'sub' },
   'Push Process': { kind: 'sub' },
-  'Fixer': { kind: 'growl', per: 1, phase: 0.75 },
+  Fixer: { kind: 'growl', per: 1, phase: 0.75 },
   'Stop Bath': { kind: 'growl', per: 0.5, phase: 0.75 },
-  'Emulsion': { kind: 'growl', per: 1, phase: 0.75 },
-  'Halation': { kind: 'growl', per: 0.5, phase: 0.75 },
+  Emulsion: { kind: 'growl', per: 1, phase: 0.75 },
+  Halation: { kind: 'growl', per: 0.5, phase: 0.75 },
   'Hard Cut': { kind: 'stab' },
   'Jump Cut': { kind: 'stab' },
   'Double Exposure': { kind: 'reese' },
   'Cross Process': { kind: 'reese' },
-  'Strobe': { kind: 'wobble', per: 0.5, phase: 0.75 },
-  'Iris': { kind: 'wobble', per: 1 / 3, phase: 0.75 },
+  Strobe: { kind: 'wobble', per: 0.5, phase: 0.75 },
+  Iris: { kind: 'wobble', per: 1 / 3, phase: 0.75 },
   'Wide Angle': { kind: 'chords' },
   'Key Light': { kind: 'lead' },
   'Fade Up': { kind: 'fx' },
 };
 export const PRESETS = [
-  { name: 'First Light', blurb: 'Poly: a warm three-voice saw through the ladder, a touch of room (the defaults)', params: {} },
+  {
+    name: 'First Light',
+    blurb: 'Poly: a warm three-voice saw through the ladder, a touch of room (the defaults)',
+    params: {},
+  },
   // bass
-  { name: 'Low Key', blurb: 'Bass: deep and round, FM grit over a clean sine sub, legato slides', params: {
-    a_table: 'FM', a_pos: 0.4, a_unison: 1, a_level: 0.75, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_level: 0.4, sub_level: 0.15, flt_sub: 'OFF',
-    flt_type: 'LP24', flt_cutoff: 650, flt_res: 0.2, flt_drive: 0.25, flt_key: 0.3, flt_env: 0.35,
-    env1_attack: 0.002, env1_decay: 0.6, env1_sustain: 0.85, env1_release: 0.08, env1_curve: 0.3, env2_attack: 0.001, env2_decay: 0.22, env2_sustain: 0.1, env2_release: 0.1, env2_curve: 0.6,
-    voice_mode: 'LEGATO', voice_glide: 35, fx_verb_mix: 0, fx_drive: 0.15, ...slot(1, 'VELOCITY', 'CUTOFF', 0.12), voice_level: 2.2 } },
-  { name: 'Gate Weave', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a Reese, two detuned saw pairs drifting against each other', params: {
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.35, a_blend: 1, a_spread: 0.3, a_level: 0.7,
-    b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 11, b_unison: 2, b_detune: 0.35, b_blend: 1, b_level: 0.6, sub_level: 0.1, flt_sub: 'OFF',
-    flt_type: 'LP24', flt_cutoff: 700, flt_res: 0.25, flt_drive: 0.4, flt_key: 0.3, flt_env: 0.2,
-    env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 20, fx_verb_mix: 0, fx_drive: 0.2,
-    lfo1_shape: 'SINE', lfo1_rate: 0.18, lfo1_mode: 'FREE', lfo2_shape: 'TRI', lfo2_rate: 0.11, lfo2_mode: 'FREE',
-    ...slot(1, 'LFO1', 'A DETUNE', 0.15), ...slot(2, 'LFO2', 'CUTOFF', 0.06), voice_level: 3 } },
-  { name: 'Solarized', tags: ['bass-music', 'dubstep', 'growl', 'wobble'], blurb: 'Bass: a talking growl that wobbles in eighths over a clean sine, retriggered', params: {
-    a_table: 'GROWL', a_pos: 0.3, a_unison: 2, a_detune: 0.15, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 0, b_level: 0.25, flt_b: 'OFF',
-    flt_type: 'LP24', flt_cutoff: 1400, flt_res: 0.35, flt_drive: 0.45, flt_key: 0.2, flt_env: 0,
-    env1_attack: 0.002, env1_decay: 0.4, env1_sustain: 0.9, env1_release: 0.1, voice_mode: 'MONO', voice_glide: 25, fx_verb_mix: 0, fx_drive: 0.25, fx_drive_mix: 0.6,
-    lfo1_shape: 'SINE', lfo1_sync: '1/8', lfo1_mode: 'RETRIG', ...slot(1, 'LFO1', 'A POS', 0.55), ...slot(2, 'LFO1', 'CUTOFF', 0.25), voice_level: 3.7 } },
-  { name: 'Safelight', blurb: 'Bass: an acid line, squelchy resonance and slides, with an echo', params: {
-    a_table: 'BASIC', a_pos: 0.8, a_unison: 1, a_level: 0.8, flt_type: 'LP24', flt_cutoff: 320, flt_res: 0.78, flt_drive: 0.35, flt_key: 0.25, flt_env: 0.55,
-    env1_attack: 0.002, env1_decay: 0.4, env1_sustain: 0.9, env1_release: 0.06, env2_attack: 0.001, env2_decay: 0.25, env2_sustain: 0.05, env2_release: 0.1, env2_curve: 0.5,
-    voice_mode: 'LEGATO', voice_glide: 70, fx_verb_mix: 0, fx_drive: 0.3, fx_drive_mix: 0.8, fx_delay_time: '1/8D', fx_delay_fb: 0.3, fx_delay_mix: 0.15,
-    ...slot(1, 'VELOCITY', 'CUTOFF', 0.15), voice_level: 0.8 } },
-  { name: 'Sprocket', blurb: 'Bass: a clicky FM pluck over a sine an octave down', params: {
-    a_table: 'FM', a_pos: 0.35, a_unison: 1, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: -1, b_level: 0.2,
-    flt_type: 'LP12', flt_cutoff: 2500, flt_res: 0.1, flt_env: 0.2, flt_key: 0.3,
-    env1_attack: 0.001, env1_decay: 0.5, env1_sustain: 0.6, env1_release: 0.06, env1_curve: 0.5, env3_attack: 0.001, env3_decay: 0.18, env3_sustain: 0, env3_release: 0.1, env3_curve: 0.6,
-    voice_mode: 'MONO', fx_verb_mix: 0, ...slot(1, 'ENV3', 'A POS', 0.6), voice_level: 5 } },
+  {
+    name: 'Low Key',
+    blurb: 'Bass: deep and round, FM grit over a clean sine sub, legato slides',
+    params: {
+      a_table: 'FM',
+      a_pos: 0.4,
+      a_unison: 1,
+      a_level: 0.75,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 0,
+      b_level: 0.4,
+      sub_level: 0.15,
+      flt_sub: 'OFF',
+      flt_type: 'LP24',
+      flt_cutoff: 650,
+      flt_res: 0.2,
+      flt_drive: 0.25,
+      flt_key: 0.3,
+      flt_env: 0.35,
+      env1_attack: 0.002,
+      env1_decay: 0.6,
+      env1_sustain: 0.85,
+      env1_release: 0.08,
+      env1_curve: 0.3,
+      env2_attack: 0.001,
+      env2_decay: 0.22,
+      env2_sustain: 0.1,
+      env2_release: 0.1,
+      env2_curve: 0.6,
+      voice_mode: 'LEGATO',
+      voice_glide: 35,
+      fx_verb_mix: 0,
+      fx_drive: 0.15,
+      ...slot(1, 'VELOCITY', 'CUTOFF', 0.12),
+      voice_level: 2.2,
+    },
+  },
+  {
+    name: 'Gate Weave',
+    tags: ['bass-music', 'dnb', 'reese'],
+    blurb: 'Bass: a Reese, two detuned saw pairs drifting against each other',
+    params: {
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 2,
+      a_detune: 0.35,
+      a_blend: 1,
+      a_spread: 0.3,
+      a_level: 0.7,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 0,
+      b_fine: 11,
+      b_unison: 2,
+      b_detune: 0.35,
+      b_blend: 1,
+      b_level: 0.6,
+      sub_level: 0.1,
+      flt_sub: 'OFF',
+      flt_type: 'LP24',
+      flt_cutoff: 700,
+      flt_res: 0.25,
+      flt_drive: 0.4,
+      flt_key: 0.3,
+      flt_env: 0.2,
+      env1_attack: 0.005,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 0.15,
+      voice_mode: 'LEGATO',
+      voice_glide: 20,
+      fx_verb_mix: 0,
+      fx_drive: 0.2,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 0.18,
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'TRI',
+      lfo2_rate: 0.11,
+      lfo2_mode: 'FREE',
+      ...slot(1, 'LFO1', 'A DETUNE', 0.15),
+      ...slot(2, 'LFO2', 'CUTOFF', 0.06),
+      voice_level: 3,
+    },
+  },
+  {
+    name: 'Solarized',
+    tags: ['bass-music', 'dubstep', 'growl', 'wobble'],
+    blurb: 'Bass: a talking growl that wobbles in eighths over a clean sine, retriggered',
+    params: {
+      a_table: 'GROWL',
+      a_pos: 0.3,
+      a_unison: 2,
+      a_detune: 0.15,
+      a_spread: 0.2,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 0,
+      b_oct: 0,
+      b_level: 0.25,
+      flt_b: 'OFF',
+      flt_type: 'LP24',
+      flt_cutoff: 1400,
+      flt_res: 0.35,
+      flt_drive: 0.45,
+      flt_key: 0.2,
+      flt_env: 0,
+      env1_attack: 0.002,
+      env1_decay: 0.4,
+      env1_sustain: 0.9,
+      env1_release: 0.1,
+      voice_mode: 'MONO',
+      voice_glide: 25,
+      fx_verb_mix: 0,
+      fx_drive: 0.25,
+      fx_drive_mix: 0.6,
+      lfo1_shape: 'SINE',
+      lfo1_sync: '1/8',
+      lfo1_mode: 'RETRIG',
+      ...slot(1, 'LFO1', 'A POS', 0.55),
+      ...slot(2, 'LFO1', 'CUTOFF', 0.25),
+      voice_level: 3.7,
+    },
+  },
+  {
+    name: 'Safelight',
+    blurb: 'Bass: an acid line, squelchy resonance and slides, with an echo',
+    params: {
+      a_table: 'BASIC',
+      a_pos: 0.8,
+      a_unison: 1,
+      a_level: 0.8,
+      flt_type: 'LP24',
+      flt_cutoff: 320,
+      flt_res: 0.78,
+      flt_drive: 0.35,
+      flt_key: 0.25,
+      flt_env: 0.55,
+      env1_attack: 0.002,
+      env1_decay: 0.4,
+      env1_sustain: 0.9,
+      env1_release: 0.06,
+      env2_attack: 0.001,
+      env2_decay: 0.25,
+      env2_sustain: 0.05,
+      env2_release: 0.1,
+      env2_curve: 0.5,
+      voice_mode: 'LEGATO',
+      voice_glide: 70,
+      fx_verb_mix: 0,
+      fx_drive: 0.3,
+      fx_drive_mix: 0.8,
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.3,
+      fx_delay_mix: 0.15,
+      ...slot(1, 'VELOCITY', 'CUTOFF', 0.15),
+      voice_level: 0.8,
+    },
+  },
+  {
+    name: 'Sprocket',
+    blurb: 'Bass: a clicky FM pluck over a sine an octave down',
+    params: {
+      a_table: 'FM',
+      a_pos: 0.35,
+      a_unison: 1,
+      a_level: 0.8,
+      b_table: 'BASIC',
+      b_pos: 0,
+      b_oct: -1,
+      b_level: 0.2,
+      flt_type: 'LP12',
+      flt_cutoff: 2500,
+      flt_res: 0.1,
+      flt_env: 0.2,
+      flt_key: 0.3,
+      env1_attack: 0.001,
+      env1_decay: 0.5,
+      env1_sustain: 0.6,
+      env1_release: 0.06,
+      env1_curve: 0.5,
+      env3_attack: 0.001,
+      env3_decay: 0.18,
+      env3_sustain: 0,
+      env3_release: 0.1,
+      env3_curve: 0.6,
+      voice_mode: 'MONO',
+      fx_verb_mix: 0,
+      ...slot(1, 'ENV3', 'A POS', 0.6),
+      voice_level: 5,
+    },
+  },
   // lead
-  { name: 'Rack Focus', blurb: 'Lead: a hard-sync sweep on every note, legato glide; the wheel pulls it further', params: {
-    a_table: 'BASIC', a_pos: 2 / 3, a_warp: 'SYNC', a_warp_amt: 0.35, a_unison: 3, a_detune: 0.18, a_level: 0.75, b_table: 'PULSE', b_pos: 0.35, b_oct: 0, b_fine: 7, b_level: 0.4,
-    flt_type: 'LP24', flt_cutoff: 5200, flt_res: 0.2, flt_env: 0.15, flt_key: 0.5,
-    env1_attack: 0.003, env1_decay: 0.6, env1_sustain: 0.85, env1_release: 0.25, env3_attack: 0.001, env3_decay: 0.6, env3_sustain: 0.2, env3_release: 0.3,
-    voice_mode: 'LEGATO', voice_glide: 60, fx_delay_time: '1/8D', fx_delay_fb: 0.3, fx_delay_mix: 0.18, fx_verb_mix: 0.15, fx_verb_size: 0.4,
-    ...slot(1, 'ENV3', 'A WARP', 0.4), ...slot(2, 'MOD WHEEL', 'A WARP', 0.3), voice_level: 2.9 } },
-  { name: 'Lens Flare', blurb: 'Lead: a wide seven-saw stack with an octave on top, chorus and echoes', params: {
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 7, a_detune: 0.42, a_blend: 0.8, a_spread: 0.85, a_level: 0.75, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 1, b_unison: 3, b_detune: 0.3, b_level: 0.3,
-    flt_type: 'LP24', flt_cutoff: 6500, flt_res: 0.1, flt_env: 0.1, flt_key: 0.3,
-    env1_attack: 0.003, env1_decay: 0.5, env1_sustain: 0.85, env1_release: 0.4,
-    fx_chorus_mix: 0.3, fx_chorus_depth: 0.4, fx_delay_time: '1/4', fx_delay_fb: 0.35, fx_delay_mix: 0.15, fx_verb_mix: 0.2, fx_verb_size: 0.6, voice_level: 0.3 } },
-  { name: 'Magic Lantern', blurb: 'Lead: a singing vowel line, its vowel drifting, the vibrato arriving late', params: {
-    a_table: 'VOWEL', a_pos: 0.2, a_unison: 2, a_detune: 0.12, a_level: 0.8, b_table: 'VOWEL', b_pos: 0.7, b_oct: 0, b_fine: -8, b_level: 0.45,
-    flt_type: 'LP12', flt_cutoff: 6000, flt_res: 0.1, flt_env: 0, flt_key: 0.3,
-    env1_attack: 0.02, env1_decay: 0.8, env1_sustain: 0.9, env1_release: 0.3, env3_attack: 0.001, env3_decay: 0.7, env3_sustain: 0, env3_release: 0.3, env3_curve: -0.5,
-    voice_mode: 'LEGATO', voice_glide: 90, fx_delay_time: '1/4D', fx_delay_fb: 0.25, fx_delay_mix: 0.12, fx_verb_mix: 0.25, fx_verb_size: 0.55,
-    lfo1_shape: 'TRI', lfo1_rate: 0.35, lfo1_mode: 'RETRIG', lfo2_shape: 'SINE', lfo2_rate: 5.2, lfo2_mode: 'RETRIG',
-    ...slot(1, 'LFO1', 'A POS', 0.6), ...slot(2, 'LFO2', 'FINE', 0.12), ...slot(3, 'ENV3', 'M2 AMT', -0.12), voice_level: 2.4 } },
-  { name: 'Flip Book', blurb: 'Lead: an eight-bit pulse narrowing on each note, a stepped triangle under it', params: {
-    a_table: 'CHIP', a_pos: 1 / 3, a_unison: 1, a_level: 0.7, b_table: 'CHIP', b_pos: 1, b_oct: -1, b_level: 0.3,
-    flt_type: 'LP12', flt_cutoff: 12000, flt_res: 0, flt_env: 0, flt_key: 0,
-    env1_attack: 0.001, env1_decay: 0.3, env1_sustain: 0.7, env1_release: 0.05, env1_curve: 1, env3_attack: 0.001, env3_decay: 0.25, env3_sustain: 0, env3_release: 0.1,
-    voice_mode: 'MONO', fx_delay_time: '1/8', fx_delay_fb: 0.25, fx_delay_mix: 0.15, fx_verb_mix: 0.1, ...slot(1, 'ENV3', 'A POS', -0.33), voice_level: 4.2 } },
+  {
+    name: 'Rack Focus',
+    blurb: 'Lead: a hard-sync sweep on every note, legato glide; the wheel pulls it further',
+    params: {
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_warp: 'SYNC',
+      a_warp_amt: 0.35,
+      a_unison: 3,
+      a_detune: 0.18,
+      a_level: 0.75,
+      b_table: 'PULSE',
+      b_pos: 0.35,
+      b_oct: 0,
+      b_fine: 7,
+      b_level: 0.4,
+      flt_type: 'LP24',
+      flt_cutoff: 5200,
+      flt_res: 0.2,
+      flt_env: 0.15,
+      flt_key: 0.5,
+      env1_attack: 0.003,
+      env1_decay: 0.6,
+      env1_sustain: 0.85,
+      env1_release: 0.25,
+      env3_attack: 0.001,
+      env3_decay: 0.6,
+      env3_sustain: 0.2,
+      env3_release: 0.3,
+      voice_mode: 'LEGATO',
+      voice_glide: 60,
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.3,
+      fx_delay_mix: 0.18,
+      fx_verb_mix: 0.15,
+      fx_verb_size: 0.4,
+      ...slot(1, 'ENV3', 'A WARP', 0.4),
+      ...slot(2, 'MOD WHEEL', 'A WARP', 0.3),
+      voice_level: 2.9,
+    },
+  },
+  {
+    name: 'Lens Flare',
+    blurb: 'Lead: a wide seven-saw stack with an octave on top, chorus and echoes',
+    params: {
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 7,
+      a_detune: 0.42,
+      a_blend: 0.8,
+      a_spread: 0.85,
+      a_level: 0.75,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: 1,
+      b_unison: 3,
+      b_detune: 0.3,
+      b_level: 0.3,
+      flt_type: 'LP24',
+      flt_cutoff: 6500,
+      flt_res: 0.1,
+      flt_env: 0.1,
+      flt_key: 0.3,
+      env1_attack: 0.003,
+      env1_decay: 0.5,
+      env1_sustain: 0.85,
+      env1_release: 0.4,
+      fx_chorus_mix: 0.3,
+      fx_chorus_depth: 0.4,
+      fx_delay_time: '1/4',
+      fx_delay_fb: 0.35,
+      fx_delay_mix: 0.15,
+      fx_verb_mix: 0.2,
+      fx_verb_size: 0.6,
+      voice_level: 0.3,
+    },
+  },
+  {
+    name: 'Magic Lantern',
+    blurb: 'Lead: a singing vowel line, its vowel drifting, the vibrato arriving late',
+    params: {
+      a_table: 'VOWEL',
+      a_pos: 0.2,
+      a_unison: 2,
+      a_detune: 0.12,
+      a_level: 0.8,
+      b_table: 'VOWEL',
+      b_pos: 0.7,
+      b_oct: 0,
+      b_fine: -8,
+      b_level: 0.45,
+      flt_type: 'LP12',
+      flt_cutoff: 6000,
+      flt_res: 0.1,
+      flt_env: 0,
+      flt_key: 0.3,
+      env1_attack: 0.02,
+      env1_decay: 0.8,
+      env1_sustain: 0.9,
+      env1_release: 0.3,
+      env3_attack: 0.001,
+      env3_decay: 0.7,
+      env3_sustain: 0,
+      env3_release: 0.3,
+      env3_curve: -0.5,
+      voice_mode: 'LEGATO',
+      voice_glide: 90,
+      fx_delay_time: '1/4D',
+      fx_delay_fb: 0.25,
+      fx_delay_mix: 0.12,
+      fx_verb_mix: 0.25,
+      fx_verb_size: 0.55,
+      lfo1_shape: 'TRI',
+      lfo1_rate: 0.35,
+      lfo1_mode: 'RETRIG',
+      lfo2_shape: 'SINE',
+      lfo2_rate: 5.2,
+      lfo2_mode: 'RETRIG',
+      ...slot(1, 'LFO1', 'A POS', 0.6),
+      ...slot(2, 'LFO2', 'FINE', 0.12),
+      ...slot(3, 'ENV3', 'M2 AMT', -0.12),
+      voice_level: 2.4,
+    },
+  },
+  {
+    name: 'Flip Book',
+    blurb: 'Lead: an eight-bit pulse narrowing on each note, a stepped triangle under it',
+    params: {
+      a_table: 'CHIP',
+      a_pos: 1 / 3,
+      a_unison: 1,
+      a_level: 0.7,
+      b_table: 'CHIP',
+      b_pos: 1,
+      b_oct: -1,
+      b_level: 0.3,
+      flt_type: 'LP12',
+      flt_cutoff: 12000,
+      flt_res: 0,
+      flt_env: 0,
+      flt_key: 0,
+      env1_attack: 0.001,
+      env1_decay: 0.3,
+      env1_sustain: 0.7,
+      env1_release: 0.05,
+      env1_curve: 1,
+      env3_attack: 0.001,
+      env3_decay: 0.25,
+      env3_sustain: 0,
+      env3_release: 0.1,
+      voice_mode: 'MONO',
+      fx_delay_time: '1/8',
+      fx_delay_fb: 0.25,
+      fx_delay_mix: 0.15,
+      fx_verb_mix: 0.1,
+      ...slot(1, 'ENV3', 'A POS', -0.33),
+      voice_level: 4.2,
+    },
+  },
   // pad
-  { name: 'Long Exposure', blurb: 'Pad: a slow, wide bloom of harmonics that keeps opening and closing', params: {
-    a_table: 'HARMONICS', a_pos: 0.35, a_unison: 6, a_detune: 0.3, a_blend: 0.8, a_spread: 0.9, a_level: 0.75, b_table: 'BASIC', b_pos: 2 / 3, b_oct: -1, b_unison: 4, b_detune: 0.25, b_level: 0.35,
-    flt_type: 'LP24', flt_cutoff: 2200, flt_res: 0.1, flt_env: 0.15, flt_key: 0.4,
-    env1_attack: 0.9, env1_decay: 2, env1_sustain: 0.9, env1_release: 2.5, env1_curve: -0.3, env2_attack: 1.2, env2_decay: 2, env2_sustain: 0.6, env2_release: 2,
-    lfo1_shape: 'SINE', lfo1_rate: 0.08, lfo1_mode: 'FREE', lfo2_shape: 'TRI', lfo2_rate: 0.13, lfo2_mode: 'FREE',
-    fx_chorus_mix: 0.4, fx_chorus_depth: 0.5, fx_verb_mix: 0.35, fx_verb_size: 0.8, ...slot(1, 'LFO1', 'A POS', 0.25), ...slot(2, 'LFO2', 'B POS', 0.15), voice_level: 1.6 } },
-  { name: 'Bokeh', blurb: 'Pad: soft glass, octaves and fifths shimmering in a big space', params: {
-    a_table: 'GLASS', a_pos: 0.3, a_unison: 4, a_detune: 0.15, a_spread: 0.9, a_level: 0.8, b_table: 'GLASS', b_pos: 0.7, b_oct: 1, b_unison: 2, b_level: 0.3,
-    flt_type: 'LP12', flt_cutoff: 9000, flt_res: 0, flt_env: 0, flt_key: 0.2,
-    env1_attack: 0.6, env1_decay: 2, env1_sustain: 0.8, env1_release: 1.6, lfo1_shape: 'SINE', lfo1_rate: 0.15, lfo1_mode: 'FREE',
-    fx_verb_mix: 0.45, fx_verb_size: 0.75, fx_delay_time: '1/4D', fx_delay_fb: 0.35, fx_delay_mix: 0.12, fx_chorus_mix: 0.2, ...slot(1, 'LFO1', 'A POS', 0.4), voice_level: -0.2 } },
-  { name: 'Afterimage', blurb: 'Pad: a breathy choir of vowels slowly changing shape', params: {
-    a_table: 'VOWEL', a_pos: 0, a_unison: 5, a_detune: 0.2, a_spread: 0.8, a_level: 0.75, b_table: 'VOWEL', b_pos: 0.75, b_oct: 0, b_unison: 3, b_level: 0.5,
-    noise_level: 0.08, noise_color: 0.7, flt_type: 'LP12', flt_cutoff: 5000, flt_res: 0.05, flt_env: 0, flt_key: 0.2,
-    env1_attack: 0.7, env1_decay: 1.5, env1_sustain: 0.85, env1_release: 2, lfo1_shape: 'TRI', lfo1_rate: 0.07, lfo1_mode: 'FREE', lfo2_shape: 'SINE', lfo2_rate: 0.05, lfo2_mode: 'FREE',
-    fx_chorus_mix: 0.3, fx_verb_mix: 0.4, fx_verb_size: 0.85, ...slot(1, 'LFO1', 'A POS', 0.6), ...slot(2, 'LFO2', 'B POS', -0.4), voice_level: -0.3 } },
-  { name: 'Zoetrope', blurb: 'Pad: string-machine pulses, their widths turning against each other', params: {
-    a_table: 'PULSE', a_pos: 0.25, a_unison: 4, a_detune: 0.25, a_level: 0.75, b_table: 'PULSE', b_pos: 0.6, b_oct: 0, b_fine: 6, b_unison: 2, b_level: 0.6,
-    flt_type: 'LP24', flt_cutoff: 3000, flt_res: 0.12, flt_env: 0.1, flt_key: 0.5,
-    env1_attack: 0.3, env1_decay: 1, env1_sustain: 0.85, env1_release: 0.9, lfo1_shape: 'TRI', lfo1_rate: 0.6, lfo1_mode: 'FREE', lfo2_shape: 'SINE', lfo2_rate: 0.45, lfo2_mode: 'FREE',
-    fx_chorus_mix: 0.6, fx_chorus_depth: 0.6, fx_verb_mix: 0.3, fx_verb_size: 0.65, ...slot(1, 'LFO1', 'A POS', 0.35), ...slot(2, 'LFO2', 'B POS', -0.3), voice_level: -2 } },
+  {
+    name: 'Long Exposure',
+    blurb: 'Pad: a slow, wide bloom of harmonics that keeps opening and closing',
+    params: {
+      a_table: 'HARMONICS',
+      a_pos: 0.35,
+      a_unison: 6,
+      a_detune: 0.3,
+      a_blend: 0.8,
+      a_spread: 0.9,
+      a_level: 0.75,
+      b_table: 'BASIC',
+      b_pos: 2 / 3,
+      b_oct: -1,
+      b_unison: 4,
+      b_detune: 0.25,
+      b_level: 0.35,
+      flt_type: 'LP24',
+      flt_cutoff: 2200,
+      flt_res: 0.1,
+      flt_env: 0.15,
+      flt_key: 0.4,
+      env1_attack: 0.9,
+      env1_decay: 2,
+      env1_sustain: 0.9,
+      env1_release: 2.5,
+      env1_curve: -0.3,
+      env2_attack: 1.2,
+      env2_decay: 2,
+      env2_sustain: 0.6,
+      env2_release: 2,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 0.08,
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'TRI',
+      lfo2_rate: 0.13,
+      lfo2_mode: 'FREE',
+      fx_chorus_mix: 0.4,
+      fx_chorus_depth: 0.5,
+      fx_verb_mix: 0.35,
+      fx_verb_size: 0.8,
+      ...slot(1, 'LFO1', 'A POS', 0.25),
+      ...slot(2, 'LFO2', 'B POS', 0.15),
+      voice_level: 1.6,
+    },
+  },
+  {
+    name: 'Bokeh',
+    blurb: 'Pad: soft glass, octaves and fifths shimmering in a big space',
+    params: {
+      a_table: 'GLASS',
+      a_pos: 0.3,
+      a_unison: 4,
+      a_detune: 0.15,
+      a_spread: 0.9,
+      a_level: 0.8,
+      b_table: 'GLASS',
+      b_pos: 0.7,
+      b_oct: 1,
+      b_unison: 2,
+      b_level: 0.3,
+      flt_type: 'LP12',
+      flt_cutoff: 9000,
+      flt_res: 0,
+      flt_env: 0,
+      flt_key: 0.2,
+      env1_attack: 0.6,
+      env1_decay: 2,
+      env1_sustain: 0.8,
+      env1_release: 1.6,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 0.15,
+      lfo1_mode: 'FREE',
+      fx_verb_mix: 0.45,
+      fx_verb_size: 0.75,
+      fx_delay_time: '1/4D',
+      fx_delay_fb: 0.35,
+      fx_delay_mix: 0.12,
+      fx_chorus_mix: 0.2,
+      ...slot(1, 'LFO1', 'A POS', 0.4),
+      voice_level: -0.2,
+    },
+  },
+  {
+    name: 'Afterimage',
+    blurb: 'Pad: a breathy choir of vowels slowly changing shape',
+    params: {
+      a_table: 'VOWEL',
+      a_pos: 0,
+      a_unison: 5,
+      a_detune: 0.2,
+      a_spread: 0.8,
+      a_level: 0.75,
+      b_table: 'VOWEL',
+      b_pos: 0.75,
+      b_oct: 0,
+      b_unison: 3,
+      b_level: 0.5,
+      noise_level: 0.08,
+      noise_color: 0.7,
+      flt_type: 'LP12',
+      flt_cutoff: 5000,
+      flt_res: 0.05,
+      flt_env: 0,
+      flt_key: 0.2,
+      env1_attack: 0.7,
+      env1_decay: 1.5,
+      env1_sustain: 0.85,
+      env1_release: 2,
+      lfo1_shape: 'TRI',
+      lfo1_rate: 0.07,
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'SINE',
+      lfo2_rate: 0.05,
+      lfo2_mode: 'FREE',
+      fx_chorus_mix: 0.3,
+      fx_verb_mix: 0.4,
+      fx_verb_size: 0.85,
+      ...slot(1, 'LFO1', 'A POS', 0.6),
+      ...slot(2, 'LFO2', 'B POS', -0.4),
+      voice_level: -0.3,
+    },
+  },
+  {
+    name: 'Zoetrope',
+    blurb: 'Pad: string-machine pulses, their widths turning against each other',
+    params: {
+      a_table: 'PULSE',
+      a_pos: 0.25,
+      a_unison: 4,
+      a_detune: 0.25,
+      a_level: 0.75,
+      b_table: 'PULSE',
+      b_pos: 0.6,
+      b_oct: 0,
+      b_fine: 6,
+      b_unison: 2,
+      b_level: 0.6,
+      flt_type: 'LP24',
+      flt_cutoff: 3000,
+      flt_res: 0.12,
+      flt_env: 0.1,
+      flt_key: 0.5,
+      env1_attack: 0.3,
+      env1_decay: 1,
+      env1_sustain: 0.85,
+      env1_release: 0.9,
+      lfo1_shape: 'TRI',
+      lfo1_rate: 0.6,
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'SINE',
+      lfo2_rate: 0.45,
+      lfo2_mode: 'FREE',
+      fx_chorus_mix: 0.6,
+      fx_chorus_depth: 0.6,
+      fx_verb_mix: 0.3,
+      fx_verb_size: 0.65,
+      ...slot(1, 'LFO1', 'A POS', 0.35),
+      ...slot(2, 'LFO2', 'B POS', -0.3),
+      voice_level: -2,
+    },
+  },
   // pluck
-  { name: 'Shutter', blurb: 'Pluck: a bright snap of harmonics closing fast, echoed', params: {
-    a_table: 'HARMONICS', a_pos: 0.2, a_unison: 3, a_detune: 0.15, a_spread: 0.6, a_level: 0.8, flt_type: 'LP24', flt_cutoff: 1800, flt_res: 0.2, flt_env: 0.4, flt_key: 0.4,
-    env1_attack: 0.001, env1_decay: 1.4, env1_sustain: 0.2, env1_release: 0.4, env1_curve: 0.3, env2_attack: 0.001, env2_decay: 0.5, env2_sustain: 0.15, env2_release: 0.25, env2_curve: 0.5,
-    env3_attack: 0.001, env3_decay: 0.15, env3_sustain: 0, env3_release: 0.1, fx_delay_time: '1/8D', fx_delay_fb: 0.3, fx_delay_mix: 0.15, fx_verb_mix: 0.2, ...slot(1, 'ENV3', 'A POS', 0.5), voice_level: 5.2 } },
-  { name: 'Prism', blurb: 'Pluck: a struck bell, bright at the strike and mellowing as it rings', params: {
-    a_table: 'BELL', a_pos: 0.75, a_unison: 1, a_level: 0.8, b_table: 'GLASS', b_pos: 0.2, b_oct: 1, b_level: 0.25, flt_type: 'LP12', flt_cutoff: 9000, flt_res: 0, flt_env: 0, flt_key: 0.2,
-    env1_attack: 0.001, env1_decay: 2.2, env1_sustain: 0, env1_release: 1.2, env1_curve: 0.4, env3_attack: 0.001, env3_decay: 1.2, env3_sustain: 0, env3_release: 0.5,
-    fx_verb_mix: 0.3, fx_verb_size: 0.75, fx_chorus_mix: 0.2, ...slot(1, 'ENV3', 'A POS', -0.5), voice_level: 4.1 } },
-  { name: 'Splice', blurb: 'Pluck: a noise burst ringing a comb tuned to each note, string-like', params: {
-    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 1, a_level: 0.4, noise_level: 0, noise_color: 0.8, flt_type: 'COMB', flt_cutoff: 261.63, flt_res: 0.85, flt_key: 1, flt_env: 0, flt_vel: 0,
-    env1_attack: 0.001, env1_decay: 1.5, env1_sustain: 0, env1_release: 0.4, env3_attack: 0.001, env3_decay: 0.02, env3_sustain: 0, env3_release: 0.02,
-    fx_verb_mix: 0.2, ...slot(1, 'ENV3', 'NOISE LEVEL', 0.8), voice_level: 3.4 } },
+  {
+    name: 'Shutter',
+    blurb: 'Pluck: a bright snap of harmonics closing fast, echoed',
+    params: {
+      a_table: 'HARMONICS',
+      a_pos: 0.2,
+      a_unison: 3,
+      a_detune: 0.15,
+      a_spread: 0.6,
+      a_level: 0.8,
+      flt_type: 'LP24',
+      flt_cutoff: 1800,
+      flt_res: 0.2,
+      flt_env: 0.4,
+      flt_key: 0.4,
+      env1_attack: 0.001,
+      env1_decay: 1.4,
+      env1_sustain: 0.2,
+      env1_release: 0.4,
+      env1_curve: 0.3,
+      env2_attack: 0.001,
+      env2_decay: 0.5,
+      env2_sustain: 0.15,
+      env2_release: 0.25,
+      env2_curve: 0.5,
+      env3_attack: 0.001,
+      env3_decay: 0.15,
+      env3_sustain: 0,
+      env3_release: 0.1,
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.3,
+      fx_delay_mix: 0.15,
+      fx_verb_mix: 0.2,
+      ...slot(1, 'ENV3', 'A POS', 0.5),
+      voice_level: 5.2,
+    },
+  },
+  {
+    name: 'Prism',
+    blurb: 'Pluck: a struck bell, bright at the strike and mellowing as it rings',
+    params: {
+      a_table: 'BELL',
+      a_pos: 0.75,
+      a_unison: 1,
+      a_level: 0.8,
+      b_table: 'GLASS',
+      b_pos: 0.2,
+      b_oct: 1,
+      b_level: 0.25,
+      flt_type: 'LP12',
+      flt_cutoff: 9000,
+      flt_res: 0,
+      flt_env: 0,
+      flt_key: 0.2,
+      env1_attack: 0.001,
+      env1_decay: 2.2,
+      env1_sustain: 0,
+      env1_release: 1.2,
+      env1_curve: 0.4,
+      env3_attack: 0.001,
+      env3_decay: 1.2,
+      env3_sustain: 0,
+      env3_release: 0.5,
+      fx_verb_mix: 0.3,
+      fx_verb_size: 0.75,
+      fx_chorus_mix: 0.2,
+      ...slot(1, 'ENV3', 'A POS', -0.5),
+      voice_level: 4.1,
+    },
+  },
+  {
+    name: 'Splice',
+    blurb: 'Pluck: a noise burst ringing a comb tuned to each note, string-like',
+    params: {
+      a_table: 'BASIC',
+      a_pos: 2 / 3,
+      a_unison: 1,
+      a_level: 0.4,
+      noise_level: 0,
+      noise_color: 0.8,
+      flt_type: 'COMB',
+      flt_cutoff: 261.63,
+      flt_res: 0.85,
+      flt_key: 1,
+      flt_env: 0,
+      flt_vel: 0,
+      env1_attack: 0.001,
+      env1_decay: 1.5,
+      env1_sustain: 0,
+      env1_release: 0.4,
+      env3_attack: 0.001,
+      env3_decay: 0.02,
+      env3_sustain: 0,
+      env3_release: 0.02,
+      fx_verb_mix: 0.2,
+      ...slot(1, 'ENV3', 'NOISE LEVEL', 0.8),
+      voice_level: 3.4,
+    },
+  },
   // keys
-  { name: 'Intermission', blurb: 'Keys: a theatre organ, drawbars 888, a slow shimmer and warm valves', params: {
-    a_table: 'ORGAN', a_pos: 0.25, a_unison: 1, a_level: 0.8, flt_type: 'LP12', flt_cutoff: 8000, flt_res: 0, flt_env: 0, flt_key: 0,
-    env1_attack: 0.005, env1_decay: 0.1, env1_sustain: 1, env1_release: 0.08, lfo1_shape: 'SINE', lfo1_rate: 6.5, lfo1_mode: 'FREE',
-    fx_chorus_mix: 0.5, fx_chorus_depth: 0.55, fx_verb_mix: 0.25, fx_verb_size: 0.6, fx_drive: 0.15, ...slot(1, 'LFO1', 'AMP', 0.08), voice_level: -3.7 } },
-  { name: 'House Lights', blurb: 'Keys: a soft electric piano, a tine at the strike, a suitcase pan', params: {
-    a_table: 'FM', a_pos: 0.12, a_unison: 1, a_level: 0.8, b_table: 'GLASS', b_pos: 0.1, b_oct: 2, b_level: 0, flt_type: 'LP12', flt_cutoff: 5000, flt_res: 0, flt_env: 0, flt_key: 0.4,
-    env1_attack: 0.001, env1_decay: 2.5, env1_sustain: 0.25, env1_release: 0.5, env1_curve: 0.4, env3_attack: 0.001, env3_decay: 0.4, env3_sustain: 0, env3_release: 0.2,
-    lfo1_shape: 'SINE', lfo1_rate: 4.5, lfo1_mode: 'FREE', fx_chorus_mix: 0.25, fx_verb_mix: 0.2,
-    ...slot(1, 'ENV3', 'A POS', 0.18), ...slot(2, 'VELOCITY', 'A POS', 0.15), ...slot(3, 'ENV3', 'B LEVEL', 0.2), ...slot(4, 'LFO1', 'PAN', 0.25) } },
-  { name: 'Clapperboard', blurb: 'Keys: a nasal, clacky reed clav that bites harder the harder you play', params: {
-    a_table: 'REED', a_pos: 0.75, a_unison: 1, a_level: 0.8, flt_type: 'LP24', flt_cutoff: 1400, flt_res: 0.25, flt_env: 0.35, flt_key: 0.5,
-    env1_attack: 0.001, env1_decay: 0.4, env1_sustain: 0.45, env1_release: 0.08, env1_curve: 0.5, env2_attack: 0.001, env2_decay: 0.2, env2_sustain: 0.2, env2_release: 0.1,
-    fx_drive: 0.25, fx_chorus_mix: 0.15, fx_verb_mix: 0.1, ...slot(1, 'VELOCITY', 'CUTOFF', 0.15) } },
+  {
+    name: 'Intermission',
+    blurb: 'Keys: a theatre organ, drawbars 888, a slow shimmer and warm valves',
+    params: {
+      a_table: 'ORGAN',
+      a_pos: 0.25,
+      a_unison: 1,
+      a_level: 0.8,
+      flt_type: 'LP12',
+      flt_cutoff: 8000,
+      flt_res: 0,
+      flt_env: 0,
+      flt_key: 0,
+      env1_attack: 0.005,
+      env1_decay: 0.1,
+      env1_sustain: 1,
+      env1_release: 0.08,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 6.5,
+      lfo1_mode: 'FREE',
+      fx_chorus_mix: 0.5,
+      fx_chorus_depth: 0.55,
+      fx_verb_mix: 0.25,
+      fx_verb_size: 0.6,
+      fx_drive: 0.15,
+      ...slot(1, 'LFO1', 'AMP', 0.08),
+      voice_level: -3.7,
+    },
+  },
+  {
+    name: 'House Lights',
+    blurb: 'Keys: a soft electric piano, a tine at the strike, a suitcase pan',
+    params: {
+      a_table: 'FM',
+      a_pos: 0.12,
+      a_unison: 1,
+      a_level: 0.8,
+      b_table: 'GLASS',
+      b_pos: 0.1,
+      b_oct: 2,
+      b_level: 0,
+      flt_type: 'LP12',
+      flt_cutoff: 5000,
+      flt_res: 0,
+      flt_env: 0,
+      flt_key: 0.4,
+      env1_attack: 0.001,
+      env1_decay: 2.5,
+      env1_sustain: 0.25,
+      env1_release: 0.5,
+      env1_curve: 0.4,
+      env3_attack: 0.001,
+      env3_decay: 0.4,
+      env3_sustain: 0,
+      env3_release: 0.2,
+      lfo1_shape: 'SINE',
+      lfo1_rate: 4.5,
+      lfo1_mode: 'FREE',
+      fx_chorus_mix: 0.25,
+      fx_verb_mix: 0.2,
+      ...slot(1, 'ENV3', 'A POS', 0.18),
+      ...slot(2, 'VELOCITY', 'A POS', 0.15),
+      ...slot(3, 'ENV3', 'B LEVEL', 0.2),
+      ...slot(4, 'LFO1', 'PAN', 0.25),
+    },
+  },
+  {
+    name: 'Clapperboard',
+    blurb: 'Keys: a nasal, clacky reed clav that bites harder the harder you play',
+    params: {
+      a_table: 'REED',
+      a_pos: 0.75,
+      a_unison: 1,
+      a_level: 0.8,
+      flt_type: 'LP24',
+      flt_cutoff: 1400,
+      flt_res: 0.25,
+      flt_env: 0.35,
+      flt_key: 0.5,
+      env1_attack: 0.001,
+      env1_decay: 0.4,
+      env1_sustain: 0.45,
+      env1_release: 0.08,
+      env1_curve: 0.5,
+      env2_attack: 0.001,
+      env2_decay: 0.2,
+      env2_sustain: 0.2,
+      env2_release: 0.1,
+      fx_drive: 0.25,
+      fx_chorus_mix: 0.15,
+      fx_verb_mix: 0.1,
+      ...slot(1, 'VELOCITY', 'CUTOFF', 0.15),
+    },
+  },
   // arp
-  { name: 'Flicker', blurb: 'Arp: sync bursts gated in sixteenths, sweeping each beat, echoed', params: {
-    a_table: 'SYNC', a_pos: 0.4, a_unison: 2, a_detune: 0.12, a_level: 0.8, flt_type: 'LP24', flt_cutoff: 2600, flt_res: 0.3, flt_env: 0.2, flt_key: 0.4,
-    env1_attack: 0.003, env1_decay: 1, env1_sustain: 0.8, env1_release: 0.2, lfo1_shape: 'SQUARE', lfo1_sync: '1/16', lfo1_mode: 'FREE', lfo2_shape: 'SAW DN', lfo2_sync: '1/4', lfo2_mode: 'FREE',
-    fx_delay_time: '1/8D', fx_delay_fb: 0.4, fx_delay_mix: 0.2, fx_verb_mix: 0.15, ...slot(1, 'LFO1', 'AMP', -0.9), ...slot(2, 'LFO2', 'A POS', 0.4), voice_level: -1.5 } },
-  { name: 'Stop Motion', blurb: 'Arp: gritty stepped plucks, each note a slightly different frame', params: {
-    a_table: 'GRIT', a_pos: 0.35, a_unison: 1, a_level: 0.8, b_table: 'CHIP', b_pos: 2 / 3, b_oct: -1, b_level: 0.3, flt_type: 'LP24', flt_cutoff: 2000, flt_res: 0.25, flt_env: 0.3, flt_key: 0.4,
-    env1_attack: 0.001, env1_decay: 0.6, env1_sustain: 0.3, env1_release: 0.18, env1_curve: 0.3, env2_attack: 0.001, env2_decay: 0.25, env2_sustain: 0.15, env2_release: 0.1,
-    env3_attack: 0.001, env3_decay: 0.15, env3_sustain: 0, env3_release: 0.1, fx_delay_time: '1/8D', fx_delay_fb: 0.45, fx_delay_mix: 0.22, fx_verb_mix: 0.15,
-    ...slot(1, 'ENV3', 'A POS', 0.3), ...slot(2, 'RANDOM', 'A POS', 0.15), voice_level: 0.7 } },
+  {
+    name: 'Flicker',
+    blurb: 'Arp: sync bursts gated in sixteenths, sweeping each beat, echoed',
+    params: {
+      a_table: 'SYNC',
+      a_pos: 0.4,
+      a_unison: 2,
+      a_detune: 0.12,
+      a_level: 0.8,
+      flt_type: 'LP24',
+      flt_cutoff: 2600,
+      flt_res: 0.3,
+      flt_env: 0.2,
+      flt_key: 0.4,
+      env1_attack: 0.003,
+      env1_decay: 1,
+      env1_sustain: 0.8,
+      env1_release: 0.2,
+      lfo1_shape: 'SQUARE',
+      lfo1_sync: '1/16',
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'SAW DN',
+      lfo2_sync: '1/4',
+      lfo2_mode: 'FREE',
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.4,
+      fx_delay_mix: 0.2,
+      fx_verb_mix: 0.15,
+      ...slot(1, 'LFO1', 'AMP', -0.9),
+      ...slot(2, 'LFO2', 'A POS', 0.4),
+      voice_level: -1.5,
+    },
+  },
+  {
+    name: 'Stop Motion',
+    blurb: 'Arp: gritty stepped plucks, each note a slightly different frame',
+    params: {
+      a_table: 'GRIT',
+      a_pos: 0.35,
+      a_unison: 1,
+      a_level: 0.8,
+      b_table: 'CHIP',
+      b_pos: 2 / 3,
+      b_oct: -1,
+      b_level: 0.3,
+      flt_type: 'LP24',
+      flt_cutoff: 2000,
+      flt_res: 0.25,
+      flt_env: 0.3,
+      flt_key: 0.4,
+      env1_attack: 0.001,
+      env1_decay: 0.6,
+      env1_sustain: 0.3,
+      env1_release: 0.18,
+      env1_curve: 0.3,
+      env2_attack: 0.001,
+      env2_decay: 0.25,
+      env2_sustain: 0.15,
+      env2_release: 0.1,
+      env3_attack: 0.001,
+      env3_decay: 0.15,
+      env3_sustain: 0,
+      env3_release: 0.1,
+      fx_delay_time: '1/8D',
+      fx_delay_fb: 0.45,
+      fx_delay_mix: 0.22,
+      fx_verb_mix: 0.15,
+      ...slot(1, 'ENV3', 'A POS', 0.3),
+      ...slot(2, 'RANDOM', 'A POS', 0.15),
+      voice_level: 0.7,
+    },
+  },
   // fx
-  { name: 'Reel Change', blurb: 'FX: a four-second riser, sync and noise sweeping up an octave', params: {
-    a_table: 'SYNC', a_pos: 0.1, a_unison: 5, a_detune: 0.4, a_spread: 1, a_level: 0.7, noise_level: 0.35, noise_color: 0.9, flt_type: 'LP12', flt_cutoff: 600, flt_res: 0.4, flt_env: 0, flt_key: 0.3,
-    env1_attack: 2, env1_decay: 1, env1_sustain: 1, env1_release: 2, env3_attack: 4, env3_decay: 1, env3_sustain: 1, env3_release: 2, env3_curve: -0.5,
-    fx_verb_mix: 0.5, fx_verb_size: 1, fx_delay_time: '1/8', fx_delay_fb: 0.5, fx_delay_mix: 0.2,
-    ...slot(1, 'ENV3', 'A POS', 0.9), ...slot(2, 'ENV3', 'PITCH', 0.5), ...slot(3, 'ENV3', 'CUTOFF', 0.4), voice_level: -1.8 } },
-  { name: 'Light Leak', blurb: 'FX: a glitching texture, stepped random frames through a ringing comb', params: {
-    a_table: 'GRIT', a_pos: 0.6, a_unison: 1, a_level: 0.8, b_table: 'FM', b_pos: 0.6, b_oct: 1, b_level: 0.25, flt_type: 'COMB', flt_cutoff: 900, flt_res: 0.6, flt_key: 0.5, flt_env: 0,
-    env1_attack: 0.01, env1_decay: 1, env1_sustain: 0.8, env1_release: 0.4, lfo1_shape: 'S&H', lfo1_sync: '1/16', lfo1_mode: 'FREE', lfo2_shape: 'S&H', lfo2_sync: '1/8', lfo2_mode: 'FREE',
-    fx_delay_time: '1/16', fx_delay_fb: 0.5, fx_delay_mix: 0.25, fx_verb_mix: 0.3,
-    ...slot(1, 'LFO1', 'A POS', 0.5), ...slot(2, 'LFO1', 'CUTOFF', 0.3), ...slot(3, 'LFO2', 'PAN', 0.5), voice_level: -1.7 } },
+  {
+    name: 'Reel Change',
+    blurb: 'FX: a four-second riser, sync and noise sweeping up an octave',
+    params: {
+      a_table: 'SYNC',
+      a_pos: 0.1,
+      a_unison: 5,
+      a_detune: 0.4,
+      a_spread: 1,
+      a_level: 0.7,
+      noise_level: 0.35,
+      noise_color: 0.9,
+      flt_type: 'LP12',
+      flt_cutoff: 600,
+      flt_res: 0.4,
+      flt_env: 0,
+      flt_key: 0.3,
+      env1_attack: 2,
+      env1_decay: 1,
+      env1_sustain: 1,
+      env1_release: 2,
+      env3_attack: 4,
+      env3_decay: 1,
+      env3_sustain: 1,
+      env3_release: 2,
+      env3_curve: -0.5,
+      fx_verb_mix: 0.5,
+      fx_verb_size: 1,
+      fx_delay_time: '1/8',
+      fx_delay_fb: 0.5,
+      fx_delay_mix: 0.2,
+      ...slot(1, 'ENV3', 'A POS', 0.9),
+      ...slot(2, 'ENV3', 'PITCH', 0.5),
+      ...slot(3, 'ENV3', 'CUTOFF', 0.4),
+      voice_level: -1.8,
+    },
+  },
+  {
+    name: 'Light Leak',
+    blurb: 'FX: a glitching texture, stepped random frames through a ringing comb',
+    params: {
+      a_table: 'GRIT',
+      a_pos: 0.6,
+      a_unison: 1,
+      a_level: 0.8,
+      b_table: 'FM',
+      b_pos: 0.6,
+      b_oct: 1,
+      b_level: 0.25,
+      flt_type: 'COMB',
+      flt_cutoff: 900,
+      flt_res: 0.6,
+      flt_key: 0.5,
+      flt_env: 0,
+      env1_attack: 0.01,
+      env1_decay: 1,
+      env1_sustain: 0.8,
+      env1_release: 0.4,
+      lfo1_shape: 'S&H',
+      lfo1_sync: '1/16',
+      lfo1_mode: 'FREE',
+      lfo2_shape: 'S&H',
+      lfo2_sync: '1/8',
+      lfo2_mode: 'FREE',
+      fx_delay_time: '1/16',
+      fx_delay_fb: 0.5,
+      fx_delay_mix: 0.25,
+      fx_verb_mix: 0.3,
+      ...slot(1, 'LFO1', 'A POS', 0.5),
+      ...slot(2, 'LFO1', 'CUTOFF', 0.3),
+      ...slot(3, 'LFO2', 'PAN', 0.5),
+      voice_level: -1.7,
+    },
+  },
   // bass music (tagged: list_devices { tag: 'bass-music' }): measured on the bass phrase like the basses above, and each
   // on its part's own target in tools/bassmusic-test.js (a sub mono and clean, a growl's talk on the grid, a Reese's
   // width and beating). Each wires MACRO 1, and its blurb says to what.
   ...BASS_MUSIC,
 ];
 // the bass presets are measured on the bass phrase (a mono bass plays chords as one line)
-export const BASS_PRESETS = ['Low Key', 'Gate Weave', 'Solarized', 'Safelight', 'Sprocket', ...BASS_MUSIC.filter((p) => /^Bass:/.test(p.blurb)).map((p) => p.name)];
+export const BASS_PRESETS = [
+  'Low Key',
+  'Gate Weave',
+  'Solarized',
+  'Safelight',
+  'Sprocket',
+  ...BASS_MUSIC.filter((p) => /^Bass:/.test(p.blurb)).map((p) => p.name),
+];
 
 /* ------------------------------------------------------------------------------------------------ the page's maths */
 // Light Table's editor (ui/editors/wavetable.js) draws with these: the warped frame, the filter's curve, the envelopes'
@@ -1559,22 +3107,59 @@ export const BASS_PRESETS = ['Low Key', 'Gate Weave', 'Solarized', 'Safelight', 
 // in step. tools/wavetable-ui-test.js holds the warps and the filter curves to the kernel's renders.
 
 // LFO SYNC and DELAY TIME in beats, as the kernel reads them (BODY's SYNC_BEATS and DELAY_BEATS)
-export const SYNC_BEATS = Object.freeze([0, 0.125, 1 / 6, 0.25, 0.375, 1 / 3, 0.5, 0.75, 2 / 3, 1, 1.5, 2, 3, 4, 8, 16]);
+export const SYNC_BEATS = Object.freeze([
+  0,
+  0.125,
+  1 / 6,
+  0.25,
+  0.375,
+  1 / 3,
+  0.5,
+  0.75,
+  2 / 3,
+  1,
+  1.5,
+  2,
+  3,
+  4,
+  8,
+  16,
+]);
 export const DELAY_BEATS = Object.freeze([0.25, 1 / 3, 0.5, 0.75, 2 / 3, 1, 1.5, 2]);
 // Which knob each destination moves, and how far an amount of 1 takes it, in that knob's travel (DEST_SCALE in
 // numbers). PITCH, FINE, AMP and PAN move the whole voice and have no knob of their own (key null): their travel is
 // around a centre (PITCH and FINE: 1 is half way, 24 and 1 semitones; AMP: 1 is twice the level; PAN: 0.5 is one side).
 // A PITCH moves A SEMI's travel (24 semitones: 1 is the whole of it); Mn AMT adds to a -1..1 amount (1 is half its travel).
-export const DEST_TARGETS = Object.freeze(DESTS.map((d) => {
-  if (d === 'OFF') return null;
-  const m = /^([AB]) (POS|WARP|PITCH|LEVEL|PAN|DETUNE)$/.exec(d);
-  if (m) return { key: `${m[1].toLowerCase()}_${{ POS: 'pos', WARP: 'warp_amt', PITCH: 'semi', LEVEL: 'level', PAN: 'pan', DETUNE: 'detune' }[m[2]]}`, travel: 1 };
-  const lr = /^LFO(\d) RATE$/.exec(d); if (lr) return { key: `lfo${lr[1]}_rate`, travel: 1 };
-  const ma = /^M(\d) AMT$/.exec(d); if (ma) return { key: `m${ma[1]}_amt`, travel: 0.5 };
-  const own = { 'SUB LEVEL': 'sub_level', 'NOISE LEVEL': 'noise_level', CUTOFF: 'flt_cutoff', RESO: 'flt_res', 'FLT DRIVE': 'flt_drive', DRIVE: 'fx_drive', 'CHORUS MIX': 'fx_chorus_mix', 'DELAY MIX': 'fx_delay_mix', 'VERB MIX': 'fx_verb_mix', MULTIBAND: 'fx_mband', 'DRIVE MIX': 'fx_drive_mix' };
-  if (own[d]) return { key: own[d], travel: 1 };
-  return { key: null, travel: d === 'PAN' ? 1 : 0.5 };
-}));
+export const DEST_TARGETS = Object.freeze(
+  DESTS.map((d) => {
+    if (d === 'OFF') return null;
+    const m = /^([AB]) (POS|WARP|PITCH|LEVEL|PAN|DETUNE)$/.exec(d);
+    if (m)
+      return {
+        key: `${m[1].toLowerCase()}_${{ POS: 'pos', WARP: 'warp_amt', PITCH: 'semi', LEVEL: 'level', PAN: 'pan', DETUNE: 'detune' }[m[2]]}`,
+        travel: 1,
+      };
+    const lr = /^LFO(\d) RATE$/.exec(d);
+    if (lr) return { key: `lfo${lr[1]}_rate`, travel: 1 };
+    const ma = /^M(\d) AMT$/.exec(d);
+    if (ma) return { key: `m${ma[1]}_amt`, travel: 0.5 };
+    const own = {
+      'SUB LEVEL': 'sub_level',
+      'NOISE LEVEL': 'noise_level',
+      CUTOFF: 'flt_cutoff',
+      RESO: 'flt_res',
+      'FLT DRIVE': 'flt_drive',
+      DRIVE: 'fx_drive',
+      'CHORUS MIX': 'fx_chorus_mix',
+      'DELAY MIX': 'fx_delay_mix',
+      'VERB MIX': 'fx_verb_mix',
+      MULTIBAND: 'fx_mband',
+      'DRIVE MIX': 'fx_drive_mix',
+    };
+    if (own[d]) return { key: own[d], travel: 1 };
+    return { key: null, travel: d === 'PAN' ? 1 : 0.5 };
+  }),
+);
 
 const TAU_ = 2 * Math.PI;
 // the warp's working value for an amount (Osc.warpVal): SYNC its ratio 1..8, BEND its depth, PW the pulse's width
@@ -1592,18 +3177,39 @@ export function warpValue(mode, a) {
 // polyBLEP at the reset, and the caps that make SYNC and PW give way at the top of the keys). fm(t) is the other
 // oscillator's sum before its level, t note cycles in (an FM warp; 0 without one).
 export function warpCycle(src, mode, amt, { cycles = 1, out = null, fm = null } = {}) {
-  const n = src.length, o = out || new Float32Array(n), m = o.length, wv = warpValue(mode, amt);
-  const read = (u) => { u -= Math.floor(u); const x = u * n, k = Math.min(n - 1, x | 0), f = x - k; const a = src[k]; return a + (src[k + 1 < n ? k + 1 : 0] - a) * f; };
+  const n = src.length,
+    o = out || new Float32Array(n),
+    m = o.length,
+    wv = warpValue(mode, amt);
+  const read = (u) => {
+    u -= Math.floor(u);
+    const x = u * n,
+      k = Math.min(n - 1, x | 0),
+      f = x - k;
+    const a = src[k];
+    return a + (src[k + 1 < n ? k + 1 : 0] - a) * f;
+  };
   for (let i = 0; i < m; i++) {
-    const t = (i / m) * cycles, c = Math.floor(t), p = t - c;
+    const t = (i / m) * cycles,
+      c = Math.floor(t),
+      p = t - c;
     let q = p;
-    if (mode === 1) { const x = p * wv; q = x - Math.floor(x); }
-    else if (mode === 2) q = p - (wv * Math.sin(TAU_ * p)) / TAU_;
-    else if (mode === 3) { const x = p < wv ? p / wv : 1; q = x - Math.sin(TAU_ * x) / TAU_; }
-    else if (mode === 5 && fm) q = p + fm(c + p) * wv;
+    if (mode === 1) {
+      const x = p * wv;
+      q = x - Math.floor(x);
+    } else if (mode === 2) q = p - (wv * Math.sin(TAU_ * p)) / TAU_;
+    else if (mode === 3) {
+      const x = p < wv ? p / wv : 1;
+      q = x - Math.sin(TAU_ * x) / TAU_;
+    } else if (mode === 5 && fm) q = p + fm(c + p) * wv;
     let y = read((c + q) / cycles);
-    if (mode === 3) { const mp = (1 - wv) * 8.421052631578947; if (mp < 1) { const y0 = read((c + p) / cycles); y = y0 + (y - y0) * mp; } }
-    else if (mode === 4 && wv > 0) y += (read((c + 0.5 - 0.5 * Math.cos(TAU_ * p)) / cycles) - y) * wv;
+    if (mode === 3) {
+      const mp = (1 - wv) * 8.421052631578947;
+      if (mp < 1) {
+        const y0 = read((c + p) / cycles);
+        y = y0 + (y - y0) * mp;
+      }
+    } else if (mode === 4 && wv > 0) y += (read((c + 0.5 - 0.5 * Math.cos(TAU_ * p)) / cycles) - y) * wv;
     o[i] = y;
   }
   return o;
@@ -1612,13 +3218,22 @@ export function warpCycle(src, mode, amt, { cycles = 1, out = null, fm = null } 
 // The rational tanh every saturator in the kernel uses (lib.js sat)
 const satR = (z) => (z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z));
 // the FORMANT filter's vowels, U O A E I: F1 F2 F3 (Hz) then their levels (dB) (BODY's FV)
-const FV_ = [350, 600, 2400, 0, -20, -32, 400, 750, 2400, 0, -11, -21, 600, 1040, 2250, 0, -7, -9, 400, 1620, 2400, 0, -12, -9, 250, 1750, 2600, 0, -30, -16];
+const FV_ = [
+  350, 600, 2400, 0, -20, -32, 400, 750, 2400, 0, -11, -21, 600, 1040, 2250, 0, -7, -9, 400, 1620, 2400, 0, -12, -9,
+  250, 1750, 2600, 0, -30, -16,
+];
 // The cutoff a note plays at (Hz): the knob, KEY TRACK, FLT ENV on envelope 2's level e2, FLT VEL and the matrix's
 // CUTOFF (d, in the knob's travel), as Engine.ctrl sums them
 export function cutoffAt(P, { p = 60, vel = 0.8, e2 = 0, d = 0, sr = 48000 } = {}) {
   let x = Math.log2(P.flt_cutoff / 20) / Math.log2(1000) + d;
   x = x < 0 ? 0 : x > 1 ? 1 : x;
-  const fc = 20 * Math.exp(x * 6.907755278982137 + 0.6931471805599453 * (P.flt_key * (p - 60) / 12 + 6 * P.flt_env * e2 * (0.6 + 0.5 * vel) + 2 * P.flt_vel * (vel - 0.8)));
+  const fc =
+    20 *
+    Math.exp(
+      x * 6.907755278982137 +
+        0.6931471805599453 *
+          ((P.flt_key * (p - 60)) / 12 + 6 * P.flt_env * e2 * (0.6 + 0.5 * vel) + 2 * P.flt_vel * (vel - 0.8)),
+    );
   return fc < 16 ? 16 : fc > 0.47 * sr ? 0.47 * sr : fc;
 }
 // The filter's response in dB at each of freqs (Hz), for a type (FILTERS' index), a cutoff fc (Hz, as cutoffAt gives
@@ -1631,49 +3246,94 @@ export function cutoffAt(P, { p = 60, vel = 0.8, e2 = 0, d = 0, sr = 48000 } = {
 export function filterResponse(type, fc, res, freqs, { sr = 48000, out = null } = {}) {
   const o = out || new Float64Array(freqs.length);
   fc = fc < 16 ? 16 : fc > 0.47 * sr ? 0.47 * sr : fc;
-  const g = Math.tan(Math.PI * fc / sr), kk = 1 / (0.55 * Math.pow(40, res));
-  const k = 3.9 * res, c = 1 + 0.5 * k;
-  const D = Math.min(4000, Math.max(2, sr / fc)), cg = 0.35 + 0.62 * res, nrm = (1 - cg) * 1.6 + 0.08, di = Math.floor(D), df = D - di;
+  const g = Math.tan((Math.PI * fc) / sr),
+    kk = 1 / (0.55 * Math.pow(40, res));
+  const k = 3.9 * res,
+    c = 1 + 0.5 * k;
+  const D = Math.min(4000, Math.max(2, sr / fc)),
+    cg = 0.35 + 0.62 * res,
+    nrm = (1 - cg) * 1.6 + 0.08,
+    di = Math.floor(D),
+    df = D - di;
   let bands = null;
   if (type === 6) {
-    let v = Math.log2(fc / 150) / Math.log2(40); v = v < 0 ? 0 : v > 1 ? 1 : v;
-    const s = v * 4 >= 4 ? 3 : Math.floor(v * 4), w = v * 4 - s, o0 = s * 6, o1 = o0 + 6, k2 = 1 / (2 + 14 * res);
-    bands = [0, 1, 2].map((i) => ({ g: Math.tan(Math.PI * Math.min(Math.exp(Math.log(FV_[o0 + i]) * (1 - w) + Math.log(FV_[o1 + i]) * w), 0.45 * sr) / sr), k: k2, gain: Math.pow(10, (FV_[o0 + 3 + i] * (1 - w) + FV_[o1 + 3 + i] * w) / 20) }));
+    let v = Math.log2(fc / 150) / Math.log2(40);
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    const s = v * 4 >= 4 ? 3 : Math.floor(v * 4),
+      w = v * 4 - s,
+      o0 = s * 6,
+      o1 = o0 + 6,
+      k2 = 1 / (2 + 14 * res);
+    bands = [0, 1, 2].map((i) => ({
+      g: Math.tan(
+        (Math.PI * Math.min(Math.exp(Math.log(FV_[o0 + i]) * (1 - w) + Math.log(FV_[o1 + i]) * w), 0.45 * sr)) / sr,
+      ),
+      k: k2,
+      gain: Math.pow(10, (FV_[o0 + 3 + i] * (1 - w) + FV_[o1 + 3 + i] * w) / 20),
+    }));
   }
   for (let i = 0; i < freqs.length; i++) {
-    const f = Math.min(freqs[i], 0.4999 * sr), t = Math.tan(Math.PI * f / sr);
-    let re = 1, im = 0;
+    const f = Math.min(freqs[i], 0.4999 * sr),
+      t = Math.tan((Math.PI * f) / sr);
+    let re = 1,
+      im = 0;
     if (type === 0 || type === 2 || type === 3 || type === 4) {
-      const w = t / g, dr = 1 - w * w, dim = kk * w, dd = dr * dr + dim * dim;
+      const w = t / g,
+        dr = 1 - w * w,
+        dim = kk * w,
+        dd = dr * dr + dim * dim;
       // numerator over (1 - w^2 + j kk w)
-      const nr = type === 0 ? 1 : type === 2 ? -w * w : type === 3 ? 0 : 1 - w * w, ni = type === 3 ? kk * w : 0;
-      re = (nr * dr + ni * dim) / dd; im = (ni * dr - nr * dim) / dd;
+      const nr = type === 0 ? 1 : type === 2 ? -w * w : type === 3 ? 0 : 1 - w * w,
+        ni = type === 3 ? kk * w : 0;
+      re = (nr * dr + ni * dim) / dd;
+      im = (ni * dr - nr * dim) / dd;
     } else if (type === 1) {
       // one stage L = 1 / (1 + j w); the loop c L^4 / (1 + k L^4)
       const w = t / g;
-      let lr = 1 / (1 + w * w), li = -w / (1 + w * w);
-      let r2 = lr * lr - li * li, i2 = 2 * lr * li;
-      const r4 = r2 * r2 - i2 * i2, i4 = 2 * r2 * i2;
-      const dr = 1 + k * r4, dim = k * i4, dd = dr * dr + dim * dim;
-      re = c * (r4 * dr + i4 * dim) / dd; im = c * (i4 * dr - r4 * dim) / dd;
+      let lr = 1 / (1 + w * w),
+        li = -w / (1 + w * w);
+      let r2 = lr * lr - li * li,
+        i2 = 2 * lr * li;
+      const r4 = r2 * r2 - i2 * i2,
+        i4 = 2 * r2 * i2;
+      const dr = 1 + k * r4,
+        dim = k * i4,
+        dd = dr * dr + dim * dim;
+      re = (c * (r4 * dr + i4 * dim)) / dd;
+      im = (c * (i4 * dr - r4 * dim)) / dd;
     } else if (type === 5) {
       // v = x + cg * Hlp * Hd * v: Hlp = 0.55 / (1 - 0.45 z^-1), Hd = (1 - df) z^-di + df z^-(di + 1)
-      const wd = TAU_ * f / sr;
-      const lr0 = 1 - 0.45 * Math.cos(wd), li0 = 0.45 * Math.sin(wd), ld = lr0 * lr0 + li0 * li0;
-      const hr = 0.55 * lr0 / ld, hi = -0.55 * li0 / ld;
-      const dR = (1 - df) * Math.cos(wd * di) + df * Math.cos(wd * (di + 1)), dI = -(1 - df) * Math.sin(wd * di) - df * Math.sin(wd * (di + 1));
-      const pr = cg * (hr * dR - hi * dI), pi = cg * (hr * dI + hi * dR);
-      const er = 1 - pr, ei = -pi, ed = er * er + ei * ei;
-      re = nrm * er / ed; im = -nrm * ei / ed;
+      const wd = (TAU_ * f) / sr;
+      const lr0 = 1 - 0.45 * Math.cos(wd),
+        li0 = 0.45 * Math.sin(wd),
+        ld = lr0 * lr0 + li0 * li0;
+      const hr = (0.55 * lr0) / ld,
+        hi = (-0.55 * li0) / ld;
+      const dR = (1 - df) * Math.cos(wd * di) + df * Math.cos(wd * (di + 1)),
+        dI = -(1 - df) * Math.sin(wd * di) - df * Math.sin(wd * (di + 1));
+      const pr = cg * (hr * dR - hi * dI),
+        pi = cg * (hr * dI + hi * dR);
+      const er = 1 - pr,
+        ei = -pi,
+        ed = er * er + ei * ei;
+      re = (nrm * er) / ed;
+      im = (-nrm * ei) / ed;
     } else if (type === 6) {
-      re = 0; im = 0;
+      re = 0;
+      im = 0;
       for (const b of bands) {
-        const w = t / b.g, dr = 1 - w * w, dim = b.k * w, dd = dr * dr + dim * dim;
+        const w = t / b.g,
+          dr = 1 - w * w,
+          dim = b.k * w,
+          dd = dr * dr + dim * dim;
         // k s / (s^2 + k s + 1), s = j w
-        const nr = 0, ni = b.k * w;
-        re += b.gain * (nr * dr + ni * dim) / dd; im += b.gain * (ni * dr - nr * dim) / dd;
+        const nr = 0,
+          ni = b.k * w;
+        re += (b.gain * (nr * dr + ni * dim)) / dd;
+        im += (b.gain * (ni * dr - nr * dim)) / dd;
       }
-      re *= 1.6; im *= 1.6;
+      re *= 1.6;
+      im *= 1.6;
     }
     const mag = Math.sqrt(re * re + im * im);
     o[i] = 20 * Math.log10(mag > 1e-12 ? mag : 1e-12);
@@ -1686,7 +3346,11 @@ export function filterResponse(type, fc, res, freqs, { sr = 48000, out = null } 
 // with the feedback at rest.
 export function driveCurve(type, drv, x, res = 0) {
   const dg = 1 + 14 * drv * drv;
-  if (type === 1) { const gin = 0.12 * dg, c = 1 + 1.95 * res; return satR(x * gin * c) / gin / c / (1 + 0.6 * drv); }
+  if (type === 1) {
+    const gin = 0.12 * dg,
+      c = 1 + 1.95 * res;
+    return satR(x * gin * c) / gin / c / (1 + 0.6 * drv);
+  }
   if (drv <= 1e-3) return x;
   return satR(x * dg * 0.5) * (8 / (1 + 3 * Math.sqrt(dg)));
 }
@@ -1696,7 +3360,14 @@ export function driveCurve(type, drv, x, res = 0) {
 // and a release's 5 + 5c (5 + 4.99c); a straight line where k is 0
 export function envSegment(kind, curve, t) {
   t = t < 0 ? 0 : t > 1 ? 1 : t;
-  const k = kind === 'attack' ? (curve >= 0 ? 1.5 + 4.5 * curve : 1.5 + 5.5 * curve) : curve >= 0 ? 5 + 5 * curve : 5 + 4.99 * curve;
+  const k =
+    kind === 'attack'
+      ? curve >= 0
+        ? 1.5 + 4.5 * curve
+        : 1.5 + 5.5 * curve
+      : curve >= 0
+        ? 5 + 5 * curve
+        : 5 + 4.99 * curve;
   if (k > -1e-3 && k < 1e-3) return t;
   return (1 - Math.exp(-k * t)) / (1 - Math.exp(-k));
 }
@@ -1705,20 +3376,33 @@ export function envSegment(kind, curve, t) {
 // 'sustain', 'release' or 'done'; at: how far through it, 0..1)
 export function envAt(e, t, off = null) {
   const held = (x) => {
-    if (x < e.attack) { const s = envSegment('attack', e.curve, x / e.attack); return { v: s, seg: 'attack', at: x / e.attack }; }
+    if (x < e.attack) {
+      const s = envSegment('attack', e.curve, x / e.attack);
+      return { v: s, seg: 'attack', at: x / e.attack };
+    }
     x -= e.attack;
-    if (x < e.decay) { const s = envSegment('decay', e.curve, x / e.decay); return { v: 1 - (1 - e.sustain) * s, seg: 'decay', at: x / e.decay }; }
+    if (x < e.decay) {
+      const s = envSegment('decay', e.curve, x / e.decay);
+      return { v: 1 - (1 - e.sustain) * s, seg: 'decay', at: x / e.decay };
+    }
     return { v: e.sustain, seg: 'sustain', at: 0 };
   };
   if (off == null || t < off) return held(Math.max(0, t));
-  const vr = held(off).v, x = (t - off) / e.release;
+  const vr = held(off).v,
+    x = (t - off) / e.release;
   if (x >= 1 || vr < 1e-6) return { v: 0, seg: 'done', at: 1 };
   return { v: vr * (1 - envSegment('release', e.curve, x)), seg: 'release', at: x };
 }
 
 // An LFO's value (-1..1) at phase ph of its cycle n: the kernel's shapes (Engine.lfo), S&H and DRIFT from the same
 // hash of n (a sine where the kernel reads its table)
-const lfoHash = (n) => { let h = (n | 0) ^ 0x2545f491; h = Math.imul(h ^ (h >>> 16), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16; return (h >>> 0) / 2147483648 - 1; };
+const lfoHash = (n) => {
+  let h = (n | 0) ^ 0x2545f491;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) / 2147483648 - 1;
+};
 export function lfoShape(shape, ph, n = 0) {
   if (shape === 0) return Math.sin(TAU_ * ph);
   if (shape === 1) return ph < 0.25 ? 4 * ph : ph < 0.75 ? 2 - 4 * ph : 4 * ph - 4;
@@ -1731,12 +3415,15 @@ export function lfoShape(shape, ph, n = 0) {
 }
 // A FREE, synced LFO (l: 0..3) at a song beat: its phase and cycle as the kernel numbers it -> { ph, n }
 export function lfoFree(l, sync, beat) {
-  const b = beat / SYNC_BEATS[sync], c = Math.floor(b);
+  const b = beat / SYNC_BEATS[sync],
+    c = Math.floor(b);
   return { ph: b - c, n: (c | 0) + 977 * (l + 1) };
 }
 // An LFO's rate in Hz: its SYNC at the tempo, else RATE (with the matrix's LFOn RATE, d, in RETRIG and ENV modes)
 export function lfoHz(P, l, bpm = 120, d = 0) {
-  const n = l + 1, sync = P[`lfo${n}_sync`] | 0, rate = P[`lfo${n}_rate`];
+  const n = l + 1,
+    sync = P[`lfo${n}_sync`] | 0,
+    rate = P[`lfo${n}_rate`];
   if (sync) return bpm / 60 / SYNC_BEATS[sync];
   return d !== 0 && (P[`lfo${n}_mode`] | 0) !== 0 ? rate * Math.pow(2, d * Math.log2(2000)) : rate;
 }
@@ -1744,11 +3431,17 @@ export function lfoHz(P, l, bpm = 120, d = 0) {
 // The unison voices as Osc.ctrl spreads them (without its seeded jitter): each voice's pitch offset in semitones, its
 // pan (-1..1) and its weight (equal power: the weights' squares sum to 1) -> [{ st, pan, w }]
 export function unisonVoices(n, detune, blend, spread, pan = 0) {
-  const N = n < 1 ? 1 : n > 8 ? 8 : Math.round(n), D = detune * detune, edge = N > 1 ? 1 / (N - 1) + 1e-9 : 1, out = [];
+  const N = n < 1 ? 1 : n > 8 ? 8 : Math.round(n),
+    D = detune * detune,
+    edge = N > 1 ? 1 / (N - 1) + 1e-9 : 1,
+    out = [];
   let ws = 0;
   for (let j = 0; j < N; j++) {
-    const x0 = N > 1 ? -1 + 2 * j / (N - 1) : 0, x = N === 1 || j === (N - 1) / 2 ? 0 : x0, w = Math.abs(x0) <= edge ? 1 : blend;
-    let p = pan + x * spread; p = p < -1 ? -1 : p > 1 ? 1 : p;
+    const x0 = N > 1 ? -1 + (2 * j) / (N - 1) : 0,
+      x = N === 1 || j === (N - 1) / 2 ? 0 : x0,
+      w = Math.abs(x0) <= edge ? 1 : blend;
+    let p = pan + x * spread;
+    p = p < -1 ? -1 : p > 1 ? 1 : p;
     out.push({ st: x * D, pan: p, w });
     ws += w * w;
   }
@@ -1762,10 +3455,20 @@ export function unisonVoices(n, detune, blend, spread, pan = 0) {
 // (DESTS'); fx: DRIVE, CHORUS MIX, DELAY MIX and VERB MIX, which the kernel sums from the slots' own amounts and the
 // newest note's sources (process()); A: each slot's amount after the slots aimed at it, clamped
 export function modMatrix(P, S, D = new Float64Array(38), fx = new Float64Array(4)) {
-  D.fill(0); fx.fill(0);
-  const A = [], src = [], dst = [];
-  for (let j = 0; j < 8; j++) { A.push(+P[`m${j + 1}_amt`] || 0); src.push(P[`m${j + 1}_src`] | 0); dst.push(P[`m${j + 1}_dst`] | 0); }
-  for (let j = 0; j < 8; j++) { const d = dst[j]; if (d >= 26 && d <= 33) A[d - 26] += A[j] * S[src[j]]; }
+  D.fill(0);
+  fx.fill(0);
+  const A = [],
+    src = [],
+    dst = [];
+  for (let j = 0; j < 8; j++) {
+    A.push(+P[`m${j + 1}_amt`] || 0);
+    src.push(P[`m${j + 1}_src`] | 0);
+    dst.push(P[`m${j + 1}_dst`] | 0);
+  }
+  for (let j = 0; j < 8; j++) {
+    const d = dst[j];
+    if (d >= 26 && d <= 33) A[d - 26] += A[j] * S[src[j]];
+  }
   for (let j = 0; j < 8; j++) {
     A[j] = A[j] < -1 ? -1 : A[j] > 1 ? 1 : A[j];
     const d = dst[j];
@@ -1776,14 +3479,26 @@ export function modMatrix(P, S, D = new Float64Array(38), fx = new Float64Array(
 }
 
 export default defineDevice({
-  id: 'core.wavetable', name: 'Light Table', kind: 'instrument', cat: 'synth', by: 'overdub',
+  id: 'core.wavetable',
+  name: 'Light Table',
+  kind: 'instrument',
+  cat: 'synth',
+  by: 'overdub',
   editor: 'wavetable',
   blurb: 'Wavetable synth: two morphing tables, a filter, mod matrix',
   nod: 'the modern software wavetable synth: two oscillators scanning tables of single-cycle frames, warped, stacked in unison and modulated freely; the AKWF tables are Adventure Kid Waveforms by Kristoffer Ekstrand (CC0)',
   params: PARAMS,
   presets: PRESETS,
   library: LIBRARY,
-  look: { color: '#1d2a33', ink: '#ece6d6', shape: 'rack', finish: 'brushed', knob: 'black', label: 'plate', led: '#fff1cc' },
+  look: {
+    color: '#1d2a33',
+    ink: '#ece6d6',
+    shape: 'rack',
+    finish: 'brushed',
+    knob: 'black',
+    label: 'plate',
+    led: '#fff1cc',
+  },
   tail: 8,
   kernel: kernel(BODY),
 });

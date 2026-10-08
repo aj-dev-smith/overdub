@@ -13,7 +13,22 @@
 // app.mixer = { dbToPos(db), posToDb(pos), loudness() -> { lufs, peak } | null }
 
 import { h, css, icon, drag, clamp, fmtDb, canvas, tok, byline } from './dom.js';
-import { miniKnob, authorKind, authorVar, authorName, pressMenu, laneFor, laneNow, laneNote, controlOps, heldNote, heldSay, backToLane, automate, controlMenu } from './rack.js';
+import {
+  miniKnob,
+  authorKind,
+  authorVar,
+  authorName,
+  pressMenu,
+  laneFor,
+  laneNow,
+  laneNote,
+  controlOps,
+  heldNote,
+  heldSay,
+  backToLane,
+  automate,
+  controlMenu,
+} from './rack.js';
 import { songColor, MOD } from './arrange-kit.js';
 import { dbToPos, posToDb } from '../core/automation.js';
 import { holdToMove } from './touch.js';
@@ -31,11 +46,14 @@ const PEEK = 6 + 44 + 2;
 // a fader's scale shows a mark only where it clears its neighbours (the law packs −12 to −48 into the bottom third)
 function fitScale(s) {
   if (!s.scale) return;
-  const span = s.scale.clientHeight - 14, marks = [...s.scale.children];
+  const span = s.scale.clientHeight - 14,
+    marks = [...s.scale.children];
   if (span <= 0) return;
-  const gap = (parseFloat(getComputedStyle(marks[0]).fontSize) || 9) + 3, kept = [];
+  const gap = (parseFloat(getComputedStyle(marks[0]).fontSize) || 9) + 3,
+    kept = [];
   for (const d of TICK_RANK) {
-    const y = dbToPos(d) * span, el = marks.find((m) => +m.dataset.db === d);
+    const y = dbToPos(d) * span,
+      el = marks.find((m) => +m.dataset.db === d);
     const ok = kept.every((k) => Math.abs(k - y) >= gap);
     if (ok) kept.push(y);
     if (el) el.hidden = !ok;
@@ -43,7 +61,13 @@ function fitScale(s) {
 }
 const panText = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
 const roundDb = (db) => (db <= -95.9 ? -96 : Math.round(db * 10) / 10);
-const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+const coarse = () => {
+  try {
+    return matchMedia('(pointer: coarse)').matches;
+  } catch (e) {
+    return false;
+  }
+};
 // the label a strip's M, S or ● puts in History, as the arranger's header writes it ("unmute Drums", "solo Bass")
 const flagLabel = (t, k) => `${t[k] ? { mute: 'unmute', solo: 'unsolo', arm: 'disarm' }[k] : k} ${t.name}`;
 
@@ -54,7 +78,11 @@ export default function (app) {
   app.mixer = { dbToPos, posToDb, loudness: () => null };
 
   ui.panel({
-    id: 'mixer', region: 'bottom', title: 'Mixer', icon: 'panelBottom', order: 30,
+    id: 'mixer',
+    region: 'bottom',
+    title: 'Mixer',
+    icon: 'panelBottom',
+    order: 30,
     mount(el) {
       const root = h('div.mx');
       const lane = h('div.mx-lane');
@@ -67,7 +95,13 @@ export default function (app) {
       let lastT = performance.now();
       let loud = null; // the master loudness tap
 
-      root.addEventListener('pointerdown', () => { ui.state.focus = 'mixer'; }, true);
+      root.addEventListener(
+        'pointerdown',
+        () => {
+          ui.state.focus = 'mixer';
+        },
+        true,
+      );
       // the strips' fit (a touch screen: whole strips beside the master, or one and the next one's edge where only one
       // fits; the master over no strip's S or ●) and each fader's scale
       // (only the marks that have room at this height), measured whenever the pane changes size
@@ -77,17 +111,28 @@ export default function (app) {
         if (!root.isConnected) return;
         const ms = strips.get('master')?.el;
         if (coarse() && ms) {
-          const cs = getComputedStyle(ms), mw = ms.offsetWidth + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
-          const box = lane.querySelector('.mx-strips'), pl = box ? parseFloat(getComputedStyle(box).paddingLeft) || 0 : 0;
+          const cs = getComputedStyle(ms),
+            mw = ms.offsetWidth + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
+          const box = lane.querySelector('.mx-strips'),
+            pl = box ? parseFloat(getComputedStyle(box).paddingLeft) || 0 : 0;
           // (room for one strip only, a 360 px phone: the next one shows its edge up to its M beside it, so the mixer
           // reads as a row to swipe, not one strip stretched across the screen; its S and ● stay clear of the master)
-          const room = root.clientWidth - mw - pl, n = Math.floor(room / STRIP_MIN);
+          const room = root.clientWidth - mw - pl,
+            n = Math.floor(room / STRIP_MIN);
           root.style.setProperty('--mx-sw', `${n < 2 ? Math.max(STRIP_MIN, room - PEEK) : Math.floor(room / n)}px`);
         } else root.style.removeProperty('--mx-sw');
         for (const s of strips.values()) fitScale(s);
       }
 
-      const structure = () => store.get().tracks.map((t) => [t.id, t.name, t.color, t.kind, t.by, t.inserts.length, t.instrument?.device || '', keyedBy(t)].join(':')).join('|') + '|m' + store.get().master.inserts.length;
+      const structure = () =>
+        store
+          .get()
+          .tracks.map((t) =>
+            [t.id, t.name, t.color, t.kind, t.by, t.inserts.length, t.instrument?.device || '', keyedBy(t)].join(':'),
+          )
+          .join('|') +
+        '|m' +
+        store.get().master.inserts.length;
       // "keyed by Kick": the track a keyed insert on this one (Dim Switch) listens to, in words, or ''
       function keyedBy(t) {
         const x = t && t.inserts.find((i) => i.key && i.key.track);
@@ -101,7 +146,14 @@ export default function (app) {
         strips = new Map();
         const p = store.get();
         const kids = p.tracks.map((t) => strip(t));
-        if (!p.tracks.length) kids.push(h('div.mx-empty.empty', h('p', 'No tracks yet. Every track gets a strip here, with its level, pan, mute and solo.'), h('button.btn', { onclick: () => ui.show('sketch') }, 'Open Sketch')));
+        if (!p.tracks.length)
+          kids.push(
+            h(
+              'div.mx-empty.empty',
+              h('p', 'No tracks yet. Every track gets a strip here, with its level, pan, mute and solo.'),
+              h('button.btn', { onclick: () => ui.show('sketch') }, 'Open Sketch'),
+            ),
+          );
         lane.replaceChildren(h('div.mx-strips', kids), strip(null));
         update();
         presence();
@@ -111,43 +163,167 @@ export default function (app) {
       function strip(t) {
         const id = t ? t.id : 'master';
         const ak = t ? authorKind(app, t.by) : 'house';
-        const color = t ? songColor(t.color) : 'var(--text-2)';   // (a song's colour: a token or hex, never a url())
+        const color = t ? songColor(t.color) : 'var(--text-2)'; // (a song's colour: a token or hex, never a url())
         const s = { id, t, el: null, hold: -120, holdAt: 0, rms: -120, peak: -120, clip: false, last: '' };
         const fxN = t ? t.inserts.length : store.get().master.inserts.length;
-        const heldI = t?.instrument ? app.devices.heldDevice?.(t.instrument.device) : null;   // (kept off: its code hasn't run here)
-        const inst = t?.instrument ? (heldI ? `${heldI.name}, kept off` : app.devices.getDevice(t.instrument.device)?.name || t.instrument.device) : t ? 'Audio in' : 'Mix bus';
-        const head = h('button.mx-name', { title: t ? `${t.name}: select (double-click: inspect)` : 'The master', onclick: () => ui.select({ track: id, insert: null }), ondblclick: () => ui.show('inspector') },
-          h('span.mx-nl', h('i.mx-chip', { style: { background: color } }), h('b', t ? t.name : 'Master')), t ? (byline(t.by, { app, title: `Last shaped by ${authorName(app, t.by)}` }) || h('span.mx-by-none')) : null);
-        const fx = h('button.mx-fx', { title: 'Show the chain (Devices)', onclick: () => { ui.select({ track: id, insert: null }); ui.show('rack'); } },
-          h('span', inst), h('em', fxN ? `${fxN} fx` : '+ fx'), t && keyedBy(t) ? h('small.mx-keyed', keyedBy(t)) : null);
-        let pan = null, panOut = null;
+        const heldI = t?.instrument ? app.devices.heldDevice?.(t.instrument.device) : null; // (kept off: its code hasn't run here)
+        const inst = t?.instrument
+          ? heldI
+            ? `${heldI.name}, kept off`
+            : app.devices.getDevice(t.instrument.device)?.name || t.instrument.device
+          : t
+            ? 'Audio in'
+            : 'Mix bus';
+        const head = h(
+          'button.mx-name',
+          {
+            title: t ? `${t.name}: select (double-click: inspect)` : 'The master',
+            onclick: () => ui.select({ track: id, insert: null }),
+            ondblclick: () => ui.show('inspector'),
+          },
+          h('span.mx-nl', h('i.mx-chip', { style: { background: color } }), h('b', t ? t.name : 'Master')),
+          t ? byline(t.by, { app, title: `Last shaped by ${authorName(app, t.by)}` }) || h('span.mx-by-none') : null,
+        );
+        const fx = h(
+          'button.mx-fx',
+          {
+            title: 'Show the chain (Devices)',
+            onclick: () => {
+              ui.select({ track: id, insert: null });
+              ui.show('rack');
+            },
+          },
+          h('span', inst),
+          h('em', fxN ? `${fxN} fx` : '+ fx'),
+          t && keyedBy(t) ? h('small.mx-keyed', keyedBy(t)) : null,
+        );
+        let pan = null,
+          panOut = null;
         if (t) {
           panOut = h('output.mx-pan-v', panText(t.pan));
-          pan = miniKnob({ value: t.pan, min: -1, max: 1, def: 0, size: coarse() ? 44 : 28, bipolar: true, label: `${t.name} pan`, title: 'Pan (double-click: centre; right-click: Automate)', fmt: panText,
-            onInput: (v, commit) => { const pv = Math.round(v * 100) / 100; panOut.textContent = panText(pv); if (pv !== shownPan(id) || commit) setPan(id, pv, commit); },
-            onMenu: (a) => controlMenu(app, a, { track: id, param: 'pan' }, { name: 'Pan' }) });
+          pan = miniKnob({
+            value: t.pan,
+            min: -1,
+            max: 1,
+            def: 0,
+            size: coarse() ? 44 : 28,
+            bipolar: true,
+            label: `${t.name} pan`,
+            title: 'Pan (double-click: centre; right-click: Automate)',
+            fmt: panText,
+            onInput: (v, commit) => {
+              const pv = Math.round(v * 100) / 100;
+              panOut.textContent = panText(pv);
+              if (pv !== shownPan(id) || commit) setPan(id, pv, commit);
+            },
+            onMenu: (a) => controlMenu(app, a, { track: id, param: 'pan' }, { name: 'Pan' }),
+          });
           pan.style.setProperty('--mk-c', color);
         }
-        const btn = (k, label, tip) => h('button.mx-b.mx-' + k, { title: tip, 'aria-pressed': 'false', onclick: (e) => toggle(id, k, e) }, label);
+        const btn = (k, label, tip) =>
+          h('button.mx-b.mx-' + k, { title: tip, 'aria-pressed': 'false', onclick: (e) => toggle(id, k, e) }, label);
         // the master's loudness: what the meter measures, in words (K-weighted over the last 400 ms, as a loudness meter's
         // momentary reading is; worked out here, so close to one, not certified)
-        const btns = t ? h('div.mx-btns', btn('mute', 'M', 'Mute (M)'), btn('solo', 'S', 'Solo (S; Alt-click: solo only this)'), btn('arm', icon('record', { size: 11 }), 'Arm to record'))
-          : h('div.mx-btns.mx-loud', { title: 'Momentary loudness: K-weighted over the last 400 ms, measured here in the browser (close to a loudness meter’s, not certified)' }, s.loudL = h('span', 'Loudness'), s.lufsEl = h('b.ew-mono', '—'), h('small', 'LUFS, momentary'));
+        const btns = t
+          ? h(
+              'div.mx-btns',
+              btn('mute', 'M', 'Mute (M)'),
+              btn('solo', 'S', 'Solo (S; Alt-click: solo only this)'),
+              btn('arm', icon('record', { size: 11 }), 'Arm to record'),
+            )
+          : h(
+              'div.mx-btns.mx-loud',
+              {
+                title:
+                  'Momentary loudness: K-weighted over the last 400 ms, measured here in the browser (close to a loudness meter’s, not certified)',
+              },
+              (s.loudL = h('span', 'Loudness')),
+              (s.lufsEl = h('b.ew-mono', '—')),
+              h('small', 'LUFS, momentary'),
+            );
         const cv = canvas('mx-meter');
-        const thumb = h('div.mx-thumb', { role: 'slider', tabindex: 0, 'aria-label': `${t ? t.name : 'Master'} level`, 'aria-valuemin': -96, 'aria-valuemax': 6 }, h('i'));
-        const scale = h('div.mx-scale', { 'aria-hidden': 'true' }, TICKS.map((d) => h('span', { dataset: { db: d }, style: { bottom: `calc(7px + ${dbToPos(d)} * (100% - 14px))` } }, d > 0 ? '+' + d : String(d))));
+        const thumb = h(
+          'div.mx-thumb',
+          {
+            role: 'slider',
+            tabindex: 0,
+            'aria-label': `${t ? t.name : 'Master'} level`,
+            'aria-valuemin': -96,
+            'aria-valuemax': 6,
+          },
+          h('i'),
+        );
+        const scale = h(
+          'div.mx-scale',
+          { 'aria-hidden': 'true' },
+          TICKS.map((d) =>
+            h(
+              'span',
+              { dataset: { db: d }, style: { bottom: `calc(7px + ${dbToPos(d)} * (100% - 14px))` } },
+              d > 0 ? '+' + d : String(d),
+            ),
+          ),
+        );
         const track = h('div.mx-track', h('div.mx-groove'), scale, thumb);
-        const peakEl = h('button.mx-peak.ew-mono', { title: 'Peak hold (click to reset)', onclick: () => { s.hold = -120; s.clip = false; s.maxPeak = -120; } }, '—');
-        const out = h('button.mx-db.ew-mono', { title: 'Level in dB (click to type; double-click the fader: 0 dB)', onclick: () => typeDb(s) }, '');
+        const peakEl = h(
+          'button.mx-peak.ew-mono',
+          {
+            title: 'Peak hold (click to reset)',
+            onclick: () => {
+              s.hold = -120;
+              s.clip = false;
+              s.maxPeak = -120;
+            },
+          },
+          '—',
+        );
+        const out = h(
+          'button.mx-db.ew-mono',
+          { title: 'Level in dB (click to type; double-click the fader: 0 dB)', onclick: () => typeDb(s) },
+          '',
+        );
         // automation marks: "auto" / "held" beside the level and beside the pan
         const gMark = h('button.mx-am', { type: 'button', hidden: true, onclick: () => markClick(s, 'gain') });
-        const pMark = t ? h('button.mx-am.mx-am-pan', { type: 'button', hidden: true, onclick: () => markClick(s, 'pan') }) : null;
+        const pMark = t
+          ? h('button.mx-am.mx-am-pan', { type: 'button', hidden: true, onclick: () => markClick(s, 'pan') })
+          : null;
         const fader = h('div.mx-fader', track, h('div.mx-mwrap', peakEl, cv.cv));
-        s.el = h('div.mx-strip' + (t ? '' : '.mx-master'), { dataset: { track: id, author: ak }, style: { '--tc': color, '--ae': authorVar(ak) }, title: t ? `${t.name}, last shaped by ${authorName(app, t.by)}` : '' },
-          head, fx, t ? h('div.mx-pan', pan, panOut, pMark) : null, btns, fader, h('div.mx-dbrow', out, gMark));
-        Object.assign(s, { scale, thumb, track, cv, peakEl, out, pan, panOut, btns, gMark, pMark, name: t ? t.name : 'Master' });
+        s.el = h(
+          'div.mx-strip' + (t ? '' : '.mx-master'),
+          {
+            dataset: { track: id, author: ak },
+            style: { '--tc': color, '--ae': authorVar(ak) },
+            title: t ? `${t.name}, last shaped by ${authorName(app, t.by)}` : '',
+          },
+          head,
+          fx,
+          t ? h('div.mx-pan', pan, panOut, pMark) : null,
+          btns,
+          fader,
+          h('div.mx-dbrow', out, gMark),
+        );
+        Object.assign(s, {
+          scale,
+          thumb,
+          track,
+          cv,
+          peakEl,
+          out,
+          pan,
+          panOut,
+          btns,
+          gMark,
+          pMark,
+          name: t ? t.name : 'Master',
+        });
         // a finger: a drag scrolls the strips, a hold picks the control up (a fader by its cap, so it never jumps)
-        holdToMove(track, { name: 'fader', pick: () => thumb, scroller: root, heldClass: 'mx-held', hintKey: HOLD_HINT });
+        holdToMove(track, {
+          name: 'fader',
+          pick: () => thumb,
+          scroller: root,
+          heldClass: 'mx-held',
+          hintKey: HOLD_HINT,
+        });
         if (pan) holdToMove(pan, { name: 'pan knob', scroller: root, heldClass: 'mx-held', hintKey: HOLD_HINT });
         wireFader(s);
         strips.set(id, s);
@@ -156,57 +332,96 @@ export default function (app) {
 
       // the value a control shows: its playing lane's at the playhead (stopped: the marker), else its own
       const addrOf = (id, param) => ({ track: id, param });
-      function gainOf(id) { return id === 'master' ? store.get().master.gain : store.track(id)?.gain ?? 0; }
-      function shownGain(id) { const v = laneNow(app, addrOf(id, 'gain')); return v == null ? gainOf(id) : Math.min(6, v); }
+      function gainOf(id) {
+        return id === 'master' ? store.get().master.gain : (store.track(id)?.gain ?? 0);
+      }
+      function shownGain(id) {
+        const v = laneNow(app, addrOf(id, 'gain'));
+        return v == null ? gainOf(id) : Math.min(6, v);
+      }
       // A finger on a fader or a pan knob (ui/touch.js, holdToMove above): a drag scrolls the strips (one finger always
       // does, as in the arranger, a sheet shorter than a strip down too), and the control moves only once it has been
       // held still: then it is picked up (lit, a buzz) and a drag moves it; held on, its menu opens as before. The first
       // hold says so once (this key, as it always has). A mouse is untouched.
       const HOLD_HINT = 'overdub:mixer-hold-hint';
-      function shownPan(id) { const v = laneNow(app, addrOf(id, 'pan')); return v == null ? store.track(id)?.pan ?? 0 : v; }
+      function shownPan(id) {
+        const v = laneNow(app, addrOf(id, 'pan'));
+        return v == null ? (store.track(id)?.pan ?? 0) : v;
+      }
       // a hand on the fader: the move, and (on a playing lane) holding the lane, one undo step per gesture
       function setGain(id, db, commit) {
         db = roundDb(clamp(db, -96, 6));
         const addr = addrOf(id, 'gain');
         if (id === 'master') {
-          if (masterOp === false) { if (commit) ui.toast('The master level can’t be changed yet (needs the master.set op)'); return; }
+          if (masterOp === false) {
+            if (commit) ui.toast('The master level can’t be changed yet (needs the master.set op)');
+            return;
+          }
           const ops = controlOps(app, addr, { type: 'master.set', patch: { gain: db } });
           const r = store.dispatch(ops, { by: 'you', coalesce: 'master:gain', label: 'master level' });
-          if (!r.ok && /unknown op/.test(r.error)) { masterOp = false; strips.get('master')?.el.classList.add('mx-ro'); ui.toast('The master level can’t be changed yet (needs the master.set op)'); }
-          else masterOp = true;
+          if (!r.ok && /unknown op/.test(r.error)) {
+            masterOp = false;
+            strips.get('master')?.el.classList.add('mx-ro');
+            ui.toast('The master level can’t be changed yet (needs the master.set op)');
+          } else masterOp = true;
           if (r.ok && ops.length > 1) heldNote(app, addr, 'Master level', fmtDb(db) + ' dB', { later: !commit });
           else if (commit) heldSay(app, fmtDb(db) + ' dB');
           return;
         }
         if (db === shownGain(id) && !commit) return;
         const ops = controlOps(app, addr, { type: 'track.set', track: id, patch: { gain: db } });
-        const r = store.dispatch(ops, { by: 'you', coalesce: 'track:' + id + ':gain', label: `${store.track(id)?.name} level` });
-        if (r.ok && ops.length > 1) heldNote(app, addr, `${store.track(id)?.name} level`, (db <= -96 ? '−∞' : fmtDb(db)) + ' dB', { later: !commit });
+        const r = store.dispatch(ops, {
+          by: 'you',
+          coalesce: 'track:' + id + ':gain',
+          label: `${store.track(id)?.name} level`,
+        });
+        if (r.ok && ops.length > 1)
+          heldNote(app, addr, `${store.track(id)?.name} level`, (db <= -96 ? '−∞' : fmtDb(db)) + ' dB', {
+            later: !commit,
+          });
         else if (commit) heldSay(app, (db <= -96 ? '−∞' : fmtDb(db)) + ' dB');
       }
       function setPan(id, pv, commit) {
         const addr = addrOf(id, 'pan');
         const ops = controlOps(app, addr, { type: 'track.set', track: id, patch: { pan: pv } });
-        const r = store.dispatch(ops, { by: 'you', coalesce: 'track:' + id + ':pan', label: `${store.track(id)?.name} pan` });
-        if (r.ok && ops.length > 1) heldNote(app, addr, `${store.track(id)?.name} pan`, panText(pv), { later: !commit });
+        const r = store.dispatch(ops, {
+          by: 'you',
+          coalesce: 'track:' + id + ':pan',
+          label: `${store.track(id)?.name} pan`,
+        });
+        if (r.ok && ops.length > 1)
+          heldNote(app, addr, `${store.track(id)?.name} pan`, panText(pv), { later: !commit });
         else if (commit) heldSay(app, panText(pv));
       }
       function markClick(s, param) {
-        const addr = addrOf(s.id, param), name = param === 'pan' ? `${s.name} pan` : `${s.name} level`;
+        const addr = addrOf(s.id, param),
+          name = param === 'pan' ? `${s.name} pan` : `${s.name} level`;
         const l = laneFor(app, addr);
         if (!l) return;
-        if (l.held) backToLane(app, addr, name); else automate(app, addr, name);
+        if (l.held) backToLane(app, addr, name);
+        else automate(app, addr, name);
       }
       function wireFader(s) {
-        let p0 = 0, hgt = 1, g = null;
+        let p0 = 0,
+          hgt = 1,
+          g = null;
         // a finger rests still for a long press (the menu): it moves the fader (or jumps it to the groove) only once it
         // has travelled 8 px; a mouse moves it at once, as before
-        const jumpTo = (y) => { const r = s.track.getBoundingClientRect(); setGain(s.id, posToDb(clamp(1 - (y - r.top - 19) / (hgt - 26), 0, 1)), false); };
+        const jumpTo = (y) => {
+          const r = s.track.getBoundingClientRect();
+          setGain(s.id, posToDb(clamp(1 - (y - r.top - 19) / (hgt - 26), 0, 1)), false);
+        };
         drag(s.track, {
           start: (e) => {
             hgt = s.track.clientHeight || 1;
             const onThumb = s.thumb.contains(e.target);
-            g = { touch: e.pointerType === 'touch', jump: onThumb ? null : e.clientY, live: e.pointerType !== 'touch', dy: 0, moved: false };
+            g = {
+              touch: e.pointerType === 'touch',
+              jump: onThumb ? null : e.clientY,
+              live: e.pointerType !== 'touch',
+              dy: 0,
+              moved: false,
+            };
             if (g.live && g.jump != null) jumpTo(g.jump); // jump: click on the groove moves the fader there
             p0 = dbToPos(shownGain(s.id));
             s.thumb.focus();
@@ -216,50 +431,88 @@ export default function (app) {
             if (!g) return;
             if (!g.live) {
               if (Math.hypot(dx, dy) <= 8) return;
-              g.live = true; g.dy = dy;
-              if (g.jump != null) { jumpTo(g.jump + dy); p0 = dbToPos(shownGain(s.id)); }
+              g.live = true;
+              g.dy = dy;
+              if (g.jump != null) {
+                jumpTo(g.jump + dy);
+                p0 = dbToPos(shownGain(s.id));
+              }
             }
             g.moved = true;
             setGain(s.id, posToDb(clamp(p0 - ((dy - g.dy) / (hgt - 26)) * (e.shiftKey ? 0.15 : 1), 0, 1)), false);
           },
           end: () => {
             s.el.classList.remove('moving');
-            const was = g; g = null;
+            const was = g;
+            g = null;
             if (was && was.touch && !was.live && was.jump != null) jumpTo(was.jump); // a tap on the groove
-            if (was && (was.moved || was.jump != null)) { const g1 = shownGain(s.id); heldSay(app, (g1 <= -96 ? '−∞' : fmtDb(g1)) + ' dB'); }
+            if (was && (was.moved || was.jump != null)) {
+              const g1 = shownGain(s.id);
+              heldSay(app, (g1 <= -96 ? '−∞' : fmtDb(g1)) + ' dB');
+            }
           },
         });
-        pressMenu(s.track, (a) => controlMenu(app, a, addrOf(s.id, 'gain'), { name: `${s.name} level` }), { onLong: () => { g = null; s.el.classList.remove('moving'); } });
+        pressMenu(s.track, (a) => controlMenu(app, a, addrOf(s.id, 'gain'), { name: `${s.name} level` }), {
+          onLong: () => {
+            g = null;
+            s.el.classList.remove('moving');
+          },
+        });
         s.track.addEventListener('dblclick', () => setGain(s.id, 0, true));
-        s.track.addEventListener('wheel', (e) => { e.preventDefault(); setGain(s.id, posToDb(dbToPos(shownGain(s.id)) - Math.sign(e.deltaY) * 0.02), true); }, { passive: false });
+        s.track.addEventListener(
+          'wheel',
+          (e) => {
+            e.preventDefault();
+            setGain(s.id, posToDb(dbToPos(shownGain(s.id)) - Math.sign(e.deltaY) * 0.02), true);
+          },
+          { passive: false },
+        );
         s.thumb.addEventListener('keydown', (e) => {
-          const g = shownGain(s.id), st = e.shiftKey ? 0.1 : 1;
+          const g = shownGain(s.id),
+            st = e.shiftKey ? 0.1 : 1;
           if (e.key === 'ArrowUp') setGain(s.id, g <= -96 ? -60 : g + st, true);
           else if (e.key === 'ArrowDown') setGain(s.id, g - st < -60 ? -96 : g - st, true);
           else if (e.key === 'Home' || e.key === '0') setGain(s.id, 0, true);
           else return;
-          e.preventDefault(); e.stopPropagation();
+          e.preventDefault();
+          e.stopPropagation();
         });
       }
       function typeDb(s) {
-        const inp = h('input.mx-dbin.ew-mono', { value: shownGain(s.id) <= -96 ? '-inf' : String(roundDb(shownGain(s.id))), 'aria-label': 'Level in dB' });
+        const inp = h('input.mx-dbin.ew-mono', {
+          value: shownGain(s.id) <= -96 ? '-inf' : String(roundDb(shownGain(s.id))),
+          'aria-label': 'Level in dB',
+        });
         s.out.replaceWith(inp);
-        inp.focus(); inp.select();
+        inp.focus();
+        inp.select();
         let finished = false;
         const done = (ok) => {
           if (finished || !inp.isConnected) return;
           finished = true;
-          if (ok) { const v = /inf/i.test(inp.value) ? -96 : parseFloat(inp.value.replace('−', '-')); if (Number.isFinite(v)) setGain(s.id, v, true); }
-          inp.replaceWith(s.out); s.dirtyG = true; update();
+          if (ok) {
+            const v = /inf/i.test(inp.value) ? -96 : parseFloat(inp.value.replace('−', '-'));
+            if (Number.isFinite(v)) setGain(s.id, v, true);
+          }
+          inp.replaceWith(s.out);
+          s.dirtyG = true;
+          update();
         };
-        inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(true); else if (e.key === 'Escape') done(false); e.stopPropagation(); });
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') done(true);
+          else if (e.key === 'Escape') done(false);
+          e.stopPropagation();
+        });
         inp.addEventListener('blur', () => done(true));
       }
       function toggle(id, k, e) {
         const t = store.track(id);
         if (!t) return;
         if (k === 'solo' && e?.altKey) {
-          const ops = store.get().tracks.filter((x) => x.solo !== (x.id === id)).map((x) => ({ type: 'track.set', track: x.id, patch: { solo: x.id === id } }));
+          const ops = store
+            .get()
+            .tracks.filter((x) => x.solo !== (x.id === id))
+            .map((x) => ({ type: 'track.set', track: x.id, patch: { solo: x.id === id } }));
           if (ops.length) store.dispatch(ops, { by: 'you', label: `solo only ${t.name}` });
           return;
         }
@@ -277,18 +530,26 @@ export default function (app) {
           s.el.classList.toggle('sel', (ui.state.selection.track || p.tracks[0]?.id) === s.id);
           if (!t) continue;
           drawPan(s, shownPan(s.id));
-          for (const k of ['mute', 'solo', 'arm']) { const b = s.btns.querySelector('.mx-' + k); b.classList.toggle('on', !!t[k]); b.setAttribute('aria-pressed', String(!!t[k])); }
+          for (const k of ['mute', 'solo', 'arm']) {
+            const b = s.btns.querySelector('.mx-' + k);
+            b.classList.toggle('on', !!t[k]);
+            b.setAttribute('aria-pressed', String(!!t[k]));
+          }
           s.el.classList.toggle('quiet', t.mute || (anySolo && !t.solo));
         }
       }
 
       function drawGain(s, g) {
         if (s.shownG === g && !s.dirtyG) return;
-        s.shownG = g; s.dirtyG = false;
+        s.shownG = g;
+        s.dirtyG = false;
         s.thumb.style.bottom = `calc(${dbToPos(g)} * (100% - 26px))`;
         s.thumb.setAttribute('aria-valuenow', g);
         const a = s.gMark && !s.gMark.hidden ? s.gMark.dataset.mark : '';
-        s.thumb.setAttribute('aria-valuetext', fmtDb(g) + ' dB' + (a === 'auto' ? ', follows its lane' : a === 'held' ? ', held' : ''));
+        s.thumb.setAttribute(
+          'aria-valuetext',
+          fmtDb(g) + ' dB' + (a === 'auto' ? ', follows its lane' : a === 'held' ? ', held' : ''),
+        );
         // (with a mark beside it the unit goes, so the number and the word fit the strip)
         if (s.out.isConnected) s.out.textContent = (g <= -96 ? '−∞' : fmtDb(g)) + (a ? '' : ' dB');
       }
@@ -296,24 +557,39 @@ export default function (app) {
         if (!s.pan || s.pan.classList.contains('turning')) return;
         if (s.shownP === v) return;
         s.shownP = v;
-        s.pan.set(v); s.panOut.textContent = panText(v);
+        s.pan.set(v);
+        s.panOut.textContent = panText(v);
       }
       // "auto" (the lane plays: click shows it) or "held" (click: back to the lane) beside the level and the pan
       function marks(s) {
         s.follow = [];
-        for (const [param, el] of [['gain', s.gMark], ['pan', s.pMark]]) {
+        for (const [param, el] of [
+          ['gain', s.gMark],
+          ['pan', s.pMark],
+        ]) {
           if (!el) continue;
-          const addr = addrOf(s.id, param), l = laneFor(app, addr);
+          const addr = addrOf(s.id, param),
+            l = laneFor(app, addr);
           const name = param === 'pan' ? `${s.name} pan` : `${s.name} level`;
           const state = l ? (l.held ? 'held' : 'auto') : '';
           if (el.dataset.mark !== state) s.dirtyG = true;
           el.hidden = !state;
           el.dataset.mark = state;
           el.textContent = state;
-          el.title = !l ? '' : l.held ? `${laneNote(app, addr, name)}. Click: back to the lane` : `${laneNote(app, addr, name)}. Click: show the lane`;
-          el.setAttribute('aria-label', !l ? '' : l.held ? `${name} is held: back to the lane` : `${name} follows its lane: show it`);
+          el.title = !l
+            ? ''
+            : l.held
+              ? `${laneNote(app, addr, name)}. Click: back to the lane`
+              : `${laneNote(app, addr, name)}. Click: show the lane`;
+          el.setAttribute(
+            'aria-label',
+            !l ? '' : l.held ? `${name} is held: back to the lane` : `${name} follows its lane: show it`,
+          );
           if (l && !l.held) s.follow.push(param);
-          if (param === 'pan' && s.pan) s.pan.title = l ? `${laneNote(app, addr, name)}. Pan (double-click: centre; right-click: Automate)` : 'Pan (double-click: centre; right-click: Automate)';
+          if (param === 'pan' && s.pan)
+            s.pan.title = l
+              ? `${laneNote(app, addr, name)}. Pan (double-click: centre; right-click: Automate)`
+              : 'Pan (double-click: centre; right-click: Automate)';
         }
         s.shownP = null;
       }
@@ -327,15 +603,35 @@ export default function (app) {
       }
 
       /* ---------------------------------------------------- agents */
-      function flash(id) { const s = strips.get(id); if (!s) return; s.el.classList.remove('ew-agent-flash'); void s.el.offsetWidth; s.el.classList.add('ew-agent-flash'); flashes.push({ el: s.el, until: performance.now() + 1500 }); }
+      function flash(id) {
+        const s = strips.get(id);
+        if (!s) return;
+        s.el.classList.remove('ew-agent-flash');
+        void s.el.offsetWidth;
+        s.el.classList.add('ew-agent-flash');
+        flashes.push({ el: s.el, until: performance.now() + 1500 });
+      }
       function presence() {
-        for (const s of strips.values()) { s.el.classList.remove('ew-presence'); s.el.querySelector('.mx-pres')?.remove(); }
+        for (const s of strips.values()) {
+          s.el.classList.remove('ew-presence');
+          s.el.querySelector('.mx-pres')?.remove();
+        }
         for (const pr of ui.state.presence || []) {
           if (!pr.track || pr.clip || pr.notes || pr.insert) continue;
           const s = strips.get(pr.track);
           if (!s) continue;
           s.el.classList.add('ew-presence');
-          s.el.append(h('div.crop.mx-pres', { title: pr.note || '' }, h('i'), h('i'), h('i'), h('i'), h('span', authorName(app, pr.by))));
+          s.el.append(
+            h(
+              'div.crop.mx-pres',
+              { title: pr.note || '' },
+              h('i'),
+              h('i'),
+              h('i'),
+              h('i'),
+              h('span', authorName(app, pr.by)),
+            ),
+          );
         }
       }
       const offPres = ui.on('presence', presence);
@@ -348,30 +644,64 @@ export default function (app) {
           const c = engine.ctx;
           const split = c.createChannelSplitter(2);
           const chans = [0, 1].map((i) => {
-            const shelf = c.createBiquadFilter(); shelf.type = 'highshelf'; shelf.frequency.value = 1681; shelf.gain.value = 4;
-            const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 38; hp.Q.value = 0.5;
-            const an = c.createAnalyser(); an.fftSize = 2048;
-            split.connect(shelf, i); shelf.connect(hp); hp.connect(an);
+            const shelf = c.createBiquadFilter();
+            shelf.type = 'highshelf';
+            shelf.frequency.value = 1681;
+            shelf.gain.value = 4;
+            const hp = c.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 38;
+            hp.Q.value = 0.5;
+            const an = c.createAnalyser();
+            an.fftSize = 2048;
+            split.connect(shelf, i);
+            shelf.connect(hp);
+            hp.connect(an);
             return { an, buf: new Float32Array(an.fftSize) };
           });
-          const raw = c.createAnalyser(); raw.fftSize = 2048;
-          engine.masterTap.connect(split); engine.masterTap.connect(raw);
-          loud = { chans, raw, rbuf: new Float32Array(2048), ms: 0, lufs: -Infinity, peak: -120, held: -120, tap: engine.masterTap };
-        } catch (e) { console.warn('mixer: no loudness tap', e.message); loud = null; }
+          const raw = c.createAnalyser();
+          raw.fftSize = 2048;
+          engine.masterTap.connect(split);
+          engine.masterTap.connect(raw);
+          loud = {
+            chans,
+            raw,
+            rbuf: new Float32Array(2048),
+            ms: 0,
+            lufs: -Infinity,
+            peak: -120,
+            held: -120,
+            tap: engine.masterTap,
+          };
+        } catch (e) {
+          console.warn('mixer: no loudness tap', e.message);
+          loud = null;
+        }
         return loud;
       }
       function readLoud(dt) {
         const L = ensureLoud();
         if (!L) return null;
-        if (L.tap !== engine.masterTap) { loud = null; return null; } // the engine rebuilt its master
+        if (L.tap !== engine.masterTap) {
+          loud = null;
+          return null;
+        } // the engine rebuilt its master
         let sum = 0;
-        for (const ch of L.chans) { ch.an.getFloatTimeDomainData(ch.buf); let s = 0; for (let i = 0; i < ch.buf.length; i++) s += ch.buf[i] * ch.buf[i]; sum += s / ch.buf.length; }
+        for (const ch of L.chans) {
+          ch.an.getFloatTimeDomainData(ch.buf);
+          let s = 0;
+          for (let i = 0; i < ch.buf.length; i++) s += ch.buf[i] * ch.buf[i];
+          sum += s / ch.buf.length;
+        }
         const a = 1 - Math.exp(-dt / 0.4);
         L.ms += (sum - L.ms) * a;
         L.lufs = L.ms > 1e-10 ? -0.691 + 10 * Math.log10(L.ms) : -Infinity;
         L.raw.getFloatTimeDomainData(L.rbuf);
         let pk = 0;
-        for (let i = 0; i < L.rbuf.length; i++) { const x = Math.abs(L.rbuf[i]); if (x > pk) pk = x; }
+        for (let i = 0; i < L.rbuf.length; i++) {
+          const x = Math.abs(L.rbuf[i]);
+          if (x > pk) pk = x;
+        }
         L.peak = pk > 0 ? 20 * Math.log10(pk) : -120;
         return L;
       }
@@ -380,35 +710,70 @@ export default function (app) {
       function drawMeter(s, now, lv) {
         const { cv, g } = s.cv;
         const resized = s.cv.fit();
-        const W = s.cv.w, H = s.cv.h;
-        const dt = Math.min(0.1, (now - (s.t || now)) / 1000); s.t = now;
-        const pk = lv ? lv.peak : -120, rm = lv ? lv.rms : -120;
+        const W = s.cv.w,
+          H = s.cv.h;
+        const dt = Math.min(0.1, (now - (s.t || now)) / 1000);
+        s.t = now;
+        const pk = lv ? lv.peak : -120,
+          rm = lv ? lv.rms : -120;
         s.peak = pk > s.peak ? pk : Math.max(pk, s.peak - 26 * dt);
         s.rms = rm > s.rms ? s.rms + (rm - s.rms) * 0.6 : Math.max(rm, s.rms - 18 * dt);
-        if (pk >= s.hold) { s.hold = pk; s.holdAt = now; } else if (now - s.holdAt > 1400) s.hold = Math.max(-120, s.hold - 20 * dt);
+        if (pk >= s.hold) {
+          s.hold = pk;
+          s.holdAt = now;
+        } else if (now - s.holdAt > 1400) s.hold = Math.max(-120, s.hold - 20 * dt);
         if (pk > -0.05) s.clip = true;
         s.maxPeak = Math.max(s.maxPeak ?? -120, pk);
         const key = `${W}|${H}|${s.peak.toFixed(1)}|${s.rms.toFixed(1)}|${s.hold.toFixed(1)}|${s.clip}`;
         if (key === s.last && !resized) return;
         s.last = key;
         g.clearRect(0, 0, W, H);
-        const top = 7, hh = H - 14;
+        const top = 7,
+          hh = H - 14;
         const y = (db) => top + hh * (1 - dbToPos(db));
-        g.fillStyle = colors.slot; g.fillRect(0, top, W, hh);
+        g.fillStyle = colors.slot;
+        g.fillRect(0, top, W, hh);
         const grad = g.createLinearGradient(0, y(-96), 0, y(6));
-        grad.addColorStop(0, colors.low); grad.addColorStop(dbToPos(-12), colors.low); grad.addColorStop(dbToPos(-4), colors.warn); grad.addColorStop(dbToPos(0), colors.bad); grad.addColorStop(1, colors.bad);
-        if (s.peak > -96) { g.globalAlpha = 0.45; g.fillStyle = grad; g.fillRect(0, y(s.peak), W, y(-96) - y(s.peak)); }
-        if (s.rms > -96) { g.globalAlpha = 1; g.fillStyle = grad; g.fillRect(0, y(s.rms), W, y(-96) - y(s.rms)); }
+        grad.addColorStop(0, colors.low);
+        grad.addColorStop(dbToPos(-12), colors.low);
+        grad.addColorStop(dbToPos(-4), colors.warn);
+        grad.addColorStop(dbToPos(0), colors.bad);
+        grad.addColorStop(1, colors.bad);
+        if (s.peak > -96) {
+          g.globalAlpha = 0.45;
+          g.fillStyle = grad;
+          g.fillRect(0, y(s.peak), W, y(-96) - y(s.peak));
+        }
+        if (s.rms > -96) {
+          g.globalAlpha = 1;
+          g.fillStyle = grad;
+          g.fillRect(0, y(s.rms), W, y(-96) - y(s.rms));
+        }
         g.globalAlpha = 1;
-        for (const d of TICKS) { g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, Math.round(y(d)), W, 1); }
-        if (s.hold > -90) { g.fillStyle = s.hold > -0.05 ? colors.bad : colors.text; g.fillRect(0, Math.round(y(s.hold)) - 1, W, 2); }
-        g.fillStyle = s.clip ? colors.bad : colors.slot; g.fillRect(0, 0, W, 3);
+        for (const d of TICKS) {
+          g.fillStyle = 'rgba(0,0,0,.45)';
+          g.fillRect(0, Math.round(y(d)), W, 1);
+        }
+        if (s.hold > -90) {
+          g.fillStyle = s.hold > -0.05 ? colors.bad : colors.text;
+          g.fillRect(0, Math.round(y(s.hold)) - 1, W, 2);
+        }
+        g.fillStyle = s.clip ? colors.bad : colors.slot;
+        g.fillRect(0, 0, W, 3);
         const ph = s.id === 'master' && loud ? Math.max(s.maxPeak, loud.held) : s.hold;
         s.peakEl.textContent = ph > -90 ? (ph > 0 ? '+' : '') + ph.toFixed(1) : '—';
         s.peakEl.classList.toggle('hot', ph > -0.3);
       }
 
-      function readColors() { colors = { slot: 'rgba(10, 9, 7,.7)', low: tok('--ok') || '#8fe3a1', warn: tok('--warn') || '#ffd166', bad: tok('--bad') || '#ff6b81', text: tok('--text') || '#fff' }; }
+      function readColors() {
+        colors = {
+          slot: 'rgba(10, 9, 7,.7)',
+          low: tok('--ok') || '#8fe3a1',
+          warn: tok('--warn') || '#ffd166',
+          bad: tok('--bad') || '#ff6b81',
+          text: tok('--text') || '#fff',
+        };
+      }
       readColors();
       build();
 
@@ -416,31 +781,61 @@ export default function (app) {
 
       return {
         update(evt) {
-          if (structure() !== sig || evt.kind === 'load') build(); else update();
+          if (structure() !== sig || evt.kind === 'load') build();
+          else update();
           if (evt.kind === 'do' && store.isAgent(evt.by)) {
-            for (const op of evt.ops || []) if (op.type === 'track.set' && op.track) flash(store.track(op.track)?.id || [...store.get().tracks].find((t) => t.name.toLowerCase() === String(op.track).toLowerCase())?.id);
+            for (const op of evt.ops || [])
+              if (op.type === 'track.set' && op.track)
+                flash(
+                  store.track(op.track)?.id ||
+                    [...store.get().tracks].find((t) => t.name.toLowerCase() === String(op.track).toLowerCase())?.id,
+                );
           }
         },
-        refresh() { if (structure() !== sig) build(); else update(); },
+        refresh() {
+          if (structure() !== sig) build();
+          else update();
+        },
         frame(now) {
-          const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
-          if (flashes.length) flashes = flashes.filter((f) => { if (now > f.until) { f.el.classList.remove('ew-agent-flash'); return false; } return true; });
+          const dt = Math.min(0.1, (now - lastT) / 1000);
+          lastT = now;
+          if (flashes.length)
+            flashes = flashes.filter((f) => {
+              if (now > f.until) {
+                f.el.classList.remove('ew-agent-flash');
+                return false;
+              }
+              return true;
+            });
           const m = engine.meters || { tracks: {}, master: null };
           const running = !!engine.ctx && engine.ctx.state === 'running';
           const L = running ? readLoud(dt) : null;
           if (L) {
             L.held = Math.max(L.held, L.peak);
             const ms = strips.get('master');
-            if (ms?.lufsEl) { const v = Number.isFinite(L.lufs) && L.lufs > -70 ? L.lufs.toFixed(1) : '—'; if (ms.lufsEl.textContent !== v) ms.lufsEl.textContent = v; }
+            if (ms?.lufsEl) {
+              const v = Number.isFinite(L.lufs) && L.lufs > -70 ? L.lufs.toFixed(1) : '—';
+              if (ms.lufsEl.textContent !== v) ms.lufsEl.textContent = v;
+            }
           }
-          for (const s of strips.values()) drawMeter(s, now, running ? (s.id === 'master' ? m.master : m.tracks?.[s.id]) : null);
+          for (const s of strips.values())
+            drawMeter(s, now, running ? (s.id === 'master' ? m.master : m.tracks?.[s.id]) : null);
           // (the meter's fix, fresh eyes 6, the producer's Broken 2: the master's meter reads the mix before the safety
           // clip now, engine/strip.js. Past 0 dBFS its label says by how much, as the top bar does: app.transport.over)
-          const mst = strips.get('master'), ov = running ? +app.transport?.over || 0 : 0, lt = ov > 0 ? `Clipping ${ov.toFixed(1)} dB` : 'Loudness';
-          if (mst?.loudL && mst.loudL.textContent !== lt) { mst.loudL.textContent = lt; mst.loudL.classList.toggle('mx-over', ov > 0); }
+          const mst = strips.get('master'),
+            ov = running ? +app.transport?.over || 0 : 0,
+            lt = ov > 0 ? `Clipping ${ov.toFixed(1)} dB` : 'Loudness';
+          if (mst?.loudL && mst.loudL.textContent !== lt) {
+            mst.loudL.textContent = lt;
+            mst.loudL.classList.toggle('mx-over', ov > 0);
+          }
           follow();
         },
-        unmount() { offPres(); offSel(); ro?.disconnect(); },
+        unmount() {
+          offPres();
+          offSel();
+          ro?.disconnect();
+        },
       };
     },
   });
@@ -450,24 +845,40 @@ export default function (app) {
   // clip's; with neither they say so and do nothing. History says which way it went ("unmute Drums", not "track
   // mute"). While musical typing has the home row, S is its note (the shell tries a mode's keys first); M isn't one.
   const selTrack = () => {
-    const s = ui.state.selection, t = s.track && s.track !== 'master' ? store.track(s.track) : null;
+    const s = ui.state.selection,
+      t = s.track && s.track !== 'master' ? store.track(s.track) : null;
     return t || (s.clip ? store.findClip?.(s.clip)?.track || null : null);
   };
-  const MOVED = { mute: '`M` mutes now, as in Logic and GarageBand; the click is `K`.', solo: `\`S\` solos now, as in Logic and GarageBand; \`${MOD}E\` splits.` };
+  const MOVED = {
+    mute: '`M` mutes now, as in Logic and GarageBand; the click is `K`.',
+    solo: `\`S\` solos now, as in Logic and GarageBand; \`${MOD}E\` splits.`,
+  };
   function flagKey(k) {
-    const t = selTrack(), first = ui.keys.firstPress?.(k === 'mute' ? 'KeyM' : 'KeyS');
+    const t = selTrack(),
+      first = ui.keys.firstPress?.(k === 'mute' ? 'KeyM' : 'KeyS');
     const note = first ? ' ' + (ui.keys.movedNote || MOVED[k]) : '';
-    if (!t) { ui.toast(`${ui.state.selection.track === 'master' ? `The master has no ${k}. ` : ''}Select a track to ${k} it.${note}`, { ms: first ? 6000 : 2400 }); return; }
+    if (!t) {
+      ui.toast(
+        `${ui.state.selection.track === 'master' ? `The master has no ${k}. ` : ''}Select a track to ${k} it.${note}`,
+        { ms: first ? 6000 : 2400 },
+      );
+      return;
+    }
     const on = !t[k];
-    const r = store.dispatch({ type: 'track.set', track: t.id, patch: { [k]: on } }, { by: 'you', label: flagLabel(t, k) });
-    if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return; }
+    const r = store.dispatch(
+      { type: 'track.set', track: t.id, patch: { [k]: on } },
+      { by: 'you', label: flagLabel(t, k) },
+    );
+    if (!r.ok) {
+      ui.toast(r.error, { kind: 'bad' });
+      return;
+    }
     const did = `${{ mute: on ? 'Muted' : 'Unmuted', solo: on ? 'Soloed' : 'Unsoloed' }[k]} ${t.name}.`;
     if (first) ui.toast(did + note, { ms: 6000 });
     else ui.announce?.(did);
   }
   ui.keys.add({ key: 'KeyM', run: () => flagKey('mute'), label: 'Mute or unmute the selected track', group: 'Track' });
   ui.keys.add({ key: 'KeyS', run: () => flagKey('solo'), label: 'Solo or unsolo the selected track', group: 'Track' });
-
 }
 
 const MIXER_CSS = `

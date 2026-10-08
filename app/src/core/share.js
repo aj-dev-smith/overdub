@@ -57,7 +57,10 @@ export function shareable(project) {
   let audioClips = 0;
   for (const t of song.tracks || []) {
     const keep = [];
-    for (const c of t.clips || []) { if (c.kind === 'audio') audioClips++; else keep.push(c); }
+    for (const c of t.clips || []) {
+      if (c.kind === 'audio') audioClips++;
+      else keep.push(c);
+    }
     t.clips = keep;
   }
   const assets = Object.keys(song.assets || {}).length;
@@ -78,12 +81,22 @@ async function pipe(bytes, stream, limit = Infinity) {
     const { value, done } = await reader.read();
     if (done) break;
     n += value.length;
-    if (n > limit) { try { await reader.cancel(); } catch (e) { /* ok */ } throw new Error('the link inflates to more than a song can be'); }
+    if (n > limit) {
+      try {
+        await reader.cancel();
+      } catch (e) {
+        /* ok */
+      }
+      throw new Error('the link inflates to more than a song can be');
+    }
     parts.push(value);
   }
   const out = new Uint8Array(n);
   let o = 0;
-  for (const p of parts) { out.set(p, o); o += p.length; }
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
   return out;
 }
 export const deflate = (bytes) => pipe(bytes, new CompressionStream('deflate-raw'));
@@ -124,7 +137,13 @@ export async function encodeShare(project, { from = null, max = MAX_CHARS, at = 
   const data = toBase64url(packed);
   const chars = data.length;
   if (chars > max) {
-    return { ok: false, error: `“${song.title || 'Untitled'}” is too big for a link: ${kb(chars)} of song, and a link holds ${kb(max)}. Save the project file instead (Song menu, Save) and send that.`, chars, max, dropped };
+    return {
+      ok: false,
+      error: `“${song.title || 'Untitled'}” is too big for a link: ${kb(chars)} of song, and a link holds ${kb(max)}. Save the project file instead (Song menu, Save) and send that.`,
+      chars,
+      max,
+      dropped,
+    };
   }
   return { ok: true, hash: `#${HASH_KEY}=${data}`, data, chars, bytes: json.length, dropped };
 }
@@ -157,18 +176,32 @@ export async function decodeShare(hashOrUrl) {
     const json = await inflate(fromBase64url(data));
     payload = JSON.parse(new TextDecoder().decode(json));
   } catch (e) {
-    return { ok: false, error: 'This link’s song didn’t come through whole (it was probably cut off when it was pasted). Ask for the link again, or for the project file.' };
+    return {
+      ok: false,
+      error:
+        'This link’s song didn’t come through whole (it was probably cut off when it was pasted). Ask for the link again, or for the project file.',
+    };
   }
   if (!payload || payload.f !== SHARE_FORMAT || !payload.song || !Array.isArray(payload.song.tracks)) {
     return { ok: false, error: 'This link holds something that isn’t an Overdub song.' };
   }
-  if (nestsPast(payload, MAX_DEPTH)) return { ok: false, error: `This link holds something nested deeper than any song: more than ${MAX_DEPTH} levels, where a song needs about 10.` };
+  if (nestsPast(payload, MAX_DEPTH))
+    return {
+      ok: false,
+      error: `This link holds something nested deeper than any song: more than ${MAX_DEPTH} levels, where a song needs about 10.`,
+    };
   // A link is held to the studio's limits (core/project.js LIMITS) as it comes in: a few hundred KB of one can carry
   // more notes than the tab keeps up with. A song file past one still opens (it just can't grow).
   const over = sizeError(songSize(cleanProject(payload.song)), null, { loaded: true });
   if (over) return { ok: false, error: `In this link, ${over}. Ask for the project file instead.` };
   const from = payload.from && typeof payload.from === 'object' && !Array.isArray(payload.from) ? payload.from : {};
-  return { ok: true, song: payload.song, from, at: payload.at || null, dropped: payload.dropped || { audioClips: 0, assets: 0 } };
+  return {
+    ok: true,
+    song: payload.song,
+    from,
+    at: payload.at || null,
+    dropped: payload.dropped || { audioClips: 0, assets: 0 },
+  };
 }
 
 /* ---------------------------------------------------------------- devices that arrive in a song */
@@ -180,17 +213,35 @@ export async function decodeShare(hashOrUrl) {
 export const HOUSE_NS = /^(core|pedal|amp|cab|overdub)\./;
 export const MAX_KERNEL_CHARS = 256 * 1024;
 const DEVICE_ID = /^[a-z0-9][a-z0-9._-]{1,63}$/;
-const shipped = (id) => { const d = getDevice(id); return !!d && d.source !== 'project'; };
+const shipped = (id) => {
+  const d = getDevice(id);
+  return !!d && d.source !== 'project';
+};
 export const isHouseId = (id, taken = shipped) => HOUSE_NS.test(String(id)) || !!taken(String(id));
-const slugOf = (id) => (String(id).split('.').slice(1).join('-') || String(id)).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'device';
+const slugOf = (id) =>
+  (String(id).split('.').slice(1).join('-') || String(id))
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'device';
 
 export function guardDevices(song, { prefix = 'guest', taken = shipped } = {}) {
-  const renamed = {}, dropped = [];
+  const renamed = {},
+    dropped = [];
   const src = song.devices && typeof song.devices === 'object' && !Array.isArray(song.devices) ? song.devices : {};
   const out = {};
   const used = (id) => Object.hasOwn(out, id) || Object.hasOwn(src, id) || isHouseId(id, taken);
   for (const [key, d] of Object.entries(src)) {
-    if (!DEVICE_ID.test(key) || !d || typeof d !== 'object' || typeof d.kernel !== 'string' || d.kernel.length > MAX_KERNEL_CHARS) { dropped.push(key); continue; }
+    if (
+      !DEVICE_ID.test(key) ||
+      !d ||
+      typeof d !== 'object' ||
+      typeof d.kernel !== 'string' ||
+      d.kernel.length > MAX_KERNEL_CHARS
+    ) {
+      dropped.push(key);
+      continue;
+    }
     let id = key;
     if (isHouseId(key, taken)) {
       const base = `${prefix}.${slugOf(key)}`;
@@ -205,7 +256,9 @@ export function guardDevices(song, { prefix = 'guest', taken = shipped } = {}) {
   }
   song.devices = out;
   if (Object.keys(renamed).length) {
-    const move = (x) => { if (x && typeof x === 'object' && Object.hasOwn(renamed, x.device)) x.device = renamed[x.device]; };
+    const move = (x) => {
+      if (x && typeof x === 'object' && Object.hasOwn(renamed, x.device)) x.device = renamed[x.device];
+    };
     for (const t of Array.isArray(song.tracks) ? song.tracks : []) {
       move(t?.instrument);
       for (const fx of Array.isArray(t?.inserts) ? t.inserts : []) move(fx);
@@ -217,12 +270,23 @@ export function guardDevices(song, { prefix = 'guest', taken = shipped } = {}) {
 
 /* ---------------------------------------------------------------- authors */
 // The agents a link may name as a device's author: the in-app agent, the remote connector and local MCP clients.
-export const isAgentId = (by) => typeof by === 'string' && by.length <= 64 && (by === 'claude' || by === 'claude.ai' || /^mcp:[a-z0-9][a-z0-9._-]*$/i.test(by));
+export const isAgentId = (by) =>
+  typeof by === 'string' &&
+  by.length <= 64 &&
+  (by === 'claude' || by === 'claude.ai' || /^mcp:[a-z0-9][a-z0-9._-]*$/i.test(by));
 
 // The sender's own parts are 'you' in their studio. In yours they're a guest's: same notes, a different signature.
 export function guestId(from = {}) {
-  const slug = String(from.name || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
-  const tag = String(from.mark || from.me || '').replace(/[^a-z0-9]/gi, '').slice(0, 6).toLowerCase();
+  const slug = String(from.name || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24);
+  const tag = String(from.mark || from.me || '')
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(0, 6)
+    .toLowerCase();
   return 'guest:' + ([slug, tag].filter(Boolean).join('-') || 'someone');
 }
 // A person from an earlier link, as guestId names them.
@@ -238,18 +302,40 @@ const keepsBy = (by) => isAgentId(by) || isGuestId(by) || by === HOUSE;
 function signGuest(song, guest) {
   const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
   const list = (v) => (Array.isArray(v) ? v.filter(isObj) : []);
-  const sign = (x) => { if (!keepsBy(x.by)) x.by = guest; };
-  const signIfSigned = (x) => { if ('by' in x) sign(x); };
-  const lanes = (auto) => { if (isObj(auto)) for (const lane of Object.values(auto)) if (isObj(lane)) { sign(lane); list(lane.points).forEach(signIfSigned); } };
-  const inserts = (v) => { for (const fx of list(v)) { sign(fx); lanes(fx.auto); } };
+  const sign = (x) => {
+    if (!keepsBy(x.by)) x.by = guest;
+  };
+  const signIfSigned = (x) => {
+    if ('by' in x) sign(x);
+  };
+  const lanes = (auto) => {
+    if (isObj(auto))
+      for (const lane of Object.values(auto))
+        if (isObj(lane)) {
+          sign(lane);
+          list(lane.points).forEach(signIfSigned);
+        }
+  };
+  const inserts = (v) => {
+    for (const fx of list(v)) {
+      sign(fx);
+      lanes(fx.auto);
+    }
+  };
   for (const t of list(song.tracks)) {
     sign(t);
     lanes(t.auto);
     if (isObj(t.instrument)) lanes(t.instrument.auto);
     inserts(t.inserts);
-    for (const c of list(t.clips)) { sign(c); list(c.notes).forEach(signIfSigned); }
+    for (const c of list(t.clips)) {
+      sign(c);
+      list(c.notes).forEach(signIfSigned);
+    }
   }
-  if (isObj(song.master)) { inserts(song.master.inserts); lanes(song.master.auto); }
+  if (isObj(song.master)) {
+    inserts(song.master.inserts);
+    lanes(song.master.auto);
+  }
 }
 
 // The song as the listener gets it. `own` is true only for a link this browser made (openShared checks its mark): it
@@ -262,10 +348,14 @@ export function listenCopy({ song, from = {} }, { own = false, id = null, taken 
   // (guest.<slug>), so it can never stand in for a device of the same name in this studio
   const agentWrote = new Set();
   if (!own && out.devices && typeof out.devices === 'object' && !Array.isArray(out.devices)) {
-    for (const [key, d] of Object.entries(out.devices)) if (d && typeof d === 'object' && isAgentId(d.by) && !key.startsWith('guest.')) agentWrote.add(key);
+    for (const [key, d] of Object.entries(out.devices))
+      if (d && typeof d === 'object' && isAgentId(d.by) && !key.startsWith('guest.')) agentWrote.add(key);
   }
   const base = taken || shipped;
-  const devices = guardDevices(out, { prefix: 'guest', taken: agentWrote.size ? (x) => agentWrote.has(x) || base(x) : base });
+  const devices = guardDevices(out, {
+    prefix: 'guest',
+    taken: agentWrote.size ? (x) => agentWrote.has(x) || base(x) : base,
+  });
   let guest = null;
   // (a link never carries the reference track: shareable leaves it out)
   delete out.reference;
@@ -278,14 +368,21 @@ export function listenCopy({ song, from = {} }, { own = false, id = null, taken 
     // guest's parts do; anything else, the house's name above all, can't be claimed from outside: it is the guest's,
     // and what it claimed is kept beside it
     for (const d of Object.values(out.devices)) {
-      if (isAgentId(d.by) || (isGuestId(d.by) && d.by !== guest)) { d.by = String(d.by).slice(0, 64); d.via = guest; continue; }
+      if (isAgentId(d.by) || (isGuestId(d.by) && d.by !== guest)) {
+        d.by = String(d.by).slice(0, 64);
+        d.via = guest;
+        continue;
+      }
       if (d.by && d.by !== 'you' && d.by !== guest) d.claimedBy = String(d.by).slice(0, 64);
       d.by = guest;
       delete d.via;
     }
     delete out.meta.authors.you;
     // (a sender who signs as someone the studio already knows by name, You or Claude, is named "Guest")
-    out.meta.authors[guest] = { kind: 'human', name: namedAuthor(guest, { name: String(from.name ?? '').slice(0, 40) }).name };
+    out.meta.authors[guest] = {
+      kind: 'human',
+      name: namedAuthor(guest, { name: String(from.name ?? '').slice(0, 40) }).name,
+    };
   }
   out.meta.sharedFrom = { id: song.id || null, at: new Date().toISOString() };
   if (id) out.id = id;
@@ -295,11 +392,20 @@ export function listenCopy({ song, from = {} }, { own = false, id = null, taken 
 // Everyone with a part in the song (notes, clips, tracks, effects, devices), most notes first.
 export function authorsOf(song, author = null) {
   const m = new Map();
-  const bump = (by, notes = 0) => { if (!by) return; const a = m.get(by) || { id: by, notes: 0, parts: 0 }; a.notes += notes; a.parts++; m.set(by, a); };
+  const bump = (by, notes = 0) => {
+    if (!by) return;
+    const a = m.get(by) || { id: by, notes: 0, parts: 0 };
+    a.notes += notes;
+    a.parts++;
+    m.set(by, a);
+  };
   for (const t of song.tracks || []) {
     bump(t.by);
     for (const fx of t.inserts || []) bump(fx.by);
-    for (const c of t.clips || []) { bump(c.by); for (const n of c.notes || []) bump(n.by || c.by, 1); }
+    for (const c of t.clips || []) {
+      bump(c.by);
+      for (const n of c.notes || []) bump(n.by || c.by, 1);
+    }
   }
   for (const fx of song.master?.inserts || []) bump(fx.by);
   for (const d of Object.values(song.devices || {})) bump(d.by);
@@ -327,7 +433,11 @@ export function creditsOf(song, author = null) {
   const raw = noted.map((a) => (100 * a.notes) / total);
   const share = raw.map(Math.floor);
   let left = 100 - share.reduce((x, y) => x + y, 0);
-  for (const i of raw.map((r, i) => i).sort((a, b) => (raw[b] - share[b]) - (raw[a] - share[a]))) { if (left <= 0) break; share[i]++; left--; }
+  for (const i of raw.map((r, i) => i).sort((a, b) => raw[b] - share[b] - (raw[a] - share[a]))) {
+    if (left <= 0) break;
+    share[i]++;
+    left--;
+  }
   return [...noted.map((a, i) => ({ ...a, share: share[i] })), ...rest];
 }
 // "Overdub 82%, Sam 12% and Claude 6%"
@@ -343,15 +453,24 @@ export function namesLine(list) {
 export function browserId() {
   try {
     let me = localStorage.getItem(ME_KEY);
-    if (!me) { me = newId('me').slice(3) + newId('me').slice(3); localStorage.setItem(ME_KEY, me); }
+    if (!me) {
+      me = newId('me').slice(3) + newId('me').slice(3);
+      localStorage.setItem(ME_KEY, me);
+    }
     return me;
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
 }
 
 // Is this a link this browser made? Only if its mark is this browser's mark for exactly this song.
 export async function isOwnLink({ song, from = {}, at = null }, me = browserId()) {
   if (!me || !from.mark || typeof from.mark !== 'string') return false;
-  try { return from.mark === await linkMark(me, at, JSON.stringify(song)); } catch (e) { return false; }
+  try {
+    return from.mark === (await linkMark(me, at, JSON.stringify(song)));
+  } catch (e) {
+    return false;
+  }
 }
 
 export async function openShared(hashOrUrl, { me = browserId(), taken = undefined } = {}) {
@@ -359,7 +478,17 @@ export async function openShared(hashOrUrl, { me = browserId(), taken = undefine
   if (!r.ok) return r;
   const own = await isOwnLink(r, me);
   const l = listenCopy(r, { own, id: newId('p'), taken });
-  return { ok: true, song: l.song, from: r.from, at: r.at, dropped: r.dropped, guest: l.guest, own: l.own, devices: l.devices, original: { id: r.song.id || null, title: r.song.title || 'Untitled' } };
+  return {
+    ok: true,
+    song: l.song,
+    from: r.from,
+    at: r.at,
+    dropped: r.dropped,
+    guest: l.guest,
+    own: l.own,
+    devices: l.devices,
+    original: { id: r.song.id || null, title: r.song.title || 'Untitled' },
+  };
 }
 
 /* ---------------------------------------------------------------- fork */
@@ -368,7 +497,12 @@ export function forkSong(song, { at = new Date().toISOString(), author = null } 
   const authors = authorsOf(song, author).map(({ id, kind, name }) => ({ id, kind, name }));
   out.meta = { ...(out.meta || {}), authors: { ...(out.meta?.authors || {}) } };
   for (const a of authors) if (!out.meta.authors[a.id]) out.meta.authors[a.id] = { kind: a.kind, name: a.name };
-  out.meta.forkedFrom = { title: song.title || 'Untitled', authors, at, id: song.meta?.sharedFrom?.id || song.id || null };
+  out.meta.forkedFrom = {
+    title: song.title || 'Untitled',
+    authors,
+    at,
+    id: song.meta?.sharedFrom?.id || song.id || null,
+  };
   delete out.meta.sharedFrom;
   return out;
 }

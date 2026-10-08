@@ -20,10 +20,25 @@
 export const TARGETS = {
   'bass-music': {
     name: 'bass music (dubstep, riddim, melodic bass, drum and bass)',
-    sources: ['SoundCamps "Spotify LUFS" (2026)', 'Mastering The Mix "How loud should you master?"', 'AES TD1008 (2021)', 'Spotify for Artists "Loudness normalization"', 'FaderPro "Treating low frequencies for the club"', 'Mastering The Mix "How to mix low-end"'],
+    sources: [
+      'SoundCamps "Spotify LUFS" (2026)',
+      'Mastering The Mix "How loud should you master?"',
+      'AES TD1008 (2021)',
+      'Spotify for Artists "Loudness normalization"',
+      'FaderPro "Treating low frequencies for the club"',
+      'Mastering The Mix "How to mix low-end"',
+    ],
     song: { lufs: [-8, -6], truePeak: [-Infinity, -1], plr: [5, 8] },
     drop: { lufsShortMax: [-6, -4], crest: [6, 9], lowSideDb: [-Infinity, -20], lowCorrelation: [0.95, 1] },
-    bands: { sub: [-7, -2], low: [-5, -1], lowmid: [-14, -8], mid: [-14, -8], highmid: [-19, -12], presence: [-22, -14], air: [-28, -18] },
+    bands: {
+      sub: [-7, -2],
+      low: [-5, -1],
+      lowmid: [-14, -8],
+      mid: [-14, -8],
+      highmid: [-19, -12],
+      presence: [-22, -14],
+      air: [-28, -18],
+    },
     parts: {
       sub: { correlation: [0.999, 1], cleanDb: [-Infinity, -20], fundamentalHz: [30, 65] },
       kick: { peakMs: [0, 5], crest100: [10, Infinity], tailCents: [-25, 25] },
@@ -42,10 +57,34 @@ export const TARGETS = {
   // above 8 kHz), provisional until reference masters are measured (Pestana et al., AES 135, 2013, is the method).
   metal: {
     name: 'metal (modern metal from a guitar DI)',
-    sources: ['Nail The Mix "Loudness definition"', 'Nail The Mix "LUFS for metal"', 'AES TD1008 (2021)', 'EBU Tech 3342', 'Pestana et al., AES 135 (2013)', 'Mynett, Metal Music Manual (2017)'],
-    song: { lufs: [-9, -7], truePeak: [-Infinity, -1], plr: [6, 9], lufsShortMax: [-6.5, -5], crest: [7, 10], lra: [3, 7], lowSideDb: [-Infinity, -20], lowCorrelation: [0.95, 1] },
+    sources: [
+      'Nail The Mix "Loudness definition"',
+      'Nail The Mix "LUFS for metal"',
+      'AES TD1008 (2021)',
+      'EBU Tech 3342',
+      'Pestana et al., AES 135 (2013)',
+      'Mynett, Metal Music Manual (2017)',
+    ],
+    song: {
+      lufs: [-9, -7],
+      truePeak: [-Infinity, -1],
+      plr: [6, 9],
+      lufsShortMax: [-6.5, -5],
+      crest: [7, 10],
+      lra: [3, 7],
+      lowSideDb: [-Infinity, -20],
+      lowCorrelation: [0.95, 1],
+    },
     drop: { lufsShortMax: [-6.5, -5], lowSideDb: [-Infinity, -20], lowCorrelation: [0.95, 1] },
-    bands: { sub: [-14, -9], low: [-6, -2], lowmid: [-9, -5], mid: [-8, -4], highmid: [-12, -7], presence: [-15, -10], air: [-23, -15] },
+    bands: {
+      sub: [-14, -9],
+      low: [-6, -2],
+      lowmid: [-9, -5],
+      mid: [-8, -4],
+      highmid: [-12, -7],
+      presence: [-15, -10],
+      air: [-23, -15],
+    },
     bandsIn: 'song',
     parts: {
       guitars: { inBand: [0.89, 1], under80: [-Infinity, -20], over8k: [-Infinity, -30], highmidVsMid: [-6, Infinity] },
@@ -59,10 +98,21 @@ export const GENRES = Object.keys(TARGETS);
 
 // The words, for the agent and the page: a metric's name and its unit
 export const METRIC_WORDS = {
-  lufs: ['integrated loudness', 'LUFS'], truePeak: ['true peak', 'dBTP'], plr: ['peak to loudness', 'dB'], lufsShortMax: ['short-term loudness at its loudest', 'LUFS'],
-  crest: ['crest factor', 'dB'], lra: ['loudness range', 'LU'], lowSideDb: ['side under 120 Hz against the mid', 'dB'], lowCorrelation: ['L/R correlation under 120 Hz', ''],
-  sub: ['sub (20-60 Hz) share', 'dB'], low: ['low (60-250 Hz) share', 'dB'], lowmid: ['low-mid (250-500 Hz) share', 'dB'], mid: ['mid (500 Hz-2 kHz) share', 'dB'],
-  highmid: ['high-mid (2-4 kHz) share', 'dB'], presence: ['presence (4-8 kHz) share', 'dB'], air: ['air (8 kHz up) share', 'dB'],
+  lufs: ['integrated loudness', 'LUFS'],
+  truePeak: ['true peak', 'dBTP'],
+  plr: ['peak to loudness', 'dB'],
+  lufsShortMax: ['short-term loudness at its loudest', 'LUFS'],
+  crest: ['crest factor', 'dB'],
+  lra: ['loudness range', 'LU'],
+  lowSideDb: ['side under 120 Hz against the mid', 'dB'],
+  lowCorrelation: ['L/R correlation under 120 Hz', ''],
+  sub: ['sub (20-60 Hz) share', 'dB'],
+  low: ['low (60-250 Hz) share', 'dB'],
+  lowmid: ['low-mid (250-500 Hz) share', 'dB'],
+  mid: ['mid (500 Hz-2 kHz) share', 'dB'],
+  highmid: ['high-mid (2-4 kHz) share', 'dB'],
+  presence: ['presence (4-8 kHz) share', 'dB'],
+  air: ['air (8 kHz up) share', 'dB'],
 };
 
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -79,7 +129,9 @@ export function checkTargets(m, genre, { window = 'drop' } = {}) {
   if (!T) throw new Error(`no targets for "${genre}" (there are: ${GENRES.join(', ')})`);
   if (!m || typeof m !== 'object') throw new Error('checkTargets needs a measurement (audio/measure.js measure())');
   const rows = [];
-  const bands = () => { for (const [k, r] of Object.entries(T.bands)) rows.push(row(k, m.bands ? m.bands[k] : NaN, r)); };
+  const bands = () => {
+    for (const [k, r] of Object.entries(T.bands)) rows.push(row(k, m.bands ? m.bands[k] : NaN, r));
+  };
   if (window === 'song') {
     for (const [k, r] of Object.entries(T.song)) rows.push(row(k, k === 'plr' ? m.truePeak - m.lufs : m[k], r));
     if (T.bandsIn === 'song') bands();
@@ -94,6 +146,7 @@ export function checkTargets(m, genre, { window = 'drop' } = {}) {
 export function targetWords(r) {
   const [w, u] = METRIC_WORDS[r.metric] || [r.metric, ''];
   const n = (x) => (x === Infinity ? 'up' : x === -Infinity ? 'down' : `${x}`);
-  const range = r.lo === -Infinity ? `${n(r.hi)} or under` : r.hi === Infinity ? `${n(r.lo)} or over` : `${n(r.lo)} to ${n(r.hi)}`;
+  const range =
+    r.lo === -Infinity ? `${n(r.hi)} or under` : r.hi === Infinity ? `${n(r.lo)} or over` : `${n(r.lo)} to ${n(r.hi)}`;
   return `${w} ${r.value == null ? 'unmeasured' : r.value}${u ? ' ' + u : ''} (want ${range})${r.ok ? '' : `, ${Math.abs(r.delta)} ${u || ''} ${r.delta > 0 ? 'over' : 'under'}`.replace(/\s+/g, ' ').trimEnd()}`;
 }

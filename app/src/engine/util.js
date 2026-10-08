@@ -26,12 +26,18 @@ export const SAFETY = { min: 0.012, k: 2 };
 export function ramp(c, param, v, dur = 0.015, at = 0) {
   if (!Number.isFinite(v)) return;
   const now = c.currentTime;
-  if (isOffline(c) && now === 0 && !at) { param.cancelScheduledValues(0); param.setValueAtTime(v, 0); return; }
+  if (isOffline(c) && now === 0 && !at) {
+    param.cancelScheduledValues(0);
+    param.setValueAtTime(v, 0);
+    return;
+  }
   const t = Math.max(soon(c), at || 0);
   try {
     param.cancelScheduledValues(t);
     param.setTargetAtTime(v, t, Math.max(0.0005, dur / 4));
-  } catch (e) { /* closed */ }
+  } catch (e) {
+    /* closed */
+  }
   return t + dur;
 }
 
@@ -40,13 +46,24 @@ export function setNow(c, param, v) {
   if (!Number.isFinite(v)) return;
   param.cancelScheduledValues(0);
   param.value = v;
-  try { param.setValueAtTime(v, c.currentTime); } catch (e) { /* closed */ }
+  try {
+    param.setValueAtTime(v, c.currentTime);
+  } catch (e) {
+    /* closed */
+  }
 }
 
 // Call fn once the audio clock has passed t (or right away if the context isn't running: nothing is audible then).
 export function afterAudio(c, t, fn) {
   const chk = () => {
-    if (c.state !== 'running' || c.currentTime >= t) { try { fn(); } catch (e) { console.warn('engine:', e); } return; }
+    if (c.state !== 'running' || c.currentTime >= t) {
+      try {
+        fn();
+      } catch (e) {
+        console.warn('engine:', e);
+      }
+      return;
+    }
     setTimeout(chk, 4);
   };
   if (c.state !== 'running' || isOffline(c)) return chk();
@@ -60,25 +77,39 @@ export function within(p, ms, what) {
   let to;
   return Promise.race([
     Promise.resolve(p).finally(() => clearTimeout(to)),
-    new Promise((_, rej) => { to = setTimeout(() => rej(new Error(`${what} was not ready after ${ms} ms`)), ms); }),
+    new Promise((_, rej) => {
+      to = setTimeout(() => rej(new Error(`${what} was not ready after ${ms} ms`)), ms);
+    }),
   ]);
 }
 
 // Quarter-note beats in a bar: [4,4] -> 4, [3,4] -> 3, [6,8] -> 3, [7,8] -> 3.5.
 export const beatsPerBarOf = (meter) => {
   const [n, d] = Array.isArray(meter) ? meter : [4, 4];
-  return (Number(n) || 4) * 4 / (Number(d) || 4);
+  return ((Number(n) || 4) * 4) / (Number(d) || 4);
 };
 
 // A tiny event emitter.
 export function emitter() {
   const map = new Map();
   return {
-    on(type, fn) { if (!map.has(type)) map.set(type, new Set()); map.get(type).add(fn); return () => map.get(type).delete(fn); },
-    emit(type, detail) {
-      for (const fn of map.get(type) || []) { try { fn(detail); } catch (e) { console.warn('engine listener', type, e); } }
+    on(type, fn) {
+      if (!map.has(type)) map.set(type, new Set());
+      map.get(type).add(fn);
+      return () => map.get(type).delete(fn);
     },
-    has(type) { return !!(map.get(type) && map.get(type).size); },
+    emit(type, detail) {
+      for (const fn of map.get(type) || []) {
+        try {
+          fn(detail);
+        } catch (e) {
+          console.warn('engine listener', type, e);
+        }
+      }
+    },
+    has(type) {
+      return !!(map.get(type) && map.get(type).size);
+    },
   };
 }
 

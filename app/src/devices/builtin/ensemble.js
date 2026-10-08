@@ -18,7 +18,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const ENSEMBLE_HASH = 'sha256-2eb3cfbd8fd7aca225201abc1b20eeb0d830029037d92ac5318941d05472a39b';
 
 export default defineDevice({
-  id: 'core.ensemble', name: 'Rosin', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.ensemble',
+  name: 'Rosin',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real string section, sampled, bows on the string',
   nod: 'VS Chamber Orchestra 2 CE (Versilian Studios, CC0): bass, cellos, violas and violins, sustained with vibrato',
   data: { kit: ENSEMBLE_HASH },
@@ -30,7 +34,15 @@ export default defineDevice({
     { name: 'Short bows', params: { release: 0.15 }, blurb: 'the bow lifts at once, for stabs' },
     { name: 'Bright', params: { tone: 35 }, blurb: 'tilted up, the rosin forward' },
   ],
-  look: { color: '#7a3d17', ink: '#f6e7cf', shape: 'wide', finish: 'wood', knob: 'cream', label: 'script', led: '#ffb347' },
+  look: {
+    color: '#7a3d17',
+    ink: '#f6e7cf',
+    shape: 'wide',
+    finish: 'wood',
+    knob: 'cream',
+    label: 'script',
+    led: '#ffb347',
+  },
   tail: 4,
   kernel: samplerKernel({ makeup: 1.3, poly: 32, xfade: 8, law: 'power' }),
 });

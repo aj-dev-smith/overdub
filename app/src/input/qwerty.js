@@ -29,9 +29,28 @@ import { h, css } from '../ui/dom.js';
 import { songColor, snapLabel } from '../ui/arrange-kit.js';
 import { spellNote, scalePcs, parsePc, inScale, keyLabel } from '../core/music.js';
 
-export const TYPE_MAP = { KeyA: 0, KeyW: 1, KeyS: 2, KeyE: 3, KeyD: 4, KeyF: 5, KeyT: 6, KeyG: 7, KeyY: 8, KeyH: 9, KeyU: 10, KeyJ: 11, KeyK: 12, KeyO: 13, KeyL: 14, KeyP: 15, Semicolon: 16, Quote: 17 };
+export const TYPE_MAP = {
+  KeyA: 0,
+  KeyW: 1,
+  KeyS: 2,
+  KeyE: 3,
+  KeyD: 4,
+  KeyF: 5,
+  KeyT: 6,
+  KeyG: 7,
+  KeyY: 8,
+  KeyH: 9,
+  KeyU: 10,
+  KeyJ: 11,
+  KeyK: 12,
+  KeyO: 13,
+  KeyL: 14,
+  KeyP: 15,
+  Semicolon: 16,
+  Quote: 17,
+};
 const WHITE = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote'];
-const LABEL = { Semicolon: ';', Quote: '\'' };
+const LABEL = { Semicolon: ';', Quote: "'" };
 const SAVE = 'overdub:qwerty';
 // what Scale lock plays with no key in the song: the white keys (the touch keys' octave too)
 const NO_KEY = { root: 'C', scale: 'major' };
@@ -39,31 +58,67 @@ const NO_KEY = { root: 'C', scale: 'major' };
 // A grid as the arranger's Snap names it (1/16, 1/8, 1/8T, 1/32), a triplet the same way (1/16T), else "the beat",
 // "the bar"
 export function gridName(g) {
-  const s = +g > 0 ? +g : 0.25, l = snapLabel(s);
+  const s = +g > 0 ? +g : 0.25,
+    l = snapLabel(s);
   if (l === 'Beat' || l === 'Bar') return `the ${l.toLowerCase()}`;
   if (/^1\//.test(l)) return l;
   const n = 4 / s;
-  if (Math.abs(n - Math.round(n)) < 1e-6) return Math.round(n) % 3 ? `1/${Math.round(n)}` : `1/${Math.round(n) * 2 / 3}T`;
+  if (Math.abs(n - Math.round(n)) < 1e-6)
+    return Math.round(n) % 3 ? `1/${Math.round(n)}` : `1/${(Math.round(n) * 2) / 3}T`;
   return `${Math.round(s * 1000) / 1000} beats`;
 }
 // The line's words: the grid part and the key part, on (the helper at work) or off (what's on instead), with a title
 // saying what a click does and the words the announcer says when it changes
 export function snapWords({ quantize = true, scaleLock = true, grid = 0.25, key = null, touch = false } = {}) {
-  const verb = touch ? 'Tap' : 'Click', g = gridName(grid), kl = keyLabel(key || NO_KEY);
+  const verb = touch ? 'Tap' : 'Click',
+    g = gridName(grid),
+    kl = keyLabel(key || NO_KEY);
   const gridPart = quantize
-    ? { on: true, text: `Snapping to ${g}`, title: `On the grid: what you play lands on ${g === 'the beat' || g === 'the bar' ? g : `the ${g} grid`}. ${verb} to keep your own timing.`, say: `Snapping to ${g}: the keys land on the grid` }
-    : { on: false, text: 'Your timing', title: `Your timing: what you play stays where you played it. ${verb} to snap it to ${g === 'the beat' || g === 'the bar' ? g : `the ${g} grid`}.`, say: 'Your timing: nothing snaps to the grid' };
+    ? {
+        on: true,
+        text: `Snapping to ${g}`,
+        title: `On the grid: what you play lands on ${g === 'the beat' || g === 'the bar' ? g : `the ${g} grid`}. ${verb} to keep your own timing.`,
+        say: `Snapping to ${g}: the keys land on the grid`,
+      }
+    : {
+        on: false,
+        text: 'Your timing',
+        title: `Your timing: what you play stays where you played it. ${verb} to snap it to ${g === 'the beat' || g === 'the bar' ? g : `the ${g} grid`}.`,
+        say: 'Your timing: nothing snaps to the grid',
+      };
   const keyPart = scaleLock
     ? key
-      ? { on: true, text: `in ${kl}`, aside: '', title: `Scale lock: the keys play only ${kl}, so no note sounds wrong. ${verb} to play every note.`, say: `In ${kl}: Scale lock on` }
-      : { on: true, text: `in ${kl}`, aside: 'no key set', title: `Scale lock: the song has no key, so the keys play ${kl}, the white notes. ${verb} to play every note.`, say: `In ${kl}: Scale lock on, and the song has no key` }
-    : { on: false, text: 'every note', aside: '', title: `Every note: the keys play all twelve${key ? `, the ones outside ${kl} dimmed` : ''}. ${verb} to play only ${kl}.`, say: 'Every note: Scale lock off' };
+      ? {
+          on: true,
+          text: `in ${kl}`,
+          aside: '',
+          title: `Scale lock: the keys play only ${kl}, so no note sounds wrong. ${verb} to play every note.`,
+          say: `In ${kl}: Scale lock on`,
+        }
+      : {
+          on: true,
+          text: `in ${kl}`,
+          aside: 'no key set',
+          title: `Scale lock: the song has no key, so the keys play ${kl}, the white notes. ${verb} to play every note.`,
+          say: `In ${kl}: Scale lock on, and the song has no key`,
+        }
+    : {
+        on: false,
+        text: 'every note',
+        aside: '',
+        title: `Every note: the keys play all twelve${key ? `, the ones outside ${kl} dimmed` : ''}. ${verb} to play only ${kl}.`,
+        say: 'Every note: Scale lock off',
+      };
   return { grid: gridPart, key: keyPart };
 }
 
 export function createQwerty(app, input) {
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch (e) { saved = {}; }
+  try {
+    saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {};
+  } catch (e) {
+    saved = {};
+  }
   const down = new Map(); // code -> pitch it is holding (an octave change mid-note lets the right one go)
   const q = {
     on: false,
@@ -80,7 +135,9 @@ export function createQwerty(app, input) {
       const key = app.store.get().key;
       const wi = WHITE.indexOf(code);
       if (wi < 0 || !key) return wi < 0 ? null : base + TYPE_MAP[code];
-      const pcs = scalePcs(key), root = parsePc(key.root), n = pcs.length;
+      const pcs = scalePcs(key),
+        root = parsePc(key.root),
+        n = pcs.length;
       const deg = pcs.map((pc) => (pc - root + 12) % 12).sort((a, b) => a - b);
       return base + root + deg[wi % n] + 12 * Math.floor(wi / n);
     },
@@ -90,15 +147,42 @@ export function createQwerty(app, input) {
       q.on = !!on;
       if (!q.on) release();
       input.mode = q.on ? 'qwerty' : input.mode === 'qwerty' ? null : input.mode;
-      if (q.on !== was) { const tr = input.target(); said = tr?.id || null; say(q.on ? (tr ? `Musical typing on, playing ${tr.name}` : 'Musical typing on: no instrument track to play') : 'Musical typing off'); }
-      paint(); save();
+      if (q.on !== was) {
+        const tr = input.target();
+        said = tr?.id || null;
+        say(
+          q.on
+            ? tr
+              ? `Musical typing on, playing ${tr.name}`
+              : 'Musical typing on: no instrument track to play'
+            : 'Musical typing off',
+        );
+      }
+      paint();
+      save();
       input.emit('qwerty', q);
       input.emit('mode', input.mode);
       return q.on;
     },
     // (each change is said in the line's own words: "Every note: Scale lock off", "Snapping to 1/16: ...")
-    setScaleLock(v) { const was = q.scaleLock; q.scaleLock = !!v; lockSet = true; release(); if (was !== q.scaleLock) say(words().key.say); paint(); save(); input.emit('qwerty', q); },
-    setQuantize(v) { const was = q.quantize; q.quantize = !!v; if (was !== q.quantize) say(words().grid.say); paint(); save(); input.emit('qwerty', q); },
+    setScaleLock(v) {
+      const was = q.scaleLock;
+      q.scaleLock = !!v;
+      lockSet = true;
+      release();
+      if (was !== q.scaleLock) say(words().key.say);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
+    setQuantize(v) {
+      const was = q.quantize;
+      q.quantize = !!v;
+      if (was !== q.quantize) say(words().grid.say);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
     press(code) {
       if (down.has(code)) return;
       const p = q.pitchOf(code);
@@ -116,12 +200,27 @@ export function createQwerty(app, input) {
     },
     held: () => [...down.values()],
   };
-  function release() { for (const code of [...down.keys()]) q.release(code); }
+  function release() {
+    for (const code of [...down.keys()]) q.release(code);
+  }
   // Screen readers hear real changes only (on/off, the track, octave, velocity, the grid, scale lock) through the shell's
   // one-line announcer; the strip itself is a picture of the keys and stays quiet while you play.
-  let said = null;   // the track last announced
-  const say = (text) => { try { app.ui.announce?.(text); } catch (e) { /* no shell */ } };
-  const words = (touch = false) => snapWords({ quantize: q.quantize, scaleLock: q.scaleLock, grid: input.options?.grid || 0.25, key: app.store.get().key, touch });
+  let said = null; // the track last announced
+  const say = (text) => {
+    try {
+      app.ui.announce?.(text);
+    } catch (e) {
+      /* no shell */
+    }
+  };
+  const words = (touch = false) =>
+    snapWords({
+      quantize: q.quantize,
+      scaleLock: q.scaleLock,
+      grid: input.options?.grid || 0.25,
+      key: app.store.get().key,
+      touch,
+    });
   // The line: "Snapping to 1/16, in C minor", each part a button that turns its helper off and on. Its buttons stay the
   // same nodes as it repaints (a keyboard's focus stays on the one pressed)
   q.snapLine = ({ touch = false } = {}) => {
@@ -131,53 +230,160 @@ export function createQwerty(app, input) {
     // (a narrow line wraps between its parts, each comma kept with the word before it)
     const keyTail = document.createTextNode('');
     const aside = h('span.ew-snap-aside');
-    const el = h('span.ew-snap', { role: 'group', 'aria-label': 'Grid and key' }, h('span.ew-snap-w', gridB, ', '), h('span.ew-snap-w', keyB, keyTail), aside);
+    const el = h(
+      'span.ew-snap',
+      { role: 'group', 'aria-label': 'Grid and key' },
+      h('span.ew-snap-w', gridB, ', '),
+      h('span.ew-snap-w', keyB, keyTail),
+      aside,
+    );
     const paint = () => {
       const w = words(touch);
-      for (const [b, x] of [[gridB, w.grid], [keyB, w.key]]) {
+      for (const [b, x] of [
+        [gridB, w.grid],
+        [keyB, w.key],
+      ]) {
         if (b.textContent !== x.text) b.textContent = x.text;
-        b.title = x.title; b.dataset.on = String(x.on);
+        b.title = x.title;
+        b.dataset.on = String(x.on);
       }
       keyTail.data = w.key.aside ? ', ' : '';
       aside.textContent = w.key.aside || '';
       aside.hidden = !w.key.aside;
-      el.dataset.grid = String(w.grid.on); el.dataset.key = String(w.key.on);
+      el.dataset.grid = String(w.grid.on);
+      el.dataset.key = String(w.key.on);
     };
     paint();
     return { el, paint };
   };
   // a key going down or up lights its cell; the rest of the strip stays as it is
-  function lit(code, on) { for (const c of strip.querySelectorAll('.ew-qw-k')) if (c.dataset.code === code) c.classList.toggle('on', on); }
+  function lit(code, on) {
+    for (const c of strip.querySelectorAll('.ew-qw-k')) if (c.dataset.code === code) c.classList.toggle('on', on);
+  }
   let lockSet = !!saved.lockSet;
-  function save() { try { localStorage.setItem(SAVE, JSON.stringify({ octave: q.octave, velocity: q.velocity, scaleLock: q.scaleLock, lockSet, quantize: q.quantize })); } catch (e) { /* ok */ } }
+  function save() {
+    try {
+      localStorage.setItem(
+        SAVE,
+        JSON.stringify({
+          octave: q.octave,
+          velocity: q.velocity,
+          scaleLock: q.scaleLock,
+          lockSet,
+          quantize: q.quantize,
+        }),
+      );
+    } catch (e) {
+      /* ok */
+    }
+  }
   // what the keys play lands on the grid: a phrase from musical typing or the touch keys carries the grid it snaps to
   // (capture.phraseNotes uses it; a pass recorded with R is snapped as it records)
   input.capture?.on?.((e) => {
     const ph = e && e.what === 'add' ? e.phrase : null;
-    if (ph && !ph.rec && ph.snap == null && (ph.src === 'qwerty' || ph.src === 'touch') && q.quantize) input.capture.update(ph.id, { snap: input.options?.grid || 0.25 });
+    if (ph && !ph.rec && ph.snap == null && (ph.src === 'qwerty' || ph.src === 'touch') && q.quantize)
+      input.capture.update(ph.id, { snap: input.options?.grid || 0.25 });
   });
 
-  const keys = app.ui.keys, when = () => q.on;
+  const keys = app.ui.keys,
+    when = () => q.on;
   keys.add({ key: 'Backquote', run: () => q.toggle(), label: 'Musical typing on/off', group: 'Play' });
   // Esc leaves musical typing before it clears a selection (first: the mode is what the keys are doing), unless something
   // that Esc closes is open: a menu or popover, a dialog or a phone's sheet, a hum, an agent at work
-  const escFree = () => !document.querySelector('.ek-pop, .ew-pop, .sk-menu, [role=menu], [aria-modal=true]') && !input.hum?.active && !app.agent?.busy;
-  keys.add({ key: 'Escape', first: true, when: () => q.on && escFree(), run: () => q.toggle(false), label: 'Leave musical typing', group: 'Play' });
-  for (const code of Object.keys(TYPE_MAP)) keys.add({ key: code, when, run: (e) => { if (!e.repeat) q.press(code); }, label: 'Play a note (musical typing)', group: 'Play' });
-  keys.add({ key: 'KeyZ', when, run: (e) => { if (e.repeat) return; release(); q.octave = Math.max(0, q.octave - 1); say(`Octave ${q.octave}`); paint(); save(); input.emit('qwerty', q); }, label: 'Octave down (musical typing)', group: 'Play' });
-  keys.add({ key: 'KeyX', when, run: (e) => { if (e.repeat) return; release(); q.octave = Math.min(8, q.octave + 1); say(`Octave ${q.octave}`); paint(); save(); input.emit('qwerty', q); }, label: 'Octave up (musical typing)', group: 'Play' });
-  keys.add({ key: 'KeyC', when, run: () => { q.velocity = Math.max(0.2, Math.round((q.velocity - 0.1) * 10) / 10); say(`Velocity ${Math.round(q.velocity * 100)}`); paint(); save(); input.emit('qwerty', q); }, label: 'Softer (musical typing)', group: 'Play' });
-  keys.add({ key: 'KeyV', when, run: () => { q.velocity = Math.min(1, Math.round((q.velocity + 0.1) * 10) / 10); say(`Velocity ${Math.round(q.velocity * 100)}`); paint(); save(); input.emit('qwerty', q); }, label: 'Harder (musical typing)', group: 'Play' });
+  const escFree = () =>
+    !document.querySelector('.ek-pop, .ew-pop, .sk-menu, [role=menu], [aria-modal=true]') &&
+    !input.hum?.active &&
+    !app.agent?.busy;
+  keys.add({
+    key: 'Escape',
+    first: true,
+    when: () => q.on && escFree(),
+    run: () => q.toggle(false),
+    label: 'Leave musical typing',
+    group: 'Play',
+  });
+  for (const code of Object.keys(TYPE_MAP))
+    keys.add({
+      key: code,
+      when,
+      run: (e) => {
+        if (!e.repeat) q.press(code);
+      },
+      label: 'Play a note (musical typing)',
+      group: 'Play',
+    });
+  keys.add({
+    key: 'KeyZ',
+    when,
+    run: (e) => {
+      if (e.repeat) return;
+      release();
+      q.octave = Math.max(0, q.octave - 1);
+      say(`Octave ${q.octave}`);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
+    label: 'Octave down (musical typing)',
+    group: 'Play',
+  });
+  keys.add({
+    key: 'KeyX',
+    when,
+    run: (e) => {
+      if (e.repeat) return;
+      release();
+      q.octave = Math.min(8, q.octave + 1);
+      say(`Octave ${q.octave}`);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
+    label: 'Octave up (musical typing)',
+    group: 'Play',
+  });
+  keys.add({
+    key: 'KeyC',
+    when,
+    run: () => {
+      q.velocity = Math.max(0.2, Math.round((q.velocity - 0.1) * 10) / 10);
+      say(`Velocity ${Math.round(q.velocity * 100)}`);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
+    label: 'Softer (musical typing)',
+    group: 'Play',
+  });
+  keys.add({
+    key: 'KeyV',
+    when,
+    run: () => {
+      q.velocity = Math.min(1, Math.round((q.velocity + 0.1) * 10) / 10);
+      say(`Velocity ${Math.round(q.velocity * 100)}`);
+      paint();
+      save();
+      input.emit('qwerty', q);
+    },
+    label: 'Harder (musical typing)',
+    group: 'Play',
+  });
   // note-offs: the shell's handler is keydown only
   // Every way a key-up can go missing lets go of everything: the window losing focus (a dialog, another app), the
   // page hidden, and Cmd let go (macOS sends no keyup for a key released while Cmd is down).
-  window.addEventListener('keyup', (e) => {
-    if (down.has(e.code)) q.release(e.code);
-    else if (down.size && (e.key === 'Meta' || /^(Meta|OS)(Left|Right)$/.test(e.code))) release();
-  }, true);
+  window.addEventListener(
+    'keyup',
+    (e) => {
+      if (down.has(e.code)) q.release(e.code);
+      else if (down.size && (e.key === 'Meta' || /^(Meta|OS)(Left|Right)$/.test(e.code))) release();
+    },
+    true,
+  );
   window.addEventListener('blur', release);
   window.addEventListener('pagehide', release);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) release();
+  });
 
   /* ---- the strip: which key plays what, while the mode is on */
   css('qwerty', QCSS);
@@ -190,38 +396,85 @@ export function createQwerty(app, input) {
     strip.classList.toggle('docked', !!dockHost);
     paint();
   };
-  const touchOnly = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+  const touchOnly = () =>
+    typeof matchMedia === 'function' &&
+    matchMedia('(pointer: coarse)').matches &&
+    !matchMedia('(any-pointer: fine)').matches;
   // the line in the strip's head, floating or docked, recording or not: what the grid and the key do to what you play
   const snap = q.snapLine();
   function paint() {
     strip.hidden = !q.on || (!dockHost && touchOnly());
     if (strip.hidden) return;
     snap.paint();
-    const tr = input.target(), heldSet = new Set(down.keys());
-    if ((tr?.id || null) !== said) { said = tr?.id || null; say(tr ? `Musical typing plays ${tr.name}` : 'Musical typing: no instrument track to play'); }
+    const tr = input.target(),
+      heldSet = new Set(down.keys());
+    if ((tr?.id || null) !== said) {
+      said = tr?.id || null;
+      say(tr ? `Musical typing plays ${tr.name}` : 'Musical typing: no instrument track to play');
+    }
     // (each note spelled for the song's key: C minor's are Eb, Ab and Bb, as the piano roll writes them, never D# G# A#)
     const cell = (code, black) => {
-      const p = q.pitchOf(code), off = p == null, key = app.store.get().key;
+      const p = q.pitchOf(code),
+        off = p == null,
+        key = app.store.get().key;
       // scale lock off: the keys out of the song's key are dimmed (on, every key that plays is in it)
       const out = !off && !q.scaleLock && !!key && !inScale(p, key);
-      return h(`div.ew-qw-k${black ? '.blk' : ''}${heldSet.has(code) ? '.on' : ''}${off ? '.off' : ''}${out ? '.out' : ''}`, { dataset: { code }, title: out ? `${spellNote(p, key)} is outside ${key.root} ${key.scale}` : null },
-        h('kbd', LABEL[code] || code.replace('Key', '')), h('small', off ? '' : spellNote(p, key)));
+      return h(
+        `div.ew-qw-k${black ? '.blk' : ''}${heldSet.has(code) ? '.on' : ''}${off ? '.off' : ''}${out ? '.out' : ''}`,
+        { dataset: { code }, title: out ? `${spellNote(p, key)} is outside ${key.root} ${key.scale}` : null },
+        h('kbd', LABEL[code] || code.replace('Key', '')),
+        h('small', off ? '' : spellNote(p, key)),
+      );
     };
     const blacks = ['KeyW', 'KeyE', null, 'KeyT', 'KeyY', 'KeyU', null, 'KeyO', 'KeyP', null];
     // (the line's buttons move into the new head: one that had the focus keeps it)
     const focused = snap.el.contains(document.activeElement) ? document.activeElement : null;
     strip.replaceChildren(
-      h('div.ew-qw-head', h('b', 'Musical typing'), h('span.ew-qw-to', tr ? ['→ ', h('i', { style: { background: songColor(tr.color) } }), tr.name] : 'no instrument track'),
+      h(
+        'div.ew-qw-head',
+        h('b', 'Musical typing'),
+        h(
+          'span.ew-qw-to',
+          tr ? ['→ ', h('i', { style: { background: songColor(tr.color) } }), tr.name] : 'no instrument track',
+        ),
         snap.el,
-        h('span.ew-qw-meta', h('kbd', 'Z'), h('kbd', 'X'), ` octave ${q.octave}`, h('span.sep'), h('kbd', 'C'), h('kbd', 'V'), ` velocity ${Math.round(q.velocity * 100)}`),
-        h('button.ew-qw-x', { title: 'Leave musical typing (` or Esc)', onclick: () => q.toggle(false) }, h('kbd', '`'), ' off')),
-      h('div.ew-qw-row.blk-row', { 'aria-hidden': 'true' }, blacks.map((c) => (c ? cell(c, true) : h('div.ew-qw-gap')))),
-      h('div.ew-qw-row', { 'aria-hidden': 'true' }, WHITE.map((c) => cell(c, false))));
+        h(
+          'span.ew-qw-meta',
+          h('kbd', 'Z'),
+          h('kbd', 'X'),
+          ` octave ${q.octave}`,
+          h('span.sep'),
+          h('kbd', 'C'),
+          h('kbd', 'V'),
+          ` velocity ${Math.round(q.velocity * 100)}`,
+        ),
+        h(
+          'button.ew-qw-x',
+          { title: 'Leave musical typing (` or Esc)', onclick: () => q.toggle(false) },
+          h('kbd', '`'),
+          ' off',
+        ),
+      ),
+      h(
+        'div.ew-qw-row.blk-row',
+        { 'aria-hidden': 'true' },
+        blacks.map((c) => (c ? cell(c, true) : h('div.ew-qw-gap'))),
+      ),
+      h(
+        'div.ew-qw-row',
+        { 'aria-hidden': 'true' },
+        WHITE.map((c) => cell(c, false)),
+      ),
+    );
     if (focused && document.activeElement !== focused) focused.focus({ preventScroll: true });
   }
   q.paint = paint;
-  app.store.on('change', () => { if (q.on) paint(); });
-  app.ui.on('select', () => { if (q.on) paint(); });
+  app.store.on('change', () => {
+    if (q.on) paint();
+  });
+  app.ui.on('select', () => {
+    if (q.on) paint();
+  });
   return q;
 }
 

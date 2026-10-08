@@ -48,10 +48,14 @@ export function snapGentle(b, { coarse = 0.5, fine = 0.25, tol = 0.35, fineTol =
 // (40 ms at 120) it is none: the gentle grid has that.
 //   hits: [{ p, b }] (b: where each was played, in beats; p a drum's note, any one value for a hum)
 //   -> { lean (beats, + late), by: 'beat' | 'eighth' | null, n }
-const WEIGHT = { 35: 3, 36: 3, 38: 2, 40: 2 };   // (the kick most of all: it is on the 1)
+const WEIGHT = { 35: 3, 36: 3, 38: 2, 40: 2 }; // (the kick most of all: it is on the 1)
 const circ = (bs, P) => {
-  let C = 0, S = 0;
-  for (const b of bs) { C += Math.cos((2 * Math.PI * b) / P); S += Math.sin((2 * Math.PI * b) / P); }
+  let C = 0,
+    S = 0;
+  for (const b of bs) {
+    C += Math.cos((2 * Math.PI * b) / P);
+    S += Math.sin((2 * Math.PI * b) / P);
+  }
   return { m: (Math.atan2(S, C) / (2 * Math.PI)) * P, R: Math.hypot(C, S) / (bs.length || 1) };
 };
 const wrapP = (x, P) => x - P * Math.round(x / P);
@@ -61,23 +65,45 @@ export function leanOf(hits, { min = 0.08 } = {}) {
   if (hs.length < 3) return none;
   // each drum that keeps one place in the beat: 4 hits or more, 70% of them within 0.2 beat of where they sit
   const by = new Map();
-  for (const x of hs) { if (!by.has(x.p)) by.set(x.p, []); by.get(x.p).push(x.b); }
+  for (const x of hs) {
+    if (!by.has(x.p)) by.set(x.p, []);
+    by.get(x.p).push(x.b);
+  }
   const locked = [];
   for (const [p, bs] of by) {
     if (bs.length < 4) continue;
     const { m } = circ(bs, 1);
-    if (bs.filter((b) => Math.abs(wrapP(b - m, 1)) <= 0.2).length / bs.length >= 0.7) locked.push({ p, m, bs, w: bs.length * (WEIGHT[p] || 1) });
+    if (bs.filter((b) => Math.abs(wrapP(b - m, 1)) <= 0.2).length / bs.length >= 0.7)
+      locked.push({ p, m, bs, w: bs.length * (WEIGHT[p] || 1) });
   }
   // the ones that agree (within 0.2 beat), the heaviest group; a tie to the one nearest the beat
   let best = null;
   for (const a of locked) {
     const g = locked.filter((x) => Math.abs(wrapP(x.m - a.m, 1)) <= 0.2);
-    const w = g.reduce((s, x) => s + x.w, 0), bs = g.flatMap((x) => x.bs), m = circ(bs, 1).m;
-    if (!best || w > best.w + 1e-9 || (Math.abs(w - best.w) < 1e-9 && Math.abs(m) < Math.abs(best.m))) best = { w, bs, m };
+    const w = g.reduce((s, x) => s + x.w, 0),
+      bs = g.flatMap((x) => x.bs),
+      m = circ(bs, 1).m;
+    if (!best || w > best.w + 1e-9 || (Math.abs(w - best.w) < 1e-9 && Math.abs(m) < Math.abs(best.m)))
+      best = { w, bs, m };
   }
-  let P = 0, bs = null, m = 0;
-  if (best && best.bs.length >= 4) { P = 1; bs = best.bs; m = best.m; }
-  else if (hs.length >= 4) { const c = circ(hs.map((x) => x.b), 0.5); if (c.R >= 0.7) { P = 0.5; bs = hs.map((x) => x.b); m = c.m; } }
+  let P = 0,
+    bs = null,
+    m = 0;
+  if (best && best.bs.length >= 4) {
+    P = 1;
+    bs = best.bs;
+    m = best.m;
+  } else if (hs.length >= 4) {
+    const c = circ(
+      hs.map((x) => x.b),
+      0.5,
+    );
+    if (c.R >= 0.7) {
+      P = 0.5;
+      bs = hs.map((x) => x.b);
+      m = c.m;
+    }
+  }
   if (!P) return none;
   const res = bs.map((b) => wrapP(b - m, P)).sort((x, y) => x - y);
   const med = res.length % 2 ? res[(res.length - 1) / 2] : (res[res.length / 2 - 1] + res[res.length / 2]) / 2;
@@ -100,24 +126,41 @@ export function placeTake(hits, snap = {}, { from = -Infinity, opening: open = t
   const tol = (snap.tol ?? 0.35) * (snap.coarse ?? 0.5);
   const onBeat = (x) => Math.abs(x - Math.round(x)) <= tol + 1e-9;
   const share = new Map();
-  hits.forEach((h, i) => { const s = share.get(h.p) || { n: 0, on: 0 }; s.n++; if (onBeat(xs[i])) s.on++; share.set(h.p, s); });
-  const first = Number.isFinite(from) ? from : xs[order[0]] ?? 0;
+  hits.forEach((h, i) => {
+    const s = share.get(h.p) || { n: 0, on: 0 };
+    s.n++;
+    if (onBeat(xs[i])) s.on++;
+    share.set(h.p, s);
+  });
+  const first = Number.isFinite(from) ? from : (xs[order[0]] ?? 0);
   let opening = 0;
   for (const i of open ? order : []) {
-    const x = xs[i], f = x - Math.floor(x), s = share.get(hits[i].p);
-    if (onBeat(x) || x >= first + 2) break;     // (the first on a beat: the take has come in)
-    if (x >= first - 1e-9 && s.n >= 3 && (s.on / (s.n - 1)) >= 0.7 && f >= 0.25 - 1e-9 && f <= 0.5 + 1e-9) { t[i] = r4(Math.floor(x)); opening++; }
+    const x = xs[i],
+      f = x - Math.floor(x),
+      s = share.get(hits[i].p);
+    if (onBeat(x) || x >= first + 2) break; // (the first on a beat: the take has come in)
+    if (x >= first - 1e-9 && s.n >= 3 && s.on / (s.n - 1) >= 0.7 && f >= 0.25 - 1e-9 && f <= 0.5 + 1e-9) {
+      t[i] = r4(Math.floor(x));
+      opening++;
+    }
   }
   return { lean: L.lean, by: L.by, t, opening };
 }
 
 export const LEVELS = ['tight', 'loose', 'played'];
-export function tightness(level) { return level === 'loose' ? 0.5 : level === 'played' ? 0 : 1; }
-export function blend(raw, tight, s) { return r4(raw + (tight - raw) * s); }
+export function tightness(level) {
+  return level === 'loose' ? 0.5 : level === 'played' ? 0 : 1;
+}
+export function blend(raw, tight, s) {
+  return r4(raw + (tight - raw) * s);
+}
 
 // Onsets within 40 ms are one moment (a kick and a hat struck together): the pulse is found from moments.
 function moments(ts) {
-  const t = ts.filter(Number.isFinite).slice().sort((a, b) => a - b);
+  const t = ts
+    .filter(Number.isFinite)
+    .slice()
+    .sort((a, b) => a - b);
   const out = [];
   for (const x of t) if (!out.length || x - out[out.length - 1] > 0.04) out.push(x);
   return out;
@@ -137,11 +180,19 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
   // onsets over 3s and 5s (people play and hum in twos), and a near tie going to the longer period
   const SIG = 0.16;
   const lattice = (T) => {
-    let ic = m[0], sl = T, k = m.map((t) => Math.round((t - ic) / sl));
+    let ic = m[0],
+      sl = T,
+      k = m.map((t) => Math.round((t - ic) / sl));
     for (let it = 0; it < 2; it++) {
-      const n = k.length, mk = k.reduce((x, y) => x + y, 0) / n, mt = m.reduce((x, y) => x + y, 0) / n;
-      let sxy = 0, sxx = 0;
-      for (let i = 0; i < n; i++) { sxy += (k[i] - mk) * (m[i] - mt); sxx += (k[i] - mk) ** 2; }
+      const n = k.length,
+        mk = k.reduce((x, y) => x + y, 0) / n,
+        mt = m.reduce((x, y) => x + y, 0) / n;
+      let sxy = 0,
+        sxx = 0;
+      for (let i = 0; i < n; i++) {
+        sxy += (k[i] - mk) * (m[i] - mt);
+        sxx += (k[i] - mk) ** 2;
+      }
       if (sxx > 0) sl = Math.max(T * 0.9, Math.min(T * 1.1, sxy / sxx));
       ic = mt - sl * mk;
       k = m.map((t) => Math.round((t - ic) / sl));
@@ -150,19 +201,34 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
     for (let i = 0; i < m.length; i++) {
       const r = (m[i] - ic - sl * k[i]) / sl;
       let w = Math.exp(-(r * r) / (2 * SIG * SIG));
-      if (i) { const st = k[i] - k[i - 1]; if (st === 0 && m[i] - m[i - 1] > 0.09) w *= 0.05; else if (st === 3 || st === 6) w *= 0.75; else if (st === 5 || st === 7) w *= 0.6; else if (st > 8) w *= 0.7; }
+      if (i) {
+        const st = k[i] - k[i - 1];
+        if (st === 0 && m[i] - m[i - 1] > 0.09) w *= 0.05;
+        else if (st === 3 || st === 6) w *= 0.75;
+        else if (st === 5 || st === 7) w *= 0.6;
+        else if (st > 8) w *= 0.7;
+      }
       s += w;
     }
     return { s: s / m.length, k: k.map((x) => x - k[0]) };
   };
   let best = null;
   for (let T = minTatum; T <= 1.25; T += 0.002) {
-    const L = lattice(T), s = L.s * (1 + 0.03 * Math.log2(T / 0.09));
+    const L = lattice(T),
+      s = L.s * (1 + 0.03 * Math.log2(T / 0.09));
     if (!best || s > best.s) best = { T, s, k: L.k };
   }
   // refined: each gap that counts cleanly gives its own step; their mean is the tatum
-  let num = 0, den = 0;
-  for (const g of iois) { const x = g / best.T, n = Math.round(x); if (n >= 1 && Math.abs(x - n) < 0.25) { num += g; den += n; } }
+  let num = 0,
+    den = 0;
+  for (const g of iois) {
+    const x = g / best.T,
+      n = Math.round(x);
+    if (n >= 1 && Math.abs(x - n) < 0.25) {
+      num += g;
+      den += n;
+    }
+  }
   const T = den ? num / den : best.T;
   // each onset counted on the tatum: where the line through the last few onsets says the next steps fall (so one
   // onset's jitter is all that can mislead it, never a gap's, which is two onsets' worth), the tempo tracked as it
@@ -170,26 +236,40 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
   // pushes everything after it a step late; one a hair after the last is the same moment (a flam)
   const halfStep = (x) => halves && Math.abs(x - Math.floor(x) - 0.5) < 0.12;
   // (a count in quarters, 350 ms or more a step: a sixteenth is a quarter step, squarely there)
-  const quarterStep = (x) => { if (!halves || T < 0.35) return null; const f = x - Math.floor(x); return Math.abs(f - 0.25) < 0.1 ? 0.25 : Math.abs(f - 0.75) < 0.1 ? 0.75 : null; };
+  const quarterStep = (x) => {
+    if (!halves || T < 0.35) return null;
+    const f = x - Math.floor(x);
+    return Math.abs(f - 0.25) < 0.1 ? 0.25 : Math.abs(f - 0.75) < 0.1 ? 0.75 : null;
+  };
   // (two moments played apart are never one step: the later goes on by the smallest step the count allows)
   const minStep = !halves ? 1 : T >= 0.35 ? 0.25 : 0.5;
   const kA = [0];
   for (let i = 1, k = kA; i < m.length; i++) {
     const j0 = Math.max(0, i - 8);
-    let sl = T, ic = m[i - 1] - T * k[i - 1];
+    let sl = T,
+      ic = m[i - 1] - T * k[i - 1];
     // (a few onsets in, the slope is the tatum and only the line's place is fitted; past six, the slope too, so a
     // drifting tempo is followed)
-    const ks = k.slice(j0, i), ms = m.slice(j0, i), mk = ks.reduce((a, b) => a + b, 0) / ks.length, mt = ms.reduce((a, b) => a + b, 0) / ms.length;
+    const ks = k.slice(j0, i),
+      ms = m.slice(j0, i),
+      mk = ks.reduce((a, b) => a + b, 0) / ks.length,
+      mt = ms.reduce((a, b) => a + b, 0) / ms.length;
     if (ks.length >= 6) {
-      let sxy = 0, sxx = 0;
-      for (let q = 0; q < ks.length; q++) { sxy += (ks[q] - mk) * (ms[q] - mt); sxx += (ks[q] - mk) ** 2; }
+      let sxy = 0,
+        sxx = 0;
+      for (let q = 0; q < ks.length; q++) {
+        sxy += (ks[q] - mk) * (ms[q] - mt);
+        sxx += (ks[q] - mk) ** 2;
+      }
       if (sxx > 0) sl = Math.max(T * 0.85, Math.min(T * 1.18, sxy / sxx));
     }
     ic = mt - sl * mk;
-    const x = (m[i] - ic) / sl, last = k[i - 1];
+    const x = (m[i] - ic) / sl,
+      last = k[i - 1];
     let kk;
     if (x - last < 0.3 && m[i] - m[i - 1] < 0.12) kk = last;
-    else if (halfStep(x)) kk = Math.floor(x) + 0.5;   // (squarely between: a half step)
+    else if (halfStep(x))
+      kk = Math.floor(x) + 0.5; // (squarely between: a half step)
     else if (quarterStep(x) != null) kk = Math.floor(x) + quarterStep(x);
     else kk = Math.round(x);
     k.push(kk > last ? kk : m[i] - m[i - 1] < 0.12 ? last : last + minStep);
@@ -199,8 +279,17 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
   // made onset by onset and for the lattice's own (whole-take) count; the one the curve fits better stays (a few
   // sloppy notes can mislead the first, a tempo that drifts far the second)
   // (the curves and the line go through the moments on whole steps: a pickup a sixteenth early would bend them)
-  const onWhole = (k) => { const ix = k.map((x, i) => i).filter((i) => k[i] % 1 === 0); return ix.length >= 3 ? ix : k.map((x, i) => i); };
-  const quadOf = (k) => { const ix = onWhole(k); return quad(ix.map((i) => k[i]), ix.map((i) => m[i])); };
+  const onWhole = (k) => {
+    const ix = k.map((x, i) => i).filter((i) => k[i] % 1 === 0);
+    return ix.length >= 3 ? ix : k.map((x, i) => i);
+  };
+  const quadOf = (k) => {
+    const ix = onWhole(k);
+    return quad(
+      ix.map((i) => k[i]),
+      ix.map((i) => m[i]),
+    );
+  };
   const settle = (k0) => {
     const k = k0.slice();
     const curve = quadOf(k);
@@ -208,7 +297,8 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
       for (let i = 1; i < m.length; i++) {
         const sl = curve.b + 2 * curve.c * k[i];
         if (!(sl > 0)) continue;
-        const x = k[i] + (m[i] - (curve.a + curve.b * k[i] + curve.c * k[i] * k[i])) / sl, last = k[i - 1];
+        const x = k[i] + (m[i] - (curve.a + curve.b * k[i] + curve.c * k[i] * k[i])) / sl,
+          last = k[i - 1];
         let kk;
         if (x - last < 0.3 && m[i] - m[i - 1] < 0.12) kk = last;
         else if (halfStep(x)) kk = Math.floor(x) + 0.5;
@@ -219,24 +309,41 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
     }
     const c2 = quadOf(k) || null;
     let e = 0;
-    for (let i = 0; i < m.length; i++) { const sl = c2 ? c2.b + 2 * c2.c * k[i] : T; const pr = c2 ? c2.a + c2.b * k[i] + c2.c * k[i] * k[i] : m[0] + T * k[i]; e += ((m[i] - pr) / (sl > 0 ? sl : T)) ** 2; }
+    for (let i = 0; i < m.length; i++) {
+      const sl = c2 ? c2.b + 2 * c2.c * k[i] : T;
+      const pr = c2 ? c2.a + c2.b * k[i] + c2.c * k[i] * k[i] : m[0] + T * k[i];
+      e += ((m[i] - pr) / (sl > 0 ? sl : T)) ** 2;
+    }
     const halfs = k.filter((x) => x % 1).length;
     return { k, e: Math.sqrt(e / m.length) + 0.04 * halfs };
   };
-  const A = settle(kA), B = settle(best.k);
+  const A = settle(kA),
+    B = settle(best.k);
   const k = (B.e < A.e - 1e-9 ? B : A).k;
   // a straight line through (k, t): its slope is the average tatum, its curve the drift
-  const n = k.length, wi = onWhole(k), mk = wi.reduce((a, i) => a + k[i], 0) / wi.length, mt = wi.reduce((a, i) => a + m[i], 0) / wi.length;
-  let sxy = 0, sxx = 0;
-  for (const i of wi) { sxy += (k[i] - mk) * (m[i] - mt); sxx += (k[i] - mk) ** 2; }
-  const slope = sxx > 0 ? sxy / sxx : T, icpt = mt - slope * mk;
+  const n = k.length,
+    wi = onWhole(k),
+    mk = wi.reduce((a, i) => a + k[i], 0) / wi.length,
+    mt = wi.reduce((a, i) => a + m[i], 0) / wi.length;
+  let sxy = 0,
+    sxx = 0;
+  for (const i of wi) {
+    sxy += (k[i] - mk) * (m[i] - mt);
+    sxx += (k[i] - mk) ** 2;
+  }
+  const slope = sxx > 0 ? sxy / sxx : T,
+    icpt = mt - slope * mk;
   // the beat: 1, 2 or 4 tatums, whichever tempo is in range and nearest a comfortable one
-  let sub = 1, bd = Infinity;
+  let sub = 1,
+    bd = Infinity;
   for (const s of [1, 2, 4]) {
     const bpm = 60 / (slope * s);
     if (bpm < lo - 1e-9 || bpm > hi + 1e-9) continue;
     const d = Math.abs(Math.log2(bpm / prefer));
-    if (d < bd) { bd = d; sub = s; }
+    if (d < bd) {
+      bd = d;
+      sub = s;
+    }
   }
   if (!Number.isFinite(bd)) sub = 60 / slope > hi ? 4 : 1;
   const bpm = 60 / (slope * sub);
@@ -252,14 +359,28 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
   // one step though they were played apart (a sixteenth pickup just before a kick on a count in quarters) are read
   // off the take's own tempo map instead, the count's curve (the tempo as it drifted), and snapped gently: an eighth
   // when near one, else a sixteenth.
-  const shared = (i) => (i > 0 && k[i] === k[i - 1] && m[i] - m[i - 1] > 0.09) || (i < m.length - 1 && k[i] === k[i + 1] && m[i + 1] - m[i] > 0.09);
+  const shared = (i) =>
+    (i > 0 && k[i] === k[i - 1] && m[i] - m[i - 1] > 0.09) ||
+    (i < m.length - 1 && k[i] === k[i + 1] && m[i + 1] - m[i] > 0.09);
   const clean = m.map((_, i) => i).filter((i) => !shared(i));
-  const cw = clean.filter((i) => k[i] % 1 === 0), cu = cw.length >= 6 ? cw : clean;
-  const curve = quad(cu.map((i) => k[i]), cu.map((i) => m[i]));
+  const cw = clean.filter((i) => k[i] % 1 === 0),
+    cu = cw.length >= 6 ? cw : clean;
+  const curve = quad(
+    cu.map((i) => k[i]),
+    cu.map((i) => m[i]),
+  );
   const kAt = (t) => {
     if (curve && Math.abs(curve.c) > 1e-12) {
-      const A = curve.c, B = curve.b, C = curve.a - t, D = B * B - 4 * A * C;
-      if (D >= 0) { const r1 = (-B + Math.sqrt(D)) / (2 * A), r2 = (-B - Math.sqrt(D)) / (2 * A), kl = (t - icpt) / slope; return Math.abs(r1 - kl) < Math.abs(r2 - kl) ? r1 : r2; }
+      const A = curve.c,
+        B = curve.b,
+        C = curve.a - t,
+        D = B * B - 4 * A * C;
+      if (D >= 0) {
+        const r1 = (-B + Math.sqrt(D)) / (2 * A),
+          r2 = (-B - Math.sqrt(D)) / (2 * A),
+          kl = (t - icpt) / slope;
+        return Math.abs(r1 - kl) < Math.abs(r2 - kl) ? r1 : r2;
+      }
     }
     return curve ? (t - curve.a) / curve.b : (t - icpt) / slope;
   };
@@ -270,31 +391,52 @@ export function findPulse(ts, { lo = 60, hi = 180, prefer = 105, halves = true, 
     return snapGentle((kAt(t) - k0) / sub, { coarse: 0.5, fine: 0.25, tol: 0.35, fineTol: 0.5, ...snap });
   };
   // every original onset (not only the moments): its moment's place
-  const momentOf = (t) => { let j = 0; for (let i = 0; i < m.length; i++) if (Math.abs(m[i] - t) <= Math.abs(m[j] - t)) j = i; return m[j]; };
-  const t0 = icpt;   // (the fitted downbeat: the first moment as the line puts it)
+  const momentOf = (t) => {
+    let j = 0;
+    for (let i = 0; i < m.length; i++) if (Math.abs(m[i] - t) <= Math.abs(m[j] - t)) j = i;
+    return m[j];
+  };
+  const t0 = icpt; // (the fitted downbeat: the first moment as the line puts it)
   return {
-    bpm: Math.round(bpm * 10) / 10, sub, tatum: slope, fit: Math.round(fit * 100) / 100, drift,
-    moments: m, k,
-    beatOf: (t) => tidy(momentOf(t)),                        // tidy: on the take's own beats
-    rawOf: (t) => r4((t - t0) / (slope * sub)),              // as played: by the line
-    beats: m.map((t) => tidy(t)), raw: m.map((t) => r4((t - t0) / (slope * sub))),
+    bpm: Math.round(bpm * 10) / 10,
+    sub,
+    tatum: slope,
+    fit: Math.round(fit * 100) / 100,
+    drift,
+    moments: m,
+    k,
+    beatOf: (t) => tidy(momentOf(t)), // tidy: on the take's own beats
+    rawOf: (t) => r4((t - t0) / (slope * sub)), // as played: by the line
+    beats: m.map((t) => tidy(t)),
+    raw: m.map((t) => r4((t - t0) / (slope * sub))),
   };
 }
 
 // Tapped hits in free time -> drum notes on the human's own beats. hits: [{ t (s), p (GM note), v }] in any order.
 //   -> { bpm, notes: [{ p, t, d, v, raw }], bars, fit, drift, sub } | null (fewer than 3 moments: no pulse to find)
 export function fitHits(hits, { bpb = 4, grid = 0.25, ...o } = {}) {
-  const pl = findPulse(hits.map((h) => h.t), o);
+  const pl = findPulse(
+    hits.map((h) => h.t),
+    o,
+  );
   if (!pl) return null;
   const seen = new Map();
   for (const h of hits) {
     const t = snapGentle(pl.beatOf(h.t), { coarse: 0.5, fine: grid });
     const k = h.p + '@' + t;
-    if (!seen.has(k) || seen.get(k).v < h.v) seen.set(k, { p: h.p, t, d: grid, v: Math.round((h.v ?? 0.8) * 100) / 100, raw: pl.rawOf(h.t) });
+    if (!seen.has(k) || seen.get(k).v < h.v)
+      seen.set(k, { p: h.p, t, d: grid, v: Math.round((h.v ?? 0.8) * 100) / 100, raw: pl.rawOf(h.t) });
   }
   const notes = [...seen.values()].sort((a, b) => a.t - b.t || a.p - b.p);
   const end = Math.max(...notes.map((x) => x.t + x.d));
-  return { bpm: pl.bpm, notes, bars: Math.max(1, Math.ceil(end / bpb - 1e-9)), fit: pl.fit, drift: pl.drift, sub: pl.sub };
+  return {
+    bpm: pl.bpm,
+    notes,
+    bars: Math.max(1, Math.ceil(end / bpb - 1e-9)),
+    fit: pl.fit,
+    drift: pl.drift,
+    sub: pl.sub,
+  };
 }
 
 // A hum's notes in free time: each note's start on the human's count, its end as long as it was sung (in the local
@@ -311,21 +453,42 @@ export function fitSegs(segs, o = {}) {
   // five times that, and a tempo far from 100 a little.)
   const ts = segs.map((s) => s.t0);
   let best = null;
-  for (const [minTatum, halves] of [[0.2, false], [0.3, true], [0.2, true]]) {
+  for (const [minTatum, halves] of [
+    [0.2, false],
+    [0.3, true],
+    [0.2, true],
+  ]) {
     const pl = findPulse(ts, { minTatum, halves, ...o });
     if (!pl) continue;
     const spb = pl.tatum * pl.sub;
-    for (const beats of [pl.beats.slice(), pl.raw.map((x) => snapGentle(x, { coarse: 0.5, fine: 0.25, tol: 0.35, fineTol: 0.5 }))]) {
-      let e = 0, six = 0, back = 0;
-      beats.forEach((x, i) => { e += ((pl.raw[i] - x) * spb) ** 2; if (Math.abs(x * 2 - Math.round(x * 2)) > 1e-6) six++; if (i && x <= beats[i - 1] + 1e-9 && ts[i] - ts[i - 1] > 0.09) back++; });
+    for (const beats of [
+      pl.beats.slice(),
+      pl.raw.map((x) => snapGentle(x, { coarse: 0.5, fine: 0.25, tol: 0.35, fineTol: 0.5 })),
+    ]) {
+      let e = 0,
+        six = 0,
+        back = 0;
+      beats.forEach((x, i) => {
+        e += ((pl.raw[i] - x) * spb) ** 2;
+        if (Math.abs(x * 2 - Math.round(x * 2)) > 1e-6) six++;
+        if (i && x <= beats[i - 1] + 1e-9 && ts[i] - ts[i - 1] > 0.09) back++;
+      });
       const score = Math.sqrt(e / beats.length) / 0.04 + six + 5 * back + 0.5 * Math.abs(Math.log2(pl.bpm / 100));
       if (!best || score < best.score - 1e-9) best = { pl, beats, score };
     }
   }
   if (!best) return null;
-  const { pl } = best, spbeat = pl.tatum * pl.sub;
+  const { pl } = best,
+    spbeat = pl.tatum * pl.sub;
   // (each onset's beat: a moment's, so notes sung together share it)
-  const starts = segs.map((s) => best.beats[pl.moments.indexOf(pl.moments.reduce((m, x) => (Math.abs(x - s.t0) < Math.abs(m - s.t0) ? x : m), pl.moments[0]))]);
+  const starts = segs.map(
+    (s) =>
+      best.beats[
+        pl.moments.indexOf(
+          pl.moments.reduce((m, x) => (Math.abs(x - s.t0) < Math.abs(m - s.t0) ? x : m), pl.moments[0]),
+        )
+      ],
+  );
   const ends = segs.map((s, i) => {
     const e0 = starts[i] + (s.t1 - s.t0) / spbeat;
     let e = snapGentle(e0, { coarse: 0.5, fine: 0.25, tol: 0.4, fineTol: 0.5 });
@@ -334,17 +497,50 @@ export function fitSegs(segs, o = {}) {
     if (next != null && (e > next || next - e < 0.25 + 1e-9)) e = next;
     return r4(e);
   });
-  return { bpm: pl.bpm, starts, ends, raws: segs.map((s) => pl.rawOf(s.t0)), fit: pl.fit, drift: pl.drift, sub: pl.sub };
+  return {
+    bpm: pl.bpm,
+    starts,
+    ends,
+    raws: segs.map((s) => pl.rawOf(s.t0)),
+    fit: pl.fit,
+    drift: pl.drift,
+    sub: pl.sub,
+  };
 }
 
 // least squares t = a + b k + c k² (null under 6 points or a degenerate spread)
 function quad(k, t) {
   const n = k.length;
   if (n < 6) return null;
-  let s0 = n, s1 = 0, s2 = 0, s3 = 0, s4 = 0, y0 = 0, y1 = 0, y2 = 0;
-  for (let i = 0; i < n; i++) { const x = k[i], x2 = x * x; s1 += x; s2 += x2; s3 += x2 * x; s4 += x2 * x2; y0 += t[i]; y1 += x * t[i]; y2 += x2 * t[i]; }
-  const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-  const A = [[s0, s1, s2], [s1, s2, s3], [s2, s3, s4]], D = det(A);
+  let s0 = n,
+    s1 = 0,
+    s2 = 0,
+    s3 = 0,
+    s4 = 0,
+    y0 = 0,
+    y1 = 0,
+    y2 = 0;
+  for (let i = 0; i < n; i++) {
+    const x = k[i],
+      x2 = x * x;
+    s1 += x;
+    s2 += x2;
+    s3 += x2 * x;
+    s4 += x2 * x2;
+    y0 += t[i];
+    y1 += x * t[i];
+    y2 += x2 * t[i];
+  }
+  const det = (m) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const A = [
+      [s0, s1, s2],
+      [s1, s2, s3],
+      [s2, s3, s4],
+    ],
+    D = det(A);
   if (!(Math.abs(D) > 1e-9)) return null;
   const col = (j, v) => A.map((r, i) => r.map((x, q) => (q === j ? v[i] : x)));
   const Y = [y0, y1, y2];

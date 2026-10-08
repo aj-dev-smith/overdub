@@ -26,22 +26,94 @@ import { kernel } from './lib.js';
 import { metalSource } from './metal.js';
 
 export default defineDevice({
-  id: 'core.drums', name: 'Gobo Kit', kind: 'instrument', cat: 'drums', by: 'overdub',
+  id: 'core.drums',
+  name: 'Gobo Kit',
+  kind: 'instrument',
+  cat: 'drums',
+  by: 'overdub',
   blurb: 'A full synthesized drum kit, acoustic or machine',
   nod: 'an acoustic studio kit and a classic analog drum machine (GM drum map)',
   params: [
-    { key: 'kit', label: 'KIT', opts: ['FIELD', 'MACHINE', 'DUST', '808', '909', 'ACOUSTIC+'], def: 0, role: 'shape', desc: 'acoustic kit, analog drum machine, a dusty old sampler, the two classic machines, or an acoustic kit that changes colour with velocity' },
+    {
+      key: 'kit',
+      label: 'KIT',
+      opts: ['FIELD', 'MACHINE', 'DUST', '808', '909', 'ACOUSTIC+'],
+      def: 0,
+      role: 'shape',
+      desc: 'acoustic kit, analog drum machine, a dusty old sampler, the two classic machines, or an acoustic kit that changes colour with velocity',
+    },
     { key: 'tune', label: 'TUNE', min: -12, max: 12, def: 0, unit: 'st', role: 'pitch', desc: 'every drum up or down' },
-    { key: 'decay', label: 'DECAY', min: 0.3, max: 2.5, def: 1, unit: 'x', role: 'decay', desc: 'tight and dead to long and ringing' },
-    { key: 'tone', label: 'TONE', min: -1, max: 1, def: 0, role: 'tone', desc: 'darker (warm, vintage) or brighter (snappy, modern)' },
+    {
+      key: 'decay',
+      label: 'DECAY',
+      min: 0.3,
+      max: 2.5,
+      def: 1,
+      unit: 'x',
+      role: 'decay',
+      desc: 'tight and dead to long and ringing',
+    },
+    {
+      key: 'tone',
+      label: 'TONE',
+      min: -1,
+      max: 1,
+      def: 0,
+      role: 'tone',
+      desc: 'darker (warm, vintage) or brighter (snappy, modern)',
+    },
     { key: 'drive', label: 'DRIVE', min: 0, max: 1, def: 0.15, role: 'drive', desc: 'glue, then crunch' },
-    { key: 'width', label: 'WIDTH', min: 0, max: 1, def: 0.6, role: 'width', desc: 'how far the hats, toms and cymbals spread' },
-    { key: 'room', label: 'ROOM', min: 0, max: 1, def: 0.3, role: 'mix', desc: 'the room around the kit: dry booth to big live room' },
-    { key: 'hat_model', label: 'HATS', opts: ['ORIGINAL', 'PLATES', 'BANDS', 'SQUARES'], def: 0, role: 'shape', desc: "the hi-hat's model: each kit's original, two struck plates, banded noise, or six squares with a body (a note's mod opens the hats on all but the original)" },
-    { key: 'cym_model', label: 'CYMBALS', opts: ['CLASSIC', 'FDN', 'MODAL'], def: 0, role: 'shape', desc: "the crashes, ride, bell, china and splash: CLASSIC is the kit's own; FDN and MODAL are new models built against real cymbals (808 keeps its own)" },
+    {
+      key: 'width',
+      label: 'WIDTH',
+      min: 0,
+      max: 1,
+      def: 0.6,
+      role: 'width',
+      desc: 'how far the hats, toms and cymbals spread',
+    },
+    {
+      key: 'room',
+      label: 'ROOM',
+      min: 0,
+      max: 1,
+      def: 0.3,
+      role: 'mix',
+      desc: 'the room around the kit: dry booth to big live room',
+    },
+    {
+      key: 'hat_model',
+      label: 'HATS',
+      opts: ['ORIGINAL', 'PLATES', 'BANDS', 'SQUARES'],
+      def: 0,
+      role: 'shape',
+      desc: "the hi-hat's model: each kit's original, two struck plates, banded noise, or six squares with a body (a note's mod opens the hats on all but the original)",
+    },
+    {
+      key: 'cym_model',
+      label: 'CYMBALS',
+      opts: ['CLASSIC', 'FDN', 'MODAL'],
+      def: 0,
+      role: 'shape',
+      desc: "the crashes, ride, bell, china and splash: CLASSIC is the kit's own; FDN and MODAL are new models built against real cymbals (808 keeps its own)",
+    },
     // appended (candidates for AJ's ears): 0 is each kit's own snare and clap, exactly as before
-    { key: 'snare_voice', label: 'SNARE', opts: ['KIT', 'MODAL', 'TWO HEADS', 'SNAPPY'], def: 0, role: 'shape', desc: "the snare: the kit's own, a struck head whose wires follow it, two heads with wires that buzz on the bottom one, or a tight tone-and-noise snare" },
-    { key: 'clap_voice', label: 'CLAP', opts: ['KIT', 'HANDS', 'CIRCUIT', 'ROOM'], def: 0, role: 'shape', desc: "the clap: the kit's own, a few people clapping close, the classic machine circuit, or hands in a small room" },
+    {
+      key: 'snare_voice',
+      label: 'SNARE',
+      opts: ['KIT', 'MODAL', 'TWO HEADS', 'SNAPPY'],
+      def: 0,
+      role: 'shape',
+      desc: "the snare: the kit's own, a struck head whose wires follow it, two heads with wires that buzz on the bottom one, or a tight tone-and-noise snare",
+    },
+    {
+      key: 'clap_voice',
+      label: 'CLAP',
+      opts: ['KIT', 'HANDS', 'CIRCUIT', 'ROOM'],
+      def: 0,
+      role: 'shape',
+      desc: "the clap: the kit's own, a few people clapping close, the classic machine circuit, or hands in a small room",
+    },
   ],
   presets: [
     { name: 'Studio kit', params: {} },
@@ -50,9 +122,19 @@ export default defineDevice({
     { name: 'Boom bap', params: { kit: 2, drive: 0.35, room: 0.2 } },
     { name: 'Live room', params: { kit: 5, room: 0.6 } },
   ],
-  look: { color: '#33302b', ink: '#f1dc8a', shape: 'wide', finish: 'sparkle', knob: 'chrome', label: 'block', led: '#ffb347' },
+  look: {
+    color: '#33302b',
+    ink: '#f1dc8a',
+    shape: 'wide',
+    finish: 'sparkle',
+    knob: 'chrome',
+    label: 'block',
+    led: '#ffb347',
+  },
   tail: 4,
-  kernel: kernel(metalSource() + String.raw`
+  kernel: kernel(
+    metalSource() +
+      String.raw`
 // piece types
 const KICK = 0, SNARE = 1, CLAP = 2, RIM = 3, HAT = 4, TOM = 5, CYM = 6, COW = 7, SHAKE = 8, TAMB = 9;
 // membrane modes of an ideal circular drum head (Bessel zeros), relative to the fundamental
@@ -1280,5 +1362,6 @@ return {
     };
   },
 };
-`),
+`,
+  ),
 });

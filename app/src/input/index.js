@@ -34,8 +34,20 @@ export default function (app) {
     pitch,
     mode: null,
     options: { grid: 0.25, snapKey: true, keepTiming: false },
-    on(t, fn) { if (!fns.has(t)) fns.set(t, new Set()); fns.get(t).add(fn); return () => fns.get(t).delete(fn); },
-    emit(t, d) { for (const fn of fns.get(t) || []) { try { fn(d); } catch (e) { console.error('input listener', t, e); } } },
+    on(t, fn) {
+      if (!fns.has(t)) fns.set(t, new Set());
+      fns.get(t).add(fn);
+      return () => fns.get(t).delete(fn);
+    },
+    emit(t, d) {
+      for (const fn of fns.get(t) || []) {
+        try {
+          fn(d);
+        } catch (e) {
+          console.error('input listener', t, e);
+        }
+      }
+    },
     target(kind = 'keys') {
       return input.recorder ? input.recorder.targetFor(kind) : null;
     },
@@ -54,15 +66,29 @@ export default function (app) {
     const t = input.target() || input.recorder?.keysTrack?.() || null;
     const k = src + ':' + p;
     if (live.has(k)) input.noteOff(src, p, kind);
-    if (t) { live.set(k, t.id); try { app.engine.liveNoteOn(t.id, p, v); } catch (e) { console.warn('live note', e); } }
+    if (t) {
+      live.set(k, t.id);
+      try {
+        app.engine.liveNoteOn(t.id, p, v);
+      } catch (e) {
+        console.warn('live note', e);
+      }
+    }
     input.capture.noteOn(kind, p, v, { track: t ? t.id : null });
     if (t) input.recorder.noteOn(src, p, v, t.id, kind);
     input.emit('note', { src, kind, p, v, on: true, track: t ? t.id : null });
   };
   input.noteOff = (src, p, kind = 'midi') => {
-    const k = src + ':' + p, tid = live.get(k);
+    const k = src + ':' + p,
+      tid = live.get(k);
     live.delete(k);
-    if (tid) { try { app.engine.liveNoteOff(tid, p); } catch (e) { /* ok */ } }
+    if (tid) {
+      try {
+        app.engine.liveNoteOff(tid, p);
+      } catch (e) {
+        /* ok */
+      }
+    }
     input.capture.noteOff(kind, p);
     input.recorder.noteOff(src, p);
     input.emit('note', { src, kind, p, on: false, track: tid || null });
@@ -73,21 +99,35 @@ export default function (app) {
   // target changes while it is, its return to rest (the pedal's lift, the wheel back, CC 121) goes there too, so the
   // notes it held are let go where they sound (the note-offs follow the notes: `live`).
   const away = new Map(); // track id -> { sustain?, bend?, mod? } (only the ones away from rest; rest is false or 0)
-  const sendExpr = (id, x) => { try { app.engine.liveExpr?.(id, x); } catch (e) { /* ok */ } };
+  const sendExpr = (id, x) => {
+    try {
+      app.engine.liveExpr?.(id, x);
+    } catch (e) {
+      /* ok */
+    }
+  };
   input.expr = (src, x, kind = 'midi') => {
     const t = input.target();
     for (const [id, held] of away) {
       if (t && id === t.id) continue;
       const back = {};
-      for (const k of Object.keys(x)) if (k in held && !x[k]) { back[k] = x[k]; delete held[k]; }
+      for (const k of Object.keys(x))
+        if (k in held && !x[k]) {
+          back[k] = x[k];
+          delete held[k];
+        }
       if (Object.keys(back).length) sendExpr(id, back);
       if (!Object.keys(held).length) away.delete(id);
     }
     if (t) {
       sendExpr(t.id, x);
       const held = away.get(t.id) || {};
-      for (const [k, v] of Object.entries(x)) { if (v) held[k] = v; else delete held[k]; }
-      if (Object.keys(held).length) away.set(t.id, held); else away.delete(t.id);
+      for (const [k, v] of Object.entries(x)) {
+        if (v) held[k] = v;
+        else delete held[k];
+      }
+      if (Object.keys(held).length) away.set(t.id, held);
+      else away.delete(t.id);
     }
     input.emit('expr', { src, kind, ...x, track: t ? t.id : null });
   };
@@ -104,28 +144,88 @@ export default function (app) {
   // musical typing turned on with the keys aimed at a new track: the track is made first, so the strip names it and
   // the first key sounds there
   const qtoggle = input.qwerty.toggle;
-  input.qwerty.toggle = (on = !input.qwerty.on) => { if (on && !input.qwerty.on && !input.target()) input.recorder.keysTrack(); return qtoggle(on); };
+  input.qwerty.toggle = (on = !input.qwerty.on) => {
+    if (on && !input.qwerty.on && !input.target()) input.recorder.keysTrack();
+    return qtoggle(on);
+  };
 
   // the tap pads on the home row, while Tap is on (and the Sketch pane shows it)
-  const tapOn = () => input.mode === 'tap' && (!app.ui.visible || !app.ui.panels?.has('sketch') || app.ui.visible('sketch'));
-  for (const r of ROWS) app.ui.keys.add({ key: r.key, when: tapOn, run: (e) => { if (!e.repeat) input.tap.hit(r.id, e.shiftKey ? 1 : 0.8); }, label: `Tap: ${r.label}`, group: 'Tap' });
+  const tapOn = () =>
+    input.mode === 'tap' && (!app.ui.visible || !app.ui.panels?.has('sketch') || app.ui.visible('sketch'));
+  for (const r of ROWS)
+    app.ui.keys.add({
+      key: r.key,
+      when: tapOn,
+      run: (e) => {
+        if (!e.repeat) input.tap.hit(r.id, e.shiftKey ? 1 : 0.8);
+      },
+      label: `Tap: ${r.label}`,
+      group: 'Tap',
+    });
   app.ui.keys.add({ key: 'Escape', when: tapOn, run: () => input.setMode(null), label: 'Leave Tap', group: 'Tap' });
   app.ui.keys.add({ key: 'KeyH', run: () => toggleHum(), label: 'Hum it (start / stop)', group: 'Sketch' });
-  app.ui.keys.add({ key: 'KeyT', run: () => { app.ui.show?.('sketch'); input.emit('sketch:mode', 'tap'); input.setMode('tap'); }, label: 'Tap it (F J K L play the pads)', group: 'Sketch' });
-  app.ui.keys.add({ key: 'Escape', when: () => input.hum.active, run: () => input.hum.stop(), label: 'Stop humming', group: 'Sketch' });
+  app.ui.keys.add({
+    key: 'KeyT',
+    run: () => {
+      app.ui.show?.('sketch');
+      input.emit('sketch:mode', 'tap');
+      input.setMode('tap');
+    },
+    label: 'Tap it (F J K L play the pads)',
+    group: 'Sketch',
+  });
+  app.ui.keys.add({
+    key: 'Escape',
+    when: () => input.hum.active,
+    run: () => input.hum.stop(),
+    label: 'Stop humming',
+    group: 'Sketch',
+  });
   // while a take records (or counts in), Space stops it and keeps it; Shift+R puts the last phrase in the song
   const rec = input.recorder;
-  app.ui.keys.add({ key: 'Space', when: () => rec.state !== 'idle', run: () => (rec.state === 'count' ? rec.cancel() : rec.stop()), label: 'Stop and keep the take', group: 'Transport' });
-  app.ui.keys.add({ key: 'KeyR', mod: 'shift', run: () => rec.capture(), label: 'Put what you just played in the song', group: 'Transport' });
+  app.ui.keys.add({
+    key: 'Space',
+    when: () => rec.state !== 'idle',
+    run: () => (rec.state === 'count' ? rec.cancel() : rec.stop()),
+    label: 'Stop and keep the take',
+    group: 'Transport',
+  });
+  app.ui.keys.add({
+    key: 'KeyR',
+    mod: 'shift',
+    run: () => rec.capture(),
+    label: 'Put what you just played in the song',
+    group: 'Transport',
+  });
   // ⌘Z while a take runs is the take's: the last completed loop pass comes out (capture keeps it). The song's own undo
   // waits for the stop, so it never takes back an earlier take while this one records over it
-  app.ui.keys.add({ key: 'KeyZ', mod: 'mod', when: () => rec.state !== 'idle', run: () => undoPass(), label: 'While recording: take the last pass out', group: 'Transport' });
+  app.ui.keys.add({
+    key: 'KeyZ',
+    mod: 'mod',
+    when: () => rec.state !== 'idle',
+    run: () => undoPass(),
+    label: 'While recording: take the last pass out',
+    group: 'Transport',
+  });
   function undoPass() {
     const u = rec.state === 'rec' ? rec.undoPass() : null;
-    const say = (text) => { app.ui.toast?.(text, { ms: 3200 }); app.ui.announce?.(text); };
+    const say = (text) => {
+      app.ui.toast?.(text, { ms: 3200 });
+      app.ui.announce?.(text);
+    };
     const z = /Mac|iP(hone|ad|od)/.test(globalThis.navigator?.platform || '') ? '⌘Z' : 'Ctrl+Z';
-    if (!u) return say(rec.state === 'count' ? 'Nothing recorded yet. R calls the count-in off.' : `No finished pass to take out yet. Space keeps the take; ${z} after that undoes it.`);
-    const what = [u.notes ? `${u.notes} ${u.notes === 1 ? 'note' : 'notes'}` : '', u.moves ? `${u.moves} knob ${u.moves === 1 ? 'move' : 'moves'}` : ''].filter(Boolean).join(' and ');
+    if (!u)
+      return say(
+        rec.state === 'count'
+          ? 'Nothing recorded yet. R calls the count-in off.'
+          : `No finished pass to take out yet. Space keeps the take; ${z} after that undoes it.`,
+      );
+    const what = [
+      u.notes ? `${u.notes} ${u.notes === 1 ? 'note' : 'notes'}` : '',
+      u.moves ? `${u.moves} knob ${u.moves === 1 ? 'move' : 'moves'}` : '',
+    ]
+      .filter(Boolean)
+      .join(' and ');
     say(`Pass ${u.pass + 1} is out of the take${what ? ` (${what})` : ''}. Sketch keeps it.`);
   }
 
@@ -134,9 +234,12 @@ export default function (app) {
   async function toggleHum() {
     if (input.hum.active) return input.hum.stop();
     try {
-      app.ui.show?.('sketch'); input.emit('sketch:mode', 'hum');
+      app.ui.show?.('sketch');
+      input.emit('sketch:mode', 'hum');
       await input.hum.start({ withSong: !!input.options.withSong, rec: rec.state !== 'idle' });
-    } catch (e) { app.ui.toast(e.message, { kind: 'bad' }); }
+    } catch (e) {
+      app.ui.toast(e.message, { kind: 'bad' });
+    }
     return null;
   }
   input.toggleHum = toggleHum;

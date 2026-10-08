@@ -25,18 +25,34 @@ export const OUTDIR = process.env.OUTDIR || path.join(HERE, '.out');
 fs.mkdirSync(OUTDIR, { recursive: true });
 
 function findPlaywright() {
-  const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean);
-  for (const t of tries) { try { return require(t); } catch (e) { /* next */ } }
+  const tries = [
+    process.env.PLAYWRIGHT_CORE,
+    'playwright-core',
+    path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core'),
+  ].filter(Boolean);
+  for (const t of tries) {
+    try {
+      return require(t);
+    } catch (e) {
+      /* next */
+    }
+  }
   throw new Error('playwright-core not found: set PLAYWRIGHT_CORE or `npm i --no-save playwright-core`');
 }
 function findChromium() {
   if (process.env.CHROMIUM) return process.env.CHROMIUM;
   const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
   const cands = [];
-  if (fs.existsSync(base)) for (const d of fs.readdirSync(base)) {
-    if (d.startsWith('chromium_headless_shell')) cands.push(path.join(base, d, 'chrome-headless-shell-mac-arm64/chrome-headless-shell'));
-    if (d.startsWith('chromium-')) cands.push(path.join(base, d, 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'), path.join(base, d, 'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium'));
-  }
+  if (fs.existsSync(base))
+    for (const d of fs.readdirSync(base)) {
+      if (d.startsWith('chromium_headless_shell'))
+        cands.push(path.join(base, d, 'chrome-headless-shell-mac-arm64/chrome-headless-shell'));
+      if (d.startsWith('chromium-'))
+        cands.push(
+          path.join(base, d, 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'),
+          path.join(base, d, 'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium'),
+        );
+    }
   return cands.find((p) => fs.existsSync(p));
 }
 
@@ -51,43 +67,102 @@ export const TEXT = ['--font-render-hinting=none'];
 // Open an absolute URL (production checks): same browser setup, no local server.
 export async function openUrl(url, { width = 1440, height = 900, headed = !!process.env.HEADED } = {}) {
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
-  const browser = await pw.chromium.launch({ headless: !headed, executablePath: headed ? undefined : findChromium(), args });
+  const args = [
+    '--autoplay-policy=no-user-gesture-required',
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    ...QUIET,
+    ...TEXT,
+  ];
+  const browser = await pw.chromium.launch({
+    headless: !headed,
+    executablePath: headed ? undefined : findChromium(),
+    args,
+  });
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['microphone'] });
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.stack || e)));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + ((e && e.stack) || e)));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push('console: ' + m.text());
+  });
   await page.goto(url, { waitUntil: 'load' });
-  return { page, browser, context, url, errors, close: () => browser.close().catch(() => {}), shot: (name) => page.screenshot({ path: path.join(OUTDIR, name + '.png') }) };
+  return {
+    page,
+    browser,
+    context,
+    url,
+    errors,
+    close: () => browser.close().catch(() => {}),
+    shot: (name) => page.screenshot({ path: path.join(OUTDIR, name + '.png') }),
+  };
 }
 
 // Open a page on a fresh server. Collects console errors and page errors in `errors` (fail your test on them).
-export async function open(route = '/app/', { width = 1440, height = 900, headed = !!process.env.HEADED, fakeAudio = null, query = '' } = {}) {
+export async function open(
+  route = '/app/',
+  { width = 1440, height = 900, headed = !!process.env.HEADED, fakeAudio = null, query = '' } = {},
+) {
   await ready;
   const srv = await startServer({ port: 0, quiet: true });
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
+  const args = [
+    '--autoplay-policy=no-user-gesture-required',
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+    ...QUIET,
+    ...TEXT,
+  ];
   if (fakeAudio) args.push(`--use-file-for-fake-audio-capture=${fakeAudio}`);
   const exe = headed ? undefined : findChromium();
   const browser = await pw.chromium.launch({ headless: !headed, executablePath: exe, args });
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['microphone'] });
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.stack || e)));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + ((e && e.stack) || e)));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push('console: ' + m.text());
+  });
   const url = srv.url + route + (query ? (route.includes('?') ? '&' : '?') + query : '');
   await page.goto(url, { waitUntil: 'load' });
-  const close = async () => { await browser.close().catch(() => {}); await srv.close(); };
-  return { page, browser, context, url, base: srv.url, errors, close, shot: (name) => page.screenshot({ path: path.join(OUTDIR, name + '.png') }) };
+  const close = async () => {
+    await browser.close().catch(() => {});
+    await srv.close();
+  };
+  return {
+    page,
+    browser,
+    context,
+    url,
+    base: srv.url,
+    errors,
+    close,
+    shot: (name) => page.screenshot({ path: path.join(OUTDIR, name + '.png') }),
+  };
 }
 
 // Tiny assertion helpers that print ok/FAIL lines and keep a tally.
 export function tally(name) {
-  let fails = 0, oks = 0;
+  let fails = 0,
+    oks = 0;
   return {
-    ok(cond, msg) { if (cond) { oks++; console.log('  ok   ' + msg); } else { fails++; console.log('  FAIL ' + msg); } return !!cond; },
-    note(msg) { console.log('  ..   ' + msg); },
-    done() { console.log(`${name}: ${oks} ok, ${fails} failed`); if (fails) process.exitCode = 1; return fails === 0; },
+    ok(cond, msg) {
+      if (cond) {
+        oks++;
+        console.log('  ok   ' + msg);
+      } else {
+        fails++;
+        console.log('  FAIL ' + msg);
+      }
+      return !!cond;
+    },
+    note(msg) {
+      console.log('  ..   ' + msg);
+    },
+    done() {
+      console.log(`${name}: ${oks} ok, ${fails} failed`);
+      if (fails) process.exitCode = 1;
+      return fails === 0;
+    },
   };
 }

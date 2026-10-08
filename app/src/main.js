@@ -13,17 +13,26 @@ import { createShell } from './ui/shell.js';
 import { decideView, WORKSPACE_KEY } from './ui/workspace-view.js';
 import { installWorkspace } from './ui/workspace.js';
 
-const SAVE_KEY = 'overdub:project', PREV_KEY = 'overdub:previous';
+const SAVE_KEY = 'overdub:project',
+  PREV_KEY = 'overdub:previous';
 const params = new URLSearchParams(location.search);
 
 // Device libraries (each registers its devices on import). Missing ones are skipped so the studio still opens.
 const DEVICE_MODULES = ['./devices/builtin/index.js', './devices/guitar/index.js', './devices/library/index.js'];
 // The studio's panels and features, in load order.
 const MODULES = [
-  './ui/transport.js', './ui/arranger.js',
+  './ui/transport.js',
+  './ui/arranger.js',
   './ui/round.js', // ?view=round only (a prototype): the section as a circle, a ring per track, over the simple view
-  './ui/pianoroll.js', './ui/drumgrid.js', './ui/rack.js', './ui/mixer.js',
-  './ui/browser.js', './ui/inspector.js', './ui/export.js', './ui/sketch.js', './input/index.js',
+  './ui/pianoroll.js',
+  './ui/drumgrid.js',
+  './ui/rack.js',
+  './ui/mixer.js',
+  './ui/browser.js',
+  './ui/inspector.js',
+  './ui/export.js',
+  './ui/sketch.js',
+  './input/index.js',
   './agent/transforms-tool.js', // the `transform` tool (core/transforms.js); before the bridges so MCP clients list it
   './agent/arrange-tool.js', // "Build a band around it" (core/arrange.js): Sketch's Band button, Shift+B, the arrange_around tool
   './agent/arrangement-tool.js', // the arrange_song tool (core/arrangement.js: duplicate sections, insert/delete bars, repeat, split)
@@ -35,7 +44,10 @@ const MODULES = [
   './ui/jam.js', // the Jam room beside Arrange, and its tools (get_jam, make_jam_track, set_tone, show_on_fretboard)
   './ui/community.js', // the community shelf (From the community, in the Browser) and find_community_device; off unless on a local host
   './agent/sounds-tool.js', // suggest_sounds (sounds on the card, app.sounds.suggest); before the panel and the bridges
-  './agent/panel.js', './agent/history.js', './agent/presence.js', './agent/bridge.js',
+  './agent/panel.js',
+  './agent/history.js',
+  './agent/presence.js',
+  './agent/bridge.js',
   './agent/remote.js',
   './ui/devices-io.js', // export / import device files; ?device=<id> opens the song with that device on a track
   './ui/share.js', // share links (#s=…): the listening banner, Make it yours, the share_link tool
@@ -46,7 +58,12 @@ const MODULES = [
 ];
 
 async function tryImport(path) {
-  try { return await import(path); } catch (e) { console.warn(`overdub: ${path} did not load (${e.message})`); return null; }
+  try {
+    return await import(path);
+  } catch (e) {
+    console.warn(`overdub: ${path} did not load (${e.message})`);
+    return null;
+  }
 }
 
 // Which song devices run here (devices/trust.js): a kernel this browser trusts. Set up in boot().
@@ -60,17 +77,24 @@ let trust = null;
 // renders it, and the engine plays it as silence (an instrument) or a pass-through (an effect) until the person lets it
 // play. The held set is set first, so the engine's reconcile builds those stand-ins, not the fallback synth.
 function syncProjectDevices(store) {
-  const p = store.get(), have = p.devices || {};
+  const p = store.get(),
+    have = p.devices || {};
   const held = trust ? heldIn(p, (h) => trust.has(h)) : [];
   const heldIds = new Set(held.map((d) => d.id));
   devices.holdDevices(held);
   for (const src of Object.values(have)) {
     if (heldIds.has(src.id)) continue;
     const cur = devices.getDevice(src.id);
-    if (cur && cur.source === 'project' && cur.hash && cur.version === src.version && cur.kernel === src.kernel) continue;
-    try { devices.defineDevice({ ...src, source: 'project' }, { replace: true }); } catch (e) { console.error('project device', src.id, e.message); }
+    if (cur && cur.source === 'project' && cur.hash && cur.version === src.version && cur.kernel === src.kernel)
+      continue;
+    try {
+      devices.defineDevice({ ...src, source: 'project' }, { replace: true });
+    } catch (e) {
+      console.error('project device', src.id, e.message);
+    }
   }
-  for (const d of devices.listDevices()) if (d.source === 'project' && (!Object.hasOwn(have, d.id) || heldIds.has(d.id))) devices.removeDevice?.(d.id);
+  for (const d of devices.listDevices())
+    if (d.source === 'project' && (!Object.hasOwn(have, d.id) || heldIds.has(d.id))) devices.removeDevice?.(d.id);
 }
 
 // The studio's own kernels, trusted without asking: the built-ins and the house shelf as they registered at boot, and
@@ -78,7 +102,14 @@ function syncProjectDevices(store) {
 function shippedKernels(boot) {
   return () => {
     const out = [...boot];
-    for (const d of DEMOS) { try { for (const dev of Object.values(d.make().devices || {})) if (typeof dev?.kernel === 'string') out.push(dev.kernel); } catch (e) { /* a demo that won't build ships nothing */ } }
+    for (const d of DEMOS) {
+      try {
+        for (const dev of Object.values(d.make().devices || {}))
+          if (typeof dev?.kernel === 'string') out.push(dev.kernel);
+      } catch (e) {
+        /* a demo that won't build ships nothing */
+      }
+    }
     return out;
   };
 }
@@ -90,15 +121,33 @@ function trustOwnLink(res) {
   if (!trust || !res?.ok || !res.own || !trust.since) return 0;
   const at = Date.parse(res.at || '');
   if (!(at < trust.since)) return 0;
-  return trust.allow(Object.values(res.song?.devices || {}).map((d) => d?.kernel).filter((k) => typeof k === 'string'));
+  return trust.allow(
+    Object.values(res.song?.devices || {})
+      .map((d) => d?.kernel)
+      .filter((k) => typeof k === 'string'),
+  );
 }
 // The songs this browser kept before the trust set existed (the saved song, the previous one, the one before Make it
 // yours, Recent songs). Their devices were already running here, so the first run of this version trusts them, once.
 function keptSongs() {
   const out = [];
-  const one = (k) => { try { const s = localStorage.getItem(k); if (s) out.push(JSON.parse(s)); } catch (e) { /* unreadable: nothing to keep */ } };
-  one(SAVE_KEY); one(PREV_KEY); one('overdub:before-fork');
-  try { const r = JSON.parse(localStorage.getItem('overdub:recent') || '[]'); if (Array.isArray(r)) for (const e of r) if (e && e.song) out.push(e.song); } catch (e) { /* none */ }
+  const one = (k) => {
+    try {
+      const s = localStorage.getItem(k);
+      if (s) out.push(JSON.parse(s));
+    } catch (e) {
+      /* unreadable: nothing to keep */
+    }
+  };
+  one(SAVE_KEY);
+  one(PREV_KEY);
+  one('overdub:before-fork');
+  try {
+    const r = JSON.parse(localStorage.getItem('overdub:recent') || '[]');
+    if (Array.isArray(r)) for (const e of r) if (e && e.song) out.push(e.song);
+  } catch (e) {
+    /* none */
+  }
   return out;
 }
 
@@ -113,7 +162,9 @@ function migrateLegacyStorage() {
       const nk = 'overdub:' + k.slice(old.length);
       if (localStorage.getItem(nk) == null) localStorage.setItem(nk, localStorage.getItem(k));
     }
-  } catch (e) { /* storage blocked: nothing to carry */ }
+  } catch (e) {
+    /* storage blocked: nothing to carry */
+  }
 }
 
 let opened = 'demo'; // how the song was opened (app.opened): 'new' | 'demo' | 'saved'
@@ -131,16 +182,40 @@ function putAside(next) {
     if (!s) return next;
     const p = cleanProject(JSON.parse(s));
     const body = (x) => JSON.stringify([x.title, x.tempo, x.meter, x.key, x.tracks, x.sections, x.master, x.devices]);
-    const blank = !p.tracks.length && !p.sections.length && !Object.keys(p.devices).length && /^untitled$/i.test(p.title || 'Untitled');
-    if (!blank && !(p.id === next.id && body(p) === body(cleanProject(next)))) { localStorage.setItem(PREV_KEY, s); displaced = p; }
-  } catch (e) { /* storage blocked, or a saved song that can't be read: nothing here to keep */ }
+    const blank =
+      !p.tracks.length &&
+      !p.sections.length &&
+      !Object.keys(p.devices).length &&
+      /^untitled$/i.test(p.title || 'Untitled');
+    if (!blank && !(p.id === next.id && body(p) === body(cleanProject(next)))) {
+      localStorage.setItem(PREV_KEY, s);
+      displaced = p;
+    }
+  } catch (e) {
+    /* storage blocked, or a saved song that can't be read: nothing here to keep */
+  }
   return next;
 }
 function loadSaved() {
-  if (params.has('new')) { opened = 'new'; return putAside(createProject()); }
+  if (params.has('new')) {
+    opened = 'new';
+    return putAside(createProject());
+  }
   if (params.has('demo')) return putAside(demoById(params.get('demo')));
-  try { const s = localStorage.getItem(SAVE_KEY); if (s) { const p = cleanProject(JSON.parse(s)); opened = 'saved'; return p; } } catch (e) { console.warn('overdub: saved project unreadable, starting the demo', e); }
-  if (workspace.view === 'simple') { opened = 'new'; return createProject(); }
+  try {
+    const s = localStorage.getItem(SAVE_KEY);
+    if (s) {
+      const p = cleanProject(JSON.parse(s));
+      opened = 'saved';
+      return p;
+    }
+  } catch (e) {
+    console.warn('overdub: saved project unreadable, starting the demo', e);
+  }
+  if (workspace.view === 'simple') {
+    opened = 'new';
+    return createProject();
+  }
   return demoProject();
 }
 
@@ -148,7 +223,15 @@ function loadSaved() {
 function stylesheetsLoaded() {
   const links = [...document.querySelectorAll('link[rel="stylesheet"]')].filter((l) => !l.sheet);
   return Promise.race([
-    Promise.all(links.map((l) => new Promise((r) => { l.addEventListener('load', r, { once: true }); l.addEventListener('error', r, { once: true }); }))),
+    Promise.all(
+      links.map(
+        (l) =>
+          new Promise((r) => {
+            l.addEventListener('load', r, { once: true });
+            l.addEventListener('error', r, { once: true });
+          }),
+      ),
+    ),
     new Promise((r) => setTimeout(r, 3000)),
   ]);
 }
@@ -158,9 +241,23 @@ async function boot() {
   // the view, before anything writes overdub:layout (an existing user's sign) or the song
   {
     let storage = null;
-    try { storage = window.localStorage; } catch (e) { /* blocked */ }
+    try {
+      storage = window.localStorage;
+    } catch (e) {
+      /* blocked */
+    }
     workspace = decideView({ search: location.search, storage, webdriver: !!navigator.webdriver });
-    if (workspace.persist) { try { const cur = JSON.parse(storage?.getItem(WORKSPACE_KEY) || 'null'); storage?.setItem(WORKSPACE_KEY, JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view })); } catch (e) { /* private mode */ } }
+    if (workspace.persist) {
+      try {
+        const cur = JSON.parse(storage?.getItem(WORKSPACE_KEY) || 'null');
+        storage?.setItem(
+          WORKSPACE_KEY,
+          JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view }),
+        );
+      } catch (e) {
+        /* private mode */
+      }
+    }
   }
   // Fetch every graph at once (an import runs nothing until default(app)); they start below, in order. One after
   // another, the panels' fetches took ~250 ms each and the studio ~12 s to finish booting.
@@ -172,7 +269,14 @@ async function boot() {
 
   // which song devices run here: the studio's own, and kernels this browser trusts (devices/trust.js). The first run of
   // this version trusts the devices of the songs it already kept, once, so nobody's own song goes quiet on update
-  trust = createTrust({ shipped: shippedKernels(devices.listDevices().filter((d) => d.source !== 'project' && typeof d.kernel === 'string').map((d) => d.kernel)) });
+  trust = createTrust({
+    shipped: shippedKernels(
+      devices
+        .listDevices()
+        .filter((d) => d.source !== 'project' && typeof d.kernel === 'string')
+        .map((d) => d.kernel),
+    ),
+  });
   if (!trust.stored) trust.migrate(keptSongs());
 
   // a share link (#s=…) opens that song to listen to; your saved song is untouched until you make it yours (ui/share.js)
@@ -196,13 +300,30 @@ async function boot() {
     if (e.kind === 'load' || e.reverted || e.ops.some((o) => o.type?.startsWith('device.'))) syncProjectDevices(store);
   });
   // another tab let a device play (or this one's storage was cleared): read the set again
-  window.addEventListener('storage', (e) => { if (e.key === TRUST_KEY || e.key == null) { trust.reload(); syncProjectDevices(store); } });
+  window.addEventListener('storage', (e) => {
+    if (e.key === TRUST_KEY || e.key == null) {
+      trust.reload();
+      syncProjectDevices(store);
+    }
+  });
 
   // the engine (a silent stand-in if it isn't there, so the UI still works)
   const em = await engineLoading;
   const engine = em ? em.createEngine(store) : silentEngine(store);
 
-  const app = { store, engine, devices, music, summarize: (o) => summarize(store.get(), { ...o, devices: devices.getDevice, held: devices.heldDevice }), version: '0.1.0', agent: null, tools: null, input: null, opened, round: !!workspace.round };
+  const app = {
+    store,
+    engine,
+    devices,
+    music,
+    summarize: (o) => summarize(store.get(), { ...o, devices: devices.getDevice, held: devices.heldDevice }),
+    version: '0.1.0',
+    agent: null,
+    tools: null,
+    input: null,
+    opened,
+    round: !!workspace.round,
+  };
   if (shared) app.share = { incoming: shared, listening: !!shared.ok };
   // app.trust: what's held, and the person's way to let it play (ui/share.js and the rack call play; no agent tool does)
   app.trust = {
@@ -222,11 +343,23 @@ async function boot() {
       return { ok: true, played: list };
     },
     // kernels this browser takes in (an imported device file, an agent's define_device): trusted from now on
-    allow(sources) { const n = trust.allow(sources); syncProjectDevices(store); return n; },
+    allow(sources) {
+      const n = trust.allow(sources);
+      syncProjectDevices(store);
+      return n;
+    },
     // the community shelf's Try (ui/community.js): for this page load only (a reload holds it again), and taking a
     // hash back (a Try whose dispatch failed after its allow, or one taken off the shelf). -> n
-    allowForNow(sources) { const n = trust.allowForNow(sources); syncProjectDevices(store); return n; },
-    forget(sources) { const n = trust.forget(sources); syncProjectDevices(store); return n; },
+    allowForNow(sources) {
+      const n = trust.allowForNow(sources);
+      syncProjectDevices(store);
+      return n;
+    },
+    forget(sources) {
+      const n = trust.forget(sources);
+      syncProjectDevices(store);
+      return n;
+    },
     forNow: (source) => trust.forNow(kernelHash(source)),
     // a link opened in this tab (ui/share.js): one this browser made before its trusted set began opens as yours
     ownLink: (res) => trustOwnLink(res),
@@ -235,11 +368,22 @@ async function boot() {
   window.overdub = app;
   app.ui = createShell(root, app);
   // the workspace (ui/workspace.js): which features are on screen, More, the view switch; before the panels register
-  try { installWorkspace(app.ui, app, workspace); } catch (e) { console.error('overdub: the workspace failed to start', e); }
+  try {
+    installWorkspace(app.ui, app, workspace);
+  } catch (e) {
+    console.error('overdub: the workspace failed to start', e);
+  }
 
   // undo / redo (everyone's, newest first): before the panels, so ⌘Z works while they load
-  const undo = () => { const r = store.undo(); if (!r.ok) app.ui.toast(r.error); else app.ui.toast(`Undid "${r.txn.label}"${store.isAgent(r.txn.by) ? ` (by ${store.author(r.txn.by).name})` : ''}`); };
-  const redo = () => { const r = store.redo(); if (!r.ok) app.ui.toast(r.error); };
+  const undo = () => {
+    const r = store.undo();
+    if (!r.ok) app.ui.toast(r.error);
+    else app.ui.toast(`Undid "${r.txn.label}"${store.isAgent(r.txn.by) ? ` (by ${store.author(r.txn.by).name})` : ''}`);
+  };
+  const redo = () => {
+    const r = store.redo();
+    if (!r.ok) app.ui.toast(r.error);
+  };
   app.ui.keys.add({ key: 'KeyZ', mod: 'mod', run: undo, label: 'Undo', group: 'Edit' });
   app.ui.keys.add({ key: 'KeyZ', mod: 'mod+shift', run: redo, label: 'Redo', group: 'Edit', feature: 'redo' });
   app.ui.keys.add({ key: 'KeyY', mod: 'mod', run: redo, label: 'Redo', group: 'Edit', feature: 'redo' });
@@ -247,35 +391,86 @@ async function boot() {
   // the panels and features, started in MODULES order as each one's graph arrives
   for (let i = 0; i < MODULES.length; i++) {
     const mod = await loading[i];
-    if (mod?.default) { try { await mod.default(app); } catch (e) { console.error(`overdub: ${MODULES[i]} failed to start`, e); } }
+    if (mod?.default) {
+      try {
+        await mod.default(app);
+      } catch (e) {
+        console.error(`overdub: ${MODULES[i]} failed to start`, e);
+      }
+    }
   }
 
   // autosave (the song only; audio lives in IndexedDB)
   let saveT = 0;
-  const save = () => { saveT = 0; try { localStorage.setItem(SAVE_KEY, JSON.stringify(store.get())); } catch (e) { app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' }); } };
-  store.on('change', () => { clearTimeout(saveT); saveT = 0; if (app.share?.listening) return; saveT = setTimeout(save, 500); });
+  const save = () => {
+    saveT = 0;
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(store.get()));
+    } catch (e) {
+      app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' });
+    }
+  };
+  store.on('change', () => {
+    clearTimeout(saveT);
+    saveT = 0;
+    if (app.share?.listening) return;
+    saveT = setTimeout(save, 500);
+  });
   // a page going away saves what's waiting (a sound on trial let go as the tab hides is the song's last change)
-  const flush = () => { if (!saveT) return; clearTimeout(saveT); save(); };
+  const flush = () => {
+    if (!saveT) return;
+    clearTimeout(saveT);
+    save();
+  };
   window.addEventListener('pagehide', flush);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flush();
+  });
 
   // audio starts on the first gesture (browsers require one)
-  const wake = async () => { try { await engine.start(); } catch (e) { console.error('engine start', e); app.ui.toast('Audio could not start: ' + e.message, { kind: 'bad' }); } };
+  const wake = async () => {
+    try {
+      await engine.start();
+    } catch (e) {
+      console.error('engine start', e);
+      app.ui.toast('Audio could not start: ' + e.message, { kind: 'bad' });
+    }
+  };
   window.addEventListener('pointerdown', wake, { once: true, capture: true });
   window.addEventListener('keydown', wake, { once: true, capture: true });
   if (params.has('autostart')) wake();
 
   if (displaced) {
-    const kept = displaced, what = opened === 'new' ? 'New song.' : `Opened the demo, “${store.get().title}”.`;
+    const kept = displaced,
+      what = opened === 'new' ? 'New song.' : `Opened the demo, “${store.get().title}”.`;
     // in Recent songs (the Song menu), like a song any other way in replaced: not only in overdub:previous, which
     // nothing on screen reads
-    if (app.exporter?.putAside) app.exporter.putAside(kept, `${what} “${kept.title}” is in Recent songs, and Undo brings it back.`);
-    else app.ui.toast(`${what} “${kept.title}” is kept: Undo brings it back.`, { kind: 'ok', ms: 9000, action: { label: 'Undo', run: () => { store.load(kept, { by: 'you' }); app.ui.toast(`Back to “${kept.title}”`); } } });
+    if (app.exporter?.putAside)
+      app.exporter.putAside(kept, `${what} “${kept.title}” is in Recent songs, and Undo brings it back.`);
+    else
+      app.ui.toast(`${what} “${kept.title}” is kept: Undo brings it back.`, {
+        kind: 'ok',
+        ms: 9000,
+        action: {
+          label: 'Undo',
+          run: () => {
+            store.load(kept, { by: 'you' });
+            app.ui.toast(`Back to “${kept.title}”`);
+          },
+        },
+      });
   }
   // ?new and ?demo= have done their job: off the address, so a reload (or a restored tab) opens the song saved here,
   // not the demo again over your edits to it (the modules that read the address have read it by now)
   if (params.has('new') || params.has('demo')) {
-    try { const u = new URL(location.href); u.searchParams.delete('new'); u.searchParams.delete('demo'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* fine */ }
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete('new');
+      u.searchParams.delete('demo');
+      history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+    } catch (e) {
+      /* fine */
+    }
   }
 
   document.documentElement.dataset.ready = '1';
@@ -289,21 +484,75 @@ async function boot() {
 // A stand-in engine with the right shape and no sound.
 function silentEngine(store) {
   const fns = new Map();
-  let beat = 0, playing = false;
+  let beat = 0,
+    playing = false;
   return {
-    ctx: null, silent: true, metronome: false, meters: { tracks: {}, master: { peak: -120, rms: -120 } },
-    click: { on: false, whileRecording: false, level: 0 }, recording: false, counting: null, gridBeat: null, beatAt() { return beat; },
-    async start() {}, play(b) { if (b != null) beat = b; playing = true; }, stop() { playing = false; }, seek(b) { beat = b; }, toggle() { playing = !playing; },
-    get playing() { return playing; }, get beat() { return beat; },
-    on(t, fn) { if (!fns.has(t)) fns.set(t, new Set()); fns.get(t).add(fn); return () => fns.get(t).delete(fn); },
-    liveNoteOn() {}, liveNoteOff() {}, audition() {}, inputNode() { return null; }, instance() { return null; },
-    masterTap: null, clock: null, async render() { throw new Error('the audio engine is not loaded'); },
-    songEnd: () => 32, beatToSec: (b) => (b * 60) / store.get().tempo, secToBeat: (s) => (s * store.get().tempo) / 60,
-    assets: { async put() {}, async get() { return null; } },
+    ctx: null,
+    silent: true,
+    metronome: false,
+    meters: { tracks: {}, master: { peak: -120, rms: -120 } },
+    click: { on: false, whileRecording: false, level: 0 },
+    recording: false,
+    counting: null,
+    gridBeat: null,
+    beatAt() {
+      return beat;
+    },
+    async start() {},
+    play(b) {
+      if (b != null) beat = b;
+      playing = true;
+    },
+    stop() {
+      playing = false;
+    },
+    seek(b) {
+      beat = b;
+    },
+    toggle() {
+      playing = !playing;
+    },
+    get playing() {
+      return playing;
+    },
+    get beat() {
+      return beat;
+    },
+    on(t, fn) {
+      if (!fns.has(t)) fns.set(t, new Set());
+      fns.get(t).add(fn);
+      return () => fns.get(t).delete(fn);
+    },
+    liveNoteOn() {},
+    liveNoteOff() {},
+    audition() {},
+    inputNode() {
+      return null;
+    },
+    instance() {
+      return null;
+    },
+    masterTap: null,
+    clock: null,
+    async render() {
+      throw new Error('the audio engine is not loaded');
+    },
+    songEnd: () => 32,
+    beatToSec: (b) => (b * 60) / store.get().tempo,
+    secToBeat: (s) => (s * store.get().tempo) / 60,
+    assets: {
+      async put() {},
+      async get() {
+        return null;
+      },
+    },
   };
 }
 
 boot().catch((e) => {
   console.error('overdub: boot failed', e);
-  document.body.insertAdjacentHTML('beforeend', `<pre style="color:#ff6b81;padding:20px;white-space:pre-wrap">Overdub could not start: ${String(e && e.stack || e).replace(/</g, '&lt;')}</pre>`);
+  document.body.insertAdjacentHTML(
+    'beforeend',
+    `<pre style="color:#ff6b81;padding:20px;white-space:pre-wrap">Overdub could not start: ${String((e && e.stack) || e).replace(/</g, '&lt;')}</pre>`,
+  );
 });

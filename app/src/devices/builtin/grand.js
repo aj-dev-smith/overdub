@@ -19,7 +19,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const GRAND_HASH = 'sha256-15cab44d14055d312f55e04bee8f54ca1cc99d6bc8e78ba9f1c1cb34a73eb58e';
 
 export default defineDevice({
-  id: 'core.grand', name: 'Full Stick', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.grand',
+  name: 'Full Stick',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real concert grand, sampled, the lid wide open',
   nod: 'Salamander Grand Piano V3 (Alexander Holm, public domain): a six-foot-seven grand, three velocity layers',
   data: { kit: GRAND_HASH },
@@ -32,7 +36,15 @@ export default defineDevice({
     { name: 'Staccato', params: { release: 0.1 }, blurb: 'the dampers drop at once' },
     { name: 'Wide dynamics', params: { dynamics: 140 }, blurb: 'soft notes softer still, for a solo' },
   ],
-  look: { color: '#141414', ink: '#efe9dc', shape: 'wide', finish: 'flat', knob: 'chrome', label: 'script', led: '#f4f1e8' },
+  look: {
+    color: '#141414',
+    ink: '#efe9dc',
+    shape: 'wide',
+    finish: 'flat',
+    knob: 'chrome',
+    label: 'script',
+    led: '#f4f1e8',
+  },
   tail: 6,
   kernel: samplerKernel({ makeup: 0.9, poly: 32, xfade: 6, law: 'aligned' }),
 });

@@ -18,20 +18,36 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const UPRIGHT_HASH = 'sha256-cc1e7ab496aafa7f73b44b45fa0f9bdb96015c6b3ca2ff1fe29d6565a17ece86';
 
 export default defineDevice({
-  id: 'core.upright', name: 'Parlour Upright', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.upright',
+  name: 'Parlour Upright',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real upright piano in a living room, sampled',
   nod: 'Upright Piano KW (FreePats, CC0): a Kawai upright, two velocity layers across the keyboard',
   data: { kit: UPRIGHT_HASH },
   params: samplerParams({ release: 0.6 }),
   presets: [
-    { name: 'Parlour', params: {}, blurb: 'the piano as recorded, from the player\'s seat' },
+    { name: 'Parlour', params: {}, blurb: "the piano as recorded, from the player's seat" },
     { name: 'Even', params: { dynamics: 55 }, blurb: 'soft and hard notes closer together, for a busy mix' },
-    { name: 'Felt', params: { tone: -70, dynamics: 80, release: 0.9 }, blurb: 'darker and rounder, the dampers slower' },
+    {
+      name: 'Felt',
+      params: { tone: -70, dynamics: 80, release: 0.9 },
+      blurb: 'darker and rounder, the dampers slower',
+    },
     { name: 'Bright', params: { tone: 45 }, blurb: 'tilted up, to cut through' },
     { name: 'Staccato', params: { release: 0.12 }, blurb: 'the dampers drop at once' },
     { name: 'Old tuning', params: { tune: -32 }, blurb: 'a third of a semitone flat, near A = 432' },
   ],
-  look: { color: '#4a2f24', ink: '#f1e6d2', shape: 'wide', finish: 'wood', knob: 'cream', label: 'script', led: '#ffcf7a' },
+  look: {
+    color: '#4a2f24',
+    ink: '#f1e6d2',
+    shape: 'wide',
+    finish: 'wood',
+    knob: 'cream',
+    label: 'script',
+    led: '#ffcf7a',
+  },
   tail: 6,
   kernel: samplerKernel({ makeup: 0.7, poly: 32, xfade: 6, law: 'aligned' }),
 });

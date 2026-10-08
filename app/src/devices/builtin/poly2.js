@@ -21,28 +21,122 @@ import { kernel } from './lib.js';
 import { TABLES } from './tables.js';
 
 export default defineDevice({
-  id: 'core.poly2', name: 'Step Ladder', kind: 'instrument', cat: 'synth', by: 'overdub',
+  id: 'core.poly2',
+  name: 'Step Ladder',
+  kind: 'instrument',
+  cat: 'synth',
+  by: 'overdub',
   blurb: 'A ladder-filter poly: warm saws, supersaws, PWM',
   nod: 'an analogue polysynth with a 24 dB ladder filter, a supersaw and a chorus',
   params: [
-    { key: 'wave', label: 'WAVE', opts: ['SAW', 'SUPER', 'PULSE'], def: 0, role: 'shape', desc: 'three warm saws, the seven-saw supersaw, or two pulses sweeping' },
-    { key: 'detune', label: 'DETUNE', min: 0, max: 1, def: 0.2, role: 'width', desc: 'how far apart the oscillators are: tight to huge' },
-    { key: 'cutoff', label: 'CUTOFF', min: 40, max: 16000, def: 900, curve: 'log', unit: 'Hz', role: 'tone', desc: 'where the ladder filter closes (it follows the keys)' },
-    { key: 'reso', label: 'RESO', min: 0, max: 1, def: 0.25, role: 'tone', desc: 'the ladder\'s peak at the cutoff; at the top it whistles' },
-    { key: 'env', label: 'ENV', min: 0, max: 1, def: 0.45, role: 'depth', desc: 'how far each note opens the filter (and how much harder playing opens it)' },
-    { key: 'attack', label: 'ATTACK', min: 0.001, max: 4, def: 0.004, curve: 'log', unit: 's', role: 'attack', desc: 'fade-in time: pluck to swell' },
-    { key: 'decay', label: 'DECAY', min: 0.03, max: 4, def: 0.5, curve: 'log', unit: 's', role: 'decay', desc: 'how fast the filter falls back after it opens' },
-    { key: 'release', label: 'RELEASE', min: 0.005, max: 6, def: 0.3, curve: 'log', unit: 's', role: 'release', desc: 'tail after the key lets go' },
+    {
+      key: 'wave',
+      label: 'WAVE',
+      opts: ['SAW', 'SUPER', 'PULSE'],
+      def: 0,
+      role: 'shape',
+      desc: 'three warm saws, the seven-saw supersaw, or two pulses sweeping',
+    },
+    {
+      key: 'detune',
+      label: 'DETUNE',
+      min: 0,
+      max: 1,
+      def: 0.2,
+      role: 'width',
+      desc: 'how far apart the oscillators are: tight to huge',
+    },
+    {
+      key: 'cutoff',
+      label: 'CUTOFF',
+      min: 40,
+      max: 16000,
+      def: 900,
+      curve: 'log',
+      unit: 'Hz',
+      role: 'tone',
+      desc: 'where the ladder filter closes (it follows the keys)',
+    },
+    {
+      key: 'reso',
+      label: 'RESO',
+      min: 0,
+      max: 1,
+      def: 0.25,
+      role: 'tone',
+      desc: "the ladder's peak at the cutoff; at the top it whistles",
+    },
+    {
+      key: 'env',
+      label: 'ENV',
+      min: 0,
+      max: 1,
+      def: 0.45,
+      role: 'depth',
+      desc: 'how far each note opens the filter (and how much harder playing opens it)',
+    },
+    {
+      key: 'attack',
+      label: 'ATTACK',
+      min: 0.001,
+      max: 4,
+      def: 0.004,
+      curve: 'log',
+      unit: 's',
+      role: 'attack',
+      desc: 'fade-in time: pluck to swell',
+    },
+    {
+      key: 'decay',
+      label: 'DECAY',
+      min: 0.03,
+      max: 4,
+      def: 0.5,
+      curve: 'log',
+      unit: 's',
+      role: 'decay',
+      desc: 'how fast the filter falls back after it opens',
+    },
+    {
+      key: 'release',
+      label: 'RELEASE',
+      min: 0.005,
+      max: 6,
+      def: 0.3,
+      curve: 'log',
+      unit: 's',
+      role: 'release',
+      desc: 'tail after the key lets go',
+    },
   ],
   presets: [
     { name: 'Warm poly', params: {} },
-    { name: 'Supersaw', params: { wave: 1, detune: 0.45, cutoff: 3500, reso: 0.1, env: 0.35, decay: 0.8, release: 0.45 } },
-    { name: 'Ladder bass', params: { wave: 0, detune: 0.1, cutoff: 260, reso: 0.55, env: 0.7, decay: 0.25, release: 0.08 } },
-    { name: 'PWM strings', params: { wave: 2, detune: 0.35, cutoff: 2200, reso: 0.1, env: 0.15, attack: 0.35, decay: 1.5, release: 0.9 } },
+    {
+      name: 'Supersaw',
+      params: { wave: 1, detune: 0.45, cutoff: 3500, reso: 0.1, env: 0.35, decay: 0.8, release: 0.45 },
+    },
+    {
+      name: 'Ladder bass',
+      params: { wave: 0, detune: 0.1, cutoff: 260, reso: 0.55, env: 0.7, decay: 0.25, release: 0.08 },
+    },
+    {
+      name: 'PWM strings',
+      params: { wave: 2, detune: 0.35, cutoff: 2200, reso: 0.1, env: 0.15, attack: 0.35, decay: 1.5, release: 0.9 },
+    },
   ],
-  look: { color: '#23252b', ink: '#e9e4d6', shape: 'rack', finish: 'brushed', knob: 'black', label: 'plate', led: '#ff9f43' },
+  look: {
+    color: '#23252b',
+    ink: '#e9e4d6',
+    shape: 'rack',
+    finish: 'brushed',
+    knob: 'black',
+    label: 'plate',
+    led: '#ff9f43',
+  },
   tail: 6,
-  kernel: kernel(TABLES + String.raw`
+  kernel: kernel(
+    TABLES +
+      String.raw`
 // the supersaw's seven offsets (relative, at full detune) and the curve that spreads them (Szabo 2010)
 const SS = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01991221, 0.06216538, 0.10745242];
 const ssAmt = (x) => ((((((((((10028.7312891634 * x - 50818.8652045924) * x + 111363.4808729368) * x - 138150.6761080548) * x + 106649.6679158292) * x - 53046.9642751875) * x + 17019.951858008) * x - 3425.0836591318) * x + 404.2703938388) * x - 24.1878824391) * x + 0.6717417634) * x + 0.0030115596;
@@ -167,5 +261,6 @@ return {
     };
   },
 };
-`),
+`,
+  ),
 });

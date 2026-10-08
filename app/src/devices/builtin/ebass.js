@@ -17,7 +17,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const EBASS_HASH = 'sha256-9ecd56b866304181640c5cb0bd12a1ab88057a107bbaf2143ca46fd867a09e10';
 
 export default defineDevice({
-  id: 'core.ebass', name: 'Roundwound', kind: 'instrument', cat: 'bass', by: 'overdub',
+  id: 'core.ebass',
+  name: 'Roundwound',
+  kind: 'instrument',
+  cat: 'bass',
+  by: 'overdub',
   blurb: 'A real five-string bass, sampled, played with the fingers',
   nod: 'Black And Blue Basses (Karoryfer Samples, CC0): the dark black five-string, four dynamics, two plucks each',
   data: { kit: EBASS_HASH },
@@ -29,7 +33,15 @@ export default defineDevice({
     { name: 'Bright', params: { tone: 45 }, blurb: 'more string, to cut through' },
     { name: 'Held', params: { release: 0.6 }, blurb: 'notes ring a little after the hand lets go' },
   ],
-  look: { color: '#1d1f24', ink: '#d8dde6', shape: 'wide', finish: 'flat', knob: 'black', label: 'block', led: '#7aa7ff' },
+  look: {
+    color: '#1d1f24',
+    ink: '#d8dde6',
+    shape: 'wide',
+    finish: 'flat',
+    knob: 'black',
+    label: 'block',
+    led: '#7aa7ff',
+  },
   tail: 4,
   kernel: samplerKernel({ makeup: 0.68, poly: 16, xfade: 6, law: 'aligned' }),
 });

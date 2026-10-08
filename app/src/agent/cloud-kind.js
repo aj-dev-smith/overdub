@@ -15,15 +15,22 @@ import { WORDS } from './lexicon.js';
 export const KINDS = ['quick_change', 'question', 'new_part', 'new_instrument'];
 
 const MAKE = /^(make|build|write|design|create|code)$/;
-const INSTRUMENT = /^(synths?|instruments?|pedals?|effects?|fx|plugins?|reverbs?|delays?|distortions?|fuzz(es)?|compressors?|filters?|devices?)$/;
+const INSTRUMENT =
+  /^(synths?|instruments?|pedals?|effects?|fx|plugins?|reverbs?|delays?|distortions?|fuzz(es)?|compressors?|filters?|devices?)$/;
 const NOT_MAKING = /^(use|load|find|try)$/;
 const PART_VERB = /^(add|write|make|compose)$/;
-const PART = /^(bass|basslines?|melod(y|ies)|counter|counter-?melod(y|ies)|harmon(y|ies)|parts?|tracks?|lines?|riffs?|chorus|verses?|intros?|outros?|drums?|beats?|pads?|arps?)$/;
+const PART =
+  /^(bass|basslines?|melod(y|ies)|counter|counter-?melod(y|ies)|harmon(y|ies)|parts?|tracks?|lines?|riffs?|chorus|verses?|intros?|outros?|drums?|beats?|pads?|arps?)$/;
 const TAKES = /\b(takes|variations|options|versions)\b/;
 const QUESTION_START = /^(why|what|how|which|is|does|should|can you tell)\b/;
-const NEAR = 5;   // words between the verb and what it makes
+const NEAR = 5; // words between the verb and what it makes
 
-const words = (text) => String(text || '').toLowerCase().replace(/[“”"’']/g, '').split(/[^a-z0-9-]+/).filter(Boolean);
+const words = (text) =>
+  String(text || '')
+    .toLowerCase()
+    .replace(/[“”"’']/g, '')
+    .split(/[^a-z0-9-]+/)
+    .filter(Boolean);
 // is there a making verb with one of `nouns` up to NEAR words after it (and no "use"/"load"/… between)?
 function makes(ws, verb, nouns, { giveMe = false } = {}) {
   for (let i = 0; i < ws.length; i++) {
@@ -41,17 +48,24 @@ export function classify({ text = '', hint = null } = {}) {
   if (hint && KINDS.includes(hint)) return { kind: hint, why: 'picked', alternatives: KINDS };
   const t = String(text).trim().toLowerCase();
   const ws = words(t);
-  if (ws.some((w) => NOT_MAKING.test(w)) && !ws.some((w) => MAKE.test(w))) { /* using a device is not making one */ }
-  else if (makes(ws, MAKE, INSTRUMENT)) return { kind: 'new_instrument', why: 'makes a device', alternatives: KINDS };
-  if (makes(ws, PART_VERB, PART, { giveMe: true }) || TAKES.test(t)) return { kind: 'new_part', why: 'makes a part', alternatives: KINDS };
+  if (ws.some((w) => NOT_MAKING.test(w)) && !ws.some((w) => MAKE.test(w))) {
+    /* using a device is not making one */
+  } else if (makes(ws, MAKE, INSTRUMENT)) return { kind: 'new_instrument', why: 'makes a device', alternatives: KINDS };
+  if (makes(ws, PART_VERB, PART, { giveMe: true }) || TAKES.test(t))
+    return { kind: 'new_part', why: 'makes a part', alternatives: KINDS };
   const verb = ws.some((w) => MAKE.test(w) || PART_VERB.test(w));
-  if ((t.endsWith('?') || QUESTION_START.test(t)) && !verb) return { kind: 'question', why: 'asks', alternatives: KINDS };
+  if ((t.endsWith('?') || QUESTION_START.test(t)) && !verb)
+    return { kind: 'question', why: 'asks', alternatives: KINDS };
   return { kind: 'quick_change', why: 'changes something', alternatives: KINDS };
 }
 
 // Exact forms only: anything looser is an ask for the agent (and gets the price chip).
 export function freeMove(text, { devices = [], hasTrack = false } = {}) {
-  const t = String(text || '').trim().toLowerCase().replace(/[.!]+$/, '').replace(/\s+/g, ' ');
+  const t = String(text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.!]+$/, '')
+    .replace(/\s+/g, ' ');
   if (!t) return null;
   const use = /^(use|load|add|try) (?:the |a |an )?(.+)$/.exec(t);
   if (use) {

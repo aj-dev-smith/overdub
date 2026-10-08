@@ -7,16 +7,57 @@ import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
 
 export default defineDevice({
-  id: 'core.limiter', name: 'Red Line', kind: 'effect', cat: 'dynamics', by: 'overdub',
+  id: 'core.limiter',
+  name: 'Red Line',
+  kind: 'effect',
+  cat: 'dynamics',
+  by: 'overdub',
   blurb: 'Brickwall master limiter: loud, clean, never over',
   nod: 'a transparent look-ahead mastering limiter',
   params: [
-    { key: 'gain', label: 'GAIN', min: 0, max: 24, def: 0, unit: 'dB', role: 'drive', desc: 'push into the limiter: louder, then squashed' },
-    { key: 'ceiling', label: 'CEILING', min: -12, max: 0, def: -1, unit: 'dB', role: 'level', desc: 'the most it ever lets out (true peak)' },
-    { key: 'release', label: 'RELEASE', min: 5, max: 1000, def: 90, curve: 'log', unit: 'ms', role: 'release', desc: 'how fast it recovers: fast is loud, slow is smooth' },
+    {
+      key: 'gain',
+      label: 'GAIN',
+      min: 0,
+      max: 24,
+      def: 0,
+      unit: 'dB',
+      role: 'drive',
+      desc: 'push into the limiter: louder, then squashed',
+    },
+    {
+      key: 'ceiling',
+      label: 'CEILING',
+      min: -12,
+      max: 0,
+      def: -1,
+      unit: 'dB',
+      role: 'level',
+      desc: 'the most it ever lets out (true peak)',
+    },
+    {
+      key: 'release',
+      label: 'RELEASE',
+      min: 5,
+      max: 1000,
+      def: 90,
+      curve: 'log',
+      unit: 'ms',
+      role: 'release',
+      desc: 'how fast it recovers: fast is loud, slow is smooth',
+    },
   ],
-  look: { color: '#16130f', ink: '#f4ead6', shape: 'rack', finish: 'brushed', knob: 'chrome', label: 'plate', led: '#ff4d4d' },
-  latency: 88 / 48000, tail: 0.01,
+  look: {
+    color: '#16130f',
+    ink: '#f4ead6',
+    shape: 'rack',
+    finish: 'brushed',
+    knob: 'chrome',
+    label: 'plate',
+    led: '#ff4d4d',
+  },
+  latency: 88 / 48000,
+  tail: 0.01,
   kernel: kernel(String.raw`
 return {
   create({ sr }) {

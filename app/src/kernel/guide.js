@@ -4,7 +4,11 @@
 // by tools/kernel-test.js, and both examples pass checkDevice there. Keep it compact and exact.
 
 export const GUIDE_EFFECT = {
-  id: 'claude.tape-echo', name: 'Tape Echo', kind: 'effect', cat: 'time', by: 'claude',
+  id: 'claude.tape-echo',
+  name: 'Tape Echo',
+  kind: 'effect',
+  cat: 'time',
+  by: 'claude',
   blurb: 'Tempo-synced echoes that darken as they repeat',
   params: [
     { key: 'division', label: 'TIME', opts: ['1/16', '1/8', '1/8.', '1/4', '1/2'], def: 2 },
@@ -12,8 +16,17 @@ export const GUIDE_EFFECT = {
     { key: 'tone', label: 'TONE', min: 500, max: 12000, def: 3500, curve: 'log', unit: 'Hz', role: 'tone' },
     { key: 'mix', label: 'MIX', min: 0, max: 100, def: 30, unit: '%', role: 'mix' },
   ],
-  look: { color: '#8a5a2b', ink: '#fff3e0', shape: 'box', finish: 'hammer', knob: 'cream', label: 'script', led: '#ffb347' },
-  tail: 6, trails: true,
+  look: {
+    color: '#8a5a2b',
+    ink: '#fff3e0',
+    shape: 'box',
+    finish: 'hammer',
+    knob: 'cream',
+    label: 'script',
+    led: '#ffb347',
+  },
+  tail: 6,
+  trails: true,
   kernel: `({
   create({ sr, seed, dsp }) {
     const BEATS = [0.25, 0.5, 0.75, 1, 2];
@@ -42,7 +55,11 @@ export const GUIDE_EFFECT = {
 };
 
 export const GUIDE_INSTRUMENT = {
-  id: 'claude.glass-harp', name: 'Glass Harp', kind: 'instrument', cat: 'pluck', by: 'claude',
+  id: 'claude.glass-harp',
+  name: 'Glass Harp',
+  kind: 'instrument',
+  cat: 'pluck',
+  by: 'claude',
   blurb: 'Plucked strings with a soft glassy shimmer',
   params: [
     { key: 'decay', label: 'DECAY', min: 0.3, max: 8, def: 3, curve: 'log', unit: 's', role: 'decay' },
@@ -94,7 +111,9 @@ export const GUIDE_INSTRUMENT = {
 
 const fmtDef = (d) => {
   const { kernel, ...rest } = d;
-  const json = JSON.stringify(rest, null, 0).replace(/"(\w+)":/g, '$1: ').replace(/,(?=[{"\w])/g, ', ');
+  const json = JSON.stringify(rest, null, 0)
+    .replace(/"(\w+)":/g, '$1: ')
+    .replace(/,(?=[{"\w])/g, ', ');
   return `${json.slice(0, -1)}, kernel: \`\n${kernel}\` }`;
 };
 

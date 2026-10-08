@@ -19,7 +19,10 @@
 // src: { now(), playing(), bpm(), beatsPerBar(), gridAt(t) -> grid beat, timeAtGrid(g) -> audio time, songBeatAt(t) }
 
 export function createClock(src) {
-  const bpb = () => { const n = +src.beatsPerBar(); return n > 0 ? n : 4; };
+  const bpb = () => {
+    const n = +src.beatsPerBar();
+    return n > 0 ? n : 4;
+  };
   const clock = {
     playing: () => !!src.playing(),
     bpm: () => src.bpm(),
@@ -32,7 +35,10 @@ export function createClock(src) {
       const time = clock.barTime(b);
       return { bar: b, time, len: clock.barTime(b + 1) - time };
     },
-    phaseAt: (t, bars = 1) => { const x = clock.barAt(t) / (bars || 1); return x - Math.floor(x); },
+    phaseAt: (t, bars = 1) => {
+      const x = clock.barAt(t) / (bars || 1);
+      return x - Math.floor(x);
+    },
     beatAt: (t) => src.songBeatAt(t == null ? src.now() : t),
     beat: () => src.songBeatAt(src.now()),
   };

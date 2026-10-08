@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { foreignHost, foreignOrigin, foreignSite } from './bridge.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const claude = () => process.env.OVERDUB_CLAUDE || 'claude';   // read late, so a test can set it after importing
+const claude = () => process.env.OVERDUB_CLAUDE || 'claude'; // read late, so a test can set it after importing
 // Claude Code keeps its sessions by working directory: one of its own, so the studio's never mix with a project's
 const CWD = path.join(os.tmpdir(), 'overdub-claude-code');
 const MODEL = /^claude-[a-z0-9.-]{1,60}$/;
@@ -47,8 +47,18 @@ export function claudeStatus() {
   if (probe) return probe;
   try {
     const r = spawnSync(claude(), ['--version'], { encoding: 'utf8', timeout: 8000 });
-    probe = r.status === 0 ? { available: true, version: String(r.stdout || '').trim().split(/\s/)[0] } : { available: false };
-  } catch (e) { probe = { available: false }; }
+    probe =
+      r.status === 0
+        ? {
+            available: true,
+            version: String(r.stdout || '')
+              .trim()
+              .split(/\s/)[0],
+          }
+        : { available: false };
+  } catch (e) {
+    probe = { available: false };
+  }
   return probe;
 }
 
@@ -59,17 +69,50 @@ function json(res, code, obj) {
 }
 function readBody(req, limit = 2 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
-    let size = 0; const parts = [];
-    req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('body too large')); req.destroy(); } else parts.push(c); });
-    req.on('end', () => { try { const s = Buffer.concat(parts).toString('utf8'); resolve(s ? JSON.parse(s) : {}); } catch (e) { reject(new Error('body is not JSON')); } });
+    let size = 0;
+    const parts = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) {
+        reject(new Error('body too large'));
+        req.destroy();
+      } else parts.push(c);
+    });
+    req.on('end', () => {
+      try {
+        const s = Buffer.concat(parts).toString('utf8');
+        resolve(s ? JSON.parse(s) : {});
+      } catch (e) {
+        reject(new Error('body is not JSON'));
+      }
+    });
     req.on('error', reject);
   });
 }
 
 export function turnArgs({ model, system, session, mcpConfig }) {
-  const args = ['-p', '--input-format', 'text', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
-    '--tools', '', '--setting-sources', '', '--strict-mcp-config', '--mcp-config', mcpConfig,
-    '--allowedTools', 'mcp__overdub', '--permission-mode', 'dontAsk', '--effort', 'medium'];
+  const args = [
+    '-p',
+    '--input-format',
+    'text',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--include-partial-messages',
+    '--tools',
+    '',
+    '--setting-sources',
+    '',
+    '--strict-mcp-config',
+    '--mcp-config',
+    mcpConfig,
+    '--allowedTools',
+    'mcp__overdub',
+    '--permission-mode',
+    'dontAsk',
+    '--effort',
+    'medium',
+  ];
   if (model) args.push('--model', model);
   if (system) args.push('--system-prompt', system);
   if (session) args.push('--resume', session);
@@ -78,15 +121,22 @@ export function turnArgs({ model, system, session, mcpConfig }) {
 
 export function register({ addRoute }) {
   addRoute('/local/', async (req, res, url) => {
-    if (foreignHost(req) || foreignOrigin(req) || foreignSite(req)) return json(res, 403, { error: 'Claude Code only answers the studio on this machine' });
+    if (foreignHost(req) || foreignOrigin(req) || foreignSite(req))
+      return json(res, 403, { error: 'Claude Code only answers the studio on this machine' });
     const route = url.pathname.slice('/local/'.length);
     if (route === 'status' && req.method === 'GET') return json(res, 200, { ...claudeStatus(), key: !!apiKey() });
     if (route === 'messages' && req.method === 'POST') return messages(req, res);
-    if (route !== 'turn' || req.method !== 'POST') return json(res, 404, { error: `no route ${req.method} /local/${route}` });
+    if (route !== 'turn' || req.method !== 'POST')
+      return json(res, 404, { error: `no route ${req.method} /local/${route}` });
 
     let b;
-    try { b = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
-    if (!claudeStatus().available) return json(res, 503, { error: 'Claude Code is not installed on this computer (no `claude` on the PATH).' });
+    try {
+      b = await readBody(req);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+    if (!claudeStatus().available)
+      return json(res, 503, { error: 'Claude Code is not installed on this computer (no `claude` on the PATH).' });
     const text = String(b.text || '').trim();
     const page = String(b.page || '');
     if (!text) return json(res, 400, { error: 'text is required' });
@@ -97,43 +147,91 @@ export function register({ addRoute }) {
 
     const token = randomUUID();
     const port = req.socket.localPort;
-    const mcpConfig = JSON.stringify({ mcpServers: { overdub: { command: process.execPath, args: [path.join(HERE, 'mcp.js')],
-      env: { OVERDUB_URL: `http://localhost:${port}`, OVERDUB_TURN: token, OVERDUB_PAGE: page, OVERDUB_NO_OPEN: '1' } } } });
+    const mcpConfig = JSON.stringify({
+      mcpServers: {
+        overdub: {
+          command: process.execPath,
+          args: [path.join(HERE, 'mcp.js')],
+          env: {
+            OVERDUB_URL: `http://localhost:${port}`,
+            OVERDUB_TURN: token,
+            OVERDUB_PAGE: page,
+            OVERDUB_NO_OPEN: '1',
+          },
+        },
+      },
+    });
     const env = { ...process.env, MCP_TOOL_TIMEOUT: String(15 * 60 * 1000) };
     delete env.ANTHROPIC_API_KEY;
-    delete env.OVERDUB_ANTHROPIC_KEY;   // the self-hoster's key is for /local/messages only; Claude Code runs on the plan login
+    delete env.OVERDUB_ANTHROPIC_KEY; // the self-hoster's key is for /local/messages only; Claude Code runs on the plan login
     delete env.OVERDUB_ANTHROPIC_URL;
     fs.mkdirSync(CWD, { recursive: true });
 
     let child;
-    try { child = spawn(claude(), turnArgs({ model, system, session, mcpConfig }), { cwd: CWD, env, stdio: ['pipe', 'pipe', 'pipe'] }); } catch (e) {
+    try {
+      child = spawn(claude(), turnArgs({ model, system, session, mcpConfig }), {
+        cwd: CWD,
+        env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (e) {
       return json(res, 500, { error: 'could not start Claude Code: ' + e.message });
     }
-    res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
-    const line = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch (e) { /* gone */ } };
+    res.writeHead(200, {
+      'content-type': 'application/x-ndjson; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-accel-buffering': 'no',
+    });
+    const line = (obj) => {
+      try {
+        res.write(JSON.stringify(obj) + '\n');
+      } catch (e) {
+        /* gone */
+      }
+    };
     line({ type: 'turn', token });
 
-    let out = '', err = '', done = false;
+    let out = '',
+      err = '',
+      done = false;
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (c) => {
       out += c;
       let i;
       while ((i = out.indexOf('\n')) >= 0) {
-        const l = out.slice(0, i).trim(); out = out.slice(i + 1);
-        if (l.startsWith('{')) { try { res.write(l + '\n'); } catch (e) { /* gone */ } }
+        const l = out.slice(0, i).trim();
+        out = out.slice(i + 1);
+        if (l.startsWith('{')) {
+          try {
+            res.write(l + '\n');
+          } catch (e) {
+            /* gone */
+          }
+        }
       }
     });
     child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (c) => { err = (err + c).slice(-4000); });
+    child.stderr.on('data', (c) => {
+      err = (err + c).slice(-4000);
+    });
     const finish = (code) => {
-      if (done) return; done = true;
+      if (done) return;
+      done = true;
       line({ type: 'exit', code, ...(code ? { stderr: err.trim().slice(-1500) } : {}) });
       res.end();
     };
-    child.on('error', (e) => { err += e.message; finish(127); });
+    child.on('error', (e) => {
+      err += e.message;
+      finish(127);
+    });
     child.on('close', (code) => finish(code ?? 0));
     // Stop in the panel aborts the fetch: the request closes before the turn is over, and the process goes with it
-    res.on('close', () => { if (!done) { done = true; child.kill('SIGTERM'); } });
+    res.on('close', () => {
+      if (!done) {
+        done = true;
+        child.kill('SIGTERM');
+      }
+    });
     child.stdin.end(text);
     return true;
   });
@@ -143,25 +241,48 @@ export function register({ addRoute }) {
 // streams back as it comes, and closing the request (Stop in the panel) aborts it.
 async function messages(req, res) {
   const key = apiKey();
-  if (!key) return json(res, 503, { error: { type: 'no_key', message: 'No API key on this server: start it with OVERDUB_ANTHROPIC_KEY set (the guide says how).' } });
+  if (!key)
+    return json(res, 503, {
+      error: {
+        type: 'no_key',
+        message: 'No API key on this server: start it with OVERDUB_ANTHROPIC_KEY set (the guide says how).',
+      },
+    });
   let b;
-  try { b = await readBody(req, 24 * 1024 * 1024); } catch (e) { return json(res, 400, { error: { type: 'invalid_request_error', message: e.message } }); }
-  if (!MODEL.test(String(b.model || ''))) return json(res, 400, { error: { type: 'invalid_request_error', message: 'model is required' } });
+  try {
+    b = await readBody(req, 24 * 1024 * 1024);
+  } catch (e) {
+    return json(res, 400, { error: { type: 'invalid_request_error', message: e.message } });
+  }
+  if (!MODEL.test(String(b.model || '')))
+    return json(res, 400, { error: { type: 'invalid_request_error', message: 'model is required' } });
   const headers = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
   const beta = String(req.headers['anthropic-beta'] || '');
   if (beta && BETA.test(beta)) headers['anthropic-beta'] = beta;
   const ac = new AbortController();
   res.on('close', () => ac.abort());
   let up;
-  try { up = await fetch(apiUrl(), { method: 'POST', headers, body: JSON.stringify(b), signal: ac.signal }); } catch (e) {
+  try {
+    up = await fetch(apiUrl(), { method: 'POST', headers, body: JSON.stringify(b), signal: ac.signal });
+  } catch (e) {
     if (ac.signal.aborted) return true;
-    return json(res, 502, { error: { type: 'api_error', message: 'Could not reach the Messages API from this server: ' + e.message } });
+    return json(res, 502, {
+      error: { type: 'api_error', message: 'Could not reach the Messages API from this server: ' + e.message },
+    });
   }
-  const head = { 'content-type': up.headers.get('content-type') || 'application/json', 'cache-control': 'no-store', 'x-accel-buffering': 'no' };
+  const head = {
+    'content-type': up.headers.get('content-type') || 'application/json',
+    'cache-control': 'no-store',
+    'x-accel-buffering': 'no',
+  };
   const ra = up.headers.get('retry-after');
   if (ra) head['retry-after'] = ra;
   res.writeHead(up.status, head);
-  try { if (up.body) for await (const c of up.body) res.write(c); } catch (e) { /* stopped, or the API went away mid-stream */ }
+  try {
+    if (up.body) for await (const c of up.body) res.write(c);
+  } catch (e) {
+    /* stopped, or the API went away mid-stream */
+  }
   res.end();
   return true;
 }

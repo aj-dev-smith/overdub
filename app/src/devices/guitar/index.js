@@ -13,4 +13,17 @@ import { clawd, setSongKey, majorKeyOf } from './clawd.js';
 
 export const PEDALS = registerPedals();
 export const AMPS = registerAmps();
-export { RIGS, RIG_BANKS, rigOps, rigById, AMP_PARAMS, ampSettings, ampParams, CAB_IDS, MIC_IDS, clawd, setSongKey, majorKeyOf };
+export {
+  RIGS,
+  RIG_BANKS,
+  rigOps,
+  rigById,
+  AMP_PARAMS,
+  ampSettings,
+  ampParams,
+  CAB_IDS,
+  MIC_IDS,
+  clawd,
+  setSongKey,
+  majorKeyOf,
+};

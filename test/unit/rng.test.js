@@ -22,41 +22,70 @@ describe('dsp.rng (mulberry32)', () => {
   });
   test('r() is in [0, 1), r.bi() in [-1, 1), and both look uniform', () => {
     const r = rng(7);
-    let sum = 0, lo = 1, hi = 0;
+    let sum = 0,
+      lo = 1,
+      hi = 0;
     const N = 20000;
-    for (let i = 0; i < N; i++) { const x = r(); assert.ok(x >= 0 && x < 1); sum += x; lo = Math.min(lo, x); hi = Math.max(hi, x); }
+    for (let i = 0; i < N; i++) {
+      const x = r();
+      assert.ok(x >= 0 && x < 1);
+      sum += x;
+      lo = Math.min(lo, x);
+      hi = Math.max(hi, x);
+    }
     assert.ok(Math.abs(sum / N - 0.5) < 0.01);
     assert.ok(lo < 0.001 && hi > 0.999);
     const b = rng(7);
-    for (let i = 0; i < 1000; i++) { const x = b.bi(); assert.ok(x >= -1 && x < 1); }
+    for (let i = 0; i < 1000; i++) {
+      const x = b.bi();
+      assert.ok(x >= -1 && x < 1);
+    }
   });
   test('r.gauss() is finite with mean ~0 and variance ~1', () => {
     const r = rng(9);
-    let s = 0, s2 = 0;
+    let s = 0,
+      s2 = 0;
     const N = 20000;
-    for (let i = 0; i < N; i++) { const x = r.gauss(); assert.ok(Number.isFinite(x)); s += x; s2 += x * x; }
+    for (let i = 0; i < N; i++) {
+      const x = r.gauss();
+      assert.ok(Number.isFinite(x));
+      s += x;
+      s2 += x * x;
+    }
     assert.ok(Math.abs(s / N) < 0.05);
     assert.ok(Math.abs(s2 / N - 1) < 0.05);
   });
   test('two generators with one seed do not share state', () => {
-    const a = rng(5), b = rng(5);
-    a(); a();
+    const a = rng(5),
+      b = rng(5);
+    a();
+    a();
     const c = rng(5);
-    c(); c();
+    c();
+    c();
     assert.equal(a(), c());
     assert.equal(b(), rng(5)());
   });
   test('noise(seed) is repeatable, and white noise stays in +-1', () => {
     for (const color of ['white', 'pink', 'brown']) {
-      const a = noise(3, color), b = noise(3, color);
-      const xa = Array.from({ length: 2000 }, () => a.next()), xb = Array.from({ length: 2000 }, () => b.next());
+      const a = noise(3, color),
+        b = noise(3, color);
+      const xa = Array.from({ length: 2000 }, () => a.next()),
+        xb = Array.from({ length: 2000 }, () => b.next());
       assert.deepEqual(xa, xb, color);
       assert.ok(xa.every(Number.isFinite), color);
     }
     const w = noise(3, 'white');
-    for (let i = 0; i < 2000; i++) { const x = w.next(); assert.ok(x >= -1 && x <= 1); }
-    const n3 = noise(3), n4 = noise(4);
-    assert.notDeepEqual(Array.from({ length: 16 }, () => n3.next()), Array.from({ length: 16 }, () => n4.next()));
+    for (let i = 0; i < 2000; i++) {
+      const x = w.next();
+      assert.ok(x >= -1 && x <= 1);
+    }
+    const n3 = noise(3),
+      n4 = noise(4);
+    assert.notDeepEqual(
+      Array.from({ length: 16 }, () => n3.next()),
+      Array.from({ length: 16 }, () => n4.next()),
+    );
   });
 });
 
@@ -71,7 +100,11 @@ describe('kit.rng (LCG)', () => {
     const r = kitRng(11);
     let sum = 0;
     const N = 20000;
-    for (let i = 0; i < N; i++) { const x = r(); assert.ok(x >= -1 && x < 1); sum += x; }
+    for (let i = 0; i < N; i++) {
+      const x = r();
+      assert.ok(x >= -1 && x < 1);
+      sum += x;
+    }
     assert.ok(Math.abs(sum / N) < 0.02);
   });
   test('seed 0 is not a stuck generator (it reads as seed 1)', () => {

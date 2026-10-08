@@ -2,9 +2,37 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  noteName, parsePitch, parsePc, mtof, ftom, SCALES, scalePcs, inScale, snapToScale, scalePitches,
-  chordPitches, chordName, keySpelling, spellPc, spellNote, beatsPerBar, validMeter, beatToSec, secToBeat, posLabel,
-  quantize, parseNotes, formatNotes, normNote, isPlace, parseGrid, formatGrid, DRUM_MAP, kitNotes, drumName, GM_DRUMS,
+  noteName,
+  parsePitch,
+  parsePc,
+  mtof,
+  ftom,
+  SCALES,
+  scalePcs,
+  inScale,
+  snapToScale,
+  scalePitches,
+  chordPitches,
+  chordName,
+  keySpelling,
+  spellPc,
+  spellNote,
+  beatsPerBar,
+  validMeter,
+  beatToSec,
+  secToBeat,
+  posLabel,
+  quantize,
+  parseNotes,
+  formatNotes,
+  normNote,
+  isPlace,
+  parseGrid,
+  formatGrid,
+  DRUM_MAP,
+  kitNotes,
+  drumName,
+  GM_DRUMS,
 } from '../../app/src/core/music.js';
 
 const C_MAJOR = { root: 'C', scale: 'major' };
@@ -91,7 +119,8 @@ describe('chords', () => {
     assert.equal(chordName([60, 61, 62]), '');
   });
   test('chordName round-trips chordPitches for every quality in root position', () => {
-    for (const sym of ['C', 'Dm', 'Edim', 'Gsus4', 'G7', 'Fmaj7', 'Bm7b5', 'Am6']) assert.equal(chordName(chordPitches(sym)), sym);
+    for (const sym of ['C', 'Dm', 'Edim', 'Gsus4', 'G7', 'Fmaj7', 'Bm7b5', 'Am6'])
+      assert.equal(chordName(chordPitches(sym)), sym);
   });
   test('names are spelled for the key', () => {
     assert.equal(chordName([68, 72, 75], C_MINOR), 'Ab');
@@ -102,11 +131,17 @@ describe('chords', () => {
 describe('spelling in a key', () => {
   test('one letter per degree', () => {
     const s = keySpelling(C_MINOR);
-    assert.deepEqual([0, 2, 3, 5, 7, 8, 10].map((pc) => s[pc]), ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb']);
+    assert.deepEqual(
+      [0, 2, 3, 5, 7, 8, 10].map((pc) => s[pc]),
+      ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb'],
+    );
     const f = keySpelling({ root: 'F', scale: 'major' });
     assert.equal(f[10], 'Bb');
     const e = keySpelling({ root: 'E', scale: 'major' });
-    assert.deepEqual([4, 6, 8, 9, 11, 1, 3].map((pc) => e[pc]), ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#']);
+    assert.deepEqual(
+      [4, 6, 8, 9, 11, 1, 3].map((pc) => e[pc]),
+      ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D#'],
+    );
   });
   test('a key that would need double sharps is spelled from its enharmonic', () => {
     const s = keySpelling({ root: 'D#', scale: 'major' });
@@ -135,8 +170,15 @@ describe('time', () => {
     assert.equal(beatsPerBar(null), 4);
   });
   test('validMeter accepts 1..32 over a power of two up to 32 and nothing else', () => {
-    for (const m of [[4, 4], [7, 8], [1, 1], [32, 32]]) assert.ok(validMeter(m), JSON.stringify(m));
-    for (const m of [[0, 4], [33, 4], [4, 3], [4, 64], [4.5, 4], [4], '4/4', null]) assert.ok(!validMeter(m), JSON.stringify(m));
+    for (const m of [
+      [4, 4],
+      [7, 8],
+      [1, 1],
+      [32, 32],
+    ])
+      assert.ok(validMeter(m), JSON.stringify(m));
+    for (const m of [[0, 4], [33, 4], [4, 3], [4, 64], [4.5, 4], [4], '4/4', null])
+      assert.ok(!validMeter(m), JSON.stringify(m));
   });
   test('beats and seconds', () => {
     assert.equal(beatToSec(4, 120), 2);
@@ -153,14 +195,16 @@ describe('time', () => {
     assert.ok(Math.abs(quantize(0.3, 0.25, 0.5) - 0.275) < 1e-12);
     assert.equal(quantize(0.3, 0.25, 0), 0.3);
     assert.equal(quantize(0.3, 0.25, 1, 0.5), 0.3125); // the second step is late
-    assert.equal(quantize(0.5, 0.25, 1, 0.5), 0.5);    // an even step isn't
+    assert.equal(quantize(0.5, 0.25, 1, 0.5), 0.5); // an even step isn't
   });
 });
 
 describe('the notes text format', () => {
   test('reads the documented example', () => {
     assert.deepEqual(parseNotes('C2@0:0.5 C2@0.5:0.5 G1@1:1*0.9'), [
-      { p: 36, t: 0, d: 0.5, v: 0.8 }, { p: 36, t: 0.5, d: 0.5, v: 0.8 }, { p: 31, t: 1, d: 1, v: 0.9 },
+      { p: 36, t: 0, d: 0.5, v: 0.8 },
+      { p: 36, t: 0.5, d: 0.5, v: 0.8 },
+      { p: 31, t: 1, d: 1, v: 0.9 },
     ]);
   });
   test('fractions, numbers, commas, comments and MIDI velocities', () => {
@@ -175,7 +219,10 @@ describe('the notes text format', () => {
     assert.deepEqual(parseNotes('# the verse riff\nC4@0:1'), [{ p: 60, t: 0, d: 1, v: 0.8 }]);
   });
   test('a comment after the notes ends the line, and a sharp is not a comment', () => {
-    assert.deepEqual(parseNotes('C#4@0:1 # the hook\nD4@1:1').map((n) => n.p), [61, 62]);
+    assert.deepEqual(
+      parseNotes('C#4@0:1 # the hook\nD4@1:1').map((n) => n.p),
+      [61, 62],
+    );
   });
   test('an empty text is no notes', () => {
     assert.deepEqual(parseNotes(''), []);
@@ -183,7 +230,11 @@ describe('the notes text format', () => {
   });
   test('a bad token throws with what it read so far, and says the format', () => {
     let err;
-    try { parseNotes('C4@0:1 nope X9@1:1'); } catch (e) { err = e; }
+    try {
+      parseNotes('C4@0:1 nope X9@1:1');
+    } catch (e) {
+      err = e;
+    }
     assert.ok(err);
     assert.match(err.message, /nope/);
     assert.match(err.message, /pitch@start:dur/);
@@ -197,7 +248,11 @@ describe('the notes text format', () => {
     assert.equal(formatNotes(ns, { names: false }).split(' ')[0], '60@0:0.5');
   });
   test('formatNotes sorts by time then pitch and does not mutate its input', () => {
-    const ns = [{ p: 64, t: 1, d: 1, v: 0.8 }, { p: 67, t: 0, d: 1, v: 0.8 }, { p: 60, t: 0, d: 1, v: 0.8 }];
+    const ns = [
+      { p: 64, t: 1, d: 1, v: 0.8 },
+      { p: 67, t: 0, d: 1, v: 0.8 },
+      { p: 60, t: 0, d: 1, v: 0.8 },
+    ];
     const copy = structuredClone(ns);
     assert.equal(formatNotes(ns), 'C4@0:1 G4@0:1 E4@1:1');
     assert.deepEqual(ns, copy);
@@ -209,7 +264,12 @@ describe('the notes text format', () => {
 
 describe('normNote', () => {
   test('clamps pitch, start, length and velocity', () => {
-    assert.deepEqual(normNote({ p: 200, t: -3, d: 0, v: 5 }), { p: 127, t: 0, d: 1 / 64, v: 5 / 127 > 1 ? 1 : Math.round((5 / 127) * 1e4) / 1e4 });
+    assert.deepEqual(normNote({ p: 200, t: -3, d: 0, v: 5 }), {
+      p: 127,
+      t: 0,
+      d: 1 / 64,
+      v: 5 / 127 > 1 ? 1 : Math.round((5 / 127) * 1e4) / 1e4,
+    });
     assert.equal(normNote({ p: -5, t: 0 }).p, 0);
     assert.equal(normNote({ p: 60, t: 0, v: 0 }).v, 0.01);
     assert.equal(normNote({ p: 60, t: 0, v: 1.5 }).v, Math.round((1.5 / 127) * 1e4) / 1e4);
@@ -246,18 +306,32 @@ describe('drum grids', () => {
   test('parseGrid: hits, accents, ghosts and rests on the step grid', () => {
     const ns = parseGrid({ steps: 8, step: 0.5, rows: { kick: 'X..x', snare: '..o.' } });
     assert.deepEqual(ns, [
-      { p: 36, t: 0, d: 0.5, v: 1 }, { p: 36, t: 1.5, d: 0.5, v: 0.8 }, { p: 38, t: 1, d: 0.5, v: 0.45 },
+      { p: 36, t: 0, d: 0.5, v: 1 },
+      { p: 36, t: 1.5, d: 0.5, v: 0.8 },
+      { p: 38, t: 1, d: 0.5, v: 0.45 },
     ]);
   });
   test('row names are case-insensitive aliases or MIDI numbers; bars and spaces are ignored', () => {
     const ns = parseGrid({ rows: { HH: 'x.x. | x...', 40: 'x' } });
-    assert.deepEqual(ns.map((n) => [n.p, n.t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), [[40, 0], [42, 0], [42, 0.5], [42, 1]]);
+    assert.deepEqual(
+      ns.map((n) => [n.p, n.t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]),
+      [
+        [40, 0],
+        [42, 0],
+        [42, 0.5],
+        [42, 1],
+      ],
+    );
   });
   test('an unknown row name throws', () => {
     assert.throws(() => parseGrid({ rows: { tuba: 'x...' } }), /unknown drum row "tuba"/);
   });
   test('formatGrid then parseGrid round-trips on-grid notes', () => {
-    const grid = { steps: 16, step: 0.25, rows: { kick: 'X...x...o...x...', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' } };
+    const grid = {
+      steps: 16,
+      step: 0.25,
+      rows: { kick: 'X...x...o...x...', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' },
+    };
     const ns = parseGrid(grid);
     const back = formatGrid(ns);
     assert.deepEqual(back.rows, grid.rows);
@@ -265,19 +339,48 @@ describe('drum grids', () => {
     assert.deepEqual(parseGrid(back).map(key).sort(), ns.map(key).sort());
   });
   test('formatGrid leaves out notes off the end of the grid and names numbers it has no name for', () => {
-    const g = formatGrid([{ p: 36, t: 10, d: 0.25, v: 0.8 }, { p: 99, t: 0, d: 0.25, v: 0.8 }], { steps: 4 });
+    const g = formatGrid(
+      [
+        { p: 36, t: 10, d: 0.25, v: 0.8 },
+        { p: 99, t: 0, d: 0.25, v: 0.8 },
+      ],
+      { steps: 4 },
+    );
     assert.equal(g.rows.kick, '....');
     assert.equal(g.rows['99'], 'x...');
   });
   test('the documented GM map holds', () => {
-    const want = { kick: 36, snare: 38, clap: 39, rim: 37, hat: 42, pedal: 44, open: 46, tom1: 50, tom2: 47, tom3: 45, crash: 49, ride: 51, cowbell: 56, shaker: 70, rimshot: 40, half: 24, flam: 31, roll: 33, crashchoke: 27 };
+    const want = {
+      kick: 36,
+      snare: 38,
+      clap: 39,
+      rim: 37,
+      hat: 42,
+      pedal: 44,
+      open: 46,
+      tom1: 50,
+      tom2: 47,
+      tom3: 45,
+      crash: 49,
+      ride: 51,
+      cowbell: 56,
+      shaker: 70,
+      rimshot: 40,
+      half: 24,
+      flam: 31,
+      roll: 33,
+      crashchoke: 27,
+    };
     for (const [k, v] of Object.entries(want)) assert.equal(DRUM_MAP[k], v, k);
   });
 });
 
 describe('kit note names', () => {
   test('a kit names its own notes, cleaned; other names the rest', () => {
-    const def = { id: 'x.kit', notes: { 36: ' Boom\n', 40: 'Crack', 200: 'nope', foo: 'bar', 41: 7, 42: '', other: 'Side stick' } };
+    const def = {
+      id: 'x.kit',
+      notes: { 36: ' Boom\n', 40: 'Crack', 200: 'nope', foo: 'bar', 41: 7, 42: '', other: 'Side stick' },
+    };
     const n = kitNotes(def);
     assert.deepEqual({ ...n }, { 36: 'Boom', 40: 'Crack', other: 'Side stick' });
     assert.ok(Object.isFrozen(n));

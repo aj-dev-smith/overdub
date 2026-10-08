@@ -18,7 +18,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const TRUMPET_HASH = 'sha256-3b61055341a0939a835c2ee27c751c7cedb275147923da73ad03aca91e2100b4';
 
 export default defineDevice({
-  id: 'core.trumpet', name: 'Spit Valve', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.trumpet',
+  name: 'Spit Valve',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real trumpet, sampled, a straight tone',
   nod: 'VS Chamber Orchestra 2 CE (Versilian Studios, CC0): the solo trumpet, sustained, soft and loud, looped',
   data: { kit: TRUMPET_HASH },
@@ -30,7 +34,15 @@ export default defineDevice({
     { name: 'Stabs', params: { release: 0.06 }, blurb: 'notes stop the moment the key lifts, for horn hits' },
     { name: 'Hall', params: { release: 1.2 }, blurb: 'every note left to fall away' },
   ],
-  look: { color: '#c8973a', ink: '#1c160a', shape: 'wide', finish: 'gloss', knob: 'gold', label: 'block', led: '#ff7a3d' },
+  look: {
+    color: '#c8973a',
+    ink: '#1c160a',
+    shape: 'wide',
+    finish: 'gloss',
+    knob: 'gold',
+    label: 'block',
+    led: '#ff7a3d',
+  },
   tail: 2,
   kernel: samplerKernel({ makeup: 0.75, poly: 16, xfade: 8, law: 'power' }),
 });

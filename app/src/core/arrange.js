@@ -23,14 +23,25 @@
 // (music.parseGrid), with seeded velocities, ghost notes, a fill in every 4th bar and a crash after it. Anything left
 // that could still rub (an out-of-key hummed note) is dropped from the voicing on that beat rather than fought.
 
-import { SCALES, scalePcs, parsePc, beatsPerBar, chordName, spellPc, spellNote, parseGrid, normNote, noteName } from './music.js';
+import {
+  SCALES,
+  scalePcs,
+  parsePc,
+  beatsPerBar,
+  chordName,
+  spellPc,
+  spellNote,
+  parseGrid,
+  normNote,
+  noteName,
+} from './music.js';
 import { rng, guessKey, transform, onsets, isDrumDevice } from './transforms.js';
 import { TRACK_COLORS } from './project.js';
 
 const r4 = (x) => Math.round(x * 10000) / 10000;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const EPS = 1e-6;
-const WIN = 0.125;           // a note "sounds on" a strong beat if it starts up to a 32nd after it and is still held
+const WIN = 0.125; // a note "sounds on" a strong beat if it starts up to a 32nd after it and is still held
 export const PARTS = ['chords', 'bass', 'drums', 'pad'];
 const DEFAULT_PARTS = ['chords', 'bass', 'drums'];
 const KICKS = new Set([35, 36]);
@@ -44,77 +55,255 @@ const KICKS = new Set([35, 36]);
 // nothing could be measured (calibrated with tools/render.js against a hummed line on Pinch Roller).
 export const STYLES = {
   pop: {
-    label: 'Pop', blurb: 'piano pushes, bass on the kick, a straight backbeat',
-    midCost: 0.5, sevenths: false, swing: 0, ghost: 0.04,
+    label: 'Pop',
+    blurb: 'piano pushes, bass on the kick, a straight backbeat',
+    midCost: 0.5,
+    sevenths: false,
+    swing: 0,
+    ghost: 0.04,
     prog: { major: [0, 4, 5, 3], minor: [0, 5, 2, 6] },
-    chords: { name: 'Piano', device: 'core.keys', params: { voice: 1, bright: 0.55, trem: 0 }, register: [52, 71], rhythm: [[0, 1.5, 1], [1.5, 1, 0.78], [2.5, 1.5, 0.86]], legato: 0.95 },
-    bass: { name: 'Bass', device: 'core.bass', params: { cutoff: 760, drive: 0.3, sub: 0.45 }, mode: 'kick', line: ['R', 'R', '5', 'R'], approach: 'add', legato: 0.9, range: [31, 47] },
-    drums: { name: 'Drums', device: 'core.drums', params: { kit: 0, room: 0.28, tone: 0.2 },
-      rows: { kick: 'X.....x.X.......', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' }, alt: { kick: 'X.....x.X.x.....' },
-      fill: { from: 12, rows: { kick: 'x...', snare: 'xx..', tom1: '..x.', tom3: '...X' } }, crash: 'start' },
+    chords: {
+      name: 'Piano',
+      device: 'core.keys',
+      params: { voice: 1, bright: 0.55, trem: 0 },
+      register: [52, 71],
+      rhythm: [
+        [0, 1.5, 1],
+        [1.5, 1, 0.78],
+        [2.5, 1.5, 0.86],
+      ],
+      legato: 0.95,
+    },
+    bass: {
+      name: 'Bass',
+      device: 'core.bass',
+      params: { cutoff: 760, drive: 0.3, sub: 0.45 },
+      mode: 'kick',
+      line: ['R', 'R', '5', 'R'],
+      approach: 'add',
+      legato: 0.9,
+      range: [31, 47],
+    },
+    drums: {
+      name: 'Drums',
+      device: 'core.drums',
+      params: { kit: 0, room: 0.28, tone: 0.2 },
+      rows: { kick: 'X.....x.X.......', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' },
+      alt: { kick: 'X.....x.X.x.....' },
+      fill: { from: 12, rows: { kick: 'x...', snare: 'xx..', tom1: '..x.', tom3: '...X' } },
+      crash: 'start',
+    },
     pad: { name: 'Pad', device: 'core.pad', params: { tone: 1800, space: 0.4 }, register: [55, 76] },
     level: { chords: -5, bass: -4, drums: -3, pad: -10 },
     gain: { chords: -9, bass: -10, drums: -7, pad: -13 },
   },
   rock: {
-    label: 'Rock', blurb: 'driving eighths on power chords and bass, big backbeat',
-    midCost: 0.6, sevenths: false, power: true, swing: 0, ghost: 0.03,
+    label: 'Rock',
+    blurb: 'driving eighths on power chords and bass, big backbeat',
+    midCost: 0.6,
+    sevenths: false,
+    power: true,
+    swing: 0,
+    ghost: 0.03,
     prog: { major: [0, 3, 0, 4], minor: [0, 6, 5, 6] },
-    chords: { name: 'Rhythm', device: 'core.pluck', params: { tone: 0.7, decay: 1.2, mute: 0.12, body: 0.35 }, inserts: [{ device: 'core.drive', params: {} }], register: [40, 64],
-      rhythm: [[0, 0.5, 1], [0.5, 0.5, 0.7], [1, 0.5, 0.85], [1.5, 0.5, 0.7], [2, 0.5, 0.95], [2.5, 0.5, 0.7], [3, 0.5, 0.85], [3.5, 0.5, 0.72]], legato: 0.9 },
-    bass: { name: 'Bass', device: 'core.bass', params: { wave: 0.6, cutoff: 1100, drive: 0.55, sub: 0.35, mode: 1 }, mode: 'eighths', line: ['R'], approach: 'last', legato: 0.85, range: [28, 45] },
-    drums: { name: 'Drums', device: 'core.drums', params: { kit: 0, room: 0.5, drive: 0.35, tone: 0.3 },
-      rows: { kick: 'X.....x.X.x.....', snare: '....X.......X...', hat: 'X.x.X.x.X.x.X.x.' }, alt: { kick: 'X.x...x.X.x.....' },
-      fill: { from: 8, rows: { kick: 'x...x...', snare: 'xxxx....', tom1: '....xx..', tom2: '......x.', tom3: '.......X' } }, crash: 'start' },
+    chords: {
+      name: 'Rhythm',
+      device: 'core.pluck',
+      params: { tone: 0.7, decay: 1.2, mute: 0.12, body: 0.35 },
+      inserts: [{ device: 'core.drive', params: {} }],
+      register: [40, 64],
+      rhythm: [
+        [0, 0.5, 1],
+        [0.5, 0.5, 0.7],
+        [1, 0.5, 0.85],
+        [1.5, 0.5, 0.7],
+        [2, 0.5, 0.95],
+        [2.5, 0.5, 0.7],
+        [3, 0.5, 0.85],
+        [3.5, 0.5, 0.72],
+      ],
+      legato: 0.9,
+    },
+    bass: {
+      name: 'Bass',
+      device: 'core.bass',
+      params: { wave: 0.6, cutoff: 1100, drive: 0.55, sub: 0.35, mode: 1 },
+      mode: 'eighths',
+      line: ['R'],
+      approach: 'last',
+      legato: 0.85,
+      range: [28, 45],
+    },
+    drums: {
+      name: 'Drums',
+      device: 'core.drums',
+      params: { kit: 0, room: 0.5, drive: 0.35, tone: 0.3 },
+      rows: { kick: 'X.....x.X.x.....', snare: '....X.......X...', hat: 'X.x.X.x.X.x.X.x.' },
+      alt: { kick: 'X.x...x.X.x.....' },
+      fill: {
+        from: 8,
+        rows: { kick: 'x...x...', snare: 'xxxx....', tom1: '....xx..', tom2: '......x.', tom3: '.......X' },
+      },
+      crash: 'start',
+    },
     pad: { name: 'Pad', device: 'core.pad', params: { tone: 2400, space: 0.3 }, register: [55, 76] },
     level: { chords: -4, bass: -4, drums: -2, pad: -11 },
     gain: { chords: -9, bass: -11, drums: -8, pad: -13 },
   },
   lofi: {
-    label: 'Lo-fi', blurb: 'dusty Rhodes sevenths, lazy swung beat, warm round bass',
-    midCost: 0.6, sevenths: true, rootless: true, swing: 0.2, ghost: 0.16, strum: 0.012,
+    label: 'Lo-fi',
+    blurb: 'dusty Rhodes sevenths, lazy swung beat, warm round bass',
+    midCost: 0.6,
+    sevenths: true,
+    rootless: true,
+    swing: 0.2,
+    ghost: 0.16,
+    strum: 0.012,
     prog: { major: [1, 4, 0, 5], minor: [0, 3, 6, 2] },
-    chords: { name: 'Rhodes', device: 'core.keys', params: { voice: 0, bright: 0.3, trem: 0.35, decay: 1.4 }, register: [50, 72], rhythm: [[0, 2.25, 0.82], [2.5, 1.5, 0.68]], legato: 1 },
-    bass: { name: 'Bass', device: 'core.bass', params: { wave: 0, sub: 0.8, cutoff: 360, drive: 0.15, glide: 60 }, mode: 'kick', line: ['R', '8', '5'], approach: 'add', legato: 0.95, range: [28, 45] },
-    drums: { name: 'Drums', device: 'core.drums', params: { kit: 2, room: 0.2, tone: -0.35, decay: 0.9 }, inserts: [{ device: 'claude.charity-shop', params: { dust: 0.25, wear: 0.4, warp: 0.15 } }],
-      rows: { kick: 'X......x..x.....', snare: '....X.......X...', hat: 'x.xox.x.x.xox.x.' }, alt: { kick: 'X......x..x...x.' },
-      fill: { from: 12, rows: { kick: '.x..', snare: 'x.ox', hat: 'x...' } }, crash: 'none' },
+    chords: {
+      name: 'Rhodes',
+      device: 'core.keys',
+      params: { voice: 0, bright: 0.3, trem: 0.35, decay: 1.4 },
+      register: [50, 72],
+      rhythm: [
+        [0, 2.25, 0.82],
+        [2.5, 1.5, 0.68],
+      ],
+      legato: 1,
+    },
+    bass: {
+      name: 'Bass',
+      device: 'core.bass',
+      params: { wave: 0, sub: 0.8, cutoff: 360, drive: 0.15, glide: 60 },
+      mode: 'kick',
+      line: ['R', '8', '5'],
+      approach: 'add',
+      legato: 0.95,
+      range: [28, 45],
+    },
+    drums: {
+      name: 'Drums',
+      device: 'core.drums',
+      params: { kit: 2, room: 0.2, tone: -0.35, decay: 0.9 },
+      inserts: [{ device: 'claude.charity-shop', params: { dust: 0.25, wear: 0.4, warp: 0.15 } }],
+      rows: { kick: 'X......x..x.....', snare: '....X.......X...', hat: 'x.xox.x.x.xox.x.' },
+      alt: { kick: 'X......x..x...x.' },
+      fill: { from: 12, rows: { kick: '.x..', snare: 'x.ox', hat: 'x...' } },
+      crash: 'none',
+    },
     pad: { name: 'Pad', device: 'core.pad', params: { tone: 900, motion: 0.5, space: 0.5 }, register: [53, 74] },
     level: { chords: -5, bass: -4, drums: -3, pad: -11 },
     gain: { chords: -8, bass: -12, drums: -6, pad: -15 },
   },
   house: {
-    label: 'House', blurb: 'four on the floor, offbeat stabs and bass, open hats',
-    midCost: 0.7, sevenths: true, swing: 0.08, ghost: 0,
+    label: 'House',
+    blurb: 'four on the floor, offbeat stabs and bass, open hats',
+    midCost: 0.7,
+    sevenths: true,
+    swing: 0.08,
+    ghost: 0,
     prog: { major: [0, 5, 3, 4], minor: [0, 6, 5, 6] },
-    chords: { name: 'Stabs', device: 'core.poly', params: { wave: 1, cutoff: 2200, envamt: 0.3, attack: 0.002, decay: 0.25, sustain: 0.35, release: 0.18 }, inserts: [{ device: 'core.verb', params: { mix: 0.2, size: 0.5 } }],
-      register: [55, 76], rhythm: [[0.5, 0.35, 0.9], [1.5, 0.35, 0.78], [2.5, 0.35, 0.9], [3.5, 0.35, 0.8]], legato: 1 },
-    bass: { name: 'Bass', device: 'core.bass', params: { wave: 0.3, cutoff: 650, reso: 0.4, envamt: 0.7, fdecay: 0.15, sub: 0.5, mode: 1 }, mode: 'offbeat', line: ['R', 'R', '8', 'R', '8'], approach: 'none', legato: 0.45, range: [28, 45] },
-    drums: { name: 'Drums', device: 'core.drums', params: { kit: 1, room: 0.15, tone: 0.25 },
-      rows: { kick: 'X...X...X...X...', clap: '....X.......X...', open: '..x...x...x...x.', hat: '.o.o.o.o.o.o.o.o' }, alt: null,
-      fill: { from: 8, rows: { kick: 'X...X...', clap: 'oooxxxXX', open: '........' } }, crash: 'after' },
+    chords: {
+      name: 'Stabs',
+      device: 'core.poly',
+      params: { wave: 1, cutoff: 2200, envamt: 0.3, attack: 0.002, decay: 0.25, sustain: 0.35, release: 0.18 },
+      inserts: [{ device: 'core.verb', params: { mix: 0.2, size: 0.5 } }],
+      register: [55, 76],
+      rhythm: [
+        [0.5, 0.35, 0.9],
+        [1.5, 0.35, 0.78],
+        [2.5, 0.35, 0.9],
+        [3.5, 0.35, 0.8],
+      ],
+      legato: 1,
+    },
+    bass: {
+      name: 'Bass',
+      device: 'core.bass',
+      params: { wave: 0.3, cutoff: 650, reso: 0.4, envamt: 0.7, fdecay: 0.15, sub: 0.5, mode: 1 },
+      mode: 'offbeat',
+      line: ['R', 'R', '8', 'R', '8'],
+      approach: 'none',
+      legato: 0.45,
+      range: [28, 45],
+    },
+    drums: {
+      name: 'Drums',
+      device: 'core.drums',
+      params: { kit: 1, room: 0.15, tone: 0.25 },
+      rows: { kick: 'X...X...X...X...', clap: '....X.......X...', open: '..x...x...x...x.', hat: '.o.o.o.o.o.o.o.o' },
+      alt: null,
+      fill: { from: 8, rows: { kick: 'X...X...', clap: 'oooxxxXX', open: '........' } },
+      crash: 'after',
+    },
     pad: { name: 'Pad', device: 'core.pad', params: { tone: 2600, motion: 0.45, space: 0.45 }, register: [57, 79] },
     level: { chords: -5, bass: -3, drums: -2, pad: -11 },
     gain: { chords: -7, bass: -6, drums: -6, pad: -16 },
   },
   ballad: {
-    label: 'Ballad', blurb: 'broken piano chords, half-time kit, long bass notes',
-    midCost: 0.25, sevenths: false, swing: 0, ghost: 0, arp: true,
+    label: 'Ballad',
+    blurb: 'broken piano chords, half-time kit, long bass notes',
+    midCost: 0.25,
+    sevenths: false,
+    swing: 0,
+    ghost: 0,
+    arp: true,
     prog: { major: [0, 5, 3, 4], minor: [0, 5, 2, 6] },
-    chords: { name: 'Piano', device: 'core.keys', params: { voice: 1, bright: 0.4, trem: 0 }, inserts: [{ device: 'core.verb', params: { mix: 0.25, size: 0.65 } }], register: [43, 72], legato: 1 },
-    bass: { name: 'Bass', device: 'core.bass', params: { wave: 0.1, sub: 0.65, cutoff: 420, drive: 0.1, glide: 30 }, mode: 'half', line: ['R', '5'], approach: 'add', legato: 1, range: [28, 45] },
-    drums: { name: 'Drums', device: 'core.drums', params: { kit: 0, room: 0.45, decay: 1.15, tone: -0.1 },
-      rows: { kick: 'X.........x.....', snare: '........X.......', hat: 'x.o.x.o.x.o.x.o.' }, alt: null,
-      fill: { from: 12, rows: { tom1: 'xx..', tom2: '..x.', tom3: '...x', hat: '....' } }, crash: 'after' },
-    pad: { name: 'Strings', device: 'claude.dust-sheet', params: { tone: 2600, attack: 0.5, release: 1.4 }, register: [55, 76] },
+    chords: {
+      name: 'Piano',
+      device: 'core.keys',
+      params: { voice: 1, bright: 0.4, trem: 0 },
+      inserts: [{ device: 'core.verb', params: { mix: 0.25, size: 0.65 } }],
+      register: [43, 72],
+      legato: 1,
+    },
+    bass: {
+      name: 'Bass',
+      device: 'core.bass',
+      params: { wave: 0.1, sub: 0.65, cutoff: 420, drive: 0.1, glide: 30 },
+      mode: 'half',
+      line: ['R', '5'],
+      approach: 'add',
+      legato: 1,
+      range: [28, 45],
+    },
+    drums: {
+      name: 'Drums',
+      device: 'core.drums',
+      params: { kit: 0, room: 0.45, decay: 1.15, tone: -0.1 },
+      rows: { kick: 'X.........x.....', snare: '........X.......', hat: 'x.o.x.o.x.o.x.o.' },
+      alt: null,
+      fill: { from: 12, rows: { tom1: 'xx..', tom2: '..x.', tom3: '...x', hat: '....' } },
+      crash: 'after',
+    },
+    pad: {
+      name: 'Strings',
+      device: 'claude.dust-sheet',
+      params: { tone: 2600, attack: 0.5, release: 1.4 },
+      register: [55, 76],
+    },
     level: { chords: -5, bass: -5, drums: -5, pad: -9 },
     gain: { chords: -9, bass: -11, drums: -10, pad: -12 },
   },
 };
 export const STYLE_IDS = Object.keys(STYLES);
-const STYLE_ALIASES = { 'lo-fi': 'lofi', lofi: 'lofi', 'lo fi': 'lofi', chill: 'lofi', hiphop: 'lofi', 'hip-hop': 'lofi', dance: 'house', edm: 'house', slow: 'ballad', piano: 'ballad', indie: 'rock' };
+const STYLE_ALIASES = {
+  'lo-fi': 'lofi',
+  lofi: 'lofi',
+  'lo fi': 'lofi',
+  chill: 'lofi',
+  hiphop: 'lofi',
+  'hip-hop': 'lofi',
+  dance: 'house',
+  edm: 'house',
+  slow: 'ballad',
+  piano: 'ballad',
+  indie: 'rock',
+};
 export function findStyle(name) {
-  const k = String(name || '').trim().toLowerCase();
+  const k = String(name || '')
+    .trim()
+    .toLowerCase();
   return STYLES[k] ? k : STYLE_ALIASES[k] || null;
 }
 export const levelFor = (style, part) => STYLES[style]?.level?.[part] ?? -6;
@@ -130,7 +319,8 @@ export function harmonyKeyOf(key) {
 const keyText = (k) => `${k.root} ${k.scale.replace(/([A-Z])/g, ' $1').toLowerCase()}`;
 // Strong beats inside a bar (beats from the bar line).
 export function strongOffsets(meter = [4, 4]) {
-  const [n, d] = meter, bpb = beatsPerBar(meter);
+  const [n, d] = meter,
+    bpb = beatsPerBar(meter);
   if (d === 4 && n === 4) return [0, 2];
   if (d === 4 && n === 6) return [0, 3];
   if (d === 8 && n === 6) return [0, 1.5];
@@ -140,27 +330,37 @@ export function strongOffsets(meter = [4, 4]) {
 }
 // The strong beats inside a clip, in clip time.
 export function strongTimes({ start = 0, length, meter = [4, 4] }) {
-  const bpb = beatsPerBar(meter), out = [];
+  const bpb = beatsPerBar(meter),
+    out = [];
   for (let k = Math.floor((start + EPS) / bpb); k * bpb < start + length - EPS; k++) {
-    for (const o of strongOffsets(meter)) { const t = k * bpb + o - start; if (t > -EPS && t < length - EPS) out.push(r4(Math.max(0, t))); }
+    for (const o of strongOffsets(meter)) {
+      const t = k * bpb + o - start;
+      if (t > -EPS && t < length - EPS) out.push(r4(Math.max(0, t)));
+    }
   }
   return out;
 }
 const soundsAt = (n, s) => n.t <= s + WIN && n.t + n.d > s + 0.02;
-const ic1 = (a, b) => { const x = (((a - b) % 12) + 12) % 12; return x === 1 || x === 11; };
+const ic1 = (a, b) => {
+  const x = (((a - b) % 12) + 12) % 12;
+  return x === 1 || x === 11;
+};
 
 /* ------------------------------------------------------------------------------------------------ chords */
 function diatonic(hk) {
   const sc = scalePcs(hk);
   return [0, 1, 2, 3, 4, 5, 6].map((k) => {
     const pcs = [0, 2, 4, 6].map((j) => sc[(k + j) % 7]);
-    const third = (pcs[1] - pcs[0] + 12) % 12, fifth = (pcs[2] - pcs[0] + 12) % 12;
+    const third = (pcs[1] - pcs[0] + 12) % 12,
+      fifth = (pcs[2] - pcs[0] + 12) % 12;
     const quality = fifth === 6 ? 'dim' : fifth === 8 ? 'aug' : third === 4 ? 'maj' : 'min';
     return { degree: k, root: pcs[0], triad: pcs.slice(0, 3), seventh: pcs[3], ninth: sc[(k + 1) % 7], quality };
   });
 }
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-const roman = (c) => (c.quality === 'maj' || c.quality === 'aug' ? ROMAN[c.degree] : ROMAN[c.degree].toLowerCase()) + (c.quality === 'dim' ? '°' : '');
+const roman = (c) =>
+  (c.quality === 'maj' || c.quality === 'aug' ? ROMAN[c.degree] : ROMAN[c.degree].toLowerCase()) +
+  (c.quality === 'dim' ? '°' : '');
 // spelled for the key: Ab, not G#, in C minor
 function nameOf(ch, pcs, hk = null) {
   const ps = pcs.map((pc, i) => (i === 0 ? 48 + pc : 60 + pc));
@@ -190,14 +390,25 @@ function pull(a, b, major) {
 
 // Cut the clip into units: one per strong beat, each up to the next strong beat (or the clip's end).
 function unitsOf({ start, length, meter }) {
-  const bpb = beatsPerBar(meter), offs = strongOffsets(meter), out = [];
+  const bpb = beatsPerBar(meter),
+    offs = strongOffsets(meter),
+    out = [];
   const k0 = Math.floor((start + EPS) / bpb);
   for (let k = k0; k * bpb < start + length - EPS; k++) {
     for (let i = 0; i < offs.length; i++) {
-      const a = k * bpb + offs[i] - start, b = k * bpb + (i + 1 < offs.length ? offs[i + 1] : bpb) - start;
-      const ca = Math.max(0, a), cb = Math.min(length, b);
+      const a = k * bpb + offs[i] - start,
+        b = k * bpb + (i + 1 < offs.length ? offs[i + 1] : bpb) - start;
+      const ca = Math.max(0, a),
+        cb = Math.min(length, b);
       if (cb - ca < EPS) continue;
-      out.push({ a: r4(ca), b: r4(cb), strong: a > -EPS ? r4(a) : null, bar: k - k0, half: i > 0, downbeat: i === 0 && a > -EPS });
+      out.push({
+        a: r4(ca),
+        b: r4(cb),
+        strong: a > -EPS ? r4(a) : null,
+        bar: k - k0,
+        half: i > 0,
+        downbeat: i === 0 && a > -EPS,
+      });
     }
   }
   return out;
@@ -229,7 +440,12 @@ function fit(un, ch) {
 function cfmPrior(mel, ctx, chords, units, every) {
   const out = units.map(() => null);
   try {
-    const r = transform('chords_from_melody', mel.map((n, i) => ({ ...n, id: 'm' + i })), { kind: 'triads', every }, ctx);
+    const r = transform(
+      'chords_from_melody',
+      mel.map((n, i) => ({ ...n, id: 'm' + i })),
+      { kind: 'triads', every },
+      ctx,
+    );
     const added = r.notes.filter((n) => !n.id);
     for (let i = 0; i < units.length; i++) {
       const at = added.filter((n) => n.t <= units[i].a + EPS && n.t + n.d > units[i].a + EPS);
@@ -238,32 +454,42 @@ function cfmPrior(mel, ctx, chords, units, every) {
       const ch = chords.find((c) => c.triad.every((pc) => pcs.has(pc)) && pcs.size === 3);
       if (ch) out[i] = ch.degree;
     }
-  } catch (e) { /* no prior: fine */ }
+  } catch (e) {
+    /* no prior: fine */
+  }
   return out;
 }
 
 function harmonizeMelody(mel, units, chords, S, hk, ctx, R) {
-  const pr = priors(hk), major = (scalePcs(hk)[2] - scalePcs(hk)[0] + 12) % 12 === 4;
+  const pr = priors(hk),
+    major = (scalePcs(hk)[2] - scalePcs(hk)[0] + 12) % 12 === 4;
   const prog = major ? S.prog.major : S.prog.minor;
   const loop = new Set(prog.map((d, i) => `${d}>${prog[(i + 1) % prog.length]}`));
   const cfm = cfmPrior(mel, ctx, chords, units, 'bar');
   const allowed = chords.filter((c) => !(S.power && c.quality === 'dim'));
   const N = units.length;
   const uns = units.map((u) => unitNotes(u, mel));
-  const local = units.map((u, i) => allowed.map((c) => {
-    let x = fit(uns[i], c) + pr[c.degree] + (cfm[i] === c.degree ? -0.12 : 0) + (R() - 0.5) * 0.06;
-    if (c.quality === 'dim') x += 0.6;
-    return x;
-  }));
+  const local = units.map((u, i) =>
+    allowed.map((c) => {
+      let x = fit(uns[i], c) + pr[c.degree] + (cfm[i] === c.degree ? -0.12 : 0) + (R() - 0.5) * 0.06;
+      if (c.quality === 'dim') x += 0.6;
+      return x;
+    }),
+  );
   // Viterbi
-  const cost = [local[0].map((x, j) => x + (allowed[j].degree === 0 ? -0.3 : 0))], back = [allowed.map(() => -1)];
+  const cost = [local[0].map((x, j) => x + (allowed[j].degree === 0 ? -0.3 : 0))],
+    back = [allowed.map(() => -1)];
   for (let i = 1; i < N; i++) {
-    const u = units[i], empty = !uns[i].length && !uns[i - 1].length;
-    cost.push([]); back.push([]);
+    const u = units[i],
+      empty = !uns[i].length && !uns[i - 1].length;
+    cost.push([]);
+    back.push([]);
     for (let j = 0; j < allowed.length; j++) {
-      let best = Infinity, bk = 0;
+      let best = Infinity,
+        bk = 0;
       for (let q = 0; q < allowed.length; q++) {
-        const a = allowed[q].degree, b = allowed[j].degree;
+        const a = allowed[q].degree,
+          b = allowed[j].degree;
         let tr;
         if (a === b) tr = u.half ? 0 : empty ? 0.05 : 0.3;
         else {
@@ -272,7 +498,10 @@ function harmonizeMelody(mel, units, chords, S, hk, ctx, R) {
           tr += pull(a, b, major);
         }
         const x = cost[i - 1][q] + tr;
-        if (x < best - 1e-12) { best = x; bk = q; }
+        if (x < best - 1e-12) {
+          best = x;
+          bk = q;
+        }
       }
       cost[i][j] = best + local[i][j] + (i === N - 1 && allowed[j].degree === 0 ? -0.1 : 0);
       back[i][j] = bk;
@@ -280,7 +509,10 @@ function harmonizeMelody(mel, units, chords, S, hk, ctx, R) {
   }
   let j = cost[N - 1].indexOf(Math.min(...cost[N - 1]));
   const pick = new Array(N);
-  for (let i = N - 1; i >= 0; i--) { pick[i] = allowed[j]; j = back[i][j]; }
+  for (let i = N - 1; i >= 0; i--) {
+    pick[i] = allowed[j];
+    j = back[i][j];
+  }
   return pick;
 }
 
@@ -295,7 +527,10 @@ function readChords(seed, units, chords) {
     const low = here.reduce((a, b) => (b.p < a.p ? b : a)).p % 12;
     let best = null;
     for (const c of chords) {
-      const s = c.triad.reduce((x, pc) => x + w[pc], 0) - 0.5 * w.reduce((x, v, pc) => x + (c.triad.includes(pc) ? 0 : v), 0) + (c.root === low ? 0.3 : 0);
+      const s =
+        c.triad.reduce((x, pc) => x + w[pc], 0) -
+        0.5 * w.reduce((x, v, pc) => x + (c.triad.includes(pc) ? 0 : v), 0) +
+        (c.root === low ? 0.3 : 0);
       if (!best || s > best.s + 1e-9) best = { c, s };
     }
     prev = best.c;
@@ -318,7 +553,11 @@ export function voice(pcs, [lo, hi], prev, top) {
     for (let base = lo; base <= hi; base++) {
       if (base % 12 !== rot[0]) continue;
       const v = [base];
-      for (let j = 1; j < rot.length; j++) { let q = rot[j] + 12 * Math.floor(v[j - 1] / 12); while (q <= v[j - 1]) q += 12; v.push(q); }
+      for (let j = 1; j < rot.length; j++) {
+        let q = rot[j] + 12 * Math.floor(v[j - 1] / 12);
+        while (q <= v[j - 1]) q += 12;
+        v.push(q);
+      }
       if (v[v.length - 1] > hi) continue;
       let cost = prev ? motion(prev, v) : Math.abs(v.reduce((a, b) => a + b, 0) / v.length - (lo + hi) / 2) * 0.5;
       cost += inv === 0 ? 0 : inv === 1 ? 0.6 : 1.1;
@@ -326,11 +565,12 @@ export function voice(pcs, [lo, hi], prev, top) {
       if (!best || cost < best.cost - 1e-9) best = { v, cost };
     }
   }
-  return best ? best.v : pcs.map((pc) => lo + ((pc - lo % 12 + 12) % 12)).sort((a, b) => a - b);
+  return best ? best.v : pcs.map((pc) => lo + ((pc - (lo % 12) + 12) % 12)).sort((a, b) => a - b);
 }
 export function nearestPitch(pc, ref, lo, hi) {
   let best = null;
-  for (let p = lo; p <= hi; p++) if (p % 12 === pc && (best == null || Math.abs(p - ref) < Math.abs(best - ref))) best = p;
+  for (let p = lo; p <= hi; p++)
+    if (p % 12 === pc && (best == null || Math.abs(p - ref) < Math.abs(best - ref))) best = p;
   return best ?? clamp(pc + 12 * Math.floor(ref / 12), lo, hi);
 }
 
@@ -338,15 +578,22 @@ export function nearestPitch(pc, ref, lo, hi) {
 // The work grows faster than the clip: 1,024 beats (256 bars of 4/4) takes well under a second; 65,536 took a minute.
 export const MAX_BEATS = 1024;
 export function arrangeAround(opts = {}) {
-  const meter = opts.meter || [4, 4], tempo = opts.tempo || 120, start = Number(opts.start) || 0;
-  const style = findStyle(opts.style) || 'pop', S = STYLES[style];
+  const meter = opts.meter || [4, 4],
+    tempo = opts.tempo || 120,
+    start = Number(opts.start) || 0;
+  const style = findStyle(opts.style) || 'pop',
+    S = STYLES[style];
   const seedNotes = (opts.notes || []).map((n) => normNote(n));
   const bpb = beatsPerBar(meter);
   // the clip's own length when it has one (a seed shorter than a bar gets a band that short); else the seed's bars
   let seedEnd = 0;
   for (const n of seedNotes) seedEnd = Math.max(seedEnd, n.t + n.d);
   const length = Number(opts.length) > 0 ? Number(opts.length) : Math.max(bpb, Math.ceil((seedEnd - EPS) / bpb) * bpb);
-  if (length > MAX_BEATS) return { error: `the clip is ${Math.ceil(length / bpb).toLocaleString('en-US')} bars long; a band is built over up to ${Math.floor(MAX_BEATS / bpb)} bars at a time`, hint: 'split the clip, or keep a shorter take, and build on that' };
+  if (length > MAX_BEATS)
+    return {
+      error: `the clip is ${Math.ceil(length / bpb).toLocaleString('en-US')} bars long; a band is built over up to ${Math.floor(MAX_BEATS / bpb)} bars at a time`,
+      hint: 'split the clip, or keep a shorter take, and build on that',
+    };
   const R = rng(`${opts.seed ?? 1}:${style}`);
   const kind = opts.kind || seedKind(seedNotes, opts.drums);
   const key = opts.key || (kind === 'drums' ? { root: 'C', scale: 'major' } : guessKey(seedNotes));
@@ -357,7 +604,11 @@ export function arrangeAround(opts = {}) {
   const ctx = { key, meter, tempo, start };
   const want = normParts(opts.parts);
   const skipped = [];
-  if (!seedNotes.length) return { error: 'the clip has no notes to build on', hint: 'hum, tap or play something first, then keep it as a clip' };
+  if (!seedNotes.length)
+    return {
+      error: 'the clip has no notes to build on',
+      hint: 'hum, tap or play something first, then keep it as a clip',
+    };
   if (!units.length) return { error: 'the clip is empty', hint: 'a clip needs some length' };
 
   // 1. the harmony, one chord per unit
@@ -375,13 +626,22 @@ export function arrangeAround(opts = {}) {
   // units with the same chord inside one bar make one segment (a chord, its colour tones, what it leaves out)
   const segs = [];
   units.forEach((u, i) => {
-    const c = pick[i], last = segs[segs.length - 1];
-    if (last && last.chord.degree === c.degree && Math.abs(last.b - u.a) < EPS && !u.downbeat) { last.b = u.b; last.units.push(u); }
-    else segs.push({ a: u.a, b: u.b, chord: c, units: [u], bar: u.bar });
+    const c = pick[i],
+      last = segs[segs.length - 1];
+    if (last && last.chord.degree === c.degree && Math.abs(last.b - u.a) < EPS && !u.downbeat) {
+      last.b = u.b;
+      last.units.push(u);
+    } else segs.push({ a: u.a, b: u.b, chord: c, units: [u], bar: u.bar });
   });
   segs.forEach((s, i) => {
     const c = s.chord;
-    const strongPcs = [...new Set(s.units.flatMap((u) => (u.strong == null ? [] : clashSeed.filter((n) => soundsAt(n, u.strong)).map((n) => n.p % 12))))];
+    const strongPcs = [
+      ...new Set(
+        s.units.flatMap((u) =>
+          u.strong == null ? [] : clashSeed.filter((n) => soundsAt(n, u.strong)).map((n) => n.p % 12),
+        ),
+      ),
+    ];
     const rubs = (pc) => strongPcs.some((m) => ic1(pc, m));
     const avoid = c.triad.filter(rubs);
     let pcs = S.power ? [c.root, c.triad[2]] : c.triad.slice();
@@ -389,14 +649,19 @@ export function arrangeAround(opts = {}) {
     if (style === 'lofi' && c.quality !== 'dim' && !rubs(c.ninth)) pcs.push(c.ninth);
     s.pcs = pcs.filter((pc) => !avoid.includes(pc));
     s.avoid = avoid;
-    s.bassPc = !avoid.includes(c.root) ? c.root : c.triad.find((pc) => !avoid.includes(pc)) ?? null;
+    s.bassPc = !avoid.includes(c.root) ? c.root : (c.triad.find((pc) => !avoid.includes(pc)) ?? null);
     s.change = i === 0 || segs[i - 1].chord.degree !== c.degree;
   });
-  for (const s of segs) s.name = s.pcs.length >= 2 ? nameOf(s.chord, [s.chord.root, ...s.pcs.filter((pc) => pc !== s.chord.root)], hk) : spellPc(s.chord.root, hk);
+  for (const s of segs)
+    s.name =
+      s.pcs.length >= 2
+        ? nameOf(s.chord, [s.chord.root, ...s.pcs.filter((pc) => pc !== s.chord.root)], hk)
+        : spellPc(s.chord.root, hk);
 
   // 2. the drums (or the seed's kick, when the seed is the beat)
   const S16 = Math.round(bpb * 4);
-  const k0 = Math.floor((start + EPS) / bpb), k1 = Math.ceil((start + length - EPS) / bpb);
+  const k0 = Math.floor((start + EPS) / bpb),
+    k1 = Math.ceil((start + length - EPS) / bpb);
   const gridAt = (k, step) => r4(k * bpb + step * 0.25 + (step % 2 === 1 ? (S.swing || 0) * 0.25 : 0) - start);
   const drumBars = [];
   for (let k = k0; k < k1; k++) drumBars.push(drumBar(S, style, meter, S16, k - k0, R));
@@ -406,7 +671,12 @@ export function arrangeAround(opts = {}) {
     if (kind === 'drums') skipped.push({ part: 'drums', why: 'the seed is the beat' });
     else {
       const out = [];
-      drumBars.forEach((bar, i) => { for (const n of bar.notes) { const t = gridAt(k0 + i, n.step); if (t > -EPS && t < length - EPS) out.push({ p: n.p, t: Math.max(0, t), d: 0.25, v: n.v }); } });
+      drumBars.forEach((bar, i) => {
+        for (const n of bar.notes) {
+          const t = gridAt(k0 + i, n.step);
+          if (t > -EPS && t < length - EPS) out.push({ p: n.p, t: Math.max(0, t), d: 0.25, v: n.v });
+        }
+      });
       parts.drums = out;
     }
   }
@@ -414,14 +684,24 @@ export function arrangeAround(opts = {}) {
   const kickSteps = drumBars.map((bar, i) => {
     if (kind === 'drums') {
       const a = (k0 + i) * bpb - start;
-      return [...new Set(seedNotes.filter((n) => KICKS.has(n.p) && n.t >= a - EPS && n.t < a + bpb - EPS && n.v >= 0.5).map((n) => Math.round((n.t - a) / 0.25)))].sort((x, y) => x - y);
+      return [
+        ...new Set(
+          seedNotes
+            .filter((n) => KICKS.has(n.p) && n.t >= a - EPS && n.t < a + bpb - EPS && n.v >= 0.5)
+            .map((n) => Math.round((n.t - a) / 0.25)),
+        ),
+      ].sort((x, y) => x - y);
     }
-    return bar.notes.filter((n) => KICKS.has(n.p)).map((n) => n.step).sort((x, y) => x - y);
+    return bar.notes
+      .filter((n) => KICKS.has(n.p))
+      .map((n) => n.step)
+      .sort((x, y) => x - y);
   });
 
   // 3. the bass
   const segAt = (t) => segs.find((s) => t >= s.a - EPS && t < s.b - EPS) || segs[segs.length - 1];
-  if (want.includes('bass')) parts.bass = bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, gridAt, segAt, hk, R, meter });
+  if (want.includes('bass'))
+    parts.bass = bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, gridAt, segAt, hk, R, meter });
 
   // 4. the chords (unless the seed is the chords)
   const top = (s) => {
@@ -436,41 +716,97 @@ export function arrangeAround(opts = {}) {
   // 5. the pad: the chord held through each change, tied across bars while it stays
   if (want.includes('pad')) {
     const out = [];
-    let prevV = null, prevSeg = null, held = [];
+    let prevV = null,
+      prevSeg = null,
+      held = [];
     for (const s of segs) {
-      if (!s.pcs.length) { prevSeg = null; held = []; continue; }
+      if (!s.pcs.length) {
+        prevSeg = null;
+        held = [];
+        continue;
+      }
       const pcs = s.pcs.filter((pc, i, a) => a.indexOf(pc) === i).slice(0, 4);
-      if (prevSeg && prevSeg.b === s.a && prevSeg.pcs.join() === s.pcs.join() && held.length) { for (const n of held) n.d = r4(s.b - n.t); prevSeg = s; continue; }
+      if (prevSeg && prevSeg.b === s.a && prevSeg.pcs.join() === s.pcs.join() && held.length) {
+        for (const n of held) n.d = r4(s.b - n.t);
+        prevSeg = s;
+        continue;
+      }
       const v = voice(pcs, S.pad.register, prevV, null);
       held = v.map((p) => ({ p, t: s.a, d: r4(s.b - s.a), v: r4(clamp(0.5 + (R() - 0.5) * 0.06, 0.3, 0.7)) }));
       out.push(...held);
-      prevV = v; prevSeg = s;
+      prevV = v;
+      prevSeg = s;
     }
     parts.pad = out;
   }
-  for (const k of Object.keys(parts)) parts[k] = parts[k].filter(inClip).map((n) => ({ p: n.p, t: r4(Math.max(0, n.t)), d: r4(Math.max(1 / 32, Math.min(n.d, length - n.t))), v: r4(clamp(n.v, 0.05, 1)) }))
-    .sort((a, b) => a.t - b.t || a.p - b.p);
+  for (const k of Object.keys(parts))
+    parts[k] = parts[k]
+      .filter(inClip)
+      .map((n) => ({
+        p: n.p,
+        t: r4(Math.max(0, n.t)),
+        d: r4(Math.max(1 / 32, Math.min(n.d, length - n.t))),
+        v: r4(clamp(n.v, 0.05, 1)),
+      }))
+      .sort((a, b) => a.t - b.t || a.p - b.p);
 
   const check = checkArrangement(seedNotes, parts, { key, meter, start, length, segments: segs, kind, style });
   const fills = drumBars.map((b, i) => (b.fill ? i + 1 : 0)).filter(Boolean);
   const prog = segs.filter((s, i) => i === 0 || s.name !== segs[i - 1].name).map((s) => s.name);
   const made = PARTS.filter((p) => parts[p]);
-  const summary = `${S.label} band around ${seedNotes.length} ${kind === 'drums' ? 'hits' : 'notes'} in ${keyText(key)}: ${made.join(', ') || 'nothing'}` +
+  const summary =
+    `${S.label} band around ${seedNotes.length} ${kind === 'drums' ? 'hits' : 'notes'} in ${keyText(key)}: ${made.join(', ') || 'nothing'}` +
     (prog.length ? `. Chords ${prog.slice(0, 8).join(' – ')}${prog.length > 8 ? ' …' : ''}` : '') +
-    (parts.bass ? `; bass ${S.bass.mode === 'kick' ? 'on the kick' : S.bass.mode === 'eighths' ? 'in eighths' : S.bass.mode === 'offbeat' ? 'on the offbeats' : 'in long notes'}` : '') +
+    (parts.bass
+      ? `; bass ${S.bass.mode === 'kick' ? 'on the kick' : S.bass.mode === 'eighths' ? 'in eighths' : S.bass.mode === 'offbeat' ? 'on the offbeats' : 'in long notes'}`
+      : '') +
     (parts.drums ? (fills.length ? `; a fill in bar ${fills.join(', ')}` : '; no fill (under 4 bars)') : '') +
     `. ${check.clashes.length ? `${check.clashes.length} strong-beat rub${check.clashes.length === 1 ? '' : 's'} left` : 'Nothing rubs against your notes on the strong beats'}.`;
   return {
-    style, label: S.label, kind, key, harmony: hk, length, start,
-    segments: segs.map((s) => ({ a: s.a, b: s.b, degree: s.chord.degree, roman: roman(s.chord), name: s.name, root: s.chord.root, bass: s.bassPc, pcs: s.pcs, change: s.change })),
-    progression: prog, parts, made, skipped, fills, check, summary,
+    style,
+    label: S.label,
+    kind,
+    key,
+    harmony: hk,
+    length,
+    start,
+    segments: segs.map((s) => ({
+      a: s.a,
+      b: s.b,
+      degree: s.chord.degree,
+      roman: roman(s.chord),
+      name: s.name,
+      root: s.chord.root,
+      bass: s.bassPc,
+      pcs: s.pcs,
+      change: s.change,
+    })),
+    progression: prog,
+    parts,
+    made,
+    skipped,
+    fills,
+    check,
+    summary,
   };
 }
 
 function normParts(parts) {
   if (!parts) return DEFAULT_PARTS.slice();
-  const ALIAS = { chord: 'chords', keys: 'chords', piano: 'chords', bassline: 'bass', drum: 'drums', beat: 'drums', groove: 'drums', pads: 'pad', strings: 'pad' };
-  const list = (Array.isArray(parts) ? parts : String(parts).split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase()).map((x) => ALIAS[x] || x);
+  const ALIAS = {
+    chord: 'chords',
+    keys: 'chords',
+    piano: 'chords',
+    bassline: 'bass',
+    drum: 'drums',
+    beat: 'drums',
+    groove: 'drums',
+    pads: 'pad',
+    strings: 'pad',
+  };
+  const list = (Array.isArray(parts) ? parts : String(parts).split(/[\s,]+/))
+    .map((x) => String(x).trim().toLowerCase())
+    .map((x) => ALIAS[x] || x);
   const out = PARTS.filter((p) => list.includes(p));
   return out.length ? out : DEFAULT_PARTS.slice();
 }
@@ -500,13 +836,22 @@ export function drumBar(S, style, meter, S16, i, R) {
     for (const k of Object.keys(rows)) rows[k] = rows[k].slice(0, from).padEnd(S16, '.');
     for (const [k, r] of Object.entries(f.rows)) rows[k] = (rows[k] || '').padEnd(S16, '.').slice(0, from) + r;
   }
-  if (i % 4 === 0 && (D.crash === 'start' ? true : D.crash === 'after' ? i > 0 : false)) rows.crash = 'X'.padEnd(S16, '.');
-  const notes = parseGrid({ steps: S16, step: 0.25, rows }).map((n) => ({ p: n.p, step: Math.round(n.t / 0.25), v: n.v }));
+  if (i % 4 === 0 && (D.crash === 'start' ? true : D.crash === 'after' ? i > 0 : false))
+    rows.crash = 'X'.padEnd(S16, '.');
+  const notes = parseGrid({ steps: S16, step: 0.25, rows }).map((n) => ({
+    p: n.p,
+    step: Math.round(n.t / 0.25),
+    v: n.v,
+  }));
   // ghost notes on the snare between the backbeats (never in the fill)
-  if (S.ghost) for (let st = 1; st < from; st += 2) if (R() < S.ghost && !notes.some((n) => n.step === st && (n.p === 38 || n.p === 39))) notes.push({ p: 38, step: st, v: 0.32 });
+  if (S.ghost)
+    for (let st = 1; st < from; st += 2)
+      if (R() < S.ghost && !notes.some((n) => n.step === st && (n.p === 38 || n.p === 39)))
+        notes.push({ p: 38, step: st, v: 0.32 });
   for (const n of notes) {
     let acc = 1;
-    if (n.p === 42 || n.p === 44 || n.p === 70 || n.p === 51) acc = n.step % 4 === 0 ? 1 : n.step % 2 === 0 ? 0.78 : 0.62;
+    if (n.p === 42 || n.p === 44 || n.p === 70 || n.p === 51)
+      acc = n.step % 4 === 0 ? 1 : n.step % 2 === 0 ? 0.78 : 0.62;
     else if (KICKS.has(n.p)) acc = n.step === 0 ? 1 : 0.92;
     if (fill && n.step >= from) acc *= 0.82 + 0.18 * ((n.step - from) / Math.max(1, S16 - 1 - from));
     n.v = r4(clamp(n.v * acc * (1 + (R() - 0.5) * 0.12), 0.12, 1));
@@ -516,20 +861,45 @@ export function drumBar(S, style, meter, S16, i, R) {
 }
 // The same ideas outside 4/4: a waltz, a compound 6/8 lilt, or kick-on-one / snare-in-the-middle.
 function genericRows(style, meter, S16) {
-  const row = (hits) => { const a = Array(S16).fill('.'); for (const [i, c] of hits) if (i < S16) a[i] = c; return a.join(''); };
+  const row = (hits) => {
+    const a = Array(S16).fill('.');
+    for (const [i, c] of hits) if (i < S16) a[i] = c;
+    return a.join('');
+  };
   const eighths = (ch, off) => row(Array.from({ length: Math.ceil(S16 / 2) }, (_, j) => [j * 2, j % 2 ? off : ch]));
   const [n, d] = meter;
-  if (d === 8 && n % 3 === 0) {   // compound: dotted-quarter pulses
+  if (d === 8 && n % 3 === 0) {
+    // compound: dotted-quarter pulses
     const pulses = Array.from({ length: n / 3 }, (_, j) => j * 6);
-    return { kick: row([[0, 'X'], ...(style === 'house' ? pulses.slice(1).map((s) => [s, 'x']) : [])]), snare: row(pulses.slice(1).map((s, j) => [s, j === pulses.length - 2 ? 'X' : 'x'])), hat: eighths('x', 'o') };
+    return {
+      kick: row([[0, 'X'], ...(style === 'house' ? pulses.slice(1).map((s) => [s, 'x']) : [])]),
+      snare: row(pulses.slice(1).map((s, j) => [s, j === pulses.length - 2 ? 'X' : 'x'])),
+      hat: eighths('x', 'o'),
+    };
   }
-  if (n === 3) return { kick: row([[0, 'X']]), snare: row([[4, 'o'], [8, 'x']]), hat: eighths('x', 'o') };
+  if (n === 3)
+    return {
+      kick: row([[0, 'X']]),
+      snare: row([
+        [4, 'o'],
+        [8, 'x'],
+      ]),
+      hat: eighths('x', 'o'),
+    };
   const mid = Math.round(S16 / 2 / 2) * 2;
-  return { kick: row([[0, 'X'], ...(style === 'house' ? Array.from({ length: Math.floor(S16 / 4) }, (_, j) => [j * 4, 'X']) : [])]), snare: row([[mid, 'X']]), hat: eighths('x', 'o') };
+  return {
+    kick: row([
+      [0, 'X'],
+      ...(style === 'house' ? Array.from({ length: Math.floor(S16 / 4) }, (_, j) => [j * 4, 'X']) : []),
+    ]),
+    snare: row([[mid, 'X']]),
+    hat: eighths('x', 'o'),
+  };
 }
 
 export function bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, gridAt, segAt, hk, R, meter }) {
-  const B = S.bass, [lo, hi] = B.range;
+  const B = S.bass,
+    [lo, hi] = B.range;
   const ladder = [];
   const pcs = new Set(scalePcs(hk));
   for (let p = lo - 2; p <= hi + 2; p++) if (pcs.has(p % 12)) ladder.push(p);
@@ -540,26 +910,40 @@ export function bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, grid
     let steps;
     if (B.mode === 'kick') steps = kickSteps[i].length ? kickSteps[i] : [0];
     else if (B.mode === 'eighths') steps = Array.from({ length: Math.ceil(S16 / 2) }, (_, j) => j * 2);
-    else if (B.mode === 'offbeat') steps = S16 === 16 ? [0, 2, 6, 10, 14] : [0, ...Array.from({ length: Math.floor(S16 / 4) }, (_, j) => j * 4 + 2)];
+    else if (B.mode === 'offbeat')
+      steps = S16 === 16 ? [0, 2, 6, 10, 14] : [0, ...Array.from({ length: Math.floor(S16 / 4) }, (_, j) => j * 4 + 2)];
     else steps = half;
     for (const st of steps) times.add(gridAt(k0 + i, st));
   }
   for (const s of segs) times.add(r4(s.a));
   // walk-ins: an extra note on the "and" of the last beat before a change
-  if (B.approach === 'add') for (const s of segs) if (s.change && s.a > EPS) { const t = r4(s.a - (S.arp ? 1 : 0.5)); if (t > EPS && ![...times].some((x) => x > t - EPS && x < s.a - EPS)) times.add(t); }
+  if (B.approach === 'add')
+    for (const s of segs)
+      if (s.change && s.a > EPS) {
+        const t = r4(s.a - (S.arp ? 1 : 0.5));
+        if (t > EPS && ![...times].some((x) => x > t - EPS && x < s.a - EPS)) times.add(t);
+      }
   const list = [...times].filter((t) => t > -EPS && t < length - EPS).sort((a, b) => a - b);
   const out = [];
-  let prevP = Math.round((lo + hi) / 2) - 2, idx = 0, curSeg = null;
+  let prevP = Math.round((lo + hi) / 2) - 2,
+    idx = 0,
+    curSeg = null;
   for (let i = 0; i < list.length; i++) {
-    const t = list[i], next = i + 1 < list.length ? list[i + 1] : length;
+    const t = list[i],
+      next = i + 1 < list.length ? list[i + 1] : length;
     const s = segAt(t);
-    if (s !== curSeg) { curSeg = s; idx = 0; }
+    if (s !== curSeg) {
+      curSeg = s;
+      idx = 0;
+    }
     if (s.bassPc == null) continue;
     const root = nearestPitch(s.bassPc, prevP, lo, hi);
     let p = root;
     const role = idx === 0 ? 'R' : B.line[idx % B.line.length];
-    if (role === '5') { const f = s.pcs.includes(s.chord.triad[2]) && !s.avoid.includes(s.chord.triad[2]) ? s.chord.triad[2] : s.bassPc; p = nearestPitch(f, root + 5, lo, hi); }
-    else if (role === '8') p = root + 12 <= hi + 7 ? root + 12 : root;
+    if (role === '5') {
+      const f = s.pcs.includes(s.chord.triad[2]) && !s.avoid.includes(s.chord.triad[2]) ? s.chord.triad[2] : s.bassPc;
+      p = nearestPitch(f, root + 5, lo, hi);
+    } else if (role === '8') p = root + 12 <= hi + 7 ? root + 12 : root;
     // the last note before a change walks to the next root by a scale step
     const nextSeg = segs.find((x) => x.a > t + EPS);
     const lastBefore = nextSeg && next >= nextSeg.a - EPS && nextSeg.change && nextSeg.bassPc != null && idx > 0;
@@ -567,7 +951,8 @@ export function bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, grid
       const target = nearestPitch(nextSeg.bassPc, p, lo, hi);
       const ti = ladder.indexOf(target);
       if (ti >= 0) {
-        const below = ladder[ti - 1], above = ladder[ti + 1];
+        const below = ladder[ti - 1],
+          above = ladder[ti + 1];
         const cand = [below, above].filter((x) => x != null && x >= lo - 2 && x <= hi + 2 && !ic1(x, nextSeg.bassPc));
         if (cand.length) p = cand.reduce((a, b) => (Math.abs(b - p) < Math.abs(a - p) ? b : a));
       }
@@ -576,13 +961,15 @@ export function bassLine(S, segs, kickSteps, { k0, bpb, S16, start, length, grid
     const v = (idx === 0 ? 0.88 : onKick ? 0.82 : 0.7) * (1 + (R() - 0.5) * 0.1);
     const d = Math.max(0.1, Math.min(next - t, 2 * bpb) * B.legato);
     out.push({ p, t, d: r4(d), v: r4(v) });
-    prevP = p; idx++;
+    prevP = p;
+    idx++;
   }
   return out;
 }
 
 export function chordPart(S, style, segs, { k0, bpb, start, length, meter, gridAt, top, R }) {
-  const C = S.chords, out = [];
+  const C = S.chords,
+    out = [];
   let prevV = null;
   const voicings = new Map();
   for (const s of segs) {
@@ -595,7 +982,8 @@ export function chordPart(S, style, segs, { k0, bpb, start, length, meter, gridA
     } else if (S.arp) {
       // a broken chord: root, fifth, octave, tenth (what is left of them after any rub)
       const r = nearestPitch(s.chord.root, prevV ? prevV[0] : 52, C.register[0], C.register[0] + 11);
-      const th = (s.chord.triad[1] - s.chord.root + 12) % 12, fi = (s.chord.triad[2] - s.chord.root + 12) % 12;
+      const th = (s.chord.triad[1] - s.chord.root + 12) % 12,
+        fi = (s.chord.triad[2] - s.chord.root + 12) % 12;
       v = [r, r + fi, r + 12, r + 12 + th].filter((p) => s.pcs.includes(p % 12));
     } else {
       let pcs = s.pcs.slice();
@@ -613,11 +1001,17 @@ export function chordPart(S, style, segs, { k0, bpb, start, length, meter, gridA
       if (!v || !v.length) continue;
       const order = [0, 1, 2, 3, 2, 1, 2, 3];
       const seq = [];
-      for (let t = s.a, j = 0; t < s.b - EPS; t += 0.5, j++) seq.push({ p: v[order[j % order.length] % v.length], t: r4(t) });
+      for (let t = s.a, j = 0; t < s.b - EPS; t += 0.5, j++)
+        seq.push({ p: v[order[j % order.length] % v.length], t: r4(t) });
       seq.forEach((n, i) => {
-        const again = seq.slice(i + 1).find((m) => m.p === n.p);   // held until that string is struck again
+        const again = seq.slice(i + 1).find((m) => m.p === n.p); // held until that string is struck again
         const strong = Math.abs(n.t - s.a) < EPS;
-        out.push({ p: n.p, t: n.t, d: r4((again ? again.t : s.b) - n.t), v: r4(clamp((strong ? 0.62 : 0.48) * (1 + (R() - 0.5) * 0.12), 0.2, 0.9)) });
+        out.push({
+          p: n.p,
+          t: n.t,
+          d: r4((again ? again.t : s.b) - n.t),
+          v: r4(clamp((strong ? 0.62 : 0.48) * (1 + (R() - 0.5) * 0.12), 0.2, 0.9)),
+        });
       });
     }
     return out;
@@ -642,12 +1036,20 @@ export function chordPart(S, style, segs, { k0, bpb, start, length, meter, gridA
   for (const hit of hits) {
     // split a hit where the chord changes under it: the new chord gets its own hit at the change
     for (const s of segs) {
-      const a = Math.max(hit.a, s.a), b = Math.min(hit.b, s.b);
+      const a = Math.max(hit.a, s.a),
+        b = Math.min(hit.b, s.b);
       if (b - a < 0.05 || a < -EPS || a >= length - EPS) continue;
       const v = voicings.get(s);
       if (!v || !v.length) continue;
       const vel = hit.v * (Math.abs(a - hit.a) > EPS ? 0.9 : 1);
-      v.forEach((p, i) => out.push({ p, t: r4(a + (S.strum || 0) * i), d: r4(Math.max(0.05, (b - a) * (C.legato || 1) - (S.strum || 0) * i)), v: r4(clamp(vel * (0.72 + (R() - 0.5) * 0.08), 0.2, 0.95)) }));
+      v.forEach((p, i) =>
+        out.push({
+          p,
+          t: r4(a + (S.strum || 0) * i),
+          d: r4(Math.max(0.05, (b - a) * (C.legato || 1) - (S.strum || 0) * i)),
+          v: r4(clamp(vel * (0.72 + (R() - 0.5) * 0.08), 0.2, 0.95)),
+        }),
+      );
     }
   }
   return out;
@@ -656,18 +1058,24 @@ export function chordPart(S, style, segs, { k0, bpb, start, length, meter, gridA
 /* ------------------------------------------------------------------------------------------------ the checks */
 // In key (the harmony key's scale), nothing a semitone from the seed on a strong beat, the bass on the root at every
 // change and downbeat, the drums on the style's grid (16ths, swung where the style swings).
-export function checkArrangement(seedNotes, parts, { key, meter = [4, 4], start = 0, length, segments, kind = 'melody', style = 'pop' } = {}) {
+export function checkArrangement(
+  seedNotes,
+  parts,
+  { key, meter = [4, 4], start = 0, length, segments, kind = 'melody', style = 'pop' } = {},
+) {
   const hk = harmonyKeyOf(key || { root: 'C', scale: 'major' });
   const pcs = new Set(scalePcs(hk));
   const pitched = ['chords', 'bass', 'pad'].flatMap((k) => (parts[k] || []).map((n) => ({ ...n, part: k })));
   const nn = (p) => spellNote(p, hk);
   const outOfKey = pitched.filter((n) => !pcs.has(n.p % 12)).map((n) => `${n.part} ${nn(n.p)}@${n.t}`);
   const clashes = [];
-  if (kind !== 'drums') for (const s of strongTimes({ start, length, meter })) {
-    const mine = seedNotes.filter((n) => soundsAt(n, s));
-    const theirs = pitched.filter((n) => soundsAt(n, s));
-    for (const m of mine) for (const o of theirs) if (ic1(m.p, o.p)) clashes.push(`${o.part} ${nn(o.p)} against ${nn(m.p)} at beat ${s}`);
-  }
+  if (kind !== 'drums')
+    for (const s of strongTimes({ start, length, meter })) {
+      const mine = seedNotes.filter((n) => soundsAt(n, s));
+      const theirs = pitched.filter((n) => soundsAt(n, s));
+      for (const m of mine)
+        for (const o of theirs) if (ic1(m.p, o.p)) clashes.push(`${o.part} ${nn(o.p)} against ${nn(m.p)} at beat ${s}`);
+    }
   const roots = [];
   const bpb = beatsPerBar(meter);
   if (parts.bass && segments) {
@@ -684,51 +1092,128 @@ export function checkArrangement(seedNotes, parts, { key, meter = [4, 4], start 
   }
   const sw = (STYLES[style]?.swing || 0) * 0.25;
   const onGrid = (x) => Math.abs(x * 4 - Math.round(x * 4)) < 1e-3;
-  const offGrid = (parts.drums || []).filter((n) => {
-    const song = n.t + start;
-    if (onGrid(song)) return !(sw === 0 || Math.round(song * 4) % 2 === 0);
-    return !(sw > 0 && onGrid(song - sw) && Math.round((song - sw) * 4) % 2 !== 0);
-  }).map((n) => `${n.p}@${n.t}`);
-  return { ok: !outOfKey.length && !clashes.length && !roots.length && !offGrid.length, outOfKey, clashes, roots, offGrid };
+  const offGrid = (parts.drums || [])
+    .filter((n) => {
+      const song = n.t + start;
+      if (onGrid(song)) return !(sw === 0 || Math.round(song * 4) % 2 === 0);
+      return !(sw > 0 && onGrid(song - sw) && Math.round((song - sw) * 4) % 2 !== 0);
+    })
+    .map((n) => `${n.p}@${n.t}`);
+  return {
+    ok: !outOfKey.length && !clashes.length && !roots.length && !offGrid.length,
+    outOfKey,
+    clashes,
+    roots,
+    offGrid,
+  };
 }
 
 /* ------------------------------------------------------------------------------------------------ into ops */
 // The ops for one dispatch: a track per part (named, coloured, with its device and a gain) and a clip on each, right
 // after the seed track. gains: { part: dB } overrides the style's calibrated faders (the page measures them).
-export function planArrangement(project, { track, clip, style = 'pop', parts, seed = 1, gains = null, drums = null } = {}) {
+export function planArrangement(
+  project,
+  { track, clip, style = 'pop', parts, seed = 1, gains = null, drums = null } = {},
+) {
   const t = (project.tracks || []).find((x) => x.id === track) || (project.tracks || []).find((x) => x.name === track);
-  if (!t) return { error: `no track "${track}"`, hint: `tracks: ${(project.tracks || []).map((x) => `"${x.name}"`).join(', ')}` };
+  if (!t)
+    return {
+      error: `no track "${track}"`,
+      hint: `tracks: ${(project.tracks || []).map((x) => `"${x.name}"`).join(', ')}`,
+    };
   const c = (t.clips || []).find((x) => x.id === clip) || (!clip && t.clips.length === 1 ? t.clips[0] : null);
-  if (!c) return { error: clip ? `no clip "${clip}" on ${t.name}` : `which clip on ${t.name}?`, hint: `${t.name}'s clips: ${t.clips.map((x) => `${x.id} "${x.name || ''}"`).join(', ') || 'none'}` };
-  if (c.kind !== 'notes') return { error: `${c.name || 'that clip'} is audio`, hint: 'the band builds around notes: hum it or play it, then keep it as a clip' };
-  if (!c.notes.length) return { error: `${c.name || 'that clip'} has no notes`, hint: 'hum, tap or play something into it first' };
+  if (!c)
+    return {
+      error: clip ? `no clip "${clip}" on ${t.name}` : `which clip on ${t.name}?`,
+      hint: `${t.name}'s clips: ${t.clips.map((x) => `${x.id} "${x.name || ''}"`).join(', ') || 'none'}`,
+    };
+  if (c.kind !== 'notes')
+    return {
+      error: `${c.name || 'that clip'} is audio`,
+      hint: 'the band builds around notes: hum it or play it, then keep it as a clip',
+    };
+  if (!c.notes.length)
+    return { error: `${c.name || 'that clip'} has no notes`, hint: 'hum, tap or play something into it first' };
   const sid = findStyle(style);
   if (!sid) return { error: `no style "${style}"`, hint: `styles: ${STYLE_IDS.join(', ')}` };
   const isDrums = drums ?? isDrumDevice(t.instrument?.device);
-  const r = arrangeAround({ notes: c.notes, start: c.start, length: c.length, key: project.key, meter: project.meter, tempo: project.tempo, style: sid, parts, seed, drums: isDrums });
+  const r = arrangeAround({
+    notes: c.notes,
+    start: c.start,
+    length: c.length,
+    key: project.key,
+    meter: project.meter,
+    tempo: project.tempo,
+    style: sid,
+    parts,
+    seed,
+    drums: isDrums,
+  });
   if (r.error) return r;
   const S = STYLES[sid];
   const used = new Set((project.tracks || []).map((x) => x.name.toLowerCase()));
   const colorsUsed = new Set((project.tracks || []).map((x) => x.color));
   const free = TRACK_COLORS.filter((x) => !colorsUsed.has(x));
   const prefer = { chords: 'var(--c-6)', bass: 'var(--c-5)', drums: 'var(--c-1)', pad: 'var(--c-2)' };
-  const pickColor = (part, i) => { const p = prefer[part]; if (free.includes(p)) { free.splice(free.indexOf(p), 1); return p; } return free.length ? free.shift() : TRACK_COLORS[(i + 3) % TRACK_COLORS.length]; };
-  const uniq = (name) => { let n = name, i = 2; while (used.has(n.toLowerCase())) n = `${name} ${i++}`; used.add(n.toLowerCase()); return n; };
+  const pickColor = (part, i) => {
+    const p = prefer[part];
+    if (free.includes(p)) {
+      free.splice(free.indexOf(p), 1);
+      return p;
+    }
+    return free.length ? free.shift() : TRACK_COLORS[(i + 3) % TRACK_COLORS.length];
+  };
+  const uniq = (name) => {
+    let n = name,
+      i = 2;
+    while (used.has(n.toLowerCase())) n = `${name} ${i++}`;
+    used.add(n.toLowerCase());
+    return n;
+  };
   const index = project.tracks.indexOf(t) + 1;
   const order = ['chords', 'pad', 'bass', 'drums'].filter((p) => r.parts[p]);
-  const ops = [], tracks = [];
+  const ops = [],
+    tracks = [];
   order.forEach((part, i) => {
     const R = S[part];
     const name = uniq(R.name);
     const gain = r4(clamp(gains && Number.isFinite(gains[part]) ? gains[part] : S.gain[part], -30, 6));
     const ref = `band_${part}`;
-    ops.push({ type: 'track.add', ref, index: index + i, track: { name, kind: 'instrument', color: pickColor(part, i), instrument: { device: R.device, params: { ...R.params } }, inserts: (R.inserts || []).map((fx) => ({ device: fx.device, params: { ...fx.params }, on: true })), gain, pan: part === 'chords' ? -0.12 : part === 'pad' ? 0.12 : 0 } });
-    ops.push({ type: 'clip.add', track: '$' + ref, ref: ref + '_clip', clip: { kind: 'notes', start: c.start, length: c.length, name: CLIP_NAME[part](S), notes: r.parts[part] } });
+    ops.push({
+      type: 'track.add',
+      ref,
+      index: index + i,
+      track: {
+        name,
+        kind: 'instrument',
+        color: pickColor(part, i),
+        instrument: { device: R.device, params: { ...R.params } },
+        inserts: (R.inserts || []).map((fx) => ({ device: fx.device, params: { ...fx.params }, on: true })),
+        gain,
+        pan: part === 'chords' ? -0.12 : part === 'pad' ? 0.12 : 0,
+      },
+    });
+    ops.push({
+      type: 'clip.add',
+      track: '$' + ref,
+      ref: ref + '_clip',
+      clip: { kind: 'notes', start: c.start, length: c.length, name: CLIP_NAME[part](S), notes: r.parts[part] },
+    });
     tracks.push({ part, ref, name, device: R.device, gain, notes: r.parts[part].length });
   });
-  return { ...r, ops, tracks, seed: { track: t.id, clip: c.id, name: `${t.name} › ${c.name || 'clip'}`, notes: c.notes.length } };
+  return {
+    ...r,
+    ops,
+    tracks,
+    seed: { track: t.id, clip: c.id, name: `${t.name} › ${c.name || 'clip'}`, notes: c.notes.length },
+  };
 }
-const CLIP_NAME = { chords: (S) => `${S.label} chords`, bass: (S) => `${S.label} bass`, drums: (S) => `${S.label} groove`, pad: (S) => S.pad.name };
+const CLIP_NAME = {
+  chords: (S) => `${S.label} chords`,
+  bass: (S) => `${S.label} bass`,
+  drums: (S) => `${S.label} groove`,
+  pad: (S) => S.pad.name,
+};
 
 // Gains that put each part `level` LU under the seed, from measured loudness (LUFS of each stem at its current gain).
 export function balanceGains({ style, seedLufs, parts }) {

@@ -12,7 +12,10 @@ function rigOf(p, banks) {
   const S = clawd.presetResolve(p);
   const chain = [];
   for (const e of S.board) {
-    if (e.id === 'amp') { chain.push({ device: 'amp.' + S.amp, params: ampParams(S), on: true }); continue; }
+    if (e.id === 'amp') {
+      chain.push({ device: 'amp.' + S.amp, params: ampParams(S), on: true });
+      continue;
+    }
     const def = clawd.PEDAL_DEFS[e.id];
     if (!def) continue;
     const params = {};
@@ -21,14 +24,27 @@ function rigOf(p, banks) {
   }
   const b = banks[p.bank] || { id: p.bank, name: p.bank, color: '#ffb347', blurb: '' };
   return {
-    id: p.id, name: p.name, bank: { id: b.id, name: b.name, color: b.color, blurb: b.blurb || '' },
-    blurb: p.blurb || '', nod: p.nod || '', tags: (p.tags || []).slice(), hot: p.hot || null, amp: 'amp.' + S.amp, chain,
+    id: p.id,
+    name: p.name,
+    bank: { id: b.id, name: b.name, color: b.color, blurb: b.blurb || '' },
+    blurb: p.blurb || '',
+    nod: p.nod || '',
+    tags: (p.tags || []).slice(),
+    hot: p.hot || null,
+    amp: 'amp.' + S.amp,
+    chain,
   };
 }
 
 const BANKS = Object.fromEntries(clawd.PRESET_BANKS.map((b) => [b.id, b]));
 export const RIGS = clawd.PLUG_PRESETS.map((p) => rigOf(p, BANKS));
-export const RIG_BANKS = clawd.PRESET_BANKS.map((b) => ({ id: b.id, name: b.name, color: b.color, blurb: b.blurb || '', count: RIGS.filter((r) => r.bank.id === b.id).length })).filter((b) => b.count);
+export const RIG_BANKS = clawd.PRESET_BANKS.map((b) => ({
+  id: b.id,
+  name: b.name,
+  color: b.color,
+  blurb: b.blurb || '',
+  count: RIGS.filter((r) => r.bank.id === b.id).length,
+})).filter((b) => b.count);
 export const rigById = (id) => RIGS.find((r) => r.id === id) || null;
 
 export function rigOps(trackId, rig, { replace = [], index } = {}) {
@@ -36,7 +52,11 @@ export function rigOps(trackId, rig, { replace = [], index } = {}) {
   if (!rig) throw new Error('rigOps: no such rig');
   const ops = replace.map((id) => ({ type: 'insert.remove', track: trackId, insert: id }));
   rig.chain.forEach((s, k) => {
-    const op = { type: 'insert.add', track: trackId, insert: { device: s.device, params: Object.assign({}, s.params), on: s.on } };
+    const op = {
+      type: 'insert.add',
+      track: trackId,
+      insert: { device: s.device, params: Object.assign({}, s.params), on: s.on },
+    };
     if (index != null) op.index = index + k;
     ops.push(op);
   });

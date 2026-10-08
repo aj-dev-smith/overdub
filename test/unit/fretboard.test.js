@@ -1,10 +1,30 @@
 // core/fretboard.js: tunings, places on the neck, fingering and tab text in and out.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { TUNINGS, TUNING_IDS, MAX_FRET, tuningOf, noteAt, stringNumber, stringIndex, positionsOf, capoOf, placeOk, placeNotes, fingering, handSpan, tabText, parseTab, gridOf } from '../../app/src/core/fretboard.js';
+import {
+  TUNINGS,
+  TUNING_IDS,
+  MAX_FRET,
+  tuningOf,
+  noteAt,
+  stringNumber,
+  stringIndex,
+  positionsOf,
+  capoOf,
+  placeOk,
+  placeNotes,
+  fingering,
+  handSpan,
+  tabText,
+  parseTab,
+  gridOf,
+} from '../../app/src/core/fretboard.js';
 
 // a small seeded generator, so the round trips below are the same every run
-function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32); }
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+}
 
 describe('tunings', () => {
   test('standard is E2 A2 D3 G3 B3 E4, and unknown ids fall back to it', () => {
@@ -39,11 +59,20 @@ describe('tunings', () => {
 describe('places', () => {
   test('positionsOf lists every place a pitch plays, each one sounding it', () => {
     const ps = positionsOf('E4', 'standard');
-    assert.deepEqual(ps, [{ s: 1, f: 19 }, { s: 2, f: 14 }, { s: 3, f: 9 }, { s: 4, f: 5 }, { s: 5, f: 0 }]);
+    assert.deepEqual(ps, [
+      { s: 1, f: 19 },
+      { s: 2, f: 14 },
+      { s: 3, f: 9 },
+      { s: 4, f: 5 },
+      { s: 5, f: 0 },
+    ]);
     for (const x of ps) assert.equal(noteAt('standard', x.s, x.f), 64);
     assert.deepEqual(positionsOf(30, 'standard'), []);
     assert.deepEqual(positionsOf('not a note', 'standard'), []);
-    assert.deepEqual(positionsOf(64, 'standard', { from: 1, to: 10 }), [{ s: 3, f: 9 }, { s: 4, f: 5 }]);
+    assert.deepEqual(positionsOf(64, 'standard', { from: 1, to: 10 }), [
+      { s: 3, f: 9 },
+      { s: 4, f: 5 },
+    ]);
   });
   test('capoOf keeps 1..12 only', () => {
     assert.deepEqual([0, 1, 12, 13, -2, 'x', 2.4].map(capoOf), [0, 1, 12, 0, 0, 0, 2]);
@@ -51,9 +80,9 @@ describe('places', () => {
   test('placeOk: the place must play the pitch, on the neck, at or above the capo', () => {
     assert.equal(placeOk({ p: 45, s: 0, f: 5 }, 'standard'), true);
     assert.equal(placeOk({ p: 'A2', s: 1, f: 0 }, 'standard'), true);
-    assert.equal(placeOk({ p: 46, s: 0, f: 5 }, 'standard'), false);      // moved since
-    assert.equal(placeOk({ p: 45, s: 0, f: 5 }, 'drop-d'), false);        // tuning changed
-    assert.equal(placeOk({ p: 45, s: 1, f: 0 }, 'standard', 2), false);   // behind the capo
+    assert.equal(placeOk({ p: 46, s: 0, f: 5 }, 'standard'), false); // moved since
+    assert.equal(placeOk({ p: 45, s: 0, f: 5 }, 'drop-d'), false); // tuning changed
+    assert.equal(placeOk({ p: 45, s: 1, f: 0 }, 'standard', 2), false); // behind the capo
     assert.equal(placeOk({ p: 45, s: 6, f: 0 }, 'standard'), false);
     assert.equal(placeOk({ p: 45, s: 0.5, f: 5 }, 'standard'), false);
     assert.equal(placeOk(null, 'standard'), false);
@@ -74,19 +103,41 @@ describe('fingering and placeNotes', () => {
     assert.ok(handSpan(r.notes) <= 4);
   });
   test('a place that still plays the pitch is kept; one that does not is fingered again', () => {
-    const r = placeNotes([{ p: 64, t: 0, s: 1, f: 19 }, { p: 65, t: 1, s: 0, f: 0 }]);
+    const r = placeNotes([
+      { p: 64, t: 0, s: 1, f: 19 },
+      { p: 65, t: 1, s: 0, f: 0 },
+    ]);
     assert.equal(r.notes[0].kept, true);
     assert.deepEqual([r.notes[0].s, r.notes[0].f], [1, 19]);
     assert.equal(r.notes[1].kept, false);
     assert.equal(noteAt('standard', r.notes[1].s, r.notes[1].f), 65);
   });
   test('a capo: frets count from the nut and none fall behind it', () => {
-    const r = placeNotes([{ p: 47, t: 0 }, { p: 52, t: 1 }, { p: 54, t: 2 }], { capo: 2 });
-    for (const n of r.notes) { assert.ok(n.f >= 2); assert.equal(noteAt('standard', n.s, n.f), n.p); }
+    const r = placeNotes(
+      [
+        { p: 47, t: 0 },
+        { p: 52, t: 1 },
+        { p: 54, t: 2 },
+      ],
+      { capo: 2 },
+    );
+    for (const n of r.notes) {
+      assert.ok(n.f >= 2);
+      assert.equal(noteAt('standard', n.s, n.f), n.p);
+    }
     assert.ok(r.position >= 2);
   });
   test('a chord goes on different strings', () => {
-    const r = fingering([{ p: 48, t: 0 }, { p: 52, t: 0 }, { p: 55, t: 0 }, { p: 60, t: 0 }], 'standard', { open: -0.2 });
+    const r = fingering(
+      [
+        { p: 48, t: 0 },
+        { p: 52, t: 0 },
+        { p: 55, t: 0 },
+        { p: 60, t: 0 },
+      ],
+      'standard',
+      { open: -0.2 },
+    );
     assert.ok(!r.error);
     assert.equal(new Set(r.notes.map((n) => n.s)).size, 4);
   });
@@ -95,7 +146,10 @@ describe('fingering and placeNotes', () => {
     assert.equal(off.why, 'neck');
     assert.match(off.error, /C2 is off the neck in Standard tuning/);
     assert.match(placeNotes([{ p: 'C2' }], { tuning: 'drop-d' }).error, /off the neck in Drop D/);
-    const seven = fingering([60, 61, 62, 63, 64, 65, 66].map((p) => ({ p, t: 0 })), 'standard');
+    const seven = fingering(
+      [60, 61, 62, 63, 64, 65, 66].map((p) => ({ p, t: 0 })),
+      'standard',
+    );
     assert.equal(seven.why, 'strings');
     assert.match(fingering([{ p: 'H9' }], 'standard').error, /can't read 1 of the notes/);
     assert.deepEqual(fingering([], 'standard').notes, []);
@@ -115,7 +169,13 @@ describe('tab text', () => {
     assert.equal(gridOf([0, 1], 0.5), 0.5);
   });
   test('a riff reads back exactly, with its tuning, capo and rhythm', () => {
-    for (const [tuning, capo] of [['standard', 0], ['drop-d', 0], ['dadgad', 0], ['standard', 2], ['open-g', 5]]) {
+    for (const [tuning, capo] of [
+      ['standard', 0],
+      ['drop-d', 0],
+      ['dadgad', 0],
+      ['standard', 2],
+      ['open-g', 5],
+    ]) {
       const lo = TUNINGS[tuning].strings[0] + capo;
       const line = [0, 3, 5, 7, 10, 12].map((k, i) => ({ p: lo + k, t: i * 0.5, d: 0.5 }));
       const placed = placeNotes(line, { tuning, capo });
@@ -149,7 +209,13 @@ describe('tab text', () => {
   test('tab with no = rings each note to the next, and says it is a guess', () => {
     const r = parseTab('e|-----|\nB|-----|\nG|-----|\nD|-----|\nA|0-2-|\nE|-----|');
     assert.equal(r.guessed, true);
-    assert.deepEqual(r.notes.map((n) => [n.p, n.s, n.f]), [[45, 1, 0], [47, 1, 2]]);
+    assert.deepEqual(
+      r.notes.map((n) => [n.p, n.s, n.f]),
+      [
+        [45, 1, 0],
+        [47, 1, 2],
+      ],
+    );
     assert.ok(r.warnings.some((w) => /guess/.test(w)));
   });
   test('text that is not tab says what tab looks like', () => {

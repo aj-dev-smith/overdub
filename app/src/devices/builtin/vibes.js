@@ -17,7 +17,11 @@ import { samplerKernel, samplerParams } from './sampler.js';
 export const VIBES_HASH = 'sha256-e41ad6c162933d1dcc259cd6b3a6e3ca5c7567dd2a38cc96fd60cc1d0207f751';
 
 export default defineDevice({
-  id: 'core.vibes', name: 'Damper Bar', kind: 'instrument', cat: 'keys', by: 'overdub',
+  id: 'core.vibes',
+  name: 'Damper Bar',
+  kind: 'instrument',
+  cat: 'keys',
+  by: 'overdub',
   blurb: 'A real vibraphone, sampled, soft and hard mallets',
   nod: 'VCSL Vibraphone (Versilian Studios, CC0): eleven bars, the motor off, soft mallets for soft notes and hard for hard',
   data: { kit: VIBES_HASH },
@@ -29,7 +33,15 @@ export default defineDevice({
     { name: 'Soft mallets', params: { dynamics: 50, tone: -40 }, blurb: 'quieter and rounder, the yarn forward' },
     { name: 'Bright', params: { tone: 40 }, blurb: 'tilted up, the bars ringing over a band' },
   ],
-  look: { color: '#3d4a52', ink: '#eef3f5', shape: 'wide', finish: 'brushed', knob: 'chrome', label: 'block', led: '#9fe7ff' },
+  look: {
+    color: '#3d4a52',
+    ink: '#eef3f5',
+    shape: 'wide',
+    finish: 'brushed',
+    knob: 'chrome',
+    label: 'block',
+    led: '#9fe7ff',
+  },
   tail: 6,
   kernel: samplerKernel({ makeup: 1.1, poly: 32, xfade: 6, law: 'aligned' }),
 });

@@ -75,17 +75,20 @@ import { diStrum, drumLoop, phrase, drumPhrase, PHRASE_BPM } from '../audio/test
 const SR = 48000;
 const SILENCE = 0.001; // -60 dBFS
 const TIMEOUT = 60000; // ms a render may take (from the one before it coming back). The longest test render is an
-                       // instrument's phrase, 25.5 s of audio, so one that takes longer than this plays at under half
-                       // real time: too slow to play, if it isn't a hang. On an M5 Pro the slowest render of a shipped
-                       // device takes 0.33 s (core.wavetable's phrase). Whole checks are longer: core.wavetable's is
-                       // 236 renders, 17.6 s there and 37-56 s on a CI runner; core.shaper's 423 renders, 4.5 s. A
-                       // hang is refused within this of the last render that came back, so define_device's check of a
-                       // device with a few params still answers inside the 120 s the local bridge and the relay give it
+// instrument's phrase, 25.5 s of audio, so one that takes longer than this plays at under half
+// real time: too slow to play, if it isn't a hang. On an M5 Pro the slowest render of a shipped
+// device takes 0.33 s (core.wavetable's phrase). Whole checks are longer: core.wavetable's is
+// 236 renders, 17.6 s there and 37-56 s on a CI runner; core.shaper's 423 renders, 4.5 s. A
+// hang is refused within this of the last render that came back, so define_device's check of a
+// device with a few params still answers inside the 120 s the local bridge and the relay give it
 const round = (x, k = 10) => (Number.isFinite(x) ? Math.round(x * k) / k : x);
 const dBFS = (x) => (x > 0 ? 20 * Math.log10(x) : -120);
 // What a kernel threw is its author's text, not ours, and can be any length: it goes into the report trimmed, with
 // control characters gone, because the report goes on to agents and the human.
-const said = (m, n = 200) => { const t = String(m ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]+/g, ' '); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+const said = (m, n = 200) => {
+  const t = String(m ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]+/g, ' ');
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
+};
 
 // The check's clock: wait(p) races p against the deadline and the signal. The deadline is `ms` from the last wait
 // that settled (a render, a worklet loaded, a create() returned), so it bounds each render, not the check. Once either
@@ -94,45 +97,84 @@ const said = (m, n = 200) => { const t = String(m ?? '').replace(/[\u0000-\u0008
 // created.
 function watch(ms, signal) {
   const w = { reason: null, loaded: false, created: false };
-  let trip, timer, ended = false;
-  const tripped = new Promise((res, rej) => { trip = rej; });
+  let trip,
+    timer,
+    ended = false;
+  const tripped = new Promise((res, rej) => {
+    trip = rej;
+  });
   tripped.catch(() => {}); // (raced, never awaited on its own)
-  const fail = (e) => { if (!w.reason) { w.reason = e; trip(e); } };
+  const fail = (e) => {
+    if (!w.reason) {
+      w.reason = e;
+      trip(e);
+    }
+  };
   const arm = () => {
     clearTimeout(timer);
-    if (!ended && !w.reason) timer = setTimeout(() => fail(Object.assign(new Error('the device check ran out of time'), { name: 'TimeoutError' })), ms);
+    if (!ended && !w.reason)
+      timer = setTimeout(
+        () => fail(Object.assign(new Error('the device check ran out of time'), { name: 'TimeoutError' })),
+        ms,
+      );
   };
   arm();
   const onAbort = () => fail(Object.assign(new Error('stopped'), { name: 'AbortError' }));
-  if (signal) { if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true }); }
-  w.wait = (p) => { const q = Promise.resolve(p); q.then(arm, arm); return Promise.race([q, tripped]); };
-  w.check = () => { if (w.reason) throw w.reason; };
-  w.end = () => { ended = true; clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); };
+  if (signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  }
+  w.wait = (p) => {
+    const q = Promise.resolve(p);
+    q.then(arm, arm);
+    return Promise.race([q, tripped]);
+  };
+  w.check = () => {
+    if (w.reason) throw w.reason;
+  };
+  w.end = () => {
+    ended = true;
+    clearTimeout(timer);
+    signal?.removeEventListener?.('abort', onAbort);
+  };
   return w;
 }
 
 // What a check gave up on and is still running on the audio thread, each as a promise that settles when it ends.
 const held = new Set();
-const hold = (p) => { held.add(p); const done = () => held.delete(p); p.then(done, done); };
+const hold = (p) => {
+  held.add(p);
+  const done = () => held.delete(p);
+  p.then(done, done);
+};
 export const heldRenders = () => held.size;
-const BUSY = 'the device check can\'t run yet: the audio thread it renders on is still held by an earlier render that hasn\'t finished (one whose process() never returns holds it until the page is reloaded). Try again in a moment; if it says this again, reload the studio';
+const BUSY =
+  "the device check can't run yet: the audio thread it renders on is still held by an earlier render that hasn't finished (one whose process() never returns holds it until the page is reloaded). Try again in a moment; if it says this again, reload the studio";
 
 function hash(buf) {
   let h = 0x811c9dc5;
   for (let c = 0; c < buf.numberOfChannels; c++) {
     const u = new Uint32Array(buf.getChannelData(c).slice().buffer);
-    for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+    for (let i = 0; i < u.length; i++) {
+      h ^= u[i];
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
   }
   return h.toString(16);
 }
 function scan(buf) {
-  let peak = 0, nan = false;
+  let peak = 0,
+    nan = false;
   for (let c = 0; c < buf.numberOfChannels; c++) {
     const x = buf.getChannelData(c);
     for (let i = 0; i < x.length; i++) {
       const v = x[i];
-      if (v !== v || v === Infinity || v === -Infinity) { nan = true; continue; }
-      const a = v < 0 ? -v : v; if (a > peak) peak = a;
+      if (v !== v || v === Infinity || v === -Infinity) {
+        nan = true;
+        continue;
+      }
+      const a = v < 0 ? -v : v;
+      if (a > peak) peak = a;
     }
   }
   return { peak, nan };
@@ -142,7 +184,11 @@ function lastAbove(buf, thr, from = 0) {
   let last = -1;
   for (let c = 0; c < buf.numberOfChannels; c++) {
     const x = buf.getChannelData(c);
-    for (let i = x.length - 1; i >= from && i > last; i--) if (Math.abs(x[i]) > thr) { last = i; break; }
+    for (let i = x.length - 1; i >= from && i > last; i--)
+      if (Math.abs(x[i]) > thr) {
+        last = i;
+        break;
+      }
   }
   return last;
 }
@@ -150,7 +196,11 @@ function firstAbove(buf, thr, from = 0) {
   let first = Infinity;
   for (let c = 0; c < buf.numberOfChannels; c++) {
     const x = buf.getChannelData(c);
-    for (let i = from; i < x.length && i < first; i++) if (Math.abs(x[i]) > thr) { first = i; break; }
+    for (let i = from; i < x.length && i < first; i++)
+      if (Math.abs(x[i]) > thr) {
+        first = i;
+        break;
+      }
   }
   return first === Infinity ? -1 : first;
 }
@@ -158,13 +208,20 @@ function firstAbove(buf, thr, from = 0) {
 // The most `b` dips under `a` over any 10 ms (5 ms apart), in dB, where `a` is over -50 dBFS (a keyed render, b,
 // against the same input unkeyed, a).
 function dipDb(a, b) {
-  const win = Math.round(0.01 * SR), hop = Math.round(0.005 * SR), n = Math.min(a.length, b.length);
+  const win = Math.round(0.01 * SR),
+    hop = Math.round(0.005 * SR),
+    n = Math.min(a.length, b.length);
   let worst = 0;
   for (let at = 0; at + win <= n; at += hop) {
-    let ea = 0, eb = 0;
+    let ea = 0,
+      eb = 0;
     for (let c = 0; c < 2; c++) {
-      const x = a.getChannelData(c), y = b.getChannelData(c);
-      for (let i = at; i < at + win; i++) { ea += x[i] * x[i]; eb += y[i] * y[i]; }
+      const x = a.getChannelData(c),
+        y = b.getChannelData(c);
+      for (let i = at; i < at + win; i++) {
+        ea += x[i] * x[i];
+        eb += y[i] * y[i];
+      }
     }
     if (ea / (2 * win) < 1e-5) continue;
     const d = 10 * Math.log10(ea / Math.max(eb, 1e-20));
@@ -172,18 +229,26 @@ function dipDb(a, b) {
   }
   return worst;
 }
-function stereoOf(x) { return Array.isArray(x) ? x : (x && x.channels) ? x.channels : [x, x]; }
+function stereoOf(x) {
+  return Array.isArray(x) ? x : x && x.channels ? x.channels : [x, x];
+}
 function cut(chans, secs, fade = 0.01) {
-  const n = Math.round(secs * SR), f = Math.round(fade * SR);
+  const n = Math.round(secs * SR),
+    f = Math.round(fade * SR);
   return chans.map((x) => {
-    const y = new Float32Array(n); y.set(x.subarray(0, n));
+    const y = new Float32Array(n);
+    y.set(x.subarray(0, n));
     for (let i = 0; i < f; i++) y[n - 1 - i] *= i / f;
     return y;
   });
 }
 function pad(chans, secs) {
   const n = Math.round(secs * SR);
-  return chans.map((x) => { const y = new Float32Array(n); y.set(x.subarray(0, Math.min(n, x.length))); return y; });
+  return chans.map((x) => {
+    const y = new Float32Array(n);
+    y.set(x.subarray(0, Math.min(n, x.length)));
+    return y;
+  });
 }
 
 // One render of `def` with `params`, as checked samples: { buffer, ms, errors, stats, latency, poly } or { compileError,
@@ -200,16 +265,31 @@ const fault = (m) => Object.assign(new Error(said(m, 300)), { name: RENDER_FAULT
 const count = (x) => (Number.isFinite(x) && x >= 0 && x <= 1e6 ? Math.floor(x) : null);
 function accept(raw, frames) {
   if (!raw || typeof raw !== 'object') throw fault('the render came back empty');
-  if (raw.compileError != null) return { compileError: said(raw.compileError), line: Number.isInteger(raw.line) && raw.line > 0 ? raw.line : null };
+  if (raw.compileError != null)
+    return { compileError: said(raw.compileError), line: Number.isInteger(raw.line) && raw.line > 0 ? raw.line : null };
   const ch = raw.channels;
   if (!Array.isArray(ch) || ch.length !== 2 || !ch.every((x) => x instanceof Float32Array && x.length === frames)) {
     throw fault(`the render came back as something other than ${frames} frames of stereo audio`);
   }
   const channels = [ch[0].slice(), ch[1].slice()]; // (ours from here: nothing on the other side can change them)
-  const buffer = { numberOfChannels: 2, length: frames, sampleRate: SR, duration: frames / SR, getChannelData: (c) => channels[c] };
-  const errors = (Array.isArray(raw.errors) ? raw.errors.slice(0, 50) : []).filter((e) => e && typeof e === 'object')
-    .map((e) => ({ stage: e.stage === 'compile' ? 'compile' : 'process', message: said(e.message, 500), line: Number.isInteger(e.line) && e.line > 0 ? e.line : null }));
-  const st = raw.stats && typeof raw.stats === 'object' ? { maxVoices: count(raw.stats.maxVoices), steals: count(raw.stats.steals) } : null;
+  const buffer = {
+    numberOfChannels: 2,
+    length: frames,
+    sampleRate: SR,
+    duration: frames / SR,
+    getChannelData: (c) => channels[c],
+  };
+  const errors = (Array.isArray(raw.errors) ? raw.errors.slice(0, 50) : [])
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => ({
+      stage: e.stage === 'compile' ? 'compile' : 'process',
+      message: said(e.message, 500),
+      line: Number.isInteger(e.line) && e.line > 0 ? e.line : null,
+    }));
+  const st =
+    raw.stats && typeof raw.stats === 'object'
+      ? { maxVoices: count(raw.stats.maxVoices), steals: count(raw.stats.steals) }
+      : null;
   const latency = Number.isFinite(raw.latency) && raw.latency >= 0 && raw.latency <= 10 ? raw.latency : 0;
   const poly = Number.isInteger(raw.poly) && raw.poly >= 1 && raw.poly <= 64 ? raw.poly : 0;
   const ms = Number.isFinite(raw.ms) && raw.ms >= 0 ? raw.ms : 0;
@@ -222,62 +302,127 @@ async function renderOutside(def, job, w, renderer) {
   w.check();
   w.loaded = true;
   const { secs, params = {}, input = null, key = null, notes = null, allOffAt = null, seed = 1, stats = false } = job;
-  return w.wait(renderer.render(def, { secs, sr: SR, bpm: PHRASE_BPM, seed, params, input, key, notes, allOffAt, stats }, { created: () => { w.created = true; } }));
+  return w.wait(
+    renderer.render(
+      def,
+      { secs, sr: SR, bpm: PHRASE_BPM, seed, params, input, key, notes, allOffAt, stats },
+      {
+        created: () => {
+          w.created = true;
+        },
+      },
+    ),
+  );
 }
 
 // One offline render on this page's audio thread. Every wait goes through the check's watch `w`; when it trips, what
 // was being waited on is held until it ends, and the instance is let go.
-async function renderInPage(def, { secs, params = {}, input = null, key = null, notes = null, allOffAt = null, seed = 1, stats = false }, w) {
+async function renderInPage(
+  def,
+  { secs, params = {}, input = null, key = null, notes = null, allOffAt = null, seed = 1, stats = false },
+  w,
+) {
   w.check();
   const c = new OfflineAudioContext(2, Math.round(secs * SR), SR);
   const made = kernelInstance(c, def, { seed, params, bpm: PHRASE_BPM }); // (loads the worklet on `c` first)
   let inst;
-  try { inst = await w.wait(made); } catch (e) { if (e === w.reason) { hold(made); made.then((i) => i.dispose(), () => {}); } throw e; }
+  try {
+    inst = await w.wait(made);
+  } catch (e) {
+    if (e === w.reason) {
+      hold(made);
+      made.then(
+        (i) => i.dispose(),
+        () => {},
+      );
+    }
+    throw e;
+  }
   w.loaded = true;
-  try { await w.wait(inst.ready); } catch (e) {
-    if (e !== w.reason) { inst.dispose(); return { compileError: e.message, line: e.line || null }; }
+  try {
+    await w.wait(inst.ready);
+  } catch (e) {
+    if (e !== w.reason) {
+      inst.dispose();
+      return { compileError: e.message, line: e.line || null };
+    }
     // create() is still running: ready settles when it returns (disposing now would close the port it answers on)
-    hold(inst.ready); inst.ready.then(() => inst.dispose(), () => inst.dispose());
+    hold(inst.ready);
+    inst.ready.then(
+      () => inst.dispose(),
+      () => inst.dispose(),
+    );
     throw e;
   }
   w.created = true;
   inst.set(params, { first: true });
   if (input) {
     const b = c.createBuffer(2, input[0].length, SR);
-    b.copyToChannel(input[0], 0); b.copyToChannel(input[1] || input[0], 1);
-    const src = c.createBufferSource(); src.buffer = b; src.connect(inst.input); src.start(0);
+    b.copyToChannel(input[0], 0);
+    b.copyToChannel(input[1] || input[0], 1);
+    const src = c.createBufferSource();
+    src.buffer = b;
+    src.connect(inst.input);
+    src.start(0);
   }
   // a keyed effect's key (def.key: true): another signal on its second input, and t.key.on
   if (key && inst.keyInput) {
     const b = c.createBuffer(2, key[0].length, SR);
-    b.copyToChannel(key[0], 0); b.copyToChannel(key[1] || key[0], 1);
-    const src = c.createBufferSource(); src.buffer = b; src.connect(inst.keyInput); src.start(0);
+    b.copyToChannel(key[0], 0);
+    b.copyToChannel(key[1] || key[0], 1);
+    const src = c.createBufferSource();
+    src.buffer = b;
+    src.connect(inst.keyInput);
+    src.start(0);
     inst.setKey(true);
   }
-  if (notes) for (const n of notes) { inst.noteOn(n.p, n.v, n.t); inst.noteOff(n.p, n.t + n.d); }
+  if (notes)
+    for (const n of notes) {
+      inst.noteOn(n.p, n.v, n.t);
+      inst.noteOff(n.p, n.t + n.d);
+    }
   if (allOffAt != null) inst.allOff(allOffAt);
   inst.output.connect(c.destination);
   const t0 = performance.now();
   const rendering = c.startRendering();
   let buffer;
-  try { buffer = await w.wait(rendering); } catch (e) { inst.dispose(); if (e === w.reason) hold(rendering); throw e; }
+  try {
+    buffer = await w.wait(rendering);
+  } catch (e) {
+    inst.dispose();
+    if (e === w.reason) hold(rendering);
+    throw e;
+  }
   const ms = performance.now() - t0;
-  const st = stats ? await w.wait(inst.stats()).catch((e) => { inst.dispose(); throw e; }) : null;
+  const st = stats
+    ? await w.wait(inst.stats()).catch((e) => {
+        inst.dispose();
+        throw e;
+      })
+    : null;
   const errors = inst.errors.slice();
   const latency = inst.latency;
   inst.dispose();
-  return { channels: [buffer.getChannelData(0), buffer.getChannelData(1)], ms, errors, stats: st, latency, poly: inst.poly || 0 };
+  return {
+    channels: [buffer.getChannelData(0), buffer.getChannelData(1)],
+    ms,
+    errors,
+    stats: st,
+    latency,
+    poly: inst.poly || 0,
+  };
 }
 
 function paramCases(params, quick) {
   const base = {};
   for (const p of params) base[p.key] = p.def;
   const cases = [];
-  if (!quick) for (const p of params) {
-    if (p.min === p.max) continue;
-    cases.push({ name: `${p.key} at min (${p.min})`, params: { ...base, [p.key]: p.min } });
-    cases.push({ name: `${p.key} at max (${p.max})`, params: { ...base, [p.key]: p.max } });
-  }
+  if (!quick)
+    for (const p of params) {
+      if (p.min === p.max) continue;
+      cases.push({ name: `${p.key} at min (${p.min})`, params: { ...base, [p.key]: p.min } });
+      cases.push({ name: `${p.key} at max (${p.max})`, params: { ...base, [p.key]: p.max } });
+    }
   if (params.length) {
     cases.push({ name: 'all params at min', params: Object.fromEntries(params.map((p) => [p.key, p.min])) });
     cases.push({ name: 'all params at max', params: Object.fromEntries(params.map((p) => [p.key, p.max])) });
@@ -287,15 +432,28 @@ function paramCases(params, quick) {
 
 // Run async jobs with at most `k` in flight.
 async function pool(items, k, fn) {
-  const out = new Array(items.length); let i = 0;
-  const worker = async () => { while (i < items.length) { const j = i++; out[j] = await fn(items[j], j); } };
+  const out = new Array(items.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < items.length) {
+      const j = i++;
+      out[j] = await fn(items[j], j);
+    }
+  };
   await Promise.all(Array.from({ length: Math.min(k, items.length) }, worker));
   return out;
 }
 
 const beatSec = 60 / PHRASE_BPM;
 function phraseNotes(maxBeat = Infinity, drums = false) {
-  return (drums ? drumPhrase() : phrase()).filter((n) => n.t < maxBeat).map((n) => ({ p: n.p, v: n.v, t: 0.05 + n.t * beatSec, d: Math.max(0.02, Math.min(n.d, maxBeat - n.t) * beatSec) }));
+  return (drums ? drumPhrase() : phrase())
+    .filter((n) => n.t < maxBeat)
+    .map((n) => ({
+      p: n.p,
+      v: n.v,
+      t: 0.05 + n.t * beatSec,
+      d: Math.max(0.02, Math.min(n.d, maxBeat - n.t) * beatSec),
+    }));
 }
 
 // An effect's level against its input, on both test signals, each named. A filter or an EQ changes level by input (a
@@ -303,32 +461,55 @@ function phraseNotes(maxBeat = Infinity, drums = false) {
 // can satisfy both: that is level.note (how to set the output: on the target track), not a warning nothing could
 // clear. "Trim the output" only when both agree.
 export function levelWarnings(level, warnings) {
-  const dS = level.deltaLU, dD = level.drumsDeltaLU;
+  const dS = level.deltaLU,
+    dD = level.drumsDeltaLU;
   const sg = (x) => `${x > 0 ? '+' : ''}${round(x)}`;
   const by = (x) => (x > 0 ? `${round(x)} LU louder` : `${round(-x)} LU quieter`);
   if (!Number.isFinite(dD)) {
-    if (Math.abs(dS) > 6) warnings.push(`level: at default settings the effect is ${by(dS)} than its input on the DI strum: trim the output so on and bypassed sound about the same (within 3 LU)`);
-    else if (Math.abs(dS) > 3) warnings.push(`level: ${sg(dS)} LU against the input on the DI strum at defaults (aim for within 3 LU)`);
+    if (Math.abs(dS) > 6)
+      warnings.push(
+        `level: at default settings the effect is ${by(dS)} than its input on the DI strum: trim the output so on and bypassed sound about the same (within 3 LU)`,
+      );
+    else if (Math.abs(dS) > 3)
+      warnings.push(`level: ${sg(dS)} LU against the input on the DI strum at defaults (aim for within 3 LU)`);
     return;
   }
   if (Math.abs(dS - dD) > 6) {
     level.note = `level depends on the input: ${sg(dS)} LU on the DI strum, ${sg(dD)} LU on the drum loop at defaults (typical of filters and EQ). Set the output by measuring the target track with the effect on and bypassed (render_and_measure), not by trimming to a test signal`;
   } else if (Math.abs(dS) > 6 && Math.abs(dD) > 6 && Math.sign(dS) === Math.sign(dD)) {
-    warnings.push(`level: at default settings the effect is ${by(dS)} than its input on the DI strum and ${by(dD)} on the drum loop: trim the output so on and bypassed sound about the same (within 3 LU)`);
+    warnings.push(
+      `level: at default settings the effect is ${by(dS)} than its input on the DI strum and ${by(dD)} on the drum loop: trim the output so on and bypassed sound about the same (within 3 LU)`,
+    );
   } else if (Math.abs(dS) > 3 || Math.abs(dD) > 3) {
-    warnings.push(`level: ${sg(dS)} LU on the DI strum, ${sg(dD)} LU on the drum loop against the input at defaults (aim for within 3 LU on both)`);
+    warnings.push(
+      `level: ${sg(dS)} LU on the DI strum, ${sg(dD)} LU on the drum loop against the input at defaults (aim for within 3 LU on both)`,
+    );
   }
 }
 
 export async function checkDevice(def, { quick = false, signal = null, timeout = TIMEOUT, renderer = null } = {}) {
   const T0 = performance.now();
-  const errors = [], warnings = [];
+  const errors = [],
+    warnings = [];
   const kind = def && def.kind === 'instrument' ? 'instrument' : 'effect';
   const report = {
-    ok: false, id: def && def.id, kind, errors, warnings, ms: 0, timedOut: false,
+    ok: false,
+    id: def && def.id,
+    kind,
+    errors,
+    warnings,
+    ms: 0,
+    timedOut: false,
     compile: { ok: false, error: null, line: null },
-    level: null, truePeak: null, peak: null, nan: false, tail: null, cpu: null, latency: null,
-    deterministic: null, extremes: null,
+    level: null,
+    truePeak: null,
+    peak: null,
+    nan: false,
+    tail: null,
+    cpu: null,
+    latency: null,
+    deterministic: null,
+    extremes: null,
   };
   if (kind === 'effect' && def && def.key === true) report.keyed = null;
   const finish = () => {
@@ -336,47 +517,86 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
     report.ms = Math.round(performance.now() - T0);
     return report;
   };
-  if (!def || typeof def !== 'object') { errors.push('the def must be an object { id, name, kind, params, kernel }'); return finish(); }
-  if (def.kind !== 'instrument' && def.kind !== 'effect') { errors.push(`kind must be "instrument" or "effect" (got ${JSON.stringify(def.kind)})`); return finish(); }
-  if (typeof def.kernel !== 'string') { errors.push('kernel must be a source string: "({ create({ sr, seed, dsp }) { ... } })"'); return finish(); }
-  if (def.kernel.length > 256 * 1024) { errors.push(`the kernel is too large (${Math.ceil(def.kernel.length / 1024)} KB; a device's source can be up to 256 KB)`); return finish(); }
+  if (!def || typeof def !== 'object') {
+    errors.push('the def must be an object { id, name, kind, params, kernel }');
+    return finish();
+  }
+  if (def.kind !== 'instrument' && def.kind !== 'effect') {
+    errors.push(`kind must be "instrument" or "effect" (got ${JSON.stringify(def.kind)})`);
+    return finish();
+  }
+  if (typeof def.kernel !== 'string') {
+    errors.push('kernel must be a source string: "({ create({ sr, seed, dsp }) { ... } })"');
+    return finish();
+  }
+  if (def.kernel.length > 256 * 1024) {
+    errors.push(
+      `the kernel is too large (${Math.ceil(def.kernel.length / 1024)} KB; a device's source can be up to 256 KB)`,
+    );
+    return finish();
+  }
   let params;
   try {
     params = (def.params || []).map(normParam);
     for (const p of params) {
       if (!p.key) throw new Error('a param has no key');
-      if (!(p.def >= Math.min(p.min, p.max) && p.def <= Math.max(p.min, p.max))) throw new Error(`param ${p.key}: default ${p.def} is outside ${p.min}..${p.max}`);
-      if (p.curve === 'log' && !(p.min > 0)) throw new Error(`param ${p.key}: a log curve needs min > 0 (got ${p.min})`);
+      if (!(p.def >= Math.min(p.min, p.max) && p.def <= Math.max(p.min, p.max)))
+        throw new Error(`param ${p.key}: default ${p.def} is outside ${p.min}..${p.max}`);
+      if (p.curve === 'log' && !(p.min > 0))
+        throw new Error(`param ${p.key}: a log curve needs min > 0 (got ${p.min})`);
     }
-  } catch (e) { errors.push('params: ' + e.message); return finish(); }
-  if (def.id && !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(def.id)) warnings.push(`id "${def.id}" is not a valid device id (use "<author>.<slug>", lowercase a-z 0-9 . _ -)`);
+  } catch (e) {
+    errors.push('params: ' + e.message);
+    return finish();
+  }
+  if (def.id && !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(def.id))
+    warnings.push(`id "${def.id}" is not a valid device id (use "<author>.<slug>", lowercase a-z 0-9 . _ -)`);
 
   // 1. a syntax check on the main thread (fast, with a line number). Parse only: the kernel is evaluated in the
   // worklet alone, so its shape errors (no create(), bad poly, Math.random) arrive with the first render.
   const cr = compileKernel(def.kernel);
   report.compile = { ok: cr.ok, error: cr.ok ? cr.error : said(cr.error), line: cr.line };
-  if (!cr.ok) { errors.push('compile: ' + report.compile.error); return finish(); }
+  if (!cr.ok) {
+    errors.push('compile: ' + report.compile.error);
+    return finish();
+  }
   const ndef = { ...def, params };
   const defaults = Object.fromEntries(params.map((p) => [p.key, p.def]));
   let worst = { peak: 0, nan: false };
   const note = (r, label) => {
     if (r.compileError) {
       if (report.compile.ok) report.compile = { ok: false, error: r.compileError, line: r.line || null };
-      errors.push(`compile: ${r.compileError}`); return false;
+      errors.push(`compile: ${r.compileError}`);
+      return false;
     }
     const s = scan(r.buffer);
     const perr = r.errors.find((e) => e.stage === 'process');
-    if (perr) { errors.push(`${label}: ${said(perr.message)}`); report.nan = report.nan || /NaN|Infinity/.test(perr.message); }
-    if (s.nan) { report.nan = true; errors.push(`${label}: NaN or Infinity in the output: check divisions, log/sqrt of negatives, and feedback above 1`); }
+    if (perr) {
+      errors.push(`${label}: ${said(perr.message)}`);
+      report.nan = report.nan || /NaN|Infinity/.test(perr.message);
+    }
+    if (s.nan) {
+      report.nan = true;
+      errors.push(
+        `${label}: NaN or Infinity in the output: check divisions, log/sqrt of negatives, and feedback above 1`,
+      );
+    }
     return s;
   };
   const peakError = (tp, label) => {
-    if (tp > 6) errors.push(`${label}: output peaks at ${round(tp)} dBTP (limit +6): lower the output gain; aim for peaks under -1 dBTP${kind === 'instrument' ? ' and about -14 LUFS' : ' and the input\'s loudness'}`);
+    if (tp > 6)
+      errors.push(
+        `${label}: output peaks at ${round(tp)} dBTP (limit +6): lower the output gain; aim for peaks under -1 dBTP${kind === 'instrument' ? ' and about -14 LUFS' : " and the input's loudness"}`,
+      );
   };
 
   // 2. renders on the audio thread, every wait bounded by the watch (the header says why); none while one this module
   // gave up on still holds the thread, since loading the worklet behind it would block the page
-  if (held.size && !renderer) { report.timedOut = 'busy'; errors.push(BUSY); return finish(); }
+  if (held.size && !renderer) {
+    report.timedOut = 'busy';
+    errors.push(BUSY);
+    return finish();
+  }
   const w = watch(timeout, signal);
   const render = (d, o) => renderOnce(d, o, w, renderer);
   try {
@@ -388,24 +608,44 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       if (!s1) return finish();
       const dr = await render(ndef, { secs: 4, params: defaults, input: drums });
       const s2 = note(dr, 'with the drum loop') || { peak: 0 };
-      const inL = measureLufs({ sr: SR, channels: strum }), outL = measureLufs(main.buffer);
-      const inD = measureLufs({ sr: SR, channels: drums }), outD = dr.buffer ? measureLufs(dr.buffer) : -120;
-      report.level = { lufs: round(outL), deltaLU: round(outL - inL), inLufs: round(inL), drumsDeltaLU: dr.buffer ? round(outD - inD) : null };
+      const inL = measureLufs({ sr: SR, channels: strum }),
+        outL = measureLufs(main.buffer);
+      const inD = measureLufs({ sr: SR, channels: drums }),
+        outD = dr.buffer ? measureLufs(dr.buffer) : -120;
+      report.level = {
+        lufs: round(outL),
+        deltaLU: round(outL - inL),
+        inLufs: round(inL),
+        drumsDeltaLU: dr.buffer ? round(outD - inD) : null,
+      };
       const tp = Math.max(measureTruePeak(main.buffer), dr.buffer ? measureTruePeak(dr.buffer) : -120);
-      report.truePeak = round(tp); report.peak = round(dBFS(Math.max(s1.peak, s2.peak)));
+      report.truePeak = round(tp);
+      report.peak = round(dBFS(Math.max(s1.peak, s2.peak)));
       peakError(tp, 'at default settings');
-      if (outL < -60 && (!dr.buffer || outD < -60)) errors.push(`level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent). A gate, a mute or a triggered effect should let the test signals through at its defaults`);
+      if (outL < -60 && (!dr.buffer || outD < -60))
+        errors.push(
+          `level: nothing comes out at default settings (${round(outL)} LUFS on the DI strum${dr.buffer ? `, ${round(outD)} on the drum loop` : ''}): process() should leave the processed signal in L and R (a process() that faults goes silent). A gate, a mute or a triggered effect should let the test signals through at its defaults`,
+        );
       else levelWarnings(report.level, warnings);
       report.cpu = { pct: round((main.ms / 4000) * 100), ms: Math.round(main.ms), secs: 4 };
       // a keyed effect (def.key: true): the DI strum again, keyed by the drum loop, against the unkeyed render
       if (def.key === true) {
         const kr = await render(ndef, { secs: 4, params: defaults, input: strum, key: drums });
         if (note(kr, 'with the DI strum keyed by the drum loop') && kr.buffer) {
-          report.keyed = { deltaLU: round(measureLufs(kr.buffer) - outL), grMaxDb: round(dipDb(main.buffer, kr.buffer)) };
-          if (Math.abs(report.keyed.deltaLU) < 0.1 && report.keyed.grMaxDb < 0.5) warnings.push('key: the def says key: true, but keyed by the drum loop the DI strum comes out as it does unkeyed: read the key in process() (t.key.l, t.key.r; t.key.on is false when the insert has none)');
+          report.keyed = {
+            deltaLU: round(measureLufs(kr.buffer) - outL),
+            grMaxDb: round(dipDb(main.buffer, kr.buffer)),
+          };
+          if (Math.abs(report.keyed.deltaLU) < 0.1 && report.keyed.grMaxDb < 0.5)
+            warnings.push(
+              'key: the def says key: true, but keyed by the drum loop the DI strum comes out as it does unkeyed: read the key in process() (t.key.l, t.key.r; t.key.on is false when the insert has none)',
+            );
         }
       }
-      if (report.cpu.pct > 25) warnings.push(`cpu: a 4 s render took ${report.cpu.ms} ms (${report.cpu.pct}% of real time) for one instance: look for per-sample trig/pow/exp you could move to per-block`);
+      if (report.cpu.pct > 25)
+        warnings.push(
+          `cpu: a 4 s render took ${report.cpu.ms} ms (${report.cpu.pct}% of real time) for one instance: look for per-sample trig/pow/exp you could move to per-block`,
+        );
 
       // tail: 1 s of input, then silence
       const limit = def.drone ? 0 : Math.min(quick ? 4 : 12, Math.max(2, (+def.tail || 0) + 2));
@@ -415,21 +655,36 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
           const last = lastAbove(tr.buffer, SILENCE, SR);
           const decays = last < tr.buffer.length - Math.round(0.05 * SR);
           report.tail = { seconds: last < 0 ? 0 : round(last / SR - 1, 100), limit, decays };
-          if (!decays) warnings.push(`tail: still above -60 dBFS ${limit} s after the input stopped: if it should ring forever set drone: true, otherwise make sure feedback < 1 and add damping${def.tail ? '' : ' (or declare tail: <seconds>)'}`);
+          if (!decays)
+            warnings.push(
+              `tail: still above -60 dBFS ${limit} s after the input stopped: if it should ring forever set drone: true, otherwise make sure feedback < 1 and add damping${def.tail ? '' : ' (or declare tail: <seconds>)'}`,
+            );
         }
       } else report.tail = { seconds: null, limit: 0, decays: null };
 
       // latency: an impulse at 0.1 s
-      const imp = [new Float32Array(SR), new Float32Array(SR)]; imp[0][Math.round(0.1 * SR)] = 1; imp[1][Math.round(0.1 * SR)] = 1;
+      const imp = [new Float32Array(SR), new Float32Array(SR)];
+      imp[0][Math.round(0.1 * SR)] = 1;
+      imp[1][Math.round(0.1 * SR)] = 1;
       const lr = await render(ndef, { secs: 1, params: defaults, input: imp });
       if (note(lr, 'impulse render')) {
-        let best = -1, bv = 0; const x = lr.buffer.getChannelData(0), y = lr.buffer.getChannelData(1);
-        for (let i = 0; i < x.length; i++) { const a = Math.max(Math.abs(x[i]), Math.abs(y[i])); if (a > bv) { bv = a; best = i; } }
+        let best = -1,
+          bv = 0;
+        const x = lr.buffer.getChannelData(0),
+          y = lr.buffer.getChannelData(1);
+        for (let i = 0; i < x.length; i++) {
+          const a = Math.max(Math.abs(x[i]), Math.abs(y[i]));
+          if (a > bv) {
+            bv = a;
+            best = i;
+          }
+        }
         const declared = Math.round((lr.latency || 0) * SR);
         if (bv > SILENCE) {
           const samples = best - Math.round(0.1 * SR);
           report.latency = { samples, ms: round((samples / SR) * 1000, 100), declared };
-          if (declared && Math.abs(samples - declared) > 4 && samples >= 0) warnings.push(`latency: an impulse comes out ${samples} samples late but the kernel declares ${declared}`);
+          if (declared && Math.abs(samples - declared) > 4 && samples >= 0)
+            warnings.push(`latency: an impulse comes out ${samples} samples late but the kernel declares ${declared}`);
         } else report.latency = { samples: null, ms: null, declared };
       }
 
@@ -437,7 +692,10 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const again = await render(ndef, { secs: quick ? 2 : 4, params: defaults, input: quick ? cut(strum, 2) : strum });
       const first = quick ? await render(ndef, { secs: 2, params: defaults, input: cut(strum, 2) }) : main;
       report.deterministic = !!(again.buffer && first.buffer && hash(again.buffer) === hash(first.buffer));
-      if (!report.deterministic) warnings.push('deterministic: two renders of the same input differ: seed every random source from create({ seed }) and keep no state outside create()');
+      if (!report.deterministic)
+        warnings.push(
+          'deterministic: two renders of the same input differ: seed every random source from create({ seed }) and keep no state outside create()',
+        );
 
       // extremes
       const cases = paramCases(params, quick);
@@ -445,8 +703,14 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const res = await pool(cases, 4, async (cs) => {
         const r = await render(ndef, { secs: 1.2, params: cs.params, input: input1 });
         if (r.compileError) return { case: cs.name, nan: false, peak: null, error: r.compileError };
-        const s = scan(r.buffer), perr = r.errors.find((e) => e.stage === 'process');
-        return { case: cs.name, nan: s.nan || !!(perr && /NaN|Infinity/.test(perr.message)), peak: round(dBFS(s.peak)), error: perr ? said(perr.message) : null };
+        const s = scan(r.buffer),
+          perr = r.errors.find((e) => e.stage === 'process');
+        return {
+          case: cs.name,
+          nan: s.nan || !!(perr && /NaN|Infinity/.test(perr.message)),
+          peak: round(dBFS(s.peak)),
+          error: perr ? said(perr.message) : null,
+        };
       });
       worst = summariseExtremes(res, report, errors);
     } else {
@@ -460,13 +724,22 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       const s1 = note(main, 'playing the test phrase');
       if (!s1) return finish();
       const poly = main.poly || def.poly || 8; // the worklet's (the kernel's poly, else the def's, else 8)
-      const L = measureLufs(main.buffer), tp = measureTruePeak(main.buffer);
+      const L = measureLufs(main.buffer),
+        tp = measureTruePeak(main.buffer);
       report.level = { lufs: round(L), deltaLU: round(L + 14), inLufs: null, drumsDeltaLU: null };
-      report.truePeak = round(tp); report.peak = round(dBFS(s1.peak));
+      report.truePeak = round(tp);
+      report.peak = round(dBFS(s1.peak));
       peakError(tp, 'playing the test phrase');
-      if (L < -60) errors.push(`level: the test phrase measures ${round(L)} LUFS: effectively no sound. Check that render() adds the voice into L and R (+=) and returns true while it sounds (aim for about -14 LUFS)`);
-      else if (L < -40) warnings.push(`level: the test phrase measures ${round(L)} LUFS: is it making sound? (aim for about -14 LUFS)`);
-      else if (L < -22 || L > -8) warnings.push(`level: the test phrase measures ${round(L)} LUFS; aim for about -14 LUFS (scale the voice output)`);
+      if (L < -60)
+        errors.push(
+          `level: the test phrase measures ${round(L)} LUFS: effectively no sound. Check that render() adds the voice into L and R (+=) and returns true while it sounds (aim for about -14 LUFS)`,
+        );
+      else if (L < -40)
+        warnings.push(`level: the test phrase measures ${round(L)} LUFS: is it making sound? (aim for about -14 LUFS)`);
+      else if (L < -22 || L > -8)
+        warnings.push(
+          `level: the test phrase measures ${round(L)} LUFS; aim for about -14 LUFS (scale the voice output)`,
+        );
       // stuck notes: silence within `limit` after the last note-off
       const last = lastAbove(main.buffer, SILENCE, Math.round(lastOff * SR));
       const decays = last < main.buffer.length - Math.round(0.05 * SR);
@@ -474,7 +747,9 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
       report.stuck = false;
       if (!decays) {
         report.stuck = `still sounding ${limit} s after the last note-off`;
-        errors.push(`stuck note: the output is still above -60 dBFS ${limit} s after the last note-off: release() must start a release and render() must return false once it has finished (return env.active())${def.tail ? '' : ', or declare tail: <seconds> for long releases'}`);
+        errors.push(
+          `stuck note: the output is still above -60 dBFS ${limit} s after the last note-off: release() must start a release and render() must return false once it has finished (return env.active())${def.tail ? '' : ', or declare tail: <seconds> for long releases'}`,
+        );
       }
       // allOff silences held notes
       const held = [48, 55, 60, 64, 67].map((p, k) => ({ p, v: 0.8, t: 0.05 + k * 0.01, d: 100 }));
@@ -483,28 +758,50 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
         const la = lastAbove(ao.buffer, SILENCE, SR);
         if (la >= ao.buffer.length - Math.round(0.05 * SR)) {
           report.stuck = report.stuck || 'allOff did not silence held notes';
-          errors.push(`stuck note: ${limit} s after allOff() held notes still sound: release() must lead to render() returning false`);
+          errors.push(
+            `stuck note: ${limit} s after allOff() held notes still sound: release() must lead to render() returning false`,
+          );
         }
       }
       // cpu: the first 4 s of the phrase
       const cpuNotes = phraseNotes(8, drums);
       const cp = await render(ndef, { secs: 4, params: defaults, notes: cpuNotes });
       if (note(cp, 'cpu render')) report.cpu = { pct: round((cp.ms / 4000) * 100), ms: Math.round(cp.ms), secs: 4 };
-      if (report.cpu && report.cpu.pct > 25) warnings.push(`cpu: 4 s of the phrase took ${report.cpu.ms} ms (${report.cpu.pct}% of real time): look for per-sample trig/pow/exp you could move to per-block, or lower poly`);
+      if (report.cpu && report.cpu.pct > 25)
+        warnings.push(
+          `cpu: 4 s of the phrase took ${report.cpu.ms} ms (${report.cpu.pct}% of real time): look for per-sample trig/pow/exp you could move to per-block, or lower poly`,
+        );
       // latency: a note-on at 0.25 s (a kit's snare: middle C is a note a kit may not play)
-      const lt = await render(ndef, { secs: 1, params: defaults, notes: [{ p: drums ? 38 : 60, v: 1, t: 0.25, d: 0.5 }] });
+      const lt = await render(ndef, {
+        secs: 1,
+        params: defaults,
+        notes: [{ p: drums ? 38 : 60, v: 1, t: 0.25, d: 0.5 }],
+      });
       if (note(lt, 'onset render') && lt.buffer) {
         const on = firstAbove(lt.buffer, 1e-5, 0);
-        report.latency = { samples: on < 0 ? null : on - Math.round(0.25 * SR), ms: on < 0 ? null : round(((on - 0.25 * SR) / SR) * 1000, 100), declared: Math.round((lt.latency || 0) * SR) };
+        report.latency = {
+          samples: on < 0 ? null : on - Math.round(0.25 * SR),
+          ms: on < 0 ? null : round(((on - 0.25 * SR) / SR) * 1000, 100),
+          declared: Math.round((lt.latency || 0) * SR),
+        };
         if (on < 0) warnings.push('a note at full velocity made no sound in the first 0.75 s');
-        else if (on < Math.round(0.25 * SR)) warnings.push('sound before the first note-on: voices should be silent until start()');
+        else if (on < Math.round(0.25 * SR))
+          warnings.push('sound before the first note-on: voices should be silent until start()');
       }
       // determinism
       const again = await render(ndef, { secs: 4, params: defaults, notes: cpuNotes });
       report.deterministic = !!(again.buffer && cp.buffer && hash(again.buffer) === hash(cp.buffer));
-      if (!report.deterministic) warnings.push('deterministic: two renders of the same notes differ: seed every random source from create({ seed }) / voice(i) and keep no state outside create()');
+      if (!report.deterministic)
+        warnings.push(
+          'deterministic: two renders of the same notes differ: seed every random source from create({ seed }) / voice(i) and keep no state outside create()',
+        );
       // stealing: poly + 4 notes held at once
-      const many = Array.from({ length: poly + 4 }, (_, k) => ({ p: 40 + ((k * 7) % 36), v: 0.7, t: 0.05 + k * 0.02, d: 1.2 }));
+      const many = Array.from({ length: poly + 4 }, (_, k) => ({
+        p: 40 + ((k * 7) % 36),
+        v: 0.7,
+        t: 0.05 + k * 0.02,
+        d: 1.2,
+      }));
       const st = await render(ndef, { secs: 1.5 + limit, params: defaults, notes: many, stats: true });
       if (note(st, `${poly + 4} notes at once (poly ${poly})`) && st.buffer) {
         const v = st.stats || {};
@@ -514,37 +811,62 @@ export async function checkDevice(def, { quick = false, signal = null, timeout =
         // the worklet core over its port, and only a reply that's late (1 s) is missing: a warning.
         if (v.maxVoices == null || v.steals == null) {
           const m = `voices: the voice counts didn't come back from ${poly + 4} notes held at once, so voice stealing wasn't checked`;
-          if (renderer) errors.push(m); else warnings.push(m);
+          if (renderer) errors.push(m);
+          else warnings.push(m);
         }
-        if (v.maxVoices != null && v.maxVoices > poly + 2) errors.push(`voices: ${v.maxVoices} voices ran at once with poly ${poly} (stealing failed)`);
-        if (v.steals != null && v.steals < 4 && v.maxVoices >= poly) warnings.push(`voices: ${poly + 4} held notes caused ${v.steals} steals (expected 4)`);
+        if (v.maxVoices != null && v.maxVoices > poly + 2)
+          errors.push(`voices: ${v.maxVoices} voices ran at once with poly ${poly} (stealing failed)`);
+        if (v.steals != null && v.steals < 4 && v.maxVoices >= poly)
+          warnings.push(`voices: ${poly + 4} held notes caused ${v.steals} steals (expected 4)`);
         const stp = measureTruePeak(st.buffer);
         peakError(stp, `${poly + 4} notes at once`);
         if (stp > report.truePeak) report.truePeak = round(stp);
         const la = lastAbove(st.buffer, SILENCE, Math.round(1.3 * SR));
-        if (la >= st.buffer.length - Math.round(0.05 * SR)) { report.stuck = report.stuck || 'after voice stealing'; errors.push('stuck note after voice stealing: a stolen-and-reused voice never finished; reset all per-note state in start()'); }
+        if (la >= st.buffer.length - Math.round(0.05 * SR)) {
+          report.stuck = report.stuck || 'after voice stealing';
+          errors.push(
+            'stuck note after voice stealing: a stolen-and-reused voice never finished; reset all per-note state in start()',
+          );
+        }
       }
       // extremes: a short phrase at each case
-      const ex = phraseNotes(4, drums).concat([{ p: 36, v: 1, t: 1.6, d: 0.3 }, { p: 96, v: 1, t: 1.7, d: 0.3 }]);
+      const ex = phraseNotes(4, drums).concat([
+        { p: 36, v: 1, t: 1.6, d: 0.3 },
+        { p: 96, v: 1, t: 1.7, d: 0.3 },
+      ]);
       const cases = paramCases(params, quick);
       const res = await pool(cases, 4, async (cs) => {
         const r = await render(ndef, { secs: 2.5, params: cs.params, notes: ex });
         if (r.compileError) return { case: cs.name, nan: false, peak: null, error: r.compileError };
-        const s = scan(r.buffer), perr = r.errors.find((e) => e.stage === 'process');
-        return { case: cs.name, nan: s.nan || !!(perr && /NaN|Infinity/.test(perr.message)), peak: round(dBFS(s.peak)), error: perr ? said(perr.message) : null };
+        const s = scan(r.buffer),
+          perr = r.errors.find((e) => e.stage === 'process');
+        return {
+          case: cs.name,
+          nan: s.nan || !!(perr && /NaN|Infinity/.test(perr.message)),
+          peak: round(dBFS(s.peak)),
+          error: perr ? said(perr.message) : null,
+        };
       });
       worst = summariseExtremes(res, report, errors);
     }
   } catch (e) {
-    if (e && e.name === RENDER_FAULT && e !== w.reason) { errors.push(`render: ${e.message}`); return finish(); }
+    if (e && e.name === RENDER_FAULT && e !== w.reason) {
+      errors.push(`render: ${e.message}`);
+      return finish();
+    }
     if (e !== w.reason || e.name === 'AbortError') throw e;
     report.timedOut = !w.loaded ? 'busy' : !w.created ? 'create' : 'process';
     const s = Math.round(timeout / 100) / 10;
-    errors.unshift(report.timedOut === 'busy' ? BUSY
-      : report.timedOut === 'create'
-        ? `timeout: create() had not returned after ${s} s, so it may never return: give every loop in it a fixed bound`
-        : `timeout: a test render had not finished after ${s} s, so ${kind === 'instrument' ? 'render() or process()' : 'process()'} may never return (or is far too slow to play): give every loop a bound that doesn't depend on the input, a param or a value that can go NaN`);
-  } finally { w.end(); }
+    errors.unshift(
+      report.timedOut === 'busy'
+        ? BUSY
+        : report.timedOut === 'create'
+          ? `timeout: create() had not returned after ${s} s, so it may never return: give every loop in it a fixed bound`
+          : `timeout: a test render had not finished after ${s} s, so ${kind === 'instrument' ? 'render() or process()' : 'process()'} may never return (or is far too slow to play): give every loop a bound that doesn't depend on the input, a param or a value that can go NaN`,
+    );
+  } finally {
+    w.end();
+  }
   void worst;
   return finish();
 }
@@ -557,13 +879,22 @@ function summariseExtremes(res, report, errors, warnings = report.warnings) {
   const worstPeak = res.reduce((m, r) => (r.peak != null && r.peak > m ? r.peak : m), -120);
   report.extremes = { cases: res.length, worstPeak: round(worstPeak), failed, hot: hot.map((h) => h.case) };
   for (const f of failed) {
-    if (f.nan) { report.nan = true; errors.push(`extremes (${f.case}): NaN or Infinity${f.error ? ' - ' + f.error : ''}: guard the math at the ends of each range (clamp before log/sqrt/division; keep feedback < 1)`); }
-    else if (f.error) errors.push(`extremes (${f.case}): ${f.error}`);
-    else errors.push(`extremes (${f.case}): raw peak ${f.peak} dBFS (limit +24): it runs away at that end of the range; tame the gain or the feedback`);
+    if (f.nan) {
+      report.nan = true;
+      errors.push(
+        `extremes (${f.case}): NaN or Infinity${f.error ? ' - ' + f.error : ''}: guard the math at the ends of each range (clamp before log/sqrt/division; keep feedback < 1)`,
+      );
+    } else if (f.error) errors.push(`extremes (${f.case}): ${f.error}`);
+    else
+      errors.push(
+        `extremes (${f.case}): raw peak ${f.peak} dBFS (limit +24): it runs away at that end of the range; tame the gain or the feedback`,
+      );
   }
   if (hot.length) {
     const w = hot.reduce((a, b) => (b.peak > a.peak ? b : a));
-    warnings.push(`extremes: ${hot.length} setting${hot.length > 1 ? 's' : ''} peak over +6 dBFS (worst: ${w.case}, ${w.peak} dBFS): fine for a boost the player chooses, otherwise narrow the range or add makeup that follows the gain`);
+    warnings.push(
+      `extremes: ${hot.length} setting${hot.length > 1 ? 's' : ''} peak over +6 dBFS (worst: ${w.case}, ${w.peak} dBFS): fine for a boost the player chooses, otherwise narrow the range or add makeup that follows the gain`,
+    );
   }
   return { peak: worstPeak };
 }
@@ -572,7 +903,10 @@ function summariseExtremes(res, report, errors, warnings = report.warnings) {
 export function summarize(r) {
   if (!r.compile.ok) return `refused: ${r.errors[0]}`;
   const bits = [];
-  if (r.level) bits.push(r.kind === 'effect' ? `${r.level.deltaLU >= 0 ? '+' : ''}${r.level.deltaLU} LU vs input` : `${r.level.lufs} LUFS`);
+  if (r.level)
+    bits.push(
+      r.kind === 'effect' ? `${r.level.deltaLU >= 0 ? '+' : ''}${r.level.deltaLU} LU vs input` : `${r.level.lufs} LUFS`,
+    );
   if (r.truePeak != null) bits.push(`${r.truePeak} dBTP`);
   if (r.tail && r.tail.seconds != null) bits.push(`tail ${r.tail.seconds} s`);
   if (r.cpu) bits.push(`cpu ${r.cpu.pct}%`);

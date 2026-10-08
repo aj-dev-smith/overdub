@@ -119,7 +119,20 @@ import { songEnd as projectSongEnd } from '../core/project.js';
 import { onDevices } from '../devices/registry.js';
 import { Strip, trackSpec, masterSpec, audibility, mixAt, keyPlan } from './strip.js';
 import { createClock } from './clock.js';
-import { notesIn, audioIn, lastSound, playBuffer, autoIn, lanesOf, lanePos, laneValue, travel, mixGain, panGains, GRID } from './schedule.js';
+import {
+  notesIn,
+  audioIn,
+  lastSound,
+  playBuffer,
+  autoIn,
+  lanesOf,
+  lanePos,
+  laneValue,
+  travel,
+  mixGain,
+  panGains,
+  GRID,
+} from './schedule.js';
 import { noteExpr } from '../kernel/expr.js';
 import { renderProject, probeLatency } from './render.js';
 import { assets as sharedAssets } from './assets.js';
@@ -127,65 +140,98 @@ import { emitter, frame, beatsPerBarOf, sleep, soon, afterAudio, ramp, dbToGain 
 import { clickSamples } from './click.js';
 
 const TICK_MS = 25;
-const AHEAD = 0.12;        // seconds scheduled ahead of the audio clock
-const START_DELAY = 0.06;  // play() starts this far after now, so the first notes land exactly
+const AHEAD = 0.12; // seconds scheduled ahead of the audio clock
+const START_DELAY = 0.06; // play() starts this far after now, so the first notes land exactly
 const METER_MS = 33;
-const RING = 2;            // the polite stop: seconds a tail rings on after Stop before it is faded (see the header)
-const CALM_FADE = 1;       // ... the fade's length
-const CALM_DB = -50;       // ... a strip over this (peak, dBFS) is faded and renewed
+const RING = 2; // the polite stop: seconds a tail rings on after Stop before it is faded (see the header)
+const CALM_FADE = 1; // ... the fade's length
+const CALM_DB = -50; // ... a strip over this (peak, dBFS) is faded and renewed
 
 // A timer that keeps time in background tabs: a Worker's setInterval (main-thread timers are throttled there).
 function ticker(fn, ms) {
-  let w = null, iv = null;
+  let w = null,
+    iv = null;
   try {
     const src = `let id = null; onmessage = (e) => { clearInterval(id); id = e.data > 0 ? setInterval(() => postMessage(0), e.data) : null; };`;
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
     w = new Worker(url);
     URL.revokeObjectURL(url);
     w.onmessage = () => fn();
-    w.onerror = () => { try { w.terminate(); } catch (e) { /* ok */ } w = null; if (!iv) iv = setInterval(fn, ms); };
+    w.onerror = () => {
+      try {
+        w.terminate();
+      } catch (e) {
+        /* ok */
+      }
+      w = null;
+      if (!iv) iv = setInterval(fn, ms);
+    };
     w.postMessage(ms);
-  } catch (e) { w = null; iv = setInterval(fn, ms); }
-  return () => { if (w) { w.postMessage(0); w.terminate(); } if (iv) clearInterval(iv); };
+  } catch (e) {
+    w = null;
+    iv = setInterval(fn, ms);
+  }
+  return () => {
+    if (w) {
+      w.postMessage(0);
+      w.terminate();
+    }
+    if (iv) clearInterval(iv);
+  };
 }
 
 export function createEngine(store, { assets = sharedAssets } = {}) {
   const ev = emitter();
   const P = () => store.get();
-  let ctx = null, starting = null, disposed = false;
-  const offs = [];                   // listeners to let go on dispose
+  let ctx = null,
+    starting = null,
+    disposed = false;
+  const offs = []; // listeners to let go on dispose
   let master = null;
-  const strips = new Map();          // track id -> Strip
-  let stopTick = null, meterIv = null;
+  const strips = new Map(); // track id -> Strip
+  let stopTick = null,
+    meterIv = null;
   let lastTempo = null;
-  const click = { on: false, whileRecording: false, level: 0 };   // the click's options (level: dB)
-  let recording = false, clickBus = null;                          // a take is running (the recorder sets it)
-  const clickOn = () => click.on && (!click.whileRecording || recording);   // (the count-in's clicks ignore it)
-  let kill = null, renewing = null, hush = 0; // the speakers' feed (the killswitch's gain); a silence in progress; silences so far
-  const pdc = { tracks: {}, comp: {}, max: 0, master: 0, total: 0 };   // plugin delay compensation (seconds; comp: samples)
-  const clicks = new Set();          // scheduled metronome oscillators
-  const sources = new Set();         // playing audio clip handles
-  let pendingOffs = [];              // [{ t, inst, p, onT, track, kind: 'sched' | 'live' }]
-  const liveHeld = new Map();        // `${track}:${pitch}` -> inst (what liveNoteOff releases)
-  const waitingAudio = [];           // audio clips whose samples were not loaded when their time came
+  const click = { on: false, whileRecording: false, level: 0 }; // the click's options (level: dB)
+  let recording = false,
+    clickBus = null; // a take is running (the recorder sets it)
+  const clickOn = () => click.on && (!click.whileRecording || recording); // (the count-in's clicks ignore it)
+  let kill = null,
+    renewing = null,
+    hush = 0; // the speakers' feed (the killswitch's gain); a silence in progress; silences so far
+  const pdc = { tracks: {}, comp: {}, max: 0, master: 0, total: 0 }; // plugin delay compensation (seconds; comp: samples)
+  const clicks = new Set(); // scheduled metronome oscillators
+  const sources = new Set(); // playing audio clip handles
+  let pendingOffs = []; // [{ t, inst, p, onT, track, kind: 'sched' | 'live' }]
+  const liveHeld = new Map(); // `${track}:${pitch}` -> inst (what liveNoteOff releases)
+  const waitingAudio = []; // audio clips whose samples were not loaded when their time came
   const meters = { tracks: {}, master: { peak: -120, rms: -120 } };
   // automation (see the header): the lanes that play, what was handed over, how far each control grid has been laid
-  const AU = { doc: null, lanes: [], byId: new Map(), sigs: new Map(), sent: new Set(), insts: new Set(), mix: new Map(), graph: new Map() };
-  let calm = null;                   // the polite stop under way: { stopT, strips: Set<Strip>, fading, renewing, job }
-  const lastLive = new Map();        // track id -> audio time of its last live note or audition
-  let lastEnd = null;                // the song's last sound (schedule.js lastSound), cached until the song changes
+  const AU = {
+    doc: null,
+    lanes: [],
+    byId: new Map(),
+    sigs: new Map(),
+    sent: new Set(),
+    insts: new Set(),
+    mix: new Map(),
+    graph: new Map(),
+  };
+  let calm = null; // the polite stop under way: { stopT, strips: Set<Strip>, fading, renewing, job }
+  const lastLive = new Map(); // track id -> audio time of its last live note or audition
+  let lastEnd = null; // the song's last sound (schedule.js lastSound), cached until the song changes
 
   // ---- transport state
   const T = {
     playing: false,
-    cursor: 0,          // song beat when stopped (where play() starts)
-    anchors: [],        // [{ t, u, spb }] u -> time; latest last
-    segs: [],           // [{ u0, s0, fresh }] u -> song beat; latest last
-    schedU: 0,          // u scheduled up to (exclusive)
+    cursor: 0, // song beat when stopped (where play() starts)
+    anchors: [], // [{ t, u, spb }] u -> time; latest last
+    segs: [], // [{ u0, s0, fresh }] u -> song beat; latest last
+    schedU: 0, // u scheduled up to (exclusive)
     scheduled: new Map(), // `${key}@${seg}` -> what was handed over (never double-schedule; revise() checks it)
     startT: 0,
-    count: null,        // the count-in of this play(): { from, until, beats, preroll, time, ended }, or null
-    wraps: 0,           // loop wraps scheduled since play() (the pass a wrap starts is wraps + 1)
+    count: null, // the count-in of this play(): { from, until, beats, preroll, time, ended }, or null
+    wraps: 0, // loop wraps scheduled since play() (the pass a wrap starts is wraps + 1)
   };
   // Practice speed (engine.rate, the Jam room's): the transport plays the song at rate × its tempo, never changing the
   // song. Everything the transport times (notes, the click, the count-in, synced devices) follows it; the song's own
@@ -212,20 +258,42 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   let band = { db: 0, keep: new Set() };
   function setBand(db, { keep } = {}) {
     const d = Math.max(-60, Math.min(0, Number.isFinite(+db) ? +db : 0));
-    band = { db: d > -0.05 ? 0 : Math.round(d * 10) / 10, keep: new Set((Array.isArray(keep) ? keep : keep ? [keep] : [...band.keep]).map(String)) };
+    band = {
+      db: d > -0.05 ? 0 : Math.round(d * 10) / 10,
+      keep: new Set((Array.isArray(keep) ? keep : keep ? [keep] : [...band.keep]).map(String)),
+    };
     reconcile();
     return bandNow();
   }
   const bandNow = () => ({ db: band.db, keep: [...band.keep] });
   const trimOf = (id) => (band.db && !band.keep.has(id) ? band.db : 0);
 
-  function anchorFor(u) { for (let i = T.anchors.length - 1; i >= 0; i--) if (T.anchors[i].u <= u + 1e-9) return T.anchors[i]; return T.anchors[0]; }
-  function anchorAtTime(t) { for (let i = T.anchors.length - 1; i >= 0; i--) if (T.anchors[i].t <= t + 1e-9) return T.anchors[i]; return T.anchors[0]; }
-  const uToTime = (u) => { const a = anchorFor(u); return a.t + (u - a.u) * a.spb; };
-  const timeToU = (t) => { const a = anchorAtTime(t); return a.u + (t - a.t) / a.spb; };
-  function segFor(u) { for (let i = T.segs.length - 1; i >= 0; i--) if (T.segs[i].u0 <= u + 1e-9) return { seg: T.segs[i], i: T.segs[i].i }; return { seg: T.segs[0], i: T.segs[0].i }; }
-  const uToSong = (u) => { const { seg } = segFor(u); return seg.s0 + (u - seg.u0); };
-  const outLatency = () => (ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0);
+  function anchorFor(u) {
+    for (let i = T.anchors.length - 1; i >= 0; i--) if (T.anchors[i].u <= u + 1e-9) return T.anchors[i];
+    return T.anchors[0];
+  }
+  function anchorAtTime(t) {
+    for (let i = T.anchors.length - 1; i >= 0; i--) if (T.anchors[i].t <= t + 1e-9) return T.anchors[i];
+    return T.anchors[0];
+  }
+  const uToTime = (u) => {
+    const a = anchorFor(u);
+    return a.t + (u - a.u) * a.spb;
+  };
+  const timeToU = (t) => {
+    const a = anchorAtTime(t);
+    return a.u + (t - a.t) / a.spb;
+  };
+  function segFor(u) {
+    for (let i = T.segs.length - 1; i >= 0; i--)
+      if (T.segs[i].u0 <= u + 1e-9) return { seg: T.segs[i], i: T.segs[i].i };
+    return { seg: T.segs[0], i: T.segs[0].i };
+  }
+  const uToSong = (u) => {
+    const { seg } = segFor(u);
+    return seg.s0 + (u - seg.u0);
+  };
+  const outLatency = () => (ctx ? ctx.outputLatency || ctx.baseLatency || 0 : 0);
 
   // The audible song position (what the playhead shows).
   function beatNow() {
@@ -247,7 +315,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (!k || k.ended || !T.playing || !ctx) return null;
     if (gridNow() - T.s0 >= k.beats - 1e-9) return null;
     // (time read now: the tempo map and the output latency it allows for can move after play())
-    return { from: k.from, until: k.until, beats: k.beats, preroll: k.preroll, time: uToTime(k.beats) + outLatency() + pdc.total };
+    return {
+      from: k.from,
+      until: k.until,
+      beats: k.beats,
+      preroll: k.preroll,
+      time: uToTime(k.beats) + outLatency() + pdc.total,
+    };
   }
 
   // The audio clock against performance.now(), for beatAt (an input event's timeStamp). currentTime moves in steps
@@ -256,7 +330,8 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // suspended context, a throttled tab) drops it for good, so a fresh reading far under the kept one starts over.
   let clockPairs = [];
   function ctxTimeAt(perfMs) {
-    const pn = performance.now(), off = ctx.currentTime - pn / 1000;
+    const pn = performance.now(),
+      off = ctx.currentTime - pn / 1000;
     if (clockPairs.length && off < clockPairs.reduce((m, x) => Math.max(m, x[1]), -Infinity) - 0.05) clockPairs = [];
     clockPairs.push([pn, off]);
     while (clockPairs.length > 1 && clockPairs[0][0] < pn - 1000) clockPairs.shift();
@@ -291,16 +366,41 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     console.warn('overdub engine:', e.message);
     ev.emit('error', e);
   };
-  const transportEvt = (why, extra = null) => ev.emit('transport', { why, playing: T.playing, beat: beatNow(), tempo: +P().tempo || 120, rate, loop: { ...(P().loop || {}) }, metronome: click.on, click: { ...click }, recording, counting: countingNow(), ...extra });
+  const transportEvt = (why, extra = null) =>
+    ev.emit('transport', {
+      why,
+      playing: T.playing,
+      beat: beatNow(),
+      tempo: +P().tempo || 120,
+      rate,
+      loop: { ...(P().loop || {}) },
+      metronome: click.on,
+      click: { ...click },
+      recording,
+      counting: countingNow(),
+      ...extra,
+    });
 
   // ------------------------------------------------------------------------------------------- the graph
-  const stripOpts = (id, extra = {}) => ({ id, clock, bpm: bpmNow, report, onGraph: (e) => ev.emit('graph', e), meters: true, ...extra });
+  const stripOpts = (id, extra = {}) => ({
+    id,
+    clock,
+    bpm: bpmNow,
+    report,
+    onGraph: (e) => ev.emit('graph', e),
+    meters: true,
+    ...extra,
+  });
 
   let reconcileQueued = false;
   function queueReconcile() {
     if (reconcileQueued) return;
     reconcileQueued = true;
-    queueMicrotask(() => { if (!reconcileQueued) return; reconcileQueued = false; reconcile(); });
+    queueMicrotask(() => {
+      if (!reconcileQueued) return;
+      reconcileQueued = false;
+      reconcile();
+    });
   }
 
   // Bring the graph in line with the document. Cheap things (mix, params) happen now; structural things (devices
@@ -319,10 +419,16 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     lastTempo = bpm;
 
     refreshLanes(p);
-    const auto = (track) => ({ gain: T.playing && AU.byId.has(track + '/mix/gain'), pan: T.playing && AU.byId.has(track + '/mix/pan') });
+    const auto = (track) => ({
+      gain: T.playing && AU.byId.has(track + '/mix/gain'),
+      pan: T.playing && AU.byId.has(track + '/mix/pan'),
+    });
     master.setMix({ gain: mixAt(p.master || {}, T.cursor).gain, auto: auto('master') });
     master.setClip(p.master && p.master.clip);
-    master.sync(masterSpec(p, { at: T.cursor })).catch((e) => report({ kind: 'graph', track: 'master', message: e.message })).then(queuePdc);
+    master
+      .sync(masterSpec(p, { at: T.cursor }))
+      .catch((e) => report({ kind: 'graph', track: 'master', message: e.message }))
+      .then(queuePdc);
     const heard = audibility(p);
     const seen = new Set();
     for (const t of p.tracks || []) {
@@ -335,7 +441,10 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       }
       const mx = mixAt(t, T.cursor);
       s.setMix({ gain: mx.gain, pan: mx.pan, audible: !!heard[t.id], auto: auto(t.id), trim: trimOf(t.id) });
-      s.sync(trackSpec(t, { at: T.cursor })).catch((e) => report({ kind: 'graph', track: t.id, message: e.message })).then(queuePdc).then(queueKeys);
+      s.sync(trackSpec(t, { at: T.cursor }))
+        .catch((e) => report({ kind: 'graph', track: t.id, message: e.message }))
+        .then(queuePdc)
+        .then(queueKeys);
     }
     for (const [id, s] of strips) {
       if (seen.has(id)) continue;
@@ -359,23 +468,40 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
 
   async function start() {
     if (disposed) throw new Error('engine: disposed');
-    if (starting) { await starting; if (ctx.state !== 'running') await wakeCtx(ctx); return api; }
+    if (starting) {
+      await starting;
+      if (ctx.state !== 'running') await wakeCtx(ctx);
+      return api;
+    }
     starting = (async () => {
       const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
       const c = new AC({ latencyHint: 'interactive' });
       ctx = c;
       // the master's tap (masterTap) is the mix; the speakers get the mix plus the metronome through its monitor clip
-      kill = c.createGain(); kill.gain.value = 1; kill.connect(c.destination);
+      kill = c.createGain();
+      kill.gain.value = 1;
+      kill.connect(c.destination);
       master = new Strip(c, { ...stripOpts('master', { dest: null, monitor: kill }), master: true });
-      clickBus = c.createGain(); clickBus.gain.value = dbToGain(click.level); clickBus.connect(master.monIn);
+      clickBus = c.createGain();
+      clickBus.gain.value = dbToGain(click.level);
+      clickBus.connect(master.monIn);
       lastTempo = bpmNow();
       reconcile();
-      offs.push(store.on('change', (evt) => { lastEnd = null; if (touchesNotes(evt)) needRevise = true; queueReconcile(); }));
+      offs.push(
+        store.on('change', (evt) => {
+          lastEnd = null;
+          if (touchesNotes(evt)) needRevise = true;
+          queueReconcile();
+        }),
+      );
       offs.push(onDevices(() => queueReconcile())); // a device defined (or re-defined) late: swap the stand-ins for it
       stopTick = ticker(tick, TICK_MS);
       meterIv = setInterval(readMeters, METER_MS);
       await wakeCtx(c); // (suspended until a gesture: play() and live notes try again)
-      c.addEventListener('statechange', () => { clockPairs = []; transportEvt('context'); });
+      c.addEventListener('statechange', () => {
+        clockPairs = [];
+        transportEvt('context');
+      });
       await settled();
       return api;
     })();
@@ -383,12 +509,17 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   }
 
   function settled() {
-    if (reconcileQueued) { reconcileQueued = false; reconcile(); }
+    if (reconcileQueued) {
+      reconcileQueued = false;
+      reconcile();
+    }
     const jobs = [];
     if (master && master.job) jobs.push(master.job);
     for (const s of strips.values()) if (s.job) jobs.push(s.job);
     if (!jobs.length) return Promise.resolve();
-    return Promise.all(jobs.map((j) => j.catch(() => {}))).then(() => sleep(0)).then(() => settled());
+    return Promise.all(jobs.map((j) => j.catch(() => {})))
+      .then(() => sleep(0))
+      .then(() => settled());
   }
 
   // ------------------------------------------------------------------------------------------- keys
@@ -400,12 +531,25 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function queueKeys() {
     if (keysQueued || disposed) return;
     keysQueued = true;
-    queueMicrotask(() => { keysQueued = false; updateKeys(); });
+    queueMicrotask(() => {
+      keysQueued = false;
+      updateKeys();
+    });
   }
   function updateKeys() {
     if (!ctx || disposed) return;
-    const p = P(), plan = keyPlan(p), seen = new Set();
-    const cut = (l) => { if (l && l.tap) { try { l.tap.disconnect(l.inst.keyInput); } catch (e) { /* gone */ } } };
+    const p = P(),
+      plan = keyPlan(p),
+      seen = new Set();
+    const cut = (l) => {
+      if (l && l.tap) {
+        try {
+          l.tap.disconnect(l.inst.keyInput);
+        } catch (e) {
+          /* gone */
+        }
+      }
+    };
     for (const t of p.tracks || []) {
       const s = strips.get(t.id);
       if (!s) continue;
@@ -414,15 +558,26 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         const inst = s.instance(x.id);
         if (!inst || !inst.keyInput) continue;
         seen.add(x.id);
-        const sid = plan.keyOf.get(x.id), src = sid ? strips.get(sid) : null, tap = src && !src.disposed ? src.keyTap() : null;
+        const sid = plan.keyOf.get(x.id),
+          src = sid ? strips.get(sid) : null,
+          tap = src && !src.disposed ? src.keyTap() : null;
         const cur = keyLinks.get(x.id);
         if (cur && cur.inst === inst && cur.tap === tap) continue;
         keyLinks.set(x.id, { inst, tap });
-        const apply = () => { if (cur) cut(cur); if (tap) tap.connect(inst.keyInput); inst.setKey(!!tap); };
-        if (cur && cur.inst === inst) s.dipped(apply); else apply();
+        const apply = () => {
+          if (cur) cut(cur);
+          if (tap) tap.connect(inst.keyInput);
+          inst.setKey(!!tap);
+        };
+        if (cur && cur.inst === inst) s.dipped(apply);
+        else apply();
       }
     }
-    for (const [id, l] of keyLinks) if (!seen.has(id)) { cut(l); keyLinks.delete(id); }
+    for (const [id, l] of keyLinks)
+      if (!seen.has(id)) {
+        cut(l);
+        keyLinks.delete(id);
+      }
   }
 
   // ------------------------------------------------------------------------------------------- latency
@@ -431,15 +586,25 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function queuePdc() {
     if (pdcQueued || disposed) return;
     pdcQueued = true;
-    queueMicrotask(() => { pdcQueued = false; updatePdc(); });
+    queueMicrotask(() => {
+      pdcQueued = false;
+      updatePdc();
+    });
   }
   function updatePdc() {
     if (!ctx || disposed || !master) return;
-    const sr = ctx.sampleRate, lat = {}, comp = {};
+    const sr = ctx.sampleRate,
+      lat = {},
+      comp = {};
     let max = 0;
-    for (const [id, s] of strips) { const l = s.latency(); lat[id] = l; if (l > max) max = l; }
+    for (const [id, s] of strips) {
+      const l = s.latency();
+      lat[id] = l;
+      if (l > max) max = l;
+    }
     for (const id of strips.keys()) comp[id] = Math.max(0, Math.round((max - lat[id]) * sr));
-    const m = master.latency(), total = max + m;
+    const m = master.latency(),
+      total = max + m;
     const moved = Math.abs(total - pdc.total) > 0.5 / sr;
     Object.assign(pdc, { tracks: lat, comp, max, master: m, total });
     if (moved) ev.emit('latency', latencyReport());
@@ -447,22 +612,40 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   const compOf = (track) => (pdc.comp[track] || 0) / ctx.sampleRate; // seconds a track's events are held back
   function latencyReport() {
     return {
-      base: ctx ? ctx.baseLatency || 0 : 0, output: ctx ? ctx.outputLatency || 0 : 0,
-      tracks: { ...pdc.tracks }, comp: { ...pdc.comp }, max: pdc.max, master: pdc.master, total: pdc.total,
+      base: ctx ? ctx.baseLatency || 0 : 0,
+      output: ctx ? ctx.outputLatency || 0 : 0,
+      tracks: { ...pdc.tracks },
+      comp: { ...pdc.comp },
+      max: pdc.max,
+      master: pdc.master,
+      total: pdc.total,
     };
   }
 
   // ------------------------------------------------------------------------------------------- scheduler
   function tick() {
     if (!ctx || disposed) return;
-    const now = ctx.currentTime, H = now + AHEAD;
+    const now = ctx.currentTime,
+      H = now + AHEAD;
     const events = [];
-    if (T.playing) { scheduleUntil(H, events); ctxTimeAt(0); autoControl(H); } // (and a clock reading for beatAt)
-    if (T.playing && atSongEnd()) { stop({ end: true }); return; }
+    if (T.playing) {
+      scheduleUntil(H, events);
+      ctxTimeAt(0);
+      autoControl(H);
+    } // (and a clock reading for beatAt)
+    if (T.playing && atSongEnd()) {
+      stop({ end: true });
+      return;
+    }
     // note-offs that fall due inside the horizon
     if (pendingOffs.length) {
       const keep = [];
-      for (const o of pendingOffs) { if (o.t < H) { events.push({ ...o, off: true }); if (o.entry) o.entry.offSent = true; } else keep.push(o); }
+      for (const o of pendingOffs) {
+        if (o.t < H) {
+          events.push({ ...o, off: true });
+          if (o.entry) o.entry.offSent = true;
+        } else keep.push(o);
+      }
       pendingOffs = keep;
     }
     dispatch(events);
@@ -482,7 +665,9 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         if (e.off) e.inst.noteOff(e.p, e.t);
         else if (e.x) e.inst.noteOn(e.p, e.v, e.t, e.x);
         else e.inst.noteOn(e.p, e.v, e.t);
-      } catch (err) { report({ kind: 'note', track: e.track, message: err.message }); }
+      } catch (err) {
+        report({ kind: 'note', track: e.track, message: err.message });
+      }
     }
   }
 
@@ -502,16 +687,28 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const { seg, i: segIndex } = segFor(T.schedU);
       const s = seg.s0 + (T.schedU - seg.u0);
       const lp = P().loop || {};
-      let len = uH - T.schedU, wrap = false;
+      let len = uH - T.schedU,
+        wrap = false;
       // (a count-in never wraps, and a segment laid out ahead, the count's quiet one, ends where the next begins)
       const inCount = !!T.count && T.schedU < T.count.beats - 1e-9;
       const next = T.segs.find((g) => g.u0 > T.schedU + 1e-9);
       if (next && T.schedU + len > next.u0) len = next.u0 - T.schedU;
       if (inCount && T.schedU + len > T.count.beats) len = T.count.beats - T.schedU;
-      const cut = loopCut(s, T.schedU), looping = !inCount && cut !== Infinity;
-      if (looping && s + len >= lp.end - 1e-9) { len = lp.end - s; wrap = true; }
+      const cut = loopCut(s, T.schedU),
+        looping = !inCount && cut !== Infinity;
+      if (looping && s + len >= lp.end - 1e-9) {
+        len = lp.end - s;
+        wrap = true;
+      }
       const fresh = seg.fresh && Math.abs(T.schedU - seg.u0) < 1e-9;
-      scheduleRange(s, s + len, T.schedU, segIndex, { fresh, chase: fresh, cut, click: true, song: !seg.quiet }, events);
+      scheduleRange(
+        s,
+        s + len,
+        T.schedU,
+        segIndex,
+        { fresh, chase: fresh, cut, click: true, song: !seg.quiet },
+        events,
+      );
       // (a wrap lands exactly where the pass began plus its length: summing the lookahead's slices drifts, 16 → 15.999999999999998)
       T.schedU = wrap ? seg.u0 + (lp.end - seg.s0) : T.schedU + len;
       if (wrap) {
@@ -519,12 +716,17 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         T.segs.push({ u0: T.schedU, s0: lp.start, fresh: true, i });
         if (T.segs.length > 64) T.segs.splice(0, T.segs.length - 64);
         T.wraps++;
-        const at = uToTime(T.schedU), gen = T.gen, heard = at + outLatency() + pdc.total;
+        const at = uToTime(T.schedU),
+          gen = T.gen,
+          heard = at + outLatency() + pdc.total;
         const pass = { n: T.wraps + 1, start: lp.start, end: lp.end, grid: T.s0 + T.schedU, time: heard };
         // (re-armed if the timer fires early: it counts wall time, and the audio clock can fall behind it)
         const fire = () => {
           if (!T.playing || T.gen !== gen) return;
-          if (ctx.currentTime < heard - 0.005) { setTimeout(fire, (heard - ctx.currentTime) * 1000); return; }
+          if (ctx.currentTime < heard - 0.005) {
+            setTimeout(fire, (heard - ctx.currentTime) * 1000);
+            return;
+          }
           transportEvt('loop', { pass });
         };
         setTimeout(fire, Math.max(0, (heard - ctx.currentTime) * 1000));
@@ -534,7 +736,14 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
 
   // Schedule the song range [sA, sB), which starts at u = uA in segment segIndex. chase: also the notes held at sA
   // (a fresh segment: after play, a seek or a loop wrap), started at sA.
-  function scheduleRange(sA, sB, uA, segIndex, { fresh = false, chase = false, cut = Infinity, click = false, audio = true, song = true } = {}, events) {
+  function scheduleRange(
+    sA,
+    sB,
+    uA,
+    segIndex,
+    { fresh = false, chase = false, cut = Infinity, click = false, audio = true, song = true } = {},
+    events,
+  ) {
     const p = P();
     const time = (beat) => frame(ctx, uToTime(uA + (beat - sA)));
     const now = ctx.currentTime;
@@ -548,21 +757,46 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const s = strips.get(n.track);
       const inst = s && s.instance('instrument');
       if (!inst) continue;
-      const c = compOf(n.track), t = time(n.at) + c;
+      const c = compOf(n.track),
+        t = time(n.at) + c;
       if (t < now) continue; // too late to play it (an edit inside the window that is already past)
       const v = velOf(n.note);
-      const off = { t: Math.max(t + 0.001, time(n.off) + c), inst, p: n.note.p, onT: t, track: n.track, kind: 'sched', entry: null };
-      const e = { note: true, t, c, inst, p: n.note.p, v, track: n.track, off, offSent: false, get end() { return this.off.t; } };
+      const off = {
+        t: Math.max(t + 0.001, time(n.off) + c),
+        inst,
+        p: n.note.p,
+        onT: t,
+        track: n.track,
+        kind: 'sched',
+        entry: null,
+      };
+      const e = {
+        note: true,
+        t,
+        c,
+        inst,
+        p: n.note.p,
+        v,
+        track: n.track,
+        off,
+        offSent: false,
+        get end() {
+          return this.off.t;
+        },
+      };
       off.entry = e;
       T.scheduled.set(k, e);
       events.push({ t, inst, p: n.note.p, v, track: n.track, x: noteExpr(n.note, spbNow(), n.into) });
       pendingOffs.push(off);
     }
-    if (audio && rate === 1) {   // (at a practice speed audio clips sit out: they can't follow in tune)
+    if (audio && rate === 1) {
+      // (at a practice speed audio clips sit out: they can't follow in tune)
       for (const a of audioIn(p, sA, sB, { cut, fresh })) {
         const k = a.key + '@' + segIndex;
         if (T.scheduled.has(k)) continue;
-        const c = compOf(a.track), t0 = time(a.at) + c, t1 = time(a.end) + c;
+        const c = compOf(a.track),
+          t0 = time(a.at) + c,
+          t1 = time(a.end) + c;
         T.scheduled.set(k, startAudio(a, t0, t1, a.into * spbNow(), null, c));
       }
     }
@@ -581,7 +815,12 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     // (the store edits the song in place, so the same document can hold new lanes: what changed is told by the lane
     // objects, which every auto op, undo and load replaces)
     const lanes = lanesOf(p);
-    if (AU.doc === p && lanes.length === AU.lanes.length && lanes.every((L, i) => L.id === AU.lanes[i].id && L.lane === AU.lanes[i].lane)) return;
+    if (
+      AU.doc === p &&
+      lanes.length === AU.lanes.length &&
+      lanes.every((L, i) => L.id === AU.lanes[i].id && L.lane === AU.lanes[i].lane)
+    )
+      return;
     AU.doc = p;
     const was = AU.byId;
     AU.lanes = lanes;
@@ -596,11 +835,24 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // a lane that no longer plays (cleared, held, its device gone): its param goes back to the static value
   function laneGone(L) {
     for (const k of AU.sent) if (k.startsWith(L.id + '/')) AU.sent.delete(k);
-    if (L.kind === 'mix') { AU.mix.delete(L.id); return; }
+    if (L.kind === 'mix') {
+      AU.mix.delete(L.id);
+      return;
+    }
     const inst = instOf(L.track, L.insert);
     if (!inst) return;
-    if (isKernel(inst)) { try { inst.autoClear(L.param, ctx.currentTime, true); } catch (e) { /* gone */ } }
-    else if (inst.__auto) { delete inst.__auto[L.param]; inst.__sig = null; const g = AU.graph.get(inst); if (g) g.t = 0; }
+    if (isKernel(inst)) {
+      try {
+        inst.autoClear(L.param, ctx.currentTime, true);
+      } catch (e) {
+        /* gone */
+      }
+    } else if (inst.__auto) {
+      delete inst.__auto[L.param];
+      inst.__sig = null;
+      const g = AU.graph.get(inst);
+      if (g) g.t = 0;
+    }
   }
   // a lane edited (or new) while playing: what was handed over from now is taken back and sent again
   function laneMoved(L, had) {
@@ -608,16 +860,32 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (L.kind === 'mix') {
       const m = AU.mix.get(L.id);
       if (m) {
-        const F = Math.ceil(soon(ctx) * ctx.sampleRate / GRID) * GRID;
-        for (const prm of mixParams(L)) { try { prm.cancelScheduledValues(F / ctx.sampleRate); } catch (e) { /* closed */ } }
+        const F = Math.ceil((soon(ctx) * ctx.sampleRate) / GRID) * GRID;
+        for (const prm of mixParams(L)) {
+          try {
+            prm.cancelScheduledValues(F / ctx.sampleRate);
+          } catch (e) {
+            /* closed */
+          }
+        }
         m.F = F - GRID;
       }
       return;
     }
     const inst = instOf(L.track, L.insert);
     if (!inst) return;
-    if (!isKernel(inst)) { const g = AU.graph.get(inst); if (g) g.t = 0; return; }
-    if (had) { try { inst.autoClear(L.param, ctx.currentTime); } catch (e) { /* gone */ } }
+    if (!isKernel(inst)) {
+      const g = AU.graph.get(inst);
+      if (g) g.t = 0;
+      return;
+    }
+    if (had) {
+      try {
+        inst.autoClear(L.param, ctx.currentTime);
+      } catch (e) {
+        /* gone */
+      }
+    }
     let first = true;
     eachScheduled((sA, sB, ua, i, cut) => {
       const time = (beat) => frame(ctx, uToTime(ua + (beat - sA)));
@@ -638,7 +906,20 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (!isKernel(inst)) continue;
       AU.sent.add(k);
       const c = autoComp(g.track);
-      try { inst.auto({ key: g.param, time: time(g.at) + c, end: time(g.end) + c, a: g.a, b: g.b, c: g.c, start: time(g.start) + c }); AU.insts.add(inst); } catch (e) { /* gone */ }
+      try {
+        inst.auto({
+          key: g.param,
+          time: time(g.at) + c,
+          end: time(g.end) + c,
+          a: g.a,
+          b: g.b,
+          c: g.c,
+          start: time(g.start) + c,
+        });
+        AU.insts.add(inst);
+      } catch (e) {
+        /* gone */
+      }
     }
     if (AU.sent.size > 20000) AU.sent.clear(); // (a re-sent segment is harmless: the latest-starting one plays)
   }
@@ -648,52 +929,93 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     return L.param === 'gain' ? [s.fader.gain] : s.panL ? [s.panL.gain, s.panR.gain] : [];
   };
   // the song beat a track plays at audio time t (its compensation allowed for), on the transport's map
-  const songAt = (t, c) => { const tt = t - c; return uToSong(tt <= T.startT ? 0 : Math.max(0, timeToU(tt))); };
+  const songAt = (t, c) => {
+    const tt = t - c;
+    return uToSong(tt <= T.startT ? 0 : Math.max(0, timeToU(tt)));
+  };
   // Gain and pan control points and graph device sets, up to audio time H (each tick, while playing).
   const GRAPH_STEP = 0.02;
   function autoControl(H) {
     if (!AU.lanes.length) return;
-    const sr = ctx.sampleRate, FH = Math.floor(H * sr / GRID) * GRID;
+    const sr = ctx.sampleRate,
+      FH = Math.floor((H * sr) / GRID) * GRID;
     const graph = new Map();
     for (const L of AU.lanes) {
       if (L.kind === 'device') {
         const inst = instOf(L.track, L.insert);
-        if (inst && !isKernel(inst) && inst.set) { if (!graph.has(inst)) graph.set(inst, []); graph.get(inst).push(L); }
+        if (inst && !isKernel(inst) && inst.set) {
+          if (!graph.has(inst)) graph.set(inst, []);
+          graph.get(inst).push(L);
+        }
         continue;
       }
       const prm = mixParams(L);
       if (!prm.length) continue;
-      const c = autoComp(L.track), tr = travel(L.spec);
+      const c = autoComp(L.track),
+        tr = travel(L.spec);
       let m = AU.mix.get(L.id);
       if (!m) {
         // taking over: from where the param is now, then the grid
-        const t0 = soon(ctx), F0 = Math.ceil(t0 * sr / GRID) * GRID;
-        for (const q of prm) { try { q.cancelScheduledValues(t0); q.setValueAtTime(q.value, t0); } catch (e) { /* closed */ } }
+        const t0 = soon(ctx),
+          F0 = Math.ceil((t0 * sr) / GRID) * GRID;
+        for (const q of prm) {
+          try {
+            q.cancelScheduledValues(t0);
+            q.setValueAtTime(q.value, t0);
+          } catch (e) {
+            /* closed */
+          }
+        }
         m = { F: F0 - GRID };
         AU.mix.set(L.id, m);
       }
       for (let F = m.F + GRID; F <= FH; F += GRID) {
-        const pos = lanePos(L.lane, songAt(F / sr, c), L.spec, tr), t = F / sr;
+        const pos = lanePos(L.lane, songAt(F / sr, c), L.spec, tr),
+          t = F / sr;
         if (pos == null) continue;
         try {
           if (L.param === 'gain') prm[0].linearRampToValueAtTime(mixGain(pos), t);
-          else { const [l, r] = panGains(pos); prm[0].linearRampToValueAtTime(l, t); prm[1].linearRampToValueAtTime(r, t); }
-        } catch (e) { /* closed */ }
+          else {
+            const [l, r] = panGains(pos);
+            prm[0].linearRampToValueAtTime(l, t);
+            prm[1].linearRampToValueAtTime(r, t);
+          }
+        } catch (e) {
+          /* closed */
+        }
         m.F = F;
       }
     }
     for (const [inst, list] of graph) {
       let g = AU.graph.get(inst);
-      if (!g) { g = { t: 0 }; AU.graph.set(inst, g); }
-      const L0 = list[0], c = autoComp(L0.track);
-      const spec = L0.track === 'master' ? masterSpec(P(), { at: T.cursor }) : trackSpec((P().tracks || []).find((x) => x.id === L0.track) || {}, { at: T.cursor });
-      const base = L0.insert === 'instrument' ? (spec.instrument && spec.instrument.params) : ((spec.inserts.find((x) => x.id === L0.insert) || {}).params);
+      if (!g) {
+        g = { t: 0 };
+        AU.graph.set(inst, g);
+      }
+      const L0 = list[0],
+        c = autoComp(L0.track);
+      const spec =
+        L0.track === 'master'
+          ? masterSpec(P(), { at: T.cursor })
+          : trackSpec((P().tracks || []).find((x) => x.id === L0.track) || {}, { at: T.cursor });
+      const base =
+        L0.insert === 'instrument'
+          ? spec.instrument && spec.instrument.params
+          : (spec.inserts.find((x) => x.id === L0.insert) || {}).params;
       let t = Math.max(g.t + GRAPH_STEP, soon(ctx));
       for (; t <= H; t += GRAPH_STEP) {
-        const beat = songAt(t, c), over = {};
-        for (const L of list) { const v = laneValue(L.lane, beat, L.spec); if (v != null) over[L.param] = v; }
+        const beat = songAt(t, c),
+          over = {};
+        for (const L of list) {
+          const v = laneValue(L.lane, beat, L.spec);
+          if (v != null) over[L.param] = v;
+        }
         inst.__auto = over;
-        try { inst.set({ ...(base || {}), ...over }, { at: t }); } catch (e) { /* a device that can't */ }
+        try {
+          inst.set({ ...(base || {}), ...over }, { at: t });
+        } catch (e) {
+          /* a device that can't */
+        }
         g.t = t;
       }
     }
@@ -701,12 +1023,22 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // The transport stopped (release: the lanes let go of every param) or jumped (seek: what was queued is dropped).
   function autoHalt(release) {
     for (const inst of AU.insts) {
-      try { if (release) inst.autoStop(); else inst.autoClear(null, ctx.currentTime); } catch (e) { /* gone */ }
+      try {
+        if (release) inst.autoStop();
+        else inst.autoClear(null, ctx.currentTime);
+      } catch (e) {
+        /* gone */
+      }
     }
     if (release) AU.insts.clear();
     AU.sent.clear();
     AU.mix.clear();
-    for (const inst of AU.graph.keys()) { if (release) { inst.__auto = null; inst.__sig = null; } }
+    for (const inst of AU.graph.keys()) {
+      if (release) {
+        inst.__auto = null;
+        inst.__sig = null;
+      }
+    }
     AU.graph.clear();
   }
 
@@ -715,11 +1047,16 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // clicks at 0, 1, 2 and 3, the last beat an eighth long, and the next bar line, at 3.5, clicks again.
   // (fill: only the clicks the click's being on adds, for the stretch already handed over when it turned on)
   function clicksIn(sA, sB, uA, time, now, fill = false) {
-    const cnt = T.count, inCount = (b) => !!cnt && uA + (b - sA) < cnt.beats - 1e-9;
+    const cnt = T.count,
+      inCount = (b) => !!cnt && uA + (b - sA) < cnt.beats - 1e-9;
     const on = clickOn();
-    const bpb = bpbNow(), beats = [];
+    const bpb = bpbNow(),
+      beats = [];
     for (let bar = Math.floor(sA / bpb + 1e-9) - 1; bar * bpb < sB - 1e-9; bar++) {
-      for (let j = 0; j < bpb - 1e-9; j++) { const b = bar * bpb + j; if (b >= sA - 1e-9 && b < sB - 1e-9) beats.push([b, j === 0]); }
+      for (let j = 0; j < bpb - 1e-9; j++) {
+        const b = bar * bpb + j;
+        if (b >= sA - 1e-9 && b < sB - 1e-9) beats.push([b, j === 0]);
+      }
     }
     if (!on && (fill || !beats.length || !inCount(beats[0][0]))) return;
     for (const [b, accent] of beats) {
@@ -738,26 +1075,37 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const uNow = Math.max(0, timeToU(ctx.currentTime - back));
     if (uNow >= T.schedU) return;
     for (let j = 0; j < T.segs.length; j++) {
-      const seg = T.segs[j], end = j + 1 < T.segs.length ? T.segs[j + 1].u0 : T.schedU;
-      const ua = Math.max(uNow, seg.u0), ub = Math.min(end, T.schedU);
+      const seg = T.segs[j],
+        end = j + 1 < T.segs.length ? T.segs[j + 1].u0 : T.schedU;
+      const ua = Math.max(uNow, seg.u0),
+        ub = Math.min(end, T.schedU);
       if (ub - ua <= 1e-9) continue;
-      const sA = seg.s0 + (ua - seg.u0), sB = sA + (ub - ua);
+      const sA = seg.s0 + (ua - seg.u0),
+        sB = sA + (ub - ua);
       const cut = j + 1 < T.segs.length ? sB : loopCut(sA, ua);
-      if (!seg.quiet) fn(sA, sB, ua, seg.i, cut);   // (a count-in's quiet segment holds nothing of the song)
+      if (!seg.quiet) fn(sA, sB, ua, seg.i, cut); // (a count-in's quiet segment holds nothing of the song)
     }
   }
 
   // Which edits can move what is already scheduled (a knob turn can't: no need to look)
   let needRevise = false;
-  const NOTE_OPS = /^(notes\.|clip\.|track\.(remove|move|add)|project\.|instrument\.|asset\.|time\.|section\.duplicate)/;   // (time.* and section.duplicate move clips: core/arrangement.js)
-  const touchesNotes = (evt) => !evt || !Array.isArray(evt.ops) || !evt.ops.length || evt.ops.some((o) => !o || NOTE_OPS.test(String(o.type || '')));
+  const NOTE_OPS =
+    /^(notes\.|clip\.|track\.(remove|move|add)|project\.|instrument\.|asset\.|time\.|section\.duplicate)/; // (time.* and section.duplicate move clips: core/arrangement.js)
+  const touchesNotes = (evt) =>
+    !evt ||
+    !Array.isArray(evt.ops) ||
+    !evt.ops.length ||
+    evt.ops.some((o) => !o || NOTE_OPS.test(String(o.type || '')));
 
   // An edit while playing: first take back what no longer matches the document (revise), then schedule notes (and
   // clips) that now start inside the window the scheduler has already passed, if their time hasn't come yet. Keys make
   // sure nothing plays twice.
   function rescan() {
     if (!T.playing || !ctx) return;
-    if (needRevise) { needRevise = false; revise(); }
+    if (needRevise) {
+      needRevise = false;
+      revise();
+    }
     const events = [];
     eachScheduled((sA, sB, ua, i, cut) => scheduleRange(sA, sB, ua, i, { cut }, events));
     dispatch(events);
@@ -768,11 +1116,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // playhead): it starts mid-way at soon(), on its track's held-back time, as revise() does for a re-trimmed one.
   function pickUpAudio() {
     if (rate !== 1) return;
-    const p = P(), safe = soon(ctx);
+    const p = P(),
+      safe = soon(ctx);
     eachScheduled((sA, sB, ua, i, cut) => {
       for (const t of p.tracks || []) {
         if (!(t.clips || []).some((c) => c.kind === 'audio' && !c.mute)) continue;
-        const c = compOf(t.id), at = sA + (timeToU(safe - c) - ua);
+        const c = compOf(t.id),
+          at = sA + (timeToU(safe - c) - ua);
         if (at < sA - 1e-9 || at >= sB - 1e-9) continue;
         for (const a of audioIn(p, at, at + 1e-6, { cut, fresh: true, tracks: [t.id] })) {
           const k = a.key + '@' + i;
@@ -787,33 +1137,49 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // Compare what was handed over with what the document says now (see the header). Runs on every edit while playing.
   function revise() {
     if (!T.scheduled.size) return;
-    const p = P(), eps = 1.5 / ctx.sampleRate, safe = soon(ctx); // (a frame either way is rounding, not an edit)
-    const notes = new Map(), clips = new Map();
+    const p = P(),
+      eps = 1.5 / ctx.sampleRate,
+      safe = soon(ctx); // (a frame either way is rounding, not an edit)
+    const notes = new Map(),
+      clips = new Map();
     eachScheduled((sA, sB, ua, i, cut) => {
       const time = (beat) => frame(ctx, uToTime(ua + (beat - sA)));
-      for (const n of notesIn(p, sA, sB, { cut, chase: true })) if (!hushed.has(n.clip)) notes.set(n.key + '@' + i, { n, on: time(n.at), off: time(n.off) });
-      for (const a of audioIn(p, sA, sB, { cut, fresh: true })) clips.set(a.key + '@' + i, { a, t1: time(a.end), sA, ua });
+      for (const n of notesIn(p, sA, sB, { cut, chase: true }))
+        if (!hushed.has(n.clip)) notes.set(n.key + '@' + i, { n, on: time(n.at), off: time(n.off) });
+      for (const a of audioIn(p, sA, sB, { cut, fresh: true }))
+        clips.set(a.key + '@' + i, { a, t1: time(a.end), sA, ua });
     }, pdc.max); // (a held-back track is still playing what the song passed up to pdc.max ago)
     for (const [k, e] of T.scheduled) {
       if (e.end <= safe) continue; // over (or about to be) anyway
       if (e.note) {
         // (times compared with the comp the entry was scheduled with: a latency change alone moves nothing)
-        const w = notes.get(k), started = e.t <= safe;
-        if (!w || w.n.note.p !== e.p || (!started && (Math.abs(w.on + e.c - e.t) > eps || velOf(w.n.note) !== e.v))) { takeBack(k, e, started); continue; }
+        const w = notes.get(k),
+          started = e.t <= safe;
+        if (!w || w.n.note.p !== e.p || (!started && (Math.abs(w.on + e.c - e.t) > eps || velOf(w.n.note) !== e.v))) {
+          takeBack(k, e, started);
+          continue;
+        }
         const off = Math.max(e.t + 0.001, w.off + e.c);
         if (Math.abs(off - e.off.t) > eps) moveRelease(e, started ? Math.max(off, safe) : off);
         continue;
       }
       if (e.audio) {
         const w = clips.get(k);
-        if (w && w.a.clip.asset === e.asset && (+w.a.clip.offset || 0) === e.offset && Math.abs(w.t1 + e.c - e.end) <= eps) continue;
+        if (
+          w &&
+          w.a.clip.asset === e.asset &&
+          (+w.a.clip.offset || 0) === e.offset &&
+          Math.abs(w.t1 + e.c - e.end) <= eps
+        )
+          continue;
         if (e.h) e.h.fadeOut(e.t > safe ? e.t : safe);
         e.dropped = true;
         T.scheduled.delete(k);
         // still covering the playhead: pick it up mid-way where it now is (one that starts later is rescheduled)
         if (w && e.t <= safe && rate === 1) {
           const at = w.sA + (timeToU(safe - e.c) - w.ua); // the song beat this track plays at `safe`
-          const into = w.a.into + (at - w.a.at), t1 = w.t1 + e.c;
+          const into = w.a.into + (at - w.a.at),
+            t1 = w.t1 + e.c;
           if (into >= 0 && t1 - safe > 0.005) T.scheduled.set(k, startAudio(w.a, safe, t1, into * spbNow(), null, e.c));
         }
       }
@@ -829,32 +1195,69 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     try {
       if (e.inst.cancel) e.inst.cancel(e.p, e.t, e.offSent ? e.off.t : null);
       else e.inst.noteOff(e.p, started ? safe : e.t); // (an instrument that can't take a note back: release it at once)
-    } catch (err) { /* a disposed instrument */ }
+    } catch (err) {
+      /* a disposed instrument */
+    }
   }
 
   // A sounding note whose end moved.
   function moveRelease(e, to) {
-    if (!e.offSent) { e.off.t = to; return; }
+    if (!e.offSent) {
+      e.off.t = to;
+      return;
+    }
     try {
-      if (e.inst.cancel) { e.inst.cancel(e.p, e.t, e.off.t, to); e.off.t = to; }
-      else if (to < e.off.t) { e.inst.noteOff(e.p, to); e.off.t = to; }
-    } catch (err) { /* a disposed instrument */ }
+      if (e.inst.cancel) {
+        e.inst.cancel(e.p, e.t, e.off.t, to);
+        e.off.t = to;
+      } else if (to < e.off.t) {
+        e.inst.noteOff(e.p, to);
+        e.off.t = to;
+      }
+    } catch (err) {
+      /* a disposed instrument */
+    }
   }
 
   // Play an audio clip from t0 to t1 (intoSec into it). Returns its scheduled entry ({ audio, t, end, h, ... }); h, the
   // playing handle, comes later if the samples are still loading.
   function startAudio(a, t0, t1, intoSec, entry = null, c = 0) {
-    const e = entry || { audio: true, t: t0, end: t1, c, h: null, asset: a.clip.asset, offset: +a.clip.offset || 0, track: a.track };
+    const e = entry || {
+      audio: true,
+      t: t0,
+      end: t1,
+      c,
+      h: null,
+      asset: a.clip.asset,
+      offset: +a.clip.offset || 0,
+      track: a.track,
+    };
     const s = strips.get(a.track);
     if (!s) return e;
     const buf = assets.peek(a.clip.asset);
     if (!buf) {
       waitingAudio.push({ a, t0, t1, intoSec, gen: T.gen, entry: e });
-      assets.get(a.clip.asset).then((b) => { if (!b) report({ kind: 'asset', track: a.track, asset: a.clip.asset, message: `audio asset "${a.clip.asset}" is missing` }); });
+      assets.get(a.clip.asset).then((b) => {
+        if (!b)
+          report({
+            kind: 'asset',
+            track: a.track,
+            asset: a.clip.asset,
+            message: `audio asset "${a.clip.asset}" is missing`,
+          });
+      });
       return e;
     }
-    const h = playBuffer(ctx, buf, s.head, { t0, offset: (+a.clip.offset || 0) + intoSec, t1, gainDb: +a.clip.gain || 0 });
-    if (h) { sources.add(h); h.src.addEventListener('ended', () => sources.delete(h)); }
+    const h = playBuffer(ctx, buf, s.head, {
+      t0,
+      offset: (+a.clip.offset || 0) + intoSec,
+      t1,
+      gainDb: +a.clip.gain || 0,
+    });
+    if (h) {
+      sources.add(h);
+      h.src.addEventListener('ended', () => sources.delete(h));
+    }
     e.h = h;
     return e;
   }
@@ -865,7 +1268,10 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const now = ctx.currentTime;
     for (let i = waitingAudio.length - 1; i >= 0; i--) {
       const w = waitingAudio[i];
-      if (w.gen !== T.gen || now >= w.t1 || !T.playing) { waitingAudio.splice(i, 1); continue; }
+      if (w.gen !== T.gen || now >= w.t1 || !T.playing) {
+        waitingAudio.splice(i, 1);
+        continue;
+      }
       if (!assets.peek(w.a.clip.asset)) continue;
       waitingAudio.splice(i, 1);
       const t0 = Math.max(w.t0, now + 0.01);
@@ -881,7 +1287,12 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   let clickBufs = null;
   function clickAt(t, accent, count = false) {
     if (!clickBufs || clickBufs.ctx !== ctx) {
-      const mk = (a) => { const x = clickSamples(ctx.sampleRate, a), b = ctx.createBuffer(1, x.length, ctx.sampleRate); b.getChannelData(0).set(x); return b; };
+      const mk = (a) => {
+        const x = clickSamples(ctx.sampleRate, a),
+          b = ctx.createBuffer(1, x.length, ctx.sampleRate);
+        b.getChannelData(0).set(x);
+        return b;
+      };
       clickBufs = { ctx, beat: mk(false), bar: mk(true) };
     }
     const o = ctx.createBufferSource();
@@ -890,7 +1301,14 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     o.start(t);
     o.count = count;
     clicks.add(o);
-    o.onended = () => { clicks.delete(o); try { o.disconnect(); } catch (e) { /* ok */ } };
+    o.onended = () => {
+      clicks.delete(o);
+      try {
+        o.disconnect();
+      } catch (e) {
+        /* ok */
+      }
+    };
   }
 
   // The click turned off (or a whileRecording click whose take ended): the clicks already handed over stop, except
@@ -898,7 +1316,15 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function trimClicks() {
     if (!ctx || clickOn()) return;
     const t = soon(ctx);
-    for (const o of clicks) { if (o.count) continue; try { o.stop(t); } catch (e) { /* ok */ } clicks.delete(o); }
+    for (const o of clicks) {
+      if (o.count) continue;
+      try {
+        o.stop(t);
+      } catch (e) {
+        /* ok */
+      }
+      clicks.delete(o);
+    }
   }
   // The click turned on mid-play: the beats the scheduler has already passed get theirs too.
   function fillClicks() {
@@ -931,22 +1357,44 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const offs = pendingOffs.filter((o) => o.kind === 'sched');
     pendingOffs = pendingOffs.filter((o) => o.kind !== 'sched');
     const insts = new Set();
-    if (master) for (const s of strips.values()) { const i = s.instance('instrument'); if (i) insts.add(i); }
+    if (master)
+      for (const s of strips.values()) {
+        const i = s.instance('instrument');
+        if (i) insts.add(i);
+      }
     for (const o of offs) insts.add(o.inst);
     const playedLive = new Set(live ? [] : liveHeld.values());
     const step = ctx ? 1 / ctx.sampleRate : 0;
     // (see "Stop" in the header: flushed, then released)
     for (const i of insts) {
-      try { if (i.flush) i.flush(now); } catch (e) { /* ok */ }
-      if (!playedLive.has(i)) { try { i.allOff(now); } catch (e) { /* ok */ } continue; }
-      if (!i.flush) continue;   // (its pending offs below; an off already sent was handed over with its own time)
+      try {
+        if (i.flush) i.flush(now);
+      } catch (e) {
+        /* ok */
+      }
+      if (!playedLive.has(i)) {
+        try {
+          i.allOff(now);
+        } catch (e) {
+          /* ok */
+        }
+        continue;
+      }
+      if (!i.flush) continue; // (its pending offs below; an off already sent was handed over with its own time)
       // started before `now` and not over by then: its off (if it had gone) went with the flush, so one goes now
       const seen = new Set();
-      const started = [...[...T.scheduled.values()].filter((e) => e.note && e.inst === i && e.off.t >= now).map((e) => e.off), ...offs.filter((o) => o.inst === i)];
+      const started = [
+        ...[...T.scheduled.values()].filter((e) => e.note && e.inst === i && e.off.t >= now).map((e) => e.off),
+        ...offs.filter((o) => o.inst === i),
+      ];
       for (const o of started) {
         if (o.onT >= now || seen.has(o)) continue;
         seen.add(o);
-        try { i.noteOff(o.p, Math.max(now, o.onT + step)); } catch (e) { /* ok */ }
+        try {
+          i.noteOff(o.p, Math.max(now, o.onT + step));
+        } catch (e) {
+          /* ok */
+        }
       }
     }
     offs.sort((a, b) => a.onT - b.onT);
@@ -955,11 +1403,19 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       try {
         if (o.onT >= now && o.inst.cancel) o.inst.cancel(o.p, o.onT, null);
         else o.inst.noteOff(o.p, Math.max(now, o.onT + step));
-      } catch (e) { /* ok */ }
+      } catch (e) {
+        /* ok */
+      }
     }
     for (const h of sources) h.fadeOut(now);
     sources.clear();
-    for (const o of clicks) { try { o.stop(now); } catch (e) { /* ok */ } }
+    for (const o of clicks) {
+      try {
+        o.stop(now);
+      } catch (e) {
+        /* ok */
+      }
+    }
     clicks.clear();
     waitingAudio.length = 0;
     if (live) liveHeld.clear();
@@ -993,7 +1449,10 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const left = Math.max(0, (uToTime(k.beats) + outLatency() + pdc.total - ctx.currentTime) * 1000);
     setTimeout(() => {
       if (!T.playing || T.gen !== gen || T.count !== k || k.ended) return;
-      if (gridNow() - T.s0 < k.beats - 1e-3) { armCountEnd(gen); return; }
+      if (gridNow() - T.s0 < k.beats - 1e-3) {
+        armCountEnd(gen);
+        return;
+      }
       k.ended = true;
       transportEvt('countin-end', { until: k.until });
     }, left);
@@ -1010,20 +1469,24 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
 
   // A play that has to wait (the engine starting, a renew under way) is still the transport's: stop(), the killswitch
   // or a newer play() in the meantime wins, and it never starts (engine.starting says one is waiting).
-  let playReq = 0, waitReq = -1;
+  let playReq = 0,
+    waitReq = -1;
   async function play(fromBeat, opts = null) {
-    const req = ++playReq, h0 = hush;
+    const req = ++playReq,
+      h0 = hush;
     waitReq = req;
     try {
       await start();
       if (renewing) await renewing;
       if (calm && calm.renewing) await calm.job;
       if (ctx.state !== 'running' && req === playReq && h0 === hush) await wakeCtx(ctx);
-    } finally { if (waitReq === req) waitReq = -1; }
+    } finally {
+      if (waitReq === req) waitReq = -1;
+    }
     if (req !== playReq || h0 !== hush || disposed) return api;
     calmCancel();
     const from = Math.max(0, Number.isFinite(fromBeat) ? fromBeat : T.cursor);
-    if (T.playing) halt(null, false, false);   // (the keys the musician holds play on)
+    if (T.playing) halt(null, false, false); // (the keys the musician holds play on)
     T.cursor = from;
     begin(from, countOf(opts));
     if (AU.lanes.length) reconcile();
@@ -1034,7 +1497,12 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // Where the playhead rests after a stop: where it is, or (stopped in a count-in) where the count was going.
   const restAt = () => (countingNow() ? T.count.until : Math.max(0, beatNow()));
   // (the 'stop' event still says recording: true; then the take is over)
-  function endTake() { if (recording) { recording = false; trimClicks(); } }
+  function endTake() {
+    if (recording) {
+      recording = false;
+      trimClicks();
+    }
+  }
 
   // extra: { end } (the song's end), { live: false } (a stop the musician didn't press: an agent's, the song's end;
   // the keys they hold play on). Stopped already, a stop still cancels a play that is waiting.
@@ -1057,8 +1525,9 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (recording) return false;
     if (lastEnd == null) lastEnd = lastSound(P());
     if (!(lastEnd > 0)) return false;
-    const bpb = bpbNow(), end = Math.ceil(lastEnd / bpb - 1e-9) * bpb + bpb;
-    if (!(T.from < end - 1e-9)) return false;       // (played from at or past the end: it runs on)
+    const bpb = bpbNow(),
+      end = Math.ceil(lastEnd / bpb - 1e-9) * bpb + bpb;
+    if (!(T.from < end - 1e-9)) return false; // (played from at or past the end: it runs on)
     const b = beatNow();
     return b >= end - 1e-9 && loopCut(b, Infinity) === Infinity;
   }
@@ -1071,18 +1540,33 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     calm = c;
     afterAudio(ctx, c.stopT + RING, () => calmTails(c));
   }
-  const liveOn = (id) => { for (const k of liveHeld.keys()) if (k.startsWith(id + ':')) return true; return false; };
+  const liveOn = (id) => {
+    for (const k of liveHeld.keys()) if (k.startsWith(id + ':')) return true;
+    return false;
+  };
   function calmTails(c) {
     if (calm !== c) return;
-    if (T.playing || disposed || renewing || ctx.state !== 'running') { calm = null; return; }
+    if (T.playing || disposed || renewing || ctx.state !== 'running') {
+      calm = null;
+      return;
+    }
     let busy = false;
     for (const [id, s] of strips) {
-      if ((lastLive.get(id) ?? -1) >= c.stopT || liveOn(id) || s.hearsInput()) { busy = true; continue; }
+      if ((lastLive.get(id) ?? -1) >= c.stopT || liveOn(id) || s.hearsInput()) {
+        busy = true;
+        continue;
+      }
       const m = s.read();
       if (m && m.peak > CALM_DB) c.strips.add(s);
     }
-    if (!busy && master.fx.length) { const m = master.read(); if (m && m.peak > CALM_DB) c.strips.add(master); }
-    if (!c.strips.size) { calm = null; return; }
+    if (!busy && master.fx.length) {
+      const m = master.read();
+      if (m && m.peak > CALM_DB) c.strips.add(master);
+    }
+    if (!c.strips.size) {
+      calm = null;
+      return;
+    }
     // (the master's fade covers the tracks behind it: fading both would fade them twice as fast)
     const t = soon(ctx);
     for (const s of c.strips) if (!c.strips.has(master) || s === master) s.calmDown(t, CALM_FADE);
@@ -1099,7 +1583,10 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (calm !== c || disposed) return;
       c.renewing = true;
       const list = [...c.strips];
-      if (!list.length) { calm = null; return; }
+      if (!list.length) {
+        calm = null;
+        return;
+      }
       await Promise.race([Promise.all(list.map((s) => s.renew().catch(() => {}))), sleep(1500)]);
       for (const s of list) s.calmUp();
       if (calm === c) calm = null;
@@ -1109,9 +1596,15 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // Play, the killswitch or a live note on a fading strip: the fade lets go (a renew under way finishes on its own).
   function calmCancel(only = null) {
     const c = calm;
-    if (!c || c.renewing) { if (!only) calm = null; return; }
+    if (!c || c.renewing) {
+      if (!only) calm = null;
+      return;
+    }
     // (a live note behind a fading master: the whole fade lets go, since the note is heard through the master)
-    if (only && !c.strips.has(master)) { if (c.fading && c.strips.delete(only)) only.calmUp(); return; }
+    if (only && !c.strips.has(master)) {
+      if (c.fading && c.strips.delete(only)) only.calmUp();
+      return;
+    }
     calm = null;
     if (c.fading) for (const s of c.strips) s.calmUp();
   }
@@ -1125,12 +1618,17 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function seek(beat) {
     const b = Math.max(0, Number(beat) || 0);
     T.cursor = b;
-    if (T.playing && ctx) { halt(null, false, false); begin(b); }
+    if (T.playing && ctx) {
+      halt(null, false, false);
+      begin(b);
+    }
     if (ctx && AU.lanes.length) reconcile();
     transportEvt('seek');
   }
 
-  function toggle() { return T.playing || api.starting ? (stop(), Promise.resolve(api)) : play(); }
+  function toggle() {
+    return T.playing || api.starting ? (stop(), Promise.resolve(api)) : play();
+  }
 
   // Practice speed (see `rate` above): 0.25..2, 1 the song's own tempo. A change while playing re-anchors the transport
   // where the scheduler has reached, as a tempo change does, so nothing already handed over moves; audio clips fade out
@@ -1144,7 +1642,11 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const t = soon(ctx);
       for (const h of sources) h.fadeOut(t);
       sources.clear();
-      for (const [k, e] of T.scheduled) if (e.audio) { e.dropped = true; T.scheduled.delete(k); }
+      for (const [k, e] of T.scheduled)
+        if (e.audio) {
+          e.dropped = true;
+          T.scheduled.delete(k);
+        }
       waitingAudio.length = 0;
     }
     reconcile();
@@ -1155,15 +1657,25 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   // The killswitch (see the header). Resolves when the speakers are open again, with fresh devices behind them.
   const KILL_FADE = 0.006;
   function silence() {
-    hush++; playReq++;
-    if (!ctx) { ev.emit('silence', { at: 0 }); return Promise.resolve(api); }
-    const t0 = soon(ctx), t1 = t0 + KILL_FADE;
+    hush++;
+    playReq++;
+    if (!ctx) {
+      ev.emit('silence', { at: 0 });
+      return Promise.resolve(api);
+    }
+    const t0 = soon(ctx),
+      t1 = t0 + KILL_FADE;
     try {
       kill.gain.cancelScheduledValues(t0);
       kill.gain.setValueAtTime(renewing ? 0 : kill.gain.value, t0);
       kill.gain.linearRampToValueAtTime(0, t1);
-    } catch (e) { /* closed */ }
-    if (T.playing) { T.cursor = restAt(); T.playing = false; }
+    } catch (e) {
+      /* closed */
+    }
+    if (T.playing) {
+      T.cursor = restAt();
+      T.playing = false;
+    }
     calmCancel();
     halt(t1);
     // auditions and live notes: their offs are moot (every instrument is renewed), and nothing may fire later
@@ -1180,29 +1692,42 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const all = [...strips.values(), master].filter(Boolean);
       await Promise.race([Promise.all(all.map((s) => s.renew().catch(() => {}))), sleep(1500)]);
       if (disposed || mine !== hush) return; // a newer silence opens the feed itself
-      for (const s of all) s.calmUp(true);   // (a polite stop's fade it cut short: open with the feed)
+      for (const s of all) s.calmUp(true); // (a polite stop's fade it cut short: open with the feed)
       try {
         const t = soon(ctx);
         kill.gain.cancelScheduledValues(t);
         kill.gain.setValueAtTime(0, t);
         kill.gain.linearRampToValueAtTime(1, t + 0.01);
-      } catch (e) { /* closed */ }
+      } catch (e) {
+        /* closed */
+      }
       updatePdc();
     })();
-    const done = renewing = job.finally(() => { if (renewing === done) renewing = null; });
+    const done = (renewing = job.finally(() => {
+      if (renewing === done) renewing = null;
+    }));
     return done.then(() => api);
   }
 
   // ------------------------------------------------------------------------------------------- live play
-  function liveInst(trackId) { const s = strips.get(trackId); return s ? s.instance('instrument') : null; }
+  function liveInst(trackId) {
+    const s = strips.get(trackId);
+    return s ? s.instance('instrument') : null;
+  }
   // a key pressed before the engine was up plays once it is, unless it was let go meanwhile (its off came first); so
   // does one pressed while the track's samples are loading
-  const liveWait = new Map();        // `${track}:${pitch}` -> token
+  const liveWait = new Map(); // `${track}:${pitch}` -> token
   function liveNoteOn(trackId, pitch, vel = 0.8) {
     if (!ctx) {
-      const h0 = hush, k = trackId + ':' + pitch, tok = {};
+      const h0 = hush,
+        k = trackId + ':' + pitch,
+        tok = {};
       liveWait.set(k, tok);
-      start().then(() => { if (liveWait.get(k) !== tok) return; liveWait.delete(k); if (h0 === hush) liveNoteOn(trackId, pitch, vel); });
+      start().then(() => {
+        if (liveWait.get(k) !== tok) return;
+        liveWait.delete(k);
+        if (h0 === hush) liveNoteOn(trackId, pitch, vel);
+      });
       return;
     }
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
@@ -1214,21 +1739,43 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     // if it is still down (as a key pressed before the engine was up does). The track's header says they're loading;
     // 'kitwait' tells anyone listening that a note is waiting
     if (inst.data && inst.data.state === 'loading' && typeof inst.on === 'function') {
-      const h0 = hush, tok = {};
+      const h0 = hush,
+        tok = {};
       liveWait.set(k, tok);
-      const off = inst.on('data', () => { off(); if (liveWait.get(k) !== tok) return; liveWait.delete(k); if (h0 === hush) liveNoteOn(trackId, pitch, vel); });
+      const off = inst.on('data', () => {
+        off();
+        if (liveWait.get(k) !== tok) return;
+        liveWait.delete(k);
+        if (h0 === hush) liveNoteOn(trackId, pitch, vel);
+      });
       ev.emit('kitwait', { track: trackId, pitch });
       return;
     }
-    if (liveHeld.has(k)) { try { liveHeld.get(k).noteOff(pitch, ctx.currentTime); } catch (e) { /* ok */ } }
+    if (liveHeld.has(k)) {
+      try {
+        liveHeld.get(k).noteOff(pitch, ctx.currentTime);
+      } catch (e) {
+        /* ok */
+      }
+    }
     liveHeld.set(k, inst);
-    try { inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), ctx.currentTime); } catch (e) { report({ kind: 'note', track: trackId, message: e.message }); }
+    try {
+      inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), ctx.currentTime);
+    } catch (e) {
+      report({ kind: 'note', track: trackId, message: e.message });
+    }
   }
   // the channel's expression (pitch bend, mod wheel, sustain pedal: input/midi.js) on a track's instrument, now
   function liveExpr(trackId, x) {
     if (!ctx) return;
     const inst = liveInst(trackId);
-    if (inst && inst.expr) { try { inst.expr(x, ctx.currentTime); } catch (e) { /* ok */ } }
+    if (inst && inst.expr) {
+      try {
+        inst.expr(x, ctx.currentTime);
+      } catch (e) {
+        /* ok */
+      }
+    }
   }
   function liveNoteOff(trackId, pitch) {
     const k = trackId + ':' + pitch;
@@ -1236,7 +1783,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (!ctx) return;
     const inst = liveHeld.get(k) || liveInst(trackId);
     liveHeld.delete(k);
-    if (inst) { try { inst.noteOff(pitch, ctx.currentTime); } catch (e) { /* ok */ } }
+    if (inst) {
+      try {
+        inst.noteOff(pitch, ctx.currentTime);
+      } catch (e) {
+        /* ok */
+      }
+    }
   }
   async function audition(trackId, pitch, vel = 0.8, beats = 0.5) {
     const h0 = hush;
@@ -1250,18 +1803,32 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (!inst) return;
     // (a sampled instrument still loading: the audition waits for its samples, up to 30 s, and then sounds)
     if (inst.data && inst.data.state === 'loading' && typeof inst.on === 'function') {
-      await new Promise((resolve) => { const off = inst.on('data', () => { off(); clearTimeout(tm); resolve(); }); const tm = setTimeout(() => { off(); resolve(); }, 30000); });
+      await new Promise((resolve) => {
+        const off = inst.on('data', () => {
+          off();
+          clearTimeout(tm);
+          resolve();
+        });
+        const tm = setTimeout(() => {
+          off();
+          resolve();
+        }, 30000);
+      });
       if (h0 !== hush) return;
       inst = liveInst(trackId);
       if (!inst) return;
     }
     const t = ctx.currentTime;
-    try { inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), t); } catch (e) { return; }
+    try {
+      inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), t);
+    } catch (e) {
+      return;
+    }
     pendingOffs.push({ t: t + Math.max(0.03, beats * spbNow()), inst, p: pitch, onT: t, track: trackId, kind: 'live' });
   }
 
   // ------------------------------------------------------------------------------------------- debug: voices
-  const voiceTaps = new WeakMap();   // instance -> an analyser on its output
+  const voiceTaps = new WeakMap(); // instance -> an analyser on its output
   async function voices() {
     const out = {};
     if (!ctx) return out;
@@ -1271,22 +1838,48 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const inst = s.instance('instrument');
       if (!inst) continue;
       let a = voiceTaps.get(inst);
-      if (!a && inst.output) { a = ctx.createAnalyser(); a.fftSize = 2048; try { inst.output.connect(a); } catch (e) { a = null; } if (a) { voiceTaps.set(inst, a); fresh = true; } }
+      if (!a && inst.output) {
+        a = ctx.createAnalyser();
+        a.fftSize = 2048;
+        try {
+          inst.output.connect(a);
+        } catch (e) {
+          a = null;
+        }
+        if (a) {
+          voiceTaps.set(inst, a);
+          fresh = true;
+        }
+      }
       list.push([id, inst, a]);
     }
     if (fresh) await sleep(60); // (a new tap has heard nothing yet)
     const buf = new Float32Array(2048);
-    await Promise.all(list.map(async ([id, inst, a]) => {
-      let st = null;
-      try { st = inst.stats ? await inst.stats() : null; } catch (e) { st = null; }
-      let pk = 0;
-      if (a) { a.getFloatTimeDomainData(buf); for (let i = 0; i < buf.length; i++) { const v = buf[i] < 0 ? -buf[i] : buf[i]; if (v > pk) pk = v; } }
-      out[id] = {
-        device: inst.def ? inst.def.id : null,
-        voices: st ? st.voices | 0 : null, held: st ? (st.held == null ? null : st.held | 0) : null,
-        peak: pk > 1e-9 ? Math.round(200 * Math.log10(pk)) / 10 : -180, stuck: +inst.stuck || (st && st.stuck) || 0,
-      };
-    }));
+    await Promise.all(
+      list.map(async ([id, inst, a]) => {
+        let st = null;
+        try {
+          st = inst.stats ? await inst.stats() : null;
+        } catch (e) {
+          st = null;
+        }
+        let pk = 0;
+        if (a) {
+          a.getFloatTimeDomainData(buf);
+          for (let i = 0; i < buf.length; i++) {
+            const v = buf[i] < 0 ? -buf[i] : buf[i];
+            if (v > pk) pk = v;
+          }
+        }
+        out[id] = {
+          device: inst.def ? inst.def.id : null,
+          voices: st ? st.voices | 0 : null,
+          held: st ? (st.held == null ? null : st.held | 0) : null,
+          peak: pk > 1e-9 ? Math.round(200 * Math.log10(pk)) / 10 : -180,
+          stuck: +inst.stuck || (st && st.stuck) || 0,
+        };
+      }),
+    );
     return out;
   }
 
@@ -1295,7 +1888,10 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function readMeters() {
     if (!ctx || ctx.state !== 'running') return;
     if (++meterN % 15 === 0) updatePdc(); // (a pedal's latency can move with its params or bypass)
-    for (const [id, s] of strips) { const m = s.read(); if (m) meters.tracks[id] = m; }
+    for (const [id, s] of strips) {
+      const m = s.read();
+      if (m) meters.tracks[id] = m;
+    }
     const m = master.read();
     if (m) meters.master = m;
     if (ev.has('meters')) ev.emit('meters', meters);
@@ -1305,7 +1901,12 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
   function songEnd() {
     const p = P();
     let end;
-    try { end = projectSongEnd(p); } catch (e) { end = 0; for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length); }
+    try {
+      end = projectSongEnd(p);
+    } catch (e) {
+      end = 0;
+      for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length);
+    }
     const bpb = bpbNow();
     return Math.max(bpb, Math.ceil(end / bpb - 1e-9) * bpb);
   }
@@ -1321,28 +1922,67 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
 
   // ------------------------------------------------------------------------------------------- the API
   const api = {
-    get ctx() { return ctx; },
+    get ctx() {
+      return ctx;
+    },
     start,
-    play, stop: (o) => stop(o && o.live === false ? { live: false } : null), seek, toggle, silence, voices,
-    get silencing() { return !!renewing; },
-    get playing() { return T.playing; },
-    get starting() { return !T.playing && waitReq === playReq; },
-    get gen() { return T.gen || 0; },
-    get beat() { return beatNow(); },
-    get gridBeat() { return gridNow(); },
-    get counting() { return countingNow(); },
+    play,
+    stop: (o) => stop(o && o.live === false ? { live: false } : null),
+    seek,
+    toggle,
+    silence,
+    voices,
+    get silencing() {
+      return !!renewing;
+    },
+    get playing() {
+      return T.playing;
+    },
+    get starting() {
+      return !T.playing && waitReq === playReq;
+    },
+    get gen() {
+      return T.gen || 0;
+    },
+    get beat() {
+      return beatNow();
+    },
+    get gridBeat() {
+      return gridNow();
+    },
+    get counting() {
+      return countingNow();
+    },
     beatAt,
-    get click() { return { ...click }; },
-    set click(v) { setClick(v); },
-    get metronome() { return click.on; },
-    set metronome(v) { setClick({ on: v }); },
-    get rate() { return rate; },
-    set rate(v) { setRate(v); },
+    get click() {
+      return { ...click };
+    },
+    set click(v) {
+      setClick(v);
+    },
+    get metronome() {
+      return click.on;
+    },
+    set metronome(v) {
+      setClick({ on: v });
+    },
+    get rate() {
+      return rate;
+    },
+    set rate(v) {
+      setRate(v);
+    },
     hush: setHushed,
-    get hushed() { return [...hushed]; },
+    get hushed() {
+      return [...hushed];
+    },
     band: setBand,
-    get bandLevel() { return bandNow(); },
-    get recording() { return recording; },
+    get bandLevel() {
+      return bandNow();
+    },
+    get recording() {
+      return recording;
+    },
     set recording(v) {
       if (recording === !!v) return;
       const was = clickOn();
@@ -1352,8 +1992,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       transportEvt('recording');
     },
     on: ev.on,
-    get meters() { return meters; },
-    liveNoteOn, liveNoteOff, liveExpr, audition,
+    get meters() {
+      return meters;
+    },
+    liveNoteOn,
+    liveNoteOff,
+    liveExpr,
+    audition,
     inputNode(trackId) {
       if (!ctx) return null;
       if (trackId === 'master') return master.input;
@@ -1367,29 +2012,59 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       const s = strips.get(trackId);
       return s ? s.instance(which) : null;
     },
-    get masterTap() { return master ? master.out : null; },
+    get masterTap() {
+      return master ? master.out : null;
+    },
     clock,
-    render, songEnd, probeLatency: latencyOf,
+    render,
+    songEnd,
+    probeLatency: latencyOf,
     beatToSec: (b) => b * spbSong(),
     secToBeat: (s) => s / spbSong(),
     assets,
     settled,
     // { base, output } (the context's), and the plugins': tracks (each track's devices), comp (samples each track is
     // held back), max (the latest track), master (its inserts), total (max + master: how late the mix is). Seconds.
-    get latency() { return ctx ? latencyReport() : null; },
+    get latency() {
+      return ctx ? latencyReport() : null;
+    },
     async dispose() {
       disposed = true;
       calm = null;
       if (ctx && T.playing) stop();
       if (stopTick) stopTick();
-      for (const off of offs) { try { if (typeof off === 'function') off(); } catch (e) { /* ok */ } }
+      for (const off of offs) {
+        try {
+          if (typeof off === 'function') off();
+        } catch (e) {
+          /* ok */
+        }
+      }
       clearInterval(meterIv);
       for (const s of strips.values()) s.dispose();
       strips.clear();
       if (master) master.dispose();
-      if (clickBus) { try { clickBus.disconnect(); } catch (e) { /* ok */ } }
-      if (kill) { try { kill.disconnect(); } catch (e) { /* ok */ } }
-      if (ctx) { try { await ctx.close(); } catch (e) { /* ok */ } }
+      if (clickBus) {
+        try {
+          clickBus.disconnect();
+        } catch (e) {
+          /* ok */
+        }
+      }
+      if (kill) {
+        try {
+          kill.disconnect();
+        } catch (e) {
+          /* ok */
+        }
+      }
+      if (ctx) {
+        try {
+          await ctx.close();
+        } catch (e) {
+          /* ok */
+        }
+      }
     },
   };
   // engine.reconcile is internal; tests may want to force one

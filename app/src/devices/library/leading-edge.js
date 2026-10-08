@@ -5,16 +5,47 @@
 // (SUSTAIN turns that into gain: more ring, or less). A 1.5 ms look-ahead lets the gain land on the hit itself, and a
 // soft ceiling keeps the extra snap from clipping.
 export default {
-  id: 'claude.leading-edge', name: 'Leading Edge', kind: 'effect', cat: 'dynamics', by: 'claude', version: 1,
+  id: 'claude.leading-edge',
+  name: 'Leading Edge',
+  kind: 'effect',
+  cat: 'dynamics',
+  by: 'claude',
+  version: 1,
   blurb: 'More snap on every hit, less ring after it',
   nod: 'the differential-envelope transient designer',
   request: 'The drums need more snap on the hits but less ring after.',
   params: [
-    { key: 'attack', label: 'ATTACK', min: -100, max: 100, def: 50, unit: '%', role: 'attack', desc: 'more snap at the start of each hit (or softer, below 0)' },
-    { key: 'sustain', label: 'SUSTAIN', min: -100, max: 100, def: -35, unit: '%', role: 'release', desc: 'more ring after each hit (or tighter, below 0)' },
+    {
+      key: 'attack',
+      label: 'ATTACK',
+      min: -100,
+      max: 100,
+      def: 50,
+      unit: '%',
+      role: 'attack',
+      desc: 'more snap at the start of each hit (or softer, below 0)',
+    },
+    {
+      key: 'sustain',
+      label: 'SUSTAIN',
+      min: -100,
+      max: 100,
+      def: -35,
+      unit: '%',
+      role: 'release',
+      desc: 'more ring after each hit (or tighter, below 0)',
+    },
     { key: 'output', label: 'OUTPUT', min: -12, max: 6, def: 0, unit: 'dB', role: 'level', desc: 'the level out' },
   ],
-  look: { color: '#e9e4d8', ink: '#2a2620', shape: 'mini', finish: 'flat', knob: 'black', label: 'block', led: '#ff6a3d' },
+  look: {
+    color: '#e9e4d8',
+    ink: '#2a2620',
+    shape: 'mini',
+    finish: 'flat',
+    knob: 'black',
+    label: 'block',
+    led: '#ff6a3d',
+  },
   tail: 0.1,
   kernel: `({
   create({ sr, seed, dsp }) {

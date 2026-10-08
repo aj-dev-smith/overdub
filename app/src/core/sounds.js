@@ -26,28 +26,81 @@ const row = (device, family, preset) => (preset ? { device, preset, family } : {
 export const SOUND_SETS = {
   hum: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.wavetable', 'Synth'), row('core.strings', 'Strings'), row('claude.choir-loft', 'Choir')],
-    fallbacks: [row('core.mallets', 'Mallets'), row('core.ensemble', 'Strings'), row('core.choir', 'Choir'), row('core.pluck', 'Pluck'), row('core.barisax', 'Sax'), row('core.cello', 'Cello'), row('core.flute', 'Flute')],
+    rows: [
+      row('core.keys', 'Electric piano'),
+      row('core.wavetable', 'Synth'),
+      row('core.strings', 'Strings'),
+      row('claude.choir-loft', 'Choir'),
+    ],
+    fallbacks: [
+      row('core.mallets', 'Mallets'),
+      row('core.ensemble', 'Strings'),
+      row('core.choir', 'Choir'),
+      row('core.pluck', 'Pluck'),
+      row('core.barisax', 'Sax'),
+      row('core.cello', 'Cello'),
+      row('core.flute', 'Flute'),
+    ],
   },
   played: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.wavetable', 'Synth'), row('core.mallets', 'Mallets')],
-    fallbacks: [row('core.grand', 'Piano'), row('core.vibes', 'Vibraphone'), row('core.brass', 'Brass'), row('core.piano', 'Piano'), row('core.pluck', 'Pluck'), row('core.eguitar', 'Electric guitar'), row('core.trumpet', 'Trumpet')],
+    rows: [
+      row('core.keys', 'Electric piano'),
+      row('core.upright', 'Upright piano'),
+      row('core.wavetable', 'Synth'),
+      row('core.mallets', 'Mallets'),
+    ],
+    fallbacks: [
+      row('core.grand', 'Piano'),
+      row('core.vibes', 'Vibraphone'),
+      row('core.brass', 'Brass'),
+      row('core.piano', 'Piano'),
+      row('core.pluck', 'Pluck'),
+      row('core.eguitar', 'Electric guitar'),
+      row('core.trumpet', 'Trumpet'),
+    ],
   },
   chords: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.pad', 'Pad'), row('core.ensemble', 'Strings')],
-    fallbacks: [row('core.grand', 'Piano'), row('core.strings', 'Strings'), row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
+    rows: [
+      row('core.keys', 'Electric piano'),
+      row('core.upright', 'Upright piano'),
+      row('core.pad', 'Pad'),
+      row('core.ensemble', 'Strings'),
+    ],
+    fallbacks: [
+      row('core.grand', 'Piano'),
+      row('core.strings', 'Strings'),
+      row('core.ep', 'Electric piano'),
+      row('core.piano', 'Piano'),
+      row('core.organ', 'Organ'),
+      row('core.poly2', 'Synth'),
+    ],
   },
   bass: {
     category: 'bass',
-    rows: [row('core.ebass', 'Bass guitar'), row('core.bass', 'Synth bass'), row('claude.sub-basement', 'Sub bass'), row('core.wavetable', 'Synth bass', 'Low Key')],
+    rows: [
+      row('core.ebass', 'Bass guitar'),
+      row('core.bass', 'Synth bass'),
+      row('claude.sub-basement', 'Sub bass'),
+      row('core.wavetable', 'Synth bass', 'Low Key'),
+    ],
     fallbacks: [row('core.bassguitar', 'Bass guitar'), row('core.poly2', 'Synth bass', 'Ladder bass')],
   },
   drums: {
     category: 'drums',
-    rows: [row('core.drums', 'Drum kit', 'Studio kit'), row('core.drumkit', 'Jazz kit'), row('core.drumroom', 'Acoustic kit'), row('core.drums', 'Drum kit', 'Boom bap')],
-    fallbacks: [row('core.brushkit', 'Brushes'), row('core.handkit', 'Hand percussion'), row('core.drums', 'Drum kit', 'Trap'), row('core.drums', 'Drum kit', 'Live room')],
+    rows: [
+      row('core.drums', 'Drum kit', 'Studio kit'),
+      row('core.drumkit', 'Jazz kit'),
+      row('core.drumroom', 'Acoustic kit'),
+      row('core.drums', 'Drum kit', 'Boom bap'),
+    ],
+    fallbacks: [
+      row('core.brushkit', 'Brushes'),
+      row('core.handkit', 'Hand percussion'),
+      row('core.drums', 'Drum kit', 'Trap'),
+      row('core.drums', 'Drum kit', 'Live room'),
+    ],
   },
 };
 
@@ -55,21 +108,44 @@ export const SOUND_SETS = {
 // presets (devices/registry.js PRESET_TAGS), then the set's own rows
 export const GENRE_ROWS = {
   'bass-music': {
-    bass: [row('core.wavetable', 'Sub', 'Dark Slide'), row('core.wavetable', 'Growl', 'Fixer'), row('core.wavetable', 'Riddim stab', 'Hard Cut'), row('core.wavetable', 'Reese', 'Double Exposure'), row('core.wavetable', 'Wobble', 'Strobe')],
-    played: [row('core.wavetable', 'Lead', 'Key Light'), row('core.wavetable', 'Growl', 'Emulsion'), row('core.wavetable', 'Supersaw', 'Wide Angle')],
+    bass: [
+      row('core.wavetable', 'Sub', 'Dark Slide'),
+      row('core.wavetable', 'Growl', 'Fixer'),
+      row('core.wavetable', 'Riddim stab', 'Hard Cut'),
+      row('core.wavetable', 'Reese', 'Double Exposure'),
+      row('core.wavetable', 'Wobble', 'Strobe'),
+    ],
+    played: [
+      row('core.wavetable', 'Lead', 'Key Light'),
+      row('core.wavetable', 'Growl', 'Emulsion'),
+      row('core.wavetable', 'Supersaw', 'Wide Angle'),
+    ],
     hum: [row('core.wavetable', 'Lead', 'Key Light'), row('core.wavetable', 'Growl', 'Emulsion')],
     chords: [row('core.wavetable', 'Supersaw', 'Wide Angle'), row('core.wavetable', 'Pad', 'Long Exposure')],
-    drums: [row('core.clubkit', 'Club kit', 'Dubstep'), row('core.clubkit', 'Club kit', 'Riddim'), row('core.clubkit', 'Club kit', 'Drum and bass')],
+    drums: [
+      row('core.clubkit', 'Club kit', 'Dubstep'),
+      row('core.clubkit', 'Club kit', 'Riddim'),
+      row('core.clubkit', 'Club kit', 'Drum and bass'),
+    ],
   },
 };
-const GENRE_WORDS = [['bass-music', /\b(bass music|dubstep|brostep|riddim|tearout|drum ?(?:and|&|n|'n') ?bass|dnb|d&b|neuro(?:funk)?|melodic bass|wobble|growl)\b/i]];
+const GENRE_WORDS = [
+  [
+    'bass-music',
+    /\b(bass music|dubstep|brostep|riddim|tearout|drum ?(?:and|&|n|'n') ?bass|dnb|d&b|neuro(?:funk)?|melodic bass|wobble|growl)\b/i,
+  ],
+];
 export function genreOf(text) {
   const s = String(text || '');
   for (const [g, re] of GENRE_WORDS) if (re.test(s)) return g;
   return null;
 }
 
-const median = (xs) => { const s = xs.slice().sort((a, b) => a - b), n = s.length; return n ? (n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN; };
+const median = (xs) => {
+  const s = xs.slice().sort((a, b) => a - b),
+    n = s.length;
+  return n ? (n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN;
+};
 
 export function kindOfTake({ kind = null, src = null, notes = [] } = {}) {
   if (kind === 'drums' || src === 'pads' || src === 'tap' || src === 'beatbox') return 'drums';
@@ -80,27 +156,50 @@ export function kindOfTake({ kind = null, src = null, notes = [] } = {}) {
   // chords: at least a third of the notes sound over two others at once
   const over = (a, b) => a.t < b.t + b.d - 1e-6 && b.t < a.t + a.d - 1e-6;
   let full = 0;
-  for (const a of ns) { let k = 0; for (const b of ns) if (b !== a && over(a, b) && ++k >= 2) break; if (k >= 2) full++; }
+  for (const a of ns) {
+    let k = 0;
+    for (const b of ns) if (b !== a && over(a, b) && ++k >= 2) break;
+    if (k >= 2) full++;
+  }
   return full * 3 >= ns.length ? 'chords' : 'played';
 }
 
 export function familyOf(r, def = null) {
   if (r && r.family) return r.family;
-  const pr = r && r.preset && def && Array.isArray(def.presets) ? def.presets.find((x) => x && x.name === r.preset) : null;
+  const pr =
+    r && r.preset && def && Array.isArray(def.presets) ? def.presets.find((x) => x && x.name === r.preset) : null;
   const blurb = String((pr && pr.blurb) || (def && def.blurb) || '');
   const i = blurb.indexOf(':');
   return i > 0 && i < 30 ? blurb.slice(0, i).trim() : '';
 }
 
 const SETS = Object.keys(SOUND_SETS);
-const setOf = (take) => (typeof take === 'string' && SETS.includes(take) ? take : kindOfTake(take && typeof take === 'object' ? take : {}));
+const setOf = (take) =>
+  typeof take === 'string' && SETS.includes(take) ? take : kindOfTake(take && typeof take === 'object' ? take : {});
 const same = (a, b) => a.device === b.device && (a.preset || null) === (b.preset || null);
 
-export function soundsFor(take, { has = () => true, current = null, currentPreset = null, getDevice = null, n = 4, genre = null } = {}) {
-  const set = setOf(take), S0 = SOUND_SETS[set], G = genre && GENRE_ROWS[genre] && GENRE_ROWS[genre][set];
+export function soundsFor(
+  take,
+  { has = () => true, current = null, currentPreset = null, getDevice = null, n = 4, genre = null } = {},
+) {
+  const set = setOf(take),
+    S0 = SOUND_SETS[set],
+    G = genre && GENRE_ROWS[genre] && GENRE_ROWS[genre][set];
   const S = G ? { ...S0, rows: [...G, ...S0.rows] } : S0;
-  const ok = (id) => { try { return !!has(id); } catch (e) { return false; } };
-  const def = (id) => { try { return getDevice ? getDevice(id) : null; } catch (e) { return null; } };
+  const ok = (id) => {
+    try {
+      return !!has(id);
+    } catch (e) {
+      return false;
+    }
+  };
+  const def = (id) => {
+    try {
+      return getDevice ? getDevice(id) : null;
+    } catch (e) {
+      return null;
+    }
+  };
   const out = [];
   if (current) {
     const mine = [...S.rows, ...S.fallbacks].find((x) => same(x, { device: current, preset: currentPreset }));
@@ -116,11 +215,26 @@ export function soundsFor(take, { has = () => true, current = null, currentPrese
   return out;
 }
 
-const DEFAULTS = { hum: { name: 'Melody', device: 'core.keys' }, keys: { name: 'Keys', device: 'core.keys' }, drums: { name: 'Drums', device: 'core.drums' } };
+const DEFAULTS = {
+  hum: { name: 'Melody', device: 'core.keys' },
+  keys: { name: 'Keys', device: 'core.keys' },
+  drums: { name: 'Drums', device: 'core.drums' },
+};
 export function newPartFor(kind, project = null) {
-  const k = kind === 'pads' || kind === 'beatbox' || kind === 'drums' || kind === 'tap' ? 'drums' : kind === 'hum' ? 'hum' : 'keys';
+  const k =
+    kind === 'pads' || kind === 'beatbox' || kind === 'drums' || kind === 'tap'
+      ? 'drums'
+      : kind === 'hum'
+        ? 'hum'
+        : 'keys';
   const base = DEFAULTS[k];
-  const names = new Set(((project && project.tracks) || []).map((t) => String(t.name || '').trim().toLowerCase()));
+  const names = new Set(
+    ((project && project.tracks) || []).map((t) =>
+      String(t.name || '')
+        .trim()
+        .toLowerCase(),
+    ),
+  );
   let name = base.name;
   for (let i = 2; names.has(name.toLowerCase()); i++) name = `${base.name} ${i}`;
   return { name, device: base.device };

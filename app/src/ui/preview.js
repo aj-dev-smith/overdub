@@ -20,17 +20,29 @@ export async function readConfig(url = CONFIG_URL) {
     if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return { env: 'production', preview: false };
     const c = await r.json();
     if (!c || typeof c !== 'object') return { env: 'production', preview: false };
-    return { env: String(c.env || 'production'), preview: c.preview === true, ref: typeof c.ref === 'string' ? c.ref.slice(0, 12) : '' };
-  } catch (e) { return { env: 'production', preview: false }; }
+    return {
+      env: String(c.env || 'production'),
+      preview: c.preview === true,
+      ref: typeof c.ref === 'string' ? c.ref.slice(0, 12) : '',
+    };
+  } catch (e) {
+    return { env: 'production', preview: false };
+  }
 }
 
 export default function preview(app) {
   app.site = { env: 'production', preview: false, ref: '' };
-  app.site.ready = readConfig().then((c) => { Object.assign(app.site, c); if (c.preview) wear(app.site); return app.site; });
+  app.site.ready = readConfig().then((c) => {
+    Object.assign(app.site, c);
+    if (c.preview) wear(app.site);
+    return app.site;
+  });
 }
 
 function wear(site) {
-  css('preview', `
+  css(
+    'preview',
+    `
     .preview-slip { position: fixed; top: 0; left: 0; z-index: 2147483000; pointer-events: none;
       padding: 1px 8px 2px calc(8px + env(safe-area-inset-left, 0px)); padding-top: calc(1px + env(safe-area-inset-top, 0px));
       background: var(--paper); color: var(--ink); font: 600 9px/11px var(--font-mono); letter-spacing: .14em;
@@ -38,9 +50,18 @@ function wear(site) {
     .preview-slip b { font-weight: 700; }
     .preview-slip span { color: var(--ink-3); letter-spacing: .06em; }
     @media (max-width: 600px) { .preview-slip span { display: none; } }   /* a phone: the word only, over the logo's cell */
-  `);
-  const slip = h('div.preview-slip', { role: 'note', 'aria-label': `Preview build${site.ref ? ' ' + site.ref : ''}. Songs saved here stay on this site.`, 'data-preview': site.ref || '' },
-    h('b', {}, 'Preview'), site.ref ? h('span', {}, ` · ${site.ref}`) : null);
+  `,
+  );
+  const slip = h(
+    'div.preview-slip',
+    {
+      role: 'note',
+      'aria-label': `Preview build${site.ref ? ' ' + site.ref : ''}. Songs saved here stay on this site.`,
+      'data-preview': site.ref || '',
+    },
+    h('b', {}, 'Preview'),
+    site.ref ? h('span', {}, ` · ${site.ref}`) : null,
+  );
   document.body.append(slip);
   if (!document.title.startsWith('Preview')) document.title = `Preview · ${document.title}`;
   document.documentElement.dataset.preview = '1';

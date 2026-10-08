@@ -7,11 +7,37 @@
 // References: ops that create things accept `ref: 'name'`; later ops in the SAME transaction can name the new thing
 // as '$name' (track: '$bass', clip: '$verse1'). ctx.refs holds them.
 
-import { normTrack, normClip, normInsert, normKey, idNotes, sortNotes, newId, isValidReference, isTakeId, LIMITS, plainText, cleanName, isColor, NAME_MAX, TITLE_MAX } from './project.js';
+import {
+  normTrack,
+  normClip,
+  normInsert,
+  normKey,
+  idNotes,
+  sortNotes,
+  newId,
+  isValidReference,
+  isTakeId,
+  LIMITS,
+  plainText,
+  cleanName,
+  isColor,
+  NAME_MAX,
+  TITLE_MAX,
+} from './project.js';
 import { parseNotes, parseGrid, normNote, validMeter, isPlace } from './music.js';
 import { TUNING_IDS } from './fretboard.js';
 import { ARRANGEMENT_OPS } from './arrangement.js';
-import { MIXER, paramSpec, parsePoints, normPoints, pointsPrint, rt, mkPoint, pointBy, signPoints } from './automation.js';
+import {
+  MIXER,
+  paramSpec,
+  parsePoints,
+  normPoints,
+  pointsPrint,
+  rt,
+  mkPoint,
+  pointBy,
+  signPoints,
+} from './automation.js';
 
 const clone = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -26,8 +52,11 @@ function resolve(ctx, id) {
 }
 function findTrack(p, ctx, id) {
   id = resolve(ctx, id);
-  const t = p.tracks.find((x) => x.id === id) || p.tracks.find((x) => String(x.name).toLowerCase() === String(id).toLowerCase());
-  if (!t) throw new Error(`no track "${id}" (tracks: ${p.tracks.map((x) => `${x.id} "${x.name}"`).join(', ') || 'none'})`);
+  const t =
+    p.tracks.find((x) => x.id === id) ||
+    p.tracks.find((x) => String(x.name).toLowerCase() === String(id).toLowerCase());
+  if (!t)
+    throw new Error(`no track "${id}" (tracks: ${p.tracks.map((x) => `${x.id} "${x.name}"`).join(', ') || 'none'})`);
   return t;
 }
 function insertList(p, ctx, trackId) {
@@ -37,34 +66,57 @@ function insertList(p, ctx, trackId) {
 function findClip(t, ctx, id) {
   id = resolve(ctx, id);
   const c = t.clips.find((x) => x.id === id);
-  if (!c) throw new Error(`no clip "${id}" on track ${t.id} "${t.name}" (clips: ${t.clips.map((x) => x.id).join(', ') || 'none'})`);
+  if (!c)
+    throw new Error(
+      `no clip "${id}" on track ${t.id} "${t.name}" (clips: ${t.clips.map((x) => x.id).join(', ') || 'none'})`,
+    );
   return c;
 }
 function findInsert(list, ctx, id, where) {
   id = resolve(ctx, id);
   const fx = list.find((x) => x.id === id);
-  if (!fx) throw new Error(`no insert "${id}" on ${where} (inserts: ${list.map((x) => `${x.id}=${x.device}`).join(', ') || 'none'})`);
+  if (!fx)
+    throw new Error(
+      `no insert "${id}" on ${where} (inserts: ${list.map((x) => `${x.id}=${x.device}`).join(', ') || 'none'})`,
+    );
   return fx;
 }
 // An insert's key (a sidechain), checked: { track } naming another track of the song (by id, name or $ref), on a
 // track's insert (not the master's), closing no loop (a track whose sound reaches, through keys, the track it keys).
 // Returns the key with the track's id. fxId: the insert whose key is being replaced (its old key doesn't count).
 function checkKey(p, ctx, tid, key, fxId, device) {
-  if (typeof key !== 'object' || Array.isArray(key) || key.track == null) throw new Error('key is { track: "<track id or name>" } (the track whose sound this insert hears beside its own), or null for none');
+  if (typeof key !== 'object' || Array.isArray(key) || key.track == null)
+    throw new Error(
+      'key is { track: "<track id or name>" } (the track whose sound this insert hears beside its own), or null for none',
+    );
   // (a device that doesn't listen to a key would carry one it never hears, and the mixer would say "keyed by")
   const def = device && ctx.getDevice ? ctx.getDevice(device) : null;
-  if (def && def.key !== true) throw new Error(`${def.name || device} has no key input: only a device that hears another track takes a key (Dim Switch, core.ducker)`);
-  if (tid === 'master') throw new Error('a master insert can\'t take a key: put the device on the track that should duck, keyed by the one it ducks under');
+  if (def && def.key !== true)
+    throw new Error(
+      `${def.name || device} has no key input: only a device that hears another track takes a key (Dim Switch, core.ducker)`,
+    );
+  if (tid === 'master')
+    throw new Error(
+      "a master insert can't take a key: put the device on the track that should duck, keyed by the one it ducks under",
+    );
   const src = findTrack(p, ctx, key.track);
   if (src.id === tid) throw new Error(`a track can't key itself: name another track than ${tid} "${src.name}"`);
   // the loop check: tid's sound reaches every track keyed by it, and on; a loop is tid reaching src
-  const keyedBy = (id) => p.tracks.filter((t) => t.inserts.some((x) => x.id !== fxId && x.key && x.key.track === id)).map((t) => t.id);
-  const seen = new Set([tid]), todo = [tid];
+  const keyedBy = (id) =>
+    p.tracks.filter((t) => t.inserts.some((x) => x.id !== fxId && x.key && x.key.track === id)).map((t) => t.id);
+  const seen = new Set([tid]),
+    todo = [tid];
   while (todo.length) {
     const id = todo.pop();
     for (const next of keyedBy(id)) {
-      if (next === src.id) throw new Error(`that key would make a loop: ${tid}'s sound already keys ${src.id} "${src.name}" (through keys), so ${src.id} can't key ${tid}`);
-      if (!seen.has(next)) { seen.add(next); todo.push(next); }
+      if (next === src.id)
+        throw new Error(
+          `that key would make a loop: ${tid}'s sound already keys ${src.id} "${src.name}" (through keys), so ${src.id} can't key ${tid}`,
+        );
+      if (!seen.has(next)) {
+        seen.add(next);
+        todo.push(next);
+      }
     }
   }
   return { track: src.id };
@@ -90,7 +142,10 @@ function idUsed(p, id) {
 }
 // A clip holds up to LIMITS.clipNotes notes (undo and redo put back what was there).
 function checkClipNotes(ctx, n, clip) {
-  if (!ctx.restore && n > LIMITS.clipNotes) throw new Error(`clip ${clip} would hold ${n.toLocaleString('en-US')} notes; a clip holds up to ${LIMITS.clipNotes.toLocaleString('en-US')} (split the part across clips)`);
+  if (!ctx.restore && n > LIMITS.clipNotes)
+    throw new Error(
+      `clip ${clip} would hold ${n.toLocaleString('en-US')} notes; a clip holds up to ${LIMITS.clipNotes.toLocaleString('en-US')} (split the part across clips)`,
+    );
 }
 // A name or a colour a rename or a recolour sets is checked like a title (project.set): a name is text, at most
 // NAME_MAX characters once its control and bidi characters are out (they're dropped, core/project.js plainText); a
@@ -98,10 +153,14 @@ function checkClipNotes(ctx, n, clip) {
 // clip.add, section.add, device.define) are normalised instead, as a loaded song is: a long name is cut, an odd colour
 // gets the default, so a planner's "Chorus 2", an importer's name or a device from a file never fails an op.
 function checkName(v) {
-  if (!(typeof v === 'string' && plainText(v).length <= NAME_MAX)) throw new Error(`name must be text, ${NAME_MAX} characters at most`);
+  if (!(typeof v === 'string' && plainText(v).length <= NAME_MAX))
+    throw new Error(`name must be text, ${NAME_MAX} characters at most`);
 }
 function checkColor(v) {
-  if (!isColor(v)) throw new Error(`color must be a palette colour like "var(--c-3)" or hex like "#4fa3e0" (got ${String(JSON.stringify(v)).slice(0, 60)})`);
+  if (!isColor(v))
+    throw new Error(
+      `color must be a palette colour like "var(--c-3)" or hex like "#4fa3e0" (got ${String(JSON.stringify(v)).slice(0, 60)})`,
+    );
 }
 // A note's place on the neck (notes.set): s and f together, whole numbers (s the string, 0 the lowest; f the fret from
 // the nut), or both null to take the place off. The pitch is still the note's: a place that doesn't match it is
@@ -109,16 +168,21 @@ function checkColor(v) {
 function checkPlace(patch, n) {
   if (!('s' in patch) && !('f' in patch)) return;
   if (patch.s == null && patch.f == null) return;
-  if (!isPlace(patch.s, patch.f)) throw new Error(`note ${n.id}: s and f go together, as whole numbers: s the string (0 the lowest, 5 the high e on a guitar) and f the fret (0 open, up to 36); both null take the place off (got s ${JSON.stringify(patch.s)}, f ${JSON.stringify(patch.f)})`);
+  if (!isPlace(patch.s, patch.f))
+    throw new Error(
+      `note ${n.id}: s and f go together, as whole numbers: s the string (0 the lowest, 5 the high e on a guitar) and f the fret (0 open, up to 36); both null take the place off (got s ${JSON.stringify(patch.s)}, f ${JSON.stringify(patch.f)})`,
+    );
 }
 // A clip's tuning (clip.set): one of core/fretboard.js's, or null for none (standard)
 function checkTuning(v) {
-  if (v !== null && !TUNING_IDS.includes(v)) throw new Error(`tuning is one of ${TUNING_IDS.join(', ')} (or null: standard)`);
+  if (v !== null && !TUNING_IDS.includes(v))
+    throw new Error(`tuning is one of ${TUNING_IDS.join(', ')} (or null: standard)`);
 }
 // Ops check everything before they change anything, so one that throws leaves the song as it was.
 function checkParams(patch) {
   for (const [k, v] of Object.entries(patch || {})) {
-    if (v !== null && typeof v !== 'number' && typeof v !== 'string' && typeof v !== 'boolean') throw new Error(`param ${k} must be a number (got ${JSON.stringify(v)})`);
+    if (v !== null && typeof v !== 'number' && typeof v !== 'string' && typeof v !== 'boolean')
+      throw new Error(`param ${k} must be a number (got ${JSON.stringify(v)})`);
   }
 }
 // Merge params; a null value removes the key (back to the device's default). Returns the inverse patch.
@@ -136,10 +200,14 @@ function toNotes(notes, grid) {
   if (grid) return parseGrid(grid);
   if (notes == null) return [];
   if (typeof notes === 'string') return parseNotes(notes);
-  if (!Array.isArray(notes)) throw new Error('notes must be an array of {p,t,d,v} or a text string like "C4@0:0.5 E4@0.5:0.5"');
+  if (!Array.isArray(notes))
+    throw new Error('notes must be an array of {p,t,d,v} or a text string like "C4@0:0.5 E4@0.5:0.5"');
   return notes.map(normNote);
 }
-const stamp = (obj, by) => { if (by) obj.by = by; return obj; };
+const stamp = (obj, by) => {
+  if (by) obj.by = by;
+  return obj;
+};
 // Clips and sections stay in order of start, then id, so ties always come out the same way and an undo is exact.
 const byStart = (a, b) => a.start - b.start || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -157,7 +225,11 @@ const noteSig = (n) => {
 const cmpNotes = (a, b) => a.t - b.t || a.p - b.p || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 export function notesPrint(notes) {
   let ns = notes || [];
-  for (let i = 1; i < ns.length; i++) if (cmpNotes(ns[i - 1], ns[i]) > 0) { ns = ns.slice().sort(cmpNotes); break; }   // (clips keep them sorted)
+  for (let i = 1; i < ns.length; i++)
+    if (cmpNotes(ns[i - 1], ns[i]) > 0) {
+      ns = ns.slice().sort(cmpNotes);
+      break;
+    } // (clips keep them sorted)
   return '[' + ns.map(noteSig).join(',') + ']';
 }
 const clipPrint = (c) => (c.kind === 'notes' ? notesPrint(c.notes) : `audio:${c.asset}`);
@@ -167,7 +239,11 @@ function clipChanged(c, print) {
   if (clipPrint(c) === print) return null;
   if (c.kind !== 'notes') return `clip ${c.id} was changed since`;
   let was = [];
-  try { was = JSON.parse(print); } catch (e) { /* an unreadable print never matches */ }
+  try {
+    was = JSON.parse(print);
+  } catch (e) {
+    /* an unreadable print never matches */
+  }
   if (!Array.isArray(was)) was = [];
   const before = new Set(was.map((a) => JSON.stringify(a)));
   const added = c.notes.find((n) => !before.has(noteSig(n)));
@@ -183,14 +259,24 @@ function expectClip(c, print) {
 function expectTrack(t, print) {
   if (print == null || trackPrint(t) === print) return;
   let was = [];
-  try { was = JSON.parse(print); } catch (e) { /* never matches */ }
+  try {
+    was = JSON.parse(print);
+  } catch (e) {
+    /* never matches */
+  }
   const old = new Map(Array.isArray(was) ? was : []);
   let why = null;
   for (const c of t.clips) {
-    if (!old.has(c.id)) { why = `clip ${c.id} was put on track ${t.id} "${t.name}" by ${c.by || 'someone'} since`; break; }
+    if (!old.has(c.id)) {
+      why = `clip ${c.id} was put on track ${t.id} "${t.name}" by ${c.by || 'someone'} since`;
+      break;
+    }
     if ((why = clipChanged(c, old.get(c.id)))) break;
   }
-  if (!why) { const ids = new Set(t.clips.map((c) => c.id)); why = `clip ${[...old.keys()].find((id) => !ids.has(id))} on track ${t.id} "${t.name}" was deleted since`; }
+  if (!why) {
+    const ids = new Set(t.clips.map((c) => c.id));
+    why = `clip ${[...old.keys()].find((id) => !ids.has(id))} on track ${t.id} "${t.name}" was deleted since`;
+  }
   throw new Error(`${why}, so the track stays (undo that change first)`);
 }
 // A name is text (code lowercases names to find things by them), plain and at most NAME_MAX characters.
@@ -205,7 +291,10 @@ function movedTo(t, c, id, { p = null, by = null } = {}) {
   }
   return null;
 }
-const movedNote = (id, c, o) => new Error(`note ${id} isn't in clip ${c.id} any more (a split or an insert since moved it to clip ${o.id}), so it stays where it is (undo that change first)`);
+const movedNote = (id, c, o) =>
+  new Error(
+    `note ${id} isn't in clip ${c.id} any more (a split or an insert since moved it to clip ${o.id}), so it stays where it is (undo that change first)`,
+  );
 // _p (on inverses): each note's pitch, so a moved note can be told from a deleted one
 const removeNotes = (track, clip, ids, by, notes = null) => {
   const op = { type: 'notes.remove', track, clip, ids };
@@ -225,29 +314,47 @@ const removeNotes = (track, clip, ids, by, notes = null) => {
    clamped to the param's range like the rest, never refused, so one bad value from an old file can't block an edit). */
 function laneTarget(p, op, ctx) {
   const param = op.param;
-  if (typeof param !== 'string' || !param) throw new Error('which param? auto ops name a lane as { track, insert?, param }: param "gain" or "pan" for the mixer, or a device param key with insert: "<insert id>" or "instrument"');
+  if (typeof param !== 'string' || !param)
+    throw new Error(
+      'which param? auto ops name a lane as { track, insert?, param }: param "gain" or "pan" for the mixer, or a device param key with insert: "<insert id>" or "instrument"',
+    );
   const tid = op.track === 'master' ? 'master' : findTrack(p, ctx, op.track).id;
   const t = tid === 'master' ? null : p.tracks.find((x) => x.id === tid);
   const where = t ? `track ${t.id} "${t.name}"` : 'the master';
-  let host, insert = null, device = null, spec = null, label;
+  let host,
+    insert = null,
+    device = null,
+    spec = null,
+    label;
   if (op.insert == null || op.insert === '') {
     const ok = tid === 'master' ? ['gain'] : ['gain', 'pan'];
-    if (!ok.includes(param)) throw new Error(`the mixer lanes on ${where} are ${ok.join(' and ')}; for a device's knob name its insert ("<insert id>" or "instrument") and the param key`);
+    if (!ok.includes(param))
+      throw new Error(
+        `the mixer lanes on ${where} are ${ok.join(' and ')}; for a device's knob name its insert ("<insert id>" or "instrument") and the param key`,
+      );
     host = t || p.master;
     spec = MIXER[param];
     label = `${param} on ${where}`;
   } else if (resolve(ctx, op.insert) === 'instrument') {
-    if (!t) throw new Error('the master has no instrument; its lanes are gain and its inserts\' params');
-    if (t.kind !== 'instrument' || !t.instrument) throw new Error(`track ${t.id} is an audio track; it has no instrument`);
-    host = t.instrument; insert = 'instrument'; device = t.instrument.device;
+    if (!t) throw new Error("the master has no instrument; its lanes are gain and its inserts' params");
+    if (t.kind !== 'instrument' || !t.instrument)
+      throw new Error(`track ${t.id} is an audio track; it has no instrument`);
+    host = t.instrument;
+    insert = 'instrument';
+    device = t.instrument.device;
     label = `${param} on ${where}'s instrument`;
   } else {
     host = findInsert(insertList(p, ctx, tid), ctx, op.insert, tid);
-    insert = host.id; device = host.device;
+    insert = host.id;
+    device = host.device;
     label = `${param} on ${where}'s ${host.id}`;
   }
   if (device) {
-    const def = (ctx.getDevice && ctx.getDevice(device)) || (ctx.doc && ctx.doc.devices && ctx.doc.devices[device]) || p.devices[device] || null;
+    const def =
+      (ctx.getDevice && ctx.getDevice(device)) ||
+      (ctx.doc && ctx.doc.devices && ctx.doc.devices[device]) ||
+      p.devices[device] ||
+      null;
     const raw = def ? (def.params || []).find((q) => (Array.isArray(q) ? q[0] : q.key) === param) : null;
     if (raw) spec = paramSpec(raw);
     else if (def && !ctx.restore) {
@@ -257,21 +364,29 @@ function laneTarget(p, op, ctx) {
   }
   return { host, track: tid, insert, param, spec, label };
 }
-const laneAddr = (g) => (g.insert ? { track: g.track, insert: g.insert, param: g.param } : { track: g.track, param: g.param });
+const laneAddr = (g) =>
+  g.insert ? { track: g.track, insert: g.insert, param: g.param } : { track: g.track, param: g.param };
 const inRange = (pts, from, to) => pts.filter((x) => x.t >= from && x.t <= to);
 // Put a lane on its host (canonical: { points, off?, by }, auto's keys sorted), or take it off (null).
 function setLane(host, param, lane) {
   const auto = { ...(host.auto || {}) };
-  if (lane) auto[param] = lane.off ? { points: lane.points, off: true, by: lane.by } : { points: lane.points, by: lane.by };
+  if (lane)
+    auto[param] = lane.off ? { points: lane.points, off: true, by: lane.by } : { points: lane.points, by: lane.by };
   else delete auto[param];
   const keys = Object.keys(auto).sort();
-  if (!keys.length) { delete host.auto; return; }
+  if (!keys.length) {
+    delete host.auto;
+    return;
+  }
   host.auto = Object.fromEntries(keys.map((k) => [k, auto[k]]));
 }
 const beatsText = (from, to) => (from === to ? `beat ${from}` : `beats ${from}–${to}`);
 function expectRange(g, pts, from, to, print) {
   if (print == null) return;
-  if (pointsPrint(inRange(pts, from, to)) !== print) throw new Error(`the lane for ${g.label} was changed since in ${beatsText(from, to)}, so it stays (undo that change first)`);
+  if (pointsPrint(inRange(pts, from, to)) !== print)
+    throw new Error(
+      `the lane for ${g.label} was changed since in ${beatsText(from, to)}, so it stays (undo that change first)`,
+    );
 }
 // Replace [from, to] of a lane with `next` (canonical, inside the range) -> the inverse ops.
 function writeRange(g, from, to, next, op, ctx) {
@@ -279,7 +394,10 @@ function writeRange(g, from, to, next, op, ctx) {
   const pts = lane ? lane.points : [];
   expectRange(g, pts, from, to, op._expect);
   let merged = [...pts.filter((x) => x.t < from), ...next, ...pts.filter((x) => x.t > to)];
-  if (!ctx.restore && merged.length > LIMITS.lanePoints && merged.length > pts.length) throw new Error(`the lane for ${g.label} would hold ${merged.length.toLocaleString('en-US')} points; a lane holds up to ${LIMITS.lanePoints.toLocaleString('en-US')} (thin it, or write fewer)`);
+  if (!ctx.restore && merged.length > LIMITS.lanePoints && merged.length > pts.length)
+    throw new Error(
+      `the lane for ${g.label} would hold ${merged.length.toLocaleString('en-US')} points; a lane holds up to ${LIMITS.lanePoints.toLocaleString('en-US')} (thin it, or write fewer)`,
+    );
   // (every point keeps who wrote it, as a by of its own when it isn't the lane's: the inverse carries each old point's
   // author, so undo puts the lane back byte for byte)
   const old = inRange(pts, from, to).map((x) => mkPoint(x.t, x.v, x.c, pointBy(lane, x)));
@@ -290,14 +408,25 @@ function writeRange(g, from, to, next, op, ctx) {
   // Who wrote each point in the range: an inverse or a planner (_by given) carries its points' authors; a fresh write
   // signs what it changed with its writer and leaves a point it rewrote unchanged with whoever wrote it.
   let authorIn;
-  if (op._by !== undefined) { const dflt = typeof op._by === 'string' ? op._by : by; authorIn = (x) => x.by || dflt; }
-  else {
+  if (op._by !== undefined) {
+    const dflt = typeof op._by === 'string' ? op._by : by;
+    authorIn = (x) => x.by || dflt;
+  } else {
     const was = new Map();
-    for (const x of old) { const k = `${x.t}|${x.v}|${x.c}`; if (!was.has(k)) was.set(k, []); was.get(k).push(x.by); }
+    for (const x of old) {
+      const k = `${x.t}|${x.v}|${x.c}`;
+      if (!was.has(k)) was.set(k, []);
+      was.get(k).push(x.by);
+    }
     const me = ctx.by || 'you';
-    authorIn = (x) => { const q = was.get(`${x.t}|${x.v}|${x.c}`); return q && q.length ? q.shift() : me; };
+    authorIn = (x) => {
+      const q = was.get(`${x.t}|${x.v}|${x.c}`);
+      return q && q.length ? q.shift() : me;
+    };
   }
-  merged = merged.map((x) => (x.t >= from && x.t <= to ? mkPoint(x.t, x.v, x.c, authorIn(x)) : mkPoint(x.t, x.v, x.c, pointBy(lane, x))));
+  merged = merged.map((x) =>
+    x.t >= from && x.t <= to ? mkPoint(x.t, x.v, x.c, authorIn(x)) : mkPoint(x.t, x.v, x.c, pointBy(lane, x)),
+  );
   merged = signPoints(merged, by);
   const after = merged.length ? { points: merged, off: lane ? !!lane.off : op._off === true, by } : null;
   setLane(g.host, g.param, after);
@@ -305,7 +434,8 @@ function writeRange(g, from, to, next, op, ctx) {
   if (!lane && !after) return [{ type: 'auto.write', ...addr, from, to, points: [] }];
   if (!lane) return [{ type: 'auto.clear', ...addr, from, to, _by: false, _expect: pointsPrint(next) }];
   const inv = { type: 'auto.write', ...addr, from, to, points: old, _by: lane.by, _expect: pointsPrint(next) };
-  if (after) inv._byIf = by; else if (lane.off) inv._off = true;
+  if (after) inv._byIf = by;
+  else if (lane.off) inv._off = true;
   return [inv];
 }
 function rangeArg(v, what) {
@@ -321,38 +451,68 @@ const AUTO_OPS = {
     const raw = op.points == null ? [] : parsePoints(op.points);
     if (!ctx.restore) {
       for (const x of raw) {
-        if (!x || typeof x !== 'object' || !fin(Number(x.t)) || !fin(Number(x.v)) || typeof x.t === 'boolean' || typeof x.v === 'boolean') throw new Error(`a point is { t: beat, v: value, c?: curve } with numbers (got ${JSON.stringify(x).slice(0, 60)})`);
-        if (x.t < 0 || x.t > LIMITS.beats) throw new Error(`point at beat ${x.t}: points go from beat 0 to ${LIMITS.beats.toLocaleString('en-US')}`);
-        if (x.c != null && x.c !== 'step' && !(fin(x.c) && x.c >= -1 && x.c <= 1)) throw new Error(`point at beat ${x.t}: c (the curve leaving it) is a number from -1 (fast start) to 1 (slow start), or "step"`);
+        if (
+          !x ||
+          typeof x !== 'object' ||
+          !fin(Number(x.t)) ||
+          !fin(Number(x.v)) ||
+          typeof x.t === 'boolean' ||
+          typeof x.v === 'boolean'
+        )
+          throw new Error(
+            `a point is { t: beat, v: value, c?: curve } with numbers (got ${JSON.stringify(x).slice(0, 60)})`,
+          );
+        if (x.t < 0 || x.t > LIMITS.beats)
+          throw new Error(`point at beat ${x.t}: points go from beat 0 to ${LIMITS.beats.toLocaleString('en-US')}`);
+        if (x.c != null && x.c !== 'step' && !(fin(x.c) && x.c >= -1 && x.c <= 1))
+          throw new Error(
+            `point at beat ${x.t}: c (the curve leaving it) is a number from -1 (fast start) to 1 (slow start), or "step"`,
+          );
         const s = g.spec;
         if (s && !op._fit && Number.isFinite(s.min) && Number.isFinite(s.max)) {
-          const lo = Math.min(s.min, s.max), hi = Math.max(s.min, s.max), tol = (hi - lo) * 1e-9;
-          if (x.v < lo - tol || x.v > hi + tol) throw new Error(`point at beat ${x.t}: ${g.param} goes from ${lo} to ${hi}${s.unit ? ' ' + s.unit : ''} (got ${x.v})`);
+          const lo = Math.min(s.min, s.max),
+            hi = Math.max(s.min, s.max),
+            tol = (hi - lo) * 1e-9;
+          if (x.v < lo - tol || x.v > hi + tol)
+            throw new Error(
+              `point at beat ${x.t}: ${g.param} goes from ${lo} to ${hi}${s.unit ? ' ' + s.unit : ''} (got ${x.v})`,
+            );
         }
       }
     }
     const next = normPoints(raw, ctx.restore ? null : g.spec);
-    let from = rangeArg(op.from, 'from'), to = rangeArg(op.to, 'to');
+    let from = rangeArg(op.from, 'from'),
+      to = rangeArg(op.to, 'to');
     if (from == null) from = next.length ? (to != null ? Math.min(next[0].t, to) : next[0].t) : null;
     if (to == null) to = next.length ? Math.max(next[next.length - 1].t, from) : null;
-    if (from == null || to == null) throw new Error('auto.write needs points (text like "0:-60 16:-6", or [{ t, v, c? }]), or from and to with none to clear that range');
+    if (from == null || to == null)
+      throw new Error(
+        'auto.write needs points (text like "0:-60 16:-6", or [{ t, v, c? }]), or from and to with none to clear that range',
+      );
     if (to < from) throw new Error(`to (${to}) must be at or after from (${from})`);
     const out = next.find((x) => x.t < from || x.t > to);
-    if (out) throw new Error(`point at beat ${out.t} is outside from–to (${from}–${to}); the write replaces exactly that range`);
+    if (out)
+      throw new Error(
+        `point at beat ${out.t} is outside from–to (${from}–${to}); the write replaces exactly that range`,
+      );
     return { inverse: writeRange(g, from, to, next, op, ctx) };
   },
 
   'auto.clear'(p, op, ctx) {
     const g = laneTarget(p, op, ctx);
     const lane = g.host.auto && g.host.auto[g.param];
-    let from = rangeArg(op.from, 'from'), to = rangeArg(op.to, 'to');
+    let from = rangeArg(op.from, 'from'),
+      to = rangeArg(op.to, 'to');
     if (!lane) {
-      if (op._expect != null && op._expect !== '[]') throw new Error(`the lane for ${g.label} was removed since, so it stays as it is (undo that change first)`);
+      if (op._expect != null && op._expect !== '[]')
+        throw new Error(`the lane for ${g.label} was removed since, so it stays as it is (undo that change first)`);
       if (!ctx.restore) throw new Error(`there is no lane for ${g.label} to clear`);
       return { inverse: [] };
     }
     if (from == null) from = op.to == null ? lane.points[0].t : 0;
-    if (to == null) to = op.from == null ? lane.points[lane.points.length - 1].t : Math.max(from, lane.points[lane.points.length - 1].t);
+    if (to == null)
+      to =
+        op.from == null ? lane.points[lane.points.length - 1].t : Math.max(from, lane.points[lane.points.length - 1].t);
     if (to < from) throw new Error(`to (${to}) must be at or after from (${from})`);
     return { inverse: writeRange(g, from, to, [], op, ctx) };
   },
@@ -362,8 +522,13 @@ const AUTO_OPS = {
     const lane = g.host.auto && g.host.auto[g.param];
     if (!lane) throw new Error(`there is no lane for ${g.label} (write one with auto.write first)`);
     const patch = op.patch || {};
-    for (const k of Object.keys(patch)) if (k !== 'off') throw new Error(`auto.set can't change "${k}" (off: true holds the lane at its knob's value, false gives it back)`);
-    if (!('off' in patch) || typeof patch.off !== 'boolean') throw new Error('auto.set needs patch: { off: true } (hold the lane) or { off: false } (back to the lane)');
+    for (const k of Object.keys(patch))
+      if (k !== 'off')
+        throw new Error(
+          `auto.set can't change "${k}" (off: true holds the lane at its knob's value, false gives it back)`,
+        );
+    if (!('off' in patch) || typeof patch.off !== 'boolean')
+      throw new Error('auto.set needs patch: { off: true } (hold the lane) or { off: false } (back to the lane)');
     const was = !!lane.off;
     setLane(g.host, g.param, { points: lane.points, off: patch.off, by: lane.by });
     return { inverse: [{ type: 'auto.set', ...laneAddr(g), patch: { off: was } }] };
@@ -373,21 +538,28 @@ const AUTO_OPS = {
 export const OPS = {
   'project.set'(p, op) {
     const patch = op.patch || {};
-    const inv = {}, next = {};
+    const inv = {},
+      next = {};
     for (const k of ['title', 'tempo', 'meter', 'key', 'loop']) {
       if (!(k in patch)) continue;
       const v = patch[k];
       // a title is text: anything else (an object from a share link, an agent's JSON) is refused here, not trusted later
       // (and plain: its control and bidi characters are dropped, as a name's are)
-      if (k === 'title' && !(typeof v === 'string' && plainText(v).length <= TITLE_MAX)) throw new Error(`title must be text, ${TITLE_MAX} characters at most`);
+      if (k === 'title' && !(typeof v === 'string' && plainText(v).length <= TITLE_MAX))
+        throw new Error(`title must be text, ${TITLE_MAX} characters at most`);
       if (k === 'tempo' && !(fin(v) && v >= 20 && v <= 400)) throw new Error('tempo must be a number from 20 to 400');
-      if (k === 'meter' && !validMeter(v)) throw new Error('meter must be [beats, unit]: 1 to 32 beats, unit 1, 2, 4, 8, 16 or 32, e.g. [4, 4] or [6, 8]');
-      if (k === 'key' && v !== null && !(v && typeof v.root === 'string' && typeof v.scale === 'string')) throw new Error('key must be { root: "C", scale: "minor" } or null');
+      if (k === 'meter' && !validMeter(v))
+        throw new Error('meter must be [beats, unit]: 1 to 32 beats, unit 1, 2, 4, 8, 16 or 32, e.g. [4, 4] or [6, 8]');
+      if (k === 'key' && v !== null && !(v && typeof v.root === 'string' && typeof v.scale === 'string'))
+        throw new Error('key must be { root: "C", scale: "minor" } or null');
       if (k === 'loop' && !(v && typeof v === 'object')) throw new Error('loop must be { on, start, end } in beats');
       next[k] = k === 'loop' ? { ...p.loop, ...clone(v) } : k === 'title' ? plainText(v) : clone(v);
       if (k === 'loop' && !(next.loop.end > next.loop.start)) throw new Error('loop end must be after loop start');
     }
-    for (const [k, v] of Object.entries(next)) { inv[k] = clone(p[k]); p[k] = v; }
+    for (const [k, v] of Object.entries(next)) {
+      inv[k] = clone(p[k]);
+      p[k] = v;
+    }
     return { inverse: [{ type: 'project.set', patch: inv }] };
   },
 
@@ -396,17 +568,34 @@ export const OPS = {
     if (raw0.id && idUsed(p, raw0.id)) throw new Error(`id ${raw0.id} is already used`);
     const by = raw0.by || ctx.by;
     // (restored tracks keep their authors; new things are stamped with whoever is adding them)
-    const raw = { ...raw0, by, clips: (raw0.clips || []).map((c) => ({ ...c, by: c.by || by, ...(typeof c.notes === 'string' ? { notes: toNotes(c.notes) } : {}) })), inserts: (raw0.inserts || []).map((fx) => ({ ...fx, by: fx.by || by })) };
+    const raw = {
+      ...raw0,
+      by,
+      clips: (raw0.clips || []).map((c) => ({
+        ...c,
+        by: c.by || by,
+        ...(typeof c.notes === 'string' ? { notes: toNotes(c.notes) } : {}),
+      })),
+      inserts: (raw0.inserts || []).map((fx) => ({ ...fx, by: fx.by || by })),
+    };
     const t = normTrack(raw, p.tracks.length);
     if (t.instrument) checkDevice(ctx, t.instrument.device, 'instrument');
     for (const fx of t.inserts) checkDevice(ctx, fx.device, 'effect');
-    for (const c of t.clips) if (c.kind === 'notes') checkClipNotes(ctx, Array.isArray(c.notes) ? c.notes.length : 0, c.id);
+    for (const c of t.clips)
+      if (c.kind === 'notes') checkClipNotes(ctx, Array.isArray(c.notes) ? c.notes.length : 0, c.id);
     // (an undo puts back the notes exactly as they were, keys in their order; new ones are read and signed)
-    for (const c of t.clips) if (c.kind === 'notes') { if (!ctx.restore) c.notes = toNotes(c.notes).map((n) => (n.by ? n : stamp(n, c.by))); idNotes(c, ctx.noteSeq); }
+    for (const c of t.clips)
+      if (c.kind === 'notes') {
+        if (!ctx.restore) c.notes = toNotes(c.notes).map((n) => (n.by ? n : stamp(n, c.by)));
+        idNotes(c, ctx.noteSeq);
+      }
     const index = fin(op.index) ? Math.max(0, Math.min(p.tracks.length, op.index)) : p.tracks.length;
     p.tracks.splice(index, 0, t);
     if (op.ref) ctx.refs[op.ref] = t.id;
-    return { inverse: [{ type: 'track.remove', track: t.id, _expect: trackPrint(t) }], created: { [op.ref || 'track']: t.id } };
+    return {
+      inverse: [{ type: 'track.remove', track: t.id, _expect: trackPrint(t) }],
+      created: { [op.ref || 'track']: t.id },
+    };
   },
 
   'track.remove'(p, op, ctx) {
@@ -421,7 +610,8 @@ export const OPS = {
     const t = findTrack(p, ctx, op.track);
     const from = p.tracks.indexOf(t);
     const to = Math.max(0, Math.min(p.tracks.length - 1, op.index | 0));
-    p.tracks.splice(from, 1); p.tracks.splice(to, 0, t);
+    p.tracks.splice(from, 1);
+    p.tracks.splice(to, 0, t);
     return { inverse: [{ type: 'track.move', track: t.id, index: from }] };
   },
 
@@ -430,7 +620,8 @@ export const OPS = {
     const patch = op.patch || {};
     const inv = {};
     for (const [k, v] of Object.entries(patch)) {
-      if (!['name', 'color', 'gain', 'pan', 'mute', 'solo', 'arm', 'input'].includes(k)) throw new Error(`track.set can't change "${k}" (name, color, gain, pan, mute, solo, arm, input)`);
+      if (!['name', 'color', 'gain', 'pan', 'mute', 'solo', 'arm', 'input'].includes(k))
+        throw new Error(`track.set can't change "${k}" (name, color, gain, pan, mute, solo, arm, input)`);
       if (k === 'gain' && !(fin(v) && v >= -96 && v <= 24)) throw new Error('gain is in dB, -96..24');
       if (k === 'pan' && !(fin(v) && v >= -1 && v <= 1)) throw new Error('pan is -1 (left) .. 1 (right)');
       if (k === 'name') checkName(v);
@@ -464,11 +655,18 @@ export const OPS = {
     if (!raw.device) throw new Error('insert.add needs insert: { device: "<device id>" }');
     checkDevice(ctx, raw.device, 'effect');
     if (raw.id && idUsed(p, raw.id)) throw new Error(`id ${raw.id} is already used`);
-    const fx = normInsert({ ...raw, by: raw.by || ctx.by, key: raw.key == null || ctx.restore ? raw.key : checkKey(p, ctx, tid, raw.key, null, raw.device) });
+    const fx = normInsert({
+      ...raw,
+      by: raw.by || ctx.by,
+      key: raw.key == null || ctx.restore ? raw.key : checkKey(p, ctx, tid, raw.key, null, raw.device),
+    });
     const index = fin(op.index) ? Math.max(0, Math.min(list.length, op.index)) : list.length;
     list.splice(index, 0, fx);
     if (op.ref) ctx.refs[op.ref] = fx.id;
-    return { inverse: [{ type: 'insert.remove', track: tid, insert: fx.id }], created: { [op.ref || 'insert']: fx.id } };
+    return {
+      inverse: [{ type: 'insert.remove', track: tid, insert: fx.id }],
+      created: { [op.ref || 'insert']: fx.id },
+    };
   },
 
   'insert.remove'(p, op, ctx) {
@@ -484,8 +682,10 @@ export const OPS = {
     const tid = op.track === 'master' ? 'master' : findTrack(p, ctx, op.track).id;
     const list = insertList(p, ctx, tid);
     const fx = findInsert(list, ctx, op.insert, tid);
-    const from = list.indexOf(fx), to = Math.max(0, Math.min(list.length - 1, op.index | 0));
-    list.splice(from, 1); list.splice(to, 0, fx);
+    const from = list.indexOf(fx),
+      to = Math.max(0, Math.min(list.length - 1, op.index | 0));
+    list.splice(from, 1);
+    list.splice(to, 0, fx);
     return { inverse: [{ type: 'insert.move', track: tid, insert: fx.id, index: from }] };
   },
 
@@ -496,11 +696,20 @@ export const OPS = {
     const patch = op.patch || {};
     const inv = {};
     if (patch.params) inv.params = mergeParams(fx.params, patch.params); // (checks every param first)
-    if ('on' in patch) { inv.on = fx.on; fx.on = !!patch.on; }
+    if ('on' in patch) {
+      inv.on = fx.on;
+      fx.on = !!patch.on;
+    }
     if ('key' in patch) {
-      const next = patch.key == null ? null : ctx.restore ? normKey(patch.key) : checkKey(p, ctx, tid, patch.key, fx.id, fx.device);
+      const next =
+        patch.key == null
+          ? null
+          : ctx.restore
+            ? normKey(patch.key)
+            : checkKey(p, ctx, tid, patch.key, fx.id, fx.device);
       inv.key = fx.key ? clone(fx.key) : null;
-      if (next) fx.key = next; else delete fx.key;
+      if (next) fx.key = next;
+      else delete fx.key;
     }
     return { inverse: [{ type: 'insert.set', track: tid, insert: fx.id, patch: inv }] };
   },
@@ -512,22 +721,30 @@ export const OPS = {
     const kind = raw.kind || (t.kind === 'audio' ? 'audio' : 'notes');
     if (kind === 'audio' && !raw.asset) throw new Error('an audio clip needs asset: "<asset id>"');
     if (raw.take != null && !isTakeId(raw.take)) throw new Error('take must be a take group id like "tk_a1b2c3"');
-    if (kind === 'notes' && t.kind === 'audio') throw new Error(`track ${t.id} is an audio track; notes go on instrument tracks`);
+    if (kind === 'notes' && t.kind === 'audio')
+      throw new Error(`track ${t.id} is an audio track; notes go on instrument tracks`);
     const c = normClip({ ...raw, kind, notes: [], by: raw.by || ctx.by });
     if (kind === 'notes') {
       // (an undo puts back the notes exactly as they were, keys in their order)
-      c.notes = ctx.restore && Array.isArray(raw.notes) && !raw.grid ? clone(raw.notes) : toNotes(raw.notes, raw.grid).map((n) => stamp({ ...n }, n.by || ctx.by));
+      c.notes =
+        ctx.restore && Array.isArray(raw.notes) && !raw.grid
+          ? clone(raw.notes)
+          : toNotes(raw.notes, raw.grid).map((n) => stamp({ ...n }, n.by || ctx.by));
       checkClipNotes(ctx, c.notes.length, c.id);
       idNotes(c, ctx.noteSeq);
       if (!raw.length && c.notes.length) {
-        let end = 0; for (const n of c.notes) end = Math.max(end, n.t + n.d);
+        let end = 0;
+        for (const n of c.notes) end = Math.max(end, n.t + n.d);
         c.length = Math.max(4, Math.ceil(end / 4) * 4);
       }
     }
     t.clips.push(c);
     t.clips.sort(byStart);
     if (op.ref) ctx.refs[op.ref] = c.id;
-    return { inverse: [{ type: 'clip.remove', track: t.id, clip: c.id, _expect: clipPrint(c) }], created: { [op.ref || 'clip']: c.id } };
+    return {
+      inverse: [{ type: 'clip.remove', track: t.id, clip: c.id, _expect: clipPrint(c) }],
+      created: { [op.ref || 'clip']: c.id },
+    };
   },
 
   'clip.remove'(p, op, ctx) {
@@ -544,12 +761,18 @@ export const OPS = {
     const inv = {};
     const patch = op.patch || {};
     for (const [k, v] of Object.entries(patch)) {
-      if (!['start', 'length', 'name', 'color', 'offset', 'gain', 'mute', 'take', 'tuning', 'capo'].includes(k)) throw new Error(`clip.set can't change "${k}" (start, length, name, color, offset, gain, mute, take, tuning, capo)`);
+      if (!['start', 'length', 'name', 'color', 'offset', 'gain', 'mute', 'take', 'tuning', 'capo'].includes(k))
+        throw new Error(
+          `clip.set can't change "${k}" (start, length, name, color, offset, gain, mute, take, tuning, capo)`,
+        );
       if (k === 'mute' && v !== null && typeof v !== 'boolean') throw new Error('mute must be true or false');
-      if (k === 'take' && v !== null && !isTakeId(v)) throw new Error('take must be a take group id like "tk_a1b2c3" (or null to leave the group)');
-      if ((k === 'tuning' || k === 'capo') && c.kind !== 'notes') throw new Error(`clip ${c.id} is audio: a tuning and a capo are for a notes clip's tab`);
+      if (k === 'take' && v !== null && !isTakeId(v))
+        throw new Error('take must be a take group id like "tk_a1b2c3" (or null to leave the group)');
+      if ((k === 'tuning' || k === 'capo') && c.kind !== 'notes')
+        throw new Error(`clip ${c.id} is audio: a tuning and a capo are for a notes clip's tab`);
       if (k === 'tuning') checkTuning(v);
-      if (k === 'capo' && v !== null && !(Number.isInteger(v) && v >= 0 && v <= 12)) throw new Error('capo is the fret the capo sits at, 0 (none) to 12');
+      if (k === 'capo' && v !== null && !(Number.isInteger(v) && v >= 0 && v <= 12))
+        throw new Error('capo is the fret the capo sits at, 0 (none) to 12');
       // null clears an optional field (the inverse of setting one the clip didn't have); start and length always stay
       if (v === null && k !== 'start' && k !== 'length') continue;
       if ((k === 'start' || k === 'offset') && !(fin(v) && v >= 0)) throw new Error(`${k} must be a number >= 0`);
@@ -560,7 +783,8 @@ export const OPS = {
     for (const [k, v] of Object.entries(patch)) {
       inv[k] = c[k] === undefined ? null : clone(c[k]);
       // (mute: false is stored as no mute at all, the way every older song has it; so is capo 0)
-      if (v === null || (k === 'mute' && v === false) || (k === 'capo' && v === 0)) delete c[k]; else c[k] = k === 'name' ? plainText(v) : clone(v);
+      if (v === null || (k === 'mute' && v === false) || (k === 'capo' && v === 0)) delete c[k];
+      else c[k] = k === 'name' ? plainText(v) : clone(v);
     }
     t.clips.sort(byStart);
     return { inverse: [{ type: 'clip.set', track: t.id, clip: c.id, patch: inv }] };
@@ -570,10 +794,14 @@ export const OPS = {
     const t = findTrack(p, ctx, op.track);
     const c = findClip(t, ctx, op.clip);
     const to = op.toTrack ? findTrack(p, ctx, op.toTrack) : t;
-    if (to.kind !== t.kind) throw new Error(`can't move a ${c.kind} clip onto ${to.kind === 'audio' ? 'an audio' : 'an instrument'} track`);
+    if (to.kind !== t.kind)
+      throw new Error(`can't move a ${c.kind} clip onto ${to.kind === 'audio' ? 'an audio' : 'an instrument'} track`);
     const oldStart = c.start;
     if (fin(op.start)) c.start = Math.max(0, op.start);
-    if (to !== t) { t.clips.splice(t.clips.indexOf(c), 1); to.clips.push(c); }
+    if (to !== t) {
+      t.clips.splice(t.clips.indexOf(c), 1);
+      to.clips.push(c);
+    }
     to.clips.sort(byStart);
     return { inverse: [{ type: 'clip.move', track: to.id, clip: c.id, toTrack: t.id, start: oldStart }] };
   },
@@ -589,7 +817,18 @@ export const OPS = {
     c.notes.push(...add);
     idNotes(c, ctx.noteSeq);
     const ids = c.notes.filter((n) => !before.has(n.id)).map((n) => n.id);
-    return { inverse: [removeNotes(t.id, c.id, ids, ctx.by, c.notes.filter((n) => !before.has(n.id)))], created: { notes: ids } };
+    return {
+      inverse: [
+        removeNotes(
+          t.id,
+          c.id,
+          ids,
+          ctx.by,
+          c.notes.filter((n) => !before.has(n.id)),
+        ),
+      ],
+      created: { notes: ids },
+    };
   },
 
   // by (set on inverses): the notes must still be that author's. If someone else has changed one since (an edit signs
@@ -610,7 +849,10 @@ export const OPS = {
     }
     if (op.by) {
       const theirs = gone.find((n) => n.by !== op.by);
-      if (theirs) throw new Error(`note ${theirs.id} in clip ${c.id} was changed by ${theirs.by || 'someone'} since ${op.by} added it, so it stays (undo that change first)`);
+      if (theirs)
+        throw new Error(
+          `note ${theirs.id} in clip ${c.id} was changed by ${theirs.by || 'someone'} since ${op.by} added it, so it stays (undo that change first)`,
+        );
     }
     c.notes = c.notes.filter((n) => !ids.has(n.id));
     return { inverse: [{ type: 'notes.restore', track: t.id, clip: c.id, notes: clone(gone) }] };
@@ -623,7 +865,17 @@ export const OPS = {
     c.notes.push(...clone(op.notes));
     idNotes(c, ctx.noteSeq); // (they all have ids: this keeps the clip's counter past them, and sorts)
     const bys = new Set(op.notes.map((n) => n.by));
-    return { inverse: [removeNotes(t.id, c.id, op.notes.map((n) => n.id), bys.size === 1 ? [...bys][0] : null, op.notes)] };
+    return {
+      inverse: [
+        removeNotes(
+          t.id,
+          c.id,
+          op.notes.map((n) => n.id),
+          bys.size === 1 ? [...bys][0] : null,
+          op.notes,
+        ),
+      ],
+    };
   },
 
   'notes.set'(p, op, ctx) {
@@ -647,10 +899,17 @@ export const OPS = {
       }
       // its place on the neck (s, f: both, or null for none); the inverse puts back what was there, or none
       if ('s' in patch || 'f' in patch) {
-        old.s = n.s ?? null; old.f = n.f ?? null;
-        if (patch.s == null) { delete n.s; delete n.f; } else { n.s = patch.s; n.f = patch.f; }
+        old.s = n.s ?? null;
+        old.f = n.f ?? null;
+        if (patch.s == null) {
+          delete n.s;
+          delete n.f;
+        } else {
+          n.s = patch.s;
+          n.f = patch.f;
+        }
       }
-      old.by = n.by ?? null;   // (null: the note had no author; the undo leaves it with none, exactly)
+      old.by = n.by ?? null; // (null: the note had no author; the undo leaves it with none, exactly)
       if (ctx.by) n.by = ctx.by;
       inv.unshift(old); // (newest first: two patches to one note undo back to the first one's old value)
     }
@@ -663,17 +922,27 @@ export const OPS = {
     const c = findClip(t, ctx, op.clip);
     expectClip(c, op._expect);
     const old = clone(c.notes);
-    const next = op._restore ? clone(op._restore) : toNotes(op.notes, op.grid).map((n) => stamp({ ...n, id: undefined }, ctx.by));
+    const next = op._restore
+      ? clone(op._restore)
+      : toNotes(op.notes, op.grid).map((n) => stamp({ ...n, id: undefined }, ctx.by));
     checkClipNotes(ctx, next.length, c.id);
     if (!op._restore) for (const n of next) delete n.id;
-    c.notes = next; idNotes(c, ctx.noteSeq);
+    c.notes = next;
+    idNotes(c, ctx.noteSeq);
     // (the inverse puts the old notes back only while the clip is still as this left it)
-    return { inverse: [{ type: 'notes.replace', track: t.id, clip: c.id, _restore: old, _expect: notesPrint(c.notes) }] };
+    return {
+      inverse: [{ type: 'notes.replace', track: t.id, clip: c.id, _restore: old, _expect: notesPrint(c.notes) }],
+    };
   },
 
   'section.add'(p, op, ctx) {
     const s = op.section || {};
-    const sec = { id: s.id || newId('s'), name: sectionName(s.name), start: Math.max(0, Number(s.start) || 0), length: Math.max(1, Number(s.length) || 16) };
+    const sec = {
+      id: s.id || newId('s'),
+      name: sectionName(s.name),
+      start: Math.max(0, Number(s.start) || 0),
+      length: Math.max(1, Number(s.length) || 16),
+    };
     if (isColor(s.color)) sec.color = s.color;
     p.sections.push(sec);
     p.sections.sort(byStart);
@@ -683,11 +952,15 @@ export const OPS = {
   'section.set'(p, op, ctx) {
     const id = resolve(ctx, typeof op.section === 'object' ? op.section.id : op.section);
     const sec = p.sections.find((s) => s.id === id || String(s.name).toLowerCase() === String(id).toLowerCase());
-    if (!sec) throw new Error(`no section "${id}" (sections: ${p.sections.map((s) => `${s.id} "${s.name}"`).join(', ') || 'none'})`);
+    if (!sec)
+      throw new Error(
+        `no section "${id}" (sections: ${p.sections.map((s) => `${s.id} "${s.name}"`).join(', ') || 'none'})`,
+      );
     const inv = {};
     const patch = op.patch || {};
     for (const [k, v] of Object.entries(patch)) {
-      if (!['name', 'start', 'length', 'color'].includes(k)) throw new Error(`section.set can't change "${k}" (name, start, length, color)`);
+      if (!['name', 'start', 'length', 'color'].includes(k))
+        throw new Error(`section.set can't change "${k}" (name, start, length, color)`);
       if (k === 'start' && !(fin(v) && v >= 0)) throw new Error('start must be a number >= 0');
       if (k === 'length' && !(fin(v) && v > 0)) throw new Error('length must be a number of beats > 0');
       if (k === 'name') checkName(v);
@@ -695,7 +968,8 @@ export const OPS = {
     }
     for (const [k, v] of Object.entries(patch)) {
       inv[k] = sec[k] === undefined ? null : sec[k];
-      if (v === null) delete sec[k]; else sec[k] = k === 'name' ? plainText(v) : v;
+      if (v === null) delete sec[k];
+      else sec[k] = k === 'name' ? plainText(v) : v;
     }
     p.sections.sort(byStart);
     return { inverse: [{ type: 'section.set', section: sec.id, patch: inv }] };
@@ -711,14 +985,19 @@ export const OPS = {
   'master.set'(p, op) {
     const patch = op.patch || {};
     const inv = {};
-    if ('clip' in patch && patch.clip != null && !['soft', 'clean'].includes(patch.clip)) throw new Error('master clip is "soft" (the safety soft clip, the default) or "clean" (a hard ceiling at 0 dBFS, linear below: for a master that ends in a limiter)');
+    if ('clip' in patch && patch.clip != null && !['soft', 'clean'].includes(patch.clip))
+      throw new Error(
+        'master clip is "soft" (the safety soft clip, the default) or "clean" (a hard ceiling at 0 dBFS, linear below: for a master that ends in a limiter)',
+      );
     if ('gain' in patch) {
       if (!(fin(patch.gain) && patch.gain >= -96 && patch.gain <= 24)) throw new Error('master gain is in dB, -96..24');
-      inv.gain = p.master.gain; p.master.gain = patch.gain;
+      inv.gain = p.master.gain;
+      p.master.gain = patch.gain;
     }
     if ('clip' in patch) {
       inv.clip = p.master.clip === 'clean' ? 'clean' : 'soft';
-      if (patch.clip === 'clean') p.master.clip = 'clean'; else delete p.master.clip;
+      if (patch.clip === 'clean') p.master.clip = 'clean';
+      else delete p.master.clip;
     }
     return { inverse: [{ type: 'master.set', patch: inv }] };
   },
@@ -727,8 +1006,16 @@ export const OPS = {
     const a = op.asset || {};
     if (!a.id) throw new Error('asset.add needs asset: { id, kind: "audio", name, sr, channels, duration }');
     const old = p.assets[a.id];
-    p.assets[a.id] = { kind: a.kind || 'audio', name: a.name || a.id, sr: a.sr, channels: a.channels, duration: a.duration };
-    return { inverse: [old ? { type: 'asset.add', asset: { id: a.id, ...clone(old) } } : { type: 'asset.remove', id: a.id }] };
+    p.assets[a.id] = {
+      kind: a.kind || 'audio',
+      name: a.name || a.id,
+      sr: a.sr,
+      channels: a.channels,
+      duration: a.duration,
+    };
+    return {
+      inverse: [old ? { type: 'asset.add', asset: { id: a.id, ...clone(old) } } : { type: 'asset.remove', id: a.id }],
+    };
   },
   'asset.remove'(p, op) {
     const old = p.assets[op.id];
@@ -741,7 +1028,10 @@ export const OPS = {
   // (not a track, not in the mix or any render). reference: { asset, name, sr, channels, duration, profile } | null.
   'reference.set'(p, op, ctx) {
     const r = op.reference;
-    if (r !== null && !isValidReference(r)) throw new Error('reference.set needs reference: { asset, name, duration, profile: { lufs, bands, … } } (measured, as the Reference tab does) or null');
+    if (r !== null && !isValidReference(r))
+      throw new Error(
+        'reference.set needs reference: { asset, name, duration, profile: { lufs, bands, … } } (measured, as the Reference tab does) or null',
+      );
     const old = p.reference ? clone(p.reference) : null;
     if (r === null) delete p.reference;
     else p.reference = { ...clone(r), by: r.by || ctx.by };
@@ -750,22 +1040,53 @@ export const OPS = {
 
   'device.define'(p, op, ctx) {
     const d = op.device || {};
-    if (!d.id || typeof d.kernel !== 'string') throw new Error('device.define needs device: { id, name, kind, params, kernel: "source" }');
-    if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(d.id)) throw new Error(`bad device id "${String(d.id).slice(0, 80)}": 2-64 of a-z 0-9 . _ -, e.g. "claude.velvet-fuzz"`);
+    if (!d.id || typeof d.kernel !== 'string')
+      throw new Error('device.define needs device: { id, name, kind, params, kernel: "source" }');
+    if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(d.id))
+      throw new Error(`bad device id "${String(d.id).slice(0, 80)}": 2-64 of a-z 0-9 . _ -, e.g. "claude.velvet-fuzz"`);
     // a song's devices add to the studio; they never take over one it ships (built-in namespaces, the house shelf)
     // (undo and redo put back what was there, as everywhere)
     const shipped = ctx.getDevice && !ctx.restore ? ctx.getDevice(d.id) : null;
-    if (!ctx.restore && (/^(core|pedal|amp|cab|overdub)\./.test(d.id) || (shipped && shipped.source && shipped.source !== 'project'))) throw new Error(`"${d.id}" is a device the studio ships, and its id is fixed: write yours under your own name, e.g. "${String(ctx.by || 'you').replace(/^mcp:/, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'you'}.${d.id.split('.').slice(1).join('-') || 'device'}"`);
-    if (d.kernel.length > 256 * 1024) throw new Error(`the kernel is ${Math.ceil(d.kernel.length / 1024)} KB; a device's source can be up to 256 KB`);
+    if (
+      !ctx.restore &&
+      (/^(core|pedal|amp|cab|overdub)\./.test(d.id) || (shipped && shipped.source && shipped.source !== 'project'))
+    )
+      throw new Error(
+        `"${d.id}" is a device the studio ships, and its id is fixed: write yours under your own name, e.g. "${
+          String(ctx.by || 'you')
+            .replace(/^mcp:/, '')
+            .replace(/[^a-z0-9]+/gi, '-')
+            .toLowerCase() || 'you'
+        }.${d.id.split('.').slice(1).join('-') || 'device'}"`,
+      );
+    if (d.kernel.length > 256 * 1024)
+      throw new Error(`the kernel is ${Math.ceil(d.kernel.length / 1024)} KB; a device's source can be up to 256 KB`);
     const old = p.devices[d.id];
-    const src = { ...clone(d), by: d.by || ctx.by, version: old ? (old.version || 1) + 1 : 1, created: old?.created || new Date().toISOString(), modified: new Date().toISOString() };
+    const src = {
+      ...clone(d),
+      by: d.by || ctx.by,
+      version: old ? (old.version || 1) + 1 : 1,
+      created: old?.created || new Date().toISOString(),
+      modified: new Date().toISOString(),
+    };
     // its name and its presets' names are names, kept as a loaded song keeps them (a device is new, or a new version):
     // plain and cut to NAME_MAX, a name that isn't text left out (the registry still holds a preset's to 40)
-    if ('name' in src) { const name = cleanName(src.name, ''); if (name) src.name = name; else delete src.name; }
-    if (Array.isArray(src.presets)) src.presets = src.presets.map((pr) => (pr && typeof pr === 'object' && typeof pr.name === 'string' ? { ...pr, name: cleanName(pr.name, '') } : pr));
+    if ('name' in src) {
+      const name = cleanName(src.name, '');
+      if (name) src.name = name;
+      else delete src.name;
+    }
+    if (Array.isArray(src.presets))
+      src.presets = src.presets.map((pr) =>
+        pr && typeof pr === 'object' && typeof pr.name === 'string' ? { ...pr, name: cleanName(pr.name, '') } : pr,
+      );
     if (op._restore) Object.assign(src, clone(op._restore));
     p.devices[d.id] = src;
-    return { inverse: [old ? { type: 'device.define', device: clone(old), _restore: clone(old) } : { type: 'device.remove', id: d.id }] };
+    return {
+      inverse: [
+        old ? { type: 'device.define', device: clone(old), _restore: clone(old) } : { type: 'device.remove', id: d.id },
+      ],
+    };
   },
   'device.remove'(p, op) {
     const old = p.devices[op.id];
@@ -792,8 +1113,10 @@ OPS['instrument.set'] = function (p, op, ctx) {
 const _notesSet = OPS['notes.set'];
 OPS['notes.set'] = function (p, op, ctx) {
   if (op._keepBy) {
-    const t = findTrack(p, ctx, op.track), c = findClip(t, ctx, op.clip);
-    for (const patch of op.notes) {   // (an edit undone after a split moved the note refuses; a deleted note is skipped)
+    const t = findTrack(p, ctx, op.track),
+      c = findClip(t, ctx, op.clip);
+    for (const patch of op.notes) {
+      // (an edit undone after a split moved the note refuses; a deleted note is skipped)
       const o = c.notes.some((x) => x.id === patch.id) ? null : movedTo(t, c, patch.id, { by: ctx.by });
       if (o) throw movedNote(patch.id, c, o);
     }
@@ -802,12 +1125,24 @@ OPS['notes.set'] = function (p, op, ctx) {
       const n = c.notes.find((x) => x.id === patch.id);
       if (!n) continue;
       const old = { id: n.id, by: n.by ?? null };
-      for (const k of ['p', 't', 'd', 'v']) if (k in patch) { old[k] = n[k]; n[k] = patch[k]; }
+      for (const k of ['p', 't', 'd', 'v'])
+        if (k in patch) {
+          old[k] = n[k];
+          n[k] = patch[k];
+        }
       if ('s' in patch || 'f' in patch) {
-        old.s = n.s ?? null; old.f = n.f ?? null;
-        if (patch.s == null) { delete n.s; delete n.f; } else { n.s = patch.s; n.f = patch.f; }
+        old.s = n.s ?? null;
+        old.f = n.f ?? null;
+        if (patch.s == null) {
+          delete n.s;
+          delete n.f;
+        } else {
+          n.s = patch.s;
+          n.f = patch.f;
+        }
       }
-      if (patch.by) n.by = patch.by; else if (patch.by === null) delete n.by;
+      if (patch.by) n.by = patch.by;
+      else if (patch.by === null) delete n.by;
       inv.unshift(old);
     }
     sortNotes(c);
@@ -822,14 +1157,19 @@ OPS['notes.set'] = function (p, op, ctx) {
 // the first of them, the one `ref` names.
 for (const [type, plan] of Object.entries(ARRANGEMENT_OPS)) {
   OPS[type] = function (p, op, ctx) {
-    const inverse = [], created = {}, clips = [];
+    const inverse = [],
+      created = {},
+      clips = [];
     for (const o of plan(p, op, ctx).ops) {
       const r = OPS[o.type](p, o, ctx);
       inverse.unshift(...r.inverse);
       Object.assign(created, r.created || {});
       if (o.type === 'clip.add' && r.created) clips.push(...Object.values(r.created));
     }
-    if (clips.length) { created.clips = clips; created.clip = clips[0]; }
+    if (clips.length) {
+      created.clips = clips;
+      created.clip = clips[0];
+    }
     return { inverse, created };
   };
 }
