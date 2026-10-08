@@ -21,7 +21,7 @@
 // them exactly as the Node renderer does; graph devices get set(values, { at }) every 20 ms; gain and pan ramp
 // linearly through control points every 128 frames (schedule.js mixGrid, the same numbers the Node renderer uses).
 
-import { Strip, trackSpec, masterSpec, audibility } from './strip.js';
+import { Strip, trackSpec, masterSpec, audibility, keyPlan } from './strip.js';
 import { gridClock } from './clock.js';
 import { notesIn, audioIn, playBuffer, autoIn, lanesOf, mixGrid, laneValue, GRID } from './schedule.js';
 import { noteExpr } from '../kernel/expr.js';
@@ -39,19 +39,25 @@ export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000
 
   const master = new Strip(c, { ...opts, id: 'master', master: true, dest: c.destination });
   master.setMix({ gain: +(p.master && p.master.gain) || 0 }, true);
+  const clean = !!(p.master && p.master.clip === 'clean');
+  master.setClip(clean ? 'clean' : 'soft');
   const heard = audibility(p, tracks);
+  // keys: a key source is built even when it isn't heard (it isn't summed), and wired once everything is built
+  const plan = keyPlan(p, { heard });
   const strips = new Map();
   const builds = [master.sync(masterSpec(p, { at: from }))];
   // tracks sum into the master through a chain (each node adds one track to the ones before it), so the sum is in
   // track order every time (a node fed 3+ connections sums them in an order that varies between runs)
   let chain = null;
   for (const t of p.tracks || []) {
-    if (!heard[t.id]) continue;
+    if (!heard[t.id] && !plan.needed.has(t.id)) continue;
     const s = new Strip(c, { ...opts, id: t.id, dest: null });
-    const sum = c.createGain();
-    if (chain) chain.connect(sum);
-    s.out.connect(sum);
-    chain = sum;
+    if (heard[t.id]) {
+      const sum = c.createGain();
+      if (chain) chain.connect(sum);
+      s.out.connect(sum);
+      chain = sum;
+    }
     s.setMix({ gain: +t.gain || 0, pan: +t.pan || 0, audible: true, trim: (trims && +trims[t.id]) || 0 }, true);
     strips.set(t.id, s);
     builds.push(s.sync(trackSpec(t, { at: from })));
@@ -66,6 +72,7 @@ export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000
     await Promise.all([...new Set(clips.map((a) => a.clip.asset))].map(async (id) => bufs.set(id, await assets.get(id))));
   }
   await Promise.all(builds);
+  wireKeys(p, plan, strips);
   // plugin delay compensation: hold every track back to the latest one
   const lat = {}, comp = {};
   let max = Number.isFinite(latencyMax) && latencyMax > 0 ? latencyMax : 0;
@@ -102,8 +109,29 @@ export async function renderProject(p, { from = 0, to, tracks = null, sr = 48000
   const out = await c.startRendering();
   master.dispose();
   for (const s of strips.values()) s.dispose();
+  // master.clip 'clean': the ceiling the converter and an export put on it, at 0 dBFS (strip.js setClip)
+  if (clean) for (let ch = 0; ch < out.numberOfChannels; ch++) { const d = out.getChannelData(ch); for (let i = 0; i < d.length; i++) { const v = d[i]; if (v > 1) d[i] = 1; else if (v < -1) d[i] = -1; } }
   out.latency = latency;
   return out;
+}
+
+// Wire each keyed insert's key input to its source strip's key tap (keyPlan), and tell it whether it has one.
+// strips: Map(track id -> Strip). Returns the links made: [{ insert, inst, tap }].
+export function wireKeys(p, plan, strips) {
+  const links = [];
+  for (const t of (p && p.tracks) || []) {
+    const s = strips.get(t.id);
+    if (!s) continue;
+    for (const x of t.inserts || []) {
+      if (!plan.keyOf.has(x.id)) continue;
+      const inst = s.instance(x.id);
+      if (!inst || !inst.keyInput) continue;
+      const id = plan.keyOf.get(x.id), src = id ? strips.get(id) : null;
+      if (src) { src.keyTap().connect(inst.keyInput); links.push({ insert: x.id, inst, tap: src.keyTap() }); }
+      inst.setKey(!!src);
+    }
+  }
+  return links;
 }
 
 // A device check gave up on a render that hasn't ended (kernel/check.js heldRenders: a process() that never returns).

@@ -372,6 +372,12 @@ yours to pick by ear:
   bar, and a green dot rides its curve where the band is now. **Time** makes every band react faster or slower; a
   fast **Attack** (under 5 ms) catches each hit's front, a slow one lets it through. Thresholds and splits take the
   arrow keys too.
+- **Make the bass duck under the kick.** Put **Dim Switch** on the bass (Add an effect, in the Devices tab), **Open**
+  it and pick the drums or the kick in its **Key** menu: the bass dips each time the kick hits and comes back before
+  the next one. The mixer says "keyed by Kick" under the bass. **Kick duck** listens to the key's low end only
+  (30-150 Hz), so the hats don't set it off; **Hard pump (riddim)** all but cuts the bass on each kick; **Gentle
+  pump** is for pads. **Depth** is how far it dips, **Release** how long it takes to come back. A muted kick track
+  still keys it, so you can duck to a kick you don't hear. With no key, **No key** dips on the song's beat instead.
 
 ## Grooves
 
@@ -639,7 +645,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 57 devices: the 44 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 58 devices: the 45 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

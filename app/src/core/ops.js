@@ -7,7 +7,7 @@
 // References: ops that create things accept `ref: 'name'`; later ops in the SAME transaction can name the new thing
 // as '$name' (track: '$bass', clip: '$verse1'). ctx.refs holds them.
 
-import { normTrack, normClip, normInsert, idNotes, sortNotes, newId, isValidReference, isTakeId, LIMITS, plainText, cleanName, isColor, NAME_MAX, TITLE_MAX } from './project.js';
+import { normTrack, normClip, normInsert, normKey, idNotes, sortNotes, newId, isValidReference, isTakeId, LIMITS, plainText, cleanName, isColor, NAME_MAX, TITLE_MAX } from './project.js';
 import { parseNotes, parseGrid, normNote, validMeter, isPlace } from './music.js';
 import { TUNING_IDS } from './fretboard.js';
 import { ARRANGEMENT_OPS } from './arrangement.js';
@@ -45,6 +45,26 @@ function findInsert(list, ctx, id, where) {
   const fx = list.find((x) => x.id === id);
   if (!fx) throw new Error(`no insert "${id}" on ${where} (inserts: ${list.map((x) => `${x.id}=${x.device}`).join(', ') || 'none'})`);
   return fx;
+}
+// An insert's key (a sidechain), checked: { track } naming another track of the song (by id, name or $ref), on a
+// track's insert (not the master's), closing no loop (a track whose sound reaches, through keys, the track it keys).
+// Returns the key with the track's id. fxId: the insert whose key is being replaced (its old key doesn't count).
+function checkKey(p, ctx, tid, key, fxId) {
+  if (typeof key !== 'object' || Array.isArray(key) || key.track == null) throw new Error('key is { track: "<track id or name>" } (the track whose sound this insert hears beside its own), or null for none');
+  if (tid === 'master') throw new Error('a master insert can\'t take a key: put the device on the track that should duck, keyed by the one it ducks under');
+  const src = findTrack(p, ctx, key.track);
+  if (src.id === tid) throw new Error(`a track can't key itself: name another track than ${tid} "${src.name}"`);
+  // the loop check: tid's sound reaches every track keyed by it, and on; a loop is tid reaching src
+  const keyedBy = (id) => p.tracks.filter((t) => t.inserts.some((x) => x.id !== fxId && x.key && x.key.track === id)).map((t) => t.id);
+  const seen = new Set([tid]), todo = [tid];
+  while (todo.length) {
+    const id = todo.pop();
+    for (const next of keyedBy(id)) {
+      if (next === src.id) throw new Error(`that key would make a loop: ${tid}'s sound already keys ${src.id} "${src.name}" (through keys), so ${src.id} can't key ${tid}`);
+      if (!seen.has(next)) { seen.add(next); todo.push(next); }
+    }
+  }
+  return { track: src.id };
 }
 function checkDevice(ctx, id, kind) {
   // (an undo, redo or revert puts back exactly what was there, loaded in this browser or not)
@@ -441,7 +461,7 @@ export const OPS = {
     if (!raw.device) throw new Error('insert.add needs insert: { device: "<device id>" }');
     checkDevice(ctx, raw.device, 'effect');
     if (raw.id && idUsed(p, raw.id)) throw new Error(`id ${raw.id} is already used`);
-    const fx = normInsert({ ...raw, by: raw.by || ctx.by });
+    const fx = normInsert({ ...raw, by: raw.by || ctx.by, key: raw.key == null || ctx.restore ? raw.key : checkKey(p, ctx, tid, raw.key, null) });
     const index = fin(op.index) ? Math.max(0, Math.min(list.length, op.index)) : list.length;
     list.splice(index, 0, fx);
     if (op.ref) ctx.refs[op.ref] = fx.id;
@@ -474,6 +494,11 @@ export const OPS = {
     const inv = {};
     if (patch.params) inv.params = mergeParams(fx.params, patch.params); // (checks every param first)
     if ('on' in patch) { inv.on = fx.on; fx.on = !!patch.on; }
+    if ('key' in patch) {
+      const next = patch.key == null ? null : ctx.restore ? normKey(patch.key) : checkKey(p, ctx, tid, patch.key, fx.id);
+      inv.key = fx.key ? clone(fx.key) : null;
+      if (next) fx.key = next; else delete fx.key;
+    }
     return { inverse: [{ type: 'insert.set', track: tid, insert: fx.id, patch: inv }] };
   },
 
@@ -683,9 +708,14 @@ export const OPS = {
   'master.set'(p, op) {
     const patch = op.patch || {};
     const inv = {};
+    if ('clip' in patch && patch.clip != null && !['soft', 'clean'].includes(patch.clip)) throw new Error('master clip is "soft" (the safety soft clip, the default) or "clean" (a hard ceiling at 0 dBFS, linear below: for a master that ends in a limiter)');
     if ('gain' in patch) {
       if (!(fin(patch.gain) && patch.gain >= -96 && patch.gain <= 24)) throw new Error('master gain is in dB, -96..24');
       inv.gain = p.master.gain; p.master.gain = patch.gain;
+    }
+    if ('clip' in patch) {
+      inv.clip = p.master.clip === 'clean' ? 'clean' : 'soft';
+      if (patch.clip === 'clean') p.master.clip = 'clean'; else delete p.master.clip;
     }
     return { inverse: [{ type: 'master.set', patch: inv }] };
   },

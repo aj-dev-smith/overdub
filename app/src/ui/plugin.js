@@ -576,6 +576,30 @@ export default function (app) {
     // hear), and the effects after it, in the Devices tab
     const soundsBtn = isInst && track !== 'master' && app.sounds ? h('button.btn.btn-txt.pw-sounds', { type: 'button', title: 'Hear this track on other instruments', onclick: (e) => app.sounds?.offer?.({ track, from: 'window', anchor: e.currentTarget }) }, 'Sounds') : null;
     const fxBtn = track !== 'master' ? h('button.btn.btn-txt.pw-fx', { type: 'button', title: `The effects on ${s0.trackName}, in the Devices tab`, onclick: () => { ui.select({ track, insert: isInst ? null : slot }); ui.show('rack'); } }, 'Effects') : null;
+    // a keyed device (def.key: Dim Switch): which track it hears beside its own input (its key, insert.set { key })
+    const keyPick = !isInst && def.key === true && track !== 'master'
+      ? h('select.pw-keypick', { 'aria-label': `${name}: the track it ducks under (its key)`, title: 'The track it listens to: it ducks under that track\'s sound', onchange: (e) => setKey(e.currentTarget.value) })
+      : null;
+    const keyBox = keyPick ? h('label.pw-key-to', h('span.pw-lbl', 'Key'), keyPick) : null;
+    let keySig = '';
+    function syncKey() {
+      if (!keyPick) return;
+      const p = store.get(), me = (p.tracks || []).find((t) => t.id === track), fx = me && me.inserts.find((x) => x.id === slot);
+      const cur = fx && fx.key ? fx.key.track : '';
+      const others = (p.tracks || []).filter((t) => t.id !== track);
+      const gone = cur && !others.some((t) => t.id === cur);
+      const sig = cur + '|' + others.map((t) => t.id + ':' + t.name).join(',');
+      if (sig === keySig) return;
+      keySig = sig;
+      keyPick.replaceChildren(h('option', { value: '' }, 'No key'), ...others.map((t) => h('option', { value: t.id }, t.name)), ...(gone ? [h('option', { value: cur }, 'Key track missing')] : []));
+      keyPick.value = cur;
+    }
+    function setKey(id) {
+      const r = store.dispatch({ type: 'insert.set', track, insert: slot, patch: { key: id ? { track: id } : null } }, { by: 'you', label: `${name}: key` });
+      if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); keySig = ''; syncKey(); return; }
+      const t = id && (store.get().tracks || []).find((x) => x.id === id);
+      ui.announce?.(t ? `${name} ducks under ${t.name}` : `${name} has no key`);
+    }
     const statusEl = h('p.pw-status');
     const peakEl = h('span.pw-peak', { 'aria-hidden': 'true' }, 'silent');
     const scopeCv = kit.canvas({ className: 'pw-scope', label: `${name}'s output: scope and spectrum` });
@@ -583,7 +607,7 @@ export default function (app) {
     // the studio's notes while the window is open, when there's no room for them beside it (ui.dockToasts: a phone's
     // window always): a line of the bar, so a note never sits over the controls
     const toastBox = h('div.pw-toasts', { role: 'status', 'aria-live': 'polite' });
-    barItems = [presets, ab, ...[onTog?.el, codeBtn, askBtn, soundsBtn, fxBtn].filter(Boolean)];
+    barItems = [presets, ab, ...[onTog?.el, keyBox, codeBtn, askBtn, soundsBtn, fxBtn].filter(Boolean)];
     bar.append(...barItems, statusEl, toastBox);
     head.insertBefore(live, playKey);
     arrange();
@@ -930,6 +954,7 @@ export default function (app) {
     }
     let wasOn = syncOn();
     syncPresets();
+    syncKey();
     // toasts keep clear of the window while it's open (ui/shell.js): beside it, or in its bar
     const undock = ui.dockToasts?.({ el, box: toastBox }) || null;
 
@@ -973,6 +998,7 @@ export default function (app) {
       const on = syncOn();
       if (on !== wasOn) { wasOn = on; emit({ type: 'on', on }); }
       syncPresets();
+      syncKey();
       renderCredit();
       if (evt.kind === 'do' && store.isAgent?.(evt.by)) {
         const changed = keys.filter((k) => stored[k] !== before[k]);
@@ -1082,6 +1108,9 @@ const CSS = `
 .pw-pre-e { flex: none; color: var(--text-3); font-weight: 400; white-space: nowrap; }
 .pw-pre-n .ico { margin-left: 4px; color: var(--text-3); }
 .pw-ab-copy { font-size: 12px; }
+.pw-key-to { display: inline-flex; align-items: center; min-width: 0; }
+.pw-keypick { max-width: 180px; height: 28px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg); color: var(--text); font: 600 13px/1 var(--font-ui); }
+.pw-keypick:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
 .pw-sounds, .pw-fx { font-size: 12px; }
 .pw-status { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the studio's notes, when there's no room for them beside the window (ui/shell.js keeps them clear of it): a ruled

@@ -52,6 +52,7 @@
 <li><a href="#tab">Tab</a></li>
 <li><a href="#eq-slide-rule-coreeq8">EQ: Slide Rule (core.eq8)</a></li>
 <li><a href="#three-band-compression-gaffer-tape-coremultiband">Three-band compression: Gaffer Tape (core.multiband)</a></li>
+<li><a href="#the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys">The bass ducks under the kick: Dim Switch (core.ducker) and keys</a></li>
 <li><a href="#writing-devices">Writing devices</a></li>
 <li><a href="#for-humans-seeing-and-undoing-what-agents-did">For humans: seeing and undoing what agents did</a></li>
 <li><a href="#privacy">Privacy</a></li>
@@ -61,7 +62,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub for agents (and their humans)</a></h1>
-    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 50 min to read</p>
+    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 52 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other: the human lays down a take, the agent
 plays over it, the human plays over that. This page is for both of you: the human who wants to plug an agent in, and
@@ -333,8 +334,9 @@ or changes the song puts the old sound back first (the card says why). <code>sug
 { type: 'track.add', ref: 'pad', track: { name, kind: 'instrument' | 'audio', instrument: { device, params?, preset? }, inserts?, gain?, pan? }, index? }
 { type: 'track.set', track, patch: { name?, color?, gain? (dB), pan? (-1..1), mute?, solo? } }   <span class="c">// track.remove / track.move { track, index }</span>
 { type: 'instrument.set', track, device?, params?, preset? }              <span class="c">// params merge; null resets one; preset: a name</span>
-{ type: 'insert.add', track, insert: { device, params?, preset?, on? }, index?, ref? }   <span class="c">// insert.remove / insert.move</span>
-{ type: 'insert.set', track, insert, patch: { on?, params?, preset? } }
+{ type: 'insert.add', track, insert: { device, params?, preset?, on?, key? }, index?, ref? }   <span class="c">// insert.remove / insert.move</span>
+{ type: 'insert.set', track, insert, patch: { on?, params?, preset?, key? } }   <span class="c">// key: { track } (a sidechain, below) or null</span>
+{ type: 'master.set', patch: { gain?, clip? } }   <span class="c">// clip: 'clean' (a hard ceiling at 0 dBFS, after a limiter) or 'soft' (the default)</span>
 { type: 'clip.add', track, ref?, clip: { start, length, name?, notes?: &quot;text&quot;, grid? } }
 { type: 'clip.set', track, clip, patch: { start?, length?, name?, mute?, take?, tuning?, capo? } }   <span class="c">// mute: true keeps it, silent; take: 'tk_…' its take group (null: none); tuning, capo: a notes clip's, for tab; clip.remove / clip.move { toTrack?, start? }</span>
 { type: 'notes.add' | 'notes.replace', track, clip, notes: &quot;text&quot; }     <span class="c">// notes.remove { ids } / notes.set { notes: [{ id, p?, t?, d?, v?, s?, f? }] }</span>
@@ -502,6 +504,23 @@ words (&quot;depth 40%, splits at 120 Hz and 2.5 kHz; low: down above −4 dB at
 <code>show_device</code> opens its window, where a threshold, a split or a knob you move flashes in your colour and the window
 says what moved; while the song plays the window also shows the loudness out against in, in LU, and each band held
 or lifted. <code>render_and_measure</code> with and without it (<code>bypass</code>) gives the same comparison in numbers.</p>
+<h2 id="the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys"><a class="h-link" href="#the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys">The bass ducks under the kick: Dim Switch (<code>core.ducker</code>) and keys</a></h2>
+<p>A keyed effect hears a second track, its <strong>key</strong>: Dim Switch on the bass, keyed by the drums, dips the bass on each
+kick. Put it on and key it in one call:</p>
+<div class="code" data-lang="json"><pre><code>[{ &quot;type&quot;: &quot;insert.add&quot;, &quot;track&quot;: &quot;Bass&quot;, &quot;insert&quot;: { &quot;device&quot;: &quot;core.ducker&quot;, &quot;preset&quot;: &quot;Kick duck&quot;, &quot;key&quot;: { &quot;track&quot;: &quot;Drums&quot; } }, &quot;ref&quot;: &quot;duck&quot; }]</code></pre></div>
+<p><code>key</code> names a track by id, name or <code>$ref</code>; the key hears that track after its inserts and before its fader, mute and
+pan, so a muted &quot;ghost kick&quot; track keys it too. <code>insert.set { patch: { key: null } }</code> removes it. A key to the insert's
+own track, on a master insert, or one that would close a loop is refused with the reason; a key whose track is removed
+stays (get_project: &quot;key track missing&quot;) and is heard as silence. <code>get_project</code> writes it on the insert:
+<code>fx_ab12cd=Dim Switch (keyed by t_k3j9x2 &quot;Drums&quot;)</code>. Dim Switch's params: <code>mode</code> (<code>TRIGGER</code>: a fixed duck on each hit;
+<code>FOLLOW</code>: follows the key's level), <code>depth</code> (dB), <code>attack</code>, <code>hold</code>, <code>release</code> (ms), <code>curve</code>, <code>thresh</code> (dB), <code>key_lo</code>
+and <code>key_hi</code> (Hz: the part of the key it listens to; 30-150 for a kick), <code>nokey</code> (with no key, dip on <code>1/4</code>, <code>1/8</code>,
+<code>1/2</code> or <code>1 BAR</code> of the song) and <code>mix</code>. Its presets: Kick duck, Kick and snare duck, Gentle pump, Hard pump (riddim),
+Bus breathe, Quarter pump (no key). A device you write can take a key too: <code>key: true</code> in its definition, <code>t.key</code> in
+its kernel (the device guide).</p>
+<p><strong>A loud master.</strong> End the master in a limiter (Red Line, <code>core.limiter</code>, ceiling −1) and set
+<code>master.set { patch: { clip: 'clean' } }</code>: the safety soft clip after the limiter rounds a −1 dBTP master down by up
+to half a decibel, and <code>clean</code> leaves it exactly as the limiter did, with a hard ceiling at 0 dBFS.</p>
 <h2 id="writing-devices"><a class="h-link" href="#writing-devices">Writing devices</a></h2>
 <p>A device is a definition plus a <strong>kernel</strong>: the source of one JS expression that runs in an AudioWorklet with only
 the <code>dsp</code> stdlib in scope (no DOM, no clock, seeded randomness). That keeps renders deterministic; it is not a

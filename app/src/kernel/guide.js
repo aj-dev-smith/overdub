@@ -112,6 +112,7 @@ host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot rel
   params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
   drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
   presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  key?: true (effects: it hears a second track, its key, as t.key),
   kernel: '<source>' }
 
 ParamSpec, continuous: { key, label, min, max, def, curve?: 'lin' | 'log' (log needs min > 0; use it for Hz and
@@ -156,6 +157,9 @@ oldest, with a 5 ms fade):
   the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
   already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
   and mod); in process, the channel's. A kernel that ignores them still plays.
+- A keyed effect (key: true in the definition; a sidechain, e.g. a duck under the kick) also sees t.key = { l, r, on }:
+  this block's key, another track's sound after its inserts (Float32Arrays of n), silent with on false when the
+  insert has no key (insert.set { patch: { key: { track } } } gives it one).
 - Mono sources arrive on both L and R. Output is always stereo.
 - render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.
 

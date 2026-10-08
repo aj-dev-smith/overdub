@@ -49,6 +49,8 @@
 <li><a href="#how-a-device-gets-its-face">How a device gets its face</a></li>
 <li><a href="#scribble-strip-coreshaper-a-shaper-you-draw">Scribble Strip (core.shaper): a shaper you draw</a></li>
 <li><a href="#gaffer-tape-coremultiband-three-bands-up-and-down">Gaffer Tape (core.multiband): three bands, up and down</a></li>
+<li><a href="#dim-switch-coreducker-the-sidechain-duck">Dim Switch (core.ducker): the sidechain duck</a></li>
+<li><a href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></li>
 <li><a href="#under-the-hood">Under the hood</a></li>
 <li><a href="#expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal">Expression: pitch bend, the mod wheel and the sustain pedal</a></li>
 <li><a href="#presets">Presets</a></li>
@@ -73,7 +75,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 52 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 56 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -259,6 +261,47 @@ all of this.</li>
 ink when it takes a decibel or more off), In and Out meters, and each band held or lifted, all worked out on the
 page from the window's own taps (<code>ctx.meter.tap</code>) and the shared functions.</li>
 </ul>
+<h2 id="dim-switch-coreducker-the-sidechain-duck"><a class="h-link" href="#dim-switch-coreducker-the-sidechain-duck">Dim Switch (core.ducker): the sidechain duck</a></h2>
+<p>The track it sits on dips under another track: the bass makes room for the kick, the pads breathe with the drums.
+<code>app/src/devices/builtin/ducker.js</code>. It is the studio's first <strong>keyed</strong> device (<code>key: true</code>, below): its window has a
+<strong>Key</strong> menu listing the song's other tracks, which sets the insert's key (<code>insert.set { patch: { key: { track } } }</code>,
+signed whoever picked it), and the mixer shows &quot;keyed by Kick&quot; under the track.</p>
+<ul>
+<li><strong>What it hears</strong>: the key track after its inserts and before its fader, mute and pan, so a muted &quot;ghost kick&quot;
+track still keys it and moving the kick's fader doesn't change the duck. A band-pass on the key, <code>key_lo</code> to
+<code>key_hi</code> (24 dB per octave each side), lets a whole drum track key it on its kick alone (30-150 Hz); the band adds
+about a millisecond of delay before it hears a kick.</li>
+<li><strong><code>mode</code></strong>: <code>TRIGGER</code> fires one fixed shape each time the key's band rises past <code>thresh</code> (and has fallen 6 dB under
+it since, at least 30 ms after the last): down by <code>depth</code> (0-48 dB) over <code>attack</code> (0.1-50 ms, a raised cosine),
+held <code>hold</code> (0-500 ms), back over <code>release</code> (10-2000 ms) in a straight line in dB, <code>curve</code> bending it (+ waits and
+then comes back fast, a harder pump; - comes back fast and eases in). <code>FOLLOW</code> is a compressor listening to the
+key: down by however far it is over <code>thresh</code>, dB for dB, at most <code>depth</code>, at the attack; held, then back with a time
+constant of a third of the release.</li>
+<li><strong><code>nokey</code></strong> (<code>OFF</code>, <code>1/4</code>, <code>1/8</code>, <code>1/2</code>, <code>1 BAR</code>): with no key set, <code>TRIGGER</code> fires on that grid of the song while the
+transport plays. <code>mix</code> blends the dry back in.</li>
+<li><strong>At its defaults with no key it is bypass</strong>, bit for bit. No look-ahead, no latency. Measured
+(<code>tools/sidechain-test.js</code>): keyed by a kick it is at its depth within ATTACK + 1 ms of the kick crossing its
+threshold, and within 1 dB of the way back at 91% of RELEASE (CURVE 0).</li>
+<li><strong>Presets</strong>: Kick duck, Kick and snare duck (dubstep's), Gentle pump, Hard pump (riddim), Bus breathe (FOLLOW),
+Quarter pump (no key), each tagged <code>bass-music</code>.</li>
+</ul>
+<h2 id="keys-an-effect-that-hears-another-track"><a class="h-link" href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></h2>
+<p>A def with <code>key: true</code> (effects only) gets a second input, its <strong>key</strong>: the sound of the track the insert's <code>key</code>
+names (<code>{ track: '&lt;track id&gt;' }</code>, set with <code>insert.add</code> / <code>insert.set</code>), taken after that track's inserts and before
+its fader, mute and pan. In <code>process(L, R, n, p, t)</code> it reads <code>t.key = { l, r, on }</code>: two preallocated
+<code>Float32Array</code> views of this block's key (silent when there is none) and <code>on</code>, false when the insert has no key or its
+track is gone. A def without <code>key</code> never sees <code>t.key</code> and behaves exactly as before.</p>
+<ul>
+<li>Both renderers render every key source before the tracks it keys, in the same 128-frame block (a topological order,
+stable on the track order, so a song without keys renders exactly as it did), and render a key source even when it
+isn't heard (muted, soloed out, left out of a stem), without summing it. The browser and Node agree bit for bit on
+the <code>sidechain</code> golden scene.</li>
+<li>The ops refuse a key naming no track, the insert's own track, a master insert, and a loop (a track's sound reaching,
+through keys, the track it keys). A key whose track is removed stays in the song, is heard as silence, and comes back
+with an undo.</li>
+<li>The key is the source's place on the master timeline after delay compensation; inserts after the keyed device that
+add latency make the key that much late (reported in the latency, not corrected).</li>
+</ul>
 <h2 id="under-the-hood"><a class="h-link" href="#under-the-hood">Under the hood</a></h2>
 <ul>
 <li><strong>One processor for every kernel.</strong> <code>ensureKernelWorklet(c)</code> loads <code>app/src/kernel/processor.js</code> (the processor and
@@ -307,9 +350,12 @@ in <code>process</code> they are the channel's. Evaluate them per block: they mo
 channel changes and evaluates a note's curve at the start of each piece). <code>core.guitar</code> (DI Box) bends its string
 with <code>t.bend</code> and adds finger vibrato from <code>t.mod</code>.</p>
 <h2 id="presets"><a class="h-link" href="#presets">Presets</a></h2>
-<p><code>presets: [{ name, params, blurb? }]</code> names sounds a newcomer picks by name. The registry checks and fills them in
-(<code>normPresets</code>): every param left out takes its default, values are clamped to their ranges and snapped to their
-steps, a switch may be given by its label (<code>'NYLON'</code>) or its index, names are unique (any case), up to 24. So a
+<p><code>presets: [{ name, params, blurb?, tags? }]</code> names sounds a newcomer picks by name. The registry checks and fills them
+in (<code>normPresets</code>): every param left out takes its default, values are clamped to their ranges and snapped to their
+steps, a switch may be given by its label (<code>'NYLON'</code>) or its index, names are unique (any case), up to 24 (64 for a
+built-in, by <code>overdub</code>). <code>tags</code> are words from the registry's <code>PRESET_TAGS</code> (<code>bass-music</code>, <code>dubstep</code>, <code>riddim</code>,
+<code>dnb</code>, <code>melodic</code>, <code>sub</code>, <code>growl</code>, <code>reese</code>, <code>wobble</code>, <code>stab</code>, <code>lead</code>, <code>chords</code>, <code>fx</code>, <code>drums</code>, <code>bus</code>, <code>master</code>,
+<code>pump</code>): what the browser's genre filter and <code>list_devices { tag }</code> find a preset by. So a
 preset's <code>params</code> is the whole sound: <code>instrument.set { params }</code> (or <code>insert.set { patch: { params } }</code>) applies it
 as it is, and <code>presetParams(def, name)</code> looks one up. <code>list_devices</code> lists their names and <code>get_device</code> their params
 for agents. A device file and a <code>define_device</code> call carry the field too (a bad preset is refused with the reason).</p>
@@ -720,6 +766,7 @@ host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot rel
   params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
   drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
   presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  key?: true (an effect that hears another track: t.key, &quot;Keys&quot; above),
   kernel: '&lt;source&gt;' }</code></pre></div>
 <p>ParamSpec, continuous: { key, label, min, max, def, curve?: 'lin' | 'log' (log needs min &gt; 0; use it for Hz and
 times), unit?: 'Hz' | 'dB' | 'ms' | 's' | '%' | 'st' | 'note' | 'x', role?, desc?, step?, group? }
@@ -761,6 +808,8 @@ lfo.sync(beats, t). t.bend is the pitch bend in semitones (multiply your frequen
 the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
 already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
 and mod); in process, the channel's. A kernel that ignores them still plays.</li>
+<li>A keyed effect (<code>key: true</code>) also sees t.key = { l, r, on }: this block's key (another track's sound, &quot;Keys&quot; above),
+silent with on false when it has none.</li>
 <li>Mono sources arrive on both L and R. Output is always stereo.</li>
 <li>render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.</li>
 </ul>

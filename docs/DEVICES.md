@@ -195,6 +195,49 @@ measured, is [research/MULTIBAND.md](research/MULTIBAND.md).
   ink when it takes a decibel or more off), In and Out meters, and each band held or lifted, all worked out on the
   page from the window's own taps (`ctx.meter.tap`) and the shared functions.
 
+## Dim Switch (core.ducker): the sidechain duck
+
+The track it sits on dips under another track: the bass makes room for the kick, the pads breathe with the drums.
+`app/src/devices/builtin/ducker.js`. It is the studio's first **keyed** device (`key: true`, below): its window has a
+**Key** menu listing the song's other tracks, which sets the insert's key (`insert.set { patch: { key: { track } } }`,
+signed whoever picked it), and the mixer shows "keyed by Kick" under the track.
+
+- **What it hears**: the key track after its inserts and before its fader, mute and pan, so a muted "ghost kick"
+  track still keys it and moving the kick's fader doesn't change the duck. A band-pass on the key, `key_lo` to
+  `key_hi` (24 dB per octave each side), lets a whole drum track key it on its kick alone (30-150 Hz); the band adds
+  about a millisecond of delay before it hears a kick.
+- **`mode`**: `TRIGGER` fires one fixed shape each time the key's band rises past `thresh` (and has fallen 6 dB under
+  it since, at least 30 ms after the last): down by `depth` (0-48 dB) over `attack` (0.1-50 ms, a raised cosine),
+  held `hold` (0-500 ms), back over `release` (10-2000 ms) in a straight line in dB, `curve` bending it (+ waits and
+  then comes back fast, a harder pump; - comes back fast and eases in). `FOLLOW` is a compressor listening to the
+  key: down by however far it is over `thresh`, dB for dB, at most `depth`, at the attack; held, then back with a time
+  constant of a third of the release.
+- **`nokey`** (`OFF`, `1/4`, `1/8`, `1/2`, `1 BAR`): with no key set, `TRIGGER` fires on that grid of the song while the
+  transport plays. `mix` blends the dry back in.
+- **At its defaults with no key it is bypass**, bit for bit. No look-ahead, no latency. Measured
+  (`tools/sidechain-test.js`): keyed by a kick it is at its depth within ATTACK + 1 ms of the kick crossing its
+  threshold, and within 1 dB of the way back at 91% of RELEASE (CURVE 0).
+- **Presets**: Kick duck, Kick and snare duck (dubstep's), Gentle pump, Hard pump (riddim), Bus breathe (FOLLOW),
+  Quarter pump (no key), each tagged `bass-music`.
+
+## Keys: an effect that hears another track
+
+A def with `key: true` (effects only) gets a second input, its **key**: the sound of the track the insert's `key`
+names (`{ track: '<track id>' }`, set with `insert.add` / `insert.set`), taken after that track's inserts and before
+its fader, mute and pan. In `process(L, R, n, p, t)` it reads `t.key = { l, r, on }`: two preallocated
+`Float32Array` views of this block's key (silent when there is none) and `on`, false when the insert has no key or its
+track is gone. A def without `key` never sees `t.key` and behaves exactly as before.
+
+- Both renderers render every key source before the tracks it keys, in the same 128-frame block (a topological order,
+  stable on the track order, so a song without keys renders exactly as it did), and render a key source even when it
+  isn't heard (muted, soloed out, left out of a stem), without summing it. The browser and Node agree bit for bit on
+  the `sidechain` golden scene.
+- The ops refuse a key naming no track, the insert's own track, a master insert, and a loop (a track's sound reaching,
+  through keys, the track it keys). A key whose track is removed stays in the song, is heard as silence, and comes back
+  with an undo.
+- The key is the source's place on the master timeline after delay compensation; inserts after the keyed device that
+  add latency make the key that much late (reported in the latency, not corrected).
+
 ## Under the hood
 
 - **One processor for every kernel.** `ensureKernelWorklet(c)` loads `app/src/kernel/processor.js` (the processor and
@@ -246,9 +289,12 @@ with `t.bend` and adds finger vibrato from `t.mod`.
 
 ## Presets
 
-`presets: [{ name, params, blurb? }]` names sounds a newcomer picks by name. The registry checks and fills them in
-(`normPresets`): every param left out takes its default, values are clamped to their ranges and snapped to their
-steps, a switch may be given by its label (`'NYLON'`) or its index, names are unique (any case), up to 24. So a
+`presets: [{ name, params, blurb?, tags? }]` names sounds a newcomer picks by name. The registry checks and fills them
+in (`normPresets`): every param left out takes its default, values are clamped to their ranges and snapped to their
+steps, a switch may be given by its label (`'NYLON'`) or its index, names are unique (any case), up to 24 (64 for a
+built-in, by `overdub`). `tags` are words from the registry's `PRESET_TAGS` (`bass-music`, `dubstep`, `riddim`,
+`dnb`, `melodic`, `sub`, `growl`, `reese`, `wobble`, `stab`, `lead`, `chords`, `fx`, `drums`, `bus`, `master`,
+`pump`): what the browser's genre filter and `list_devices { tag }` find a preset by. So a
 preset's `params` is the whole sound: `instrument.set { params }` (or `insert.set { patch: { params } }`) applies it
 as it is, and `presetParams(def, name)` looks one up. `list_devices` lists their names and `get_device` their params
 for agents. A device file and a `define_device` call carry the field too (a bad preset is refused with the reason).
@@ -689,6 +735,7 @@ host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot rel
   params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
   drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
   presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  key?: true (an effect that hears another track: t.key, "Keys" above),
   kernel: '<source>' }
 ```
 
@@ -742,6 +789,8 @@ oldest, with a 5 ms fade):
   the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
   already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
   and mod); in process, the channel's. A kernel that ignores them still plays.
+- A keyed effect (`key: true`) also sees t.key = { l, r, on }: this block's key (another track's sound, "Keys" above),
+  silent with on false when it has none.
 - Mono sources arrive on both L and R. Output is always stereo.
 - render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.
 

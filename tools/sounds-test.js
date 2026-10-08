@@ -125,7 +125,7 @@ try {
     const B = await import('/app/src/devices/builtin/index.js');
     return B.BUILTINS.map((d) => d.id);
   });
-  t.ok(ids.length === 44, `builtin/index.js registers ${ids.length} devices`);
+  t.ok(ids.length === 45, `builtin/index.js registers ${ids.length} devices`);
   // a sampled device whose samples haven't been fetched plays nothing: skipped here (tools/drumkit-test.js says so)
   const unfetched = SAMPLED.filter((d) => Object.values(d.data || {}).some((h) => !fs.existsSync(dataPath(h)))).map((d) => d.id);
   for (const id of unfetched) t.note(`${id}: skipped, its samples haven't been fetched (node tools/fetch-kits.js)`);

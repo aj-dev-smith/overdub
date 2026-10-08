@@ -292,9 +292,9 @@ The op catalog (`core/ops.js`; each returns its inverse; `OP_TYPES` lists them).
 | `track.remove` / `track.move` | `track`, (`index`) |
 | `track.set` | `track`, `patch: { name?, color?, gain?, pan?, mute?, solo?, arm?, input? }` (gain −96..24 dB, pan −1..1) |
 | `instrument.set` | `track`, `device?`, `params?` (params merge; `null` resets one to its default) |
-| `insert.add` | `track`, `insert: { device, params?, on? }`, `index?`, `ref?` |
+| `insert.add` | `track`, `insert: { device, params?, on?, key? }`, `index?`, `ref?` |
 | `insert.remove` / `insert.move` | `track`, `insert`, (`index`) |
-| `insert.set` | `track`, `insert`, `patch: { on?, params? }` (params merge) |
+| `insert.set` | `track`, `insert`, `patch: { on?, params?, key? }` (params merge; key: `{ track }` or null, below) |
 | `clip.add` | `track`, `clip: Partial<Clip>` (notes may be the text format, or `grid`), `ref?` |
 | `clip.remove` | `track`, `clip` |
 | `clip.set` | `track`, `clip`, `patch: { start?, length?, name?, color?, offset?, gain?, mute?, tuning?, capo? }` (`mute: true` silences the clip and keeps it; `false` stores no flag; `tuning` and `capo`, a notes clip's, for its tab: `null` or capo 0 removes them) |
@@ -310,7 +310,7 @@ The op catalog (`core/ops.js`; each returns its inverse; `OP_TYPES` lists them).
 | `time.insert` / `time.remove` | `at`, `length` (beats, across the whole song: clips, sections, the loop) |
 | `clip.repeat` | `track`, `clip`, `times` (2..64, in all), `mode?: 'copies' \| 'loop'`, `ref?` |
 | `clip.split` | `track`, `clip`, `at` (a song beat inside it), `ref?` (the right half) |
-| `master.set` | `patch: { gain }` (dB, −96..24) |
+| `master.set` | `patch: { gain?, clip? }` (gain dB, −96..24; clip `'soft'` or `'clean'`, below) |
 | `auto.write` | `track`, `insert?`, `param`, `points: [Point] \| "text"`, `from?`, `to?`: replaces the lane's points in [from, to] (default: the span of the points; none with a range clears it), making the lane if there is none; signs it `by` the writer; values checked against the param's range |
 | `auto.clear` | `track`, `insert?`, `param`, `from?`, `to?`: removes the points in the range; with neither, the lane |
 | `auto.set` | `track`, `insert?`, `param`, `patch: { off }`: `true` holds the lane (its static value plays), `false` gives it back (no flag stored) |
@@ -419,7 +419,7 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 44 built-ins, thirteen
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 45 built-ins, thirteen
 of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
 Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), `devices/guitar/` (the
 Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
@@ -675,6 +675,21 @@ moving with it); `masterTap` and every render are after the clip. The engine rec
 on every store change (add, remove, reorder, params with a glide, bypass with a crossfade). Notes are read by a lookahead scheduler (`engine/schedule.js`; 25 ms tick,
 120 ms ahead) each tick, so editing notes never rebuilds anything. `render` builds the same graph in an
 OfflineAudioContext with the same functions, so what an agent measures is what the human hears.
+
+**Keys** (sidechains; `strip.js keyPlan`, `tools/sidechain-test.js`). An insert may carry `key: { track }`
+(`insert.add` / `insert.set`; the ops refuse a missing track, the insert's own, a master insert and a loop). A keyed
+device (`def.key: true`, such as Dim Switch) has a second input, fed from the key track's `keyTap()`: its sound after its
+inserts, before its fader, mute and pan. Live, the engine wires each key after the strips sync (`updateKeys`), and a
+change of key is rewired inside the keyed strip's dip, so it never clicks; `inst.setKey(on)` tells the kernel whether a
+key is wired (`t.key.on`). Every render builds each key source even when it isn't heard (muted, soloed out, not in a
+stem's `tracks`) and doesn't sum it; Node renders the strips in key order (a topological sort, stable on track order)
+into their own buffers and sums them in track order, so a song without keys is bit-exact with before, and Web Audio
+processes a key's source before the node it feeds in the same render quantum, so the two agree.
+
+**The master's end** (`master.clip`, absent = `'soft'`): the safety soft clip, or `'clean'` for a master that ends in a
+limiter: nothing between the master gain and the output but the output's own ceiling at 0 dBFS (`Strip.setClip`; an
+offline render clamps its buffer to ±1.0, as Node's renderer and every export do). The metronome's monitor clip is the
+same either way.
 
 Timing rules (`engine/engine.js` header; checked in `tools/engine-test.js`):
 

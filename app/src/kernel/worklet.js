@@ -45,6 +45,8 @@
 //   { type: 'data', data }                     the kernel data arrived (it was loading): create() again with it, the
 //                                              same source, crossfading from what played before (silence) over 20 ms
 //   { type: 'sleep', on }                      skip the kernel and output silence (bypassed effects)
+//   { type: 'key', on }                        a keyed effect's key is wired (on) or not (t.key.on); its samples come in
+//                                              on the node's second input (processorOptions.key: the def's key: true)
 //   { type: 'sync', id }                       answered with { type: 'synced', id } (everything before it is in)
 //   { type: 'stats' }                          ask for { type: 'stats', voices, held, maxVoices, steals, notes, faulted,
 //                                              dozing, stuck, list, frame } (held: voices whose note is still down;
@@ -165,8 +167,9 @@ export function kernelCompiler(scope) {
 // note, a glide or a stolen voice happens on the same frame in both. Returns the KernelCore class for a sample rate.
 //   new KernelCore(processorOptions, post)   post(msg): where messages out go
 //   core.msg(d)                               a message in (the same ones node.port takes)
-//   core.block(iL, iR, L, R, frame)           render L/R (n = L.length) for the block starting at absolute `frame`
-//                                             (iL/iR: the effect's input, or null); false once ended
+//   core.block(iL, iR, L, R, frame, kL?, kR?) render L/R (n = L.length) for the block starting at absolute `frame`
+//                                             (iL/iR: the effect's input, or null; kL/kR: a keyed effect's key, or
+//                                             null for silence); false once ended
 export function kernelCore(SR, dsp, kernelCompiler) {
   const FADE = Math.round(0.02 * SR);       // hot reload crossfade
   const STEAL = Math.round(0.005 * SR);     // a stolen voice fades out over 5 ms
@@ -368,6 +371,11 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       const tr = o.transport || {};
       this.t = { bpm: tr.bpm || 120, playing: !!tr.playing, beat: tr.beat || 0, bend: 0, mod: 0, sustain: false };
       this.x = { bend: 0, mod: 0, sustain: false }; // the channel's expression (t carries it, per voice in render)
+      // the key input (a def with key: true, effects only; docs/DEVICES.md "Keys"): t.key = { l, r, on }, this block's
+      // key in two preallocated views (silent when there is none) and whether the insert has a key at all. A def
+      // without it never sees t.key, and nothing here runs for it
+      this.keyed = !!o.key && this.kind === 'effect';
+      if (this.keyed) this.t.key = { l: new Float32Array(128), r: new Float32Array(128), on: !!o.keyOn };
       this.f0 = 0;       // the absolute frame of the block being rendered
       this.anchor = { bpm: this.t.bpm, playing: this.t.playing, beat: this.t.beat, time: tr.time || 0 };
       // event queue (frames)
@@ -498,6 +506,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
         case 'code': this.load(d.source, d.id); break;
         case 'data': this.data = d.data || null; if (this.source != null) this.load(this.source, null); break;
         case 'sleep': this.sleeping = !!d.on; break;
+        case 'key': if (this.keyed) this.t.key.on = !!d.on; break;
         case 'stats':
           this.post({ type: 'stats', voices: this.cur ? this.cur.voices.filter((s) => s.alive).length : 0, held: this.cur ? this.cur.voices.filter((s) => s.alive && s.held && !s.fade).length : 0, stuck: this.stuck, maxVoices: this.maxVoices, steals: this.steals, notes: this.notes, faulted: this.faulted, version: this.version, dozing: this.dozing,
             list: this.cur ? this.cur.voices.filter((s) => s.alive && !s.fade).map((s) => ({ p: s.pitch, held: s.held, sus: s.sus, on: s.onF, rel: s.relF })) : [], frame: this.f0 });
@@ -574,10 +583,15 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       const message = (line ? `line ${line}: ` : '') + (e ? `${what} threw ${e.name}: ${e.message}` : what);
       this.post({ type: 'error', stage: 'process', message, line });
     }
-    block(iL, iR, L, R, f0) {
+    block(iL, iR, L, R, f0, kL, kR) {
       if (this.ended) return false;
       const n = L.length;
       if (this.sL.length < n) { this.sL = new Float32Array(n); this.sR = new Float32Array(n); this.fL = new Float32Array(n); this.fR = new Float32Array(n); }
+      if (this.keyed) {
+        const K = this.t.key;
+        if (K.l.length !== n) { K.l = new Float32Array(n); K.r = new Float32Array(n); }
+        if (kL && kL.length >= n) { for (let i = 0; i < n; i++) K.l[i] = kL[i]; const r = kR && kR.length >= n ? kR : kL; for (let i = 0; i < n; i++) K.r[i] = r[i]; } else { K.l.fill(0); K.r.fill(0); }
+      }
       // transport at the start of this block
       const an = this.anchor, t = this.t, now = f0 / SR;
       t.bpm = an.bpm; t.playing = an.playing;
@@ -712,8 +726,8 @@ export function overdubKernelWorklet(overdubDsp, kernelCompiler, kernelCore) {
       if (core.ended) return false;
       const out = outputs[0];
       if (!out || !out.length) return true;
-      const inp = inputs[0];
-      return core.block(inp && inp[0], inp && (inp[1] || inp[0]), out[0], out[1] || out[0], currentFrame);
+      const inp = inputs[0], key = core.keyed ? inputs[1] : null;
+      return core.block(inp && inp[0], inp && (inp[1] || inp[0]), out[0], out[1] || out[0], currentFrame, key && key[0], key && (key[1] || key[0]));
     }
   }
   registerProcessor('overdub-kernel', OverdubKernel);

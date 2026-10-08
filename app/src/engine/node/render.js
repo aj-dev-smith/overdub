@@ -19,7 +19,11 @@
 //   (plugin delay compensation: a track's notes and clips are held back by the latest track's latency less its own,
 //   whole samples, as the engine schedules them)
 //   master: sum -> master inserts -> fader (master gain) -> safety soft clip (the WaveShaper's curve, interpolated
-//           the way Chrome interpolates it)
+//           the way Chrome interpolates it), or with master.clip 'clean' a hard ceiling at 0 dBFS
+//   keys (sidechains, strip.js keyPlan): every strip renders its block in key order, each key source before the tracks
+//           it keys, into its own buffers; a keyed insert reads its source's (after its inserts, before its fader); the
+//           sum is still in track order, so a song without keys renders exactly as before. A key source that isn't
+//           heard (muted, soloed out, not in `tracks`) is rendered and not summed
 // Notes come from engine/schedule.js's notesIn (the same chase, the same note-off-before-note-on order at one time).
 //
 // Graph devices (pedals and amps: Web Audio node graphs) cannot run here. An insert that names one is bypassed (its
@@ -49,7 +53,7 @@ import '../../devices/library/index.js'; // the house shelf of agent-built kerne
 import '../../devices/guitar/index.js'; // registered so they are named and reported as graph devices, never run
 import { cleanProject, songEnd as projectSongEnd } from '../../core/project.js';
 import { notesIn, audioIn, autoIn, lanesOf, mixGrid, GRID } from '../schedule.js';
-import { audibility, trackSpec, masterSpec, softClipCurve, SC_K } from '../strip.js';
+import { audibility, trackSpec, masterSpec, softClipCurve, SC_K, keyPlan } from '../strip.js';
 import { dbToGain, beatsPerBarOf } from '../util.js';
 import { dataFor } from './data.js';
 import { normData } from '../../kernel/odk.js';
@@ -98,7 +102,7 @@ function resolver(p) {
 }
 
 // One kernel device, hosted the way kernel/host.js hosts it. Returns null (and warns) if it can't run here.
-function kernelDevice(def, kind, { uid, params, on = true, bpm, from, sr, warn, where }) {
+function kernelDevice(def, kind, { uid, params, on = true, bpm, from, sr, warn, where, key = false }) {
   const K = coreClass(sr);
   const values = paramValues(def, params || {});
   let failed = null;
@@ -112,7 +116,7 @@ function kernelDevice(def, kind, { uid, params, on = true, bpm, from, sr, warn, 
   const data = dataFor(def.data);
   if (data) for (const [k, v] of Object.entries(data)) if (!v) warn({ kind: 'data', ...where, device: def.id, message: `${def.id} plays nothing: its ${k} (${normData(def.data)[k].slice(0, 19)}...) isn't in app/kits/ (node tools/fetch-kits.js fetches it)` });
   const core = new K({ source: def.kernel, kind, params: kernelSpecs(def), values, poly: def.poly, seed: seedOf(uid) >>> 0,
-    transport: { bpm, playing: true, beat: from, time: 0 }, data }, post);
+    transport: { bpm, playing: true, beat: from, time: 0 }, data, ...(key ? { key: true, keyOn: false } : {}) }, post);
   if (failed || !core.cur) {
     warn({ kind: 'error', ...where, device: def.id, message: `${def.id} failed to build: ${failed || 'no kernel'} (${kind === 'instrument' ? 'track skipped' : 'bypassed'})` });
     return null;
@@ -131,7 +135,7 @@ function kernelLatency(core, def, sr, on = true) {
 
 // An insert: kernel/host.js's effect wiring. input -> feed -> kernel -> wet -> out, input -> dry (-> latency delay) -> out.
 function effectChain(def, ins, ctx) {
-  const core = kernelDevice(def, 'effect', { ...ctx, uid: ins.id, params: ins.params, on: ins.on, where: ctx.where });
+  const core = kernelDevice(def, 'effect', { ...ctx, uid: ins.id, params: ins.params, on: ins.on, where: ctx.where, key: def.key === true });
   if (!core) return null;
   const on = ins.on !== false, trails = !!def.trails;
   // (bypassed: the input goes round the kernel; a trails device keeps its wet path open so a tail rings out)
@@ -143,9 +147,12 @@ function effectChain(def, ins, ctx) {
   return {
     core,
     latency: kernelLatency(core, def, ctx.sr, on),
+    // key: the strip this insert's key hears (its L and R after its inserts), or null
+    key: null,
     run(L, R, f0) {
       if (feed) { iL.set(L); iR.set(R); } else { iL.fill(0); iR.fill(0); }
-      core.block(iL, iR, oL, oR, f0);
+      const k = this.key;
+      if (k) core.block(iL, iR, oL, oR, f0, k.L, k.R); else core.block(iL, iR, oL, oR, f0);
       if (dry === 0) { // on: the wet path alone (the dry gain is 0)
         if (wet === 1) { L.set(oL); R.set(oR); } else { L.fill(0); R.fill(0); }
         return;
@@ -220,6 +227,10 @@ function softClipper() {
   };
 }
 
+// master.clip 'clean': nothing between the master fader and the output but a hard ceiling at +-1.0 (what the browser's
+// destination and every export do to a sample over full scale; engine/strip.js)
+const cleanClip = (x) => (x > 1 ? 1 : x < -1 ? -1 : x);
+
 export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, tail = 2, assets = null, graph = 'bypass', latencyMax = 0 } = {}) {
   const warnings = [];
   const warn = (w) => warnings.push(w);
@@ -242,6 +253,9 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
     }
   }
   const heard = audibility(p, only);
+  // keys: every key source is rendered before the tracks it keys, and rendered even when it isn't heard (strip.js keyPlan)
+  const plan = keyPlan(p, { def, heard });
+  for (const id of plan.cut) warn({ kind: 'key', insert: id, message: `the key on ${id} would close a loop (a track keying itself through others): it hears silence` });
   const ctx = { bpm, from, sr, warn };
 
   // Can this device run here? Returns its def, or null after a warning.
@@ -263,7 +277,7 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
       const w = { ...where, insert: ins.id };
       const d = usable(ins.device, 'effect', w);
       const fx = d && effectChain(d, ins, { ...ctx, where: w });
-      if (fx) { fx.id = ins.id; out.push(fx); } else skipped.inserts.push(ins.id);
+      if (fx) { fx.id = ins.id; fx.keySrc = plan.keyOf.has(ins.id) ? plan.keyOf.get(ins.id) : undefined; out.push(fx); } else skipped.inserts.push(ins.id);
     }
     return out;
   };
@@ -271,7 +285,7 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
   // the strips
   const strips = [];
   for (const t of p.tracks) {
-    if (!heard[t.id]) continue;
+    if (!heard[t.id] && !plan.needed.has(t.id)) continue;
     const spec = trackSpec(t, { at: from, def }), where = { track: t.id };
     let inst = null, lat = 0;
     if (spec.instrument) {
@@ -284,7 +298,7 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
     for (const f of fx) lat += f.latency;
     const x = Math.max(-1, Math.min(1, +t.pan || 0));
     strips.push({
-      id: t.id, inst, fx, lat, voices: [], events: [], ei: 0,
+      id: t.id, inst, fx, lat, voices: [], events: [], ei: 0, heard: !!heard[t.id], L: new Float32Array(Q), R: new Float32Array(Q),
       fader: f32(dbToGain(+t.gain || 0)),
       panL: f32(x <= 0 ? 1 : Math.cos(x * Math.PI / 2)), panR: f32(x >= 0 ? 1 : Math.cos(-x * Math.PI / 2)),
     });
@@ -298,6 +312,15 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
   const held = (track) => latency.comp[track] / sr;
   const byId = new Map(strips.map((s) => [s.id, s]));
   const want = strips.map((s) => s.id);
+  // wire the keys: each keyed insert reads its source strip's block (silence, and t.key.on false, when there is none)
+  for (const s of strips) for (const fx of s.fx) {
+    if (fx.keySrc === undefined) continue;
+    const src = fx.keySrc ? byId.get(fx.keySrc) : null;
+    fx.key = src || null;
+    fx.core.msg({ type: 'key', on: !!src });
+  }
+  // the order the strips render in (keys first; the sum is still in track order)
+  const renderOrder = plan.order.map((id) => byId.get(id)).filter(Boolean);
 
   // notes: engine/render.js's order (time, then note-offs before note-ons), posted to each kernel a block ahead
   const T = (beat) => Math.round((beat - from) * spb * sr) / sr;
@@ -363,14 +386,15 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
 
   // render, block by block
   const outL = new Float32Array(len), outR = new Float32Array(len);
-  const L = new Float32Array(Q), R = new Float32Array(Q), mL = new Float32Array(Q), mR = new Float32Array(Q);
-  const clip = softClipper();
+  const mL = new Float32Array(Q), mR = new Float32Array(Q);
+  // the master's end: the safety soft clip, or (master.clip 'clean') a hard ceiling at 0 dBFS, exactly linear below it
+  const clip = p.master && p.master.clip === 'clean' ? cleanClip : softClipper();
   const blocks = Math.ceil(len / Q);
   for (let b = 0; b < blocks; b++) {
     const f0 = b * Q;
     mL.fill(0); mR.fill(0);
-    let first = true;
-    for (const s of strips) {
+    for (const s of renderOrder) {
+      const L = s.L, R = s.R;
       if (s.inst) {
         const evs = s.events;
         while (s.ei < evs.length && evs[s.ei].f < f0 + 2 * Q) s.inst.msg(evs[s.ei++]);
@@ -378,6 +402,11 @@ export function renderSong(project, { from = 0, to, tracks = null, sr = 48000, t
       } else { L.fill(0); R.fill(0); }
       for (const v of s.voices) if (v.s0 < f0 + Q && v.end > f0) v.add(L, R, f0);
       for (const fx of s.fx) fx.run(L, R, f0);
+    }
+    let first = true;
+    for (const s of strips) {
+      if (!s.heard) continue;
+      const L = s.L, R = s.R;
       const g = s.fader, gl = s.panL, gr = s.panR;
       if (s.gGrid || s.lGrid) {
         if (s.gGrid) ramp(s.gGrid, b, gB); else gB.fill(g);

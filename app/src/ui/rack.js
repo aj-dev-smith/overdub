@@ -423,9 +423,21 @@ export function controlMenu(app, anchor, addr, { name, can = true } = {}) {
   else if (l) items.push({ label: 'Hold it here', sub: 'its lane steps aside', run: () => { const r = app.store.dispatch({ type: 'auto.set', ...addr, patch: { off: true } }, { by: 'you', label: `${sentence(name)} held` }); if (!r.ok) app.ui.toast(r.error, { kind: 'bad' }); } });
   // (a master lane has no row in the arranger, where a lane is cleared: it is cleared here)
   if (l && addr.track === 'master') items.push({ label: 'Clear its lane', sub: 'it stays where the lane has it now', run: () => clearMasterLane(app, addr, name) });
+  // the master's end (master.clip): the safety soft clip, or a clean ceiling for a master that ends in a limiter
+  if (addr.track === 'master' && addr.param === 'gain' && !addr.insert) {
+    const clean = app.store.get().master?.clip === 'clean';
+    items.push(clean
+      ? { label: 'Soft safety clip', sub: 'rounds off anything near 0 dBFS (the default)', run: () => setMasterClip(app, 'soft') }
+      : { label: 'Clean ceiling (for a limited master)', sub: 'nothing after the limiter; 0 dBFS is the ceiling', run: () => setMasterClip(app, 'clean') });
+  }
   const m = kitMenu(at, items);
   m.el.classList.add('ew-automenu');
   return m;
+}
+
+function setMasterClip(app, clip) {
+  const r = app.store.dispatch({ type: 'master.set', patch: { clip } }, { by: 'you', label: clip === 'clean' ? 'Master: clean ceiling' : 'Master: soft safety clip' });
+  if (!r.ok) app.ui.toast(r.error, { kind: 'bad' }); else app.ui.toast(clip === 'clean' ? 'The master ends clean now: the limiter is the last thing on it.' : 'The master ends in the soft safety clip again.');
 }
 
 /* ================================================================ what History calls a hand on a control */

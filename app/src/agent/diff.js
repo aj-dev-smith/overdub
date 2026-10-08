@@ -218,7 +218,11 @@ export function opsSummary(ops = [], project = null, { getDevice = null } = {}) 
         const fx = fxOf(o.track, o.insert), def = fx && getDevice?.(fx.device);
         const keys = Object.keys(o.patch?.params || {});
         const what = keys.length === 1 ? paramWord(def?.params?.find((q) => q.key === keys[0]), keys[0]) : keys.length ? `${keys.length} settings` : '';
-        const on = o.patch && 'on' in o.patch ? (o.patch.on ? 'on' : 'bypassed') : '';
+        let on = o.patch && 'on' in o.patch ? (o.patch.on ? 'on' : 'bypassed') : '';
+        if (o.patch && 'key' in o.patch) {
+          const kt = o.patch.key && (project?.tracks || []).find((t) => t.id === o.patch.key.track || t.name === o.patch.key.track);
+          on = (on ? on + ', ' : '') + (o.patch.key ? `keyed by ${kt ? kt.name : o.patch.key.track}` : 'key off');
+        }
         add(`${dn(fx?.device) || 'an effect'}${what ? ` ${what}` : ''}${on ? `${what ? ',' : ''} ${on}` : ''}`);
         break;
       }
@@ -229,7 +233,7 @@ export function opsSummary(ops = [], project = null, { getDevice = null } = {}) 
         break;
       }
       case 'project.set': for (const w of projectSetWords(o.patch, project)) add(w); break;
-      case 'master.set': add(o.patch && 'gain' in o.patch ? `master level ${fmt(o.patch.gain)} dB` : 'master'); break;
+      case 'master.set': add(o.patch && 'gain' in o.patch ? `master level ${fmt(o.patch.gain)} dB` : o.patch && o.patch.clip ? `master ceiling ${o.patch.clip === 'clean' ? 'clean' : 'soft'}` : 'master'); break;
       case 'section.add': add(`new section ${o.section?.name || ''}`.trim()); break;
       case 'section.set': {
         const keys = Object.keys(o.patch || {}), s = sectionName(project, o.section);
