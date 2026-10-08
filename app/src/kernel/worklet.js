@@ -11,7 +11,8 @@
 //   the kernel's create() gets { [name]: decoded | null }. KernelCore itself takes the decoded objects (the Node
 //   renderer reads the same files from disk).
 //   idle (live only; renders never set it): a kernel with nothing coming in (an effect fed exact silence, an
-//   instrument with no voices and no notes due) whose output has stayed under -100 dBFS for max(0.5 s, min(tail, 10 s))
+//   instrument with no voices and no notes due; a keyed effect counts its key as coming in) whose output has stayed
+//   under -100 dBFS for max(0.5 s, min(tail, 10 s))
 //   dozes: it outputs silence without running until something comes in again (the same block). Silence costs nothing.
 // Messages in (node.port):
 //   { type: 'params', values, jump? }          new targets (continuous params glide ~10 ms; stepped ones snap)
@@ -617,6 +618,8 @@ export function kernelCore(SR, dsp, kernelCompiler) {
         if (eff) {
           busy = false;
           if (iL) for (let i = 0; i < n; i++) if (iL[i] !== 0 || iR[i] !== 0) { busy = true; break; }
+          // (a keyed effect is busy while its key sounds: a duck follows the kick through the bass's rests, as a render does)
+          if (!busy && this.keyed && this.t.key.on) { const K = this.t.key; for (let i = 0; i < n; i++) if (K.l[i] !== 0 || K.r[i] !== 0) { busy = true; break; } }
         } else {
           busy = this.ev.i < q.length && q[this.ev.i].f < n;
           if (!busy) { const V = this.cur.voices; for (let vi = 0; vi < V.length; vi++) if (V[vi].alive) { busy = true; break; } }

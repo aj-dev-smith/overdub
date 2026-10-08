@@ -598,7 +598,7 @@ sample accurate, and a probe the host steals or releases simply tells `process`.
 
 The device check (`kernel/check.js`, `checkDevice(def, { quick, signal, timeout })`) parses it, renders test signals through it
 offline and reports `{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency,
-deterministic, extremes }` (plus `voices` and `stuck` for instruments). `define_device` returns this report to the
+deterministic, extremes }` (plus `voices` and `stuck` for instruments, and `keyed` for an effect with a key input). `define_device` returns this report to the
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
 setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline

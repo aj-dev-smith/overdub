@@ -120,10 +120,11 @@ console.log('measure(): the low end');
 console.log('a drop, by the genre guide\'s recipe');
 {
   // eight bars at 140 built the way get_guide "genres" says, every change through store.dispatch: Sandbag (Dubstep)
-  // half-time into Clip Lamp (Drum bus clip) and Gaffer Tape (Drum density, 35%); a Dark Slide sub on the root, ducked
-  // by the drums (Dim Switch, Kick duck), Gatefold mono; Fixer an octave up in call and response, a low cut, ducked on
-  // the kick and the snare, Gaffer Tape (Bass density), Gatefold mono to 200 Hz; the master Clip Lamp (Master clip +6)
-  // into Red Line at -1 dBTP, a clean ceiling. (Ids are fixed: ids seed the devices, so the numbers repeat.)
+  // half-time into Clip Lamp (Drum bus clip) and Gaffer Tape (Drum density, 35%); a Dark Slide sub on the root at
+  // -4.5 dB, ducked by the drums (Dim Switch, Kick duck), Gatefold mono (STEEP); Fixer an octave up in call and
+  // response, a low cut and +6 dB around 110 Hz, ducked on the kick and the snare, Gaffer Tape (Bass density), Gatefold
+  // mono to 200 Hz (STEEP); the master Clip Lamp (Master clip +6) into Red Line (+9.5 dB) at -1 dBTP, a clean ceiling.
+  // (Ids are fixed: ids seed the devices, so the numbers repeat.)
   const store = createStore({ ...createProject(), id: 'p_drop', title: 'Drop', tempo: 140, meta: { created: '2026-10-07T00:00:00.000Z', modified: '2026-10-07T00:00:00.000Z', authors: {} } }, { getDevice });
   const PR = (device, name, extra = {}) => ({ ...presetParams(device, name), ...extra });
   const BARS = 8, roots = [29, 29, 32, 27, 29, 29, 32, 24], dn = [], gr = [];
@@ -141,18 +142,18 @@ console.log('a drop, by the genre guide\'s recipe');
     { type: 'clip.add', track: '$dr', clip: { start: 0, length: BARS * 4, notes: dn } },
     { type: 'insert.add', track: '$dr', insert: { id: 'fx_d01', device: 'core.clipper', params: PR('core.clipper', 'Drum bus clip') } },
     { type: 'insert.add', track: '$dr', insert: { id: 'fx_d02', device: 'core.multiband', params: PR('core.multiband', 'Drum density', { depth: 35 }) } },
-    { type: 'track.add', ref: 'sb', track: { id: 't_sub', name: 'Sub', instrument: { device: 'core.wavetable', params: PR('core.wavetable', 'Dark Slide') }, gain: -2 } },
+    { type: 'track.add', ref: 'sb', track: { id: 't_sub', name: 'Sub', instrument: { device: 'core.wavetable', params: PR('core.wavetable', 'Dark Slide') }, gain: -4.5 } },
     { type: 'clip.add', track: '$sb', clip: { start: 0, length: BARS * 4, notes: roots.map((p, b) => ({ p, t: b * 4, d: 3.95, v: 0.9 })) } },
     { type: 'insert.add', track: '$sb', insert: { id: 'fx_d03', device: 'core.ducker', params: PR('core.ducker', 'Kick duck'), key: { track: '$dr' } } },
-    { type: 'insert.add', track: '$sb', insert: { id: 'fx_d04', device: 'core.width', params: { monobass: 120 } } },
+    { type: 'insert.add', track: '$sb', insert: { id: 'fx_d04', device: 'core.width', params: { monobass: 120, mono_mode: 1 } } },
     { type: 'track.add', ref: 'gr', track: { id: 't_growl', name: 'Growl', instrument: { device: 'core.wavetable', params: PR('core.wavetable', 'Fixer') }, gain: 2 } },
     { type: 'clip.add', track: '$gr', clip: { start: 0, length: BARS * 4, notes: gr } },
-    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d05', device: 'core.eq8', params: { b1_on: 1, b1_type: 4, b1_freq: 40, b2_on: 1, b2_type: 0, b2_freq: 110, b2_gain: 3, b2_q: 0.8 } } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d05', device: 'core.eq8', params: { b1_on: 1, b1_type: 4, b1_freq: 40, b2_on: 1, b2_type: 0, b2_freq: 110, b2_gain: 6, b2_q: 0.8 } } },
     { type: 'insert.add', track: '$gr', insert: { id: 'fx_d06', device: 'core.ducker', params: PR('core.ducker', 'Kick and snare duck'), key: { track: '$dr' } } },
     { type: 'insert.add', track: '$gr', insert: { id: 'fx_d07', device: 'core.multiband', params: PR('core.multiband', 'Bass density') } },
-    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d08', device: 'core.width', params: { monobass: 200 } } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d08', device: 'core.width', params: { monobass: 200, mono_mode: 1 } } },
     { type: 'insert.add', track: 'master', insert: { id: 'fx_d09', device: 'core.clipper', params: PR('core.clipper', 'Master clip (+6)') } },
-    { type: 'insert.add', track: 'master', insert: { id: 'fx_d10', device: 'core.limiter', params: { gain: 8, ceiling: -1, release: 60 } } },
+    { type: 'insert.add', track: 'master', insert: { id: 'fx_d10', device: 'core.limiter', params: { gain: 9.5, ceiling: -1, release: 60 } } },
     { type: 'master.set', patch: { clip: 'clean' } },
   ], { by: 'overdub', label: 'a drop' });
   ok(r.ok, `the drop is built in one transaction through store.dispatch${r.ok ? '' : ': ' + r.error}`);

@@ -595,7 +595,7 @@ frames the host asks for and returns true for that block. <code>process</code> t
 (<code>n</code> minus the frames) and runs the instrument itself, its buses shared. The host's contract is unchanged: notes stay
 sample accurate, and a probe the host steals or releases simply tells <code>process</code>.</p>
 <p>The device check (<code>kernel/check.js</code>, <code>checkDevice(def, { quick, signal, timeout })</code>) parses it, renders test signals through it
-offline and reports <code>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency, deterministic, extremes }</code> (plus <code>voices</code> and <code>stuck</code> for instruments). <code>define_device</code> returns this report to the
+offline and reports <code>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency, deterministic, extremes }</code> (plus <code>voices</code> and <code>stuck</code> for instruments, and <code>keyed</code> for an effect with a key input). <code>define_device</code> returns this report to the
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
 setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline

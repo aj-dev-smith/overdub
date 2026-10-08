@@ -14,7 +14,8 @@
 //            its ring falling: T60 about 0.2 s), a clap (CLAP: three bursts 9-11 ms apart and a tail, band-passed), and
 //            a short room (ROOM: four damped combs and two allpasses, the highs dying first).
 //   HATS     the research's H2: two plates of 48 modes, 120 Hz to 17 kHz (the second 7% higher), each mode's ring
-//            T60 = T(h) (f/4k)^-0.1, a stick whose contact time sets the bright edge, a chatter of band-passed noise
+//            T60 = T(h) (f/4k)^-0.1, its level tilted up (f^0.3) so the top is as strong as the body (real closed hats:
+//            12-20 kHz within a few dB of 150-600 Hz, centroid 5-8.5 kHz), a stick whose contact time sets the bright edge, a chatter of band-passed noise
 //            following the plates, and each mode heard by the two mics with its own gains (wide). Closed (42), pedal
 //            (44) and open (46) are one hat: a closed or pedal stroke chokes an open one. T(h) runs 0.38 s closed to
 //            2.4 s open.
@@ -131,7 +132,9 @@ return {
       const f = 120 * Math.pow(17000 / 120, u) * (plate ? 1.07 : 1);
       hat.f[k] = f;
       hat.t[k] = Math.min(2, Math.pow(f / 4000, -0.0985) * (0.7 + 0.3 * (R0() + 1)));
-      hat.amp[k] = (0.4 + 0.3 * (R0() + 1)) * Math.pow(f / 1000, -0.046) / Math.sqrt(48);
+      // (tilted up, f^0.3, and struck with a short stick, so the top is as strong as the body, as a real hat's is: centroid
+      // about 5.5 kHz; 0.47 sets them in the kit (a bright hat reads louder than a dull one at the same level))
+      hat.amp[k] = 0.47 * (0.4 + 0.3 * (R0() + 1)) * Math.pow(f / 1000, 0.3) / Math.sqrt(48);
       const a = Math.PI / 4 + (Math.PI / 2) * R0();
       hat.ml[k] = Math.cos(a) * Math.SQRT2; hat.mr[k] = Math.sin(a) * Math.SQRT2 * (R0() < 0 ? -1 : 1);
     }
@@ -356,7 +359,7 @@ return {
             const h0 = p === 46 ? 1 : p === 44 ? 0.04 : 0;
             const Th = K.hatT * Math.pow(2.4 / K.hatT, Math.pow(h0, 0.7)) * dec;
             hat.set(sr, tn, Th);
-            const tc = (K.tc + (0.3 - K.tc) * (1 - vel)) * 0.001, fc = 1.4 / tc, A = Math.pow(Math.max(0.02, vel), 0.7) * (p === 44 ? 0.5 : 1);
+            const tc = (K.tc + (0.3 - K.tc) * (1 - vel)) * 0.001, fc = 4.2 / tc, A = Math.pow(Math.max(0.02, vel), 0.7) * (p === 44 ? 0.5 : 1);
             for (let k = 0; k < hat.n; k++) { const f = hat.f[k] * tn; hat.strike(k, A / Math.sqrt(1 + Math.pow(f / fc, 4))); }
           }
           hat.run(HL, HR, pos, n);
@@ -390,7 +393,7 @@ return {
         // ---- the clipper (the dry path delayed to match when it's off, so switching never moves the kit in time)
         clipOn = P.clip | 0;
         clipG = Math.pow(10, K.clip / 20) * 1.1; clipMk = 1 / 1.1 * 0.86;
-        const lvT = dbg(P.level);
+        const lvT = dbg(P.level + 0.5); // (+0.5 dB: the kit at the house's -18 LUFS with its hats as they are)
         for (let i = 0; i < n; i++) {
           const g = lvS.next(lvT), m0 = 0.5 * (L[i] + R[i]), s0 = 0.5 * (L[i] - R[i]), sl = (mb1.tick(s0), mb2.tick(mb1.hp), mb2.hp), x = m0 + sl, y = m0 - sl;
           const cl = ocl(x), cr = ocr(y), xl = dL.tap(15), xr = dR.tap(15);

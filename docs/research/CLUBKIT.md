@@ -30,7 +30,9 @@ fallen quiet, never at a fixed length; ring time falls with frequency.
   and a 0.8 ms stick at its front. A clap (CLAP): three band-passed bursts 9.5 and 20.5 ms apart and a short tail. A
   room (ROOM): four damped combs a side and two allpasses, with a one-pole in each loop so its highs die first.
 - **Hats.** The research's H2: two plates of 48 modes, 120 Hz to 17 kHz (the second 7% higher), each mode ringing
-  T60 = T(h) x (f/4 kHz)^-0.0985 x U(0.7, 1.3); the stick's contact time sets the bright edge (1.4 / tc); a chatter of
+  T60 = T(h) x (f/4 kHz)^-0.0985 x U(0.7, 1.3), each mode's level tilted up by f^0.3; the stick's contact time sets the
+  bright edge (4.2 / tc), so the top is as strong as the body, as a real closed hat's is (a first version struck at
+  1.4 / tc with no tilt measured a centroid of 2.9 kHz and its 12-20 kHz 23 dB under its 150-600 Hz: dull); a chatter of
   noise band-passed at 7 kHz follows the plates; each mode is heard by the two mics with its own gains. Closed (42),
   pedal (44) and open (46) are one hat, so a closed stroke chokes an open one (38 dB down 300 ms later). T(h) runs from
   0.28 to 0.42 s closed to 2.4 s open.
@@ -45,21 +47,22 @@ fallen quiet, never at a fixed length; ring time falls with frequency.
 
 At full velocity, each hit alone (`tools/clubkit-test.js`):
 
-| kit | kick: peak, crest over 100 ms, tail after 60 ms | snare: peak, crest, T60 over 2.5 kHz, body | hats: 150 Hz-2.5 kHz, L/R correlation | drum phrase |
+| kit | kick: peak, crest over 100 ms, tail after 60 ms | snare: peak, crest, T60 over 2.5 kHz, body | hats: 150 Hz-2.5 kHz, 12-20 kHz against 150-600 Hz, centroid (first 30 ms), L/R correlation | drum phrase |
 |---|---|---|---|---|
-| DUBSTEP | 1.5 ms, 10.3 dB, -15 cents from F1 | 0.4 ms, 12.4 dB, 0.24 s, 192 Hz | 0 dB under the loudest band, 0.24 | -18.0 LUFS, -1.7 dBTP |
-| RIDDIM | 1.3 ms, 10.3 dB, -14 cents | 0.4 ms, 13.0 dB, 0.25 s, 205 Hz | 0 dB, 0.23 | -18.0 LUFS, -1.5 dBTP |
-| DNB | 1.5 ms, 11.2 dB, -13 cents | 0.4 ms, 13.8 dB, 0.23 s, 235 Hz | 0 dB, 0.23 | -18.3 LUFS, -1.6 dBTP |
-| MELODIC | 1.8 ms, 10.4 dB, -15 cents | 0.4 ms, 12.4 dB, 0.29 s, 182 Hz | 0 dB, 0.25 | -18.4 LUFS, -2.1 dBTP |
+| DUBSTEP | 1.5 ms, 10.3 dB, -15 cents from F1 | 0.4 ms, 12.4 dB, 0.24 s, 192 Hz | 0 dB under the loudest band, +0.4 dB, 5.4 kHz, 0.30 | -18.0 LUFS, -1.5 dBTP |
+| RIDDIM | 1.3 ms, 10.3 dB, -14 cents | 0.4 ms, 13.0 dB, 0.25 s, 205 Hz | 0 dB, +0.5 dB, 5.4 kHz, 0.30 | -17.9 LUFS, -1.0 dBTP |
+| DNB | 1.5 ms, 11.2 dB, -13 cents | 0.4 ms, 13.8 dB, 0.23 s, 235 Hz | 0 dB, +0.6 dB, 5.4 kHz, 0.30 | -18.5 LUFS, -1.4 dBTP |
+| MELODIC | 1.8 ms, 10.4 dB, -15 cents | 0.4 ms, 12.3 dB, 0.29 s, 182 Hz | 0 dB, +0.2 dB, 5.4 kHz, 0.30 | -18.1 LUFS, -2.0 dBTP |
 
 Targets (the spec's, from the audit's real hits): a kick peaks within 5 ms with a crest of 10 dB or more and a tail
 within 25 cents of its note; a snare peaks within 5 ms with a crest of 12 dB or more, its wires ringing 0.5 s or less
-and its body at 150 to 300 Hz; hats within 30 dB under 2.5 kHz and correlating 0.5 or less. Every piece ends 60 dB or
+and its body at 150 to 300 Hz; hats within 30 dB under 2.5 kHz, their 12-20 kHz within 6 dB of their 150-600 Hz (the
+real hats: -0.7 and +6.1) and correlating 0.5 or less. Every piece ends 60 dB or
 more under its peak (nothing is cut off): the last 50 ms before each one stops measure 70 dB or more under its peak.
 
 ## What is not done
 
-- The crests are at the bottom of the real range (10 to 11 dB for the kick against 11.2, 12.4 to 13.8 for the snare
+- The crests are at the bottom of the real range (10 to 11 dB for the kick against 11.2, 12.3 to 13.8 for the snare
   against 13 to 17). They were reached by shaping the envelopes, not by listening; AJ's room is the check.
 - The kick's tail reads 13 to 15 cents flat of its note on the estimator used (a 170 ms window on a decaying sine);
   within the target, but the estimator, not the kick, may be the reason.

@@ -255,9 +255,9 @@ impact on 33). `app/src/devices/builtin/clubkit.js`; the design note and what wa
 - **KIT** (`DUBSTEP`, `RIDDIM`, `DNB`, `MELODIC`) sets each piece's character; `tune` moves everything but the kick,
   `decay` every ring, `width` the hats and cymbals; `clip` (on) is a 2x soft clipper on the kit, set per kit; `level`.
 - Measured (`tools/clubkit-test.js`): the kick peaks 1.3-1.8 ms in with a crest of 10.3-11.2 dB over 100 ms and a tail
-  within 15 cents of its note; the snare peaks 0.4 ms in, crest 12.4-13.8 dB, its highs ringing 0.23-0.29 s; the hats
-  carry energy under 2.5 kHz and correlate 0.23-0.25; every piece ends 60 dB under its peak; the drum phrase plays at
-  -18.0 to -18.4 LUFS. Presets: Dubstep, Riddim, Drum and bass, Melodic. The groove library's Dubstep style plays on it.
+  within 15 cents of its note; the snare peaks 0.4 ms in, crest 12.3-13.8 dB, its highs ringing 0.23-0.29 s; the hats
+  carry their body under 2.5 kHz and a top as strong (12-20 kHz within 1 dB of 150-600 Hz, centroid about 5.4 kHz) and
+  correlate 0.30; every piece ends 60 dB under its peak; the drum phrase plays at -17.9 to -18.5 LUFS. Presets: Dubstep, Riddim, Drum and bass, Melodic. The groove library's Dubstep style plays on it.
 
 ## Keys: an effect that hears another track
 
@@ -906,7 +906,9 @@ damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp)
 ## What the check reports (define_device returns it)
 
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
-latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
+latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck?,
+keyed?: { deltaLU, grMaxDb } }. keyed is a key: true effect's DI strum again, keyed by the drum loop (a warning if
+nothing changes: the key is ignored).
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
 extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes

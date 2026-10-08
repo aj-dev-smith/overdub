@@ -49,8 +49,11 @@ function findInsert(list, ctx, id, where) {
 // An insert's key (a sidechain), checked: { track } naming another track of the song (by id, name or $ref), on a
 // track's insert (not the master's), closing no loop (a track whose sound reaches, through keys, the track it keys).
 // Returns the key with the track's id. fxId: the insert whose key is being replaced (its old key doesn't count).
-function checkKey(p, ctx, tid, key, fxId) {
+function checkKey(p, ctx, tid, key, fxId, device) {
   if (typeof key !== 'object' || Array.isArray(key) || key.track == null) throw new Error('key is { track: "<track id or name>" } (the track whose sound this insert hears beside its own), or null for none');
+  // (a device that doesn't listen to a key would carry one it never hears, and the mixer would say "keyed by")
+  const def = device && ctx.getDevice ? ctx.getDevice(device) : null;
+  if (def && def.key !== true) throw new Error(`${def.name || device} has no key input: only a device that hears another track takes a key (Dim Switch, core.ducker)`);
   if (tid === 'master') throw new Error('a master insert can\'t take a key: put the device on the track that should duck, keyed by the one it ducks under');
   const src = findTrack(p, ctx, key.track);
   if (src.id === tid) throw new Error(`a track can't key itself: name another track than ${tid} "${src.name}"`);
@@ -461,7 +464,7 @@ export const OPS = {
     if (!raw.device) throw new Error('insert.add needs insert: { device: "<device id>" }');
     checkDevice(ctx, raw.device, 'effect');
     if (raw.id && idUsed(p, raw.id)) throw new Error(`id ${raw.id} is already used`);
-    const fx = normInsert({ ...raw, by: raw.by || ctx.by, key: raw.key == null || ctx.restore ? raw.key : checkKey(p, ctx, tid, raw.key, null) });
+    const fx = normInsert({ ...raw, by: raw.by || ctx.by, key: raw.key == null || ctx.restore ? raw.key : checkKey(p, ctx, tid, raw.key, null, raw.device) });
     const index = fin(op.index) ? Math.max(0, Math.min(list.length, op.index)) : list.length;
     list.splice(index, 0, fx);
     if (op.ref) ctx.refs[op.ref] = fx.id;
@@ -495,7 +498,7 @@ export const OPS = {
     if (patch.params) inv.params = mergeParams(fx.params, patch.params); // (checks every param first)
     if ('on' in patch) { inv.on = fx.on; fx.on = !!patch.on; }
     if ('key' in patch) {
-      const next = patch.key == null ? null : ctx.restore ? normKey(patch.key) : checkKey(p, ctx, tid, patch.key, fx.id);
+      const next = patch.key == null ? null : ctx.restore ? normKey(patch.key) : checkKey(p, ctx, tid, patch.key, fx.id, fx.device);
       inv.key = fx.key ? clone(fx.key) : null;
       if (next) fx.key = next; else delete fx.key;
     }

@@ -437,7 +437,13 @@ export function controlMenu(app, anchor, addr, { name, can = true } = {}) {
 
 function setMasterClip(app, clip) {
   const r = app.store.dispatch({ type: 'master.set', patch: { clip } }, { by: 'you', label: clip === 'clean' ? 'Master: clean ceiling' : 'Master: soft safety clip' });
-  if (!r.ok) app.ui.toast(r.error, { kind: 'bad' }); else app.ui.toast(clip === 'clean' ? 'The master ends clean now: the limiter is the last thing on it.' : 'The master ends in the soft safety clip again.');
+  if (!r.ok) { app.ui.toast(r.error, { kind: 'bad' }); return; }
+  if (clip !== 'clean') { app.ui.toast('The master ends in the soft safety clip again.'); return; }
+  // (say what is last on it: a limiter, or nothing that keeps it under 0 dBFS)
+  const ins = app.store.get().master?.inserts || [], last = ins.filter((x) => x.on !== false).pop();
+  app.ui.toast(last && last.device === 'core.limiter'
+    ? 'The master ends clean now: Red Line is the last thing on it.'
+    : 'The master ends clean now, with no limiter last on it: anything over 0 dBFS is cut flat. Put Red Line last to keep it under.');
 }
 
 /* ================================================================ what History calls a hand on a control */

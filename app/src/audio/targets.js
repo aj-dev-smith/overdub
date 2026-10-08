@@ -26,7 +26,7 @@ export const TARGETS = {
       sub: { correlation: [0.999, 1], cleanDb: [-Infinity, -20], fundamentalHz: [30, 65] },
       kick: { peakMs: [0, 5], crest100: [10, Infinity], tailCents: [-25, 25] },
       snare: { peakMs: [0, 5], crest100: [12, Infinity], wiresT60: [0, 0.5], bodyHz: [150, 300] },
-      hats: { midGapDb: [-30, 0], correlation: [-1, 0.5] },
+      hats: { midGapDb: [-30, 0], topDb: [-6, Infinity], correlation: [-1, 0.5] },
       growl: { talkOctaves: [1, Infinity] },
       reese: { correlationAbove200: [0.2, 0.8], beatingHz: [0.5, 8] },
       level: { lufs: [-18.5, -13.5], truePeak: [-Infinity, -1] },

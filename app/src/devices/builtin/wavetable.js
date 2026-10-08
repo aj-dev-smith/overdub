@@ -1017,6 +1017,27 @@ class Fx {
     this.drvLive = false; this.chLive = false; this.dlLive = false; this.vbLive = false; this.first = true;
     this.xl = new Float64Array(128); this.xr = new Float64Array(128); this.mb = new Mband(sr);
     this.hL0 = 0; this.hL1 = 0; this.hR0 = 0; this.hR1 = 0; this.hc = 0;
+    // the last 2x input of each channel, for the shapes' antiderivative anti-aliasing (adaa)
+    this.aL = 0; this.aR = 0;
+  }
+  // HARD, FOLD, SINE FOLD and RECTIFY are run with first-order antiderivative anti-aliasing (Parker, Zavalishin and Le
+  // Bivic, DAFx 2016): the output is the mean of the shape over the step from the last input to this one,
+  // (F(z) - F(z1)) / (z - z1), F the shape's integral, which takes most of what their corners would fold back under
+  // 20 kHz out at the 2x rate (a quarter of a sample of delay at 1x). F for each:
+  F(z, mode) {
+    if (mode === 1) { const a = z < 0 ? -z : z; return a <= 1 ? 0.5 * z * z : a - 0.5; }
+    if (mode === 2) { let u = (z + 1) * 0.25; u -= Math.floor(u); return u < 0.5 ? 8 * u * u - 4 * u : 12 * u - 8 * u * u - 4; }
+    if (mode === 3) return -0.6366197723675814 * Math.cos(1.5707963267948966 * z);
+    // RECTIFY: the integral of |y| for the rational tanh y = z/9 + (8/3) z / (z^2 + 3) (|z| <= 3), then |z| past it
+    const a = z < 0 ? -z : z, v = a <= 3 ? a * a / 18 + 1.3333333333333333 * Math.log((a * a + 3) / 3) : 2.3483924814931874 + a - 3;
+    return z < 0 ? -v : v;
+  }
+  adaa(z, mode, q) {
+    const z1 = q < 2 ? this.aL : this.aR;
+    if (q < 2) this.aL = z; else this.aR = z;
+    const d = z - z1;
+    if (d > 1e-5 || d < -1e-5) return (this.F(z, mode) - this.F(z1, mode)) / d;
+    return this.shape(0.5 * (z + z1), mode, q, 0);
   }
   // a DIST MODE's shape (not TANH: that one is written out in run) at the 2x rate, for one of the four values a
   // sample makes: q 0..3 is left even, left odd, right even, right odd (DOWNSAMPLE holds each channel's)
@@ -1079,7 +1100,8 @@ class Fx {
           z = 2 * ub; yl1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
           z = 2 * va; yr0 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
           z = 2 * vb; yr1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
-        } else { yl0 = this.shape(2 * ua, dist, 0, gDrv); yl1 = this.shape(2 * ub, dist, 1, gDrv); yr0 = this.shape(2 * va, dist, 2, gDrv); yr1 = this.shape(2 * vb, dist, 3, gDrv); }
+        } else if (dist === 5) { yl0 = this.shape(2 * ua, dist, 0, gDrv); yl1 = this.shape(2 * ub, dist, 1, gDrv); yr0 = this.shape(2 * va, dist, 2, gDrv); yr1 = this.shape(2 * vb, dist, 3, gDrv); }
+        else { yl0 = this.adaa(2 * ua, dist, 0); yl1 = this.adaa(2 * ub, dist, 1); yr0 = this.adaa(2 * va, dist, 2); yr1 = this.adaa(2 * vb, dist, 3); }
         ouL[oui] = yl0; ouR[oui] = yr0;
         let wl = 0, wr = 0;
         for (let q = 0; q < 31; q++) { wl += HB[q] * ouL[(oui - q) & 31]; wr += HB[q] * ouR[(oui - q) & 31]; }

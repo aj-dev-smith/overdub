@@ -10,7 +10,8 @@
 // a key to a missing track, and a loop in a hand-written song, are silence (the loop is reported); a key source after
 // the keyed track in track order is still heard on the same block; NO KEY fires on the song's grid; FOLLOW follows
 // the key's level; renders repeat bit for bit.
-// In Chromium (QUIET, through tools/pw.js): the device check passes on the defaults and every preset; the window's Key
+// In Chromium (QUIET, through tools/pw.js): the device check passes on the defaults and every preset, and renders a
+// keyed effect keyed by its drum loop (keyed: deltaLU, grMaxDb; a key: true effect that ignores it is warned); the window's Key
 // menu sets the key (one undo step, signed you), the mixer says "keyed by Kick", the live engine wires it (the key
 // input on, and off again when the key track is removed), and the master's menu sets the clean ceiling. The browser's
 // render agreeing with Node on a keyed scene is tools/golden-test.js's (scenes sidechain and master-clean).
@@ -20,7 +21,10 @@ import { renderSong } from '../app/src/engine/node/render.js';
 import { sha256 } from '../app/src/engine/node/io.js';
 import { createProject, normInsert, summarize } from '../app/src/core/project.js';
 import { createStore } from '../app/src/core/store.js';
-import { getDevice, presetParams } from '../app/src/devices/registry.js';
+import { getDevice, presetParams, paramValues } from '../app/src/devices/registry.js';
+import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
+import { kernelSpecs } from '../app/src/kernel/host.js';
+import { makeDsp } from '../app/src/kernel/dsp.js';
 import { keyPlan } from '../app/src/engine/strip.js';
 import { scenes } from './golden-scenes.js';
 import '../app/src/devices/builtin/index.js';
@@ -58,6 +62,8 @@ const base = () => ({ ...createProject(), id: 'p_sc', title: 'sc', tempo: 120, k
   ok(e, `a key on a master insert is refused ("${e}")`);
   e = refused({ type: 'insert.add', track: 't_kick', insert: { device: 'core.ducker', key: { track: 't_bass' } } }, /would make a loop/);
   ok(e, `a key that closes a loop (Bass keyed by Kick, Kick keyed by Bass) is refused ("${e}")`);
+  e = refused({ type: 'insert.add', track: 't_pad', insert: { device: 'core.clipper', key: { track: 't_kick' } } }, /has no key input/);
+  ok(e, `a key on a device that hears none (Clip Lamp) is refused, so nothing says "keyed by" when nothing is ("${e}")`);
   // a longer loop: Pad keyed by Bass, then Kick keyed by Pad
   r = store.dispatch({ type: 'insert.add', track: 't_pad', insert: { device: 'core.ducker', key: { track: 't_bass' } }, ref: 'p' }, { by: 'claude', label: 'pad duck' });
   const b2 = JSON.stringify(store.get());
@@ -187,6 +193,30 @@ function gainCurve(r) {
   ok([...keyPlan(p, { heard }).needed].sort().join() === 'a,b,c', 'a heard track needs its key sources, and theirs');
 }
 
+{
+  // live, a kernel with nothing coming in dozes (worklet.js idle); a keyed one counts its key as coming in, so a duck
+  // that a kick set off while the bass rested is where a render has it when the bass comes back in
+  const def = getDevice('core.ducker'), K = kernelCore(SR, makeDsp(SR), kernelCompiler);
+  const mk = (idle) => new K({ source: def.kernel, kind: 'effect', params: kernelSpecs(def), values: paramValues(def, { ...presetParams(def, 'Kick duck'), release: 1500 }), seed: 7,
+    transport: { bpm: 120, playing: true, beat: 0, time: 0 }, key: true, keyOn: true, idle, tail: def.tail }, () => {});
+  const live = mk(true), ren = mk(false);
+  const n = 128, iL = new Float32Array(n), iR = new Float32Array(n), kL = new Float32Array(n), a = [new Float32Array(n), new Float32Array(n)], b = [new Float32Array(n), new Float32Array(n)];
+  let worst = 0, dozed = false;
+  for (let blk = 0; blk < 600; blk++) {
+    const f0 = blk * n;
+    for (let i = 0; i < n; i++) {
+      const f = f0 + i;
+      // the bass rests for 1.3 s; a kick every half second all along (a decaying 55 Hz burst)
+      iL[i] = iR[i] = f > 1.3 * SR ? 0.3 * Math.sin(2 * Math.PI * 41 * f / SR) : 0;
+      const k = f % (SR / 2); kL[i] = k < 0.15 * SR ? 0.9 * Math.sin(2 * Math.PI * 55 * k / SR) * Math.exp(-k / (0.04 * SR)) : 0;
+    }
+    live.block(iL, iR, a[0], a[1], f0, kL, kL); ren.block(iL, iR, b[0], b[1], f0, kL, kL);
+    dozed = dozed || live.dozing;
+    for (let i = 0; i < n; i++) worst = Math.max(worst, Math.abs(a[0][i] - b[0][i]));
+  }
+  ok(worst === 0 && !dozed, `live, a keyed Dim Switch stays awake while its key plays through the bass's rests: the same samples as a render when the bass comes back (worst difference ${worst})`);
+}
+
 /* ======================================================================== the studio (Chromium, QUIET) */
 console.log('the studio');
 const { page, close, errors } = await open('/app/', { query: 'new' });
@@ -204,8 +234,12 @@ try {
       const r = await checkDevice(pd, { quick: true });
       pre.push({ name: pr.name, ok: r.ok, errors: r.errors, tp: r.truePeak });
     }
-    return { ok: r0.ok, errors: r0.errors, dLU: r0.level?.deltaLU, pre };
+    // (R5) an effect whose def says key: true and never reads it is warned about
+    const deaf = await checkDevice({ id: 'you.deaf', name: 'Deaf', kind: 'effect', key: true, params: [], kernel: '({ create() { return { process(L, R, n) {} }; } })' }, { quick: true });
+    return { ok: r0.ok, errors: r0.errors, dLU: r0.level?.deltaLU, keyed: r0.keyed, pre, deaf: { keyed: deaf.keyed, warned: deaf.warnings.some((x) => /^key:/.test(x)) } };
   });
+  ok(chk.keyed && chk.keyed.grMaxDb >= 10 && chk.keyed.deltaLU < -0.5, `the device check renders a keyed effect keyed too (the DI strum keyed by the drum loop): Dim Switch dips ${chk.keyed && chk.keyed.grMaxDb} dB at most, ${chk.keyed && chk.keyed.deltaLU} LU overall`);
+  ok(chk.deaf.keyed && chk.deaf.keyed.grMaxDb === 0 && chk.deaf.warned, `...and warns about a key: true effect that ignores its key (${JSON.stringify(chk.deaf.keyed)})`);
   ok(chk.ok && Math.abs(chk.dLU) <= 0.1, `the device check passes at the defaults, at bypass level (${chk.dLU} LU)${chk.errors?.length ? ': ' + chk.errors.join(' | ') : ''}`);
   ok(chk.pre.every((x) => x.ok), `...and on every preset (${chk.pre.length})${chk.pre.filter((x) => !x.ok).map((x) => ` ${x.name}: ${x.errors.join(' | ')}`).join(';')}`);
   // a song with a kick and a bass; the window's Key menu

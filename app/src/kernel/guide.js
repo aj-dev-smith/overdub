@@ -233,7 +233,9 @@ damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp)
 ## What the check reports (define_device returns it)
 
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
-latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
+latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck?,
+keyed?: { deltaLU, grMaxDb } }. keyed is a key: true effect's DI strum again, keyed by the drum loop (a warning if
+nothing changes: the key is ignored).
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
 extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes

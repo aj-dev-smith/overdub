@@ -69,6 +69,9 @@ return {
     let r = 0, r0 = 0, phase = 0, t = 0, held = 0, lastK = null, gr = 0;
     const mS = glide(20, sr, 1);
     let flo = -1, fhi = -1;
+    // the key's band at rest: once it has rung out (under 1e-20) and the key is exact silence, its filters aren't run
+    // (left running on silence they settle into subnormal numbers and stay there, which x86 CPUs compute slowly)
+    let rung = 0;
     const fire = () => { phase = 1; t = 0; r0 = r; };
     return {
       meter() { return gr; },
@@ -86,15 +89,19 @@ return {
         const div = !on && T && T.playing ? GRID[P.nokey | 0] || 0 : 0;
         const inc = T ? T.bpm / 60 / sr : 0, b0 = T ? T.beat : 0, near = 2.5 * inc;
         const aF = coef(P.attack * 0.001, sr), rF = coef(P.release * 0.001 / 3, sr);
-        let lo = 1;
+        let lo = 1, still = false;
+        if (on && rung < 1e-20) { still = true; for (let i = 0; i < n; i++) if (key.l[i] !== 0 || key.r[i] !== 0) { still = false; break; } }
+        if (on && !still) rung = 0;
         for (let i = 0; i < n; i++) {
           let x = 0;
-          if (on) {
+          if (on && still) { env *= DEC; if (env < 1e-12) env = 0; }
+          else if (on) {
             // the key's band level
             h1.tick(key.l[i]); h2.tick(h1.hp); l1.tick(h2.hp); l2.tick(l1.lp);
             H1.tick(key.r[i]); H2.tick(H1.hp); L1.tick(H2.hp); L2.tick(L1.lp);
             const a = l2.lp < 0 ? -l2.lp : l2.lp, b = L2.lp < 0 ? -L2.lp : L2.lp;
             x = a > b ? a : b;
+            if (x > rung) rung = x;
             env = x > env ? x : env * DEC;
             if (env < 1e-12) env = 0;
           }

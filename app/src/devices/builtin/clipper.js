@@ -51,14 +51,16 @@ return {
   create({ sr, dsp }) {
     const oL = dsp.oversample4x(), oR = dsp.oversample4x();
     // the curve for the block (set from the params in process): ceiling c, the bend's start t, shape s, mix m
-    let c = 1, t = 1, s = 0, m = 1, b = 0, b0 = 0, over = 0, gi = 1;
+    let c = 1, t = 1, s = 0, m = 1, b = 0, b0 = 0, bs = 1, over = 0, gi = 1;
     const tanh = Math.tanh;
     const curve = (v) => {
       let y;
       const a = v < 0 ? -v : v;
       if (s === 2) {
-        // TAPE: a tanh leaning on a bias (even harmonics), the bias's own offset taken back out, under the ceiling
-        y = c * (tanh(v / c + b) - b0);
+        // TAPE: a tanh leaning on a bias (even harmonics), the bias's own offset taken back out, scaled so its lower
+        // half meets the ceiling only in the limit (unscaled, it reached -c at about 1.4-2.4 x the ceiling and was cut
+        // there flat: a hard clip on one side); the upper half tops out under it, at c (1 - tanh b) / (1 + tanh b)
+        y = c * (tanh(v / c + b) - b0) * bs;
       } else if (a <= t) y = v;
       else {
         const w = c - t, u = (a - t) / w;
@@ -81,7 +83,7 @@ return {
         const kn = s === 1 ? Math.max(P.knee, 0.25) : P.knee;
         t = c * Math.pow(10, -6 * kn / 20);
         if (t > c * 0.9999) t = c;
-        b = 0.12 * (0.3 + P.knee); b0 = tanh(b);
+        b = 0.12 * (0.3 + P.knee); b0 = tanh(b); bs = 1 / (1 + b0);
         const gd = dbg(P.drive), go = dbg(P.output);
         let pk = 0;
         for (let i = 0; i < n; i++) {

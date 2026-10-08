@@ -29,11 +29,11 @@ Sounds (Light Table, core.wavetable; preset: "<name>" in instrument.set)
 - Make a growl talk per note: give the note a mod curve, e.g. { "p": "F1", "t": 0, "d": 1, "mod": [[0, 0], [0.5, 1], [1, 0.2]] }; Emulsion's wheel opens its vowel. bend curves pitch-dive the end of a phrase.
 
 Mix
-- Sub on its own track, mono: Gatefold (core.width) monobass 120 on the sub, 200 on the growls; nothing else under 100 Hz but the kick (Sandbag's low end is mono already).
+- Sub on its own track, mono: Gatefold (core.width) { monobass: 120, mono_mode: "STEEP" } on the sub, monobass 200 on the growls and reeses (always STEEP: the ORIGINAL mode leaves the low side about as wide as it was); nothing else under 100 Hz but the kick (Sandbag's low end is mono already).
 - Duck: Dim Switch (core.ducker) on the sub, the growls and the pads, keyed by the drums: insert.add { device: "core.ducker", preset: "Kick duck", key: { track: "Drums" } }. Dubstep also ducks on the snare ("Kick and snare duck"); riddim pumps hard ("Hard pump (riddim)"); pads breathe ("Gentle pump").
-- Growls and stabs: an octave over the sub; Slide Rule (core.eq8) a 24 dB low cut at 40 Hz and +3 dB around 110 Hz; Gaffer Tape (core.multiband) "Bass density" after, or fx_mband in the synth.
+- Growls and stabs: an octave over the sub; Slide Rule (core.eq8) a 24 dB low cut at 40 Hz and +6 dB around 110 Hz (their low end carries the 60-250 Hz band); Gaffer Tape (core.multiband) "Bass density" after, or fx_mband in the synth. The sub sits a few dB under them (track gain about -4.5).
 - Drums: Clip Lamp (core.clipper) "Drum bus clip", then Gaffer Tape "Drum density" at 30-50%.
-- Master: Clip Lamp "Master clip (+6)" ("+3" for a gentler song), then Red Line (core.limiter) ceiling -1, gain about 8 dB (raise it until the drop reads -6 to -4 LUFS short-term; past that the crest falls under 6 dB); then master.set { patch: { clip: "clean" } } so nothing rounds the limiter's peaks. Measured: Sandbag, Dark Slide and Fixer that way read -5.4 LUFS short-term, crest 6.1 dB, -1.1 dBTP, the low end mono.
+- Master: Clip Lamp "Master clip (+6)" ("+3" for a gentler song), then Red Line (core.limiter) ceiling -1, gain about 9.5 dB (raise it until the drop reads -6 to -4 LUFS short-term; past that the crest falls under 6 dB); then master.set { patch: { clip: "clean" } } so nothing rounds the limiter's peaks. Measured: Sandbag, Dark Slide and Fixer that way read -5.8 LUFS short-term, crest 6.1 dB, -1.1 dBTP, the low end mono. Another growl moves the balance: measure, then trim the limiter's gain and the 110 Hz lift.
 
 Check it (render_and_measure { targets: "bass-music" })
 - A drop (window "drop"): short-term loudness at its loudest -6 to -4 LUFS, crest 6-9 dB, the low end mono (side under 120 Hz at -20 dB or less, correlation 0.95 or more), the bands a sub-heavy, bright-topped balance.

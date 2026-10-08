@@ -5,13 +5,13 @@
 // real hits): the kick peaks within 5 ms, its crest over the first 100 ms is 10 dB or more, and its tail sits within 25
 // cents of KICK NOTE after 60 ms; the snare peaks within 5 ms, its crest is 12 dB or more, what it has over 2.5 kHz
 // rings 0.5 s at most (T60) and its body is at 150-300 Hz; the hats have energy from 150 Hz to 2.5 kHz no more than 30
-// dB under their loudest band and the two mics correlate 0.5 at most; every voice ends when it has fallen quiet (the
+// dB under their loudest band, their 12-20 kHz within 6 dB of their 150-600 Hz, and the two mics correlate 0.5 at most; every voice ends when it has fallen quiet (the
 // last 50 ms before the sound stops are 60 dB under its peak: nothing is cut off); a closed hat chokes an open one;
 // KICK NOTE moves the kick's tail and nothing else moves with it; the kit plays the drum phrase near -18 LUFS with true
 // peaks at or under -1 dBTP; renders repeat bit for bit. Every number printed is the measured one.
 //   node tools/clubkit-test.js
 import { tally } from './pw.js';
-import { renderInst, mono, hitStats, decayT60, fundamental, bandDb } from './bass-metrics.js';
+import { renderInst, mono, hitStats, decayT60, fundamental, bandDb, centroidTrack } from './bass-metrics.js';
 import { measure } from '../app/src/audio/measure.js';
 import { drumPhrase, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 import { sha256 } from '../app/src/engine/node/io.js';
@@ -53,6 +53,12 @@ for (const [kit, name] of KITS.entries()) {
   const hr = renderInst('core.clubkit', P, [{ p: 42, t: 0, d: 0.1, v: 1 }], { bpm: 60, beats: 1, tail: 1 }), h = mono(hr.channels);
   const lo = bandDb(h, SR, 150, 2500), top = Math.max(bandDb(h, SR, 2500, 8000), bandDb(h, SR, 8000, 20000), lo), corr = measure(hr).correlation;
   ok(lo - top >= -30 && corr <= 0.5, `hats: 150 Hz-2.5 kHz at ${f(lo - top)} dB to their loudest band (Gobo's were 42-58 under), the mics correlate ${f(corr, 2)}`);
+  // ...and their top: a real closed hat's 12-20 kHz is within a few dB of its 150-600 Hz (OSD -0.7, VCSL +6.1), its
+  // centroid 5-8.5 kHz over the first 30 ms; a hat that fixes the body by losing the top is dull
+  let on = 0; while (on < h.length && Math.abs(h[on]) < 1e-4) on++;
+  const ct = centroidTrack(h, SR, { from: on / SR, to: on / SR + 0.03, hop: 48, win: 1024, lo: 20, hi: 22000 }), hc = ct.c.reduce((a, b) => a + b, 0) / ct.c.length;
+  const air = bandDb(h, SR, 12000, 20000) - bandDb(h, SR, 150, 600);
+  ok(air >= -6 && hc >= 4800, `hats: their top as strong as their body (12-20 kHz ${f(air)} dB against 150-600 Hz; real -0.7 to +6.1), centroid ${f(hc, 0)} Hz over the first 30 ms (real 5-8.5 kHz)`);
   const ends = [36, 38, 39, 37, 42, 46, 45, 49, 51, 33].map((p) => [p, ending(hit(P, p, 1, [46, 49, 51, 33].includes(p) ? 12 : 3))]);
   const cut = ends.filter(([, e]) => !(e.db <= -60 && e.ends));
   ok(!cut.length, `every piece ends quietly: the last 50 ms before it stops are ${f(Math.max(...ends.map(([, e]) => e.db)), 0)} dB under its peak at most (${ends.map(([p, e]) => `${NOTES[p]} ${f(e.ms, 0)} ms`).join(', ')})${cut.length ? ': not ' + cut.map(([p, e]) => `${NOTES[p]} ${f(e.db, 0)} dB`).join(', ') : ''}`);

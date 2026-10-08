@@ -519,11 +519,11 @@
       "peak": -9.35
     },
     "inst:core.clubkit": {
-      "sha256": "874c703413aad15cfdf56607b5876c334ca5ddbc82db5f6457404edcd82f9446",
+      "sha256": "ccf6a89de7523c3e696da2e578f08e63754424e7c6a92c8f2018c4ed368db1b5",
       "frames": 672000,
-      "lufs": -17.87,
-      "truePeak": -1.41,
-      "peak": -2.32
+      "lufs": -17.73,
+      "truePeak": -0.96,
+      "peak": -1.88
     }
   }
 }

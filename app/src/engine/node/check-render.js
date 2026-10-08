@@ -6,8 +6,9 @@
 // The kernel shares this process, so everything here is the kernel's to change: what this process sends back is
 // treated as the kernel speaking. The checker keeps only samples of the length it asked for and measures them itself.
 //
-//   in:  { type: 'job', id, def: { id, kind, kernel, params, poly, tail, data }, secs, sr, bpm, seed, params, notes,
-//          allOffAt, stats, inFrames } + the input (L then R, inFrames each; effects)
+//   in:  { type: 'job', id, def: { id, kind, kernel, params, poly, tail, data, key }, secs, sr, bpm, seed, params, notes,
+//          allOffAt, stats, inFrames, keyFrames } + the input (L then R, inFrames each; effects), then a keyed
+//          effect's key (L then R, keyFrames each; def.key)
 //   out: { type: 'hi' }                                               once, at start, before any kernel has run
 //        { type: 'ready', id }                                        create() returned; the render starts
 //        { type: 'done', id, errors, stats, latency, poly } + L, R    secs * sr frames each (latency in samples)
@@ -37,8 +38,10 @@ function run(h, payload) {
     else if (m.type === 'stats') stats = { maxVoices: m.maxVoices, steals: m.steals };
   };
   const K = coreAt(sr);
+  const keyFrames = kind === 'effect' && def.key === true ? h.keyFrames | 0 : 0;
   const core = new K({ source: def.kernel, kind, params: specs, values, poly: def.poly, seed: h.seed >>> 0,
-    transport: { bpm: h.bpm, playing: true, beat: 0, time: 0 }, tail: def.tail, data: dataFor(def.data) }, post);
+    transport: { bpm: h.bpm, playing: true, beat: 0, time: 0 }, tail: def.tail, data: dataFor(def.data),
+    ...(kind === 'effect' && def.key === true ? { key: true, keyOn: keyFrames > 0 } : {}) }, post);
   if (!ready) {
     const c = errors.find((e) => e.stage === 'compile');
     send({ type: 'done', id: h.id, compileError: c ? c.message : 'the kernel did not start', line: c ? c.line : null });
@@ -55,14 +58,21 @@ function run(h, payload) {
   const frames = Math.round(h.secs * sr), inFrames = h.inFrames | 0;
   const inL = inFrames ? new Float32Array(payload.buffer.slice(payload.byteOffset, payload.byteOffset + inFrames * 4)) : null;
   const inR = inFrames ? new Float32Array(payload.buffer.slice(payload.byteOffset + inFrames * 4, payload.byteOffset + inFrames * 8)) : null;
+  const at = payload.byteOffset + inFrames * 8;
+  const kyL = keyFrames ? new Float32Array(payload.buffer.slice(at, at + keyFrames * 4)) : null;
+  const kyR = keyFrames ? new Float32Array(payload.buffer.slice(at + keyFrames * 4, at + keyFrames * 8)) : null;
   const L = new Float32Array(frames), R = new Float32Array(frames);
-  const iL = new Float32Array(Q), iR = new Float32Array(Q), bL = new Float32Array(Q), bR = new Float32Array(Q);
+  const iL = new Float32Array(Q), iR = new Float32Array(Q), bL = new Float32Array(Q), bR = new Float32Array(Q), kL = new Float32Array(Q), kR = new Float32Array(Q);
   for (let f = 0; f < frames; f += Q) {
     const m = Math.min(Q, frames - f);
     if (kind === 'effect') {
       iL.fill(0); iR.fill(0);
       if (inL && f < inFrames) { iL.set(inL.subarray(f, Math.min(f + Q, inFrames))); iR.set(inR.subarray(f, Math.min(f + Q, inFrames))); }
-      core.block(iL, iR, bL, bR, f);
+      if (kyL) {
+        kL.fill(0); kR.fill(0);
+        if (f < keyFrames) { kL.set(kyL.subarray(f, Math.min(f + Q, keyFrames))); kR.set(kyR.subarray(f, Math.min(f + Q, keyFrames))); }
+        core.block(iL, iR, bL, bR, f, kL, kR);
+      } else core.block(iL, iR, bL, bR, f);
     } else core.block(null, null, bL, bR, f);
     L.set(bL.subarray(0, m), f); R.set(bR.subarray(0, m), f);
   }
@@ -72,7 +82,7 @@ function run(h, payload) {
 }
 
 const rd = reader({
-  allow: (h) => (h && h.type === 'job' ? (h.inFrames | 0) * 8 : 0),
+  allow: (h) => (h && h.type === 'job' ? ((h.inFrames | 0) + (h.keyFrames | 0)) * 8 : 0),
   onFrame: (h, payload) => { if (h && h.type === 'job') run(h, payload); },
   onError: () => process.exit(2),
   maxHeader: 4 << 20,

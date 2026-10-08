@@ -406,6 +406,8 @@ console.log('no clicks: sweeps and switches mid-note');
     ['a warp switch (BEND to SYNC)', { ...P0, a_pos: 0.4, a_warp: 'BEND', a_warp_amt: 0.6 }, lane('a_warp', [[0, 2], [1, 2], [1, 1]]), [{ a_pos: 0.4, a_warp: 'BEND', a_warp_amt: 0.6 }, { a_pos: 0.4, a_warp: 'SYNC', a_warp_amt: 0.6 }]],
     ['a filter switch (LP24 to HP)', { ...P0, a_pos: 0.4, flt_cutoff: 800 }, lane('flt_type', [[0, 1], [1, 1], [1, 2]]), [{ a_pos: 0.4, flt_cutoff: 800 }, { a_pos: 0.4, flt_cutoff: 800, flt_type: 'HP' }]],
     ['unison 1 to 8', { ...P0, a_pos: 0.4 }, lane('a_unison', [[0, 1], [1, 1], [1, 8]]), [{ a_pos: 0.4 }, { a_pos: 0.4, a_unison: 8 }]],
+    ['a drive shape switch (TANH to FOLD, DRIVE 0.6)', { ...P0, a_pos: 0.4, fx_drive: 0.6 }, lane('fx_dist', [[0, 0], [1, 0], [1, 2]]), [{ a_pos: 0.4, fx_drive: 0.6 }, { a_pos: 0.4, fx_drive: 0.6, fx_dist: 2 }]],
+    ['a drive shape switch (HARD to RECTIFY, DRIVE 0.6)', { ...P0, a_pos: 0.4, fx_drive: 0.6, fx_dist: 1 }, lane('fx_dist', [[0, 1], [1, 1], [1, 4]]), [{ a_pos: 0.4, fx_drive: 0.6, fx_dist: 1 }, { a_pos: 0.4, fx_drive: 0.6, fx_dist: 4 }]],
   ];
   const res = cases.map(([name, params, auto, statics]) => {
     const a = play(held(45, 1.5), params, 1.5, { auto, tail: 0 }), change = at(a, 0.35, 0.6);

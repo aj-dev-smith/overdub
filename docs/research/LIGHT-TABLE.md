@@ -779,7 +779,12 @@ params, appended (none of them moves an old song: at their defaults the arithmet
   default, the same operations); `HARD` clips flat; `FOLD` folds the wave back on itself (a triangle fold: buzz that
   grows with DRIVE); `SINE FOLD` folds it round (sin(pi/2 x): vocal, metallic); `RECTIFY` folds it up (an octave up and
   grit; the DC blocker after takes the offset); `DOWNSAMPLE` holds each channel for 1 to 25 of the 2x samples as DRIVE
-  rises (lo-fi steps). On a held A1 into DRIVE 0.6 their centroids are 904, 916, 916, 1133, 3241 and 2809 Hz.
+  rises (lo-fi steps). On a held A1 into DRIVE 0.6 their centroids are 904, 916, 916, 1128, 3175 and 2809 Hz.
+  `HARD`, `FOLD`, `SINE FOLD` and `RECTIFY` run with first-order antiderivative anti-aliasing at the 2x rate (the
+  shape's integral differenced over each step). Measured on a saw at A4 into DRIVE 0.85, inharmonic energy over 2 kHz
+  against the harmonics: RECTIFY -30 dB without it, -44 with it; HARD, FOLD and SINE FOLD gain 1 to 2 dB (-37, -36
+  and -31 dB; the same patch rendered at 96 kHz reads -46). What they still fold back comes from the 2x rate itself:
+  a 4x drive is the next step for those three, and it would move the drive's latency.
 - **`fx_mband`** (MULTIBAND, 0-100%) and **`fx_mband_time`** (MB TIME, 10-1000%): Gaffer Tape's dynamics after the
   drive, before the chorus. The kernel embeds `multiband-curve.js` by source (the crossover, `mbStep` and the shelves,
   7 KB) and runs them at the classic settings (Gaffer Tape's CLASSIC bands), split at 88 Hz and 2.5 kHz, with no
