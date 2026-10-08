@@ -54,6 +54,9 @@ import { RECIPE as FLUTE_RECIPE } from './kits/vsco-flute.js';
 import { FLUTE_HASH } from '../app/src/devices/builtin/flute.js';
 import { RECIPE as TRUMPET_RECIPE } from './kits/vsco-trumpet.js';
 import { TRUMPET_HASH } from '../app/src/devices/builtin/trumpet.js';
+import { RECIPE as STICKS_RECIPE } from './kits/big-rusty-sticks.js';
+import { METALKIT_HASH } from '../app/src/devices/builtin/metalkit.js';
+import { buildBlended } from './kits/blend.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -350,6 +353,9 @@ async function buildLaidOut(recipe) {
   return { ...r, hash: 'sha256-' + sha256(r.bytes) };
 }
 
+// a recipe that mixes each stroke from its microphones (tools/kits/blend.js)
+const buildMixed = (recipe) => buildBlended(recipe, fetchFile);
+
 // every kit a device names: [recipe, the hash the device pins, how it's built]
 const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build], [HAND_RECIPE, HAND_HASH, build],
   [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
@@ -358,7 +364,8 @@ const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buil
   [BARISAX_RECIPE, BARISAX_HASH, buildLaidOut],
   [CELLO_RECIPE, CELLO_HASH, buildLaidOut],
   [FLUTE_RECIPE, FLUTE_HASH, buildLaidOut],
-  [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut]];
+  [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut],
+  [STICKS_RECIPE, METALKIT_HASH, buildMixed]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
