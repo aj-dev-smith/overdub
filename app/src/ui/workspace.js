@@ -17,6 +17,7 @@
 // with or without it. installWorkspace(ui, app, decision) is called by main.js straight after createShell.
 
 import { h, css, byline, authorOf } from './dom.js';
+import { kitHashes, kitState, kitLine, prefetchKit } from './kitload.js';
 import { WORKSPACE_KEY, VIEWS, readSaved } from './workspace-view.js';
 
 // The registry. Ids are forever. Copy is final (docs/BRAND.md voice): the purpose is what More says, in a musician's
@@ -481,7 +482,9 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     return h('div.ws-row', { id: `ws-opt-${i}`, role: 'option', 'aria-selected': String(sel), dataset: { ws: it.kind === 'go' ? it.f.id : it.id, kind: it.kind }, class: sel ? 'on' : '', onclick: () => run(it), onpointermove: () => { if (findOpen && findOpen.at !== i) { findOpen.at = i; paintActive(); } } },
       h('span.ws-row-k', T.kinds[it.kind]),
       h('div.ws-row-w', h('b.ws-row-t', it.title), agentAdded ? h('small.ws-row-by', 'added by ', byline(by, { app })) : null,
-        it.purpose ? h('span.ws-row-p', it.purpose) : null, it.f?.note ? h('span.ws-row-p.ws-row-note', it.f.note) : null),
+        it.purpose ? h('span.ws-row-p', it.purpose) : null, it.f?.note ? h('span.ws-row-p.ws-row-note', it.f.note) : null,
+        // (a sampled sound says how far along its samples are, until they're in: ui/kitload.js)
+        it.kind === 'sound' && kitHashes(it.def).length && kitState(it.def) !== 'ready' ? kitLine(it.def, { short: true }) : null),
       it.key ? h('kbd.ws-row-key', it.key) : null,
       putB);
   }
@@ -490,7 +493,10 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     const { list, find, at } = findOpen;
     for (const el of list.querySelectorAll('.ws-row')) { const on = el.id === `ws-opt-${at}`; el.classList.toggle('on', on); el.setAttribute('aria-selected', String(on)); if (on) el.scrollIntoView?.({ block: 'nearest' }); }
     find.setAttribute('aria-activedescendant', `ws-opt-${at}`);
+    early(findOpen.rows?.[at]);
   }
+  // the sound the arrows or the pointer rest on: a sampled one's samples start coming, so trying it is heard at once
+  function early(it) { if (it && it.kind === 'sound' && it.def.kind === 'instrument' && kitHashes(it.def).length && kitState(it.def) == null) prefetchKit(it.def); }
   function renderFind() {
     if (!findOpen) return;
     const { list, foot, find } = findOpen;
@@ -516,6 +522,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     });
     list.replaceChildren(...kids);
     find.setAttribute('aria-activedescendant', rows.length ? `ws-opt-${findOpen.at}` : '');
+    early(rows[findOpen.at]);
     foot.replaceChildren(view === 'simple' ? h('small.ws-foot-s', T.hides) : h('small.ws-foot-s', `↑ ↓ choose · Enter goes · ${MODK}Enter asks Claude · Esc closes`));
     place();
   }
@@ -554,6 +561,7 @@ const WS_CSS = `
 .ws-row-w { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ws-row-t { font-size: 13px; font-weight: 600; color: var(--text); }
 .ws-row-by { font-size: 12px; color: var(--text-3); }
+.ws-row-w > .kitload { display: grid; margin-top: 3px; width: max-content; }
 .ws-row-p { font-size: 12px; line-height: 1.4; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ws-row-key { flex: none; font: 500 11px var(--font-mono); color: var(--text-3); }
 .ws-row-put { flex: none; }

@@ -18,6 +18,7 @@
 // Keys: / searches (from anywhere), ↑ ↓ move, Enter tries or adds, Shift+Enter puts an instrument on a new track,
 // Esc goes back from a trial, else clears.
 
+import { kitHashes, kitState, kitLine, prefetchKit } from './kitload.js';
 import { h, css, icon, byline } from './dom.js';
 import { DEVICE_CATS } from '../devices/registry.js';
 import { addDevice, applyRig, guitar, swatchOf, authorKind, authorName, currentTrack, rankDevices, isMismatch } from './rack.js';
@@ -65,7 +66,9 @@ export default async function (app) {
         const tt = tr && store.track(tr.track);
         target.classList.toggle('br-trial', !!tt);
         if (tt) {
-          target.replaceChildren(h('span.br-target-line', 'Trying ', h('b', devName(tr.device)), ' on ', trackChip(tt), '.'),
+          const td = devices.getDevice(tr.device);
+          target.replaceChildren(h('span.br-target-line', 'Trying ', h('b', devName(tr.device)), ' on ', trackChip(tt), '.',
+            td && kitHashes(td).length && kitState(td) !== 'ready' ? [' ', kitLine(td)] : null),
             h('span.br-trial-acts',
               h('button.btn.btn-go.br-keep', { type: 'button', title: `Keep ${devName(tr.device)} on ${tt.name} (one undo step)`, onclick: () => keepTrial() }, 'Keep'),
               h('button.btn.btn-txt.br-back', { type: 'button', title: `Back to ${devName(realDevice(tt, tr))}`, onclick: () => backTrial('back') }, 'Back')));
@@ -129,6 +132,14 @@ export default async function (app) {
           (ak && credit(by, pd?.via || d.via)) || h('small.br-tag', tag || d.kindLabel || ''),
           d.blurb ? h('span.br-blurb', d.blurb) : null);
         r.addEventListener('click', (e) => { if (e.detail > 1) return; pickDevice(d, e.shiftKey, r); });
+        // a sampled instrument's samples start coming when the pointer or focus rests on it, so a click hears it
+        // (ui/kitload.js); the row says how far along they are until they're in
+        if (d.kind === 'instrument' && kitHashes(d).length) {
+          const early = () => { if (kitState(d) == null) prefetchKit(d); };
+          r.addEventListener('pointerenter', early);
+          r.addEventListener('focus', early);
+          if (kitState(d) !== 'ready') r.append(kitLine(d, { short: true }));
+        }
         // a double-click keeps it (a DAW's habit: double-click loads): the first click tried it, the second keeps it
         r.addEventListener('dblclick', (e) => { if (e.shiftKey || d.kind !== 'instrument') return; const tr = S().trying(); if (tr && tr.device === d.id && !tr.newTrack) keepTrial(); });
         r.addEventListener('dragstart', (e) => { e.dataTransfer.setData(DT_DEV, JSON.stringify({ id: d.id, kind: d.kind })); e.dataTransfer.setData('text/plain', d.id); e.dataTransfer.effectAllowed = 'copy'; r.classList.add('dragging'); });
@@ -249,6 +260,9 @@ export default async function (app) {
       function highlight(scroll = true) {
         rows.forEach((r, i) => { r.el.classList.toggle('on', i === at); r.el.setAttribute('aria-selected', String(i === at)); });
         if (scroll && rows[at]) rows[at].el.scrollIntoView({ block: 'nearest' });
+        // (the keys resting on a sampled instrument start its samples coming, as the pointer does)
+        const it = scroll && rows[at]?.kind === 'device' ? rows[at].item : null;
+        if (it && it.kind === 'instrument' && kitHashes(it).length && kitState(it) == null) prefetchKit(it);
       }
 
       function newTrackWith(d) {
@@ -503,6 +517,8 @@ const BROWSER_CSS = `
 /* the row the keys are on: reverse print */
 .br-row.on { background: var(--text); color: var(--bg); }
 .br-row.on .br-tag, .br-row.on .br-blurb, .br-row.on .by, .br-row.on .br-by { color: var(--bg); }
+.br-row > .kitload { grid-column: 2 / -1; }
+.br-row.on .kitload, .br-trial .kitload { color: inherit; } .br-row.on .kitload .kl-bar > i { background: var(--bg); }
 .br-row.dragging { opacity: .5; }
 .br-sw { width: 8px; height: 8px; }
 .br-sw-rig { border-radius: 0; }

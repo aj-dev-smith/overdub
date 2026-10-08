@@ -102,7 +102,7 @@ can be up to 256 KB.</p>
 <tr><td><code>app/src/kernel/examples.js</code></td><td><code>core.testsynth</code> and <code>core.testfilter</code>, the reference kernels (registered on import)</td></tr>
 <tr><td><code>tools/kernel-test.js</code></td><td>the platform's checks (<code>node tools/kernel-test.js</code>)</td></tr>
 <tr><td><code>app/src/kernel/odk.js</code></td><td>kernel data: the <code>.odk</code> container (<code>encodeOdk</code>, <code>decodeOdk</code>), <code>normData(def.data)</code></td></tr>
-<tr><td><code>app/src/kernel/data.js</code></td><td>kernel data on the page: <code>loadData(hash)</code> (fetch once, check, IndexedDB), <code>dataState</code>, <code>onData</code></td></tr>
+<tr><td><code>app/src/kernel/data.js</code></td><td>kernel data on the page: <code>loadData(hash)</code> (fetch once, check, IndexedDB), <code>dataState</code>, <code>dataProgress</code>, <code>onData</code></td></tr>
 <tr><td><code>app/src/engine/node/data.js</code></td><td>kernel data in Node: <code>dataFor(def.data)</code> reads <code>app/kits/</code> for the renderer and the check</td></tr>
 <tr><td><code>tools/fetch-kits.js</code></td><td>builds the sampled kits into <code>app/kits/</code> from pinned upstream files (<code>tools/kits/</code>, <code>tools/flac.js</code>)</td></tr>
 </tbody></table></div>
@@ -569,15 +569,18 @@ the <code>.odkz</code>, unpacks it and checks the rebuilt <code>.odk</code> agai
 never see it, and the pinned hash is still the <code>.odk</code>'s. A wrong byte fails that check: the studio says which file
 in the console and fetches the plain <code>.odk</code> instead, and without one the device plays nothing. Plain copies an
 earlier visit cached still load.</li>
-<li><strong>Loaded lazily, once.</strong> Nothing is fetched until a track uses the device (<code>kernel/host.js</code> asks when it builds an
-instance). <code>kernel/data.js</code> fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
+<li><strong>Loaded lazily, once.</strong> Nothing is fetched until something asks: a track using the device (<code>kernel/host.js</code> asks
+when it builds an instance), or a sound picker showing it (the suggested-sounds card's rows) or the pointer resting
+on it (the browser, Find), through <code>ui/kitload.js</code>, so a first try isn't silent. <code>kernel/data.js</code> fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
 (<code>overdub-kits</code>, beside the audio assets; the packed bytes, which are smaller), so the next visit never fetches it. Each audio context's worklet decodes
 it once: the first node that needs it carries the bytes, and every node after names the hash (a node whose hash
 arrives before those bytes do gets its kit when they land).</li>
 <li><strong>Nothing streams mid-render.</strong> An offline render (an export, the device check, the preview) waits for the file
 before it starts, however long the download takes (an export never swaps in a stand-in for want of it). A live instance starts at once with <code>data.kit = null</code> (silence). When the file arrives,
 <code>create()</code> runs again with it, crossfading from that silence. While it loads, the device's card says <strong>Loading
-samples…</strong>.</li>
+samples…</strong>, and the track's header, a picker's row and the browser's trial bar show how far along it is. A trial
+of the sound waits for it before it plays the take, and a key pressed meanwhile sounds once it lands if it is still
+down, so no note of a first try is lost to the download.</li>
 <li><strong>A missing file plays nothing, and says so.</strong> A hash this server doesn't have (never fetched, or a song from
 somewhere else) gives the kernel <code>null</code>. The card says <strong>No samples here</strong>, the engine reports it (kind <code>'data'</code>),
 and the Node renderer warns. The device check fails it as silent.</li>

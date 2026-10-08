@@ -568,18 +568,24 @@ and drops its duplicate (same device and preset). The sets, all real ids (`devic
 |---|---|---|
 | hum | `core.keys` Lamp Tines (Electric piano), `core.wavetable` Light Table (Synth), `core.strings` Music Stands (Strings), `claude.choir-loft` Choir Loft (Choir) | `core.mallets` Mallet Bag (Mallets), `core.ensemble` Rosin (Strings), `core.choir` Risers (Choir), `core.pluck` Pinch Roller (Pluck), `core.barisax` Bell Up (Sax), `core.cello` Endpin (Cello), `core.flute` Head Joint (Flute) |
 | played | `core.keys` Lamp Tines (Electric piano), `core.upright` Parlour Upright (Upright piano), `core.wavetable` Light Table (Synth), `core.mallets` Mallet Bag (Mallets) | `core.grand` Full Stick (Piano), `core.vibes` Damper Bar (Vibraphone), `core.brass` Brass Rail (Brass), `core.piano` Baby Grand (Piano), `core.pluck` Pinch Roller (Pluck), `core.eguitar` Hollow Body (Electric guitar), `core.trumpet` Spit Valve (Trumpet) |
-| chords | `core.keys` Lamp Tines (Electric piano), `core.upright` Parlour Upright (Upright piano), `core.pad` Room Tone (Pad), `core.strings` Music Stands (Strings) | `core.grand` Full Stick (Piano), `core.ensemble` Rosin (Strings), `core.ep` Suitcase (Electric piano), `core.piano` Baby Grand (Piano), `core.organ` Rotor Cabinet (Organ), `core.poly2` Step Ladder (Synth) |
-| bass | `core.bassguitar` Flatwound (Bass guitar), `core.bass` Capstan (Synth bass), `claude.sub-basement` Sub Basement (Sub bass), `core.wavetable` preset "Low Key" (Synth bass) | `core.ebass` Roundwound (Bass guitar), `core.poly2` preset "Ladder bass" (Synth bass) |
+| chords | `core.keys` Lamp Tines (Electric piano), `core.upright` Parlour Upright (Upright piano), `core.pad` Room Tone (Pad), `core.ensemble` Rosin (Strings) | `core.grand` Full Stick (Piano), `core.strings` Music Stands (Strings), `core.ep` Suitcase (Electric piano), `core.piano` Baby Grand (Piano), `core.organ` Rotor Cabinet (Organ), `core.poly2` Step Ladder (Synth) |
+| bass | `core.ebass` Roundwound (Bass guitar), `core.bass` Capstan (Synth bass), `claude.sub-basement` Sub Basement (Sub bass), `core.wavetable` preset "Low Key" (Synth bass) | `core.bassguitar` Flatwound (Bass guitar), `core.poly2` preset "Ladder bass" (Synth bass) |
 | drums | `core.drums` preset "Studio kit" (Drum kit), `core.drumkit` Virtuosity Kit (Jazz kit), `core.drumroom` Studio A (Acoustic kit), `core.drums` preset "Boom bap" (Drum kit) | `core.brushkit` Rusty Brushes (Brushes), `core.handkit` Hand Crate (Hand percussion), `core.drums` preset "Trap" (Drum kit), `core.drums` preset "Live room" (Drum kit) |
 
 The hum set is chosen to sing: AJ named only Light Table, so the set is ours to tune and to check with him. A bass
 guitar playing a C4-A4 hummed line reads as a mistake, so Flatwound moved to the bass set only, and Music Stands
-(slow bows, a hall around it: the one row with a room) took its place. Two sampled instruments sit second in the sets
-they fit: Parlour Upright in played and chords, Virtuosity Kit in drums. The others sit at the head of the fallbacks,
-not in the rows: Full Stick and Damper Bar for played, Full Stick and Rosin for chords, Rosin for hum (after Mallet Bag,
-which stands in for Choir Loft), Roundwound for bass, and Rusty Brushes and Hand Crate for drums, so an agent asked for
-other kits offers them next. The first trial of one is silent until its kit lands (several MB), so they come up when a
-row is already the track's sound. A preset makes a row its own sound: the row's name is "Gobo Kit, Trap" and Keep
+(slow bows, a hall around it: the one row with a room) took its place. Sampled instruments sit in the rows where they
+are the best sound for the set: Parlour Upright second in played and chords, Rosin last in chords (Music Stands moved
+to the fallbacks), Roundwound first in bass (Flatwound, the synthesized bass guitar, heads the fallbacks) and Virtuosity
+Kit second in drums. The others sit in the fallbacks: Full Stick and Damper Bar at the head of played's, Hollow Body
+and Spit Valve at its end; Full Stick at the head of chords'; Rosin for hum (after Mallet Bag, which stands in for
+Choir Loft), then Bell Up, Endpin and Head Joint; Rusty Brushes and Hand Crate for drums, so an agent asked for other
+kits offers them next. A sampled sound's first try is never silent (`ui/kitload.js`): its samples start coming as soon
+as its row is shown on the card, or the pointer or the keys rest on it in the browser or Find; the row, the track's
+header and the browser's trial bar say "Loading samples" with how far along they are; a tried take waits for them and
+plays from its first note once they're in (the status line says so, with the megabytes); a key pressed meanwhile sounds
+once they're in if it is still down (`engine.liveNoteOn`, as a key pressed before the engine was up does). An export or
+a render waits for the samples as it always has. A preset makes a row its own sound: the row's name is "Gobo Kit, Trap" and Keep
 dispatches `instrument.set { device, preset }`. "More sounds" searches the browser by the set's category (`keys`,
 `synth`, `bass`, `drums`).
 

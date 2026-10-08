@@ -200,8 +200,8 @@ export function soundsAsk(app, t) {
 const SETS_TABLE = {
   hum: ['core.keys', 'core.wavetable', 'core.strings', 'claude.choir-loft', 'core.mallets', 'core.ensemble', 'core.choir', 'core.pluck', 'core.barisax', 'core.cello', 'core.flute'],
   played: ['core.keys', 'core.upright', 'core.wavetable', 'core.mallets', 'core.grand', 'core.vibes', 'core.brass', 'core.piano', 'core.pluck', 'core.eguitar', 'core.trumpet'],
-  chords: ['core.keys', 'core.upright', 'core.pad', 'core.strings', 'core.grand', 'core.ensemble', 'core.ep', 'core.piano', 'core.organ', 'core.poly2'],
-  bass: ['core.bassguitar', 'core.bass', 'claude.sub-basement', { device: 'core.wavetable', preset: 'Low Key' }, 'core.ebass', { device: 'core.poly2', preset: 'Ladder bass' }],
+  chords: ['core.keys', 'core.upright', 'core.pad', 'core.ensemble', 'core.grand', 'core.strings', 'core.ep', 'core.piano', 'core.organ', 'core.poly2'],
+  bass: ['core.ebass', 'core.bass', 'claude.sub-basement', { device: 'core.wavetable', preset: 'Low Key' }, 'core.bassguitar', { device: 'core.poly2', preset: 'Ladder bass' }],
   drums: [{ device: 'core.drums', preset: 'Studio kit' }, 'core.drumkit', 'core.drumroom', { device: 'core.drums', preset: 'Boom bap' }, 'core.brushkit', 'core.handkit', { device: 'core.drums', preset: 'Trap' }, { device: 'core.drums', preset: 'Live room' }],
 };
 const rowOf = (r) => (typeof r === 'string' ? { device: r, preset: null } : r && (r.device || r.id) ? { device: r.device || r.id, preset: r.preset || null } : null);

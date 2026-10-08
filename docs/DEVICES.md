@@ -28,7 +28,7 @@ Where things live:
 | `app/src/kernel/examples.js` | `core.testsynth` and `core.testfilter`, the reference kernels (registered on import) |
 | `tools/kernel-test.js` | the platform's checks (`node tools/kernel-test.js`) |
 | `app/src/kernel/odk.js` | kernel data: the `.odk` container (`encodeOdk`, `decodeOdk`), `normData(def.data)` |
-| `app/src/kernel/data.js` | kernel data on the page: `loadData(hash)` (fetch once, check, IndexedDB), `dataState`, `onData` |
+| `app/src/kernel/data.js` | kernel data on the page: `loadData(hash)` (fetch once, check, IndexedDB), `dataState`, `dataProgress`, `onData` |
 | `app/src/engine/node/data.js` | kernel data in Node: `dataFor(def.data)` reads `app/kits/` for the renderer and the check |
 | `tools/fetch-kits.js` | builds the sampled kits into `app/kits/` from pinned upstream files (`tools/kits/`, `tools/flac.js`) |
 
@@ -532,15 +532,18 @@ frames, ch: [Int16Array, ...] }] }`.
   never see it, and the pinned hash is still the `.odk`'s. A wrong byte fails that check: the studio says which file
   in the console and fetches the plain `.odk` instead, and without one the device plays nothing. Plain copies an
   earlier visit cached still load.
-- **Loaded lazily, once.** Nothing is fetched until a track uses the device (`kernel/host.js` asks when it builds an
-  instance). `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
+- **Loaded lazily, once.** Nothing is fetched until something asks: a track using the device (`kernel/host.js` asks
+  when it builds an instance), or a sound picker showing it (the suggested-sounds card's rows) or the pointer resting
+  on it (the browser, Find), through `ui/kitload.js`, so a first try isn't silent. `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
   (`overdub-kits`, beside the audio assets; the packed bytes, which are smaller), so the next visit never fetches it. Each audio context's worklet decodes
   it once: the first node that needs it carries the bytes, and every node after names the hash (a node whose hash
   arrives before those bytes do gets its kit when they land).
 - **Nothing streams mid-render.** An offline render (an export, the device check, the preview) waits for the file
   before it starts, however long the download takes (an export never swaps in a stand-in for want of it). A live instance starts at once with `data.kit = null` (silence). When the file arrives,
   `create()` runs again with it, crossfading from that silence. While it loads, the device's card says **Loading
-  samples…**.
+  samples…**, and the track's header, a picker's row and the browser's trial bar show how far along it is. A trial
+  of the sound waits for it before it plays the take, and a key pressed meanwhile sounds once it lands if it is still
+  down, so no note of a first try is lost to the download.
 - **A missing file plays nothing, and says so.** A hash this server doesn't have (never fetched, or a song from
   somewhere else) gives the kernel `null`. The card says **No samples here**, the engine reports it (kind `'data'`),
   and the Node renderer warns. The device check fails it as silent.

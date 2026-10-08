@@ -281,8 +281,9 @@ yours to pick by ear:
     mics are faders along the bottom, and **VIEW** turns the picture round with the stereo image. On a phone, tap the
     kit and scroll for the rest.
 - **A real piano.** Parlour Upright, under Keys in **Add a track**, plays a recorded upright piano, every key from
-  samples. The first song that uses it fetches them (the device says **Loading samples…** beside its name until
-  they land) and the studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
+  samples. The studio fetches them the first time it's offered or you point at it (the row, the track's header and
+  the device say **Loading samples…**, with a line that fills, until they land), and a sound tried before then plays
+  your take from its first note once they're in. The studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
   below hard ones, **RELEASE** how long a note takes to die once you let go, and a sustain pedal holds notes as on
   a piano. Its sources and licence are in [`docs/SOUNDS.md`](https://github.com/overdubstudio/overdub/blob/main/docs/SOUNDS.md).
 - **A concert grand.** Full Stick, under Keys too, is a recorded grand with its lid open: Alexander Holm's Salamander

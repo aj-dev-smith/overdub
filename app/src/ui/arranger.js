@@ -68,6 +68,7 @@ import {
 import { laneKey, laneAt, lanesOf, valueAt, toPos, laneView } from '../core/automation.js';
 import { DEVICE_CATS } from '../devices/registry.js';
 import * as rackKit from './rack.js';
+import { kitHashes, kitState, kitLine } from './kitload.js';
 import { newPartFor } from '../core/sounds.js';
 import {
   LANE_H, LANE_H_PHONE, laneState, trackLanes, shownLanes, laneParams, laneInfo, staticValue, fmtValue, drawLaneRow, laneHead,
@@ -953,7 +954,10 @@ function mountArranger(el, app) {
         autoKey(t)),
       h('div.ar-hmeter', meterFill),
       // the armed track's input: a 2 px meter along the header's bottom edge
-      h('div.ar-hin', { 'aria-hidden': 'true' }, inFill));
+      h('div.ar-hin', { 'aria-hidden': 'true' }, inFill),
+      // a sampled instrument's samples on their way: a hairline over that edge that fills as they come, until they're
+      // in (its words in its label; ui/kitload.js)
+      isInst && !held && kitHashes(devDef).length && kitState(devDef) !== 'ready' ? kitLine(devDef, { bare: true }) : null);
       row.style.setProperty('--tc', color);   // (a custom property only takes through setProperty)
       row._fill = meterFill;
       row._in = inFill;
@@ -3742,6 +3746,7 @@ const CSS = `
 /* a held instrument: "kept off" always shows; its name gives way first */
 .ar-hby.ar-hheld { flex: none; }
 .ar-hsub:has(.ar-hheld) .ar-hinst { flex: 0 1 auto; }
+.ar-head > .kitload { position: absolute; left: 44px; right: 10px; bottom: 5px; width: auto; pointer-events: none; }
 /* a take lane of an open folder: the take's name (a click plays it everywhere), its byline, where it plays */
 .ar-takehead { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 48px; border-bottom: var(--rule); background: var(--bg); white-space: nowrap; overflow: hidden; user-select: none; min-width: 0; font-size: 11.5px; }
 .ar-tkname { flex: none; padding: 0; border: 0; background: none; font: 600 12px/1.2 var(--font-ui); color: var(--text-3); cursor: pointer; }

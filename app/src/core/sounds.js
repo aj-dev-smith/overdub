@@ -34,13 +34,13 @@ export const SOUND_SETS = {
   },
   chords: {
     category: 'keys',
-    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.pad', 'Pad'), row('core.strings', 'Strings')],
-    fallbacks: [row('core.grand', 'Piano'), row('core.ensemble', 'Strings'), row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
+    rows: [row('core.keys', 'Electric piano'), row('core.upright', 'Upright piano'), row('core.pad', 'Pad'), row('core.ensemble', 'Strings')],
+    fallbacks: [row('core.grand', 'Piano'), row('core.strings', 'Strings'), row('core.ep', 'Electric piano'), row('core.piano', 'Piano'), row('core.organ', 'Organ'), row('core.poly2', 'Synth')],
   },
   bass: {
     category: 'bass',
-    rows: [row('core.bassguitar', 'Bass guitar'), row('core.bass', 'Synth bass'), row('claude.sub-basement', 'Sub bass'), row('core.wavetable', 'Synth bass', 'Low Key')],
-    fallbacks: [row('core.ebass', 'Bass guitar'), row('core.poly2', 'Synth bass', 'Ladder bass')],
+    rows: [row('core.ebass', 'Bass guitar'), row('core.bass', 'Synth bass'), row('claude.sub-basement', 'Sub bass'), row('core.wavetable', 'Synth bass', 'Low Key')],
+    fallbacks: [row('core.bassguitar', 'Bass guitar'), row('core.poly2', 'Synth bass', 'Ladder bass')],
   },
   drums: {
     category: 'drums',

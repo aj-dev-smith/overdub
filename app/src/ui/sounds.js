@@ -37,12 +37,17 @@
 //
 // The store is wrapped here (dispatch, undo, redo, revertAuthor, load) only to end a trial first, in the right order:
 // nothing else about a change is touched.
+//
+// A sampled sound (a kit: ui/kitload.js): its samples start coming when its row is shown; the row says how far along
+// they are; a trial of it waits for them, and for the track's instrument to have them, before it plays the take
+// (kitFirst), so its first notes are heard. The status line says so meanwhile.
 
 import { h, css, icon, byline } from './dom.js';
 import { swatchOf, presetNow } from './rack.js';
 import { isDrumTrack } from './arrange-kit.js';
 import { presetParams } from '../devices/registry.js';
 import { beatsPerBar } from '../core/music.js';
+import { kitHashes, kitState, kitLine, kitAmount, prefetchKit, whenKitReady, instReady } from './kitload.js';
 
 export const TRYING_KEY = 'overdub:sound-trying';
 const REST_MS = 150;          // an arrow key rests this long on a row before it is tried
@@ -378,6 +383,28 @@ function installSounds(app, S) {
   }
   // Play the take from its first bar (a stopped transport only: a playing one keeps playing), looping round its bars
   // when the song was looping somewhere else
+  // A sampled sound's first try waits for its samples (fetched since the card showed it, or pointed at in the browser
+  // or Find): the status line says so with how far along they are, and the take plays from its first note once they're
+  // in, never silently. false when another sound was tried meanwhile, or they aren't on this server.
+  async function kitFirst() {
+    const tr = trial;
+    const def = tr ? dev(tr.device) : null;
+    if (!def || !kitHashes(def).length) return true;
+    if (kitState(def) !== 'ready') {
+      const tell = () => { if (trial === tr && card) { const n = kitAmount(def); say(`Loading ${def.name}’s samples${n ? `, ${n}` : ''}. It plays once they’re in. ${stops()}`); } };
+      tell();
+      const tk = setInterval(tell, 250);
+      let ok = false;
+      try { ok = await whenKitReady(def); } finally { clearInterval(tk); }
+      if (trial !== tr) return false;
+      if (!ok) { say(`${def.name}’s samples aren’t on this server, so it plays nothing.`); return false; }
+      say(`Hearing ${heardWhat()} on ${tr.name}${barsText()}. ${stops()}`);
+    }
+    // (and the track's own instrument has been handed them: its first notes sound)
+    try { await engine()?.settled?.(); } catch (e) { /* plays anyway */ }
+    await instReady(engine(), tr.track, 10000);
+    return trial === tr;
+  }
   async function playTake() {
     const E = engine();
     if (!E || E.playing || E.starting || recording()) return;
@@ -386,6 +413,8 @@ function installSounds(app, S) {
     const tk = card?.take || trial?.take || null;
     if ((card ? card.key === 'new' : trial?.newTrack) && tk && !tk.committed && tk.capture && typeof app.sketch?.hearTake === 'function') {
       if (!newH) { picking++; try { const part = newPart(kindOfTakeKind(tk)); tryNew(tk, { device: part.device }, { play: false }); } finally { picking--; } }
+      if (!(await kitFirst())) return;
+      if (E.playing || recording()) return;
       app.sketch.hearTake(tk.capture);
       return;
     }
@@ -401,6 +430,7 @@ function installSounds(app, S) {
       if (hd.ok) loopH = hd;
     }
     try { await E.settled?.(); } catch (e) { /* plays anyway */ }
+    if (!(await kitFirst())) return;
     if (E.playing || recording()) return;
     try { await E.play(sp.start); } catch (e) { /* no audio yet */ }
   }
@@ -508,9 +538,13 @@ function installSounds(app, S) {
       const maker = r.def?.by && r.def.by !== 'overdub' ? byline(r.def.by, { app }) : null;
       const blurb = blurbOf(r);
       const ag = !r.now && r.by ? r : null;
-      const state = hearing ? h('span.snd-st', h('i.snd-lamp', { 'aria-hidden': 'true' }), 'hearing')
-        : ag ? h('span.snd-st', 'suggested by ', byline(ag.by, { app }))
-        : h('span.snd-st', r.now ? 'now' : '');
+      // a sampled sound's samples start coming as soon as its row is shown, and the row says so until they're in
+      const kit = r.def && kitHashes(r.def).length ? r.def : null;
+      if (kit && kitState(kit) == null) prefetchKit(kit);
+      const kl = kit && kitState(kit) !== 'ready' ? kitLine(kit, { short: phone() }) : null;
+      const state = hearing ? h('span.snd-st', h('i.snd-lamp', { 'aria-hidden': 'true' }), 'hearing', kl)
+        : ag ? h('span.snd-st', 'suggested by ', byline(ag.by, { app }), kl)
+        : h('span.snd-st', r.now ? 'now' : '', kl);
       const row = h('div.ledger-row.snd-row' + (hearing ? '.sel' : ''), {
         role: 'option', tabindex: i === (c.focusI ?? 0) ? 0 : -1, 'aria-selected': String(hearing || (isNow && !tr)),
         title: [r.name, r.def?.blurb].filter(Boolean).join('. '),
@@ -879,8 +913,8 @@ export const FALLBACK = (() => {
   const SOUND_SETS = {
     hum: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.wavetable', null, 'Synth'], ['core.strings', null, 'Strings'], ['claude.choir-loft', null, 'Choir']], fallbacks: [['core.mallets', null, 'Mallets'], ['core.ensemble', null, 'Strings'], ['core.choir', null, 'Choir'], ['core.pluck', null, 'Pluck'], ['core.barisax', null, 'Sax'], ['core.cello', null, 'Cello'], ['core.flute', null, 'Flute']] },
     played: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.upright', null, 'Upright piano'], ['core.wavetable', null, 'Synth'], ['core.mallets', null, 'Mallets']], fallbacks: [['core.grand', null, 'Piano'], ['core.vibes', null, 'Vibraphone'], ['core.brass', null, 'Brass'], ['core.piano', null, 'Piano'], ['core.pluck', null, 'Pluck'], ['core.eguitar', null, 'Electric guitar'], ['core.trumpet', null, 'Trumpet']] },
-    chords: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.upright', null, 'Upright piano'], ['core.pad', null, 'Pad'], ['core.strings', null, 'Strings']], fallbacks: [['core.grand', null, 'Piano'], ['core.ensemble', null, 'Strings'], ['core.ep', null, 'Electric piano'], ['core.piano', null, 'Piano'], ['core.organ', null, 'Organ'], ['core.poly2', null, 'Synth']] },
-    bass: { cat: 'bass', sounds: [['core.bassguitar', null, 'Bass guitar'], ['core.bass', null, 'Synth bass'], ['claude.sub-basement', null, 'Sub bass'], ['core.wavetable', 'Low Key', 'Synth bass']], fallbacks: [['core.ebass', null, 'Bass guitar'], ['core.poly2', 'Ladder bass', 'Synth bass']] },
+    chords: { cat: 'keys', sounds: [['core.keys', null, 'Electric piano'], ['core.upright', null, 'Upright piano'], ['core.pad', null, 'Pad'], ['core.ensemble', null, 'Strings']], fallbacks: [['core.grand', null, 'Piano'], ['core.strings', null, 'Strings'], ['core.ep', null, 'Electric piano'], ['core.piano', null, 'Piano'], ['core.organ', null, 'Organ'], ['core.poly2', null, 'Synth']] },
+    bass: { cat: 'bass', sounds: [['core.ebass', null, 'Bass guitar'], ['core.bass', null, 'Synth bass'], ['claude.sub-basement', null, 'Sub bass'], ['core.wavetable', 'Low Key', 'Synth bass']], fallbacks: [['core.bassguitar', null, 'Bass guitar'], ['core.poly2', 'Ladder bass', 'Synth bass']] },
     drums: { cat: 'drums', sounds: [['core.drums', 'Studio kit', 'Drum kit'], ['core.drumkit', null, 'Jazz kit'], ['core.drumroom', null, 'Acoustic kit'], ['core.drums', 'Boom bap', 'Drum kit']], fallbacks: [['core.brushkit', null, 'Brushes'], ['core.handkit', null, 'Hand percussion'], ['core.drums', 'Trap', 'Drum kit'], ['core.drums', 'Live room', 'Drum kit']] },
   };
   const FAMILY = new Map();
@@ -957,6 +991,8 @@ const SOUNDS_CSS = `
 .snd-lamp { display: inline-block; width: 6px; height: 6px; background: var(--accent-2); box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 50%, transparent); }
 /* the row heard: reverse print, every word on it in the room's ink */
 .snd-row.sel, .snd-row.sel:hover { background: var(--text); color: var(--bg); }
+.snd-row.sel .kitload { color: var(--bg); } .snd-row.sel .kitload .kl-bar > i { background: var(--bg); }
+.snd-st .kitload { margin-left: 2px; }
 .snd-row.sel .snd-f, .snd-row.sel .snd-st, .snd-row.sel .snd-by, .snd-row.sel .by, .snd-row.sel .why { color: var(--bg); }
 .snd-row.sel .snd-lamp { background: var(--bg); box-shadow: none; }
 .snd-line { padding: 8px 0 0; }

@@ -83,6 +83,7 @@ overdub/
                          transport.js, arranger.js, lanes.js (automation lanes),
                          arrange-kit.js, pianoroll.js, drumgrid.js, grooves.js (the Grooves tab)        [ui-arrange]
                          mixer.js, rack.js, faces.js*, browser.js, inspector.js                         [ui-mix] (*faces: guitar)
+                         kitload.js (a sampled sound's samples: fetched when shown or pointed at, how far along)  [ui-mix]
                          touch.js (a finger on a knob, a slider or a fader: a drag scrolls, a hold moves it)  [ui-mix]
                          plugin.js (device windows: a device opened big), plugin-kit.js (their widgets),
                          editors/ (generic.js, and the editors the studio's own devices name: eq8.js, shaper.js,
@@ -889,7 +890,14 @@ one step. While a preview is applied `localStorage['overdub:sound-trying'] = { s
 browser follows the same rule: a click on an instrument tries it on the selected track (Keep, Back in its target
 line); a melodic instrument on a drum track, or a kit on a pitched track with notes (`rack.isMismatch`), asks first
 (**New track with …**); Shift-click and a drop onto empty space make a new track, a drop onto a lane keeps at once.
-`suggest_sounds` (`agent/sounds-tool.js`) puts an agent's rows on the card, signed by it.
+`suggest_sounds` (`agent/sounds-tool.js`) puts an agent's rows on the card, signed by it. A sampled sound's first try
+is never silent (`ui/kitload.js` over `kernel/data.js`): the card starts a sampled row's samples coming when it shows
+the row, the browser and Find when the pointer or the keys rest on one; the row, the track's header and the browser's
+trial bar show a hairline that fills as the bytes arrive (`dataProgress(hash)`; the size from the packed file's own
+header, so a gzipped response still reads right) with "Loading samples"; the tried take waits for them and for the
+track's instrument to have them (`inst.on('data')`), then plays from its first note; `engine.liveNoteOn` holds a key
+pressed meanwhile and sounds it once they're in if it is still down (`'kitwait'`), as `audition` waits. A render
+waits for every kit as before.
 
 ```js
 app.sounds = { setHost(fn), offer({ track, from, anchor?, take? }), try(track, { device, preset? }, { play }),
