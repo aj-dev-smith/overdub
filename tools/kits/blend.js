@@ -16,6 +16,9 @@
 //   trim               dBFS (default -64): the tail is cut after the last 960-frame window at or above it (either
 //                      channel), then faded over 480 frames
 //   max, fadeMs        seconds: a longer stroke is cut there, the last `fadeMs` faded out (a cymbal's tail, for size)
+//   hp                 { f, n }: a high-pass at f Hz, n Butterworth biquads (Q 0.707) in a row, on the mixed stroke: the
+//                      low rumble a close mic under a cymbal or a hi-hat hears (the kick through the floor, the pedal),
+//                      which a mix takes out
 //   pol                true: each stroke's `pol` (+1 or -1): the sign that puts a synthesized sub in phase with it (below)
 //
 // Every stroke of a piece is scaled by one factor so the piece's loudest peak sits at -1 dBFS (the velocity layers keep
@@ -80,8 +83,10 @@ export async function buildBlended(recipe, fetchFile) {
         if (process.stdout.isTTY) process.stdout.write(`\r  ${++n}/${total} ${pc.id.padEnd(12)}`);
       }
     }
-    // 2. the piece to -1 dBFS at its loudest, 16-bit; the QA reads the mix before any cut
-    const scale = 32767 * Math.pow(10, -1 / 20) / peak;
+    // 2. the piece to -1 dBFS at its loudest as mixed (so a high-pass takes its lows away without moving its level),
+    // then its high-pass, then 16-bit; the QA reads the mix before any cut
+    if (pc.hp) for (const s of strokes) for (const c of s.acc) highpass(c, pc.hp.f, pc.hp.n || 1, sr);
+    const scale = 32767 * 0.8912509381337456 / peak;   // (-1 dBFS: a literal, so no engine's pow can move a rounding)
     const thr = Math.round(32768 * Math.pow(10, (pc.trim ?? -64) / 20)), T2 = thr * thr * WIN;
     const M = pc.max ? Math.round(pc.max * sr) : 0, F = Math.round((pc.fadeMs ?? 50) * sr / 1000);
     for (const s of strokes) {
@@ -121,6 +126,18 @@ export async function buildBlended(recipe, fetchFile) {
     trim: recipe.trimNote, blend: recipe.blendNote, onset: 'each stroke starts 1.0 ms before its attack (the first frame within 20 dB of its peak)' };
   const bytes = encodeOdk({ name: recipe.name, sr, bits: 16, channels: 2, meta, samples: out });
   return { bytes, hash: 'sha256-' + sha256(bytes), count: out.length, inFrames: inFrames / 2, outFrames, qa: qaInstrument(rows, recipe.waive || [], { drums: true }) };
+}
+
+// An RBJ high-pass (Q 0.707), n in a row, in place. The coefficients are rounded to 2^-40, so an engine whose cos or
+// sin differs in the last bit still builds the same bytes; the filtering is plain IEEE arithmetic in a fixed order.
+function highpass(x, f, n, sr) {
+  const q = (v) => Math.round(v * 1099511627776) / 1099511627776;
+  const w = 2 * Math.PI * f / sr, cs = Math.cos(w), al = Math.sin(w) / (2 * 0.7071067811865476), a0 = 1 + al;
+  const b0 = q((1 + cs) / 2 / a0), b1 = q(-(1 + cs) / a0), a1 = q(-2 * cs / a0), a2 = q((1 - al) / a0);
+  for (let k = 0; k < n; k++) {
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; x[i] = v; }
+  }
 }
 
 // The sign that puts a synthesized sub in phase with the stroke: the stroke's mono sum, low-passed (two one-poles at

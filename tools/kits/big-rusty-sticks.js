@@ -35,6 +35,12 @@
 // a 220-240 ms fade: recorded, their 6-12 kHz band rings a T60 of 0.52-0.61 s (over the spec's 0.5 s, and the real
 // hats' 0.35-0.38); cut, 0.35-0.36 s.
 //
+// The high-passes (`hp`), measured against the drum audit's real one-shots: the close mics under the hats and cymbals
+// hear the kick and the floor (their 40-150 Hz band 3 to 16 dB over the real cymbals'), so those pieces are high-passed
+// at 100 Hz (12 dB/octave; the hat pedal at 80 Hz); the snare and rimshots at 70 Hz, gently: a steeper cut (130 Hz,
+// 24 dB/octave) brought the snare's 40-150 Hz band into the real range but took its crest to 11.8 dB, under the real
+// 13-17, and the crest is the one the spec holds it to.
+//
 // Every stroke's `start` is 1.0 ms before its attack (the first frame within 20 dB of its peak), and each kick stroke
 // carries `pol`: the sign that puts the kernel's synthesized sub in phase with it (blend.js).
 export const RECIPE = {
@@ -65,63 +71,63 @@ export const RECIPE = {
         {path: "Samples/kick_24/kick/kick/k_vl{v}_rr{r}.flac", db: 0, pan: 0},
         {path: "Samples/kick_24/kick/oh/k_vl{v}_rr{r}.flac", db: -12},
       ] },
-    { id: "snare", N: 10, rr: [1, 2, 3, 4], trim: -60,
+    { id: "snare", N: 10, rr: [1, 2, 3, 4], trim: -60, hp: {f: 70, n: 1},
       layers: [{v: 3}, {v: 5}, {v: 7}, {v: 9}, {v: 10}],
       mics: [
         {path: "Samples/snare_14/center/top/sn_center_vl{v}_rr{r}.flac", db: 0, pan: 0},
         {path: "Samples/snare_14/center/btm/sn_center_vl{v}_rr{r}.flac", db: -11, pan: 0},
         {path: "Samples/snare_14/center/oh/sn_center_vl{v}_rr{r}.flac", db: -8},
       ] },
-    { id: "rim", N: 6, rr: [1, 2, 3, 4], trim: -60,
+    { id: "rim", N: 6, rr: [1, 2, 3, 4], trim: -60, hp: {f: 70, n: 1},
       layers: [{v: 2}, {v: 4}, {v: 5}, {v: 6}],
       mics: [
         {path: "Samples/snare_14/rimshot/top/sn_rims_vl{v}_rr{r}.flac", db: 0, pan: 0},
         {path: "Samples/snare_14/rimshot/btm/sn_rims_vl{v}_rr{r}.flac", db: -11, pan: 0},
         {path: "Samples/snare_14/rimshot/oh/sn_rims_vl{v}_rr{r}.flac", db: -8},
       ] },
-    { id: "stick", N: 4, rr: [1, 2], trim: -60,
+    { id: "stick", N: 4, rr: [1, 2], trim: -60, hp: {f: 120, n: 1},
       layers: [{v: 2}, {v: 4}],
       mics: [
         {path: "Samples/snare_14/sidestick/top/sn_ss_vl{v}_rr{r}.flac", db: 0, pan: 0},
         {path: "Samples/snare_14/sidestick/oh/sn_ss_vl{v}_rr{r}.flac", db: -6},
       ] },
-    { id: "hattight", N: 8, rr: [1, 2, 3, 4], trim: -60, max: 0.3, fadeMs: 220,
+    { id: "hattight", N: 8, rr: [1, 2, 3, 4], trim: -60, hp: {f: 100, n: 1}, max: 0.3, fadeMs: 220,
       layers: [{v: 3}, {v: 6}, {v: 8}],
       mics: [
         {path: "Samples/hihat_14/tc/cl/ht_tc_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/tc/oh/ht_tc_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hat", N: 6, rr: [1, 2, 3, 4], trim: -60, max: 0.32, fadeMs: 240,
+    { id: "hat", N: 6, rr: [1, 2, 3, 4], trim: -60, hp: {f: 100, n: 1}, max: 0.32, fadeMs: 240,
       layers: [{v: 2}, {v: 4}, {v: 6}],
       mics: [
         {path: "Samples/hihat_14/cl/cl/ht_cl_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/cl/oh/ht_cl_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hatpedal", N: 5, rr: [1, 2], trim: -60, max: 0.4, fadeMs: 250,
+    { id: "hatpedal", N: 5, rr: [1, 2], trim: -60, hp: {f: 80, n: 1}, max: 0.4, fadeMs: 250,
       layers: [{v: 2}, {v: 4}, {v: 5}],
       mics: [
         {path: "Samples/hihat_14/chik/cl/ht_chik_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/chik/oh/ht_chik_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hatq", N: 4, rr: [1, 2], trim: -60, max: 0.6, fadeMs: 250,
+    { id: "hatq", N: 4, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.6, fadeMs: 250,
       layers: [{v: 2}, {v: 3}, {v: 4}],
       mics: [
         {path: "Samples/hihat_14/qo/cl/ht_qo_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/qo/oh/ht_qo_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hathalf", N: 4, rr: [1, 2], trim: -60, max: 0.9, fadeMs: 400,
+    { id: "hathalf", N: 4, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.9, fadeMs: 400,
       layers: [{v: 2}, {v: 3}, {v: 4}],
       mics: [
         {path: "Samples/hihat_14/ho/cl/ht_ho_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/ho/oh/ht_ho_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hatopen", N: 6, rr: [1, 2], trim: -60, max: 1.6, fadeMs: 700,
+    { id: "hatopen", N: 6, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.6, fadeMs: 700,
       layers: [{v: 2}, {v: 4}, {v: 6}],
       mics: [
         {path: "Samples/hihat_14/open/cl/ht_open_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
         {path: "Samples/hihat_14/open/oh/ht_open_vl{v}_rr{r}.flac", db: -9},
       ] },
-    { id: "hatsplash", N: 4, rr: [1, 2], trim: -60, max: 1.2, fadeMs: 600,
+    { id: "hatsplash", N: 4, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.2, fadeMs: 600,
       layers: [{v: 4}],
       mics: [
         {path: "Samples/hihat_14/footspl/cl/ht_footspl_vl{v}_rr{r}.flac", db: 0, pan: -0.42},
@@ -151,67 +157,67 @@ export const RECIPE = {
         {path: "Samples/tom_22/center/cl/t22_vl{v}_rr{r}.flac", db: 0, pan: 0.59},
         {path: "Samples/tom_22/center/oh/t22_vl{v}_rr{r}.flac", db: 5},
       ] },
-    { id: "ride", N: 10, rr: [1, 2], trim: -60, max: 1.6, fadeMs: 800,
+    { id: "ride", N: 10, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.6, fadeMs: 800,
       layers: [{v: 4}, {v: 7}, {v: 10}],
       mics: [
         {path: "Samples/ride_22/rd/cl/rd_vl{v}_rr{r}.flac", db: 0, pan: 0.66},
         {path: "Samples/ride_22/rd/oh/rd_vl{v}_rr{r}.flac", db: -4},
       ] },
-    { id: "bell", N: 4, rr: [1, 2], trim: -60, max: 1.2, fadeMs: 600,
+    { id: "bell", N: 4, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.2, fadeMs: 600,
       layers: [{v: 2}, {v: 4}],
       mics: [
         {path: "Samples/ride_22/bl/cl/rd_bl_vl{v}_rr{r}.flac", db: 0, pan: 0.66},
         {path: "Samples/ride_22/bl/oh/rd_bl_vl{v}_rr{r}.flac", db: -4},
       ] },
-    { id: "rideedge", N: 4, rr: [1, 2], trim: -60, max: 1.6, fadeMs: 800,
+    { id: "rideedge", N: 4, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.6, fadeMs: 800,
       layers: [{v: 2}, {v: 4}],
       mics: [
         {path: "Samples/ride_22/ed/cl/rd_ed_vl{v}_rr{r}.flac", db: 0, pan: 0.66},
         {path: "Samples/ride_22/ed/oh/rd_ed_vl{v}_rr{r}.flac", db: -4},
       ] },
-    { id: "crash", N: 5, rr: [1, 2], trim: -60, max: 2, fadeMs: 1000,
+    { id: "crash", N: 5, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 2, fadeMs: 1000,
       layers: [{v: 2}, {v: 4}, {v: 5}],
       mics: [
         {path: "Samples/crash_17/cr/cl/cr_vl{v}_rr{r}.flac", db: 0, pan: -0.48},
         {path: "Samples/crash_17/cr/oh/cr_vl{v}_rr{r}.flac", db: -5},
       ] },
-    { id: "crash2", N: 6, rr: [1, 2], trim: -60, max: 1.8, fadeMs: 900,
+    { id: "crash2", N: 6, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.8, fadeMs: 900,
       layers: [{v: 3}, {v: 6}],
       mics: [
         {path: "Samples/crash_sizzle_17/cr/cl/crs_vl{v}_rr{r}.flac", db: 0, pan: 0.34},
         {path: "Samples/crash_sizzle_17/cr/oh/crs_vl{v}_rr{r}.flac", db: 3},
       ] },
-    { id: "china", N: 5, rr: [1, 2], trim: -60, max: 1.8, fadeMs: 900,
+    { id: "china", N: 5, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 1.8, fadeMs: 900,
       layers: [{v: 2}, {v: 4}, {v: 5}],
       mics: [
         {path: "Samples/china_18/cn/cl/cn_vl{v}_rr{r}.flac", db: 0, pan: 0.8},
         {path: "Samples/china_18/cn/oh/cn_vl{v}_rr{r}.flac", db: -5},
       ] },
-    { id: "stack", N: 6, rr: [1, 2], trim: -60, max: 0.8, fadeMs: 400,
+    { id: "stack", N: 6, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.8, fadeMs: 400,
       layers: [{v: 3}, {v: 6}],
       mics: [
         {path: "Samples/stack_3_layer/ed/cl/st_ed_vl{v}_rr{r}.flac", db: 0, pan: -0.24},
         {path: "Samples/stack_3_layer/ed/oh/st_ed_vl{v}_rr{r}.flac", db: 1},
       ] },
-    { id: "ridechoke", N: 1, rr: [1, 2], trim: -60, max: 0.6, fadeMs: 200,
+    { id: "ridechoke", N: 1, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.6, fadeMs: 200,
       layers: [{v: 0, vel: 127}],
       mics: [
         {path: "Samples/ride_22/choke/cl/rd_ed_choke_rr{r}.flac", db: 0, pan: 0.66},
         {path: "Samples/ride_22/choke/oh/rd_ed_choke_rr{r}.flac", db: -5},
       ] },
-    { id: "crashchoke", N: 1, rr: [1, 2], trim: -60, max: 0.6, fadeMs: 200,
+    { id: "crashchoke", N: 1, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.6, fadeMs: 200,
       layers: [{v: 0, vel: 127}],
       mics: [
         {path: "Samples/crash_17/choke/cl/cr_choke_rr{r}.flac", db: 0, pan: -0.48},
         {path: "Samples/crash_17/choke/oh/cr_choke_rr{r}.flac", db: -5},
       ] },
-    { id: "crash2choke", N: 1, rr: [1, 2], trim: -60, max: 0.6, fadeMs: 200,
+    { id: "crash2choke", N: 1, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.6, fadeMs: 200,
       layers: [{v: 0, vel: 127}],
       mics: [
         {path: "Samples/crash_sizzle_17/choke/cl/crs_ed_choke_rr{r}.flac", db: 0, pan: 0.34},
         {path: "Samples/crash_sizzle_17/choke/oh/crs_ed_choke_rr{r}.flac", db: -5},
       ] },
-    { id: "chinachoke", N: 1, rr: [1, 2], trim: -60, max: 0.6, fadeMs: 200,
+    { id: "chinachoke", N: 1, rr: [1, 2], trim: -60, hp: {f: 100, n: 1}, max: 0.6, fadeMs: 200,
       layers: [{v: 0, vel: 127}],
       mics: [
         {path: "Samples/china_18/choke/cl/cn_choke_rr{r}.flac", db: 0, pan: 0.8},

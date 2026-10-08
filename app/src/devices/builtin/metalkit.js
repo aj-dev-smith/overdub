@@ -21,7 +21,7 @@ import { drumSamplerKernel, pieceLevel } from './drumsampler.js';
 
 // The kit this device plays: the SHA-256 of app/kits/<hex>.odk, built by tools/fetch-kits.js. A different kit is a new
 // hash (and a new golden scene); songs carry only this.
-export const METALKIT_HASH = 'sha256-3f1954a46da2a8d3a7e644f54c98a3e685062a5effc35105c85546df8f215da9';
+export const METALKIT_HASH = 'sha256-9e0becc0ce4f330d152bb27466130ff581bd4933ea08ed3eaeac18bdc7c5c9aa';
 
 // The note map: [MIDI note, piece, name], on Studio A's numbers.
 export const NOTE_MAP = [
@@ -58,16 +58,16 @@ export const KIT_OPTIONS = {
     ride: [2, 400], bell: [2, 400], rideedge: [2, 400], ridechoke: [2, 40],
     crash: [3, 400], crashchoke: [3, 40], crash2: [4, 400], crash2choke: [4, 40], china: [5, 400], chinachoke: [5, 40],
   },
-  // the house level: the drum test phrase at -15.9 LUFS, true peak -1.4 dBTP (the limiter takes the hardest kicks,
+  // the house level: the drum test phrase at -16.5 LUFS, true peak -1.4 dBTP (the limiter takes the hardest kicks,
   // snares and rimshots by a few dB; the snare's crest over its first 100 ms stays 14 dB)
-  makeup: 2.4,
+  makeup: 2.6,
   // each piece against the others under its knob, dB: the recipe brings every piece to -1 dBFS at its loudest, so these
   // set the mix. Measured without the makeup, room off, as each piece's loudness over 400 ms at velocity 0.8 against the
   // snare's: the kick 1 under (its tail is short), rimshots 2 over, the toms 1 under, crashes and China 4 under, the
   // ride 8 under, closed hats 8 under
-  offset: { kick: -4, rim: 4.8, stick: -7, hat: -6, hattight: -5.5, hatpedal: -10, hatq: -9, hathalf: -8, hatopen: -8, hatsplash: -12,
-    tom1: 0, tom2: -3.3, tom3: -1.6, tom4: -3.8, ride: -7.5, bell: -2, rideedge: -12.8, ridechoke: -10,
-    crash: -5.2, crash2: -12.8, stack: -13.5, crashchoke: -10, crash2choke: -14, china: -9.8, chinachoke: -12 },
+  offset: { kick: -4.9, snare: -1.3, rim: 2.5, stick: -8.1, hat: -6, hattight: -5.8, hatpedal: -9.4, hatq: -9, hathalf: -8.3, hatopen: -8.3, hatsplash: -12.7,
+    tom1: -1.7, tom2: -5, tom3: -3.3, tom4: -5.5, ride: -8.3, bell: -2.5, rideedge: -13.5, ridechoke: -10,
+    crash: -5.9, crash2: -14.6, stack: -15.7, crashchoke: -10, crash2choke: -14, china: -10.4, chinachoke: -12 },
   rr: 'norepeat',
   tight: { piece: 'kick', key: 'tight', hold: 3, t60: 20 },
   trigger: { piece: 'kick', ref: -15.7, ck: 4, sk: 2, imp: 2 },
