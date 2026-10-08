@@ -1313,7 +1313,9 @@ for (const width of [1440, 390]) {
   };
   const table = (guide.match(/## Keys[\s\S]*$/) || [''])[0];
   const rows = [...table.matchAll(/^\| (`[^|]+?) \|/gm)].flatMap((m) => m[1].split(' · ').map((k) => k.trim()));
-  const unknown = rows.filter((k) => !KEYS[k] || !src.includes(KEYS[k]));
+  // a declaration may wrap over lines (the formatter's choice): compare with the whitespace folded
+  const flat = src.replace(/\s+/g, ' ');
+  const unknown = rows.filter((k) => !KEYS[k] || !flat.includes(KEYS[k]));
   t.ok(
     rows.length >= 12 && !unknown.length,
     `the guide's ${rows.length} keys are all declared in the studio${unknown.length ? ' (not found: ' + unknown.join(' ') + ')' : ''}`,
