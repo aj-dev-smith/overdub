@@ -418,8 +418,8 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 42 built-ins, eleven of
-them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound, Hollow Body, Bell Up and Endpin, whose samples come as kernel data), `devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 43 built-ins, twelve of
+them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound, Hollow Body, Bell Up, Endpin and Head Joint, whose samples come as kernel data), `devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16
 cabinets and 5 mics inside the amps, and its 156 rigs as device chains) and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source:
 'library'`, each with its `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices
 the demo song carries as project devices. Project devices (`project.devices`) follow the song: `main.js`

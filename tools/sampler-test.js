@@ -46,6 +46,8 @@ import { BARISAX_HASH } from '../app/src/devices/builtin/barisax.js';
 import { RECIPE as BARISAX_RECIPE } from './kits/karoryfer-barisax.js';
 import { CELLO_HASH } from '../app/src/devices/builtin/cello.js';
 import { RECIPE as CELLO_RECIPE } from './kits/karoryfer-cello.js';
+import { FLUTE_HASH } from '../app/src/devices/builtin/flute.js';
+import { RECIPE as FLUTE_RECIPE } from './kits/vsco-flute.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 import { unpackOdk } from '../app/src/kernel/odkz.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -389,6 +391,7 @@ const MORE = [
   { id: 'core.barisax', hash: BARISAX_HASH, recipe: BARISAX_RECIPE, only: 'bear sax', mb: 8, keys: [37, 68], layers: [[0, 63], [64, 127]], preset: 'Subtone' },
   // (the cello's bow settles in its first second: its velocity is read after that, as Rosin's is)
   { id: 'core.cello', hash: CELLO_HASH, recipe: CELLO_RECIPE, only: 'cello', mb: 8, keys: [36, 84], layers: [[0, 80], [81, 127]], preset: 'Sul tasto', velWin: [1.5, 2] },
+  { id: 'core.flute', hash: FLUTE_HASH, recipe: FLUTE_RECIPE, only: 'flute', mb: 8, keys: [60, 96], layers: [[0, 127]], preset: 'Breathy' },
 ];
 const fetched = MORE.filter((x) => fs.existsSync(dataPath(x.hash)));
 for (const x of MORE) if (!fetched.includes(x)) t.note(`${x.id}: its kit isn't fetched (node tools/fetch-kits.js), skipped`);

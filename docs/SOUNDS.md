@@ -147,6 +147,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-144ed798636d54cb0c61829ba27cf800f860b51b66b584c07cd5459045e161ad` |
 | Verified | 2026-10-07 |
 
+## VS Chamber Orchestra 2: Community Edition: Head Joint (`core.flute`)
+
+| | |
+|---|---|
+| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios); https://vis.versilstudios.com/vsco-community.html |
+| Pinned | commit `440300901dfe9275fd84e0b7763af1f8443ae62e`; LICENSE sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`, Readme.txt sha256 `101ddb88eb013900cc911834ecbdfbd49497bcd913bf09417160b9677952bb38`; 10 WAV files, each by sha256, in [`tools/kits/vsco-flute.js`](../tools/kits/vsco-flute.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text). Its Readme.txt asks for credit to Versilian Studios/Sam Gossner and Ivy Audio/Simon Dalzell, a link to the VSCO: CE homepage, and that the samples not be sold directly: all honoured. |
+| Author | Versilian Studios (Sam Gossner) and Ivy Audio (Simon Dalzell). |
+| Modifications | A subset: the flute's sustains with vibrato, the first take of each of its ten notes (C4 to C7). 24-bit to 16-bit by rounding, kept at 44.1 kHz, stereo. Each start 2 ms before the note first comes within 40 dB of its peak. A sustain loop of 2.4 to 3.4 s from 1 s after the onset, ending by 5 s, its 0.4 s crossfade baked into the samples, each sample cut at its loop's end. A `tune` field on a note read 5 to 25 cents off. A gain per sample, so every note plays at one level (its loop's); the dynamics come from a velocity curve. |
+| Kit | `sha256-e0b2d47de416f715f3793a0f90b64a832d26d5988bcfbfac2afacaa3588718ec` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

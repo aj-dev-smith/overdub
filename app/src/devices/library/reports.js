@@ -34,6 +34,7 @@ export const REPORTS = {
   "core.eguitar": {"hash":"1wfvvni","kind":"instrument","ok":true,"lufs":-17,"deltaLU":-3,"truePeak":-1.2,"cpu":1.1,"tail":0.1,"warnings":0,"measured":"2026-10-07"},
   "core.barisax": {"hash":"g8isvy","kind":"instrument","ok":true,"lufs":-15.5,"deltaLU":-1.5,"truePeak":-1.2,"cpu":0.9,"tail":0.2,"warnings":0,"measured":"2026-10-07"},
   "core.cello": {"hash":"1m7o8i2","kind":"instrument","ok":true,"lufs":-15,"deltaLU":-1,"truePeak":-1.1,"cpu":1.1,"tail":0.3,"warnings":0,"measured":"2026-10-07"},
+  "core.flute": {"hash":"6xpaw","kind":"instrument","ok":true,"lufs":-15.8,"deltaLU":-1.8,"truePeak":-1.3,"cpu":0.8,"tail":0.2,"warnings":0,"measured":"2026-10-07"},
   "core.eq": {"hash":"1osp0l7","kind":"effect","ok":true,"lufs":-20.9,"deltaLU":0,"truePeak":-5.8,"cpu":0.4,"tail":0,"warnings":1},
   "core.comp": {"hash":"1piirlg","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-4.9,"cpu":0.3,"tail":0,"warnings":1},
   "core.verb": {"hash":"imnhbr","kind":"effect","ok":true,"lufs":-21,"deltaLU":-0.1,"truePeak":-6.4,"cpu":0.6,"tail":1.1,"warnings":0},
