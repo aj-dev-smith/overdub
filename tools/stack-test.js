@@ -17,7 +17,7 @@ import { tally, OUTDIR } from './pw.js';
 import '../app/src/devices/builtin/index.js';
 import def, { STACK_TRIM } from '../app/src/devices/builtin/stack.js';
 import { tmbAnalog, tmbCoefs, CABS_HASH, CAB_LABELS, CAB_FILTER, CAB_OFF } from '../app/src/devices/builtin/amp-lib.js';
-import { presetParams } from '../app/src/devices/registry.js';
+import { presetParams, getDevice } from '../app/src/devices/registry.js';
 import { lufs, truePeak } from '../app/src/audio/measure.js';
 import * as TS from '../app/src/audio/testsignals.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -118,10 +118,15 @@ block('aliasing (R25)', () => {
 
 block('cost and latency (R26, R27)', () => {
   const chug = metalDI('chug'), secs = chug.length / SR;
-  const time = (p) => { run(def, p, chug.subarray(0, SR)); let best = Infinity; for (let k = 0; k < 3; k++) { const t0 = performance.now(); run(def, p, chug); best = Math.min(best, performance.now() - t0); } return 100 * best / 1000 / secs; };
-  const c4 = time({}), c8 = time({ quality: 1 });
+  // (timed against Gaffer Tape, a heavy built-in, in the same moment: a loaded machine slows both alike)
+  const mb = getDevice('core.multiband');
+  const time = (d, p) => { const t0 = performance.now(); run(d, p, chug); return performance.now() - t0; };
+  run(def, {}, chug.subarray(0, SR)); run(mb, {}, chug.subarray(0, SR));
+  let b4 = Infinity, b8 = Infinity, bm = Infinity;
+  for (let k = 0; k < 3; k++) { b4 = Math.min(b4, time(def, {})); b8 = Math.min(b8, time(def, { quality: 1 })); bm = Math.min(bm, time(mb, {})); }
+  const pc = (ms) => 100 * ms / 1000 / secs, r4 = b4 / bm;
   // (the spec's budget is 2.5% at 4X and 5% at 8X; this is what it costs, recorded in the plan's deviations)
-  ok(c4 < 4.5 && c8 < 9, `one Half Stack with its 2048-tap cab costs ${c4.toFixed(2)}% of real time at 4X and ${c8.toFixed(2)}% at 8X (best of three, ${secs.toFixed(1)} s of chug)`);
+  ok(r4 < 4 && b8 / b4 < 2.3, `one Half Stack with its 2048-tap cab costs ${pc(b4).toFixed(2)}% of real time at 4X (${r4.toFixed(2)}x Gaffer Tape's ${pc(bm).toFixed(2)}%) and ${pc(b8).toFixed(2)}% at 8X (best of three, ${secs.toFixed(1)} s of chug)`);
   // the delay through the chain: quiet noise in (GAIN 0, no boost, no cab, the cuts wide open: near linear), the lag
   // of the best cross-correlation out: the oversampler's 27.5 samples, the shapers' half samples, the filters' phase
   const nz = new Float32Array(SR); { let q = 5; for (let i = 0; i < SR; i++) { q = (Math.imul(q, 1664525) + 1013904223) >>> 0; nz[i] = 0.001 * (q / 4294967296 - 0.5); } }

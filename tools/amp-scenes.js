@@ -24,10 +24,10 @@ const META = { created: STAMP, modified: STAMP, authors: {} };
 const TAG = '#' + CABS_HASH.slice(7, 19);
 
 export const AMP_GOLDEN = {
-  'fx:core.stack': '403dd84fd99afd0ce993ae24276bde09ca081487fc6d5ddbdf1bc8eb92273b4d',
-  ['fx:core.stack:cab' + TAG]: '0dffa6704e3d0161e3618eda638d6652969a50242948bb88161b2375b5ba7493',
+  'fx:core.stack': 'd4aa3d21c3cfd32f53f7527574e92dedae01e1f3591ea0c8774c0f0a895a1218',
+  ['fx:core.stack:cab' + TAG]: 'ea4856427a043275dcb973293735c7696ab18cdd7916933a6873f801efb6c119',
   ['fx:core.cab' + TAG]: '4348da3d328686a08bc0e8548753874b525688654708a0f6f0b4fbe1e14583aa',
-  ['fx:core.bassrig' + TAG]: '4a66a5a1da4f1dd0632840efd176228847dc40cb86d6ca662c34127ea48b677b',
+  ['fx:core.bassrig' + TAG]: '827c5ab0475e33f669067362bc447bd9d7c3523dcdfa683284752d097eee0180',
 };
 
 function scene(name, id, params, signal = 'strum') {

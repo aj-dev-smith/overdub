@@ -46,7 +46,7 @@ return {
   create({ sr, dsp, data }) {
     // the crossover: two Butterworth sections each way (Linkwitz-Riley 24 dB/oct, in phase, summing flat)
     const l1 = svf(sr), l2 = svf(sr), h1 = svf(sr), h2 = svf(sr);
-    const os = dsp.oversample4x(), top = chain(sr * 4), cab = makeCab(sr, dsp, data && data.cabs);
+    const os = dsp.oversample4x(), top = chain(sr * 4, sr), cab = makeCab(sr, dsp, data && data.cabs);
     const run = (u) => top.tick(u);
     // the top's settings for the shared chain: no boost, the guitar amp's middle settings but for DRIVE, MID, TREBLE
     const T = { boost: 0, boost_drive: 0, boost_level: 9, gain: 0, bass: 5, mid: 6, treble: 5, master: 4, sag: 0.2, presence: 5, depth: 5 };
@@ -78,7 +78,7 @@ return {
           dLow.write(low * cg); bufL[i] = dLow.tap(LAT);
           // the top: clean (delayed), and through the amp
           dTop.write(high); bufB[i] = dTop.tap(LAT);
-          bufA[i] = os.process(high, run);
+          bufA[i] = top.post(os.process(high, run));
         }
         cab.process(bufA, n);
         const tg = dbg(TRIM), gl = dbg(P.low), gh = dbg(P.high), go = dbg(P.level);

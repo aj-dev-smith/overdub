@@ -98,12 +98,15 @@ function over2(fn) {
 
 // The oversampled chain at rate fs: boost, three triodes, the tone stack, the power amp. set(P) once a block; tick(x)
 // per oversampled sample, its state in plain locals (one-poles as y += k (x - y); a high-pass is x minus that).
-function chain(fs) {
+function chain(fs, host) {
   const k1p = (fc) => 1 - Math.exp(-TAU * fc / fs);
   // the boost's 720 Hz branch high-pass and 4 kHz tone; the stages' coupling high-passes (c) and Miller low-passes
   // (m), a DC block after the last; the transformer's band
-  const kBh = k1p(720), kBl = k1p(4000), kC1 = k1p(35), kM1 = k1p(14000), kC2 = k1p(90), kM2 = k1p(9500), kC3 = k1p(40), kM3 = k1p(6800), kDc = k1p(8), kOh = k1p(45), kOl = k1p(14000);
+  const kBh = k1p(720), kBl = k1p(4000), kC1 = k1p(35), kM1 = k1p(14000), kC2 = k1p(90), kM2 = k1p(9500), kC3 = k1p(40), kM3 = k1p(6800), kDc = k1p(8);
   let bh = 0, bl = 0, c1 = 0, m1 = 0, c2 = 0, m2 = 0, c3 = 0, m3 = 0, dc = 0, oh = 0, ol = 0;
+  // what follows the power amp's clip is linear, so it runs at the host's rate, after the oversampler: DEPTH and
+  // PRESENCE, then the output transformer's band
+  const hs = host, kOh = 1 - Math.exp(-TAU * 45 / hs), kOl = 1 - Math.exp(-TAU * 14000 / hs);
   // the triodes' cutoff sides (1 / K^2: K = 2.2, 1.6, 1.25) and biases
   const N1 = 1 / (2.2 * 2.2), N2 = 1 / (1.6 * 1.6), N3 = 1 / (1.25 * 1.25), B1 = 0.12, B2 = 0.18, B3 = 0.32;
   // the triode: a firm knee at +1 where the grid conducts, a softer cutoff out to -K (x / sqrt(1 + x^2) both ways)
@@ -130,7 +133,7 @@ function chain(fs) {
   let d1 = 0, d2 = 0, p1 = 0, p2 = 0, env = 0, lastD = NaN, lastP = NaN;
   const eA = 1 - Math.exp(-1 / (0.008 * fs)), eR = 1 - Math.exp(-1 / (0.18 * fs));
   function rbj(type, fc, q, dB) {
-    const A = Math.pow(10, dB / 40), w = TAU * fc / fs, cs = Math.cos(w), al = Math.sin(w) / (2 * q);
+    const A = Math.pow(10, dB / 40), w = TAU * fc / hs, cs = Math.cos(w), al = Math.sin(w) / (2 * q);
     let b0, b1, b2, a0, a1, a2;
     if (type === 0) { b0 = 1 + al * A; b1 = -2 * cs; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cs; a2 = 1 - al / A; }
     else { const r = 2 * Math.sqrt(A) * al; b0 = A * ((A + 1) + (A - 1) * cs + r); b1 = -2 * A * ((A - 1) + (A + 1) * cs); b2 = A * ((A + 1) + (A - 1) * cs - r); a0 = (A + 1) - (A - 1) * cs + r; a1 = 2 * ((A - 1) - (A + 1) * cs); a2 = (A + 1) - (A - 1) * cs - r; }
@@ -138,7 +141,7 @@ function chain(fs) {
   }
   // the per-block values
   let boost = 0, bG = 12, bLvl = 1, pot = 1, drv = 1, sag = 0, h = 1, ih = 1, hn = 0;
-  const OS = Math.round(fs / 48000) || 1;
+  const OS = Math.round(fs / host);
   return {
     set(P) {
       boost = P.boost ? 1 : 0;
@@ -175,8 +178,12 @@ function chain(fs) {
       env += (a > env ? eA : eR) * (a - env);
       if (--hn <= 0) { hn = OS; h = 1 - sag * (env > 1.5 ? 1.5 : env); ih = 1 / h; }
       y = h * s4(y * ih);
-      // depth and presence: where the feedback loop lets go, so they shape what the power amp put out
-      z = e0 * y + d1; d1 = e1 * y - ea1 * z + d2; d2 = e2 * y - ea2 * z; y = z;
+      return y;
+    },
+    // at the host's rate, after the oversampler: depth and presence (where the feedback loop lets go, so they shape
+    // what the power amp put out), then the transformer
+    post(y) {
+      let z = e0 * y + d1; d1 = e1 * y - ea1 * z + d2; d2 = e2 * y - ea2 * z; y = z;
       z = f0 * y + p1; p1 = f1 * y - fa1 * z + p2; p2 = f2 * y - fa2 * z;
       oh += kOh * (z - oh); ol += kOl * (z - oh - ol);
       return ol * 0.5;
@@ -190,7 +197,7 @@ function makeAmp(sr, dsp) {
   let gEnv = 0, gOpen = false, gHold = 0, gGain = 1;
   const gDown = Math.exp(-1 / (0.010 * sr)), gAt = 1 - Math.exp(-1 / (0.0005 * sr)), gRel = 1 - Math.exp(-1 / (0.060 * sr)), HOLD = Math.round(0.030 * sr);
   let thr = 0, gateOn = false;
-  const os4 = dsp.oversample4x(), c4 = chain(sr * 4), c8 = chain(sr * 8), in8 = over2((u) => c8.tick(u));
+  const os4 = dsp.oversample4x(), c4 = chain(sr * 4, sr), c8 = chain(sr * 8, sr), in8 = over2((u) => c8.tick(u));
   const f4 = (u) => c4.tick(u);
   let q8 = false;
   return {
@@ -212,7 +219,7 @@ function makeAmp(sr, dsp) {
       }
       tight.tick(x);
       x = tight.hp;
-      return q8 ? os4.process(x, in8) : os4.process(x, f4);
+      return q8 ? c8.post(os4.process(x, in8)) : c4.post(os4.process(x, f4));
     },
   };
 }
