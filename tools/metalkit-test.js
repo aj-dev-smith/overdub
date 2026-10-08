@@ -32,6 +32,10 @@ import { createProject } from '../app/src/core/project.js';
 import { drumPhrase, PHRASE_BPM, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+// the hashes are held as tools/golden.json holds its own: on the engine it was made on (another V8 rounds Math.exp and
+// Math.sin differently in the last bit), reported elsewhere
+const GOLDEN_MADE = JSON.parse(fs.readFileSync(new URL('./golden.json', import.meta.url), 'utf8')).made || {};
+const SAME_ENGINE = String(GOLDEN_MADE.node || '').split('.')[0] === process.versions.node.split('.')[0] && GOLDEN_MADE.arch === process.arch;
 const t = tally('metalkit');
 const SR = 48000;
 const db = (x) => 20 * Math.log10(Math.max(1e-12, x));
@@ -42,8 +46,8 @@ const hex = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // the instrument scene every sampled device gets (the drum phrase at defaults); :trigger plays it with the trigger up
 // and the room off (CLICK 0, SUB 0, TRIG VEL 0, ROOM off), so the synthesized layers are pinned on their own.
 const GOLDEN = {
-  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}`]: { params: {}, sha256: '' },
-  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}:trigger`]: { params: { click: 0, sub: 0, trig_vel: 0, room: -40 }, sha256: '' },
+  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}`]: { params: {}, sha256: '38f83e5e87238e1a7a64a06c6d327fafb180ad4593c852c6cd7580c548539183' },
+  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}:trigger`]: { params: { click: 0, sub: 0, trig_vel: 0, room: -40 }, sha256: 'c447519f26c55d96592a52003b7c604bca763b2b612f928b95bdf2d576bcaf9e' },
 };
 
 const STAMP = '2026-09-30T00:00:00.000Z';
@@ -215,11 +219,17 @@ else {
 
   console.log('the golden scenes integration adds');
   {
+    // built as tools/golden-scenes.js's instrumentScene builds them (its ids seed the kit's strokes)
+    const META = { created: STAMP, modified: STAMP, authors: {} };
     for (const [name, g] of Object.entries(GOLDEN)) {
-      const r = renderSong(song(drumPhrase().map((n) => ({ ...n })), g.params, 'core.metalkit', PHRASE_BPM, DRUM_PHRASE_BEATS), { from: 0, to: DRUM_PHRASE_BEATS, tail: 2 });
+      const p = { ...createProject(), id: 'p_golden', title: 'core.metalkit test phrase', key: null, meta: META, tempo: PHRASE_BPM, devices: {},
+        tracks: [{ id: 't_golden', name: 'Phrase', kind: 'instrument', instrument: { device: 'core.metalkit', params: g.params }, inserts: [],
+          clips: [{ id: 'c_phrase', kind: 'notes', start: 0, length: DRUM_PHRASE_BEATS, notes: drumPhrase().map((n, i) => ({ id: 'n' + (i + 1), p: n.p, t: n.t, d: n.d, v: n.v, by: 'overdub' })), by: 'overdub' }],
+          gain: 0, pan: 0, mute: false, solo: false, arm: false, by: 'overdub' }] };
+      const r = renderSong(p, { from: 0, to: DRUM_PHRASE_BEATS, tail: 2 });
       const h = sha256(r), m = measure({ sr: r.sr, channels: r.channels });
-      if (g.sha256) t.ok(h === g.sha256, `${name}: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h.slice(0, 16)}${h === g.sha256 ? ' matches' : ' != ' + g.sha256.slice(0, 16)}`);
-      else t.note(`${name}: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h} (not held yet)`);
+      if (g.sha256 && SAME_ENGINE) t.ok(h === g.sha256, `${name}: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h.slice(0, 16)}${h === g.sha256 ? ' matches' : ' != ' + g.sha256.slice(0, 16)}`);
+      else t.note(`${name}: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h} (${g.sha256 ? "held: " + g.sha256.slice(0, 16) + ", another engine" : "not held yet"})`);
     }
   }
 

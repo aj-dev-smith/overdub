@@ -24,6 +24,10 @@ import { METALKIT_HASH } from '../app/src/devices/builtin/metalkit.js';
 import { createProject } from '../app/src/core/project.js';
 import { diStrum } from '../app/src/audio/testsignals.js';
 
+// the hashes are held as tools/golden.json holds its own: on the engine it was made on (another V8 rounds Math.exp and
+// Math.sin differently in the last bit), reported elsewhere
+const GOLDEN_MADE = JSON.parse(fs.readFileSync(new URL('./golden.json', import.meta.url), 'utf8')).made || {};
+const SAME_ENGINE = String(GOLDEN_MADE.node || '').split('.')[0] === process.versions.node.split('.')[0] && GOLDEN_MADE.arch === process.arch;
 const t = tally('drumbus');
 const SR = 48000;
 const db = (x) => 20 * Math.log10(Math.max(1e-12, x));
@@ -32,7 +36,7 @@ const STAMP = '2026-09-30T00:00:00.000Z';
 const META = { created: STAMP, modified: STAMP, authors: {} };
 
 // fx:core.drumbus, as tools/golden-scenes.js's effectScene builds it (the DI strum, 8 s, defaults, 4 s of tail)
-const GOLDEN_FX = '';
+const GOLDEN_FX = '8e34613a676d4ad6abf89c8439ab2d5411d12917300d6788d63605ee824390bb';
 
 // an audio clip through the bus: channels [L, R] at 48 kHz
 function throughBus(channels, params, { on = true, tail = 1 } = {}) {
@@ -146,8 +150,8 @@ console.log('the golden scene integration adds');
       clips: [{ id: 'c_strum', kind: 'audio', start: 0, length: 16, asset: 'a_distrm', offset: 0, gain: 0, by: 'overdub' }], gain: 0, pan: 0, mute: false, solo: false, arm: false, by: 'overdub' }] };
   const g = renderSong(p, { from: 0, to: 16, tail: 4, assets: { a_distrm: { sr: 48000, channels: [strum] } } });
   const h = sha256(g), m = measure({ sr: g.sr, channels: g.channels });
-  if (GOLDEN_FX) t.ok(h === GOLDEN_FX, `fx:core.drumbus: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h.slice(0, 16)}${h === GOLDEN_FX ? ' matches' : ' != ' + GOLDEN_FX.slice(0, 16)}`);
-  else t.note(`fx:core.drumbus: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h} (not held yet)`);
+  if (GOLDEN_FX && SAME_ENGINE) t.ok(h === GOLDEN_FX, `fx:core.drumbus: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h.slice(0, 16)}${h === GOLDEN_FX ? ' matches' : ' != ' + GOLDEN_FX.slice(0, 16)}`);
+  else t.note(`fx:core.drumbus: ${m.lufs} LUFS, ${m.truePeak} dBTP, sha256 ${h} (${GOLDEN_FX ? "held: " + GOLDEN_FX.slice(0, 16) + ", another engine" : "not held yet"})`);
   t.ok(r.length > 0, 'the DI strum through it renders');
 
   const { page, close } = await open('/app/', { query: 'new' });
