@@ -170,12 +170,12 @@ export function make() {
     { type: 'auto.write', track: 't_gtr', param: 'gain', points: '0:-12 12:-8 16:0~0.5' },
     { type: 'insert.add', track: 'master', insert: { id: 'fx_mmono', device: 'core.width', params: { monobass: 120, mono_mode: 1 } } },
     { type: 'insert.add', track: 'master', insert: { id: 'fx_mclip', device: 'core.clipper', params: preset('core.clipper', 'Master clip (+3)') } },
-    { type: 'insert.add', track: 'master', insert: { id: 'fx_mlim', device: 'core.limiter', params: { gain: 5, ceiling: -1, release: 80 } } },
+    { type: 'insert.add', track: 'master', insert: { id: 'fx_mlim', device: 'core.limiter', params: { gain: 4, ceiling: -1, release: 80 } } },
     { type: 'master.set', patch: { clip: 'clean' } },
   ];
   const claude = [
     { type: 'notes.add', track: 't_gtr', clip: 'c_gtr20', notes: rightClaude.map((x) => ({ ...x, t: +(x.t - 80).toFixed(4) })) },
-    { type: 'track.add', track: { id: 't_lead', name: 'Lead', color: 'var(--c-2)', instrument: { device: 'core.guitar', params: { ...GTR, mute: 0, pickup: 0.1, decay: 1.4 } }, gain: -3.5 } },
+    { type: 'track.add', track: { id: 't_lead', name: 'Lead', color: 'var(--c-2)', instrument: { device: 'core.guitar', params: { ...GTR, mute: 0, pickup: 0.1, decay: 1.4 } }, gain: -1.5 } },
     clipOf('t_lead', 12, 8, lead(12)), clipOf('t_lead', 28, 4, lead(28, 0.75).filter((x) => x.t < 124)),
     { type: 'insert.add', track: 't_lead', insert: { id: 'fx_ldamp', device: 'core.stack', params: preset('core.stack', 'Lead', { level: 6 }) } },
     { type: 'insert.add', track: 't_lead', insert: { id: 'fx_ldly', device: 'core.delay', params: { div: 7, mode: 1, feedback: 0.25, tone: 3000, lowcut: 400, wow: 0.05, mix: 0.18 } } },

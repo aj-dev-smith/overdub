@@ -597,9 +597,9 @@
       "peak": -1.1
     },
     "demo:boiler-room": {
-      "sha256": "0718f956c566499f711ac8d053af31bf57a415020ebfd53dd6428d03d56c6b1a",
+      "sha256": "b41f2c077fe7e6063c73fb6f9feeeae273796b88af9d555d87d392aa7f3ac54c",
       "frames": 2888728,
-      "lufs": -7.24,
+      "lufs": -7.26,
       "truePeak": -1.1,
       "peak": -1.1
     }
