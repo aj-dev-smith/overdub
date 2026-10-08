@@ -36,9 +36,9 @@ function run(file) {
     let out = '';
     p.stdout.on('data', (d) => (out += d));
     p.stderr.on('data', (d) => (out += d));
-    p.on('close', (code) => {
+    p.on('close', (code, signal) => {
       const fails = (out.match(/^\s*FAIL /gm) || []).length, oks = (out.match(/^\s*ok /gm) || []).length;
-      resolve({ file, code, oks, fails, secs: ((Date.now() - t0) / 1000).toFixed(1), out });
+      resolve({ file, code, signal, oks, fails, secs: ((Date.now() - t0) / 1000).toFixed(1), out });
     });
   });
 }
@@ -52,6 +52,8 @@ await Promise.all(Array.from({ length: Math.min(PAR, queue.length) }, async () =
     results.push(r);
     console.log(`${r.code === 0 ? 'PASS' : 'FAIL'}  ${f.padEnd(24)} ${String(r.oks).padStart(4)} ok ${String(r.fails).padStart(3)} failed  ${r.secs}s`);
     if (r.code !== 0) console.log(r.out.split('\n').filter((l) => /FAIL|Error|error/.test(l)).slice(0, 12).map((l) => '      ' + l).join('\n'));
+    // a suite that exits non-zero without a FAIL line crashed or was killed: its last lines say how
+    if (r.code !== 0 && !r.fails) console.log(`      (exit ${r.code}${r.signal ? ', ' + r.signal : ''}, no FAIL line; its last lines:)\n` + r.out.trimEnd().split('\n').slice(-30).map((l) => '      | ' + l).join('\n'));
   }
 }));
 const bad = results.filter((r) => r.code !== 0);
