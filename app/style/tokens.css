@@ -13,7 +13,7 @@
    look-alike characters apart (1 l I, 0 O, rn m), which is what a long night of reading note names and numbers
    needs. They are served from the site itself (fonts.css, beside this file, says what each file is and its licence);
    if one can't load, the stacks fall back to the system faces and nothing breaks. */
-@import url("fonts.css");
+@import url('fonts.css');
 
 :root {
   color-scheme: dark;
@@ -50,10 +50,10 @@
   --c-8: #d9c8a4; /* linen */
 
   --font-ui:
-    "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
     sans-serif;
-  --font-display: "Archivo", "Arial Black", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: 'Archivo', 'Arial Black', 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Corners: one radius, 2 px, for things you press (buttons, keys, pads, toggles, inputs, notes). Containers are
      square. No pills. */
@@ -88,5 +88,5 @@
   --accent-wash: rgba(217, 243, 106, 0.16);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1); /* things arrive quickly and settle */
   --ease-wiggle: cubic-bezier(0.34, 1.56, 0.64, 1); /* the one bounce: the agent's take list arriving, nothing else */
-  --font-display-vars: "wdth" 125; /* font-variation-settings for display text: Archivo at its widest */
+  --font-display-vars: 'wdth' 125; /* font-variation-settings for display text: Archivo at its widest */
 }

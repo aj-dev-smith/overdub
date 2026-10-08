@@ -85,7 +85,7 @@ h3,
 .cs-seg button:hover {
   color: var(--text);
 }
-.cs-seg button[aria-pressed="true"] {
+.cs-seg button[aria-pressed='true'] {
   color: var(--text);
   text-decoration: underline;
 }
@@ -267,16 +267,16 @@ h3,
   flex: none;
 }
 .cs-play .ic-stop,
-.cs-entry[data-state="playing"] .cs-play .ic-play {
+.cs-entry[data-state='playing'] .cs-play .ic-play {
   display: none;
 }
-.cs-entry[data-state="playing"] .cs-play .ic-stop {
+.cs-entry[data-state='playing'] .cs-play .ic-stop {
   display: inline;
 }
-.cs-entry[data-state="playing"] .cs-play {
+.cs-entry[data-state='playing'] .cs-play {
   border-color: var(--text);
 }
-.cs-entry[data-state="loading"] .cs-play {
+.cs-entry[data-state='loading'] .cs-play {
   color: var(--text-2);
 }
 /* Dry: a square lamp, lit grease pencil when on (a footswitch on the loop) */
@@ -294,7 +294,7 @@ h3,
   cursor: pointer;
 }
 .cs-tog::before {
-  content: "";
+  content: '';
   width: 7px;
   height: 7px;
   background: var(--line-2);
@@ -302,10 +302,10 @@ h3,
 .cs-tog:hover {
   color: var(--text-2);
 }
-.cs-tog[aria-pressed="true"] {
+.cs-tog[aria-pressed='true'] {
   color: var(--text);
 }
-.cs-tog[aria-pressed="true"]::before {
+.cs-tog[aria-pressed='true']::before {
   background: var(--accent-2);
   box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 60%, transparent);
 }
@@ -333,7 +333,7 @@ h3,
   font-style: italic;
   line-height: 1.45;
   color: var(--text);
-  quotes: "“" "”";
+  quotes: '“' '”';
 }
 .cs-small {
   font-size: 13.5px;

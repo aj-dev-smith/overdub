@@ -31,6 +31,8 @@
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "always", "arrowParentheses": "always" }
   },
+  // Single quotes in CSS too: tools/brand-test.js reads fonts.css and tokens.css as text.
+  "css": { "formatter": { "quoteStyle": "single" } },
   // JSON is written by the tools that own it (JSON.stringify): golden.json, the bench, the kits. HTML is mostly
   // generated (tools/docs-build.js) and Biome's HTML support is young.
   "json": { "formatter": { "enabled": false }, "linter": { "enabled": false } },

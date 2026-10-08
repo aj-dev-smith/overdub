@@ -14,7 +14,7 @@
   text-decoration: none;
 }
 .prose .h-link::before {
-  content: "#";
+  content: '#';
   position: absolute;
   right: 100%;
   padding-right: 0.3em;
@@ -78,7 +78,7 @@ h4[id] {
   font-size: clamp(22px, 2.2vw, 28px);
   line-height: 1.1;
   max-width: none;
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: 'wdth' 112;
   font-stretch: 112%;
 }
 .doc-card h2 + * {
@@ -88,7 +88,7 @@ h4[id] {
   text-decoration: none;
 }
 .doc-card h2 a::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
 } /* the whole row is the link */
@@ -121,7 +121,7 @@ h4[id] {
 .hub-raw h2 {
   font-size: 24px;
   max-width: none;
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: 'wdth' 112;
   font-stretch: 112%;
 }
 .hub-raw p {
@@ -182,7 +182,7 @@ h4[id] {
 .docs-nav ol a:hover {
   color: var(--text);
 }
-.docs-nav a[aria-current="page"] {
+.docs-nav a[aria-current='page'] {
   color: var(--text);
   font-weight: 600;
   text-decoration: underline;
@@ -478,7 +478,7 @@ h4[id] {
   text-decoration: none;
   color: var(--text);
   font: italic 800 20px / 1.15 var(--font-display);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: 'wdth' 112;
   font-stretch: 112%;
 }
 .pager a:hover {
