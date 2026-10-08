@@ -31,12 +31,12 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 45 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 46 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
   Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Virtuosity Kit,
   Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound, Hollow Body, Bell Up, Endpin,
   Head Joint and Spit Valve; Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed
-  Tape, Gatefold, Red Line, Slide Rule, Scribble Strip, Gaffer Tape and Dim Switch. All are synthesized but thirteen, which play
+  Tape, Gatefold, Red Line, Slide Rule, Scribble Strip, Gaffer Tape, Dim Switch and Clip Lamp. All are synthesized but thirteen, which play
   samples: Virtuosity Kit, a real jazz-club kit, Parlour Upright, a real upright piano, Rusty Brushes, a real kit played
   with brushes and mallets, Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string
   section, Damper Bar, a real vibraphone, Roundwound, a real five-string bass, Hollow Body, a real hollow-body electric
@@ -46,7 +46,7 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 45 built-ins.
+  behind it, next to the 46 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano

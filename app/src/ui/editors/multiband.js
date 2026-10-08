@@ -74,9 +74,12 @@ export function mount(el, ctx) {
   // the master: DEPTH big, then INPUT, OUTPUT, TIME
   const depthCtl = ctx.control('depth', { size: 104, label: 'Depth' });
   depthCtl.classList.add('mb-depth');
-  const inCtl = ctx.control('in_gain', { size: 46, label: 'Input' });
-  const outCtl = ctx.control('out_gain', { size: 46, label: 'Output' });
-  const timeCtl = ctx.control('time', { size: 46, label: 'Time' });
+  const inCtl = ctx.control('in_gain', { size: 40, label: 'Input' });
+  const outCtl = ctx.control('out_gain', { size: 40, label: 'Output' });
+  const timeCtl = ctx.control('time', { size: 40, label: 'Time' });
+  // the two big knobs: how much of every band's lift, and of its hold, is used
+  const upCtl = ctx.control('upward', { size: 40, label: 'Upward' });
+  const downCtl = ctx.control('downward', { size: 40, label: 'Downward' });
   const depthSay = h('p.mb-dsay');
   // what it does to the level: out against in, big, and the two meters (the readouts' stream feeds them)
   const luNum = h('b.mb-lu', '–');
@@ -89,7 +92,7 @@ export function mount(el, ctx) {
     h('p.mb-ld', { 'aria-live': 'polite', 'aria-atomic': 'true' }, luNum, ' ', luSay, luWhen),
     h('div.mb-mt', h('span.mb-ml', 'In'), meterIn.el),
     h('div.mb-mt', h('span.mb-ml', 'Out'), meterOut.el, pkOut));
-  const master = h('section.mb-master', { 'aria-label': 'Depth, loudness, input, output and time' }, depthCtl, depthSay, loud, h('div.mb-mrow', inCtl, outCtl, timeCtl));
+  const master = h('section.mb-master', { 'aria-label': 'Depth, loudness, input, output, time, upward and downward' }, depthCtl, depthSay, loud, h('div.mb-mrow', inCtl, outCtl, timeCtl, upCtl, downCtl));
 
   // a column per band
   const bands = MB_BANDS.map((B) => {
@@ -381,7 +384,8 @@ export function mount(el, ctx) {
     bands.forEach((b, j) => {
       const p = bandOf(vals, b.B.id), cA = mbCoef(p.att * tm, rate), cR = mbCoef(p.rel * tm, rate), cD = mbCoef(MB_DET_MS[j], rate), X = rt.B[j];
       let lo = Infinity, hi = -Infinity;
-      for (let i = 0; i < n; i++) { const g = mbStep(X[i] * X[i], rt.S, 6 * j, p.thrD, p.rD, p.thrU, p.rU, cA, cR, cD, cC, cL); if (g < lo) lo = g; if (g > hi) hi = g; }
+      const sd = (vals.downward ?? 100) / 100, su = (vals.upward ?? 100) / 100;
+      for (let i = 0; i < n; i++) { const g = mbStep(X[i] * X[i], rt.S, 6 * j, p.thrD, p.rD, p.thrU, p.rU, cA, cR, cD, cC, cL, sd, su); if (g < lo) lo = g; if (g > hi) hi = g; }
       // what the band does now, at this depth (its own gain aside): the most it held down in this chunk, else the most
       // it lifted
       const g = lo < -0.05 ? lo : hi;
@@ -628,7 +632,7 @@ const CSS = `
 .mb-ml { font: 400 11px/1 var(--font-mono); color: var(--text-3); text-align: right; }
 .mb-mt .pk-meter { height: 8px; }
 .mb-pk { font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
-.mb-mrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 8px; }
+.mb-mrow { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; gap: 8px 4px; }
 .mb-band { min-width: 0; padding: 10px 14px 12px; border-left: var(--rule); }
 .mb-bh { display: grid; gap: 3px; }
 .mb-bt { display: flex; align-items: baseline; gap: 8px; min-width: 0; }

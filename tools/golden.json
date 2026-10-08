@@ -510,6 +510,13 @@
       "lufs": -9.1,
       "truePeak": -1.1,
       "peak": -1.1
+    },
+    "fx:core.clipper": {
+      "sha256": "35a2a7dc6088998f651ce247c17c3b92aa44e3160f1de041ce2730be873a8f90",
+      "frames": 576000,
+      "lufs": -21.17,
+      "truePeak": -9.35,
+      "peak": -9.35
     }
   }
 }

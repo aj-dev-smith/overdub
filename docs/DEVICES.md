@@ -187,8 +187,12 @@ measured, is [research/MULTIBAND.md](research/MULTIBAND.md).
   method) on everything it puts out, holds it at −1 dBTP at any setting; it lets go of a short over within 10 ms and a
   long one over 150 ms. The look-ahead and the ceiling cost 328 samples (6.8 ms) of latency, declared. About 2% of
   real time.
+- **Upward and downward** (appended): `upward` and `downward` (0-200%, default 100) scale every band's lift and hold,
+  in dB of gain change, as the classic plugin's two big knobs do: less upward on a bass that hisses, more downward on
+  a top end that bites (the lift stays at most 30 dB). At 100% each the arithmetic is exactly what it was.
 - **Presets**: Full depth (the classic, all of it, a decibel up), Glue (bus), Drum smash, Vocal presence, Bass
-  tighten, Subtle 30%. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
+  tighten, Subtle 30%, and for bass music Bass density (60% in, upward 60%) and Drum density (50%, downward 130%),
+  each about 1 LU up on the test signals. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
   down; Glue, Subtle and Bass tighten stay within a decibel or so of the input. `tools/multiband-test.js` holds it to
   all of this.
 - **The window says what it does**: while the song plays, the loudness out against in (in LU, large, in the warning
@@ -219,6 +223,23 @@ signed whoever picked it), and the mixer shows "keyed by Kick" under the track.
   threshold, and within 1 dB of the way back at 91% of RELEASE (CURVE 0).
 - **Presets**: Kick duck, Kick and snare duck (dubstep's), Gentle pump, Hard pump (riddim), Bus breathe (FOLLOW),
   Quarter pump (no key), each tagged `bass-music`.
+
+## Clip Lamp (core.clipper): a ceiling it never passes
+
+A clipper for drums and loud masters: `drive` (0-24 dB) pushes the sound into `ceiling` (-12 to 0 dBFS), and what
+would have gone over is cut off (`shape` `HARD`), rounded (`SOFT`, a tanh) or leaned on like tape (`TAPE`, a tanh on a
+bias, for even harmonics), `knee` (0-1) setting how far under the ceiling the bend starts (up to 6 dB). `output` and
+`mix` (the clean sound, from before the drive) after. `app/src/devices/builtin/clipper.js`.
+
+- **At 4x.** The curve runs at 4x the sample rate through the stdlib's `oversample4x`, so the harmonics a corner
+  makes above the band are filtered out, not folded back. At the 4x rate nothing passes the ceiling; the filters after
+  it rebuild a little (0.02 dB on a 100 Hz tone pushed 18 dB into -6 dBFS), which `meter()` reports and a limiter
+  after it catches. Its latency, 27.5 samples, is declared.
+- **At its defaults** (drive 0, ceiling 0 dBFS, no knee) anything under full scale passes as it was, delayed and
+  band-limited: within 0.1 LU on the house's test signals.
+- **Presets**: Drum bus clip (4 dB into -3 dBFS), Master clip (+3) and Master clip (+6) (into -1 dBFS, for in front
+  of Red Line), Bass grit (14 dB into tape, 60% in). The loud master is Clip Lamp, then Red Line at -1 dBTP, then the
+  master's clean ceiling (`master.set { clip: 'clean' }`). `tools/clipper-test.js` holds it to this.
 
 ## Keys: an effect that hears another track
 

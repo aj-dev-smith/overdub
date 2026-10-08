@@ -514,6 +514,9 @@ gains can't run away. At depth 0 it is the input, untouched.
   releases, at once.
 - **More room, tails and breath:** raise a band's `up_thresh` or `up_ratio`. **Hold the peaks harder:** lower a band's
   `down_thresh` or raise its `down_ratio`.
+- **All the lift, or all the hold, at once:** `upward` and `downward` (%, default 100) scale every band's lift and
+  hold: `upward` 60 on a growl or a reese keeps its hiss down (the Bass density preset), `downward` 130 on drums holds
+  the hits harder (Drum density).
 
 A drum bus, deeper and with each hit's front let through:
 
@@ -548,7 +551,9 @@ and `key_hi` (Hz: the part of the key it listens to; 30-150 for a kick), `nokey`
 Bus breathe, Quarter pump (no key). A device you write can take a key too: `key: true` in its definition, `t.key` in
 its kernel (the device guide).
 
-**A loud master.** End the master in a limiter (Red Line, `core.limiter`, ceiling −1) and set
+**A loud master.** Clip Lamp (`core.clipper`: `drive` dB into a `ceiling` it never passes, `shape` HARD, SOFT or TAPE,
+4x oversampled; presets Drum bus clip, Master clip (+3), Master clip (+6), Bass grit) takes the peaks' first
+milliseconds off, then a limiter (Red Line, `core.limiter`, ceiling −1) brings the rest up. End the master that way and set
 `master.set { patch: { clip: 'clean' } }`: the safety soft clip after the limiter rounds a −1 dBTP master down by up
 to half a decibel, and `clean` leaves it exactly as the limiter did, with a hard ceiling at 0 dBFS.
 

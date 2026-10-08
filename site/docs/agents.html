@@ -495,6 +495,9 @@ sound, and louder). More depth measures denser (a lower crest factor), so less d
 releases, at once.</li>
 <li><strong>More room, tails and breath:</strong> raise a band's <code>up_thresh</code> or <code>up_ratio</code>. <strong>Hold the peaks harder:</strong> lower a band's
 <code>down_thresh</code> or raise its <code>down_ratio</code>.</li>
+<li><strong>All the lift, or all the hold, at once:</strong> <code>upward</code> and <code>downward</code> (%, default 100) scale every band's lift and
+hold: <code>upward</code> 60 on a growl or a reese keeps its hiss down (the Bass density preset), <code>downward</code> 130 on drums holds
+the hits harder (Drum density).</li>
 </ul>
 <p>A drum bus, deeper and with each hit's front let through:</p>
 <div class="code" data-lang="json"><pre><code>{ &quot;type&quot;: &quot;insert.set&quot;, &quot;track&quot;: &quot;Drums&quot;, &quot;insert&quot;: &quot;fx_ab12cd&quot;, &quot;patch&quot;: { &quot;params&quot;: { &quot;depth&quot;: 60, &quot;low_attack&quot;: 60, &quot;mid_attack&quot;: 30 } } }</code></pre></div>
@@ -518,7 +521,9 @@ and <code>key_hi</code> (Hz: the part of the key it listens to; 30-150 for a kic
 <code>1/2</code> or <code>1 BAR</code> of the song) and <code>mix</code>. Its presets: Kick duck, Kick and snare duck, Gentle pump, Hard pump (riddim),
 Bus breathe, Quarter pump (no key). A device you write can take a key too: <code>key: true</code> in its definition, <code>t.key</code> in
 its kernel (the device guide).</p>
-<p><strong>A loud master.</strong> End the master in a limiter (Red Line, <code>core.limiter</code>, ceiling −1) and set
+<p><strong>A loud master.</strong> Clip Lamp (<code>core.clipper</code>: <code>drive</code> dB into a <code>ceiling</code> it never passes, <code>shape</code> HARD, SOFT or TAPE,
+4x oversampled; presets Drum bus clip, Master clip (+3), Master clip (+6), Bass grit) takes the peaks' first
+milliseconds off, then a limiter (Red Line, <code>core.limiter</code>, ceiling −1) brings the rest up. End the master that way and set
 <code>master.set { patch: { clip: 'clean' } }</code>: the safety soft clip after the limiter rounds a −1 dBTP master down by up
 to half a decibel, and <code>clean</code> leaves it exactly as the limiter did, with a hard ceiling at 0 dBFS.</p>
 <h2 id="writing-devices"><a class="h-link" href="#writing-devices">Writing devices</a></h2>

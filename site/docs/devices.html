@@ -50,6 +50,7 @@
 <li><a href="#scribble-strip-coreshaper-a-shaper-you-draw">Scribble Strip (core.shaper): a shaper you draw</a></li>
 <li><a href="#gaffer-tape-coremultiband-three-bands-up-and-down">Gaffer Tape (core.multiband): three bands, up and down</a></li>
 <li><a href="#dim-switch-coreducker-the-sidechain-duck">Dim Switch (core.ducker): the sidechain duck</a></li>
+<li><a href="#clip-lamp-coreclipper-a-ceiling-it-never-passes">Clip Lamp (core.clipper): a ceiling it never passes</a></li>
 <li><a href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></li>
 <li><a href="#under-the-hood">Under the hood</a></li>
 <li><a href="#expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal">Expression: pitch bend, the mod wheel and the sustain pedal</a></li>
@@ -75,7 +76,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 56 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 57 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -253,8 +254,12 @@ bypass on the house's test signals and drum kits. A safety ceiling, a look-ahead
 method) on everything it puts out, holds it at −1 dBTP at any setting; it lets go of a short over within 10 ms and a
 long one over 150 ms. The look-ahead and the ceiling cost 328 samples (6.8 ms) of latency, declared. About 2% of
 real time.</li>
+<li><strong>Upward and downward</strong> (appended): <code>upward</code> and <code>downward</code> (0-200%, default 100) scale every band's lift and hold,
+in dB of gain change, as the classic plugin's two big knobs do: less upward on a bass that hisses, more downward on
+a top end that bites (the lift stays at most 30 dB). At 100% each the arithmetic is exactly what it was.</li>
 <li><strong>Presets</strong>: Full depth (the classic, all of it, a decibel up), Glue (bus), Drum smash, Vocal presence, Bass
-tighten, Subtle 30%. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
+tighten, Subtle 30%, and for bass music Bass density (60% in, upward 60%) and Drum density (50%, downward 130%),
+each about 1 LU up on the test signals. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
 down; Glue, Subtle and Bass tighten stay within a decibel or so of the input. <code>tools/multiband-test.js</code> holds it to
 all of this.</li>
 <li><strong>The window says what it does</strong>: while the song plays, the loudness out against in (in LU, large, in the warning
@@ -284,6 +289,22 @@ transport plays. <code>mix</code> blends the dry back in.</li>
 threshold, and within 1 dB of the way back at 91% of RELEASE (CURVE 0).</li>
 <li><strong>Presets</strong>: Kick duck, Kick and snare duck (dubstep's), Gentle pump, Hard pump (riddim), Bus breathe (FOLLOW),
 Quarter pump (no key), each tagged <code>bass-music</code>.</li>
+</ul>
+<h2 id="clip-lamp-coreclipper-a-ceiling-it-never-passes"><a class="h-link" href="#clip-lamp-coreclipper-a-ceiling-it-never-passes">Clip Lamp (core.clipper): a ceiling it never passes</a></h2>
+<p>A clipper for drums and loud masters: <code>drive</code> (0-24 dB) pushes the sound into <code>ceiling</code> (-12 to 0 dBFS), and what
+would have gone over is cut off (<code>shape</code> <code>HARD</code>), rounded (<code>SOFT</code>, a tanh) or leaned on like tape (<code>TAPE</code>, a tanh on a
+bias, for even harmonics), <code>knee</code> (0-1) setting how far under the ceiling the bend starts (up to 6 dB). <code>output</code> and
+<code>mix</code> (the clean sound, from before the drive) after. <code>app/src/devices/builtin/clipper.js</code>.</p>
+<ul>
+<li><strong>At 4x.</strong> The curve runs at 4x the sample rate through the stdlib's <code>oversample4x</code>, so the harmonics a corner
+makes above the band are filtered out, not folded back. At the 4x rate nothing passes the ceiling; the filters after
+it rebuild a little (0.02 dB on a 100 Hz tone pushed 18 dB into -6 dBFS), which <code>meter()</code> reports and a limiter
+after it catches. Its latency, 27.5 samples, is declared.</li>
+<li><strong>At its defaults</strong> (drive 0, ceiling 0 dBFS, no knee) anything under full scale passes as it was, delayed and
+band-limited: within 0.1 LU on the house's test signals.</li>
+<li><strong>Presets</strong>: Drum bus clip (4 dB into -3 dBFS), Master clip (+3) and Master clip (+6) (into -1 dBFS, for in front
+of Red Line), Bass grit (14 dB into tape, 60% in). The loud master is Clip Lamp, then Red Line at -1 dBTP, then the
+master's clean ceiling (<code>master.set { clip: 'clean' }</code>). <code>tools/clipper-test.js</code> holds it to this.</li>
 </ul>
 <h2 id="keys-an-effect-that-hears-another-track"><a class="h-link" href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></h2>
 <p>A def with <code>key: true</code> (effects only) gets a second input, its <strong>key</strong>: the sound of the track the insert's <code>key</code>

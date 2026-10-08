@@ -378,6 +378,10 @@ yours to pick by ear:
   (30-150 Hz), so the hats don't set it off; **Hard pump (riddim)** all but cuts the bass on each kick; **Gentle
   pump** is for pads. **Depth** is how far it dips, **Release** how long it takes to come back. A muted kick track
   still keys it, so you can duck to a kick you don't hear. With no key, **No key** dips on the song's beat instead.
+- **A loud master.** Put **Clip Lamp** then **Red Line** on the master. Clip Lamp's **Master clip (+3)** takes the
+  tops off the kicks and snares so Red Line has less to do; turn Red Line's **Gain** up until the master is as loud as
+  you want it. Then right-click the master's level in the mixer and pick **Clean ceiling (for a limited master)**: the
+  safety clip after the limiter would otherwise round the last half decibel off.
 
 ## Grooves
 
@@ -645,7 +649,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 58 devices: the 45 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 59 devices: the 46 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).
