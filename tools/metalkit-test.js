@@ -7,10 +7,11 @@
 // click and a sub on the kick notes, nothing on the rest) and says the kit is missing. With the kit fetched (node
 // tools/fetch-kits.js): the file is the pinned one and rebuilds byte for byte from the download cache, every note of
 // the map sounds and any other is silent, checkDevice passes, the phrase sits at the house level, 8 bars of double
-// kick at 160, 200 and 240 BPM hold their level, colour and timing with no stroke played twice in a row, TIGHT gates the
-// kick, the trigger's click reads and its sub adds in phase, the room lengthens the snare, two renders are bit-exact,
-// the page's render matches Node's, and the two scenes integration adds to tools/golden.json render to the hashes
-// held here (inst:core.metalkit#<kit> and its :trigger twin).
+// kick at 160, 200 and 240 BPM hold their level, colour and timing with no two hits in a row over 0.995 alike, a kick
+// at velocity 0.8 stays under the kit's limiter (so velocity moves it), TIGHT gates the kick, the trigger's click reads
+// and its sub adds in phase, the room lengthens the snare, two renders are bit-exact, the page's render matches
+// Node's, and the two scenes integration adds to tools/golden.json render to the hashes held here
+// (inst:core.metalkit#<kit> and its :trigger twin).
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -46,8 +47,8 @@ const hex = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // the instrument scene every sampled device gets (the drum phrase at defaults); :trigger plays it with the trigger up
 // and the room off (CLICK 0, SUB 0, TRIG VEL 0, ROOM off), so the synthesized layers are pinned on their own.
 const GOLDEN = {
-  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}`]: { params: {}, sha256: '38f83e5e87238e1a7a64a06c6d327fafb180ad4593c852c6cd7580c548539183' },
-  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}:trigger`]: { params: { click: 0, sub: 0, trig_vel: 0, room: -40 }, sha256: 'c447519f26c55d96592a52003b7c604bca763b2b612f928b95bdf2d576bcaf9e' },
+  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}`]: { params: {}, sha256: '0044d2716abb318aed20096c765db78481d3aac88f3cc426b85add44ba5acf4f' },
+  [`inst:core.metalkit#${METALKIT_HASH.slice(7, 19)}:trigger`]: { params: { click: 0, sub: 0, trig_vel: 0, room: -40 }, sha256: '2fd9d3d8d3fef9cb7bc4b29c217d096ab2e6d9ad2ee264f06c77e49da26e1590' },
 };
 
 const STAMP = '2026-09-30T00:00:00.000Z';
@@ -188,9 +189,23 @@ else {
       t.ok(row.onMax <= 0.5 && row.onSpread <= 0.25, `${bpm} BPM: every onset within ${r2(row.onMax)} ms of its note (want 0.5), spread ${r2(row.onSpread)} ms (want <= 0.25): no flams`);
       // no stroke twice in a row: two hits of one recording correlate 0.99999 and more; different strokes never do here
       t.ok(row.corrMax < 0.9999, `${bpm} BPM: no two consecutive hits are one recording (the closest pair correlates ${row.corrMax.toFixed(4)} over 30 ms)`);
-      if (row.corrMax > 0.995) t.note(`${bpm} BPM: consecutive hits correlate up to ${row.corrMax.toFixed(4)} (mean ${row.corrMean.toFixed(4)}); under 0.995 is not met: Big Rusty's own strokes of one layer correlate 0.989-1.000 over their first 30 ms (the recipe's header)`);
+      // no machine gun: Big Rusty's own strokes of one layer correlate 0.989-1.000 over their first 30 ms (the recipe's
+      // header), so the picker passes over the last stroke's near twins (KIT_OPTIONS.similar)
+      t.ok(row.corrMax <= 0.995, `${bpm} BPM: no two consecutive hits correlate over 0.995 in their first 30 ms (the most alike ${row.corrMax.toFixed(4)}, mean ${row.corrMean.toFixed(4)})`);
     }
     console.log('    ' + table.map((r) => `${r.bpm} BPM: level sd ${r2(r.levelSd)} dB, centroid CV ${r2(r.cv)}%, corr max ${r.corrMax.toFixed(4)} mean ${r.corrMean.toFixed(4)}, onset ${r2(r.onMean)} ms +-${r2(r.onSpread)}`).join('\n    '));
+  }
+
+  console.log('the kick and the limiter');
+  {
+    // the kit's limiter is a safety: at velocity 0.8 the kick (its trigger and all) stays under it, so velocity still
+    // moves the kick and a double kick doesn't duck the cymbals. The same hit 18 dB down and brought back up is the kick
+    // with no limiter
+    const pk = (v, level) => db(peakOf(mono(render([{ p: 36, t: 1, v }], { level }, { length: 2, tail: 1 })))) - level;
+    const at = [0.5, 0.8, 1].map((v) => ({ v, out: pk(v, 0), free: pk(v, -18) }));
+    const gr = at.map((a) => a.free - a.out);
+    t.ok(gr[0] < 0.1 && gr[1] < 0.5, `a kick at 0.5 and 0.8 doesn't meet the limiter (it takes ${r2(gr[0])} and ${r2(gr[1])} dB; ${r2(gr[2])} at 1)`);
+    t.ok(at[1].out - at[0].out >= 3, `velocity moves the kick: it peaks at ${at.map((a) => r2(a.out)).join(', ')} dBFS at 0.5, 0.8 and 1`);
   }
 
   console.log('TIGHT, the trigger and the room');

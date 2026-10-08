@@ -24,10 +24,10 @@
 // the words for them). The output runs through Studio A's stereo-linked true-peak limiter (-1.5 dBTP, 1.5 ms ahead).
 import { kernel } from './lib.js';
 
-export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24, even = false, offset = null, rr = null, tight = null, trigger = null, room = null, onset = 0 }) {
+export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24, even = false, offset = null, rr = null, similar = 1, tight = null, trigger = null, room = null, onset = 0 }) {
   // (the options after `offset` are Rusty Sticks'; with none of them passed, the source is exactly what it was before
   // they existed, so every kit that doesn't ask keeps its sound and its golden hash: tools/metalkit-test.js checks it)
-  const NR = rr === 'norepeat', X = NR || !!tight || !!trigger || !!room || !!onset;
+  const NR = rr === 'norepeat', SIM = NR && similar < 1, X = NR || !!tight || !!trigger || !!room || !!onset;
   return kernel(String.raw`
 const PIECES = ${JSON.stringify(pieces)};
 const LEVEL_OF = ${JSON.stringify(levelOf)};
@@ -37,7 +37,7 @@ const METAL = ${JSON.stringify(metal)};    // cymbals and hats: velocity layers 
 const HELD = ${JSON.stringify(held)};      // piece -> [attack ms, release ms]: rings while held
 const XF = 0.06;            // the crossfade half-width around a layer boundary (velocity, 0..1)
 const MAKEUP = ${makeup};${offset ? `
-const OFFSET = ${JSON.stringify(offset)};   // piece -> dB` : ''}${X ? OPTIONS_SRC({ NR, tight, trigger, room, onset }) : ''}
+const OFFSET = ${JSON.stringify(offset)};   // piece -> dB` : ''}${X ? OPTIONS_SRC({ NR, SIM, similar, tight, trigger, room, onset }) : ''}
 const KN = 1 / 32768;       // 16-bit to float, exactly
 const dbx = (d) => (d <= -39.9 ? 0 : Math.pow(10, d / 20));
 const ceil = (x) => { const a = x < 0 ? -x : x; if (a <= 0.89) return x; const y = 0.89 + 0.1 * Math.tanh((a - 0.89) / 0.1); return x < 0 ? -y : y; };
@@ -68,7 +68,28 @@ return {
       const win = HELD[p] ? 1 : 0.15;
       for (const r of l.rr) { let e = 1; const m = Math.min(r.n - r.at, Math.round(win * kit.sr)); for (let i = r.at; i < r.at + m; i++) e += r.L[i] * r.L[i] + r.R[i] * r.R[i]; sum += 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);${even || NR ? ' r.lv = 10 * Math.log10(e / (2 * m)) + 20 * Math.log10(KN);' : ''} }
       l.peak = sum / l.rr.length;
-    }
+    }${SIM ? `
+    // (norepeat) how alike each stroke is to the strokes of its own and the neighbouring layers: their first 30 ms (mono,
+    // from the start) correlated. After a stroke the picker passes over those over SIMILAR while others remain, else
+    // takes the least alike
+    const NW = Math.round(0.03 * kit.sr), SEG = new Float64Array(NW);
+    for (const p in K) {
+      const Lp = K[p];
+      for (let li = 0; li < Lp.length; li++) for (let q = 0; q < Lp[li].rr.length; q++) {
+        const a = Lp[li].rr[q];
+        if (!a) continue;
+        a.nid = []; a.nc = [];
+        let aa = 0;
+        for (let i = 0; i < NW; i++) { const j = a.at + i; SEG[i] = j < a.n ? a.L[j] + a.R[j] : 0; aa += SEG[i] * SEG[i]; }
+        for (let lj = Math.max(0, li - 1); lj <= Math.min(Lp.length - 1, li + 1); lj++) for (let q2 = 0; q2 < Lp[lj].rr.length; q2++) {
+          const b = Lp[lj].rr[q2];
+          if (!b || b === a) continue;
+          let ab = 0, bb = 0;
+          for (let i = 0; i < NW; i++) { const j = b.at + i, y = j < b.n ? b.L[j] + b.R[j] : 0; ab += SEG[i] * y; bb += y * y; }
+          a.nid.push(lj * 64 + q2); a.nc.push(aa > 0 && bb > 0 ? ab / Math.sqrt(aa * bb) : 0);
+        }
+      }
+    }` : ''}
     const FI = Math.round(0.001 * sr);
     const levelAt = (L, v) => {
       if (v <= L[0].top) return L[0].peak + 20 * Math.log10(Math.max(0.02, v) / L[0].top);
@@ -121,11 +142,19 @@ return {
           let lo = L.length - 1;
           for (let j = 0; j < L.length; j++) if (v <= L[j].top) { lo = j; break; }
 ${NR ? `          const want = levelAt(L, v)${offset ? ' + (OFFSET[piece] || 0)' : ''};
-          // the stroke: one of this layer's or the nearer neighbour layer's, never either of the piece's last two, at
+          // the stroke: one of this layer's or the nearer neighbour layer's, never either of the piece's last two (nor, with
+          // SIMILAR, a near twin of the last), at
           // its own measured level brought to the curve's, then +-0.4 dB and +-4 cents of its own (all from the seed)
           const nb = L.length < 2 ? lo : lo === 0 ? 1 : lo === L.length - 1 ? lo - 1 : v > 0.5 * (L[lo - 1].top + L[lo].top) ? lo + 1 : lo - 1;
-          let cnt = 0;
-          for (let li = Math.min(lo, nb); li <= Math.max(lo, nb); li++) for (let q = 0; q < L[li].rr.length; q++) { const id = li * 64 + q; if (id !== H1[piece] && id !== H2[piece]) POOL[cnt++] = id; }
+          const was = ${SIM ? 'H1[piece] === undefined ? null : L[H1[piece] >> 6].rr[H1[piece] & 63]' : 'null'};
+          let cnt = 0, best = -1, bc = 2;
+          for (let li = Math.min(lo, nb); li <= Math.max(lo, nb); li++) for (let q = 0; q < L[li].rr.length; q++) {
+            const id = li * 64 + q;
+            if (!L[li].rr[q] || id === H1[piece] || id === H2[piece]) continue;
+            const k = was ? was.nid.indexOf(id) : -1, c = k >= 0 ? was.nc[k] : 0;
+            if (c <= ${SIM ? 'SIMILAR' : '1'}) POOL[cnt++] = id; else if (c < bc) { bc = c; best = id; }
+          }
+          if (!cnt && best >= 0) POOL[cnt++] = best;
           if (!cnt) POOL[cnt++] = lo * 64;
           const id = POOL[Math.floor(draw() * cnt)];
           H2[piece] = H1[piece]; H1[piece] = id;
@@ -265,6 +294,8 @@ ${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true
 
 // The options' kernel source (Rusty Sticks): the constants, the kit room (kitroom.js), and the trigger.
 //   rr: 'norepeat'                   the stroke picker above
+//   similar: 0..1                    (with norepeat) after a stroke, the picker passes over the strokes whose first 30 ms
+//                                    correlate with its own over this, while any others are left (1, the default: off)
 //   tight: { piece, key, hold, t60 } a new note of the piece fades the last over p[key] ms; each one's tail is held for
 //                                    hold x that, then falls with a T60 of t60 x that
 //   trigger: { piece, ref, ck, sk }  a synthesized click (2-6 kHz burst and a one-sample impulse, 4 ms) and sub (a sine at
@@ -276,13 +307,15 @@ ${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true
 //                                    KITROOM: the kit passes it in, so a kit without a room loads nothing more); params
 //                                    room (dB, -40 off), room_size
 //   onset                            seconds each stroke starts before its attack: added to the declared latency
-function OPTIONS_SRC({ NR, tight, trigger, room, onset }) {
+function OPTIONS_SRC({ NR, SIM, similar, tight, trigger, room, onset }) {
   return `
 // (the options)
 const TIGHT = ${JSON.stringify(tight)};
 const TRIG = ${JSON.stringify(trigger)};
 const ROOMSEND = ${JSON.stringify(room ? room.send : null)}, ROOM_GAIN = ${room ? room.gain : 0};
-const ONSET = ${onset};${room ? room.src : ''}${trigger ? TRIGGER_SRC : ''}`;
+const ONSET = ${onset};
+${SIM ? `
+const SIMILAR = ${similar};   // (norepeat) two strokes this alike over their first 30 ms aren't played one after the other` : ''}${room ? room.src : ''}${trigger ? TRIGGER_SRC : ''}`;
 }
 const TRIGGER_SRC = String.raw`
 // the trigger's click: a burst of seeded noise, high-passed at 2 kHz and low-passed at 6 kHz (two one-poles each),

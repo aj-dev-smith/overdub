@@ -8,7 +8,8 @@
 // its side), a ride (bow, bell, edge), a crash, a sizzle crash, a China, a three-cymbal stack, and chokes. The kernel is
 // drumsampler.js with four options:
 //   - the stroke picker never repeats: each hit draws from its layer and the nearer neighbour layer, never either of the
-//     last two strokes on that piece, with a seeded +-0.4 dB and +-4 cents of its own (no machine gun at 16ths);
+//     last two strokes on that piece nor a near twin of the last, with a seeded +-0.4 dB and +-4 cents of its own (no
+//     machine gun at 16ths);
 //   - TIGHT: a new kick fades the last one over TIGHT ms, and each kick's tail is held to it;
 //   - the trigger: a synthesized click and sub under the kick, the "trigger" of modern metal, consistent by
 //     construction, starting at the stroke's attack with the stroke's own polarity;
@@ -59,19 +60,25 @@ export const KIT_OPTIONS = {
     ride: [2, 400], bell: [2, 400], rideedge: [2, 400], ridechoke: [2, 40],
     crash: [3, 400], crashchoke: [3, 40], crash2: [4, 400], crash2choke: [4, 40], china: [5, 400], chinachoke: [5, 40],
   },
-  // the house level: the drum test phrase at -16.5 LUFS, true peak -1.4 dBTP (the limiter takes the hardest kicks,
-  // snares and rimshots by a few dB; the snare's crest over its first 100 ms stays 14 dB)
+  // the house level: the drum test phrase at -16.7 LUFS, true peak -1.4 dBTP (the limiter takes snares and rimshots
+  // at velocity 0.8 and up by 4 to 10 dB; the snare's crest over its first 100 ms stays 15 dB)
   makeup: 2.6,
   // each piece against the others under its knob, dB: the recipe brings every piece to -1 dBFS at its loudest, so these
   // set the mix. Measured without the makeup, room off, as each piece's loudness over 400 ms at velocity 0.8 against the
-  // snare's: the kick 1 under (its tail is short), rimshots 2 over, the toms 1 under, crashes and China 4 under, the
-  // ride 8 under, closed hats 8 under
-  offset: { kick: -4.9, snare: -1.3, rim: 2.5, stick: -8.1, hat: -6, hattight: -5.8, hatpedal: -9.4, hatq: -9, hathalf: -8.3, hatopen: -8.3, hatsplash: -12.7,
+  // snare's: rimshots 2 over, the toms 1 under, crashes and China 4 under, the ride 8 under, closed hats 8 under. The
+  // kick, with its trigger (whose click sets its peak), sits where a kick at velocity 0.8 just misses the limiter:
+  // at -4.9 every kick from 0.5 up came out at one peak (the limiter took 1.7 to 6.5 dB) and the cymbals above 9 kHz
+  // dipped up to 5 dB under a double kick (2 now, as with no limiter); here a kick at 0.5, 0.8 and 1 peaks at -6.6,
+  // -2.7 and -2.0 dBFS, and over 16 quarter notes it is 2.7 LU under the snare (it was 1)
+  offset: { kick: -10.5, snare: -1.3, rim: 2.5, stick: -8.1, hat: -6, hattight: -5.8, hatpedal: -9.4, hatq: -9, hathalf: -8.3, hatopen: -8.3, hatsplash: -12.7,
     tom1: -1.7, tom2: -5, tom3: -3.3, tom4: -5.5, ride: -8.3, bell: -2.5, rideedge: -13.5, ridechoke: -10,
     crash: -5.9, crash2: -14.6, stack: -15.7, crashchoke: -10, crash2choke: -14, china: -10.4, chinachoke: -12 },
-  rr: 'norepeat',
+  // after a stroke, its near twins (over 0.99 alike in their first 30 ms) are passed over: Big Rusty's kick round robins
+  // of one layer correlate 0.99-0.9999 with each other, so without this half the hits of a double kick at 200 BPM came out
+  // over 0.995 alike (the machine gun); with it none do
+  rr: 'norepeat', similar: 0.99,
   tight: { piece: 'kick', key: 'tight', hold: 3, t60: 20 },
-  trigger: { piece: 'kick', ref: -15.7, ck: 4, sk: 2, imp: 2 },
+  trigger: { piece: 'kick', ref: -21.3, ck: 5.2, sk: 2, imp: 2 },
   room: { send: SEND, gain: 3, src: KITROOM },
   onset: 0.001,
 };

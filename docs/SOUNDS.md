@@ -39,6 +39,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-653ce5fbd513951101d8c0b81d2a11e9177b89e8588ca403074003b1eb917ba3` |
 | Verified | 2026-10-07 |
 
+## Big Rusty Drums: Rusty Sticks (`core.metalkit`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.big-rusty-drums |
+| Pinned | commit `f07ce00df34a46b6b08375be56fe116cf15782bc` (the one Rusty Brushes pins); LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`; 388 FLAC files, each by sha256, in [`tools/kits/big-rusty-sticks.js`](../tools/kits/big-rusty-sticks.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text, and GitHub reads it as CC0-1.0) |
+| Author | Karoryfer Samples: a kit Zygmunt Szpaderski made in Poland, probably in the early 1980s. Brought to SFZ by sfzinstruments. |
+| Modifications | A subset: the stick articulations (kick, snare centre, rimshot and side stick, seven hi-hat strokes, four toms, ride bow, bell and edge, crash, sizzle crash, China, stack and chokes), 176 strokes: 1 to 5 velocity layers of 2 to 4 strokes each. Each stroke mixed from its close mic, panned, and the overhead pair at a gain set by measurement ([`tools/kits/blend.js`](../tools/kits/blend.js)); hats and cymbals high-passed at 100 Hz (the hat pedal at 80), the snare and rimshot at 70, the side stick at 120. Kept at 44.1 kHz and 16 bits. Each tail cut after the last 960-frame window at or above -60 dBFS, then a 480-frame linear fade; the cymbals cut at 1.6-2.0 s, the open hats at 0.9-1.6 s, the toms at 0.9 s and the closed hats at 0.30-0.32 s, each with a fade. Each piece scaled so its loudest stroke peaks at -1 dBFS. Each stroke's start set 1 ms before its attack. |
+| Kit | `sha256-9e0becc0ce4f330d152bb27466130ff581bd4933ea08ed3eaeac18bdc7c5c9aa` |
+| Verified | 2026-10-07 (LICENSE fetched at the pinned commit and its sha256 matched) |
+
 ## VCSL hand and aux percussion: Hand Crate (`core.handkit`)
 
 | | |
