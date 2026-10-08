@@ -21,7 +21,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { startServer, ready, byteRange, addRoute } from '../server/serve.js';
-import { OUTDIR, tally, QUIET } from './pw.js';
+import { OUTDIR, tally, QUIET, TEXT } from './pw.js';
 
 const require = createRequire(import.meta.url);
 const T = tally('compat');
@@ -65,7 +65,7 @@ async function launch(kind) {
     : { viewport: { width: 1440, height: 900 } };
   let browser;
   if (engine === 'chromium') {
-    const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
+    const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
     browser = await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args });
     ctxOpts.permissions = ['microphone'];
   } else if (engine === 'webkit') {

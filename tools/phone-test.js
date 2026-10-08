@@ -34,7 +34,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { startServer, ready } from '../server/serve.js';
-import { OUTDIR, tally, QUIET } from './pw.js';
+import { OUTDIR, tally, QUIET, TEXT } from './pw.js';
 
 const require = createRequire(import.meta.url);
 const T = tally('phone');
@@ -119,7 +119,7 @@ async function phone(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);
@@ -673,7 +673,7 @@ async function simplePhone(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);
@@ -752,7 +752,7 @@ async function sideways(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);

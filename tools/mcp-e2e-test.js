@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { tally, OUTDIR, QUIET } from './pw.js';
+import { tally, OUTDIR, QUIET, TEXT } from './pw.js';
 
 // the same playwright / chromium lookup as tools/pw.js (which starts its own server; here mcp.js must start it)
 const require = createRequire(import.meta.url);
@@ -166,7 +166,7 @@ try {
   const early = call('get_project', { detail: 'summary' }, 60000);
   await sleep(1200);
   const pw = findPlaywright();
-  browser = await pw.chromium.launch({ headless: !process.env.HEADED, executablePath: process.env.HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+  browser = await pw.chromium.launch({ headless: !process.env.HEADED, executablePath: process.env.HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.stack || e)));
