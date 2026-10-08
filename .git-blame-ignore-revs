@@ -3,3 +3,6 @@
 
 # Format: run Biome over the codebase
 525f4c6df790a5e8fcb0c526fb20ddaae245e0e9
+
+# Format: CSS keeps its single quotes
+11957df0bc4d4ff5b2ad5e505a51d433bd040142
