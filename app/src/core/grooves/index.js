@@ -22,6 +22,8 @@ import reggae from './reggae.js';
 import bossa from './bossa.js';
 import samba from './samba.js';
 import afrobeat from './afrobeat.js';
+import extreme from './extreme.js';
+import modernmetal from './modernmetal.js';
 
 export const TEXTS = [
   ['rock', rock], ['pop', pop], ['indie', indie], ['punk', punk], ['metal', metal],
@@ -29,4 +31,6 @@ export const TEXTS = [
   ['boombap', boombap], ['lofi', lofi], ['trap', trap], ['house', house], ['dnb', dnb],
   ['jazz', jazz], ['shuffle', shuffle], ['country', country], ['reggae', reggae], ['bossa', bossa],
   ['samba', samba], ['afrobeat', afrobeat],
+  // (the two metal families for Rusty Sticks, last, so no older style's place in the list moves)
+  ['extreme', extreme], ['modernmetal', modernmetal],
 ];
