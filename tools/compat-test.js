@@ -56,6 +56,9 @@ function findChromium() {
 //             (Safari's own state) until the first click, so the checks click once, like a person would.
 //   firefox:  prefs: media.navigator.streams.fake (a fake mic), media.navigator.permission.disabled (no prompt),
 //             media.autoplay.default=0 + media.autoplay.block-webaudio=false (sound without a gesture).
+//             On Linux it plays through PulseAudio, and with no sound server its AudioContext never starts (the demo
+//             silent, the take empty). FIREFOX_PULSE_SERVER names one for Firefox alone (CI starts one with a null
+//             sink): Chromium's checks are timed against its own fake output and fail through PulseAudio.
 async function launch(kind) {
   const pw = findPlaywright();
   const phone = kind.endsWith('-phone');
@@ -74,6 +77,7 @@ async function launch(kind) {
   } else if (engine === 'firefox') {
     browser = await pw.firefox.launch({
       headless: !HEADED,
+      ...(process.env.FIREFOX_PULSE_SERVER && { env: { ...process.env, PULSE_SERVER: process.env.FIREFOX_PULSE_SERVER } }),
       firefoxUserPrefs: {
         'media.navigator.streams.fake': true, 'media.navigator.permission.disabled': true,
         'media.autoplay.default': 0, 'media.autoplay.blocking_policy': 0, 'media.autoplay.block-webaudio': false,
