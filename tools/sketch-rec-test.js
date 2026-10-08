@@ -1038,7 +1038,7 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
     const offs = kd.map((g, i) => Math.round((g - Math.round(g * 2) / 2) * spbMs));
     t.ok(a1.tracks.length === 1 && a1.tracks[0].name === 'Drums' && a1.tracks[0].clips.length === 1 && notesText(a1.tracks[0].clips[0].notes) === notesText(pat.map(([b, p]) => ({ p, t: b }))),
       `what was meant comes out: K S K S on the beats of bars 1–2 (${notesText(a1.tracks[0]?.clips[0]?.notes || [])}), from 16 taps up to ${Math.max(...offs.map(Math.abs))} ms off (${offs.join(' ')} ms), the late one replaced by its second go`);
-    t.ok(ro.some((x) => /replaced a miss/.test(x)) && ro.every((x) => /^Pass \d: \d+ hits, /.test(x)), `and the pass line says so, measured from where each hit went in (${ro.join(' | ')})`);
+    t.ok(ro.some((x) => /replaced a miss/.test(x)) && ro.every((x) => /^Pass \d: \d+ hits, /.test(x)), `and the pass line says so, measured from where each hit went in (${ro.join(' | ')}; the hits went in ${offs.join(' ')} ms off)`);
     t.ok(a1.hist === 2, `the take and the Drums it was made for are one undo step (History: the loop, then the take: ${a1.hist})`);
     // Tight / Loose / As played
     const tl = await ev(async () => {
