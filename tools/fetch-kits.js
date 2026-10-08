@@ -44,6 +44,8 @@ import { RECIPE as VIBES_RECIPE } from './kits/vcsl-vibes.js';
 import { VIBES_HASH } from '../app/src/devices/builtin/vibes.js';
 import { RECIPE as EBASS_RECIPE } from './kits/karoryfer-bass.js';
 import { EBASS_HASH } from '../app/src/devices/builtin/ebass.js';
+import { RECIPE as EGUITAR_RECIPE } from './kits/karoryfer-guitar.js';
+import { EGUITAR_HASH } from '../app/src/devices/builtin/eguitar.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -344,7 +346,7 @@ async function buildLaidOut(recipe) {
 const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build], [HAND_RECIPE, HAND_HASH, build],
   [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
   [ENSEMBLE_RECIPE, ENSEMBLE_HASH, buildLaidOut], [VIBES_RECIPE, VIBES_HASH, buildLaidOut],
-  [EBASS_RECIPE, EBASS_HASH, buildLaidOut]];
+  [EBASS_RECIPE, EBASS_HASH, buildLaidOut], [EGUITAR_RECIPE, EGUITAR_HASH, buildLaidOut]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));

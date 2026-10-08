@@ -297,6 +297,9 @@ yours to pick by ear:
 - **A bass guitar.** Roundwound, under Bass, is a recorded five-string bass played with the fingers, down to the low
   B. A repeated note alternates between two plucks, so a line of eighths doesn't sound like a machine. Flatwound
   beside it is the synthesized one.
+- **An electric guitar.** Hollow Body, under Plucked, is a recorded hollow-body electric guitar (a Gretsch), picked
+  and played dry: soft notes are softer picks, not just quieter ones, and a repeated note alternates between two picks.
+  Put an amp from the Guitar Studio after it for the room. DI Box beside it is the synthesized one.
 - **Brushes.** Rusty Brushes, under Drums in **Add a track**, is a recorded kit played with brushes and mallets:
   brush taps on the snare, digs for accents, brushed hats and ride, a mallet crash and toms. Hold the swirl's note
   (33 or 73) and the brush stirs the snare for as long as you hold it. It fetches its samples the first time, as
@@ -624,7 +627,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 52 devices: the 39 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 53 devices: the 40 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

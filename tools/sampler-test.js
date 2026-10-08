@@ -40,6 +40,8 @@ import { VIBES_HASH } from '../app/src/devices/builtin/vibes.js';
 import { RECIPE as VIBES_RECIPE } from './kits/vcsl-vibes.js';
 import { EBASS_HASH } from '../app/src/devices/builtin/ebass.js';
 import { RECIPE as EBASS_RECIPE } from './kits/karoryfer-bass.js';
+import { EGUITAR_HASH } from '../app/src/devices/builtin/eguitar.js';
+import { RECIPE as EGUITAR_RECIPE } from './kits/karoryfer-guitar.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 import { unpackOdk } from '../app/src/kernel/odkz.js';
 import { checkDeviceNode } from '../app/src/engine/node/check.js';
@@ -379,6 +381,7 @@ const MORE = [
   { id: 'core.ensemble', hash: ENSEMBLE_HASH, recipe: ENSEMBLE_RECIPE, only: 'vsco', mb: 8, keys: [24, 96], layers: [[0, 72], [73, 127]], preset: 'Soft bows', velWin: [2.9, 3.4], velTol: 1 },
   { id: 'core.vibes', hash: VIBES_HASH, recipe: VIBES_RECIPE, only: 'vibraphone', mb: 8, keys: [53, 89], layers: [[0, 31], [32, 63], [64, 95], [96, 127]], preset: 'Soft mallets' },
   { id: 'core.ebass', hash: EBASS_HASH, recipe: EBASS_RECIPE, only: 'dark black', mb: 8, keys: [23, 64], layers: [[0, 31], [32, 63], [64, 95], [96, 127]], preset: 'Thumb' },
+  { id: 'core.eguitar', hash: EGUITAR_HASH, recipe: EGUITAR_RECIPE, only: 'green', mb: 8, keys: [40, 86], layers: [[0, 42], [43, 84], [85, 127]], preset: 'Jazz neck' },
 ];
 const fetched = MORE.filter((x) => fs.existsSync(dataPath(x.hash)));
 for (const x of MORE) if (!fetched.includes(x)) t.note(`${x.id}: its kit isn't fetched (node tools/fetch-kits.js), skipped`);

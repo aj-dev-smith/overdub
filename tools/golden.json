@@ -7,7 +7,7 @@
     "v8": "13.6.233.17-node.49",
     "arch": "arm64",
     "platform": "darwin",
-    "date": "2026-10-07"
+    "date": "2026-10-08"
   },
   "scenes": {
     "inst:core.poly": {
@@ -438,6 +438,16 @@
       "peak": -1.98,
       "data": {
         "kit": "sha256-9ecd56b866304181640c5cb0bd12a1ab88057a107bbaf2143ca46fd867a09e10"
+      }
+    },
+    "inst:core.eguitar#bd0513cef14f": {
+      "sha256": "2f86510684a8a46acd91a50e5956cd713e18a7490e07ce9f6371c10b68250742",
+      "frames": 864000,
+      "lufs": -16.8,
+      "truePeak": -1.38,
+      "peak": -1.38,
+      "data": {
+        "kit": "sha256-bd0513cef14ffd4f2b32584973417dbb571e49b91eadd289549f1ffdb373f2d7"
       }
     }
   }

@@ -111,6 +111,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-9ecd56b866304181640c5cb0bd12a1ab88057a107bbaf2143ca46fd867a09e10` |
 | Verified | 2026-10-07 |
 
+## Black And Green Guitars: Hollow Body (`core.eguitar`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.black-and-green-guitars (Karoryfer Samples) |
+| Pinned | commit `b3b3249d37dc977a1a297bd2dc053e6d9b6b805c`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`, readme.txt, Programs/04-green_twang.sfz and Programs/modules/maps_green/ord.sfz by sha256; 96 WAV files, each by sha256, in [`tools/kits/karoryfer-guitar.js`](../tools/kits/karoryfer-guitar.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text; its readme: "Royalty-free for all commercial and non-commercial use") |
+| Author | Karoryfer Samples (Black And Green Guitars, 2022); recorded by Brian Wood. |
+| Modifications | A subset: the green Gretsch Anniversary's ordinary picked notes, a zone every third semitone from E2 to C#6 (16), all three dynamics, round robins 1 and 2. Mono as recorded, 24-bit to 16-bit by rounding, kept at 44.1 kHz. Each sample placed at the key it sounds (Karoryfer names the files an octave up, as guitar parts are written). Each note cut where its 100 ms RMS falls 50 dB under its attack, or at 3.4, 3 or 2.4 s by register, with a squared fade over its last 1.2 s. A `tune` field on a note read 5 to 25 cents off (the upper frets run flat). Each start 2 ms before its attack, each layer lined up with the next layer up. A gain per sample, so every note plays at one level; the dynamics come from a velocity curve set from the layers' recorded levels. |
+| Kit | `sha256-bd0513cef14ffd4f2b32584973417dbb571e49b91eadd289549f1ffdb373f2d7` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |
