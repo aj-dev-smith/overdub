@@ -1138,10 +1138,13 @@ const boot = async (opts = {}) => {
     // a band track's meter while the song plays, at 0 dB and at the Band's -12; the keys guitar's while it plays alone
     const ids = await E(() => { const o = window.overdub, g = o.jam.guitars(), keep = [g.keys?.id, g.audio?.id]; const band = o.store.get().tracks.filter((t) => !keep.includes(t.id) && t.clips.length && !t.mute); return { band: band.map((t) => t.id), keys: g.keys.id }; });
     const peakWhile = (arg) => E(async ([kind, id, keys]) => {
+      // (every meter reading, as the engine makes them: polling the latest one every 30 ms skipped some, and with them
+      // a pluck's peak, on a slower machine)
       const o = window.overdub, e = o.engine; let pk = -120;
+      const off = e.on('meters', (ms) => { const m = ms.tracks[id]; if (m && m.peak > pk) pk = m.peak; });
       if (kind === 'band') { e.seek(0); await e.play(0); } else e.audition(keys, 52, 0.9, 2);
-      const t0 = performance.now();
-      while (performance.now() - t0 < 1400) { const m = e.meters.tracks[id]; if (m && m.peak > pk) pk = m.peak; await new Promise((r) => setTimeout(r, 30)); }
+      await new Promise((r) => setTimeout(r, 1400));
+      off();
       if (e.playing) e.stop(); await new Promise((r) => setTimeout(r, 400));
       return Math.round(pk * 10) / 10;
     }, arg);

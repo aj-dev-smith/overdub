@@ -898,7 +898,9 @@ await page.evaluate(() => {
       await engine.start();
       const mon = await capture(engine.ctx, engine._monitor);
       const loops = [];
-      engine.on('transport', (e) => { if (e.why === 'loop') loops.push({ ...e.pass, at: engine.ctx.currentTime }); });
+      // (wall: the wrap's own audio time, on the tempo map; pass.time adds the output latency as read at that wrap,
+      // which a runner's device moved by 1 ms between two wraps)
+      engine.on('transport', (e) => { if (e.why === 'loop') loops.push({ ...e.pass, at: engine.ctx.currentTime, wrap: engine.clock.barTime(e.pass.grid / 4) }); });
       await engine.play(from, { countIn: { beats: 4 } });
       const c = engine.counting;
       await T.waitCtx(engine.ctx, ms / 1000);
@@ -917,8 +919,8 @@ await page.evaluate(() => {
   T.ok(r.quiet.c.preroll === false && on('quiet', 64).length === 0 && on('quiet', 60).length === 1 && near(on('quiet', 67)[0], 0.5) && Math.abs(r.quiet.down) < 0.002, `preroll: false: clicks alone, then the held note chased on the downbeat (${(r.quiet.down * 1000).toFixed(1)} ms), beat 9's ${on('quiet', 67).join('/')} s after it, nothing from the count's bar (${on('quiet', 64).length})`);
   T.ok(r.inLoop.clicks === 4 && r.inLoop.loops.length >= 2, `count from beat 10 in a loop 8..12: 4 clicks in 5.6 s, none at the wraps back below 10 (${r.inLoop.clicks} clicks, ${r.inLoop.loops.length} wraps)`);
   const L = r.inLoop.loops;
-  T.ok(L.length >= 2 && L[0].n === 2 && L[1].n === 3 && L[0].start === 8 && L[0].end === 12 && L[0].grid === 12 && L[1].grid === 16 && Math.abs(L[1].time - L[0].time - 2) < 1e-6 && Math.abs(L[0].at - L[0].time) < 0.06,
-    `the loop event carries the pass: ${JSON.stringify(L.map((x) => ({ n: x.n, start: x.start, end: x.end, grid: x.grid })))}, ${L.length > 1 ? (L[1].time - L[0].time).toFixed(4) : '?'} s apart, fired ${L.length ? ((L[0].at - L[0].time) * 1000).toFixed(0) : '?'} ms from when it is heard`);
+  T.ok(L.length >= 2 && L[0].n === 2 && L[1].n === 3 && L[0].start === 8 && L[0].end === 12 && L[0].grid === 12 && L[1].grid === 16 && Math.abs(L[1].wrap - L[0].wrap - 2) < 1e-6 && Math.abs(L[0].at - L[0].time) < 0.06,
+    `the loop event carries the pass: ${JSON.stringify(L.map((x) => ({ n: x.n, start: x.start, end: x.end, grid: x.grid })))}, the wraps ${L.length > 1 ? (L[1].wrap - L[0].wrap).toFixed(6) : '?'} s apart (heard ${L.length > 1 ? (L[1].time - L[0].time).toFixed(4) : '?'} s apart), fired ${L.length ? ((L[0].at - L[0].time) * 1000).toFixed(0) : '?'} ms from when it is heard`);
   T.ok(r.pastLoop.loops.length === 0 && r.pastLoop.beat > 13.5 && r.pastLoop.beat < 15, `a count from beat 13 runs past the loop's end (12) and reaches it (beat ${r.pastLoop.beat.toFixed(3)}, ${r.pastLoop.loops.length} wraps)`);
 }
 
