@@ -7,6 +7,7 @@ if (process.env.STILL) await page.goto(base + '/app/src/kernel/check.js');
 else await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
 const fps = await page.evaluate(() => new Promise((res) => { const t0 = performance.now(); let n = 0; const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else res(n); }; requestAnimationFrame(f); }));
 console.log(`${process.env.STILL ? 'still page' : 'studio'} ${process.env.CHROMIUM_ARGS || ''}: ${fps} fps`);
+if (process.env.FPS_ONLY !== '0') { await close(); process.exit(0); }
 for (const id of ['core.wavetable', 'core.shaper', 'core.poly']) {
   const r = await page.evaluate(async (id) => {
     const { getDevice } = await import('/app/src/devices/registry.js');

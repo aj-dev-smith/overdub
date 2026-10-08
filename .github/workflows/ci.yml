@@ -46,10 +46,10 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
-  # TEMPORARY: what slows the heaviest renders and the tap checks on the runner
+  # TEMPORARY: Playwright's input round trips against the runner's 60 Hz frames (grooves' tap tempo)
   diag:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -59,28 +59,24 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/suite-setup
-      - name: checkDevice timings
-        timeout-minutes: 20
+      - name: Unthrottled frames
+        timeout-minutes: 15
+        if: always()
+        env:
+          PAR: 1
+          CPU: 0
+          CHROMIUM_ARGS: --disable-frame-rate-limit --disable-gpu-vsync
         run: |
-          node tools/ci-probe.js
-          STILL=1 node tools/ci-probe.js
-          CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization" node tools/ci-probe.js
-          CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization" STILL=1 node tools/ci-probe.js
-      - name: Suites, GPU flags
-        timeout-minutes: 15
+          node tools/ci-probe.js || true
+          node tools/run-all.js grooves-test.js arrange-test.js brand-test.js sketch-rec-test.js plugin-test.js || true
+          for _ in 1 2; do node tools/grooves-test.js | grep -E "taps at about|FAIL"; done
+      - name: As the shards run them
+        timeout-minutes: 10
         if: always()
         env:
           PAR: 1
           CPU: 0
-          CHROMIUM_ARGS: --enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization
-        run: node tools/run-all.js sounds-test.js grooves-test.js sketch-rec-test.js
-      - name: Suites, as the shards run them
-        timeout-minutes: 15
-        if: always()
-        env:
-          PAR: 1
-          CPU: 0
-        run: node tools/run-all.js sounds-test.js grooves-test.js sketch-rec-test.js
+        run: for _ in 1 2; do node tools/grooves-test.js | grep -E "taps at about|FAIL"; done
 
   # Every suite, about an hour one suite at a time, split four ways: each lands in exactly one shard (round-robin by
   # name), and each shard runs its suites one at a time.
