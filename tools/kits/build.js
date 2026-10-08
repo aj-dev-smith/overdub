@@ -15,10 +15,11 @@
 //                      neither keeps its recording, cut after its last 20 ms over -70 dBFS and faded over 10 ms
 //   head               dB under the peak where a sample's start sits (2 ms before it first gets there; default -20, as
 //                      the drum kit); a slow attack (a bow) wants it low, so the start isn't late
-//   loop               { from, min, max?, by?, xfade }: seconds. A sustain loop for every attack sample, starting at
+//   loop               { from, min, max?, by?, xfade } | { file: true }: seconds. A sustain loop for every attack sample, starting at
 //                      least `from` after the onset and ending by `by`: the search (the 100 ms before the loop's end
 //                      against the 100 ms before its start, on a 20 ms grid, then to the frame), its
-//                      crossfade baked into the samples (linear, integers), the sample cut at the loop's end
+//                      crossfade baked into the samples (linear, integers), the sample cut at the loop's end. file: the
+//                      loop the recording carries in its smpl chunk, as its author made it (nothing searched or baked)
 //   level              { mode: 'key' | 'flat', measure: 'attack' | 'body' }: the gain each sample gets. 'key': every
 //                      layer of a key moves by the same dB, onto one quadratic across the keys through the top layer's
 //                      levels (the layers keep their recorded distance: the source has its dynamics). 'flat': each
@@ -35,16 +36,22 @@ import { decodeFlac } from '../flac.js';
 import { encodeOdk } from '../../app/src/kernel/odk.js';
 import { qaSample, qaInstrument, pitchAt } from './qa.js';
 
-// A RIFF WAVE file's samples as integers: { sr, bits, frames, channels: [Int32Array, ...] }. 16- and 24-bit PCM;
-// 32-bit float is rounded onto the 24-bit scale (bits 24).
+// A RIFF WAVE file's samples as integers: { sr, bits, frames, channels: [Int32Array, ...], loops: [{ s, e }] }. 16- and
+// 24-bit PCM; 32-bit float is rounded onto the 24-bit scale (bits 24). loops: the `smpl` chunk's, if any (e exclusive).
 export function decodeWavInt(buf) {
   if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') throw new Error('not a WAVE file');
   let o = 12, fmt = null, data = null;
+  const loops = [];
   while (o + 8 <= buf.length) {
     const id = buf.toString('ascii', o, o + 4), size = buf.readUInt32LE(o + 4);
     // (WAVE_FORMAT_EXTENSIBLE carries the real format in the first two bytes of its sub-format GUID)
     if (id === 'fmt ') { const t = buf.readUInt16LE(o + 8); fmt = { tag: t === 0xfffe && size >= 26 ? buf.readUInt16LE(o + 32) : t, nc: buf.readUInt16LE(o + 10), sr: buf.readUInt32LE(o + 12), bits: buf.readUInt16LE(o + 22) }; }
     if (id === 'data') data = buf.subarray(o + 8, Math.min(buf.length, o + 8 + size));
+    // the sampler chunk's loops (the recording's own sustain loops: start and end frames, the end inclusive)
+    if (id === 'smpl' && size >= 36) {
+      const nl = buf.readUInt32LE(o + 8 + 28);
+      for (let k = 0; k < nl && o + 8 + 36 + 24 * (k + 1) <= buf.length; k++) { const q = o + 8 + 36 + 24 * k; loops.push({ s: buf.readUInt32LE(q + 8), e: buf.readUInt32LE(q + 12) + 1 }); }
+    }
     o += 8 + size + (size & 1);
   }
   if (!fmt || !data) throw new Error('WAVE: no fmt or data chunk');
@@ -62,7 +69,7 @@ export function decodeWavInt(buf) {
       ch[c][i] = v;
     }
   }
-  return { sr: fmt.sr, bits: float ? 24 : fmt.bits, frames: n, channels: ch };
+  return { sr: fmt.sr, bits: float ? 24 : fmt.bits, frames: n, channels: ch, loops };
 }
 
 const decode = (file, b) => (/\.flac$/i.test(file) ? decodeFlac(b) : decodeWavInt(b));
@@ -167,6 +174,14 @@ export function findLoop(L, R, n, sr, on, { from, min, max = 1e9, by = 1e9, xfad
   return { s, e, corr: xy / Math.sqrt(xx * yy || 1) };
 }
 
+// the correlation of the 100 ms before a loop's two ends (mono), as findLoop scores it, for a loop it didn't pick
+function loopCorr(L, R, sr, s, e) {
+  const W = Math.min(Math.round(0.1 * sr), s);
+  let xy = 0, xx = 0, yy = 0;
+  for (let i = 0; i < W; i++) { const x = L[e - W + i] + R[e - W + i], y = L[s - W + i] + R[s - W + i]; xy += x * y; xx += x * x; yy += y * y; }
+  return xy / Math.sqrt(xx * yy || 1);
+}
+
 // bake the loop's crossfade: the X frames before e fade from themselves into the X frames before s, so a jump from e
 // to s is seamless. The weights keep the sum's power constant for the two ends' correlation rho (linear when they are
 // alike, equal power when they are unrelated: the kernel's 'aligned' law), from + - * / and sqrt only
@@ -226,9 +241,12 @@ export async function buildInstrument(recipe, fetchFile) {
     if (looped) {
       // (a region may move its loop: a soft layer that swells for longer loops later)
       const lp = { ...recipe.loop, ...(r.loop || {}) };
-      const f = findLoop(L, R, N, sr, on, lp);
+      // (lp.file: the recording's own loop, from its smpl chunk, taken as its author made it: no search, nothing baked)
+      const own = lp.file && d.loops && d.loops[0];
+      if (lp.file && !own) throw new Error(`${r.file}: the recipe takes the file's own loop, and it has none`);
+      const f = own ? { s: own.s, e: Math.min(N, own.e), corr: loopCorr(L, R, sr, own.s, Math.min(N, own.e)) } : findLoop(L, R, N, sr, on, lp);
       qa.loop = loopQa(L, R, sr, f.s, f.e, r.key, f.corr);
-      bakeLoop([L, R].slice(0, C), f.s, f.e, Math.round(lp.xfade * sr), f.corr);
+      if (!own) bakeLoop([L, R].slice(0, C), f.s, f.e, Math.round(lp.xfade * sr), f.corr);
       loop = { s: f.s, e: f.e, mode: 'continuous' };
       end = f.e; how = 'loop';
     } else [end, fade, how] = cutAt(L, R, N, sr, on, r.key, recipe.cut || { db: -200, fade: 0.01 });

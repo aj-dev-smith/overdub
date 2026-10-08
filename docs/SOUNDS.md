@@ -123,6 +123,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-bd0513cef14ffd4f2b32584973417dbb571e49b91eadd289549f1ffdb373f2d7` |
 | Verified | 2026-10-07 |
 
+## Bear Sax: Bell Up (`core.barisax`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer.bear-sax (Karoryfer Samples) |
+| Pinned | commit `7abb3c652525a15dfac80e1b5dfbba9964ee568f`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`, readme.txt, Programs/2-solo-poly.sfz and Programs/poly/dynfade_map.sfz by sha256; 22 WAV files, each by sha256, in [`tools/kits/karoryfer-barisax.js`](../tools/kits/karoryfer-barisax.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text; its readme: "you can do whatever you want with it ... Royalty-free for all commercial and non-commercial use") |
+| Author | Karoryfer Samples (Bear Sax, 2017): a 1926 Conn baritone saxophone. |
+| Modifications | A subset: the solo poly program's sustained notes, soft and loud, every third semitone from Db2 to G4 (11). Mono as recorded, 24-bit to 16-bit by rounding, kept at 44.1 kHz. Each sample placed at the key it sounds (Karoryfer names these files an octave down). Each sample loops on the loop its file carries (Karoryfer's own, unchanged: nothing searched or crossfaded). Each start 2 ms before its attack, the soft take lined up with the loud one. A gain per sample, so every note plays at one level; the dynamics come from a velocity curve set from the takes' recorded levels. |
+| Kit | `sha256-8821720c6600ccce800a666bbc8dded6196a4f2e2235f66313abc9364a6f157e` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

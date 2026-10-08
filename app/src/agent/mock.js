@@ -198,7 +198,7 @@ export function soundsAsk(app, t) {
 }
 // the sets the card draws from, as the spec's table has them, when core/sounds.js isn't here to say
 const SETS_TABLE = {
-  hum: ['core.keys', 'core.wavetable', 'core.strings', 'claude.choir-loft', 'core.mallets', 'core.ensemble', 'core.choir', 'core.pluck'],
+  hum: ['core.keys', 'core.wavetable', 'core.strings', 'claude.choir-loft', 'core.mallets', 'core.ensemble', 'core.choir', 'core.pluck', 'core.barisax'],
   played: ['core.keys', 'core.upright', 'core.wavetable', 'core.mallets', 'core.grand', 'core.vibes', 'core.brass', 'core.piano', 'core.pluck', 'core.eguitar'],
   chords: ['core.keys', 'core.upright', 'core.pad', 'core.strings', 'core.grand', 'core.ensemble', 'core.ep', 'core.piano', 'core.organ', 'core.poly2'],
   bass: ['core.bassguitar', 'core.bass', 'claude.sub-basement', { device: 'core.wavetable', preset: 'Low Key' }, 'core.ebass', { device: 'core.poly2', preset: 'Ladder bass' }],

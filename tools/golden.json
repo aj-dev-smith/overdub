@@ -449,6 +449,16 @@
       "data": {
         "kit": "sha256-bd0513cef14ffd4f2b32584973417dbb571e49b91eadd289549f1ffdb373f2d7"
       }
+    },
+    "inst:core.barisax#8821720c6600": {
+      "sha256": "416d9ef31758d26df4abbeaa7871dbdc55d3d7945a936cce4e82354f4425b5dd",
+      "frames": 864000,
+      "lufs": -15.46,
+      "truePeak": -3.38,
+      "peak": -3.41,
+      "data": {
+        "kit": "sha256-8821720c6600ccce800a666bbc8dded6196a4f2e2235f66313abc9364a6f157e"
+      }
     }
   }
 }

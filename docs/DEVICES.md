@@ -304,10 +304,10 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's nine sampled
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's ten sampled
   instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
-  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone), Roundwound (`core.ebass`, a real five-string bass)
-  and Hollow Body (`core.eguitar`, a real hollow-body electric guitar)
+  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone), Roundwound (`core.ebass`, a real five-string bass), Hollow Body (`core.eguitar`, a real hollow-body electric guitar)
+  and Bell Up (`core.barisax`, a real baritone sax)
   ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
@@ -591,6 +591,7 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 | Damper Bar (`core.vibes`) | VCSL Vibraphone: 11 bars, soft and hard mallets, 4 layers | `tools/kits/vcsl-vibes.js` |
 | Roundwound (`core.ebass`) | Karoryfer Black And Blue Basses, dark black: 14 zones, 4 layers, 2 round robins, mono | `tools/kits/karoryfer-bass.js` |
 | Hollow Body (`core.eguitar`) | Karoryfer Black And Green Guitars, green: 16 zones, 3 layers, 2 round robins, mono | `tools/kits/karoryfer-guitar.js` |
+| Bell Up (`core.barisax`) | Karoryfer Bear Sax: 11 zones, 2 layers, looped on Karoryfer's own loops, mono | `tools/kits/karoryfer-barisax.js` |
 
 **Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
 Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,
