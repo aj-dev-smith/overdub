@@ -1072,14 +1072,16 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
     await door('Tap a beat');
     await page.waitForTimeout(1000);
     await page.keyboard.press('KeyR');
-    for (let i = 0; i < 120 && (await ev(() => window.overdub.input.recorder.state)) !== 'rec'; i++) await page.waitForTimeout(50);
+    // (the count-in waited out on the page, not in 120 round trips of 50 ms and more: on a CI runner the take hadn't
+    // started when the hits went in, and none landed)
+    await page.waitForFunction(() => window.overdub.input.recorder.state === 'rec', null, { timeout: 15000 }).catch(() => {});
     const offs = [0.31, 0.26, 0.33, 0.27, 0.3, 0.35, 0.28, 0.3];   // (beats at 120: 130 to 175 ms late)
     const r = await ev(async (offs) => {
-      const a = window.overdub, rec = a.input.recorder, e = a.engine, L = rec.live(), g0 = e.gridBeat - (L.now - L.from);
+      const a = window.overdub, rec = a.input.recorder, e = a.engine, L = rec.live(), g0 = e.gridBeat - (L.now - L.from), st = rec.state;
       offs.forEach((o, b) => rec.hit(b % 2 ? 'snare' : 'kick', 0.8, { g: g0 + b + o }));
       const res = await rec.stop();
-      const at = () => a.store.get().tracks.find((t) => /Drums/.test(t.name)).clips.filter((c) => !c.mute).flatMap((c) => c.notes.map((n) => ({ p: n.p, t: +(c.start + n.t).toFixed(3) })));
-      const out = { tight: at(), summary: res?.summary || '', lean: res?.lean || null, status: '' };
+      const at = () => (a.store.get().tracks.find((t) => /Drums/.test(t.name))?.clips || []).filter((c) => !c.mute).flatMap((c) => c.notes.map((n) => ({ p: n.p, t: +(c.start + n.t).toFixed(3) })));
+      const out = { st, tight: at(), summary: res?.summary || '', lean: res?.lean || null, status: '' };
       await new Promise((ok) => setTimeout(ok, 300));
       out.status = document.querySelector('.sk-status')?.textContent || '';
       out.readout = a.sketch.ruler().readout?.text || '';
@@ -1087,7 +1089,7 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
       return out;
     }, offs);
     const txt = (ns) => ns.map((n) => `${n.p === 36 ? 'K' : 'S'}@${n.t}`).sort().join(' ');
-    t.ok(txt(r.tight) === 'K@0 K@2 K@4 K@6 S@1 S@3 S@5 S@7' && r.lean && r.lean.ms >= 130 && r.lean.ms <= 170, `a beat played 130 to 175 ms behind the click lands on its beats (${txt(r.tight)}; it used to land every hit on an "and"), the lean found: ${r.lean?.ms} ms`);
+    t.ok(txt(r.tight) === 'K@0 K@2 K@4 K@6 S@1 S@3 S@5 S@7' && r.lean && r.lean.ms >= 130 && r.lean.ms <= 170, `a beat played 130 to 175 ms behind the click lands on its beats (${txt(r.tight)}; it used to land every hit on an "and"), the lean found: ${r.lean?.ms} ms${r.st === 'rec' ? '' : ` (the recorder was "${r.st}" when the hits went in)`}`);
     t.ok(/You played about 1[3-7]0 ms behind the click, so your hits are on their beats; As played puts them back\./.test(r.summary) && /behind the click/.test(r.status) && /behind the click/.test(r.readout), `and says so, with the number, in the toast ("${r.summary}"), under the pads ("${r.status}") and on the pass line ("${r.readout}")`);
     const late = r.played.every((n) => n.t % 1 > 0.2 && n.t % 1 < 0.4), loose = r.loose.every((n) => Math.abs(n.t - Math.round(n.t)) < 0.05);
     t.ok(late && loose, `As played puts every hit back where it was played (${r.played.map((n) => n.t).join(' ')}); Loose keeps each one's feel but not the lean (${r.loose.map((n) => n.t).join(' ')})`);
