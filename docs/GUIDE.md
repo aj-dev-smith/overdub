@@ -303,6 +303,8 @@ yours to pick by ear:
 - **A saxophone.** Bell Up, under Keys, is a recorded baritone sax (a 1926 Conn), each note held for as long as you
   hold the key, soft takes for soft notes and loud ones for loud. **RELEASE** is the breath stopping; the **Stabs**
   preset cuts every note at once, for horn hits.
+- **A cello.** Endpin, under Keys, is one recorded cellist, bowing each note for as long as you hold the key, from
+  the open C string up. The bow is straight, as recorded (no vibrato); Rosin beside it is a whole section.
 - **Brushes.** Rusty Brushes, under Drums in **Add a track**, is a recorded kit played with brushes and mallets:
   brush taps on the snare, digs for accents, brushed hats and ride, a mallet crash and toms. Hold the swirl's note
   (33 or 73) and the brush stirs the snare for as long as you hold it. It fetches its samples the first time, as
@@ -630,7 +632,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 54 devices: the 41 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 55 devices: the 42 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

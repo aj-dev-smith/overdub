@@ -25,7 +25,7 @@ export const SOUND_SETS = {
   hum: {
     category: 'keys',
     rows: [row('core.keys', 'Electric piano'), row('core.wavetable', 'Synth'), row('core.strings', 'Strings'), row('claude.choir-loft', 'Choir')],
-    fallbacks: [row('core.mallets', 'Mallets'), row('core.ensemble', 'Strings'), row('core.choir', 'Choir'), row('core.pluck', 'Pluck'), row('core.barisax', 'Sax')],
+    fallbacks: [row('core.mallets', 'Mallets'), row('core.ensemble', 'Strings'), row('core.choir', 'Choir'), row('core.pluck', 'Pluck'), row('core.barisax', 'Sax'), row('core.cello', 'Cello')],
   },
   played: {
     category: 'keys',

@@ -48,6 +48,8 @@ import { RECIPE as EGUITAR_RECIPE } from './kits/karoryfer-guitar.js';
 import { EGUITAR_HASH } from '../app/src/devices/builtin/eguitar.js';
 import { RECIPE as BARISAX_RECIPE } from './kits/karoryfer-barisax.js';
 import { BARISAX_HASH } from '../app/src/devices/builtin/barisax.js';
+import { RECIPE as CELLO_RECIPE } from './kits/karoryfer-cello.js';
+import { CELLO_HASH } from '../app/src/devices/builtin/cello.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -349,7 +351,8 @@ const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buil
   [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
   [ENSEMBLE_RECIPE, ENSEMBLE_HASH, buildLaidOut], [VIBES_RECIPE, VIBES_HASH, buildLaidOut],
   [EBASS_RECIPE, EBASS_HASH, buildLaidOut], [EGUITAR_RECIPE, EGUITAR_HASH, buildLaidOut],
-  [BARISAX_RECIPE, BARISAX_HASH, buildLaidOut]];
+  [BARISAX_RECIPE, BARISAX_HASH, buildLaidOut],
+  [CELLO_RECIPE, CELLO_HASH, buildLaidOut]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));

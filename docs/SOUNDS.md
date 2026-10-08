@@ -135,6 +135,18 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-8821720c6600ccce800a666bbc8dded6196a4f2e2235f66313abc9364a6f157e` |
 | Verified | 2026-10-07 |
 
+## Karoryfer x bigcat cello: Endpin (`core.cello`)
+
+| | |
+|---|---|
+| Source | https://github.com/sfzinstruments/karoryfer-bigcat.cello (Karoryfer Samples and bigcat instruments) |
+| Pinned | commit `6fd75fbfc1dbb3109bf26220ba1adea46188a18b`; LICENSE sha256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`, readme.txt, "Programs/01- Bowed (velocity layer).sfz" and Programs/vc_arco_sus_map.sfz by sha256; 32 WAV files, each by sha256, in [`tools/kits/karoryfer-cello.js`](../tools/kits/karoryfer-cello.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text; its readme: "This sample library is royalty-free for all commercial and non-commercial use. The samples and sfz files are also open-source.") |
+| Author | Karoryfer Samples and bigcat instruments (2016); played by Kamila Borowiak. |
+| Modifications | A subset: the bowed sustains, a zone every third semitone from C2 to A5 (16, as sampled; the top zone, C6, left out), two of the four dynamics (mp and f). Mono as recorded, 24-bit to 16-bit by rounding, kept at 44.1 kHz. Each sample placed at the key it sounds (Karoryfer names these files an octave down). Each sample loops on the loop its file carries (Karoryfer's own, unchanged: nothing searched or crossfaded). Each start 2 ms before the note first comes within 30 dB of its peak. A `tune` field on a note read 5 to 25 cents off. A gain per sample, so every note plays at one level; the dynamics come from a velocity curve set from the layers' recorded levels. |
+| Kit | `sha256-144ed798636d54cb0c61829ba27cf800f860b51b66b584c07cd5459045e161ad` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |
