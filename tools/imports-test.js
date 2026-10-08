@@ -11,6 +11,7 @@
 //      measures it once, stays out of the song's render, shows its profile beside the mix's, and A/B matches its
 //      loudness; compare_to_reference's deltas point the right way on a darker copy and a quieter copy of the song.
 //   node tools/imports-test.js      (screenshots: tools/.out/imports-*.png)
+// local-only: holds a song's offline render to 0.05 LU before and after; with graph devices, under a loaded CI runner it moved 5 LU
 import { open, tally } from './pw.js';
 import { createStore } from '../app/src/core/store.js';
 import { createProject } from '../app/src/core/project.js';

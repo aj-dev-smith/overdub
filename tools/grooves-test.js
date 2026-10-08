@@ -7,6 +7,7 @@
 // end). In the page: the tab, hearing a groove (the engine schedules its notes), putting one (a clip signed by you, one
 // undo step), tap-to-find from taps on the pads, Build drums for the song (in the found groove's style, its ending a
 // choice), the tools' results and errors, the demo agent's grooves, a phone upright and on its side, and no page errors.
+// local-only: taps a tempo in through timed input (90-109 BPM wanted): a CI runner's input round trips read 67 BPM
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';

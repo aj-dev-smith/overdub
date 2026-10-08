@@ -8,6 +8,7 @@
 // garbage collection while it runs); the cost of a 4096-tap cab and of planning a 200 ms room. The same fixed
 // convolution's hash in Chromium's and WebKit's worklets is held by tools/compat-test.js.
 //   node tools/convolver-test.js
+// local-only: times the convolver's CPU cost against real time (4.5% for a 4096-tap cab): a shared runner measures its neighbours
 import crypto from 'node:crypto';
 import { PerformanceObserver } from 'node:perf_hooks';
 import { tally } from './pw.js';
