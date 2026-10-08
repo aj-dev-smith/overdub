@@ -1,12 +1,12 @@
 // Half Stack (core.stack): the high-gain amp as a kernel (app/src/devices/builtin/stack.js, its DSP in amp-lib.js),
-// intent 0008, spec R23-R30. In Node, through the KernelCore the AudioWorklet runs, on the house's DI strum and the
+// In Node, through the KernelCore the AudioWorklet runs, on the house's DI strum and the
 // metal DI fixtures (tools/fixtures/metal-di/, rendered by the canonical renderer):
 //   the def: its params in their forever order, roles and descs, the presets, the cab bank it names, its latency
 //   the tone stack: the circuit's analog response against its bilinear twin, and the shapes of the three knobs
 //   the gate, TIGHT, the boost (it lifts what's above 720 Hz), PRESENCE, DEPTH and SAG each doing their job
-//   aliasing (R25): sines at 1, 2.5 and 5 kHz at -12 dBFS, GAIN 10, boost on, no cab, at 4x and 8x
-//   cost (R26) and latency (R27); the tone at Modern on the chug (R28); the level against the DI (R29)
-//   the presets (R30) and every extreme render finite; renders repeat bit for bit; without the cab bank it plays the
+//   aliasing: sines at 1, 2.5 and 5 kHz at -12 dBFS, GAIN 10, boost on, no cab, at 4x and 8x
+//   cost and latency; the tone at Modern on the chug; the level against the DI
+//   the presets and every extreme render finite; renders repeat bit for bit; without the cab bank it plays the
 //   filter cab, at the IR cab's level
 //   the device check (Node), and the golden scenes fx:core.stack and fx:core.stack:cab#7fd30c061e6b in Node and in
 //   Chromium's worklet (tools/amp-scenes.js holds their hashes until integration)
@@ -33,7 +33,7 @@ const L = (x) => lufs({ sr: SR, channels: [x, x] });
 const TP = (x) => truePeak({ sr: SR, channels: [x, x] });
 const rms = (y, a = 0, b = y.length) => { let s = 0; for (let i = a; i < b; i++) s += y[i] * y[i]; return 10 * Math.log10(s / (b - a) + 1e-30); };
 const sine = (f, dbfs, secs) => { const a = Math.pow(10, dbfs / 20), x = new Float32Array(Math.round(secs * SR)); for (let i = 0; i < x.length; i++) x[i] = a * Math.sin(2 * Math.PI * f * i / SR); return x; };
-const f1 = (x) => x.toFixed(1);
+const f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
 const TM = /marshall|mesa|boogie|rectifier|5150|peavey|evh|engl|bogner|diezel|celestion|vintage 30|v30|greenback|eminence|shure|sm57|sennheiser|e606|tube ?screamer|ibanez|ts-?808|ts-?9|maxon|jester|cookie|bubba|kitten|nacho|pesto|fender|bassman/i;
 function block(title, fn) { console.log(title); try { fn(); } catch (e) { ok(false, `${title}: threw ${e && e.stack}`); } }
 
@@ -45,10 +45,10 @@ block('the device', () => {
   const cab = def.params.find((p) => p.key === 'cab');
   ok(JSON.stringify(cab.opts) === JSON.stringify(CAB_LABELS) && cab.def === 0 && CAB_LABELS[CAB_FILTER] === 'FILTER 4X12' && CAB_LABELS[CAB_OFF] === 'OFF', `CAB: ${cab.opts.join(', ')}`);
   const d = Object.fromEntries(def.params.map((p) => [p.key, p.def]));
-  ok(d.gate === -70 && d.tight === 110 && d.boost === 1 && d.boost_drive === 0.1 && d.boost_level === 9 && d.low_cut === 80 && d.high_cut === 10000 && d.quality === 0, 'the defaults are the spec\'s: GATE -70, TIGHT 110, boost on (drive 0.1, level 9), LOW CUT 80, HIGH CUT 10k, 4X');
+  ok(d.gate === -70 && d.tight === 110 && d.boost === 1 && d.boost_drive === 0.1 && d.boost_level === 9 && d.low_cut === 80 && d.high_cut === 10000 && d.quality === 0, 'the defaults: GATE -70, TIGHT 110, boost on (drive 0.1, level 9), LOW CUT 80, HIGH CUT 10k, 4X');
   ok(JSON.stringify(def.presets.map((p) => p.name)) === JSON.stringify(['Modern', 'Djent', 'Thrash', 'Doom', 'Lead']), `its presets: ${def.presets.map((p) => p.name).join(', ')}`);
   const m = presetParams(def, 'Modern');
-  ok(m.gain === 6.5 && m.boost === 1 && m.tight === 110 && m.bass === 5 && m.mid === 5.5 && m.treble === 6 && m.presence === 5.5 && m.cab === 0, 'Modern is the spec\'s R28 setting (GAIN 6.5, boost on, TIGHT 110, BASS 5, MID 5.5, TREBLE 6, PRESENCE 5.5, the close dynamic cab)');
+  ok(m.gain === 6.5 && m.boost === 1 && m.tight === 110 && m.bass === 5 && m.mid === 5.5 && m.treble === 6 && m.presence === 5.5 && m.cab === 0, 'Modern is the rhythm setting the tone targets are measured on (GAIN 6.5, boost on, TIGHT 110, BASS 5, MID 5.5, TREBLE 6, PRESENCE 5.5, the close dynamic cab)');
   const text = [def.name, def.blurb, def.nod, ...def.params.map((p) => p.desc + ' ' + (p.opts || []).join(' ')), ...def.presets.map((p) => p.name + ' ' + p.blurb)].join(' ');
   ok(!TM.test(text), `no trademark or pack patch name in its name, nod, descs or presets ("${def.nod}")`);
   ok(def.data && def.data.cabs === CABS_HASH, `it names the cab bank as kernel data (${CABS_HASH.slice(0, 19)}...)`);
@@ -106,7 +106,7 @@ block('the stages', () => {
   ok(c0 > 10 && c65 < 2 && c10 < 1, `GAIN sets the saturation: 30 dB more input comes out ${f1(c0)} dB louder at GAIN 0 (crunch), ${f1(c65)} at 6.5, ${f1(c10)} at 10`);
 });
 
-block('aliasing (R25)', () => {
+block('aliasing', () => {
   const P = { gain: 10, boost: 1, cab: CAB_OFF, gate: -96 };
   const LIM = { 1000: -60, 2500: -50, 5000: -40 };
   const r4 = {}, r8 = {};
@@ -116,7 +116,7 @@ block('aliasing (R25)', () => {
   ok([1000, 2500, 5000].every((f) => r8[f] <= LIM[f] - 10), `8X: ${[1000, 2500, 5000].map((f) => f1(r8[f])).join(' / ')} dB (each limit 10 dB lower)`);
 });
 
-block('cost and latency (R26, R27)', () => {
+block('cost and latency', () => {
   const chug = metalDI('chug'), secs = chug.length / SR;
   // (timed against Gaffer Tape, a heavy built-in, in the same moment: a loaded machine slows both alike)
   const mb = getDevice('core.multiband');
@@ -125,7 +125,7 @@ block('cost and latency (R26, R27)', () => {
   let b4 = Infinity, b8 = Infinity, bm = Infinity;
   for (let k = 0; k < 3; k++) { b4 = Math.min(b4, time(def, {})); b8 = Math.min(b8, time(def, { quality: 1 })); bm = Math.min(bm, time(mb, {})); }
   const pc = (ms) => 100 * ms / 1000 / secs, r4 = b4 / bm;
-  // (the spec's budget is 2.5% at 4X and 5% at 8X; this is what it costs, recorded in the plan's deviations)
+  // (the budget was 2.5% at 4X and 5% at 8X on an idle machine; this reports what it costs against a built-in)
   ok(r4 < 4 && b8 / b4 < 2.3, `one Half Stack with its 2048-tap cab costs ${pc(b4).toFixed(2)}% of real time at 4X (${r4.toFixed(2)}x Gaffer Tape's ${pc(bm).toFixed(2)}%) and ${pc(b8).toFixed(2)}% at 8X (best of three, ${secs.toFixed(1)} s of chug)`);
   // the delay through the chain: quiet noise in (GAIN 0, no boost, no cab, the cuts wide open: near linear), the lag
   // of the best cross-correlation out: the oversampler's 27.5 samples, the shapers' half samples, the filters' phase
@@ -136,7 +136,7 @@ block('cost and latency (R26, R27)', () => {
   ok(Math.abs(lag - 28) <= 4, `noise comes out ${lag} samples late at GAIN 0 (declared 28, ${(28 / 48).toFixed(2)} ms; the cab adds none: its direct taps play at once)`);
 });
 
-block('the tone (R28) and the level (R29)', () => {
+block('the tone and the level', () => {
   const chug = metalDI('chug'), [y] = run(def, presetParams(def, 'Modern'), chug), b = guitarBands(y);
   console.log(`    Modern on the chug: ${(100 * b.in).toFixed(1)}% in 100 Hz-5 kHz, ${f1(b.under80)} dB under 80 Hz, ${f1(b.over8k)} dB over 8 kHz, 2-4 kHz ${f1(b.hm)} dB against 500 Hz-2 kHz ${f1(b.mid)} dB`);
   ok(b.in >= 0.89, `Modern on the drop-C chug: ${(100 * b.in).toFixed(1)}% of the energy in 100 Hz-5 kHz (want at least 89%)`);
@@ -191,6 +191,28 @@ block('presets, extremes, determinism, no bank', () => {
   const step = (y, a, b) => { let m = 0; for (let i = a + 1; i < b; i++) m = Math.max(m, Math.abs(y[i] - y[i - 1])); return m; };
   const near = step(sw, at - 240, at + 2400), lim = Math.max(step(ra, at - 240, at + 2400), step(rb, at - 240, at + 2400));
   ok(near <= lim * 1.05, `CAB switched mid-chord (close dynamic to British): the biggest step around the switch is ${near.toFixed(4)}, either cab's own there ${lim.toFixed(4)} (no click)`);
+  // the switches mid-note: BOOST fades its branch, QUALITY hands its state to the other rate and crossfades, so no step
+  // around the switch is bigger than the steadiest of the two settings' own (a quiet low E, the amp near clean, where a
+  // click would stand out)
+  const lowE = sine(82, -30, 3), Q = { cab: CAB_OFF, gate: -96, gain: 0 }, T0 = 72064;
+  const flips = [['BOOST off to on', { boost: 0 }, { boost: 1 }], ['BOOST on to off', { boost: 1 }, { boost: 0 }], ['QUALITY 4X to 8X', { quality: 0 }, { quality: 1 }], ['QUALITY 8X to 4X', { quality: 1 }, { quality: 0 }]].map(([n, a, b]) => {
+    const [y] = run(def, { ...Q, ...a }, lowE, lowE, { sched: (t) => (Math.round(t * SR) === T0 ? { ...Q, ...b } : null) });
+    const own = Math.max(step(run(def, { ...Q, ...a }, lowE)[0], T0 - 8, T0 + 2400), step(run(def, { ...Q, ...b }, lowE)[0], T0 - 8, T0 + 2400));
+    return [n, step(y, T0 - 8, T0 + 2400) / own];
+  });
+  ok(flips.every((f) => f[1] <= 1.5), `switched mid-note, no click: the biggest step around the switch against the settings' own: ${flips.map((f) => `${f[0]} ${f2(f[1])}x`).join(', ')}`);
+  // in polarity with its input (the three inverting stages turned back), so it blends with a DI and Y Cable's top meets
+  // its low end in phase
+  const tone = sine(1000, -40, 1), [pt] = run(def, { cab: CAB_OFF, gate: -96, boost: 0, gain: 0, low_cut: 20, high_cut: 20000 }, tone);
+  let sxy = 0, sxx = 0, syy = 0; for (let i = SR / 2; i < SR - 28; i++) { sxy += tone[i] * pt[i + 28]; sxx += tone[i] * tone[i]; syy += pt[i + 28] * pt[i + 28]; }
+  const pc = sxy / Math.sqrt(sxx * syy);
+  ok(pc > 0.5, `in phase with its input: a quiet 1 kHz tone correlates ${f2(pc)} with what comes out 28 samples later`);
+  // a long silence after playing ends in digital silence (the chain flushes its state once a block as it decays; a
+  // recursive filter flushed by halves would ring on at -560 dBFS for ever)
+  const quietAfter = new Float32Array(30 * SR); quietAfter.set(chords.subarray(0, 2 * SR));
+  const [qa] = run(def, {}, quietAfter);
+  let nz = 0; for (let i = 25 * SR; i < qa.length; i++) if (qa[i] !== 0) nz++;
+  ok(nz === 0, `two seconds of chords, then silence: the last 5 s of 30 are digital silence (${nz} nonzero samples)`);
 });
 
 const nodeCheck = await checkDeviceNode(def);

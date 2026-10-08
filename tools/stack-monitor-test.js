@@ -1,10 +1,11 @@
-// Playing live through Half Stack (intent 0008, spec R34), in a QUIET Chromium (tools/pw.js): a guitar on an
+// Playing live through Half Stack, in a QUIET Chromium (tools/pw.js): a guitar on an
 // interface, monitored through an armed audio track's inserts (input/audioin.js, engine.inputNode). The interface is a
 // page-made stream named as a Scarlett (tools/input-test.js's way), so monitoring starts by itself as it would for a
 // player. A click goes in at a known audio-clock time; what reaches the speakers is recorded from the node wired to
-// the destination, with and without Half Stack on the track. The amp adds only its declared 28 samples (0.58 ms):
-// within 1 ms of the bypassed path. engine.latency reports the track's latency; plugin delay compensation never holds
-// live input back.
+// the destination: with Half Stack on the track, with it bypassed, and with no insert at all. Against no insert the amp
+// adds only its declared 28 samples (0.58 ms), within 1 ms. (A bypassed kernel keeps delaying its dry path by its
+// declared latency, engine/strip.js, so the bypassed path shows only latency the amp has and doesn't declare.)
+// engine.latency reports the track's latency; plugin delay compensation never holds live input back.
 //   node tools/stack-monitor-test.js        (HEADED=1 to watch)
 import { open, tally } from './pw.js';
 
@@ -62,24 +63,28 @@ try {
       for (const blk of rec) for (let i = 0; i < blk.d.length; i++) if (Math.abs(blk.d[i]) > 0.01) return Math.round((blk.t - t0) * sr) + i;
       return null;
     }
-    const fxId = store.get().tracks.find((t) => t.id === tid).inserts[0].id;
-    const withAmp = [], without = [];
+    const fx = JSON.parse(JSON.stringify(store.get().tracks.find((t) => t.id === tid).inserts[0])), fxId = fx.id;
+    const withAmp = [], bypassed = [], without = [];
     for (let k = 0; k < 3; k++) {
       store.dispatch({ type: 'insert.set', track: tid, insert: fxId, patch: { on: true } }, { by: 'you' }); await engine.settled(); await w(300);
       withAmp.push(await clickOut());
       store.dispatch({ type: 'insert.set', track: tid, insert: fxId, patch: { on: false } }, { by: 'you' }); await engine.settled(); await w(300);
+      bypassed.push(await clickOut());
+      store.dispatch({ type: 'insert.remove', track: tid, insert: fxId }, { by: 'you' }); await engine.settled(); await w(300);
       without.push(await clickOut());
+      store.dispatch({ type: 'insert.add', track: tid, insert: { ...fx, on: true }, index: 0 }, { by: 'you' }); await engine.settled(); await w(400);
+      await engine.instance(tid, fxId)?.ready;
     }
-    out.withAmp = withAmp; out.without = without; out.sr = sr;
+    out.withAmp = withAmp; out.bypassed = bypassed; out.without = without; out.sr = sr;
     mon.disconnect(sp); sp.disconnect(); a.monitor(false); a.close();
     return out;
   });
   T.ok(r.monitoring && r.auto && r.through === 'Guitar', `the interface opens and monitoring starts by itself, through the armed Guitar track (${r.through})`);
   T.ok(r.instLatency === 28 && r.trackLatency === 28, `Half Stack reports 28 samples (${(28 / r.sr * 1000).toFixed(2)} ms) and engine.latency puts the track at ${r.trackLatency}`);
   const med = (a) => a.slice().sort((x, y) => x - y)[1];
-  const dw = med(r.withAmp), dn = med(r.without), extra = dw - dn;
-  T.ok(r.withAmp.every((x) => x != null) && r.without.every((x) => x != null) && Math.abs(extra) * 1000 / r.sr <= 1,
-    `a click in comes out ${dw} samples later through Half Stack and ${dn} bypassed (the input stream's own buffering): the amp adds ${extra} samples, ${(extra * 1000 / r.sr).toFixed(2)} ms (want within 1 ms; runs ${r.withAmp.join(', ')} / ${r.without.join(', ')})`);
+  const dw = med(r.withAmp), db = med(r.bypassed), dn = med(r.without), extra = dw - dn;
+  T.ok(r.withAmp.every((x) => x != null) && r.without.every((x) => x != null) && r.bypassed.every((x) => x != null) && extra >= 0 && extra * 1000 / r.sr <= 1,
+    `a click in comes out ${dw} samples later through Half Stack, ${db} with it bypassed and ${dn} with no insert (the input stream's own buffering): the amp adds ${extra} samples, ${(extra * 1000 / r.sr).toFixed(2)} ms (want within 1 ms; runs ${r.withAmp.join(', ')} / ${r.bypassed.join(', ')} / ${r.without.join(', ')})`);
   T.ok(!errors.length, `no page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
 } finally { await close(); }
 T.done();

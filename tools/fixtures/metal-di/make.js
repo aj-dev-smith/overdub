@@ -1,4 +1,4 @@
-// The synthetic metal DIs (intent 0008, spec R33): songs, not audio. No CC0 or public-domain recording of a guitar DI
+// The synthetic metal DIs: songs, not audio. No CC0 or public-domain recording of a guitar DI
 // *performance* could be verified, so the test and demo DIs are DI Box (core.guitar: a modelled string, electric body,
 // bridge pickup) and Roundwound (core.ebass, Karoryfer's sampled five-string) playing fixed riffs, rendered by the
 // canonical renderer when a test needs the audio. A real DI is still needed: these are deterministic stand-ins for

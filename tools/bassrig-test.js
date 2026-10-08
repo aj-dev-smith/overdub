@@ -1,4 +1,4 @@
-// Y Cable (core.bassrig): a bass split in two (intent 0008, spec R31-R32). In Node, through the KernelCore the
+// Y Cable (core.bassrig): a bass split in two. In Node, through the KernelCore the
 // AudioWorklet runs:
 //   the def: its params in their forever order, the presets, the bank it names, Half Stack's latency
 //   the split: at DRIVE 0 (LOW and HIGH at 0 dB, under the compressor's threshold) the output is the input delayed by
@@ -60,12 +60,16 @@ block('the split', () => {
   ok(xy / Math.sqrt(xx * yy) === 1 || xy / Math.sqrt(xx * yy) > 0.999999, `below 120 Hz the output is mono: correlation ${(xy / Math.sqrt(xx * yy)).toFixed(6)} with a wide, half-cancelling stereo bass in`);
   // the low half stays clean while the top drives: the low end's level holds within a decibel as DRIVE goes 0 -> 10
   const di = metalDI('bass');
-  const lowAt = (d) => band(psd(run(def, { drive: d, high: -24 })[0] || run(def, { drive: d, high: -24 }, di)[0]), 30, 90).db;
-  void lowAt;
   const lows = [0, 5, 10].map((d) => { const [y] = run(def, { drive: d, high: -24 }, di); return 10 * Math.log10(psd(y).slice(Math.ceil(30 * 8192 / SR), Math.floor(90 * 8192 / SR)).reduce((a, b) => a + b, 0)); });
   ok(Math.abs(lows[2] - lows[0]) <= 1, `the clean low end holds while the top distorts: 30-90 Hz at DRIVE 0 / 5 / 10 is ${lows.map((v) => f1(v - lows[0])).join(' / ')} dB`);
   const top = (d) => band(psd(run(def, { drive: d }, di)[0]), 800, 4000).db;
   ok(top(8) - top(0) > 6, `the top grinds: 800 Hz-4 kHz rises ${f1(top(8) - top(0))} dB from DRIVE 0 to 8`);
+  // the driven top meets the clean low end in phase: a tone at the crossover and one above it never sink below both
+  // ends of DRIVE's first step (where the clean top fades into the amp) by more than a decibel; an amp out of polarity
+  // with the low end would cancel there
+  const rmsAt = (f, d) => { const x = new Float32Array(2 * SR), a = Math.pow(10, -18 / 20); for (let i = 0; i < x.length; i++) x[i] = a * Math.sin(2 * Math.PI * f * i / SR); const [y] = run(def, { drive: d, low: 0, high: 0, cab: CAB_OFF }, x); let e = 0; for (let i = SR; i < y.length; i++) e += y[i] * y[i]; return 10 * Math.log10(e / SR); };
+  const dips = [200, 400].map((f) => { const lv = [0, 0.25, 0.5, 0.75, 1].map((d) => rmsAt(f, d)); return [f, Math.min(lv[0], lv[4]) - Math.min(...lv)]; });
+  ok(dips.every((d) => d[1] <= 1), `no cancellation as the amp fades in: a tone at ${dips.map((d) => `${d[0]} Hz dips ${f1(d[1])} dB`).join(', ')} below the lower end of DRIVE 0 to 1`);
 });
 
 block('level, presets, extremes, determinism', () => {
@@ -84,7 +88,6 @@ block('level, presets, extremes, determinism', () => {
   ok(a.every((v, i) => v === b[i]), 'two renders are bit-identical');
   const [nob] = run(def, {}, short, short, { data: null }), [filt] = run(def, { cab: 6 }, short);
   ok(nob.every((v, i) => v === filt[i]), 'with no cab bank its top plays the Filter 4x12');
-  void CAB_OFF;
 });
 
 const nc = await checkDeviceNode(def);

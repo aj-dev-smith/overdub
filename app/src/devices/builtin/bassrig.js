@@ -1,5 +1,5 @@
-// core.bassrig: Y Cable. The modern metal bass sound: a clean, compressed low end under a distorted top (intent 0008,
-// spec R31-R32). The input is split at XOVER by a 4th-order Linkwitz-Riley crossover, whose two halves sum flat:
+// core.bassrig: Y Cable. The modern metal bass sound: a clean, compressed low end under a distorted top. The
+// input is split at XOVER by a 4th-order Linkwitz-Riley crossover, whose two halves sum flat:
 //   low    mono and clean, through a light fixed compressor (2:1 above -18 dBFS, 20 ms attack, 200 ms release),
 //          delayed to line up with the top; LOW sets its level
 //   top    Half Stack's oversampled preamp, tone stack and power amp (amp-lib.js) with its own DRIVE, MID and TREBLE,
@@ -22,7 +22,7 @@ export default defineDevice({
   nod: 'a split bass rig: a clean low path under a high-gain top through a guitar cab',
   params: [
     { key: 'xover', label: 'XOVER', min: 80, max: 400, def: 200, curve: 'log', unit: 'Hz', role: 'tone', desc: 'where the clean low end hands over to the driven top: lower for more grind, higher for a cleaner, rounder bass' },
-    { key: 'low', label: 'LOW', min: -24, max: 6, def: 1, unit: 'dB', role: 'level', desc: 'the clean low end\'s level (mono, compressed)' },
+    { key: 'low', label: 'LOW', min: -24, max: 6, def: 1.5, unit: 'dB', role: 'level', desc: 'the clean low end\'s level (mono, compressed)' },
     { key: 'drive', label: 'DRIVE', min: 0, max: 10, def: 5, role: 'drive', desc: 'the top\'s gain: 0 clean, 3 growl, 5 modern metal, 8 and up fuzz' },
     { key: 'mid', label: 'MID', min: 0, max: 10, def: 6, role: 'tone', desc: 'the top\'s mids: up to cut through the guitars' },
     { key: 'treble', label: 'TREBLE', min: 0, max: 10, def: 5, role: 'tone', desc: 'the top\'s treble: the string clank and the pick' },
@@ -31,7 +31,7 @@ export default defineDevice({
     { key: 'level', label: 'LEVEL', min: -24, max: 12, def: 0, unit: 'dB', role: 'level', desc: 'the output level, both halves together' },
   ],
   presets: [
-    { name: 'Modern', blurb: 'a clean low end under a growling top at 200 Hz: the modern metal bass', params: { xover: 200, low: 1, drive: 5, mid: 6, treble: 5, cab: 0, high: -3 } },
+    { name: 'Modern', blurb: 'a clean low end under a growling top at 200 Hz: the modern metal bass', params: { xover: 200, low: 1.5, drive: 5, mid: 6, treble: 5, cab: 0, high: -3 } },
     { name: 'Grind', blurb: 'more drive and a lower split: the top snarls over the guitars', params: { xover: 140, low: -1, drive: 7.5, mid: 7, treble: 6, cab: 1, high: -1 } },
     { name: 'Clean', blurb: 'no drive: the split only compresses the low end', params: { xover: 250, low: 1, drive: 0, mid: 5, treble: 5, cab: 7, high: 0 } },
   ],

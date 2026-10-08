@@ -1,6 +1,6 @@
 // core.stack: Half Stack. A high-gain head into a real 4x12, as a kernel: it renders in the canonical Node render and
 // the studio alike, bit for bit, and plays live through an armed audio track with 28 samples (0.6 ms) of latency.
-// Intent 0008, spec R23-R30. The DSP is amp-lib.js's (the gate, TIGHT, the boost, three triode stages, the TMB tone
+// The DSP is amp-lib.js's (the gate, TIGHT, the boost, three triode stages, the TMB tone
 // stack, the power amp with sag, presence and depth, all oversampled 4x or 8x), then the cab: one of six measured
 // 4x12 impulse responses (Jester Dyne Productions' Brutal and Emerald packs, CC0: tools/kits/jester-cabs.js) through
 // dsp.convolver with no latency, or the designed Filter 4x12 (what every IR choice plays until the bank is in, or if it

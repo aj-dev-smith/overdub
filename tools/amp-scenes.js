@@ -1,4 +1,4 @@
-// The golden scenes the guitar track adds (intent 0008, spec R2), and what its tests share (below). Each is built the
+// The golden scenes Half Stack, Iso Cab and Y Cable add, and what its tests share (below). Each is built the
 // way tools/golden-scenes.js builds an fx: scene (the effect on the house's DI strum, 16 beats at 120 bpm, 4 s of
 // tail, fixed ids), and pinned here until the integration branch moves them into golden-scenes.js and golden.json by
 // name. A scene that plays the cab bank carries its first 12 hex digits in its name, as a sampled instrument's does: a
@@ -24,10 +24,10 @@ const META = { created: STAMP, modified: STAMP, authors: {} };
 const TAG = '#' + CABS_HASH.slice(7, 19);
 
 export const AMP_GOLDEN = {
-  'fx:core.stack': 'd4aa3d21c3cfd32f53f7527574e92dedae01e1f3591ea0c8774c0f0a895a1218',
-  ['fx:core.stack:cab' + TAG]: 'ea4856427a043275dcb973293735c7696ab18cdd7916933a6873f801efb6c119',
+  'fx:core.stack': '21a556e2993973af1fc6005cbfcb476668d24f35d54c4230450d619007a59c3f',
+  ['fx:core.stack:cab' + TAG]: '43844752e743f7dd47f5a117e72d241f084465e48aa4ddb2bdfb4bd9bd190467',
   ['fx:core.cab' + TAG]: '4348da3d328686a08bc0e8548753874b525688654708a0f6f0b4fbe1e14583aa',
-  ['fx:core.bassrig' + TAG]: '827c5ab0475e33f669067362bc447bd9d7c3523dcdfa683284752d097eee0180',
+  ['fx:core.bassrig' + TAG]: 'e6836096c6bfadeb756e8299e3f645cffbaad8d5e53e5fbdbcfae38c8b21ddea',
 };
 
 function scene(name, id, params, signal = 'strum') {
@@ -57,13 +57,14 @@ export function ampScenes() {
 
 // ------------------------------------------------------------------------------------------------ shared by the tests
 // A kernel effect through the KernelCore the AudioWorklet runs (the canonical path), in 128-frame blocks:
-// run(def, params, inL, inR?, { data, sched }) -> [L, R]. data: the def's files (default), or null for none; sched(sec)
-// may return new params at a block (posted as the host posts them).
+// run(def, params, inL, inR?, { data, sched, sr }) -> [L, R]. data: the def's files (default), or null for none;
+// sched(sec) may return new params at a block (posted as the host posts them); sr: the host's rate (48 kHz).
 
 export const SR = 48000;
-const K = kernelCore(SR, makeDsp(SR), kernelCompiler);
-export function run(def, params, inL, inR = inL, { data, sched } = {}) {
-  const values = paramValues(def, params), errs = [];
+const KS = new Map();
+const coreAt = (sr) => { if (!KS.has(sr)) KS.set(sr, kernelCore(sr, makeDsp(sr), kernelCompiler)); return KS.get(sr); };
+export function run(def, params, inL, inR = inL, { data, sched, sr = SR } = {}) {
+  const values = paramValues(def, params), errs = [], K = coreAt(sr);
   const c = new K({ source: def.kernel, kind: 'effect', params: kernelSpecs(def), values, seed: 1, data: data === undefined ? dataFor(def.data) : data,
     transport: { bpm: 120, playing: true, beat: 0, time: 0 } }, (m) => { if (m.type === 'error') errs.push(m.message); });
   c.msg({ type: 'params', values, jump: true });
@@ -73,7 +74,7 @@ export function run(def, params, inL, inR = inL, { data, sched } = {}) {
   for (let f = 0; f < n; f += 128) {
     const m = Math.min(128, n - f);
     iL.fill(0); iR.fill(0); iL.set(inL.subarray(f, f + m)); iR.set(inR.subarray(f, f + m));
-    const p = sched && sched(f / SR);
+    const p = sched && sched(f / sr);
     if (p) c.msg({ type: 'params', values: paramValues(def, p) });
     c.block(iL, iR, bL, bR, f);
     oL.set(bL.subarray(0, m), f); oR.set(bR.subarray(0, m), f);
@@ -106,13 +107,13 @@ export function band(p, lo, hi, N = 8192) {
   for (let k = 1; k < N / 2; k++) { tot += p[k]; const f = k * SR / N; if (f >= lo && f < hi) s += p[k]; }
   return { db: 10 * Math.log10(s / tot + 1e-30), share: s / tot };
 }
-// the rhythm-guitar numbers of the spec's "Pro tier" (R28): energy in 100 Hz-5 kHz, under 80 Hz, over 8 kHz, and
+// the rhythm-guitar numbers of the house's rhythm-guitar targets: energy in 100 Hz-5 kHz, under 80 Hz, over 8 kHz, and
 // 2-4 kHz against 500 Hz-2 kHz
 export function guitarBands(x) {
   const p = psd(x);
   return { in: band(p, 100, 5000).share, under80: band(p, 0, 80).db, over8k: band(p, 8000, 24000).db, hm: band(p, 2000, 4000).db, mid: band(p, 500, 2000).db };
 }
-// the non-harmonic energy of a sine through a device, dB re its harmonics (R25): a -12 dBFS sine at f (moved to a
+// the non-harmonic energy of a sine through a device, dB re its harmonics: a -12 dBFS sine at f (moved to a
 // bin), 1 s to settle, then a 65,536-point Blackman-Harris spectrum; bins within 4 of a harmonic (the window's main
 // lobe) are the harmonics, the rest is what aliased
 export function aliasing(def, params, f0, dbfs = -12) {

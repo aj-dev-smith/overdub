@@ -9,12 +9,12 @@
 //     taps: one channel (a Float32Array / Float64Array / array of numbers) or [left, right]: one output per channel
 //     .process(x, outL, outR, n) the input x (mono) convolved with the taps into outL (and outR, for two channels;
 //                                with one channel outR, if given, gets the same). x may be outL (in place).
-//     .latency                   frames the wet output is late: `head` (0006's design, a fixed 128) or 0 with `direct`
+//     .latency                   frames the wet output is late: `head` (a fixed 128) or 0 with `direct`
 //     .set(taps)                 new taps (up to the length it was made for), planned in place: no allocation
 //     .reset()                   clear the history (silence in, silence out from the next sample)
 //   dsin(x), dcos(x)             the sine series below (for tools that must build the same doubles: tools/kits/)
 //
-// How it convolves (intent 0006's design, R1-R5; Gardner, "Efficient convolution without input-output delay", JAES
+// How it convolves (Gardner, "Efficient convolution without input-output delay", JAES
 // 43(3), 1995): two levels of uniformly partitioned overlap-save. The head runs in `head`-frame blocks (2 * head-point
 // real FFTs) and covers the taps up to `body`; the body runs in `body`-frame blocks from tap `body` on, and its block's
 // result is due exactly when it is computed. The input spectra wait in a frequency-domain delay line per level, and

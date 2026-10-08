@@ -1,5 +1,5 @@
 // dsp.fft and dsp.convolver (app/src/kernel/convolve.js): the FFT and the two-level partitioned convolver that Half
-// Stack's and Iso Cab's cabs run on (and Real Rooms can reuse).
+// Stack's and Iso Cab's cabs run on.
 //
 // In Node: the FFT against a direct DFT and back again; the convolver against direct convolution on random taps of 1
 // to 14,400 frames, one channel and two (within -240 dB of the peak); host splits of 1..128 frames give bit-identical
@@ -144,6 +144,9 @@ console.log('cost');
   const h = Float32Array.from(rand(4096, 31)), x = Float32Array.from(rand(128, 32)), y = new Float32Array(128);
   const C = convolver(h, { direct: 128 }), Cd = convolver(h);
   for (let b = 0; b < 3000; b++) { C.process(x, y, null, 128); Cd.process(x, y, null, 128); }
+  // (empty the young generation first: what the checks above left in it would otherwise be collected in the window)
+  { let junk = 0; for (let i = 0; i < 256; i++) junk += new Float64Array(1 << 15).length; if (!junk) throw new Error('unreachable'); }
+  await new Promise((r) => setTimeout(r, 50));
   let gcs = 0;
   const obs = new PerformanceObserver((list) => { gcs += list.getEntries().length; });
   obs.observe({ entryTypes: ['gc'] });

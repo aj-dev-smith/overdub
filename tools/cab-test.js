@@ -1,4 +1,4 @@
-// The cab bank and Iso Cab (core.cab), intent 0008, spec R19-R22 and R35. In Node:
+// The cab bank and Iso Cab (core.cab). In Node:
 //   the bank (kernel data, tools/kits/jester-cabs.js): six 24-bit mono IRs of 2048 taps at 48 kHz, each set to unity
 //   power between 1 and 3 kHz; rebuilt from the download cache it is the pinned file, byte for byte, its handbooks (the
 //   CC0 grant) checked first; each cut's third-octave error against the whole IR, 80 Hz to 10 kHz, within 1.0 dB
@@ -101,6 +101,20 @@ await block('Iso Cab', () => {
   const [sl, sr] = run(def, {}, st[0], st[1]);
   let anti = 0; for (let i = 0; i < sl.length; i++) anti = Math.max(anti, Math.abs(sl[i] + sr[i]));
   ok(anti < 1e-6, 'each side has its own cab: opposite signals in come out opposite');
+});
+
+await block('other host rates', () => {
+  // an interface at 44.1 or 96 kHz hears the same cabs: each IR resampled from the bank's 48 kHz, its third-octave
+  // response (an impulse's, 80 Hz to 10 kHz) within 0.5 dB of the 48 kHz one; the filter cab would be dBs away
+  const third = (y, sr) => THIRDS.map((fc) => { let e = 0; for (const fq of [fc * 0.89, fc, fc * 1.12]) { let r = 0, q = 0; for (let i = 0; i < Math.min(y.length, Math.round(sr * 0.17)); i++) { const a = 2 * Math.PI * fq * i / sr; r += y[i] * Math.cos(a); q -= y[i] * Math.sin(a); } e += r * r + q * q; } return 10 * Math.log10(e / 3 + 1e-30); });
+  const at = (sr, cab) => { const x = new Float32Array(Math.round(sr * 0.2)); x[100] = 0.5; return third(run(def, { cab, low_cut: 20, high_cut: 20000 }, x, x, { sr })[0].subarray(100), sr); };
+  const rows = [];
+  for (const cab of [0, 4]) {
+    const ref = at(48000, cab), filt = at(48000, CAB_FILTER);
+    const far = Math.max(...ref.map((v, i) => Math.abs(v - filt[i])));
+    for (const sr of [44100, 96000]) { const r = at(sr, cab); rows.push([CAB_IDS[cab], sr, Math.max(...ref.map((v, i) => Math.abs(v - r[i]))), far]); }
+  }
+  ok(rows.every((r) => r[2] <= 0.5 && r[3] > 2), `at 44.1 and 96 kHz the IRs play, resampled: ${rows.map((r) => `${r[0]} at ${r[1] / 1000} kHz within ${f2(r[2])} dB of 48 kHz`).join(', ')} (the filter cab is ${f1(Math.min(...rows.map((r) => r[3])))} dB or more away)`);
 });
 
 const nc = await checkDeviceNode(def);

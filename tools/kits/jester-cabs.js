@@ -1,6 +1,6 @@
 // The cab bank Half Stack, Iso Cab and Y Cable play (core.stack, core.cab, core.bassrig; data: { cabs }): six
 // speaker-cabinet impulse responses from Jester Dyne Productions' Brutal Pack and Emerald Pack, built by
-// node tools/fetch-kits.js into one 24-bit mono .odk (it ships as .odk alone: a few tens of KB, nothing to pack).
+// node tools/fetch-kits.js into one 24-bit mono .odk (a few tens of KB; its .odkz carries the same PCM verbatim).
 //
 // Where they come from (verified 2026-10-07 at the author's own site): each pack is a zip linked from its page,
 // https://www.jester-dyne-productions.com/brutal-ir-pack/ and /emerald-ir-pack/. The licence is the handbook inside
@@ -16,7 +16,7 @@
 // (183-199 ms). All 48 kHz, 24-bit mono WAV. The studio names each by what it is ("Modern 4x12, close dynamic"), never
 // by the packs' patch names or the brands.
 //
-// How each is built (intent 0008, spec R20), integer and series arithmetic only, so the bytes are the same anywhere:
+// How each is built, integer and series arithmetic only, so the bytes are the same anywhere:
 //   cut         to the shortest of 2048 or 4096 taps whose third-octave magnitude response, 80 Hz to 10 kHz, stays
 //               within 1.0 dB of the whole IR's (a 5 ms half-Hann fade ends the cut); every one of the six passes at
 //               2048 (worst 0.26 dB; the table is in tools/cab-test.js, measured on the fly)
@@ -74,7 +74,7 @@ export const RECIPE = {
       },
     },
   },
-  // the six the studio offers, in the CAB switch's order (spec R21). `facts` is the handbook's patch list, for the
+  // the six the studio offers, in the CAB switch's order. `facts` is the handbook's patch list, for the
   // record (SOUNDS.md); the studio shows `name` only.
   cabs: [
     { id: 'modern-close', name: 'Modern 4x12, close dynamic', zip: 'brutal', file: 'Jesters_Brutal_Pack_1.0/Impulses/48kHz/1_Cookie_Monster.wav', facts: 'Brutal #1: Celestion Vintage 30, Shure SM57' },
