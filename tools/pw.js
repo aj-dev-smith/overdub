@@ -6,8 +6,7 @@
 //   await close();
 //
 // Env: PLAYWRIGHT_CORE (path to playwright-core), CHROMIUM (a chromium or chrome-headless-shell binary),
-// HEADED=1 (watch it), OUTDIR (screenshots; default tools/.out), CHROMIUM_ARGS (more Chromium switches, space-separated;
-// CI sets these for its runners). Falls back to the copies already on this machine.
+// HEADED=1 (watch it), OUTDIR (screenshots; default tools/.out). Falls back to the copies already on this machine.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -44,12 +43,11 @@ function findChromium() {
 // Test browsers keep quiet on this machine's speakers: Chromium's --mute-audio silences only what reaches the speakers
 // (the audio graph, its taps, captures and renders run as before). SOUND=1 lets a run be heard.
 export const QUIET = process.env.SOUND ? [] : ['--mute-audio'];
-const EXTRA = (process.env.CHROMIUM_ARGS || '').split(/\s+/).filter(Boolean);
 
 // Open an absolute URL (production checks): same browser setup, no local server.
 export async function openUrl(url, { width = 1440, height = 900, headed = !!process.env.HEADED } = {}) {
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...EXTRA];
+  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
   const browser = await pw.chromium.launch({ headless: !headed, executablePath: headed ? undefined : findChromium(), args });
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['microphone'] });
   const page = await context.newPage();
@@ -65,7 +63,7 @@ export async function open(route = '/app/', { width = 1440, height = 900, headed
   await ready;
   const srv = await startServer({ port: 0, quiet: true });
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...EXTRA];
+  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
   if (fakeAudio) args.push(`--use-file-for-fake-audio-capture=${fakeAudio}`);
   const exe = headed ? undefined : findChromium();
   const browser = await pw.chromium.launch({ headless: !headed, executablePath: exe, args });

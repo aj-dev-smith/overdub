@@ -16,6 +16,10 @@
 # write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
 # (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
 # NEXT_DISTRIBUTION), never committed.
+# The suite times things against the wall clock (count-in clicks, frame rates, tap tempo, the feedback guard, touch
+# drags), so suite-setup turns off macOS's kernel timer coalescing on the runner. An idle macOS VM coalesces timers,
+# and a test browser there drew the studio at ~30 frames a second with setTimeout ~12-30 ms late; with it off, 60 fps
+# and ~1.5 ms, as on a Mac at a desk. It also turns Spotlight off, which was indexing the fresh VM on most of its CPU.
 # Actions are pinned to a commit; the comment names the release.
 name: ci
 
@@ -40,61 +44,15 @@ concurrency:
 
 env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
-  # The real-time suites: they time things against the wall clock (count-in clicks, frame rates, tap tempo, timers,
-  # touch drags, the feedback guard, a 60 s render timeout, "Stop ends the turn at once", a knob gesture or keys
-  # recorded against the running transport). They pass on a Mac but fail on GitHub's slow macOS VMs, a different few
-  # each run, even one suite at a time. So they run in the realtime job, which shows its result but blocks neither the
-  # merge nor the deploy; every other suite runs in the test job, which does. Whole file names, space-separated. Move
-  # a suite here only for timing failures, never a deterministic one.
-  REALTIME_SUITES: >-
-    agent-test.js arrange-test.js autorec-test.js brand-test.js engine-test.js grooves-test.js input-test.js
-    jam-test.js mcp-e2e-test.js phone-test.js plugin-test.js record-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # TEMPORARY: macOS timer coalescing, App Nap and sleep: the probe each way, then the real-time suites with all off
-  diag:
-    runs-on: macos-15
-    timeout-minutes: 55
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/suite-setup
-      - name: Probe each way
-        timeout-minutes: 12
-        run: |
-          sudo mdutil -a -i off > /dev/null || true
-          pmset -g || true
-          sysctl kern.timer || true
-          echo "::group::baseline"; node tools/ci-probe.js; echo "::endgroup::"
-          defaults write NSGlobalDomain NSAppSleepDisabled -bool YES
-          echo "::group::App Nap off"; node tools/ci-probe.js; echo "::endgroup::"
-          echo "::group::App Nap off, caffeinate"; caffeinate -dimsu node tools/ci-probe.js; echo "::endgroup::"
-          sudo sysctl -w kern.timer.coalescing_enabled=0 || true
-          echo "::group::App Nap off, caffeinate, no timer coalescing"; caffeinate -dimsu node tools/ci-probe.js; echo "::endgroup::"
-      - name: Suites
-        timeout-minutes: 38
-        env:
-          PAR: 1
-          CPU: 0
-        run: |
-          mkdir -p tools/.out
-          caffeinate -dimsu node tools/run-all.js engine-test.js input-test.js arrange-test.js brand-test.js stopping-test.js \
-            plugin-test.js agent-test.js phone-test.js sounds-test.js | tee tools/.out/diag.log
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: diag-mac
-          path: tools/.out/diag.log
-          retention-days: 7
-
-  # Every suite but the real-time ones, about 40 minutes one suite at a time, split four ways: each lands in exactly
-  # one shard (round-robin by name), and each shard runs its suites one at a time.
+  # Every suite, about an hour one suite at a time, split four ways: each lands in exactly one shard (round-robin by
+  # name), and each shard runs its suites one at a time.
   test:
     name: test (${{ matrix.shard }}/4)
-    if: github.event_name == 'never'
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -118,15 +76,10 @@ jobs:
           # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
           CPU: 0
         run: |
-          read -ra realtime <<< "$REALTIME_SUITES"
-          for f in "${realtime[@]}"; do
-            [ -f "tools/$f" ] || { echo "::error::REALTIME_SUITES names $f, which isn't in tools/"; exit 1; }
-          done
           # run-all takes a whole file name as exactly that file
           names=()
           while IFS= read -r f; do names+=("$f"); done < <(
-            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | grep -vxF -f <(printf '%s\n' "${realtime[@]}") \
-              | awk -v k="$SHARD" '(NR - 1) % 4 == k')
+            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
           echo "shard $SHARD: ${names[*]}"
           node tools/run-all.js "${names[@]}"
 
@@ -135,39 +88,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tools-out-${{ matrix.shard }}
-          path: |
-            tools/.out/
-            !tools/.out/kits-cache/
-          retention-days: 7
-
-  # The real-time suites (REALTIME_SUITES), one at a time. continue-on-error, and neither suite nor deploy-staging
-  # needs it: its result is there to read, not to gate on.
-  realtime:
-    if: github.event_name == 'never'
-    runs-on: macos-15
-    timeout-minutes: 60
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/suite-setup
-
-      - name: The real-time suites (node tools/run-all.js <names>)
-        env:
-          REQUIRE_ALL: 1
-          PAR: 1
-          CPU: 0
-        run: |
-          read -ra realtime <<< "$REALTIME_SUITES"
-          node tools/run-all.js "${realtime[@]}"
-
-      - name: Keep the screenshots and reports when it fails
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: tools-out-realtime
           path: |
             tools/.out/
             !tools/.out/kits-cache/

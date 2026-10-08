@@ -9,27 +9,29 @@ inputs:
 runs:
   using: composite
   steps:
+    # The suite's real-time checks need the runner's timers on time. macOS coalesces timers on an idle VM: a test
+    # browser drew the studio at ~30 fps with setTimeout(10) firing 12-30 ms late, and count-in clicks, tap tempo, the
+    # feedback guard and touch holds failed a different few each run. With coalescing off: 60 fps, ~1.5 ms late.
+    # Spotlight was indexing the fresh VM on most of its 3 CPUs.
+    - name: Keep the runner's timers on time (no timer coalescing, no Spotlight)
+      shell: bash
+      run: |
+        sudo sysctl -w kern.timer.coalescing_enabled=0
+        sudo mdutil -a -i off > /dev/null
+
     - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
     - name: Cache the browsers playwright-core drives
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ${{ runner.os == 'macOS' && '~/Library/Caches/ms-playwright' || '~/.cache/ms-playwright' }}
+        path: ~/Library/Caches/ms-playwright
         key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
 
     - name: Install playwright-core and its browsers (not saved to package.json)
       shell: bash
       run: |
         npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
-        if [ "$RUNNER_OS" = Linux ]; then
-          # the browsers' system libraries too (apt), and the Chromium path: tools/pw.js only knows macOS's cache
-          node node_modules/playwright-core/cli.js install --with-deps chromium-headless-shell webkit firefox
-          shell=$(find ~/.cache/ms-playwright -path '*chromium_headless_shell-*' -name chrome-headless-shell -type f | head -1)
-          [ -x "$shell" ] || { echo "::error::no chrome-headless-shell under ~/.cache/ms-playwright"; exit 1; }
-          echo "CHROMIUM=$shell" >> "$GITHUB_ENV"
-        else
-          node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
-        fi
+        node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
 
     - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
