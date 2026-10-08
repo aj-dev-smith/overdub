@@ -1,4 +1,4 @@
-// Drum Riser (core.drumbus), the drum bus (intent 0008, spec R15, R16).
+// Drum Riser (core.drumbus), the drum bus.
 //
 //   node tools/drumbus-test.js
 //

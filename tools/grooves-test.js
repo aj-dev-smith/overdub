@@ -146,7 +146,7 @@ console.log('\nStudio A');
   T.ok(G.STUDIO_A === 'core.drumroom' && rockKit.device === 'core.drumroom' && rockKit.params.kit === 3 && rockKit.preset === 'Arena' && jazzKit.params.kit === 2, `an acoustic style plays on Studio A, on the preset its style names (rock: ${rockKit.preset}, jazz: ${jazzKit.preset})`);
   T.ok(trapKit.device === 'core.drums' && trapKit.params.kit === 3 && noA.device === 'core.drums' && noA.params.kit === 5, 'a machine style stays on Gobo Kit\'s machines (trap on its 808); without Studio A, Gobo Kit\'s ACOUSTIC+');
   const s = sectionSongForStudio();
-  // the metal families (intent 0008): written for Studio A's note map and played on Rusty Sticks (core.metalkit) when the
+  // the metal families: written for Studio A's note map and played on Rusty Sticks (core.metalkit) when the
   // studio has it, else as an acoustic style; nothing older moves
   {
     const MK_NOTES = new Set([35, 36, 38, 40, 37, 42, 22, 44, 23, 24, 46, 21, 48, 50, 47, 45, 43, 41, 49, 57, 52, 55, 51, 53, 59, 27, 28, 29, 25]);

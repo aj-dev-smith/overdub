@@ -8,38 +8,39 @@
 //     of one layer correlate 0.989 to 1.000 over their first 30 ms.
 //   Virtuosity's kick mic: centroid 155 to 233 Hz; the click 43 to 54 dB under; T60 0.58 to 1.15 s (a felt-beater
 //     jazz kick, left to ring).
-// Big Rusty's is taken: its tail is a third as long, which is what fast double kick needs (spec R8), and its click is
-// 18 dB nearer; neither reaches the click target alone, so the kernel adds a trigger (R10).
+// Big Rusty's is taken: its tail is a third as long, which is what fast double kick needs, and its click is 18 dB
+// nearer; neither reads as a modern metal click alone (the 2-6 kHz band within 10 dB of the low one), so the kernel
+// adds a trigger.
 //
 // Each stroke is mixed from its microphones at the gains below (blend.js): a mono close mic panned to the piece's place
 // in Studio A's LAYOUT (x / 1.25: the hi-hat -0.42, the toms -0.16 to 0.59, the crash -0.48, the ride 0.66, the China
 // 0.8), the overhead pair as it was recorded. The overheads' level is the one that brings the piece's L/R correlation
 // (the first 300 ms; a cymbal's first second) to 0.3-0.6, measured: toms 0.48-0.55, hats 0.49-0.64, cymbals 0.29-0.58.
 // Two exceptions, both measured: the kick stays near mono (0.99: the overheads at -12 dB, so the low end is mono and
-// the tail short), and the snare is led by its top mic (0.83), since a 0.3-0.6 blend drops its crest over the first
-// 100 ms to 12 dB, under the real snares' 13-17; the bottom mic (the wires) sits 11 dB down. Upstream's mics are left in
+// the tail short), and the snare is led by its top mic (0.83), since a 0.3-0.6 blend drops its crest over the first 100
+// ms to 12 dB, under the real snares' 13-17; the bottom mic (the wires) sits 11 dB down. Upstream's mics are left in
 // their own time: the overheads land 2-3 ms after the close mics, as they did in the room.
 //
 // Layers are upstream's own (`v`, of `N`); a layer's top velocity is round(127 v / N) unless given. The kick takes its
 // top five (6, 9, 12, 13, 14) and sets its own tops, so a hit at 0.8 draws from layers 13 and 14 (whose 0-30 ms
-// centroids are within 4% of each other) rather than across a timbre step. Round robins as the plan sets them, except
-// the toms (3 x 2, not 3 x 3) and the second ride and crash articulations (2 x 2): see the size, below.
+// centroids are within 4% of each other) rather than across a timbre step. Round robins: as many as the size allows,
+// except the toms (3 x 2, not 3 x 3) and the second ride and crash articulations (2 x 2): see the size, below.
 //
-// The size. The plan's budget is 8 MB gzipped (.odkz); this kit is 12.6 MB. A stick kit's stereo cymbals cost about
-// 90 kB a second gzipped (they are noise to a lossless coder), and 8 MB holds about 87 seconds. The tails went first,
-// as the plan says: each cymbal is cut at 1.6-2.0 s with a fade of 0.8-1.0 s (so the cut reads as a faster decay, not
-// an edit), the open hats at 0.9-1.6 s, the toms at 0.9 s; then the third round robin of the toms and the third layer
-// of the bell, the ride edge, the sizzle crash and the stack. Below that, the cymbals would be cut at about 1 s or go
-// mono, and the kick and snare would lose round robins, which are the point of the kit. The rest is trimmed after the
-// last 960-frame window at or above -60 dBFS, then faded over 480 frames. The closed hats are cut at 0.30-0.32 s with
-// a 220-240 ms fade: recorded, their 6-12 kHz band rings a T60 of 0.52-0.61 s (over the spec's 0.5 s, and the real
-// hats' 0.35-0.38); cut, 0.35-0.36 s.
+// The size. A drum kit's budget is 8 MB gzipped (.odkz); this kit is 12.6 MB. A stick kit's stereo cymbals cost about
+// 90 kB a second gzipped (they are noise to a lossless coder), and 8 MB holds about 87 seconds. The tails went first:
+// each cymbal is cut at 1.6-2.0 s with a fade of 0.8-1.0 s (so the cut reads as a faster decay, not an edit), the open
+// hats at 0.9-1.6 s, the toms at 0.9 s; then the third round robin of the toms and the third layer of the bell, the
+// ride edge, the sizzle crash and the stack. Below that, the cymbals would be cut at about 1 s or go mono, and the kick
+// and snare would lose round robins, which are the point of the kit. The rest is trimmed after the last 960-frame
+// window at or above -60 dBFS, then faded over 480 frames. The closed hats are cut at 0.30-0.32 s with a 220-240 ms
+// fade: recorded, their 6-12 kHz band rings a T60 of 0.52-0.61 s (over 0.5 s, and the real hats' 0.35-0.38); cut,
+// 0.35-0.36 s.
 //
-// The high-passes (`hp`), measured against real one-shots (public domain and CC0: the Open Source Drum Kit, VCSL):
-// the close mics under the hats and cymbals hear the kick and the floor (their 40-150 Hz band 3 to 16 dB over the
-// real cymbals'), so those pieces are high-passed at 100 Hz (12 dB/octave; the hat pedal at 80 Hz); the snare and
-// rimshots at 70 Hz, gently: a steeper cut (130 Hz, 24 dB/octave) brought the snare's 40-150 Hz band into the real
-// range but took its crest to 11.8 dB, under the real 13-17, and the crest is the one the spec holds it to.
+// The high-passes (`hp`), measured against real one-shots (public domain and CC0: the Open Source Drum Kit, VCSL): the
+// close mics under the hats and cymbals hear the kick and the floor (their 40-150 Hz band 3 to 16 dB over the real
+// cymbals'), so those pieces are high-passed at 100 Hz (12 dB/octave; the hat pedal at 80 Hz); the snare and rimshots
+// at 70 Hz, gently: a steeper cut (130 Hz, 24 dB/octave) brought the snare's 40-150 Hz band into the real range but
+// took its crest to 11.8 dB, under the real 13-17, and the crest is what a snare is held to.
 //
 // Every stroke's `start` is 1.0 ms before its attack (the first frame within 20 dB of its peak), and each kick stroke
 // carries `pol`: the sign that puts the kernel's synthesized sub in phase with it (blend.js).

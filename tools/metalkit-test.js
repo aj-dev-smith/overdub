@@ -1,4 +1,4 @@
-// Rusty Sticks (core.metalkit) and the options drumsampler.js grew for it (intent 0008, spec R3, R5, R7-R12, R14).
+// Rusty Sticks (core.metalkit) and the options drumsampler.js grew for it.
 //
 //   node tools/metalkit-test.js
 //
@@ -107,7 +107,7 @@ const sd = (a) => { const m = mean(a); return Math.sqrt(mean(a.map((x) => (x - m
 // ------------------------------------------------------------------------------------------------ always
 console.log('drumsampler.js, without the new options');
 {
-  // the kernels' SHA-256 on main before the options existed (intent 0008, spec R3)
+  // the kernels' SHA-256 on main before the options existed
   const MAIN = { 'core.brushkit': '04feabb3b88fb50f4e81cd1ddf9b41ffa4def7d3d5ae9953dacb07e4e166c196', 'core.handkit': '232a9df3de9f7484ccc26e0c987aeaa6ec79de606c06ff83a62e5b0b45cca7fd' };
   for (const d of [BRUSH, HAND]) t.ok(hex(d.kernel) === MAIN[d.id], `${d.id}: its kernel source is the one main generates (${hex(d.kernel).slice(0, 12)})`);
   const plain = drumSamplerKernel({ pieces: ['a'], levelOf: { a: 'a' }, note: { 36: 'a' } });
@@ -138,7 +138,7 @@ else {
     else t.ok(v.status === 0, `fetch-kits --verify rebuilds it byte for byte from the download cache${v.status ? ': ' + v.stdout.trim().split('\n').pop() : ''}`);
   }
 
-  console.log('the note map (R5)');
+  console.log('the note map');
   {
     const quiet = [];
     for (const [p, piece] of NOTE_MAP) { const r = render([{ p, t: 0.5, v: 0.8 }], { room: -40 }, { length: 2, tail: 1 }); if (db(peakOf(mono(r))) < -40) quiet.push(`${p} ${piece}`); }
@@ -148,7 +148,7 @@ else {
     t.ok(peakOf(mono(other)) === 0, 'a note outside the map (60, the clap 39, the cowbell 56) plays nothing');
   }
 
-  console.log('the device check and the house level (R12)');
+  console.log('the device check and the house level');
   {
     const rep = await checkDeviceNode(MK, {});
     t.ok(rep.ok && rep.deterministic && !rep.nan, `checkDevice passes in Node: ${rep.level && rep.level.lufs} LUFS, ${rep.truePeak} dBTP, ${rep.cpu && rep.cpu.pct}% CPU, latency ${rep.latency && rep.latency.declared} samples declared${rep.ok ? '' : ': ' + rep.errors.join('; ')}`);
@@ -161,7 +161,7 @@ else {
     t.ok(sha256(r) === sha256(r2_), `two renders of the phrase are bit-identical (${sha256(r).slice(0, 16)})`);
   }
 
-  console.log('double kick (R7, R8)');
+  console.log('double kick');
   {
     // 8 bars of sixteenths at one velocity; each hit's peak, 0-30 ms centroid and onset (found on the 1-8 kHz band,
     // where the last hit's low tail doesn't reach), against the note plus the kit's declared latency
@@ -188,12 +188,12 @@ else {
       t.ok(row.onMax <= 0.5 && row.onSpread <= 0.25, `${bpm} BPM: every onset within ${r2(row.onMax)} ms of its note (want 0.5), spread ${r2(row.onSpread)} ms (want <= 0.25): no flams`);
       // no stroke twice in a row: two hits of one recording correlate 0.99999 and more; different strokes never do here
       t.ok(row.corrMax < 0.9999, `${bpm} BPM: no two consecutive hits are one recording (the closest pair correlates ${row.corrMax.toFixed(4)} over 30 ms)`);
-      if (row.corrMax > 0.995) t.note(`${bpm} BPM: consecutive hits correlate up to ${row.corrMax.toFixed(4)} (mean ${row.corrMean.toFixed(4)}); the spec's 0.995 is not met: Big Rusty's own strokes of one layer correlate 0.989-1.000 over their first 30 ms (the recipe's header)`);
+      if (row.corrMax > 0.995) t.note(`${bpm} BPM: consecutive hits correlate up to ${row.corrMax.toFixed(4)} (mean ${row.corrMean.toFixed(4)}); under 0.995 is not met: Big Rusty's own strokes of one layer correlate 0.989-1.000 over their first 30 ms (the recipe's header)`);
     }
     console.log('    ' + table.map((r) => `${r.bpm} BPM: level sd ${r2(r.levelSd)} dB, centroid CV ${r2(r.cv)}%, corr max ${r.corrMax.toFixed(4)} mean ${r.corrMean.toFixed(4)}, onset ${r2(r.onMean)} ms +-${r2(r.onSpread)}`).join('\n    '));
   }
 
-  console.log('TIGHT, the trigger and the room (R9-R11)');
+  console.log('TIGHT, the trigger and the room');
   {
     const one = (p, params, v = 0.8) => { const r = render([{ p, t: 1, d: 0.2, v }], params, { length: 2, tail: 3 }); const x = mono(r); const t0 = Math.round(0.5 * SR + r.latency.total * SR); const pk = peakOf(x, t0 - 96, t0 + SR); let o = t0 - 96; while (Math.abs(x[o]) < 0.1 * pk) o++; return { x, o }; };
     const k = one(36, {}), lo = band(k.x, 40, 150), hi = band(k.x, 2000, 6000);

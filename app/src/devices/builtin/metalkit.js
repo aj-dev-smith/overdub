@@ -49,7 +49,7 @@ export const LEVEL_OF = {
 };
 const HATS = ['hattight', 'hat', 'hatpedal', 'hatq', 'hathalf', 'hatopen', 'hatsplash'];
 const CYMBALS = ['ride', 'bell', 'rideedge', 'crash', 'crash2', 'china', 'stack', 'ridechoke', 'crashchoke', 'crash2choke', 'chinachoke'];
-// the room sends (spec: kick 0.1, snare 1, toms 0.8, hats 0.15, cymbals 0.3)
+// the room sends: the snare most, then the toms, the cymbals, the hats, the kick least
 const SEND = { kick: 0.1, snare: 1, rim: 1, stick: 1, tom1: 0.8, tom2: 0.8, tom3: 0.8, tom4: 0.8, ...Object.fromEntries(HATS.map((h) => [h, 0.15])), ...Object.fromEntries(CYMBALS.map((c) => [c, 0.3])) };
 
 // the kernel's shape beyond the note map (drumsampler.js has the words for each)
