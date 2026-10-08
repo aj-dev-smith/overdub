@@ -16,6 +16,12 @@ import { renderInst, mono, talk, corrAbove, beating, subClean, fundamental } fro
 import { measure, lowMono } from '../app/src/audio/measure.js';
 import { getDevice, listDevices, presetsTagged, PRESETS_MAX, PRESETS_MAX_BUILTIN, PRESET_TAGS, normPresets } from '../app/src/devices/registry.js';
 import { BASS_MUSIC_PARTS, DIST_MODES, DESTS } from '../app/src/devices/builtin/wavetable.js';
+import { createStore } from '../app/src/core/store.js';
+import { createProject } from '../app/src/core/project.js';
+import { renderSong } from '../app/src/engine/node/render.js';
+import { presetParams } from '../app/src/devices/registry.js';
+import { TARGETS, checkTargets, targetWords } from '../app/src/audio/targets.js';
+import { genresGuide } from '../app/src/agent/genres.js';
 import '../app/src/devices/builtin/index.js';
 
 const T = tally('bassmusic');
@@ -111,6 +117,52 @@ console.log('measure(): the low end');
   ok(b.lowSideDb > -10 && b.lowCorrelation < 0.5, `a 50 Hz out of phase between the sides reads wide down there (side ${b.lowSideDb} dB, correlation ${b.lowCorrelation})`);
   ok(Object.keys(a).slice(-2).join() === 'lowSideDb,lowCorrelation', 'the two fields are appended to measure()\'s result; the rest are unchanged');
 }
+console.log('a drop, by the genre guide\'s recipe');
+{
+  // eight bars at 140 built the way get_guide "genres" says, every change through store.dispatch: Sandbag (Dubstep)
+  // half-time into Clip Lamp (Drum bus clip) and Gaffer Tape (Drum density, 35%); a Dark Slide sub on the root, ducked
+  // by the drums (Dim Switch, Kick duck), Gatefold mono; Fixer an octave up in call and response, a low cut, ducked on
+  // the kick and the snare, Gaffer Tape (Bass density), Gatefold mono to 200 Hz; the master Clip Lamp (Master clip +6)
+  // into Red Line at -1 dBTP, a clean ceiling. (Ids are fixed: ids seed the devices, so the numbers repeat.)
+  const store = createStore({ ...createProject(), id: 'p_drop', title: 'Drop', tempo: 140, meta: { created: '2026-10-07T00:00:00.000Z', modified: '2026-10-07T00:00:00.000Z', authors: {} } }, { getDevice });
+  const PR = (device, name, extra = {}) => ({ ...presetParams(device, name), ...extra });
+  const BARS = 8, roots = [29, 29, 32, 27, 29, 29, 32, 24], dn = [], gr = [];
+  for (let b = 0; b < BARS; b++) {
+    const o = b * 4;
+    dn.push({ p: 36, t: o, d: 0.25, v: 1 }, { p: 38, t: o + 2, d: 0.25, v: 1 });
+    if (b % 2) dn.push({ p: 36, t: o + 2.75, d: 0.25, v: 0.8 });
+    for (let h = 0; h < 8; h++) dn.push({ p: 42, t: o + h * 0.5, d: 0.1, v: h % 2 ? 0.55 : 0.8 });
+    if (b % 4 === 3) dn.push({ p: 38, t: o + 3.5, d: 0.2, v: 0.6 }, { p: 38, t: o + 3.75, d: 0.2, v: 0.75 });
+    for (const [t, d, iv] of [[0.5, 0.75, 0], [1.5, 0.25, 0], [1.75, 0.25, 12], [2.5, 0.5, 0], [3, 0.25, 3], [3.25, 0.5, 0]]) gr.push({ p: roots[b] + 12 + iv, t: o + t, d, v: 0.9 });
+  }
+  dn.push({ p: 49, t: 0, d: 0.5, v: 1 });
+  const r = store.dispatch([
+    { type: 'track.add', ref: 'dr', track: { id: 't_drums', name: 'Drums', instrument: { device: 'core.clubkit', params: PR('core.clubkit', 'Dubstep') } } },
+    { type: 'clip.add', track: '$dr', clip: { start: 0, length: BARS * 4, notes: dn } },
+    { type: 'insert.add', track: '$dr', insert: { id: 'fx_d01', device: 'core.clipper', params: PR('core.clipper', 'Drum bus clip') } },
+    { type: 'insert.add', track: '$dr', insert: { id: 'fx_d02', device: 'core.multiband', params: PR('core.multiband', 'Drum density', { depth: 35 }) } },
+    { type: 'track.add', ref: 'sb', track: { id: 't_sub', name: 'Sub', instrument: { device: 'core.wavetable', params: PR('core.wavetable', 'Dark Slide') }, gain: -2 } },
+    { type: 'clip.add', track: '$sb', clip: { start: 0, length: BARS * 4, notes: roots.map((p, b) => ({ p, t: b * 4, d: 3.95, v: 0.9 })) } },
+    { type: 'insert.add', track: '$sb', insert: { id: 'fx_d03', device: 'core.ducker', params: PR('core.ducker', 'Kick duck'), key: { track: '$dr' } } },
+    { type: 'insert.add', track: '$sb', insert: { id: 'fx_d04', device: 'core.width', params: { monobass: 120 } } },
+    { type: 'track.add', ref: 'gr', track: { id: 't_growl', name: 'Growl', instrument: { device: 'core.wavetable', params: PR('core.wavetable', 'Fixer') }, gain: 2 } },
+    { type: 'clip.add', track: '$gr', clip: { start: 0, length: BARS * 4, notes: gr } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d05', device: 'core.eq8', params: { b1_on: 1, b1_type: 4, b1_freq: 40, b2_on: 1, b2_type: 0, b2_freq: 110, b2_gain: 3, b2_q: 0.8 } } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d06', device: 'core.ducker', params: PR('core.ducker', 'Kick and snare duck'), key: { track: '$dr' } } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d07', device: 'core.multiband', params: PR('core.multiband', 'Bass density') } },
+    { type: 'insert.add', track: '$gr', insert: { id: 'fx_d08', device: 'core.width', params: { monobass: 200 } } },
+    { type: 'insert.add', track: 'master', insert: { id: 'fx_d09', device: 'core.clipper', params: PR('core.clipper', 'Master clip (+6)') } },
+    { type: 'insert.add', track: 'master', insert: { id: 'fx_d10', device: 'core.limiter', params: { gain: 8, ceiling: -1, release: 60 } } },
+    { type: 'master.set', patch: { clip: 'clean' } },
+  ], { by: 'overdub', label: 'a drop' });
+  ok(r.ok, `the drop is built in one transaction through store.dispatch${r.ok ? '' : ': ' + r.error}`);
+  const out = renderSong(store.get(), { from: 0, to: BARS * 4, tail: 1 }), m = measure(out);
+  const rows = checkTargets(m, 'bass-music', { window: 'drop' }), miss = rows.filter((x) => !x.ok);
+  ok(!out.warnings.length && !miss.length, `it meets every drop target: ${rows.map(targetWords).join('; ')}`);
+  ok(m.truePeak <= -1 && m.lufs <= -6 && m.lufs >= -8, `as a song: ${m.lufs} LUFS integrated (want -8 to -6), ${m.truePeak} dBTP`);
+  ok(TARGETS['bass-music'].provisional.includes('bands') && genresGuide('bass-music').length < 6144, `the genre guide's bass-music section is ${genresGuide('bass-music').length} characters (under 6 KB)`);
+}
+
 console.log('the studio (Chromium, QUIET)');
 {
   const { page, close, errors } = await open('/app/', { query: 'new' });

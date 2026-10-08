@@ -23,7 +23,7 @@ export const REPORTS = {
   "core.choir": {"hash":"13g0o8","kind":"instrument","ok":true,"lufs":-16.3,"deltaLU":-2.3,"truePeak":-1.4,"cpu":2.3,"tail":1.7,"warnings":0},
   "core.drumroom": {"hash":"pf71to","kind":"instrument","ok":true,"lufs":-18.2,"deltaLU":-4.2,"truePeak":-1.4,"cpu":3.1,"tail":3.1,"warnings":0},
   "core.wavetable": {"hash":"6ivnm4","kind":"instrument","ok":true,"lufs":-15.9,"deltaLU":-1.9,"truePeak":-1.7,"cpu":3,"tail":0.7,"warnings":0,"measured":"2026-10-07"},
-  "core.clubkit": {"hash":"1kqlc52","kind":"instrument","ok":true,"lufs":-17.8,"deltaLU":-3.8,"truePeak":-1.9,"cpu":3,"tail":3.2,"warnings":0,"measured":"2026-10-07"},
+  "core.clubkit": {"hash":"1otoew6","kind":"instrument","ok":true,"lufs":-17.9,"deltaLU":-3.9,"truePeak":-1.8,"cpu":3.2,"tail":3.1,"warnings":0,"measured":"2026-10-07"},
   "core.drumkit": {"hash":"1t6o7oi","kind":"instrument","ok":true,"lufs":-18.1,"deltaLU":-4.1,"truePeak":-1.5,"cpu":1,"tail":4,"warnings":0,"measured":"2026-10-06"},
   "core.upright": {"hash":"1wsuxfw","kind":"instrument","ok":true,"lufs":-15.5,"deltaLU":-1.5,"truePeak":-1.1,"cpu":1.5,"tail":0.4,"warnings":0,"measured":"2026-10-06"},
   "core.brushkit": {"hash":"1owd0k7","kind":"instrument","ok":true,"lufs":-17.8,"deltaLU":-3.8,"truePeak":-1.5,"cpu":1.1,"tail":5.1,"warnings":0,"measured":"2026-10-07"},

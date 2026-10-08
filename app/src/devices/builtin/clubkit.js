@@ -23,7 +23,8 @@
 //            an octave, a noise burst and a long dark tail.
 // KIT picks each piece's character (DUBSTEP, RIDDIM, DNB, MELODIC). TUNE moves everything but the kick (KICK NOTE does
 // that), DECAY every ring, WIDTH the hats and cymbals, and CLIP (on by default) is a 2x oversampled soft clipper on the
-// whole kit at a level that keeps the kick's and the snare's crest inside the targets. LEVEL is the kit's.
+// whole kit at a level that keeps the kick's and the snare's crest inside the targets; under 120 Hz the kit is mono
+// (club systems sum it). LEVEL is the kit's.
 import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
 import { metalSource } from './metal.js';
@@ -77,7 +78,7 @@ const KIT = [
   { from: 5.2, t1: 3.2, t2: 11, hold: 2, knock: 16, sus: 0.2, t60: 0.62, clickHz: 2600, sHz: 190, sT: 0.32, cT: 0.18, cHp: 1500, clapHz: 1150, hatT: 0.36, tc: 0.16, clip: 3, lv: [0.395, 0.282, 0.207, 0.094, 0.169, 0.132, 0.132] },
   { from: 6, t1: 2.6, t2: 9, hold: 2, knock: 16, sus: 0.28, t60: 0.38, clickHz: 3200, sHz: 205, sT: 0.24, cT: 0.16, cHp: 1800, clapHz: 1300, hatT: 0.3, tc: 0.15, clip: 4.5, lv: [0.353, 0.26, 0.168, 0.084, 0.151, 0.109, 0.126] },
   { from: 5, t1: 2.8, t2: 9.5, hold: 2, knock: 15, sus: 0.28, t60: 0.3, clickHz: 3600, sHz: 235, sT: 0.22, cT: 0.16, cHp: 2200, clapHz: 1400, hatT: 0.28, tc: 0.14, clip: 3.5, lv: [0.336, 0.277, 0.151, 0.101, 0.151, 0.118, 0.126] },
-  { from: 4.6, t1: 3.6, t2: 13, hold: 2, knock: 16, sus: 0.17, t60: 0.72, clickHz: 2200, sHz: 182, sT: 0.36, cT: 0.2, cHp: 1300, clapHz: 1100, hatT: 0.42, tc: 0.18, clip: 2, lv: [0.409, 0.283, 0.234, 0.097, 0.175, 0.146, 0.126] },
+  { from: 4.6, t1: 3.6, t2: 13, hold: 2, knock: 16, sus: 0.17, t60: 0.72, clickHz: 2200, sHz: 182, sT: 0.36, cT: 0.2, cHp: 1300, clapHz: 1100, hatT: 0.42, tc: 0.18, clip: 2, lv: [0.425, 0.294, 0.243, 0.101, 0.182, 0.152, 0.131] },
 ];
 const MEM = [1, 1.594, 2.136, 2.296];
 const LN1000 = 6.907755278982137;
@@ -149,6 +150,8 @@ return {
     const ocl = os2((x) => sat(x * clipG) * clipMk), ocr = os2((x) => sat(x * clipG) * clipMk);
     const dL = delayLine(64), dR = delayLine(64);
     const lvS = glide(20, sr, 1);
+    // the low end in the middle: the side under about 250 Hz taken out (the snare's body and room in the middle too): the side through a 4th-order high pass at 250 Hz
+    const mb1 = svf(sr).set(250, 0.7071), mb2 = svf(sr).set(250, 0.7071);
     let P0 = null;
 
     function voice(i) {
@@ -389,7 +392,7 @@ return {
         clipG = Math.pow(10, K.clip / 20) * 1.1; clipMk = 1 / 1.1 * 0.86;
         const lvT = dbg(P.level);
         for (let i = 0; i < n; i++) {
-          const g = lvS.next(lvT), x = L[i], y = R[i];
+          const g = lvS.next(lvT), m0 = 0.5 * (L[i] + R[i]), s0 = 0.5 * (L[i] - R[i]), sl = (mb1.tick(s0), mb2.tick(mb1.hp), mb2.hp), x = m0 + sl, y = m0 - sl;
           const cl = ocl(x), cr = ocr(y), xl = dL.tap(15), xr = dR.tap(15);
           dL.write(x); dR.write(y);
           L[i] = (clipOn ? cl : xl) * g; R[i] = (clipOn ? cr : xr) * g;

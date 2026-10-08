@@ -37,7 +37,8 @@ fallen quiet, never at a fixed length; ring time falls with frequency.
 - **Toms**, falling sines with a second membrane mode; the **crash** and **ride** are metal.js's FDN models; a
   **riser** (note 34) sweeps a band-pass through noise from 300 Hz to 9 kHz over four bars at the song's tempo, and an
   **impact** (note 33) is a sub boom falling an octave with a noise burst and a long dark room.
-- **The bus**: a soft clipper (2x oversampled), set per kit, that takes the loudest peaks' first milliseconds (on the
+- **The bus**: the side under about 250 Hz taken out (a 4th-order high pass on the side: club systems sum the low end,
+  so the kit's is mono, the snare's body and room included); a soft clipper (2x oversampled), set per kit, that takes the loudest peaks' first milliseconds (on the
   RIDDIM kit's drum phrase the crest factor drops, the timing doesn't move); then LEVEL.
 
 ## What was measured
