@@ -64,8 +64,11 @@ try {
       return null;
     }
     const fx = JSON.parse(JSON.stringify(store.get().tracks.find((t) => t.id === tid).inserts[0])), fxId = fx.id;
+    // one click first, unmeasured: the first after the interface opens can come out before the monitor's chain has
+    // settled (a null, or a block early); then five rounds, and the median of each
+    await clickOut();
     const withAmp = [], bypassed = [], without = [];
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 5; k++) {
       store.dispatch({ type: 'insert.set', track: tid, insert: fxId, patch: { on: true } }, { by: 'you' }); await engine.settled(); await w(300);
       withAmp.push(await clickOut());
       store.dispatch({ type: 'insert.set', track: tid, insert: fxId, patch: { on: false } }, { by: 'you' }); await engine.settled(); await w(300);
@@ -81,7 +84,7 @@ try {
   });
   T.ok(r.monitoring && r.auto && r.through === 'Guitar', `the interface opens and monitoring starts by itself, through the armed Guitar track (${r.through})`);
   T.ok(r.instLatency === 28 && r.trackLatency === 28, `Half Stack reports 28 samples (${(28 / r.sr * 1000).toFixed(2)} ms) and engine.latency puts the track at ${r.trackLatency}`);
-  const med = (a) => a.slice().sort((x, y) => x - y)[1];
+  const med = (a) => a.slice().sort((x, y) => x - y)[2];
   const dw = med(r.withAmp), db = med(r.bypassed), dn = med(r.without), extra = dw - dn;
   T.ok(r.withAmp.every((x) => x != null) && r.without.every((x) => x != null) && r.bypassed.every((x) => x != null) && extra >= 0 && extra * 1000 / r.sr <= 1,
     `a click in comes out ${dw} samples later through Half Stack, ${db} with it bypassed and ${dn} with no insert (the input stream's own buffering): the amp adds ${extra} samples, ${(extra * 1000 / r.sr).toFixed(2)} ms (want within 1 ms; runs ${r.withAmp.join(', ')} / ${r.bypassed.join(', ')} / ${r.without.join(', ')})`);
