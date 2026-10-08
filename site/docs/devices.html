@@ -141,7 +141,7 @@ reports:</p>
 <tr><td><code>extremes</code></td><td>every param at min and at max, all min, all max: NaN, errors, raw peak (<code>hot</code>: cases over +6 dBFS)</td><td>same, with a short phrase</td></tr>
 <tr><td><code>voices</code></td><td></td><td><code>{ poly, maxVoices, steals }</code> after poly + 4 held notes</td></tr>
 <tr><td><code>stuck</code></td><td></td><td>a note still sounding after note-off, after <code>allOff()</code>, or after stealing</td></tr>
-<tr><td><code>timedOut</code></td><td><code>'process'</code>: a render didn't finish by the deadline (60 s); <code>'create'</code>: <code>create()</code> didn't return; <code>'busy'</code>: the audio thread is still held by an earlier render that didn't; else <code>false</code></td><td>same</td></tr>
+<tr><td><code>timedOut</code></td><td><code>'process'</code>: a render didn't finish within 60 s of the one before it (the deadline is per render, not for the whole check, whose length grows with the params); <code>'create'</code>: <code>create()</code> didn't return; <code>'busy'</code>: the audio thread is still held by an earlier render that didn't; else <code>false</code></td><td>same</td></tr>
 </tbody></table></div>
 <p><code>ok</code> is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
 (a raw peak over +24 dBFS), a stuck note, or no sound at all at default settings (under -60 LUFS). Over +6 dBFS at an extreme is a warning (an EQ with every band at max is

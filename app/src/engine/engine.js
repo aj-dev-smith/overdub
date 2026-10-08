@@ -521,7 +521,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         T.wraps++;
         const at = uToTime(T.schedU), gen = T.gen, heard = at + outLatency() + pdc.total;
         const pass = { n: T.wraps + 1, start: lp.start, end: lp.end, grid: T.s0 + T.schedU, time: heard };
-        setTimeout(() => { if (T.playing && T.gen === gen) transportEvt('loop', { pass }); }, Math.max(0, (heard - ctx.currentTime) * 1000));
+        // (re-armed if the timer fires early: it counts wall time, and the audio clock can fall behind it)
+        const fire = () => {
+          if (!T.playing || T.gen !== gen) return;
+          if (ctx.currentTime < heard - 0.005) { setTimeout(fire, (heard - ctx.currentTime) * 1000); return; }
+          transportEvt('loop', { pass });
+        };
+        setTimeout(fire, Math.max(0, (heard - ctx.currentTime) * 1000));
       }
     }
   }

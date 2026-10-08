@@ -58,7 +58,9 @@
 // on the caller's side. Renders through a renderer don't use this page's audio thread, so they are never 'busy'.
 //
 // A kernel whose process() never returns would hold the check forever, and its caller with it (define_device, and the
-// agent's turn behind it). So every wait on the audio thread races `timeout` and `signal`: past the deadline the
+// agent's turn behind it). So every wait on the audio thread races `timeout` and `signal`: the deadline is per render,
+// not for the whole check (a check is 2 renders per param plus about 8, so its length grows with the params while a
+// hang doesn't), and moves on each time something the check waits on comes back. When nothing has for `timeout` ms the
 // device is refused, and an aborted signal rejects with an AbortError. An OfflineAudioContext render can't be
 // cancelled, so the check only stops waiting and lets the render go. Chrome renders every offline context on one
 // worklet thread, so a render that never ends holds up every render after it until the page reloads, and while that
@@ -72,30 +74,40 @@ import { diStrum, drumLoop, phrase, drumPhrase, PHRASE_BPM } from '../audio/test
 
 const SR = 48000;
 const SILENCE = 0.001; // -60 dBFS
-const TIMEOUT = 60000; // ms. A full check of the heaviest shipped device takes about 3.5 s on an M-series Mac, so this
-                       // leaves room for slow machines and heavy kernels, and stays under the 120 s the local bridge
-                       // and the relay give define_device
+const TIMEOUT = 60000; // ms a render may take (from the one before it coming back). The longest test render is an
+                       // instrument's phrase, 25.5 s of audio, so one that takes longer than this plays at under half
+                       // real time: too slow to play, if it isn't a hang. On an M5 Pro the slowest render of a shipped
+                       // device takes 0.33 s (core.wavetable's phrase). Whole checks are longer: core.wavetable's is
+                       // 236 renders, 17.6 s there and 37-56 s on a CI runner; core.shaper's 423 renders, 4.5 s. A
+                       // hang is refused within this of the last render that came back, so define_device's check of a
+                       // device with a few params still answers inside the 120 s the local bridge and the relay give it
 const round = (x, k = 10) => (Number.isFinite(x) ? Math.round(x * k) / k : x);
 const dBFS = (x) => (x > 0 ? 20 * Math.log10(x) : -120);
 // What a kernel threw is its author's text, not ours, and can be any length: it goes into the report trimmed, with
 // control characters gone, because the report goes on to agents and the human.
 const said = (m, n = 200) => { const t = String(m ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]+/g, ' '); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 
-// The check's clock: wait(p) races p against the deadline and the signal. Once either trips, every wait rejects with
-// the same reason (and check() throws it), so no new render starts. loaded and created record how far this check got
-// on the audio thread: a worklet loaded for it, and a kernel instance of this device created.
+// The check's clock: wait(p) races p against the deadline and the signal. The deadline is `ms` from the last wait
+// that settled (a render, a worklet loaded, a create() returned), so it bounds each render, not the check. Once either
+// trips, every wait rejects with the same reason (and check() throws it), so no new render starts. loaded and created
+// record how far this check got on the audio thread: a worklet loaded for it, and a kernel instance of this device
+// created.
 function watch(ms, signal) {
   const w = { reason: null, loaded: false, created: false };
-  let trip;
+  let trip, timer, ended = false;
   const tripped = new Promise((res, rej) => { trip = rej; });
   tripped.catch(() => {}); // (raced, never awaited on its own)
   const fail = (e) => { if (!w.reason) { w.reason = e; trip(e); } };
-  const timer = setTimeout(() => fail(Object.assign(new Error('the device check ran out of time'), { name: 'TimeoutError' })), ms);
+  const arm = () => {
+    clearTimeout(timer);
+    if (!ended && !w.reason) timer = setTimeout(() => fail(Object.assign(new Error('the device check ran out of time'), { name: 'TimeoutError' })), ms);
+  };
+  arm();
   const onAbort = () => fail(Object.assign(new Error('stopped'), { name: 'AbortError' }));
   if (signal) { if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true }); }
-  w.wait = (p) => Promise.race([p, tripped]);
+  w.wait = (p) => { const q = Promise.resolve(p); q.then(arm, arm); return Promise.race([q, tripped]); };
   w.check = () => { if (w.reason) throw w.reason; };
-  w.end = () => { clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); };
+  w.end = () => { ended = true; clearTimeout(timer); signal?.removeEventListener?.('abort', onAbort); };
   return w;
 }
 

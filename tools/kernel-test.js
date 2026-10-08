@@ -105,6 +105,12 @@ const T = tally('kernel');
   // a process() that never returns: refused at the deadline, and its process killed
   const t1 = Date.now(), rh = await checkDeviceNode({ id: 'x.hang', kind: 'effect', params: [], kernel: '({ create() { return { process() { for (;;) {} } }; } })' }, { quick: true, timeout: 2000 });
   T.ok(!rh.ok && rh.timedOut === 'process' && Date.now() - t1 < 4000, `a process() that never returns is refused at the deadline (${Date.now() - t1} ms): ${rh.errors[0]}`);
+  // the deadline is a render's, not the whole check's: 60 params are 127 renders, each well inside a 1 s deadline that
+  // the whole check runs past (it was refused at 1 s, as a built-in with 208 params was at 60 s on a slower machine)
+  const many = { id: 'x.many', kind: 'effect', params: Array.from({ length: 60 }, (_, i) => ({ key: 'p' + i, min: 0, max: 1, def: 0.5 })),
+    kernel: '({ create() { return { process(L, R, n) { let s = 0; for (let k = 0; k < 3000; k++) s += Math.sin(k); L[0] += s * 1e-12; } }; } })' };
+  const rm = await checkDeviceNode(many, { timeout: 1000 });
+  T.ok(rm.ok && !rm.timedOut && rm.ms > 1000, `a check longer than its deadline, every render inside it, passes (${rm.extremes && rm.extremes.cases + 5} renders in ${rm.ms} ms against a 1 s deadline)${rm.ok ? '' : ': ' + rm.errors[0]}`);
 }
 
 const { page, close, errors } = await open('/tools/kernel-test.html');
