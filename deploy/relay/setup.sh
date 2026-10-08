@@ -29,7 +29,6 @@ ORIGIN_REQ=b689b0a8-53d0-40ab-baf2-68738e2966ac # managed AllViewerExceptHostHea
 PORT=8787
 PARAM=/overdub/relay/origin-secret              # SSM Parameter Store, SecureString (the default aws/ssm key)
 TYPE=t4g.nano
-TAGS="Key=project,Value=overdub Key=Name,Value=$NAME"
 say() { printf '\033[1m%s\033[0m %s\n' "$1" "${*:2}"; }
 
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -209,4 +208,4 @@ say dns "$DOMAIN -> $DIST_DOMAIN"
 # ---------------------------------------------------------------------------------------------- ship the relay
 say deploy "shipping server/relay.js over SSM"
 "$HERE/deploy.sh" --skip-tests
-say done "https://$DOMAIN/health (the distribution takes a few minutes to deploy the first time)"
+say 'done' "https://$DOMAIN/health (the distribution takes a few minutes to deploy the first time)"

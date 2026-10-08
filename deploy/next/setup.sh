@@ -18,6 +18,7 @@ set -euo pipefail
 export AWS_DEFAULT_REGION=us-east-1 AWS_REGION=us-east-1 AWS_PAGER=""   # both: AWS_REGION outranks the default, and the certificate must be us-east-1
 HERE=$(cd "$(dirname "$0")" && pwd)
 ENV_FILE=${DEPLOY_ENV:-$HERE/../.env}
+# shellcheck source=/dev/null
 if [ -f "$ENV_FILE" ]; then . "$ENV_FILE"; fi
 APEX=overdubstudio.com
 DOMAIN=next.$APEX
