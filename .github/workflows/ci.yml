@@ -43,17 +43,18 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
-  # Every suite, about 1 h 45 one suite at a time, split eight ways by .github/shard.js (each suite in exactly one shard,
-  # dealt by its usual time), each shard running its suites one at a time: about 15 minutes a shard.
+  # Every suite, about 2 h 15 one suite at a time, split ten ways by .github/shard.js (each suite in exactly one shard,
+  # dealt by its usual time), each shard running its suites one at a time: about 15 minutes a shard, but demos-test
+  # alone takes 20.
   test:
-    name: test (${{ matrix.shard }}/8)
+    name: test (${{ matrix.shard }}/10)
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,7 +76,7 @@ jobs:
           CPU: 0
         run: |
           # run-all takes a whole file name as exactly that file
-          mapfile -t names < <(node .github/shard.js "$SHARD" 8)
+          mapfile -t names < <(node .github/shard.js "$SHARD" 10)
           [ "${#names[@]}" -gt 0 ] || { echo "::error::shard $SHARD has no suites"; exit 1; }   # no names = every suite
           echo "shard $SHARD: ${names[*]}"
           node tools/run-all.js "${names[@]}"

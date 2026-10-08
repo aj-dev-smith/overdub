@@ -54,6 +54,14 @@ runs:
         key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
         restore-keys: kits-cache-
 
+    # The built kits too: a kit already here that is the pinned one isn't rebuilt (each is named by its hash), which
+    # saves the eight minutes building them takes. An exact key only, so old kits don't pile up in it.
+    - name: Cache the built kits
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: app/kits/*.odk
+        key: kits-built-${{ hashFiles('tools/fetch-kits.js', 'tools/kits/**', 'app/src/devices/builtin/*.js') }}
+
     - name: Build the sampled kits this commit names
       shell: bash
       run: node tools/fetch-kits.js
@@ -64,8 +72,10 @@ runs:
       run: |
         PREV="$RUNNER_TEMP/prev"
         git worktree add --detach "$PREV" HEAD~1
-        mkdir -p "$PREV/tools/.out"
+        mkdir -p "$PREV/tools/.out" "$PREV/app/kits"
         ln -s "$PWD/tools/.out/kits-cache" "$PREV/tools/.out/kits-cache"
+        # the kits both commits name aren't built twice
+        cp -l app/kits/*.odk "$PREV/app/kits/" 2> /dev/null || cp app/kits/*.odk "$PREV/app/kits/"
         (cd "$PREV" && node tools/fetch-kits.js)
         cp -n "$PREV"/app/kits/*.odk app/kits/ || true
         git worktree remove --force "$PREV"

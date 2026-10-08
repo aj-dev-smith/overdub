@@ -38,7 +38,7 @@ applies, since it comes from the distribution.
 ## The preview from GitHub Actions
 
 `.github/workflows/ci.yml` runs the suite on every pull request and every push to `main`, on Linux (`ubuntu-latest`,
-eight shards, every check blocking, nothing retried). A push to `main` (a merge) whose suite passes is deployed to the
+ten shards, every check blocking, nothing retried). A push to `main` (a merge) whose suite passes is deployed to the
 preview by its `deploy-staging` job; you can also start the workflow by hand on `main` (Actions › ci › Run workflow),
 which runs the suite and then deploys. CI sets `LOCAL_ONLY=skip`: the few suites that only hold on a Mac say so in
 their header (`// local-only: <why>`), and `tools/run-all.js` names each one it leaves out. So run
