@@ -8,6 +8,7 @@
 // undo step), tap-to-find from taps on the pads, Build drums for the song (in the found groove's style, its ending a
 // choice), the tools' results and errors, the demo agent's grooves, a phone upright and on its side, and no page errors.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as G from '../app/src/core/grooves.js';
@@ -145,6 +146,36 @@ console.log('\nStudio A');
   T.ok(G.STUDIO_A === 'core.drumroom' && rockKit.device === 'core.drumroom' && rockKit.params.kit === 3 && rockKit.preset === 'Arena' && jazzKit.params.kit === 2, `an acoustic style plays on Studio A, on the preset its style names (rock: ${rockKit.preset}, jazz: ${jazzKit.preset})`);
   T.ok(trapKit.device === 'core.drums' && trapKit.params.kit === 3 && noA.device === 'core.drums' && noA.params.kit === 5, 'a machine style stays on Gobo Kit\'s machines (trap on its 808); without Studio A, Gobo Kit\'s ACOUSTIC+');
   const s = sectionSongForStudio();
+  // the metal families: written for Studio A's note map and played on Rusty Sticks (core.metalkit) when the
+  // studio has it, else as an acoustic style; nothing older moves
+  {
+    const MK_NOTES = new Set([35, 36, 38, 40, 37, 42, 22, 44, 23, 24, 46, 21, 48, 50, 47, 45, 43, 41, 49, 57, 52, 55, 51, 53, 59, 27, 28, 29, 25]);
+    const off = [];
+    for (const id of ['extreme', 'modernmetal']) for (const g of G.getStyle(id).grooves) for (const h of g.hits) if (!MK_NOTES.has(h.p)) off.push(`${g.id} ${h.p}`);
+    T.ok(!off.length && G.getStyle('extreme') && G.getStyle('modernmetal'), `the extreme and modernmetal styles parse, and every row lands on a note Rusty Sticks plays${say(off)}`);
+    const names = (id) => G.getStyle(id).grooves.map((g) => g.name.toLowerCase()).join(' | ');
+    const ex = names('extreme'), mm = names('modernmetal');
+    T.ok(['traditional blast', 'hammer blast', 'bomb blast', 'gravity blast', 'd-beat', 'under the ride', 'under the china', 'triplet', 'thirty-seconds'].every((w) => ex.includes(w)), 'extreme: traditional, hammer, bomb and gravity blasts, the d-beat, double kick under the ride and the China, sixteenth-triplet and thirty-second fills');
+    T.ok(G.getStyle('modernmetal').grooves.filter((g) => /djent/i.test(g.name)).length === 3 && G.getStyle('modernmetal').grooves.filter((g) => g.part === 'half' && /china/i.test(g.name)).length === 2 && ['gallop', 'crash riding', 'drop'].every((w) => mm.includes(w)), 'modernmetal: three djent unisons, two half-time China breakdowns, a gallop, a crash-riding chorus, a drop bar');
+    const blast = G.realize('extreme/traditional-blast', { tempo: 220, human: 0 });
+    T.ok(blast.filter((n) => n.p === 38).length === 8 && blast.filter((n) => n.p === 36).length === 8 && blast.filter((n) => n.p === 38).every((n) => blast.every((k) => k.p !== 36 || Math.abs(k.t - n.t) > 0.1)), 'a traditional blast: kick and snare alternate on eighths, never together');
+    const mkDef = { id: 'core.metalkit', name: 'Rusty Sticks' }, has = (id) => (id === 'core.metalkit' ? mkDef : null);
+    const onMk = G.kitFor('extreme', { studioA: fakeA, device: has }), noMk = G.kitFor('extreme', { studioA: fakeA }), bare = G.kitFor('modernmetal', {});
+    T.ok(onMk.device === 'core.metalkit' && noMk.device === 'core.drumroom' && noMk.preset === 'Arena' && bare.device === 'core.drums' && bare.params.kit === 5, `kit metal plays on Rusty Sticks when the studio has it (${onMk.device}); without it on Studio A's ${noMk.preset}, or Gobo Kit's ACOUSTIC+`);
+    const sm = createStore(createProject());
+    const mp = G.planDrumTrack(sm.get(), { style: 'modernmetal', studioA: fakeA, device: has });
+    T.ok(mp.ops.find((o) => o.type === 'track.add').track.instrument.device === 'core.metalkit' && /Rusty Sticks/.test(mp.summary), `the song creator builds a modern metal track on Rusty Sticks ("${mp.summary.split('. ')[1]}")`);
+    // the older styles' plans for one fixed song, hashed on main before the metal families came (on Studio A and on Gobo Kit)
+    const MAIN = {"rock":"5f1e85bd9abdac08","pop":"9fbdb0f084e22953","indie":"ab7d20980e01c2d3","punk":"4bfba66b2d7689f8","metal":"38cbc5cdd14a1ce8","funk":"e21e91aee1a275e7","motown":"2d085e6342510ff8","disco":"129c1b16d7c12190","gospel":"7acaacf6ed13c201","neosoul":"ceb2d0196043fd9f","boombap":"4a55b8566bb9a353","lofi":"256f8fc186e1cf8c","trap":"d13fcfdbb6eae217","house":"37e9a6f18b8fd7c3","dnb":"8ddf5933ed7e13d9","jazz":"483e174349593971","shuffle":"5b7cc677af3dc82f","country":"de60caf110e871c4","reggae":"ae457d8d10d2c023","bossa":"2a8b8f8b4e61136d","samba":"65af64c04d2df3ab","afrobeat":"f648ab2b97fdedd0"};
+    const fixed = { ...createProject(), tempo: 120 };
+    const moved = [];
+    for (const [id, want] of Object.entries(MAIN)) {
+      const h = crypto.createHash('sha256');
+      for (const sa of [fakeA, null]) h.update(JSON.stringify(G.planDrumTrack(fixed, { style: id, seed: 7, studioA: sa }).ops));
+      if (h.digest('hex').slice(0, 16) !== want) moved.push(id);
+    }
+    T.ok(!moved.length, `every older style's plan for a fixed song is the one main makes (${Object.keys(MAIN).length} styles)${say(moved)}`);
+  }
   const r = G.planDrumTrack(s.get(), { style: 'rock', studioA: fakeA });
   const add = r.ops.find((o) => o.type === 'track.add');
   const chorus2 = r.ops.filter((o) => o.type === 'clip.add')[3]?.clip;

@@ -10,8 +10,8 @@
 //   gridText(groove) / describe(groove) / lengthLabel(groove)                    the written rows; a one-line summary
 //   tempoFromTaps(seconds[]) -> { bpm, beats, phase }                            the tempo a tapped rhythm was played at
 //   matchTaps(taps, { limit, parts, styles })  -> { bpm, taps, results: [{ groove, score, matched, of, shift, bpm }] }
-//   planPut(project, { groove, track, bar, bars, seed, studioA })                -> { ops, summary, ... } | { error, hint }
-//   planDrumTrack(project, { style, seed, studioA, parts, ending, crashes })    -> { ops, plan, summary, ... } | { error, hint }
+//   planPut(project, { groove, track, bar, bars, seed, studioA, device })        -> { ops, summary, ... } | { error, hint }
+//   planDrumTrack(project, { style, seed, studioA, device, parts, ending, crashes }) -> { ops, plan, summary, ... } | { error, hint }
 //   songLoops(project)                          whether the loop goes round the drums' end (then no ending by default)
 //
 // The format. A style file is plain text an agent can write. `#` starts a comment. A style opens with `style <id>
@@ -26,7 +26,8 @@
 //   lay     snare +18  hat -4       micro-timing per piece or family, in ms: + behind the beat, - ahead of it
 //   human   5ms 7%                  humanising: timing spread (ms) and velocity spread; seeded, correlated over time
 //   accent  hat 1 .84 .66           the time-keeping hand: on the beat, on the "and", on the "e"/"a" (then triplets)
-//   kit     acoustic room .3        acoustic | plus | machine | dust | 808 | 909, and Gobo Kit params
+//   kit     acoustic room .3        acoustic | plus | machine | dust | 808 | 909, and Gobo Kit params; or a kind with a
+//                                   kit of its own (KIT_DEVICES: metal is Rusty Sticks), and that kit's params
 //   studio  Arena                   the Studio A preset an acoustic style plays on, when the studio has Studio A
 //   art     open half               on a kit with articulations (Studio A), the open row plays the half-open hat;
 //                                   General MIDI stays the default, so every groove plays right on Gobo Kit
@@ -85,6 +86,10 @@ const DEFAULT_ACCENT = [1, 0.84, 0.66, 0.78, 0.58];   // on the beat, the "and",
 const KITS = { field: 0, machine: 1, dust: 2, 808: 3, 909: 4, plus: 5, acoustic: 5, club: -1 };
 // kit club: Sandbag (core.clubkit), the club kit; its params (kit 0 DUBSTEP ... ) as the line gives them
 export const CLUB_KIT = 'core.clubkit';
+// The kinds that name a kit device of their own: a style written for it plays on it when the studio has it (kitFor's
+// `device` lookup), else as an acoustic style does (Studio A, else Gobo Kit's ACOUSTIC+). One entry per kit.
+export const KIT_DEVICES = { metal: 'core.metalkit' };
+const KIT_NAMES = { 'core.metalkit': 'Rusty Sticks', [CLUB_KIT]: 'Sandbag' };
 // Studio A, the acoustic kit with articulations and a mic mix (devices/builtin/drumroom.js). Its id has "drum" in it,
 // which is how the studio knows a drum track.
 export const STUDIO_A = 'core.drumroom';
@@ -150,7 +155,7 @@ function parseKey(key, rest, where, errors) {
     case 'kit': {
       const toks = val.split(/\s+/).filter(Boolean);
       const kind = (toks.shift() || '').toLowerCase();
-      if (!Object.hasOwn(KITS, kind)) { errors.push(`${where}: kit is one of ${Object.keys(KITS).join(', ')}`); return undefined; }
+      if (!Object.hasOwn(KITS, kind) && !Object.hasOwn(KIT_DEVICES, kind)) { errors.push(`${where}: kit is one of ${[...Object.keys(KITS), ...Object.keys(KIT_DEVICES)].join(', ')}`); return undefined; }
       const params = {};
       for (let i = 0; i + 1 < toks.length; i += 2) { const v = Number(toks[i + 1]); if (Number.isFinite(v)) params[toks[i]] = v; else errors.push(`${where}: kit ${toks[i]} needs a number`); }
       return { kind, params };
@@ -634,13 +639,19 @@ function voiceFamily(v) {
 }
 
 /* ------------------------------------------------------------------------------------------------ into the song */
-// The kit a style plays on: an acoustic style on Studio A when the studio has it, set to the preset the style's
-// `studio` line names (studioA: Studio A's definition, for its presets; true works too, with its defaults), else Gobo
-// Kit's acoustic character (ACOUSTIC+, where velocity moves the colour); a machine style on Gobo Kit's machine of its
-// kind. -> { device, params, preset }
-export function kitFor(style, { studioA = null } = {}) {
+// The kit a style plays on: a kind with a kit of its own (KIT_DEVICES) on that kit when the studio has it (device: id ->
+// its definition or null; leave it out and the style plays as an acoustic one); an acoustic style on Studio A when the
+// studio has it, set to the preset the style's `studio` line names (studioA: Studio A's definition, for its presets;
+// true works too, with its defaults), else Gobo Kit's acoustic character (ACOUSTIC+, where velocity moves the colour); a
+// machine style on Gobo Kit's machine of its kind. -> { device, params, preset }
+export function kitFor(style, { studioA = null, device = null } = {}) {
   const s = typeof style === 'string' ? getStyle(style) : style;
-  const kit = s?.kit || { kind: 'acoustic', params: {} };
+  let kit = s?.kit || { kind: 'acoustic', params: {} };
+  if (Object.hasOwn(KIT_DEVICES, kit.kind)) {
+    const id = KIT_DEVICES[kit.kind];
+    if (device && device(id)) return { device: id, params: { ...kit.params }, preset: null };
+    kit = { kind: 'acoustic', params: {} };   // (its params are its own kit's: none of them carry over)
+  }
   if ((kit.kind === 'acoustic' || kit.kind === 'plus' || kit.kind === 'field') && studioA) {
     const presets = typeof studioA === 'object' && Array.isArray(studioA.presets) ? studioA.presets : [];
     const pr = s?.studio ? presets.find((x) => String(x.name).toLowerCase() === s.studio.toLowerCase()) : null;
@@ -649,8 +660,8 @@ export function kitFor(style, { studioA = null } = {}) {
   if (kit.kind === 'club') return { device: CLUB_KIT, params: { ...kit.params }, preset: null };
   return { device: 'core.drums', params: { kit: KITS[kit.kind] ?? 5, ...kit.params }, preset: null };
 }
-const kitName = (kit) => (kit.device === STUDIO_A ? `Studio A${kit.preset ? ` (${kit.preset})` : ''}` : kit.device === CLUB_KIT ? 'Sandbag' : 'Gobo Kit');
-const isDrumTrack = (t, isDrum) => !!t && t.kind === 'instrument' && !!t.instrument && (isDrum ? isDrum(t) : /drum|studioa|clubkit/i.test(t.instrument.device));
+const kitName = (kit) => (kit.device === STUDIO_A ? `Studio A${kit.preset ? ` (${kit.preset})` : ''}` : KIT_NAMES[kit.device] || 'Gobo Kit');
+const isDrumTrack = (t, isDrum) => !!t && t.kind === 'instrument' && !!t.instrument && (isDrum ? isDrum(t) : /drum|studioa|clubkit|metalkit/i.test(t.instrument.device));
 function uniqueName(p, name) {
   const used = new Set(p.tracks.map((t) => t.name.toLowerCase()));
   let n = name, i = 2;
@@ -688,7 +699,7 @@ function meterError(p) {
 // first drum track again.
 export const isNewTrack = (track) => typeof track === 'string' && track.trim().toLowerCase() === 'new';
 const NEW_HINT = 'give track "new" for a new Drums track';
-export function planPut(p, { groove, track = null, bar = 1, bars = null, seed = null, studioA = false, human = 1, planDrop = null, isDrum = null, under = 'cut' } = {}) {
+export function planPut(p, { groove, track = null, bar = 1, bars = null, seed = null, studioA = false, device = null, human = 1, planDrop = null, isDrum = null, under = 'cut' } = {}) {
   const g = getGroove(groove);
   if (!g) return { error: `no groove "${groove}"`, hint: 'find_grooves lists them; ids look like "rock/straight-eighths"' };
   const me = meterError(p);
@@ -714,7 +725,7 @@ export function planPut(p, { groove, track = null, bar = 1, bars = null, seed = 
     if (there.length) return { error: `${barsText(b0, b1)} on ${t.name} already ${there.length === 1 ? 'holds' : 'hold'} ${listText(there.map((c) => `"${c.name || 'a clip'}"`))}`, hint: `pick bars that are free, ${NEW_HINT}, or ask the human whether to replace what's there`, occupied: there.map((c) => ({ clip: c.id, name: c.name || null, start: c.start, length: c.length })) };
   }
   const s = seed == null ? seedFrom(g.id, t?.id || 'new', b) : seed;
-  const kit = t ? null : kitFor(g.style, { studioA });
+  const kit = t ? null : kitFor(g.style, { studioA, device });
   // Studio A plays the groove's articulations; any other kit, General MIDI
   const onStudioA = t ? t.instrument?.device === STUDIO_A : kit.device === STUDIO_A;
   const notes = realize(g, { tempo: p.tempo, seed: s, human, length, articulations: onStudioA });
@@ -731,7 +742,7 @@ export function planPut(p, { groove, track = null, bar = 1, bars = null, seed = 
     ops.push({ type: 'track.add', ref: 'drums', track: { name: uniqueName(p, 'Drums'), kind: 'instrument', color: freeColor(p), instrument: { device: kit.device, params: kit.params } } });
     ops.push({ type: 'clip.add', track: '$drums', ref: 'groove', clip: { kind: 'notes', start, length, name, notes } });
   }
-  const on = t ? t.name : `a new track, ${ops[0].track.name}${kit.device === STUDIO_A ? ' on Studio A' : ''}`;
+  const on = t ? t.name : `a new track, ${ops[0].track.name}${kit.device === STUDIO_A ? ' on Studio A' : KIT_NAMES[kit.device] ? ` on ${KIT_NAMES[kit.device]}` : ''}`;
   const summary = `${name} on ${on}, ${where} (${g.length < bpb - EPS ? lengthLabel(g) : count(Math.round(length / bpb), 'bar')}, ${count(notes.length, 'hit')}, at ${p.tempo} BPM).${cut ? ' ' + cut : ''}`;
   return { ops, summary, label: `${name} at ${where}`, where, start, length, bars: [b0, b1], track: t?.id || null, trackName: t ? t.name : ops[0].track.name, newTrack: !t, groove: g, notes: notes.length, seed: s, cut };
 }
@@ -818,7 +829,7 @@ export function songLoops(p) {
 // its end); by default there's none when the loop goes round the drums' end (songLoops), so it doesn't play on every
 // pass, else there is. crashes: false leaves out the crash on each section's downbeat (the grooves keep their own
 // cymbals). -> { ops, plan, summary, label, style, trackName, kit } | { error, hint }
-export function planDrumTrack(p, { style = null, seed = 1, studioA = false, parts = null, human = 1, isDrum = null, ending = null, crashes = true } = {}) {
+export function planDrumTrack(p, { style = null, seed = 1, studioA = false, device = null, parts = null, human = 1, isDrum = null, ending = null, crashes = true } = {}) {
   const me = meterError(p);
   if (me) return me;
   const bpb = beatsPerBar(p.meter);
@@ -890,7 +901,7 @@ export function planDrumTrack(p, { style = null, seed = 1, studioA = false, part
     x.crash = crashes !== false && !(i === 0 && x.part === 'intro');
   }
   // the notes, section by section (on Studio A with the grooves' articulations, else General MIDI)
-  const kit = kitFor(S, { studioA });
+  const kit = kitFor(S, { studioA, device });
   const articulations = kit.device === STUDIO_A;
   const clips = plan.map((x, i) => {
     const s = x.section, notes = [];
