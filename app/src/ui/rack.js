@@ -105,18 +105,21 @@ export function quotedName(name, max = 60) {
 }
 
 // A sampled device's samples: loading, or not on this server (nothing once they're here). The line names its file by
-// hash and is redrawn when the state changes.
+// hash and is redrawn when the state changes. A device whose data isn't samples says its own words (def.dataSays:
+// { loading: [short, long], missing: [short, long] }; Half Stack's cabs: it plays the filter cab meanwhile).
 const DATA_SAYS = { loading: ['Loading samples…', 'Loading its samples: it plays once they’re in'], missing: ['No samples here', 'Its samples aren’t on this server, so it plays nothing'] };
-const dataSays = (hash) => DATA_SAYS[dataState(hash)] || ['', ''];
-export function dataLine(hash) {
-  const [t, long] = dataSays(hash);
-  return h('span.rk-data', { 'data-hash': hash, role: 'status', title: long || null, 'aria-label': long || null, hidden: !t }, t);
+const dataSays = (hash, own) => (own && own[dataState(hash)]) || DATA_SAYS[dataState(hash)] || ['', ''];
+export function dataLine(hash, own = null) {
+  const [t, long] = dataSays(hash, own);
+  const el = h('span.rk-data', { 'data-hash': hash, role: 'status', title: long || null, 'aria-label': long || null, hidden: !t }, t);
+  el._says = own;
+  return el;
 }
 onData(({ hash }) => {
   if (typeof document === 'undefined') return;
   for (const el of document.querySelectorAll('.rk-data')) {
     if (el.dataset.hash !== hash) continue;
-    const [t, long] = dataSays(hash);
+    const [t, long] = dataSays(hash, el._says);
     el.textContent = t; el.hidden = !t;
     if (long) { el.title = long; el.setAttribute('aria-label', long); } else { el.removeAttribute('title'); el.removeAttribute('aria-label'); }
   }
@@ -901,7 +904,7 @@ export default async function (app) {
         cap.append(...[grip, h('span.rk-name', { title: dname }, dname),
           openBig ? h('button.rk-open', { type: 'button', title: 'Open it in its own window (or double-click its name)', 'aria-label': `Open ${dname} in its own window`, onclick: openBig }, 'Open') : null,
           // a sampled device: whether its samples are here yet (kernel/data.js holds the state; this only shows it)
-          ...(def && !held && def.data ? Object.values(def.data).map((hash) => dataLine(hash)) : []),
+          ...(def && !held && def.data ? Object.values(def.data).map((hash) => dataLine(hash, def.dataSays)) : []),
           h('span.rk-cap-sp'), authorBadge,
           lat ? h('span.rk-lat', { title: 'Latency this device adds' }, fmtLatency(lat)) : null,
           projDev ? h('button.rk-ib', { title: 'View its code', 'aria-label': `View the code of ${dname}`, onclick: () => openCode(devId) }, icon('code', { size: 14 })) : null,

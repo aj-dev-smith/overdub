@@ -95,8 +95,9 @@ console.log('the packed transfer (.odkz)');
   const z = packOdk(src), back = unpackOdk(z);
   t.ok(isPacked(z) && !isPacked(src) && Buffer.compare(Buffer.from(back), Buffer.from(src)) === 0, `a kit round-trips through .odkz byte for byte (full-scale squares that overflow the residual, silence, a one-frame and an empty sample: ${src.length} -> ${z.length} -> ${back.length} bytes)`);
   t.ok(Buffer.compare(Buffer.from(packOdk(src)), Buffer.from(z)) === 0, 'packing is deterministic');
-  let threw = null; try { packOdk(encodeOdk({ name: 'y', sr: 48000, bits: 24, channels: 1, samples: [{ id: 'c', ch: [Int32Array.of(1, 2)] }] })); } catch (e) { threw = e.message; }
-  t.ok(threw && /16-bit/.test(threw), `a 24-bit kit isn't packed (${threw}): it ships as .odk alone`);
+  const k24 = encodeOdk({ name: 'y', sr: 48000, bits: 24, channels: 1, samples: [{ id: 'c', ch: [Int32Array.of(1, -2, 8388607, -8388608, 0)] }, { id: 'd', ch: [Int32Array.of(7)] }] });
+  const z24 = packOdk(k24), b24 = unpackOdk(z24);
+  t.ok(isPacked(z24) && Buffer.compare(Buffer.from(b24), Buffer.from(k24)) === 0 && z24.length === k24.length + 4, `a 24-bit kit (the cab bank) is carried verbatim after its header and round-trips byte for byte (${k24.length} -> ${z24.length} bytes)`);
   // a wrong byte: in the planes it unpacks to other audio, which the hash check refuses; in the header or at the end
   // the unpacker refuses it itself
   const flip = (at) => { const c = z.slice(); c[at] ^= 0x10; return c; };

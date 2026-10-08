@@ -2,7 +2,7 @@
 // a phone (Chromium at 390x844 with touch). Per browser: it boots without errors, every device instantiates and
 // renders, the demo renders offline and plays live, kernels compile, the guitar track and the faces work, the agent
 // panel and Sketch work (Web MIDI and fake mics differ: they degrade, never throw), a take records from the fake input,
-// the CSS the studio leans on is there, and the landing page's film plays (Range requests). The studio, the library,
+// the CSS the studio leans on is there, the FFT and the convolver compute Node's doubles, and the landing page's film plays (Range requests). The studio, the library,
 // the gallery and the community shelf's gallery (a clip from a blob: URL) run under their content security policies with no violation; every AudioWorklet module is a file on the
 // studio's origin; and markup can't run script there: an injected inline script and an <iframe srcdoc> with a data:
 // script don't run, and a worklet module from a data: or blob: URL is refused. And the simple view (?view=simple, clean
@@ -22,6 +22,7 @@ import os from 'node:os';
 import { createRequire } from 'node:module';
 import { startServer, ready, byteRange, addRoute } from '../server/serve.js';
 import { OUTDIR, tally, QUIET } from './pw.js';
+import { FIXED_TWIDDLES_SHA, FIXED_CONVOLUTION_SHA } from './fixtures/convolve-fixed.js';
 
 const require = createRequire(import.meta.url);
 const T = tally('compat');
@@ -180,6 +181,14 @@ async function studio(b, base, tag) {
   const clipCols = await E(async () => { const k = await import('/app/src/ui/arrange-kit.js'); return window.overdub.store.get().tracks.map((t) => k.resolveColor(t.color)); });
   T.ok(new Set(clipCols).size >= 4 && !clipCols.includes('#b190f2'), `${tag}: track colours come from the tokens, not the fallback (${[...new Set(clipCols)].join(' ')})`);
   await shot('studio');
+
+  // dsp.fft and dsp.convolver: the same doubles in this engine as in Node (the pinned hashes, tools/convolver-test.js)
+  const conv = await E(async () => {
+    const c = await import('/app/src/kernel/convolve.js'), f = await import('/tools/fixtures/convolve-fixed.js');
+    const hex = async (a) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', a.buffer))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    return { tw: await hex(f.fixedTwiddles(c.fft)), cv: await hex(f.fixedConvolution(c.convolver)) };
+  });
+  T.ok(conv.tw === FIXED_TWIDDLES_SHA && conv.cv === FIXED_CONVOLUTION_SHA, `${tag}: the FFT's twiddles and a fixed convolution hash as they do in Node (${conv.tw.slice(0, 12)}, ${conv.cv.slice(0, 12)})`);
 
   // every device instantiates on an OfflineAudioContext (its worklet modules load there too) and renders finite audio
   const devs = await E(async () => {

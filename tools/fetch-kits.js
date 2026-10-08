@@ -13,6 +13,8 @@
 //   node tools/fetch-kits.js --verify   build from the download cache alone (no network) and compare with the pinned
 //                                       hash, writing nothing: exit 0 the same, 1 different, 2 the cache is incomplete
 //   node tools/fetch-kits.js ... rusty  any of the above for the kits whose name or repo has that word in it (any case)
+//                                       (the cab bank, a 24-bit .odk from two pinned zips, tools/kits/zip.js: `cab`;
+//                                       its .odkz carries the 24-bit PCM verbatim)
 //   ... --only <name>                   the same: just the kits whose recipe name or repo contains <name>
 //
 // The downloads are cached in tools/.out/kits-cache/ (by SHA-256), so a rebuild is offline. The build is deterministic:
@@ -57,6 +59,8 @@ import { TRUMPET_HASH } from '../app/src/devices/builtin/trumpet.js';
 import { RECIPE as STICKS_RECIPE } from './kits/big-rusty-sticks.js';
 import { METALKIT_HASH } from '../app/src/devices/builtin/metalkit.js';
 import { buildBlended } from './kits/blend.js';
+import { RECIPE as CABS_RECIPE, cabBuilder } from './kits/jester-cabs.js';
+import { CABS_HASH } from '../app/src/devices/builtin/amp-lib.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -356,6 +360,13 @@ async function buildLaidOut(recipe) {
 // a recipe that mixes each stroke from its microphones (tools/kits/blend.js)
 const buildMixed = (recipe) => buildBlended(recipe, fetchFile);
 
+// the cab bank (tools/kits/jester-cabs.js): two pinned zips from the author's site, each IR cut and levelled
+async function buildCabBank(recipe) {
+  const r = await cabBuilder({ cache: CACHE, offline: () => OFFLINE })(recipe);
+  for (const row of r.rows) console.log(`  ${row.id.padEnd(16)} ${row.frames} frames -> ${row.taps} taps (third-octave error at ${recipe.lengths.join(' / ')}: ${row.errs.join(' / ')} dB), gain ${row.gain}`);
+  return { ...r, hash: 'sha256-' + sha256(r.bytes), inFrames: r.rows.reduce((s, x) => s + x.frames, 0), outFrames: r.rows.reduce((s, x) => s + x.taps, 0) };
+}
+
 // every kit a device names: [recipe, the hash the device pins, how it's built]
 const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buildMelodic], [BRUSH_RECIPE, BRUSH_HASH, build], [HAND_RECIPE, HAND_HASH, build],
   [GRAND_RECIPE, GRAND_HASH, buildLaidOut],
@@ -365,7 +376,9 @@ const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buil
   [CELLO_RECIPE, CELLO_HASH, buildLaidOut],
   [FLUTE_RECIPE, FLUTE_HASH, buildLaidOut],
   [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut],
-  [STICKS_RECIPE, METALKIT_HASH, buildMixed]];
+  [STICKS_RECIPE, METALKIT_HASH, buildMixed],
+
+  [CABS_RECIPE, CABS_HASH, buildCabBank]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {
   const file = path.join(ROOT, 'app', dataFile(pinned));
@@ -376,7 +389,8 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
     console.log(`${recipe.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)}), .odkz ${packed ? 'here' : 'missing or wrong'}`);
     return here && packed ? 0 : 1;
   }
-  console.log(`${recipe.name}: ${recipe.repo} at ${recipe.commit.slice(0, 12)} (${recipe.licence})`);
+  console.log(recipe.zips ? `${recipe.name}: ${Object.values(recipe.zips).map((z) => z.url.replace(/^.*\//, '') + ' ' + z.sha256.slice(0, 12)).join(', ')} (${recipe.licence})`
+    : `${recipe.name}: ${recipe.repo} at ${recipe.commit.slice(0, 12)} (${recipe.licence})`);
   if (verify) {
     OFFLINE = true;
     let r;

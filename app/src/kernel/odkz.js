@@ -3,7 +3,8 @@
 // the page unpacks it back to the exact `.odk` bytes and checks those against the hash the device pins, so the worklet,
 // the Node renderer, the device check and the golden hashes never see it. The pinned hash is always the `.odk`'s.
 //
-//   packOdk(odkBytes)      -> Uint8Array   ('ODKZ'; throws unless the input is a 16-bit .odk that unpacks to itself)
+//   packOdk(odkBytes)      -> Uint8Array   ('ODKZ'; throws unless the input is a 16-bit .odk that unpacks to itself;
+//                                           a 24-bit .odk, the cab bank, is carried verbatim after its header)
 //   unpackOdk(odkzBytes)   -> Uint8Array   (the .odk's bytes; throws on anything malformed or truncated)
 //   isPacked(bytes)        -> boolean      (starts 'ODKZ')
 //
@@ -38,7 +39,7 @@ function readHeader(u, off, what) {
   for (let i = 0; i < H; i += 4096) json += String.fromCharCode.apply(null, u.subarray(off + 4 + i, off + 4 + Math.min(H, i + 4096)));
   let head;
   try { head = JSON.parse(json); } catch (e) { throw new Error(`${what}: the header is not JSON`); }
-  if (!head || head.bits !== 16 || !(head.channels >= 1 && head.channels <= 8) || !Array.isArray(head.samples)) throw new Error(`${what}: not a 16-bit kit header`);
+  if (!head || (head.bits !== 16 && head.bits !== 24) || !(head.channels >= 1 && head.channels <= 8) || !Array.isArray(head.samples)) throw new Error(`${what}: not a 16- or 24-bit kit header`);
   return { H, head };
 }
 
@@ -47,6 +48,13 @@ export function packOdk(odk) {
   if (u.length < 8 || u[0] !== ODK1[0] || u[1] !== ODK1[1] || u[2] !== ODK1[2] || u[3] !== ODK1[3]) throw new Error('odkz: not an Overdub kit file');
   const { H, head } = readHeader(u, 4, 'odkz');
   const base = 8 + H, C = head.channels;
+  // a 24-bit kit (the cab bank: tens of KB) travels as it is: the header, then its PCM bytes verbatim
+  if (head.bits === 24) {
+    const out = new Uint8Array(12 + H + (u.length - base));
+    out.set(MAGIC, 0); new DataView(out.buffer).setUint32(4, u.length, true);
+    out.set(u.subarray(4, base), 8); out.set(u.subarray(base), 12 + H);
+    return out;
+  }
   let total = 0;
   for (const e of head.samples) {
     const frames = e.frames | 0;
@@ -87,6 +95,13 @@ export function unpackOdk(packed) {
   const { H, head } = readHeader(u, 8, 'odkz');
   const base = 8 + H, C = head.channels;
   if (len < base || len > 0x7fffffff) throw new Error('odkz: a bad length');
+  if (head.bits === 24) {
+    if (u.length !== 12 + H + (len - base)) throw new Error(`odkz: ${u.length} bytes, the header says ${12 + H + (len - base)} (truncated or padded)`);
+    for (const e of head.samples) if ((e.frames | 0) < 0 || !(e.at >= 0) || base + e.at + (e.frames | 0) * 3 * C > len) throw new Error(`odkz: sample ${e.id} runs past the end`);
+    const out = new Uint8Array(len);
+    out.set(ODK1, 0); out.set(u.subarray(8, 12 + H), 4); out.set(u.subarray(12 + H), base);
+    return out;
+  }
   let total = 0;
   for (const e of head.samples) {
     const frames = e.frames | 0;

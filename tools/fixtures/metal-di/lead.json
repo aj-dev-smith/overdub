@@ -1,0 +1,209 @@
+{
+ "format": "overdub/0",
+ "id": "p_metal_lead",
+ "title": "metal DI: lead",
+ "tempo": 132,
+ "meter": [
+  4,
+  4
+ ],
+ "key": null,
+ "loop": {
+  "on": false,
+  "start": 0,
+  "end": 32
+ },
+ "tracks": [
+  {
+   "id": "t_di",
+   "name": "DI",
+   "kind": "instrument",
+   "instrument": {
+    "device": "core.guitar",
+    "params": {
+     "body": 0,
+     "pick": 0.15,
+     "pickup": 0.1,
+     "tone": 0.7,
+     "decay": 1.2,
+     "strum": 6,
+     "mute": 0
+    }
+   },
+   "inserts": [],
+   "gain": 0,
+   "pan": 0,
+   "mute": false,
+   "solo": false,
+   "arm": false,
+   "by": "overdub",
+   "clips": [
+    {
+     "id": "c_di",
+     "kind": "notes",
+     "start": 0,
+     "length": 32,
+     "by": "overdub",
+     "notes": [
+      {
+       "id": "n1",
+       "p": 60,
+       "t": 0,
+       "d": 0.95,
+       "v": 0.741,
+       "by": "overdub"
+      },
+      {
+       "id": "n2",
+       "p": 63,
+       "t": 1,
+       "d": 0.45,
+       "v": 0.766,
+       "by": "overdub"
+      },
+      {
+       "id": "n3",
+       "p": 65,
+       "t": 1.5,
+       "d": 0.45,
+       "v": 0.726,
+       "by": "overdub"
+      },
+      {
+       "id": "n4",
+       "p": 67,
+       "t": 2,
+       "d": 1.95,
+       "v": 0.751,
+       "by": "overdub"
+      },
+      {
+       "id": "n5",
+       "p": 70,
+       "t": 4,
+       "d": 0.95,
+       "v": 0.776,
+       "by": "overdub"
+      },
+      {
+       "id": "n6",
+       "p": 67,
+       "t": 5,
+       "d": 0.95,
+       "v": 0.736,
+       "by": "overdub"
+      },
+      {
+       "id": "n7",
+       "p": 65,
+       "t": 6,
+       "d": 1.95,
+       "v": 0.761,
+       "by": "overdub"
+      },
+      {
+       "id": "n8",
+       "p": 63,
+       "t": 8,
+       "d": 0.95,
+       "v": 0.721,
+       "by": "overdub"
+      },
+      {
+       "id": "n9",
+       "p": 65,
+       "t": 9,
+       "d": 0.95,
+       "v": 0.746,
+       "by": "overdub"
+      },
+      {
+       "id": "n10",
+       "p": 67,
+       "t": 10,
+       "d": 1.45,
+       "v": 0.771,
+       "by": "overdub"
+      },
+      {
+       "id": "n11",
+       "p": 68,
+       "t": 11.5,
+       "d": 0.45,
+       "v": 0.731,
+       "by": "overdub"
+      },
+      {
+       "id": "n12",
+       "p": 67,
+       "t": 12,
+       "d": 1.95,
+       "v": 0.756,
+       "by": "overdub"
+      },
+      {
+       "id": "n13",
+       "p": 72,
+       "t": 14,
+       "d": 0.95,
+       "v": 0.72,
+       "by": "overdub"
+      },
+      {
+       "id": "n14",
+       "p": 70,
+       "t": 15,
+       "d": 0.95,
+       "v": 0.741,
+       "by": "overdub"
+      },
+      {
+       "id": "n15",
+       "p": 67,
+       "t": 16,
+       "d": 3.95,
+       "v": 0.766,
+       "by": "overdub"
+      },
+      {
+       "id": "n16",
+       "p": 65,
+       "t": 20,
+       "d": 1.95,
+       "v": 0.726,
+       "by": "overdub"
+      },
+      {
+       "id": "n17",
+       "p": 63,
+       "t": 22,
+       "d": 1.95,
+       "v": 0.751,
+       "by": "overdub"
+      },
+      {
+       "id": "n18",
+       "p": 60,
+       "t": 24,
+       "d": 3.95,
+       "v": 0.776,
+       "by": "overdub"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "sections": [],
+ "devices": {},
+ "assets": {},
+ "master": {
+  "gain": 0,
+  "inserts": []
+ },
+ "meta": {
+  "created": "2026-10-07T00:00:00.000Z",
+  "modified": "2026-10-07T00:00:00.000Z",
+  "authors": {}
+ }
+}
