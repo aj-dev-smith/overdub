@@ -517,6 +517,13 @@
       "lufs": -21.17,
       "truePeak": -9.35,
       "peak": -9.35
+    },
+    "inst:core.clubkit": {
+      "sha256": "8259b04ab7380002c2de28baf6efe1104041c4f4f7feb502fbb973f4fa568a78",
+      "frames": 672000,
+      "lufs": -17.79,
+      "truePeak": -1.42,
+      "peak": -2.24
     }
   }
 }

@@ -241,6 +241,24 @@ bias, for even harmonics), `knee` (0-1) setting how far under the ceiling the be
   of Red Line), Bass grit (14 dB into tape, 60% in). The loud master is Clip Lamp, then Red Line at -1 dBTP, then the
   master's clean ceiling (`master.set { clip: 'clean' }`). `tools/clipper-test.js` holds it to this.
 
+## Sandbag (core.clubkit): a club kit for bass music
+
+A synthesized drum kit for dubstep, riddim, drum and bass and melodic bass, on the GM map (the riser on note 34, the
+impact on 33). `app/src/devices/builtin/clubkit.js`; the design note and what was measured is
+[research/CLUBKIT.md](research/CLUBKIT.md).
+
+- **Kick**: a sine falling from about five times `kick_note` (C1-B1, F1 by default: tune it to the song's root) into
+  the note within 60 ms, a knock and a tail at the kit's length; `click` adds a tick on top; `drive` warms it.
+- **Snare**: a body of two membrane modes (182-235 Hz), a noise crack whose ring falls with frequency, a `clap`, and a
+  short `room` whose highs die first. **Hats**: two struck plates of 48 modes each (closed, pedal and open are one hat:
+  a closed stroke chokes an open one). Toms, the crash and ride (metal.js's FDN), the riser and the impact.
+- **KIT** (`DUBSTEP`, `RIDDIM`, `DNB`, `MELODIC`) sets each piece's character; `tune` moves everything but the kick,
+  `decay` every ring, `width` the hats and cymbals; `clip` (on) is a 2x soft clipper on the kit, set per kit; `level`.
+- Measured (`tools/clubkit-test.js`): the kick peaks 1.3-1.8 ms in with a crest of 10.3-11.2 dB over 100 ms and a tail
+  within 15 cents of its note; the snare peaks 0.4 ms in, crest 12.4-13.8 dB, its highs ringing 0.23-0.29 s; the hats
+  carry energy under 2.5 kHz and correlate 0.23-0.25; every piece ends 60 dB under its peak; the drum phrase plays at
+  -18.0 to -18.4 LUFS. Presets: Dubstep, Riddim, Drum and bass, Melodic. The groove library's Dubstep style plays on it.
+
 ## Keys: an effect that hears another track
 
 A def with `key: true` (effects only) gets a second input, its **key**: the sound of the track the insert's `key`
@@ -701,7 +719,8 @@ ships only with a written waiver in the recipe.
 ## A big instrument: Light Table (`core.wavetable`)
 
 Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
-a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a
+a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX (drive in six shapes, `fx_dist`, and Gaffer Tape's
+three-band dynamics inside it, `fx_mband`). It is the largest built-in, with 117 params, and a
 worked example of three things a big kernel needs. The design note, with every param, table and number, is
 `docs/research/LIGHT-TABLE.md`.
 
@@ -722,7 +741,9 @@ worked example of three things a big kernel needs. The design note, with every p
   - **Nothing allocates** once it runs.
 
 To drive it, as an agent or by hand:
-- **Start from a preset.** Each preset's blurb opens with its family, as in "Bass: a Reese, …".
+- **Start from a preset.** Each preset's blurb opens with its family, as in "Bass: a Reese, …". Sixteen are for bass
+  music (tagged `bass-music`: subs, growls, riddim stabs, Reeses, wobbles, chords, a lead and a riser), each with MACRO
+  1 wired to its main move; `list_devices { tag: "growl" }` finds them.
 - **Pick a table.** `a_table` is a switch over 26 tables: 14 built in code, then 12 of recorded single cycles from
   AKWF (Adventure Kid Waveforms, CC0), nine waves each. `list_devices` with `detail: "params"` lists them, and the
   design note says what each sounds like. `a_pos` moves through the table.

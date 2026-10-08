@@ -531,6 +531,17 @@ words ("depth 40%, splits at 120 Hz and 2.5 kHz; low: down above −4 dB at 3.0:
 says what moved; while the song plays the window also shows the loudness out against in, in LU, and each band held
 or lifted. `render_and_measure` with and without it (`bypass`) gives the same comparison in numbers.
 
+## Bass music: the genre guide, tags and targets
+
+`get_guide { topic: "genres" }` is how a named genre is built and mixed here (read it before writing one): bass music's
+tempo and form, the drums (Sandbag, `core.clubkit`, and the groove library's `dubstep` style), the sounds to start from
+by preset name, the mix and the master. `list_devices { tag: "growl" }` (or `bass-music`, `sub`, `reese`, `wobble`,
+`stab`, `riddim`, `dnb`...) lists only the devices with presets tagged so, and those presets; `get_device { id, tag }`
+the same for one device. `render_and_measure { targets: "bass-music" }` checks a render against the genre's numbers
+(`window: "drop"`: short-term loudness, crest, the low end's mono-ness under 120 Hz, the bands; `"song"`: integrated
+loudness and true peak), the misses first, each in words: "integrated loudness -9.1 LUFS (want -8 to -6), 1.1 LUFS
+under". measure() reports the low end as `lowSideDb` and `lowCorrelation`.
+
 ## The bass ducks under the kick: Dim Switch (`core.ducker`) and keys
 
 A keyed effect hears a second track, its **key**: Dim Switch on the bass, keyed by the drums, dips the bass on each

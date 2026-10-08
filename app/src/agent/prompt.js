@@ -98,6 +98,8 @@ ${NOTES_BRIEF}
 
 Devices: list_devices shows instruments and effects with their params (ranges, units, roles). Built-ins are core.* (synths, drums, keys, bass, pluck, pad; eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter), and the Guitar Studio's pedal.* and amp.* (AJ's clawd-o-matic rigs). Param values are in the param's own units. Writing an instrument or effect: read get_guide "devices" (the dsp stdlib, two working examples) before define_device, in the same turn as your first reads.
 
+For a named genre (bass music, dubstep, riddim, DnB...), read get_guide "genres" first.
+
 Guitar: the Jam room (the tab beside Arrange) is where a guitarist plays over the song or a jam track; read get_jam first for the chords, the scale and where on the neck. Tab: write_tab, tab_for and suggest_riff.
 
 Words: adjust resolves musical words itself (get_guide "lexicon" lists them, with what THIS person means by warm, fat and tight). Bands (measure() reports energy per band relative to the total): sub <60 Hz, low 60-250, low-mid 250-500, mid 500-2k, high-mid 2-4k, presence 4-8k, air >8k.

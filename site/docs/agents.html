@@ -52,6 +52,7 @@
 <li><a href="#tab">Tab</a></li>
 <li><a href="#eq-slide-rule-coreeq8">EQ: Slide Rule (core.eq8)</a></li>
 <li><a href="#three-band-compression-gaffer-tape-coremultiband">Three-band compression: Gaffer Tape (core.multiband)</a></li>
+<li><a href="#bass-music-the-genre-guide-tags-and-targets">Bass music: the genre guide, tags and targets</a></li>
 <li><a href="#the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys">The bass ducks under the kick: Dim Switch (core.ducker) and keys</a></li>
 <li><a href="#writing-devices">Writing devices</a></li>
 <li><a href="#for-humans-seeing-and-undoing-what-agents-did">For humans: seeing and undoing what agents did</a></li>
@@ -62,7 +63,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub for agents (and their humans)</a></h1>
-    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 52 min to read</p>
+    <p class="doc-meta">From <code>docs/AGENTS.md</code> (<a href="/docs/AGENTS.md">the Markdown</a>), about 53 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other: the human lays down a take, the agent
 plays over it, the human plays over that. This page is for both of you: the human who wants to plug an agent in, and
@@ -507,6 +508,15 @@ words (&quot;depth 40%, splits at 120 Hz and 2.5 kHz; low: down above −4 dB at
 <code>show_device</code> opens its window, where a threshold, a split or a knob you move flashes in your colour and the window
 says what moved; while the song plays the window also shows the loudness out against in, in LU, and each band held
 or lifted. <code>render_and_measure</code> with and without it (<code>bypass</code>) gives the same comparison in numbers.</p>
+<h2 id="bass-music-the-genre-guide-tags-and-targets"><a class="h-link" href="#bass-music-the-genre-guide-tags-and-targets">Bass music: the genre guide, tags and targets</a></h2>
+<p><code>get_guide { topic: &quot;genres&quot; }</code> is how a named genre is built and mixed here (read it before writing one): bass music's
+tempo and form, the drums (Sandbag, <code>core.clubkit</code>, and the groove library's <code>dubstep</code> style), the sounds to start from
+by preset name, the mix and the master. <code>list_devices { tag: &quot;growl&quot; }</code> (or <code>bass-music</code>, <code>sub</code>, <code>reese</code>, <code>wobble</code>,
+<code>stab</code>, <code>riddim</code>, <code>dnb</code>...) lists only the devices with presets tagged so, and those presets; <code>get_device { id, tag }</code>
+the same for one device. <code>render_and_measure { targets: &quot;bass-music&quot; }</code> checks a render against the genre's numbers
+(<code>window: &quot;drop&quot;</code>: short-term loudness, crest, the low end's mono-ness under 120 Hz, the bands; <code>&quot;song&quot;</code>: integrated
+loudness and true peak), the misses first, each in words: &quot;integrated loudness -9.1 LUFS (want -8 to -6), 1.1 LUFS
+under&quot;. measure() reports the low end as <code>lowSideDb</code> and <code>lowCorrelation</code>.</p>
 <h2 id="the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys"><a class="h-link" href="#the-bass-ducks-under-the-kick-dim-switch-coreducker-and-keys">The bass ducks under the kick: Dim Switch (<code>core.ducker</code>) and keys</a></h2>
 <p>A keyed effect hears a second track, its <strong>key</strong>: Dim Switch on the bass, keyed by the drums, dips the bass on each
 kick. Put it on and key it in one call:</p>

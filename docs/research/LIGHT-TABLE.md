@@ -211,7 +211,7 @@ Each effect sleeps while its mix is at 0.
 
 ## 2. The param map: the editor's contract
 
-There are 114 params, grouped by prefix. Keys are forever. Switch options are stored as indexes, so new options go
+There are 117 params (114, and the three FX params appended for bass music: section 8b), grouped by prefix. Keys are forever. Switch options are stored as indexes, so new options go
 at the end and none are ever reordered. Through `instrument.set` an agent gives a switch's index; a preset may give
 its label, `{ a_table: 'VOWEL' }`. `list_devices` with `detail: "params"` prints every switch as
 `key [0=OFF 1=SYNC ...]`.
@@ -421,7 +421,7 @@ what plays.
 
 ## 4. The presets
 
-Twenty-four presets, each a whole sound with a family in its blurb. Levels are integrated loudness and true peak on
+Twenty-four presets (and, since 2026-10-07, sixteen for bass music: section 8b), each a whole sound with a family in its blurb. Levels are integrated loudness and true peak on
 the test phrase (bass presets on the bass phrase), in the Node renderer. The house target is about −16 LUFS, with
 plucks and keys allowed to −18, and true peak at or under −1 dBTP.
 
@@ -767,6 +767,63 @@ from the kernel to the page (section 6).
    semitone on a pitch, 25 cents on FINE), the way a mod ring appears already open in the synths that do this. Zero
    would make the drop invisible until the ring is dragged; a different default per destination is a small change.
 8. **Macro names** need a field beside the device in the song (section 6): should the platform carry one?
+
+## 8b. Bass music (2026-10-07)
+
+What bass music asks of one Light Table: a growl built from several kinds of distortion and a three-band upward and
+downward compressor after them, which used to take three inserts a preset couldn't carry. So the FX gained three
+params, appended (none of them moves an old song: at their defaults the arithmetic is what it was, and
+`inst:core.wavetable` and `inst:core.wavetable:akwf` are unchanged in golden.json):
+
+- **`fx_dist`** (DIST MODE): the drive's shape, inside its 2x oversampler. `TANH` is the drive it always had (the
+  default, the same operations); `HARD` clips flat; `FOLD` folds the wave back on itself (a triangle fold: buzz that
+  grows with DRIVE); `SINE FOLD` folds it round (sin(pi/2 x): vocal, metallic); `RECTIFY` folds it up (an octave up and
+  grit; the DC blocker after takes the offset); `DOWNSAMPLE` holds each channel for 1 to 25 of the 2x samples as DRIVE
+  rises (lo-fi steps). On a held A1 into DRIVE 0.6 their centroids are 904, 916, 916, 1133, 3241 and 2809 Hz.
+- **`fx_mband`** (MULTIBAND, 0-100%) and **`fx_mband_time`** (MB TIME, 10-1000%): Gaffer Tape's dynamics after the
+  drive, before the chorus. The kernel embeds `multiband-curve.js` by source (the crossover, `mbStep` and the shelves,
+  7 KB) and runs them at the classic settings (Gaffer Tape's CLASSIC bands), split at 88 Hz and 2.5 kHz, with no
+  look-ahead, so turning it up never moves the sound in time. At 0 it sleeps and costs nothing; at 100% a held saw's
+  crest falls from 7.3 to 6.0 dB. The kernel grew from 215.7 to 222.9 KB (the cap is 256).
+- **Two destinations**, appended to `DESTS`: `MULTIBAND` and `DRIVE MIX`, global like DRIVE, so an LFO or a macro can
+  ride them.
+- The FX now run the drive over the block into 64-bit buffers, the multiband over those, then the rest sample by sample:
+  the same operations in the same order as the one loop they were.
+
+Sixteen presets, each tagged (`bass-music` and its role: `sub`, `growl`, `reese`, `wobble`, `stab`, `chords`,
+`lead`, `fx`, and its subgenre). A built-in may now hold 64 presets (a song's or an agent's device 24). Each wires
+MACRO 1, and its blurb says to what. Levels on the bass phrase (the chords, the lead and the riser on the test phrase),
+then each against its part's target (`tools/bassmusic-test.js`; the growls and wobbles on a held F1 at 140 bpm, the
+trough timing against where the LFO's shape puts its darkest point: SINE and TRI at 3/4 of a cycle):
+
+| family | preset | what it is | LUFS / dBTP | its part |
+|---|---|---|---|---|
+| Bass | Dark Slide | a pure sine sub, mono and clean (macro 1: its octave, for small speakers) | −16.0 / −11.1 | clean −35.0 dB, mono |
+| Bass | Contact Sheet | a sine sub with a little of its octave, mono (macro 1: warmth) | −16.0 / −11.2 | clean −31.5 dB, mono |
+| Bass | Push Process | a rounded triangle sub, mono, a touch of edge (macro 1: more edge) | −16.0 / −10.1 | clean −25.4 dB, mono |
+| Bass | Fixer | a growl that yawns every beat, FM from osc B (macro 1: more FM) | −16.0 / −5.9 | talk 3.36 oct, troughs −0.6 ms |
+| Bass | Stop Bath | a comb growl that says yoi in eighths (macro 1: more ring) | −16.0 / −8.2 | talk 1.02 oct, troughs −0.5 ms |
+| Bass | Emulsion | a talking growl, U to E each beat; the wheel and macro 1 talk | −16.0 / −7.3 | talk 1.26 oct, troughs −4.0 ms |
+| Bass | Halation | a wavefolded growl buzzing in eighths (macro 1: more fold) | −16.0 / −6.4 | talk 3.98 oct, troughs 4.8 ms |
+| Bass | Hard Cut | a riddim stab, a clipped square, short and loud (macro 1: brighter) | −16.0 / −1.5 |  |
+| Bass | Jump Cut | a metallic riddim stab, sync through a comb (macro 1: harsher) | −16.1 / −1.7 |  |
+| Bass | Double Exposure | a rolling drum and bass Reese, wide and dark (macro 1: opens it) | −16.0 / −4.8 | corr >200 Hz 0.71, beating 0.66 Hz |
+| Bass | Cross Process | a neuro Reese, notched and clipped, sweeping (macro 1: grit) | −16.0 / −9.0 | corr >200 Hz 0.52, beating 1.15 Hz |
+| Bass | Strobe | a wobble in eighths, locked to the song (macro 1: deeper) | −16.0 / −7.5 | talk 3.87 oct, troughs 0.1 ms |
+| Bass | Iris | a wobble in eighth triplets, locked to the song (macro 1: deeper) | −16.0 / −6.4 | talk 3.90 oct, troughs 0.6 ms |
+| Poly | Wide Angle | supersaw chords for a melodic drop, wide and bright (macro 1: opens) | −16.0 / −4.2 |  |
+| Lead | Key Light | a melodic bass lead, saws gliding into echoes (macro 1: brighter) | −15.9 / −5.3 |  |
+| FX | Fade Up | an eight-second riser, sync and noise sweeping up (macro 1: more noise) | −15.9 / −5.4 |  |
+
+How they were made: by recipe (FM from the other oscillator, a comb or formant filter, a wavefolder, an LFO locked to
+the song on the filter or the table, the in-synth multiband), then by measurement: each level set to -16 LUFS; each
+bass given a body a small speaker plays (30% or more of its energy at 100 Hz-2 kHz; the subs are the exception, on
+purpose); each growl's brightness made to move an octave or more, its troughs on the LFO's grid; each Reese's width
+and beating brought into the target. Nobody listened. AJ's blind room is the check that can't be gamed.
+
+What is short of the spec: the trough timing is held to 8 ms typically and an eighth of the LFO's cycle at most (25
+ms), not the spec's 5 ms each: read through a 21 ms window on a note whose own period is 23 ms, the troughs scatter a
+few milliseconds; Stop Bath's comb reads 24 ms at 150 bpm at its worst.
 
 ## 9. Research: what makes the best wavetable synths loved
 

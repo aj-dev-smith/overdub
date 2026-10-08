@@ -419,7 +419,7 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 46 built-ins, thirteen
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 47 built-ins, thirteen
 of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
 Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), `devices/guitar/` (the
 Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
@@ -792,9 +792,15 @@ measure(buffer, { from?, to? }) → {
   centroid, width, correlation, sideDb,                          // Hz; stereo
   onsetsPerSec, silencePct, clipped, duration, sr,               // clipped: samples at or over 0 dBFS
   key?: { root, scale, confidence }, chroma?: number[12],
+  lowSideDb, lowCorrelation,                                     // the low end under 120 Hz (LR4): side vs mid (dB), L/R correlation
 }
 spectrogram(buffer, { width, height, from?, to?, floor? }) → Promise<string>   // PNG data URL (agents can look at it)
 ```
+
+Genre targets (`audio/targets.js`): `TARGETS['bass-music']` holds the genre's numbers as ranges (the song's
+loudness and true peak, a drop's short-term loudness, crest, low-end mono-ness and band balance, and each part's), and
+`checkTargets(m, genre, { window: 'drop' | 'song' })` returns `{ metric, value, lo, hi, ok, delta }` rows, the misses
+first. `render_and_measure { targets }` puts them in words for an agent.
 
 Bands: sub < 60 Hz, low 60-250, low-mid 250-500, mid 500-2k, high-mid 2-4k, presence 4-8k, air > 8k. dB values never
 go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, the canonical render) and the browser.

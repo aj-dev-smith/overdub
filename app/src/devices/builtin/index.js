@@ -4,7 +4,7 @@
 //                core.drums (Gobo Kit), core.pad (Room Tone), core.piano (Baby Grand), core.organ (Rotor Cabinet),
 //                core.strings (Music Stands), core.bassguitar (Flatwound), core.guitar (DI Box), core.ep (Suitcase),
 //                core.mallets (Mallet Bag), core.poly2 (Step Ladder), core.brass (Brass Rail), core.choir (Risers),
-//                core.drumroom (Studio A), core.wavetable (Light Table)
+//                core.drumroom (Studio A), core.wavetable (Light Table), core.clubkit (Sandbag)
 //   sampled:     core.drumkit (Virtuosity Kit), core.upright (Parlour Upright), core.brushkit (Rusty Brushes),
 //                core.handkit (Hand Crate), core.grand (Full Stick), core.ensemble (Rosin),
 //                core.vibes (Damper Bar), core.ebass (Roundwound), core.eguitar (Hollow Body), core.barisax (Bell Up),
@@ -37,6 +37,7 @@ import brass from './brass.js';
 import choir from './choir.js';
 import drumroom from './drumroom.js';
 import wavetable from './wavetable.js';
+import clubkit from './clubkit.js';
 import drumkit from './drumkit.js';
 import upright from './upright.js';
 import brushkit from './brushkit.js';
@@ -66,7 +67,7 @@ import multiband from './multiband.js';
 import ducker from './ducker.js';
 import clipper from './clipper.js';
 
-export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable];
+export const INSTRUMENTS = [poly, bass, keys, pluck, drums, pad, piano, organ, strings, bassguitar, guitar, ep, mallets, poly2, brass, choir, drumroom, wavetable, clubkit];
 export const EFFECTS = [eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter, eq8, shaper, multiband, ducker, clipper];
 export const SAMPLED = [drumkit, upright, brushkit, handkit, grand, ensemble, vibes, ebass, eguitar, barisax, cello, flute, trumpet];
 export const BUILTINS = [...INSTRUMENTS, ...SAMPLED, ...EFFECTS];

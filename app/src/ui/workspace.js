@@ -316,7 +316,8 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
       if (d.kind !== 'instrument' && d.kind !== 'effect') continue;
       const words = [d.kindLabel, d.cat, d.nod].filter(Boolean).map(String);
       out.push({ kind: 'sound', id: 'sound:' + d.id, title: d.name, purpose: d.blurb || d.kindLabel || '', aliases: words, def: d, preset: null });
-      for (const pr of d.presets || []) out.push({ kind: 'sound', id: `sound:${d.id}:${pr.name}`, title: pr.name, purpose: `${d.name}${d.kindLabel ? ', ' + d.kindLabel : ''}`, aliases: [d.name, ...words], def: d, preset: pr.name });
+      // (a preset's tags are words Find knows it by: "growl", "riddim", "bass music")
+      for (const pr of d.presets || []) out.push({ kind: 'sound', id: `sound:${d.id}:${pr.name}`, title: pr.name, purpose: `${d.name}${d.kindLabel ? ', ' + d.kindLabel : ''}`, aliases: [d.name, ...words, ...(pr.tags || []).map((x) => x.replace('-', ' '))], def: d, preset: pr.name });
     }
     return out;
   }

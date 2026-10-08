@@ -51,6 +51,7 @@
 <li><a href="#gaffer-tape-coremultiband-three-bands-up-and-down">Gaffer Tape (core.multiband): three bands, up and down</a></li>
 <li><a href="#dim-switch-coreducker-the-sidechain-duck">Dim Switch (core.ducker): the sidechain duck</a></li>
 <li><a href="#clip-lamp-coreclipper-a-ceiling-it-never-passes">Clip Lamp (core.clipper): a ceiling it never passes</a></li>
+<li><a href="#sandbag-coreclubkit-a-club-kit-for-bass-music">Sandbag (core.clubkit): a club kit for bass music</a></li>
 <li><a href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></li>
 <li><a href="#under-the-hood">Under the hood</a></li>
 <li><a href="#expression-pitch-bend-the-mod-wheel-and-the-sustain-pedal">Expression: pitch bend, the mod wheel and the sustain pedal</a></li>
@@ -76,7 +77,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 57 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 58 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -305,6 +306,23 @@ band-limited: within 0.1 LU on the house's test signals.</li>
 <li><strong>Presets</strong>: Drum bus clip (4 dB into -3 dBFS), Master clip (+3) and Master clip (+6) (into -1 dBFS, for in front
 of Red Line), Bass grit (14 dB into tape, 60% in). The loud master is Clip Lamp, then Red Line at -1 dBTP, then the
 master's clean ceiling (<code>master.set { clip: 'clean' }</code>). <code>tools/clipper-test.js</code> holds it to this.</li>
+</ul>
+<h2 id="sandbag-coreclubkit-a-club-kit-for-bass-music"><a class="h-link" href="#sandbag-coreclubkit-a-club-kit-for-bass-music">Sandbag (core.clubkit): a club kit for bass music</a></h2>
+<p>A synthesized drum kit for dubstep, riddim, drum and bass and melodic bass, on the GM map (the riser on note 34, the
+impact on 33). <code>app/src/devices/builtin/clubkit.js</code>; the design note and what was measured is
+research/CLUBKIT.md.</p>
+<ul>
+<li><strong>Kick</strong>: a sine falling from about five times <code>kick_note</code> (C1-B1, F1 by default: tune it to the song's root) into
+the note within 60 ms, a knock and a tail at the kit's length; <code>click</code> adds a tick on top; <code>drive</code> warms it.</li>
+<li><strong>Snare</strong>: a body of two membrane modes (182-235 Hz), a noise crack whose ring falls with frequency, a <code>clap</code>, and a
+short <code>room</code> whose highs die first. <strong>Hats</strong>: two struck plates of 48 modes each (closed, pedal and open are one hat:
+a closed stroke chokes an open one). Toms, the crash and ride (metal.js's FDN), the riser and the impact.</li>
+<li><strong>KIT</strong> (<code>DUBSTEP</code>, <code>RIDDIM</code>, <code>DNB</code>, <code>MELODIC</code>) sets each piece's character; <code>tune</code> moves everything but the kick,
+<code>decay</code> every ring, <code>width</code> the hats and cymbals; <code>clip</code> (on) is a 2x soft clipper on the kit, set per kit; <code>level</code>.</li>
+<li>Measured (<code>tools/clubkit-test.js</code>): the kick peaks 1.3-1.8 ms in with a crest of 10.3-11.2 dB over 100 ms and a tail
+within 15 cents of its note; the snare peaks 0.4 ms in, crest 12.4-13.8 dB, its highs ringing 0.23-0.29 s; the hats
+carry energy under 2.5 kHz and correlate 0.23-0.25; every piece ends 60 dB under its peak; the drum phrase plays at
+-18.0 to -18.4 LUFS. Presets: Dubstep, Riddim, Drum and bass, Melodic. The groove library's Dubstep style plays on it.</li>
 </ul>
 <h2 id="keys-an-effect-that-hears-another-track"><a class="h-link" href="#keys-an-effect-that-hears-another-track">Keys: an effect that hears another track</a></h2>
 <p>A def with <code>key: true</code> (effects only) gets a second input, its <strong>key</strong>: the sound of the track the insert's <code>key</code>
@@ -733,7 +751,8 @@ is down.</li>
 </ul>
 <h2 id="a-big-instrument-light-table-corewavetable"><a class="h-link" href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (<code>core.wavetable</code>)</a></h2>
 <p>Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
-a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a
+a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX (drive in six shapes, <code>fx_dist</code>, and Gaffer Tape's
+three-band dynamics inside it, <code>fx_mband</code>). It is the largest built-in, with 117 params, and a
 worked example of three things a big kernel needs. The design note, with every param, table and number, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <ul>
@@ -757,7 +776,9 @@ of reads a block cost little.</li>
 </ul>
 <p>To drive it, as an agent or by hand:</p>
 <ul>
-<li><strong>Start from a preset.</strong> Each preset's blurb opens with its family, as in &quot;Bass: a Reese, …&quot;.</li>
+<li><strong>Start from a preset.</strong> Each preset's blurb opens with its family, as in &quot;Bass: a Reese, …&quot;. Sixteen are for bass
+music (tagged <code>bass-music</code>: subs, growls, riddim stabs, Reeses, wobbles, chords, a lead and a riser), each with MACRO
+1 wired to its main move; <code>list_devices { tag: &quot;growl&quot; }</code> finds them.</li>
 <li><strong>Pick a table.</strong> <code>a_table</code> is a switch over 26 tables: 14 built in code, then 12 of recorded single cycles from
 AKWF (Adventure Kid Waveforms, CC0), nine waves each. <code>list_devices</code> with <code>detail: &quot;params&quot;</code> lists them, and the
 design note says what each sounds like. <code>a_pos</code> moves through the table.</li>

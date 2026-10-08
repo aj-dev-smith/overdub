@@ -72,7 +72,7 @@ Rules of thumb:
   "suggested", "built". It never "created your song".
 - **No buzzwords.** Not "revolutionary", "AI-powered", "unleash", "supercharge", "seamless", "magic",
   "co-producer". If it is good, show it.
-- **Never invent proof.** No made-up users, numbers, testimonials or quotes. Use real counts or none: 46 built-in
+- **Never invent proof.** No made-up users, numbers, testimonials or quotes. Use real counts or none: 47 built-in
   devices, 40 agent tools, and from the Guitar Studio 101 pedals, 27 amps, 16 cabinets, 5 mics and 156 rigs.
 - **Errors give direction, not mood.** What went wrong, how to fix it. No apologies.
 - **Whimsy goes in device names and on the tape box, never on buttons.** A reverb can be called Stairwell and the
@@ -91,6 +91,7 @@ is a noun you could point at. Ids are forever (`core.poly`); only the display na
 | `core.pluck` | Pinch Roller | | `core.delay` | Echo Reel |
 | `core.drums` | Gobo Kit | | `core.chorus` | Double Track |
 | `core.pad` | Room Tone | | `core.filter` | Keyhole |
+| `core.clubkit` | Sandbag | | | |
 | | | | `core.drive` | Hot Print |
 | | | | `core.crush` | Chewed Tape |
 | | | | `core.width` | Gatefold |
@@ -286,7 +287,7 @@ real thing, flat, with real labels, rather than abstract blobs. The recurring pi
 - **The tape and the splice**: a strip of brown leader tape between the room and the next room, with a cream splice
   tab on it ("Take 2", "Tails out").
 - **The tape box**: the landing page ends on paper: the lockup, an overprinted line, the button, the two sides of the
-  reel (the 46 built-in devices as a track listing) and the real counts.
+  reel (the 47 built-in devices as a track listing) and the real counts.
 
 No stock photos, no robots, no glowing brains, no sparkle (glyph or icon) to mean "AI", no face on the agent. The
 agent's mark is a short straight cool stroke, the Weave's exact strand; a person's is the same stroke with a breath

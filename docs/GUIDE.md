@@ -205,6 +205,11 @@ yours to pick by ear:
   card, each saying why, signed *suggested by Claude*. Nothing changes until you keep one, and the kept sound is yours.
   Name an instrument (*"make it a Choir Loft"*) and it sets it, and says what it was.
 - Recording on a track while you're trying a sound keeps that sound first, and says so before the take starts.
+- **Sounds by genre.** Under the browser's search, **Bass music** lists that genre's sounds by name: Light Table's
+  subs, growls, riddim stabs, Reeses and wobbles (Dark Slide, Fixer, Hard Cut, Double Exposure, Strobe...), Sandbag's
+  kits, and the presets of Dim Switch, Clip Lamp and Gaffer Tape made for it. A click tries one on the selected track.
+  Each Light Table one has its main move on **Macro 1**. A song whose title says dubstep, riddim or drum and bass gets
+  them first on its sound card too.
 
 ## Shape the song
 
@@ -387,7 +392,8 @@ yours to pick by ear:
 
 The **Grooves** tab, beside Beat, is a drummer's book. The styles run down the side, from rock and funk to bossa, trap
 and gospel. Each has grooves for the parts of a song: intro, verse, chorus, bridge, a half-time feel where it fits,
-fills of a beat, two beats and a bar, and an ending. Each groove is drawn as a picture of its hits: the bigger the
+fills of a beat, two beats and a bar, and an ending. **Dubstep** plays half-time at 140 on **Sandbag**, the club kit
+(kick on one, snare on three, riddim's triplet kicks, a four-bar build roll from quarters to 32nds). Each groove is drawn as a picture of its hits: the bigger the
 mark, the harder the hit, and a hollow mark is a ghost note. They play with a feel, not on a grid: swing that tightens
 as the tempo rises, a neo-soul snare a little behind the beat, punk hats a hair ahead, and a drummer's small drift.
 
@@ -649,7 +655,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 59 devices: the 46 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 60 devices: the 47 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

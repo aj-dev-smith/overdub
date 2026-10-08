@@ -162,6 +162,7 @@ const KEY_WORD = {
   flt_type: 'filter', flt_cutoff: 'cutoff', flt_res: 'resonance', flt_drive: 'filter drive', flt_key: 'key track', flt_env: 'filter envelope', flt_vel: 'filter velocity',
   fx_drive: 'drive', fx_drive_mix: 'drive mix', fx_chorus_depth: 'chorus depth', fx_chorus_mix: 'chorus mix', fx_delay_time: 'delay time', fx_delay_fb: 'delay feedback',
   fx_delay_mix: 'delay mix', fx_verb_size: 'room size', fx_verb_mix: 'room mix', voice_mode: 'voices', voice_glide: 'glide', voice_level: 'volume',
+  fx_dist: 'drive shape', fx_mband: 'multiband', fx_mband_time: 'multiband time',
 };
 // [what it belongs to, what it is] for a param key: ['amp', 'decay'], ['LFO 1', 'sync'], ['osc A', 'position']
 function keyWords(k) {
@@ -1388,7 +1389,8 @@ export function mount(el, ctx) {
 
   /* ================================================================ FX, voice, macros */
   const fxSec = h('section.lt-pane.lt-fx', { dataset: { sec: 'fx' }, 'aria-label': 'Effects' },
-    h('div.lt-grp', h('h3.lt-h', 'Drive'), h('div.lt-row', ctl('fx_drive', { label: 'DRIVE', aria: `${name} output drive` }), ctl('fx_drive_mix', { label: 'MIX', aria: `${name} drive mix` }))),
+    h('div.lt-grp', h('h3.lt-h', 'Drive'), h('div.lt-row', ctl('fx_drive', { label: 'DRIVE', aria: `${name} output drive` }), ctl('fx_drive_mix', { label: 'MIX', aria: `${name} drive mix` }), ctl('fx_dist', { kind: 'select', label: 'SHAPE', aria: `${name} drive shape` }))),
+    h('div.lt-grp', h('h3.lt-h', 'Multiband'), h('div.lt-row', ctl('fx_mband', { label: 'DEPTH', aria: `${name} multiband depth` }), ctl('fx_mband_time', { label: 'TIME', aria: `${name} multiband time` }))),
     h('div.lt-grp', h('h3.lt-h', 'Chorus'), h('div.lt-row', ctl('fx_chorus_depth', { label: 'DEPTH', aria: `${name} chorus depth` }), ctl('fx_chorus_mix', { label: 'MIX', aria: `${name} chorus mix` }))),
     h('div.lt-grp', h('h3.lt-h', 'Delay'), h('div.lt-row', ctl('fx_delay_time', { kind: 'select', label: 'TIME', aria: `${name} delay time` }), ctl('fx_delay_fb', { label: 'FEEDBACK', aria: `${name} delay feedback` }), ctl('fx_delay_mix', { label: 'MIX', aria: `${name} delay mix` }))),
     h('div.lt-grp', h('h3.lt-h', 'Room'), h('div.lt-row', ctl('fx_verb_size', { label: 'SIZE', aria: `${name} room size` }), ctl('fx_verb_mix', { label: 'MIX', aria: `${name} room mix` }))));

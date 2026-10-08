@@ -437,7 +437,7 @@ function to draw them, so the editor shows exactly what plays. The bank (<code>a
 is a literal in the kernel's source, packed so the kernel stays under its 256 KB. Its design note, with the param map its editor works from, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <p>Param <code>role</code> (for agents and semantic controls): <code>tone level drive mix time feedback rate depth size decay attack release pitch shape width gate sens</code> (or omit). <code>unit</code>: <code>Hz dB ms s % st note x</code>.</p>
-<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 46 built-ins, thirteen
+<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 47 built-ins, thirteen
 of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
 Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), <code>devices/guitar/</code> (the
 Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
@@ -768,8 +768,13 @@ renders (a few vendored pedals move their LFOs from main-thread timers; <code>to
   centroid, width, correlation, sideDb,                          <span class="c">// Hz; stereo</span>
   onsetsPerSec, silencePct, clipped, duration, sr,               <span class="c">// clipped: samples at or over 0 dBFS</span>
   key?: { root, scale, confidence }, chroma?: number[12],
+  lowSideDb, lowCorrelation,                                     <span class="c">// the low end under 120 Hz (LR4): side vs mid (dB), L/R correlation</span>
 }
 spectrogram(buffer, { width, height, from?, to?, floor? }) → Promise&lt;string&gt;   <span class="c">// PNG data URL (agents can look at it)</span></code></pre></div>
+<p>Genre targets (<code>audio/targets.js</code>): <code>TARGETS['bass-music']</code> holds the genre's numbers as ranges (the song's
+loudness and true peak, a drop's short-term loudness, crest, low-end mono-ness and band balance, and each part's), and
+<code>checkTargets(m, genre, { window: 'drop' | 'song' })</code> returns <code>{ metric, value, lo, hi, ok, delta }</code> rows, the misses
+first. <code>render_and_measure { targets }</code> puts them in words for an agent.</p>
 <p>Bands: sub &lt; 60 Hz, low 60-250, low-mid 250-500, mid 500-2k, high-mid 2-4k, presence 4-8k, air &gt; 8k. dB values never
 go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, the canonical render) and the browser.</p>
 <h2 id="the-ui"><a class="h-link" href="#the-ui">The UI</a></h2>

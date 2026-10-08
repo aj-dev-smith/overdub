@@ -82,7 +82,9 @@ export const familyOf = (p) => FAMILY_OF[p] || 'perc';
 const KEEPERS = new Set([42, 44, 51, 59, 70, 54, 56, 69, 82]);
 const DEFAULT_ACCENT = [1, 0.84, 0.66, 0.78, 0.58];   // on the beat, the "and", the "e"/"a", a triplet, anything finer
 // Gobo Kit's characters (core.drums `kit`): FIELD, MACHINE, DUST, 808, 909, ACOUSTIC+
-const KITS = { field: 0, machine: 1, dust: 2, 808: 3, 909: 4, plus: 5, acoustic: 5 };
+const KITS = { field: 0, machine: 1, dust: 2, 808: 3, 909: 4, plus: 5, acoustic: 5, club: -1 };
+// kit club: Sandbag (core.clubkit), the club kit; its params (kit 0 DUBSTEP ... ) as the line gives them
+export const CLUB_KIT = 'core.clubkit';
 // Studio A, the acoustic kit with articulations and a mic mix (devices/builtin/drumroom.js). Its id has "drum" in it,
 // which is how the studio knows a drum track.
 export const STUDIO_A = 'core.drumroom';
@@ -294,6 +296,7 @@ const STYLE_WORDS = {
   'lo fi': 'lofi', 'lo-fi': 'lofi', chill: 'lofi', 'drum and bass': 'dnb', 'drum & bass': 'dnb', 'drum n bass': 'dnb', jungle: 'dnb', 'd&b': 'dnb',
   blues: 'shuffle', 'blues shuffle': 'shuffle', 'one drop': 'reggae', ska: 'reggae', 'bossa nova': 'bossa', brazilian: 'samba',
   'afro beat': 'afrobeat', 'afro-beat': 'afrobeat', dance: 'house', techno: 'house', edm: 'house', 'four on the floor': 'house',
+  'bass music': 'dubstep', riddim: 'dubstep', brostep: 'dubstep', 'melodic bass': 'dubstep',
   'train beat': 'country', 'double kick': 'metal', heavy: 'metal', 'pop punk': 'punk', 'pop-punk': 'punk', swing: 'jazz', bebop: 'jazz',
   church: 'gospel', soulful: 'gospel', 'indie rock': 'indie', alternative: 'indie', alt: 'indie', 'garage rock': 'indie', 'sixties soul': 'motown', '60s soul': 'motown', northern: 'motown',
 };
@@ -305,7 +308,7 @@ export function getStyle(word) {
 }
 // A style named anywhere in a sentence ("give me a funk beat"), or null. Only genre names count here: words that are
 // also plain words (swing, heavy, chill, dance, soul) are a feel, not a style, in a sentence.
-const GENRE_WORDS = ['boom bap', 'boom-bap', 'hip hop', 'hip-hop', 'hiphop', 'neo soul', 'neo-soul', 'r&b', 'rnb', 'lo fi', 'lo-fi', 'drum and bass', 'drum & bass', 'drum n bass', 'jungle', 'd&b', 'blues shuffle', 'blues', 'one drop', 'bossa nova', 'afro beat', 'afro-beat', 'techno', 'edm', 'train beat', 'pop punk', 'pop-punk', 'bebop', 'indie rock', 'garage rock', 'sixties soul', '60s soul'];
+const GENRE_WORDS = ['dubstep', 'riddim', 'bass music', 'brostep', 'melodic bass', 'boom bap', 'boom-bap', 'hip hop', 'hip-hop', 'hiphop', 'neo soul', 'neo-soul', 'r&b', 'rnb', 'lo fi', 'lo-fi', 'drum and bass', 'drum & bass', 'drum n bass', 'jungle', 'd&b', 'blues shuffle', 'blues', 'one drop', 'bossa nova', 'afro beat', 'afro-beat', 'techno', 'edm', 'train beat', 'pop punk', 'pop-punk', 'bebop', 'indie rock', 'garage rock', 'sixties soul', '60s soul'];
 export function styleIn(text) {
   const t = ` ${String(text || '').toLowerCase().replace(/[^a-z0-9&\s-]+/g, ' ')} `;
   const all = library().styles;
@@ -643,10 +646,11 @@ export function kitFor(style, { studioA = null } = {}) {
     const pr = s?.studio ? presets.find((x) => String(x.name).toLowerCase() === s.studio.toLowerCase()) : null;
     return { device: STUDIO_A, params: pr ? { ...pr.params } : {}, preset: pr ? pr.name : null };
   }
+  if (kit.kind === 'club') return { device: CLUB_KIT, params: { ...kit.params }, preset: null };
   return { device: 'core.drums', params: { kit: KITS[kit.kind] ?? 5, ...kit.params }, preset: null };
 }
-const kitName = (kit) => (kit.device === STUDIO_A ? `Studio A${kit.preset ? ` (${kit.preset})` : ''}` : 'Gobo Kit');
-const isDrumTrack = (t, isDrum) => !!t && t.kind === 'instrument' && !!t.instrument && (isDrum ? isDrum(t) : /drum|studioa/i.test(t.instrument.device));
+const kitName = (kit) => (kit.device === STUDIO_A ? `Studio A${kit.preset ? ` (${kit.preset})` : ''}` : kit.device === CLUB_KIT ? 'Sandbag' : 'Gobo Kit');
+const isDrumTrack = (t, isDrum) => !!t && t.kind === 'instrument' && !!t.instrument && (isDrum ? isDrum(t) : /drum|studioa|clubkit/i.test(t.instrument.device));
 function uniqueName(p, name) {
   const used = new Set(p.tracks.map((t) => t.name.toLowerCase()));
   let n = name, i = 2;
