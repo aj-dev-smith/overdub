@@ -68,7 +68,7 @@ done
 
 # ---------------------------------------------------------------------------------------------- security group
 for SG in $(aws ec2 describe-security-groups --filters Name=group-name,Values="$NAME" --query 'SecurityGroups[].GroupId' --output text); do
-  for i in 1 2 3 4 5 6; do
+  for _ in 1 2 3 4 5 6; do
     if aws ec2 delete-security-group --group-id "$SG" 2>/dev/null; then say sg "deleted $SG"; break; fi
     say sg "$SG still in use (network interface draining); retrying in 10 s"; sleep 10
   done
@@ -98,4 +98,4 @@ if aws iam get-role --role-name "$NAME" >/dev/null 2>&1; then
   aws iam delete-role --role-name "$NAME"
   say iam "deleted role $NAME"
 fi
-say done "the relay is gone. Studios with Connect on will show Reconnecting until it is turned off."
+say 'done' "the relay is gone. Studios with Connect on will show Reconnecting until it is turned off."
