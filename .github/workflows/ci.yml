@@ -43,7 +43,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # node only: the checkers are the static job's
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install_args: node
 
       - name: The unit tests (node --test "test/unit/*.test.js")
         run: node --test "test/unit/*.test.js"
@@ -93,7 +96,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # node only: nothing the deploy doesn't run goes near the job that holds the AWS role
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install_args: node
 
       - name: Cache the kit downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -19,7 +19,7 @@ node tools/<area>-test.js            # one area's checks
 node --test "test/unit/*.test.js"    # the unit tests, what CI runs (seconds)
 node tools/run-all.js                # every check (a few minutes): run it before a pull request
 npm run check                        # the static checks CI runs: lint, format, types, shell, workflows (seconds)
-npm run format                       # format what you changed (Biome); CI fails on unformatted code
+npm run format                       # format the tree (Biome); CI fails on unformatted code
 ```
 
 The static checkers (Biome, TypeScript, ShellCheck, actionlint, zizmor) are pinned in `mise.toml`, not in

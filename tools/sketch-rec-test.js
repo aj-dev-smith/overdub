@@ -1957,7 +1957,8 @@ try {
         return {
           rows: new Set(btns.map((b) => Math.round(b.getBoundingClientRect().top / 10))).size,
           row: btns.map((b) =>
-            (b.tagName === 'SELECT' ? (b.selectedOptions[0]?.textContent ?? '') : b.textContent).trim(),
+            // biome-ignore lint/correctness/noUnsafeOptionalChaining: a select with nothing chosen should throw, failing the check
+            (b.tagName === 'SELECT' ? b.selectedOptions[0]?.textContent : b.textContent).trim(),
           ),
           modes: seen('.sk-modes'),
           allow: seen('.sk-explain .btn-go'),

@@ -86,7 +86,8 @@
       "linter": { "rules": { "correctness": { "noInnerDeclarations": "off", "noUnusedVariables": "off" } } }
     },
     {
-      // A function whose source becomes kernel text runs standalone there, so its 'use strict' is not redundant.
+      // lightTables' source becomes kernel text and runs standalone there, so its 'use strict' is not redundant;
+      // overdubDsp's says the same about the worklet's module scope on purpose.
       "includes": ["app/src/kernel/dsp.js", "app/src/devices/builtin/wavetables.js"],
       "linter": { "rules": { "suspicious": { "noRedundantUseStrict": "off" } } }
     }
