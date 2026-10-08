@@ -2,13 +2,14 @@
 # suite passes, a deploy of that commit to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the
 # same by hand; on any other branch it runs nothing. Node comes from mise.toml, as it does locally.
 #
-# macOS on Apple Silicon, on purpose: tools/golden.json was made on Apple Silicon with Node 24, and another V8 rounds
-# Math.exp/sin differently in the last bit (CLAUDE.md), so the golden renders only match there.
+# On Linux (ubuntu-latest), with LOCAL_ONLY=skip: the few suites that only hold on a Mac say so in their header
+# (`// local-only: <why>`), and run-all prints each one it leaves out and why. Run `node tools/run-all.js` on a Mac
+# before merging: it runs every suite, those included.
 #
 # The suite needs three things the repo doesn't carry (zero dependencies, no build), set up by
 # .github/actions/suite-setup:
-#   - playwright-core and its Chromium, WebKit and Firefox for the browser checks (tools/pw.js, compat-test), installed
-#     with --no-save;
+#   - playwright-core and the browsers it drives (tools/pw.js, compat-test, phone-test), installed with --no-save,
+#     with their system libraries;
 #   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files;
 #   - the kit HEAD~1 names as well: analytics-test dry-runs deploy.sh --next HEAD~1, and deploy.sh refuses a ref
 #     whose kit isn't built.
@@ -16,10 +17,6 @@
 # write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
 # (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
 # NEXT_DISTRIBUTION), never committed.
-# The suite times things against the wall clock (count-in clicks, frame rates, tap tempo, the feedback guard, touch
-# drags), so suite-setup turns off macOS's kernel timer coalescing on the runner. An idle macOS VM coalesces timers,
-# and a test browser there drew the studio at ~30 frames a second with setTimeout ~12-30 ms late; with it off, 60 fps
-# and ~1.5 ms, as on a Mac at a desk. It also turns Spotlight off, which was indexing the fresh VM on most of its CPU.
 # Actions are pinned to a commit; the comment names the release.
 name: ci
 
@@ -46,17 +43,17 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
-  # Every suite, about an hour one suite at a time, split four ways: each lands in exactly one shard (round-robin by
-  # name), and each shard runs its suites one at a time.
+  # Every suite, about 1 h 45 one suite at a time, split eight ways by .github/shard.js (each suite in exactly one shard,
+  # dealt by its usual time), each shard running its suites one at a time: about 15 minutes a shard.
   test:
-    name: test (${{ matrix.shard }}/4)
+    name: test (${{ matrix.shard }}/8)
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
-    runs-on: macos-15
-    timeout-minutes: 75
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -70,16 +67,16 @@ jobs:
       - name: This shard's suites (node tools/run-all.js <names>)
         env:
           SHARD: ${{ matrix.shard }}
-          REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
+          LOCAL_ONLY: skip # the suites tagged `// local-only:` are left out, each named with its reason
+          REQUIRE_ALL: 1   # compat-test and phone-test fail, rather than skip, a browser that didn't install
           PAR: 1           # one suite at a time, so timings measure the suite and not its neighbours
           # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
           # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
           CPU: 0
         run: |
           # run-all takes a whole file name as exactly that file
-          names=()
-          while IFS= read -r f; do names+=("$f"); done < <(
-            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
+          mapfile -t names < <(node .github/shard.js "$SHARD" 8)
+          [ "${#names[@]}" -gt 0 ] || { echo "::error::shard $SHARD has no suites"; exit 1; }   # no names = every suite
           echo "shard $SHARD: ${names[*]}"
           node tools/run-all.js "${names[@]}"
 

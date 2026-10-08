@@ -1,5 +1,5 @@
-# What the suite needs that the repo doesn't carry (zero dependencies, no build), for both test jobs in ci.yml. Run it
-# after actions/checkout.
+# What the suite needs that the repo doesn't carry (zero dependencies, no build), for the test job in ci.yml, on an
+# Ubuntu runner. Run it after actions/checkout.
 name: suite setup
 description: Node from mise.toml, playwright-core and its browsers, and the sampled kits
 inputs:
@@ -9,29 +9,43 @@ inputs:
 runs:
   using: composite
   steps:
-    # The suite's real-time checks need the runner's timers on time. macOS coalesces timers on an idle VM: a test
-    # browser drew the studio at ~30 fps with setTimeout(10) firing 12-30 ms late, and count-in clicks, tap tempo, the
-    # feedback guard and touch holds failed a different few each run. With coalescing off: 60 fps, ~1.5 ms late.
-    # Spotlight was indexing the fresh VM on most of its 3 CPUs.
-    - name: Keep the runner's timers on time (no timer coalescing, no Spotlight)
-      shell: bash
-      run: |
-        sudo sysctl -w kern.timer.coalescing_enabled=0
-        sudo mdutil -a -i off > /dev/null
-
     - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
     - name: Cache the browsers playwright-core drives
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/Library/Caches/ms-playwright
+        path: ~/.cache/ms-playwright
         key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
 
+    # Chromium for the studio's checks (tools/pw.js), WebKit for phone-test and compat-test, Firefox for compat-test and
+    # relay-test. --with-deps: their system libraries and fonts too (apt), every run, since the cache holds only the
+    # browsers. tools/pw.js looks for Chromium in macOS's cache only, so CHROMIUM names this one.
     - name: Install playwright-core and its browsers (not saved to package.json)
       shell: bash
       run: |
         npm i --no-save "playwright-core@$PLAYWRIGHT_CORE_VERSION"
-        node node_modules/playwright-core/cli.js install chromium-headless-shell webkit firefox
+        node node_modules/playwright-core/cli.js install --with-deps chromium-headless-shell webkit firefox
+        shell=$(find ~/.cache/ms-playwright -path '*chromium_headless_shell-*' -name chrome-headless-shell -type f | head -1)
+        [ -x "$shell" ] || { echo "::error::no chrome-headless-shell under ~/.cache/ms-playwright"; exit 1; }
+        echo "CHROMIUM=$shell" >> "$GITHUB_ENV"
+
+    # Firefox on Linux plays and records through PulseAudio. The runner has no sound server, and without one Firefox's
+    # AudioContext never starts: compat-test's demo was silent, its take empty, and then it hung. This one has a null
+    # sink and its own socket, which compat-test hands to Firefox alone (FIREFOX_PULSE_SERVER): Chromium stays on its
+    # fake output, which its real-time checks are timed against (through PulseAudio, brand and input fail).
+    - name: A sound server with no speakers, for Firefox alone (PulseAudio, a null sink)
+      shell: bash
+      run: |
+        sudo apt-get install -y -qq --no-install-recommends pulseaudio > /dev/null
+        # nothing starts a server on the usual socket for Chromium to find
+        mkdir -p ~/.config/pulse && echo 'autospawn = no' > ~/.config/pulse/client.conf
+        systemctl --user stop pulseaudio.socket pulseaudio.service 2> /dev/null || true
+        sock="$RUNNER_TEMP/firefox-pulse"
+        pulseaudio --daemonize=yes --exit-idle-time=-1 -n \
+          --load="module-native-protocol-unix socket=$sock" --load=module-null-sink
+        pactl -s "unix:$sock" info | grep 'Default Sink'
+        echo "FIREFOX_PULSE_SERVER=unix:$sock" >> "$GITHUB_ENV"
+        [ ! -e "${XDG_RUNTIME_DIR:-/run/user/$UID}/pulse/native" ] || { echo "::error::a PulseAudio server is on the usual socket"; exit 1; }
 
     - name: Cache the kit downloads (content-addressed, so any older cache is a valid start)
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
