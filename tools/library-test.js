@@ -45,7 +45,7 @@ const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|fa
       let REPORTS = {};
       try {
         REPORTS = (await import('/app/src/devices/library/reports.js')).REPORTS;
-      } catch (e) {
+      } catch {
         /* none yet */
       }
       const shelf = [...BUILTINS, ...SHOWCASE.map((s) => reg.getDevice(s.id)), ...LIBRARY_DEFS];

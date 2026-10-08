@@ -322,7 +322,7 @@ function notesOf(ctx, song, sel = {}) {
         : (() => {
             try {
               return trackIds(ctx, song, sel.tracks);
-            } catch (e) {
+            } catch {
               return [];
             }
           })();

@@ -11,14 +11,12 @@
 // was measured. Prints a table: id | LUFS (instruments) or ΔLU vs bypass (effects) | true peak | cpu% | tail | deterministic.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tally, OUTDIR } from './pw.js';
 import { measure, lufs, truePeak, spectrogram, onsets } from '../app/src/audio/measure.js';
 import * as T from '../app/src/audio/testsignals.js';
 import { SAMPLED } from '../app/src/devices/builtin/index.js';
 import { dataPath } from '../app/src/engine/node/data.js';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SOUNDS = path.join(OUTDIR, 'sounds');
 fs.mkdirSync(SOUNDS, { recursive: true });
 const t = tally('sounds');

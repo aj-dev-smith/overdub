@@ -47,7 +47,7 @@ export function indexSource(param = new URLSearchParams(location.search).get('co
   let u;
   try {
     u = new URL(param, location.href);
-  } catch (e) {
+  } catch {
     return { error: 'bad' };
   }
   const local = /^http:$/.test(u.protocol) && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
@@ -62,7 +62,7 @@ async function capped(res, cap) {
   if (len > cap) {
     try {
       await res.body?.cancel();
-    } catch (e) {
+    } catch {
       /* gone */
     }
     return null;
@@ -81,7 +81,7 @@ async function capped(res, cap) {
     if (n > cap) {
       try {
         await rd.cancel();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       return null;
@@ -101,7 +101,7 @@ export async function loadIndex(src) {
   let res;
   try {
     res = await fetch(src.url, { credentials: 'omit', cache: 'no-cache', redirect: 'error' });
-  } catch (e) {
+  } catch {
     return { missing: true };
   }
   if (!res.ok) return { missing: true };
@@ -110,7 +110,7 @@ export async function loadIndex(src) {
   let json;
   try {
     json = JSON.parse(new TextDecoder().decode(bytes));
-  } catch (e) {
+  } catch {
     return { unreadable: true };
   }
   return readIndex(json, { base: src.url, bundled: src.bundled });
@@ -187,7 +187,7 @@ async function startPreview(el, { dry = el.dry } = {}) {
   a.src = url;
   try {
     a.currentTime = was;
-  } catch (err) {
+  } catch {
     /* not seekable yet: from the top */
   }
   player.audio = a;
@@ -196,7 +196,7 @@ async function startPreview(el, { dry = el.dry } = {}) {
   fadeIn(a);
   try {
     await a.play();
-  } catch (err) {
+  } catch {
     if (player.audio === a) {
       el.dataset.state = 'idle';
       el.querySelector('.cs-hint').textContent = 'The browser didn’t let it play. Press ▶ again.';
@@ -209,7 +209,7 @@ async function startPreview(el, { dry = el.dry } = {}) {
   if (was && Math.abs(a.currentTime - was) > 0.05 && a.duration) {
     try {
       a.currentTime = was % a.duration;
-    } catch (err) {
+    } catch {
       /* close enough */
     }
   }
@@ -334,7 +334,7 @@ function entryEl(e, ctx) {
     };
     const face = renderFace(def, {}, { on: true, size: 'full' });
     faceBox.append(face.el);
-  } catch (err) {
+  } catch {
     faceBox.append(h('p.cs-noface', {}, 'No face to draw.'));
   }
   stage.append(faceBox);

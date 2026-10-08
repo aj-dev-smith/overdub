@@ -56,7 +56,7 @@ export default function (app) {
       if (j.root) B.root = j.root;
       for (const name of j.agents || []) join(name);
       return 'ok';
-    } catch (e) {
+    } catch {
       return 'down';
     }
   }
@@ -132,7 +132,7 @@ export default function (app) {
       let ev;
       try {
         ev = JSON.parse(m.data);
-      } catch (e) {
+      } catch {
         return;
       }
       if (ev.type === 'call' && ev.turn) onTurnCall(ev);

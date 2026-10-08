@@ -106,7 +106,7 @@ function fakeCloud() {
     let body = null;
     try {
       body = raw ? JSON.parse(raw) : null;
-    } catch (e) {
+    } catch {
       body = raw;
     }
     log.push({ method: req.method, path: url.pathname, body, headers: req.headers });
@@ -1097,7 +1097,7 @@ const fake = await fakeCloud();
 /* ------------------------------------------------------------------ 5. a Claude of your own first; free moves; the bundle */
 {
   fake.grant('jess@example.com', 30);
-  const { page, errors, close } = await studio(fake, { key: true });
+  const { page, close } = await studio(fake, { key: true });
   await page.waitForFunction(() => !!window.overdub.agent.cloud?.config && window.overdub.agent.local, null, {
     timeout: 10000,
   });

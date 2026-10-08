@@ -55,13 +55,13 @@ export default async function (app) {
   try {
     const s = JSON.parse(localStorage.getItem(PREF) || 'null');
     if (s?.closed) prefs = s;
-  } catch (e) {
+  } catch {
     /* fresh */
   }
   const savePrefs = () => {
     try {
       localStorage.setItem(PREF, JSON.stringify(prefs));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
   };

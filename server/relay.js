@@ -483,7 +483,7 @@ export async function startRelay(opts = {}) {
     let text;
     try {
       text = `data: ${JSON.stringify(obj)}\n\n`;
-    } catch (e) {
+    } catch {
       return 'gone';
     }
     const n = Buffer.byteLength(text);
@@ -495,7 +495,7 @@ export async function startRelay(opts = {}) {
     try {
       tab.res.write(text);
       return 'ok';
-    } catch (e) {
+    } catch {
       return 'gone';
     }
   }
@@ -508,7 +508,7 @@ export async function startRelay(opts = {}) {
     if (tab.T.tabs.get(tab.id) === tab) tab.T.tabs.delete(tab.id);
     try {
       res?.destroy();
-    } catch (e) {
+    } catch {
       /* gone */
     }
     failPending(tab.T, tab.id, 'the studio tab stopped reading its connection to the relay');
@@ -607,7 +607,7 @@ export async function startRelay(opts = {}) {
       streams.delete(tab);
       try {
         tab.res?.end();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       clearTimeout(tab.grace);
@@ -636,7 +636,7 @@ export async function startRelay(opts = {}) {
     tab.connected = false;
     try {
       tab.res?.end();
-    } catch (e) {
+    } catch {
       /* gone */
     }
     tab.res = null;
@@ -734,7 +734,7 @@ export async function startRelay(opts = {}) {
     if (res.headersSent) {
       try {
         res.end();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       return;
@@ -837,7 +837,7 @@ export async function startRelay(opts = {}) {
     if (tooDeep(body.text, C.maxDepth)) return err(400, -32600, `JSON nested deeper than ${C.maxDepth} levels`);
     try {
       return { value: JSON.parse(body.text) };
-    } catch (e) {
+    } catch {
       return err(400, -32700, route === 'mcp' ? 'parse error' : 'body is not JSON');
     }
   }
@@ -1199,7 +1199,7 @@ export async function startRelay(opts = {}) {
         sendTab(tab, { type: 'replaced' });
         try {
           tab.res.end();
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }
@@ -1213,7 +1213,7 @@ export async function startRelay(opts = {}) {
           streams.delete(o);
           try {
             o.res?.end();
-          } catch (e) {
+          } catch {
             /* gone */
           }
           clearTimeout(o.grace);
@@ -1252,7 +1252,7 @@ export async function startRelay(opts = {}) {
         if (res.writableLength > C.maxQueuedBytes) return cutOff(tab);
         try {
           res.write(': ping\n\n');
-        } catch (e) {
+        } catch {
           /* closed */
         }
       }, C.heartbeatMs);
@@ -1489,7 +1489,7 @@ export async function startRelay(opts = {}) {
       let url;
       try {
         url = new URL(req.url, 'http://relay');
-      } catch (e) {
+      } catch {
         return json(res, 400, { error: 'bad request' });
       }
       const m = /^\/s\/([^/]+)\/(mcp|hello|events|result)$/.exec(url.pathname);
@@ -1570,7 +1570,7 @@ export async function startRelay(opts = {}) {
       else
         try {
           res.end();
-        } catch (x) {
+        } catch {
           /* gone */
         }
     }
@@ -1634,7 +1634,7 @@ export async function startRelay(opts = {}) {
 const isMain = (() => {
   try {
     return !!process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
-  } catch (e) {
+  } catch {
     return false;
   }
 })();

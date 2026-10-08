@@ -693,7 +693,7 @@ export function mount(el, ctx) {
       const tgt = e.currentTarget;
       try {
         tgt.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       handle.focus({ preventScroll: true });
@@ -947,7 +947,7 @@ export function mount(el, ctx) {
       e.preventDefault();
       try {
         b.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       const x0 = e.clientX,
@@ -1276,7 +1276,7 @@ export function mount(el, ctx) {
       e.preventDefault();
       try {
         view.el.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       view.el.focus({ preventScroll: true });
@@ -2188,7 +2188,7 @@ export function mount(el, ctx) {
       e.preventDefault();
       try {
         fltView.el.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       fltView.el.focus({ preventScroll: true });
@@ -2369,7 +2369,7 @@ export function mount(el, ctx) {
     };
   }
   function envPath(g, G) {
-    const { e, x0, xa, xd, xs, xr, wa, wd, wr, Y } = G,
+    const { e, x0, xa, xs, wa, wd, wr, Y } = G,
       N = 28;
     g.beginPath();
     g.moveTo(x0, Y(0));
@@ -2469,7 +2469,7 @@ export function mount(el, ctx) {
       e.stopPropagation();
       try {
         el2.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       el2.focus({ preventScroll: true });
@@ -3518,7 +3518,7 @@ export function mount(el, ctx) {
       for (const off of offs) {
         try {
           off();
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }

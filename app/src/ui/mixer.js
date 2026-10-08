@@ -64,7 +64,7 @@ const roundDb = (db) => (db <= -95.9 ? -96 : Math.round(db * 10) / 10);
 const coarse = () => {
   try {
     return matchMedia('(pointer: coarse)').matches;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -708,7 +708,7 @@ export default function (app) {
 
       /* ---------------------------------------------------- meters */
       function drawMeter(s, now, lv) {
-        const { cv, g } = s.cv;
+        const { g } = s.cv;
         const resized = s.cv.fit();
         const W = s.cv.w,
           H = s.cv.h;

@@ -16,7 +16,7 @@ const rows = await page.evaluate(async () => {
   let check = null;
   try {
     check = (await import('/app/src/kernel/check.js')).checkDevice;
-  } catch (e) {
+  } catch {
     /* not yet */
   }
   const out = [];

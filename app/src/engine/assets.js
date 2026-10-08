@@ -28,7 +28,7 @@ function openDB() {
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) {
+    } catch {
       resolve(null);
     }
   });
@@ -157,7 +157,7 @@ export function createAssets() {
       if (d) {
         try {
           await tx(d, 'readwrite', (s) => s.delete(id));
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }
@@ -179,7 +179,7 @@ export function createAssets() {
                 duration: (r.channels[0] ? r.channels[0].length : 0) / r.sr,
                 length: r.channels[0] ? r.channels[0].length : 0,
               });
-        } catch (e) {
+        } catch {
           /* memory only */
         }
       }

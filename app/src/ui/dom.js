@@ -209,7 +209,7 @@ export function authorOf(by, app = null) {
   let a = null;
   try {
     a = app && app.store && app.store.author ? app.store.author(by) : null;
-  } catch (e) {
+  } catch {
     a = null;
   }
   if (a && a.kind)

@@ -107,12 +107,10 @@ for (const [ki, kit] of ['FIELD', 'MACHINE', 'DUST'].entries()) {
       const [L, R] = r.channels,
         x = new Float32Array(L.length);
       for (let i = 0; i < x.length; i++) x[i] = 0.5 * (L[i] + R[i]);
-      let pk = 0,
-        pi = 0;
+      let pk = 0;
       for (let i = 0; i < x.length; i++)
         if (Math.abs(x[i]) > pk) {
           pk = Math.abs(x[i]);
-          pi = i;
         }
       // envelope: 5 ms RMS
       const hop = 240,

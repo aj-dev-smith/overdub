@@ -546,7 +546,7 @@ export async function filmSession(opts) {
       const { transport, engine } = window.overdub;
       try {
         transport.click.set({ on: false });
-      } catch (e) {
+      } catch {
         engine.metronome = false;
       }
     });

@@ -58,7 +58,7 @@ export function spec(p) {
 export const text = (p, v) => {
   try {
     return valueText(p, v);
-  } catch (e) {
+  } catch {
     return String(v);
   }
 };
@@ -318,7 +318,7 @@ function continuous(p, { value, onInput, dial, draw, axis = 'v', length = 180 })
     };
     try {
       dial.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     dial.focus({ preventScroll: true });
@@ -851,7 +851,7 @@ export function xy({ label = '', x: px, y: py, value = null, size = 160, onInput
     g = { id: e.pointerId };
     try {
       pad.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     puck.focus({ preventScroll: true });
@@ -1010,7 +1010,7 @@ export function envelope({
       g = { id: e.pointerId, x: e.clientX, y: e.clientY, at: { ...cur }, moved: false };
       try {
         el2.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       el2.focus({ preventScroll: true });
@@ -1354,7 +1354,7 @@ export function keys({ lo = 48, hi = 84, label = 'Keyboard', onNote = null } = {
     e.preventDefault();
     try {
       el.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     on(e.pointerId, +k.dataset.p, velOf(k, e.clientY));

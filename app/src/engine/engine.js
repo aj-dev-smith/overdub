@@ -160,14 +160,14 @@ function ticker(fn, ms) {
     w.onerror = () => {
       try {
         w.terminate();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       w = null;
       if (!iv) iv = setInterval(fn, ms);
     };
     w.postMessage(ms);
-  } catch (e) {
+  } catch {
     w = null;
     iv = setInterval(fn, ms);
   }
@@ -545,7 +545,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (l && l.tap) {
         try {
           l.tap.disconnect(l.inst.keyInput);
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }
@@ -844,7 +844,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (isKernel(inst)) {
       try {
         inst.autoClear(L.param, ctx.currentTime, true);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     } else if (inst.__auto) {
@@ -864,7 +864,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         for (const prm of mixParams(L)) {
           try {
             prm.cancelScheduledValues(F / ctx.sampleRate);
-          } catch (e) {
+          } catch {
             /* closed */
           }
         }
@@ -882,7 +882,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (had) {
       try {
         inst.autoClear(L.param, ctx.currentTime);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -917,7 +917,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
           start: time(g.start) + c,
         });
         AU.insts.add(inst);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -962,7 +962,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
           try {
             q.cancelScheduledValues(t0);
             q.setValueAtTime(q.value, t0);
-          } catch (e) {
+          } catch {
             /* closed */
           }
         }
@@ -980,7 +980,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
             prm[0].linearRampToValueAtTime(l, t);
             prm[1].linearRampToValueAtTime(r, t);
           }
-        } catch (e) {
+        } catch {
           /* closed */
         }
         m.F = F;
@@ -1013,7 +1013,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         inst.__auto = over;
         try {
           inst.set({ ...(base || {}), ...over }, { at: t });
-        } catch (e) {
+        } catch {
           /* a device that can't */
         }
         g.t = t;
@@ -1026,7 +1026,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       try {
         if (release) inst.autoStop();
         else inst.autoClear(null, ctx.currentTime);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -1195,7 +1195,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     try {
       if (e.inst.cancel) e.inst.cancel(e.p, e.t, e.offSent ? e.off.t : null);
       else e.inst.noteOff(e.p, started ? safe : e.t); // (an instrument that can't take a note back: release it at once)
-    } catch (err) {
+    } catch {
       /* a disposed instrument */
     }
   }
@@ -1214,7 +1214,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         e.inst.noteOff(e.p, to);
         e.off.t = to;
       }
-    } catch (err) {
+    } catch {
       /* a disposed instrument */
     }
   }
@@ -1305,7 +1305,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       clicks.delete(o);
       try {
         o.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     };
@@ -1320,7 +1320,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (o.count) continue;
       try {
         o.stop(t);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       clicks.delete(o);
@@ -1369,13 +1369,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     for (const i of insts) {
       try {
         if (i.flush) i.flush(now);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       if (!playedLive.has(i)) {
         try {
           i.allOff(now);
-        } catch (e) {
+        } catch {
           /* ok */
         }
         continue;
@@ -1392,7 +1392,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         seen.add(o);
         try {
           i.noteOff(o.p, Math.max(now, o.onT + step));
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -1403,7 +1403,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       try {
         if (o.onT >= now && o.inst.cancel) o.inst.cancel(o.p, o.onT, null);
         else o.inst.noteOff(o.p, Math.max(now, o.onT + step));
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1412,7 +1412,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     for (const o of clicks) {
       try {
         o.stop(now);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1669,7 +1669,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       kill.gain.cancelScheduledValues(t0);
       kill.gain.setValueAtTime(renewing ? 0 : kill.gain.value, t0);
       kill.gain.linearRampToValueAtTime(0, t1);
-    } catch (e) {
+    } catch {
       /* closed */
     }
     if (T.playing) {
@@ -1698,7 +1698,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         kill.gain.cancelScheduledValues(t);
         kill.gain.setValueAtTime(0, t);
         kill.gain.linearRampToValueAtTime(1, t + 0.01);
-      } catch (e) {
+      } catch {
         /* closed */
       }
       updatePdc();
@@ -1754,7 +1754,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (liveHeld.has(k)) {
       try {
         liveHeld.get(k).noteOff(pitch, ctx.currentTime);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1772,7 +1772,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (inst && inst.expr) {
       try {
         inst.expr(x, ctx.currentTime);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1786,7 +1786,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (inst) {
       try {
         inst.noteOff(pitch, ctx.currentTime);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1821,7 +1821,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const t = ctx.currentTime;
     try {
       inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), t);
-    } catch (e) {
+    } catch {
       return;
     }
     pendingOffs.push({ t: t + Math.max(0.03, beats * spbNow()), inst, p: pitch, onT: t, track: trackId, kind: 'live' });
@@ -1843,7 +1843,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         a.fftSize = 2048;
         try {
           inst.output.connect(a);
-        } catch (e) {
+        } catch {
           a = null;
         }
         if (a) {
@@ -1860,7 +1860,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         let st = null;
         try {
           st = inst.stats ? await inst.stats() : null;
-        } catch (e) {
+        } catch {
           st = null;
         }
         let pk = 0;
@@ -1903,7 +1903,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     let end;
     try {
       end = projectSongEnd(p);
-    } catch (e) {
+    } catch {
       end = 0;
       for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length);
     }
@@ -2036,7 +2036,7 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       for (const off of offs) {
         try {
           if (typeof off === 'function') off();
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -2047,21 +2047,21 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
       if (clickBus) {
         try {
           clickBus.disconnect();
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
       if (kill) {
         try {
           kill.disconnect();
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
       if (ctx) {
         try {
           await ctx.close();
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }

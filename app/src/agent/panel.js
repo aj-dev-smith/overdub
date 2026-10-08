@@ -63,7 +63,7 @@ const isSimple = (app) => app.ui?.workspace?.view?.() === 'simple';
 const mcpHere = (app) => {
   try {
     return (app.presence?.agents?.() || []).some((a) => a.source === 'mcp' && a.connected !== false);
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -76,14 +76,14 @@ function demoByDefault(app) {
   // not remembered for the tab: the next load decides again, so Claude Code or a key set meanwhile wins
   try {
     sessionStorage.removeItem('overdub:agent-mock');
-  } catch (e) {
+  } catch {
     /* ok */
   }
 }
 const localWanted = (app) => {
   try {
     return localStorage.getItem('overdub:agent-local') === '1' && !!app.agent?.local?.available;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -106,14 +106,14 @@ function mountPanel(el, app) {
     get: (k) => {
       try {
         return localStorage.getItem(k);
-      } catch (e) {
+      } catch {
         return null;
       }
     },
     set: (k, v) => {
       try {
         localStorage.setItem(k, v);
-      } catch (e) {
+      } catch {
         /* full */
       }
     },
@@ -232,7 +232,7 @@ function mountPanel(el, app) {
     try {
       const s = ls.get(FEED_KEY + pid);
       list = s ? JSON.parse(s).filter((e) => e && e.k && e.action !== 'retired') : [];
-    } catch (e) {
+    } catch {
       list = [];
     }
     // the retired-key note is never saved with a song: it rides at the end of whichever song is open until it is
@@ -896,7 +896,7 @@ function mountPanel(el, app) {
           if (out) break;
         }
       }
-    } catch (e) {
+    } catch {
       out = null;
     }
     rolls.set(c, out);
@@ -941,7 +941,7 @@ function mountPanel(el, app) {
     if (typeof req.summarize === 'function') {
       try {
         return req.summarize(req);
-      } catch (err) {
+      } catch {
         return 'Closed';
       }
     }
@@ -1008,7 +1008,7 @@ function mountPanel(el, app) {
             setTimeout(() => {
               copy.textContent = 'Copy';
             }, 1500);
-          } catch (e) {
+          } catch {
             ui.toast('Select the command and copy it (the clipboard is blocked here)');
           }
         },

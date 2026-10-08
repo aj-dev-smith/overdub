@@ -159,7 +159,7 @@ console.log('the .odk container');
   ]) {
     try {
       decodeOdk(junk);
-    } catch (e) {
+    } catch {
       bad++;
     }
   }
@@ -260,7 +260,7 @@ console.log('the packed transfer (.odkz)');
   for (const bad of [z.subarray(0, z.length - 1), flip(9), Uint8Array.from([...z, 0]), z.subarray(0, 10)]) {
     try {
       unpackOdk(bad);
-    } catch (e) {
+    } catch {
       refused++;
     }
   }

@@ -159,7 +159,7 @@ export function buildCathedral(c, params = {}) {
       try {
         lfo1.stop();
         lfo2.stop();
-      } catch (e) {
+      } catch {
         /* stopped */
       }
       input.disconnect();
@@ -384,7 +384,7 @@ export function mountPedal(root, { onMeter } = {}) {
       gain.gain.setTargetAtTime(0, t, 0.015); // fade, then stop: no click
       try {
         node.stop(t + 0.12);
-      } catch (e) {
+      } catch {
         /* done */
       }
       src = null;

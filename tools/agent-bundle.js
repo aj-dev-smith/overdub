@@ -34,13 +34,13 @@ export async function exportBundle() {
     let sha = 'unknown';
     try {
       sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
-    } catch (e) {
+    } catch {
       /* not a checkout */
     }
     let branch = '';
     try {
       branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim();
-    } catch (e) {
+    } catch {
       /* not a checkout */
     }
     return {

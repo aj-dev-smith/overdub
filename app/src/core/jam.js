@@ -396,7 +396,6 @@ export function pentatonicFor(key) {
     root,
   };
 }
-const keyText = (k) => (k ? `${k.root} ${SCALE_WORDS[k.scale] || k.scale}` : 'no key');
 
 /* ================================================================================================ the timeline */
 const DETECT = Object.entries(QUALITIES)

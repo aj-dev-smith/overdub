@@ -67,7 +67,7 @@ function findPlaywright() {
   for (const t of tries) {
     try {
       return require(t);
-    } catch (e) {
+    } catch {
       /* next */
     }
   }
@@ -2302,7 +2302,7 @@ async function thumbScrolls(page, E, label, shot) {
     document.querySelectorAll('.ew-toast').forEach((t) => t.remove());
     try {
       localStorage.removeItem('overdub:touch-hold-hint');
-    } catch (e) {
+    } catch {
       /* ok */
     }
     o.ui.setOpen('bottom', false);
@@ -2448,7 +2448,7 @@ async function fingerEdits(page, E, label, shot) {
     try {
       localStorage.removeItem('overdub:beat-hold-hint');
       localStorage.removeItem('overdub:mixer-hold-hint');
-    } catch (e) {
+    } catch {
       /* ok */
     }
     document.querySelectorAll('.ew-toast').forEach((t) => t.remove());

@@ -84,7 +84,7 @@ async function pipe(bytes, stream, limit = Infinity) {
     if (n > limit) {
       try {
         await reader.cancel();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       throw new Error('the link inflates to more than a song can be');
@@ -175,7 +175,7 @@ export async function decodeShare(hashOrUrl) {
   try {
     const json = await inflate(fromBase64url(data));
     payload = JSON.parse(new TextDecoder().decode(json));
-  } catch (e) {
+  } catch {
     return {
       ok: false,
       error:
@@ -458,7 +458,7 @@ export function browserId() {
       localStorage.setItem(ME_KEY, me);
     }
     return me;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -468,7 +468,7 @@ export async function isOwnLink({ song, from = {}, at = null }, me = browserId()
   if (!me || !from.mark || typeof from.mark !== 'string') return false;
   try {
     return from.mark === (await linkMark(me, at, JSON.stringify(song)));
-  } catch (e) {
+  } catch {
     return false;
   }
 }

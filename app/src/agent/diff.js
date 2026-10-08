@@ -646,7 +646,7 @@ export function lanesIn(p) {
 export function pointsOf(points) {
   try {
     return parsePoints(points).filter((x) => x && Number.isFinite(+x.t) && Number.isFinite(+x.v));
-  } catch (e) {
+  } catch {
     return [];
   }
 }

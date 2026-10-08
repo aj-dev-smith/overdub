@@ -53,7 +53,7 @@ export function instReady(engine, track, ms = 60000) {
   let inst = null;
   try {
     inst = engine?.instance?.(track, 'instrument') || null;
-  } catch (e) {
+  } catch {
     inst = null;
   }
   if (!inst || !inst.data || inst.data.state !== 'loading' || typeof inst.on !== 'function')

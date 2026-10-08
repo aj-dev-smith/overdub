@@ -136,7 +136,7 @@ for (const f of fs
     });
     try {
       return JSON.parse(r.stdout.trim().split('\n').pop());
-    } catch (e) {
+    } catch {
       return { error: (r.stderr || r.stdout || '').slice(0, 200) };
     }
   };

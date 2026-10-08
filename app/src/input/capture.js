@@ -114,7 +114,7 @@ function openDB() {
       rq.onsuccess = () => res(rq.result);
       rq.onerror = () => res(null);
       rq.onblocked = () => res(null);
-    } catch (e) {
+    } catch {
       res(null);
     }
   });
@@ -148,7 +148,7 @@ export function createCapture(app, input) {
     try {
       const t = db.transaction(STORE, 'readwrite');
       t.objectStore(STORE).put(JSON.parse(JSON.stringify(ph)));
-    } catch (e) {
+    } catch {
       /* quota: memory still has it */
     }
   }
@@ -159,7 +159,7 @@ export function createCapture(app, input) {
     try {
       const t = db.transaction(STORE, 'readwrite');
       for (const p of drop) t.objectStore(STORE).delete(p.id);
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }
@@ -178,7 +178,7 @@ export function createCapture(app, input) {
             res();
           };
           rq.onerror = () => res();
-        } catch (e) {
+        } catch {
           res();
         }
       }),
@@ -285,7 +285,7 @@ export function createCapture(app, input) {
       let tk = null;
       try {
         tk = track ? input.recorder?.takeNow?.() || null : null;
-      } catch (e) {
+      } catch {
         tk = null;
       }
       cur.held.set(p, { t: t - cur.t0, v, b: on ? eng.beat : null, g: on ? gridOf(eng) : null, tk });
@@ -516,17 +516,17 @@ export function createCapture(app, input) {
     try {
       if (rec?.select) rec.select({ track, clip, notes: [] });
       else app.ui?.select?.({ track, clip, notes: [] });
-    } catch (e) {
+    } catch {
       /* ok */
     }
     try {
       if (p.kind !== 'audio') rec?.took?.(aimOf(p), track);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     try {
       app.arranger?.show?.([clip], 'you');
-    } catch (e) {
+    } catch {
       /* no arranger (Node) */
     } // where it landed, flashed warm
     return { ok: true, track, clip };
@@ -535,7 +535,7 @@ export function createCapture(app, input) {
     const has = (id) => {
       try {
         return !!app.devices.getDevice(id);
-      } catch (e) {
+      } catch {
         return false;
       }
     };
@@ -546,7 +546,7 @@ export function createCapture(app, input) {
   // leaving the page closes the phrase in progress (it is saved)
   try {
     window.addEventListener('pagehide', () => closeCur());
-  } catch (e) {
+  } catch {
     /* node */
   }
   return capture;

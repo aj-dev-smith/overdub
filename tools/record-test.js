@@ -47,10 +47,6 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 {
   // the pass map: a take from beat 6 in the loop [4, 12): pass 0 is 6..12, then the loop again and again
   const span = { g0: 6, b0: 6, loop: { start: 4, end: 12 }, wrap: 12 };
-  const at = (g) => {
-    const w = passOf(g, span);
-    return `${w.pass}:${w.beat}`;
-  };
   const at4 = (g) => {
     const w = passOf(g, span);
     return `${w.pass}:${Math.round(w.beat * 1e4) / 1e4}`;
@@ -2171,7 +2167,7 @@ try {
     for (const n of window.__toneNodes || []) {
       try {
         n.stop();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -2296,7 +2292,7 @@ await close();
     await ev(() => {
       try {
         window.__hold.stop();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       window.overdub.engine.stop();
@@ -2770,7 +2766,7 @@ await close();
   async function shot4(name) {
     try {
       await s4.shot(name);
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }

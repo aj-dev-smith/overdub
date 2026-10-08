@@ -57,7 +57,7 @@ export function nodeRenderer({ node = process.execPath } = {}) {
     if (child) {
       try {
         child.kill('SIGKILL');
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }

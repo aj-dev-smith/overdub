@@ -116,7 +116,7 @@ export function createQwerty(app, input) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const down = new Map(); // code -> pitch it is holding (an octave change mid-note lets the right one go)
@@ -209,7 +209,7 @@ export function createQwerty(app, input) {
   const say = (text) => {
     try {
       app.ui.announce?.(text);
-    } catch (e) {
+    } catch {
       /* no shell */
     }
   };
@@ -273,7 +273,7 @@ export function createQwerty(app, input) {
           quantize: q.quantize,
         }),
       );
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }

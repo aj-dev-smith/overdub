@@ -77,7 +77,7 @@ export function songEnd(p) {
   let end;
   try {
     end = projectSongEnd(p);
-  } catch (e) {
+  } catch {
     end = 0;
     for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length);
   }

@@ -32,7 +32,7 @@ const parse = (v) => {
   if (typeof v === 'string') {
     try {
       return JSON.parse(v);
-    } catch (e) {
+    } catch {
       return v;
     }
   }
@@ -305,7 +305,7 @@ function runTool(app, by, input) {
         by,
         4000,
       );
-  } catch (e) {
+  } catch {
     /* presence is a nicety */
   }
   const after = dest ? null : app.store.findClip(tr.clip.id)?.clip;

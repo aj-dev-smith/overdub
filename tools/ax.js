@@ -30,7 +30,7 @@ async function up() {
   const stop = async () => {
     try {
       fs.unlinkSync(STATE);
-    } catch (e) {
+    } catch {
       /* gone */
     }
     await h.close();
@@ -64,7 +64,7 @@ async function human(q) {
     RES = path.join(OUTDIR, 'ax-human.res');
   try {
     fs.unlinkSync(RES);
-  } catch (e) {
+  } catch {
     /* none */
   }
   fs.writeFileSync(REQ, JSON.stringify(q));
@@ -95,7 +95,7 @@ async function call(tool, json) {
   let data;
   try {
     data = JSON.parse(text);
-  } catch (e) {
+  } catch {
     data = text;
   }
   let img = null;
@@ -124,7 +124,7 @@ else if (cmd === 'tools') {
     const { pid } = JSON.parse(fs.readFileSync(STATE, 'utf8'));
     process.kill(pid, 'SIGTERM');
     console.log('ax: stopped ' + pid);
-  } catch (e) {
+  } catch {
     console.log('ax: not running');
   }
 } else console.log('usage: node tools/ax.js up | call <tool> [json] | tools | down');

@@ -122,7 +122,7 @@ export function drawBeat(app, { fresh = false } = {}) {
     ui.select({ track: tid, clip: cid, notes: [] });
     try {
       if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     ui.show('drumgrid');
@@ -241,7 +241,7 @@ function mountGrid(el, app) {
   const coarse = () => {
     try {
       return matchMedia('(pointer: coarse)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -641,14 +641,14 @@ function mountGrid(el, app) {
     if (!have) audition(g.c.p, 0.8);
     try {
       navigator.vibrate?.(12);
-    } catch (e) {
+    } catch {
       /* no buzz */
     }
     let first = false;
     try {
       first = localStorage.getItem(HOLD_HINT) !== '1';
       if (first) localStorage.setItem(HOLD_HINT, '1');
-    } catch (e) {
+    } catch {
       first = false;
     }
     const what = paint.mode === 'add' ? 'adds hits' : 'clears hits';

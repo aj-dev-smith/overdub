@@ -386,7 +386,7 @@ export default function (app) {
     try {
       const v = JSON.parse(localStorage.getItem(RECENT) || '[]');
       return Array.isArray(v) ? v.filter((e) => e && e.song && Array.isArray(e.song.tracks)) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   };
@@ -399,7 +399,7 @@ export default function (app) {
         try {
           localStorage.setItem(RECENT, text);
           return list;
-        } catch (e) {
+        } catch {
           if (list.length === 1) return [];
         }
       }
@@ -407,7 +407,7 @@ export default function (app) {
     }
     try {
       localStorage.setItem(RECENT, '[]');
-    } catch (e) {
+    } catch {
       /* storage blocked */
     }
     return list;
@@ -427,7 +427,7 @@ export default function (app) {
     if (!d) return false;
     try {
       return sameBody(cleanProject(demoById(d)), song);
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -495,13 +495,13 @@ export default function (app) {
     if (app.share?.listening) {
       try {
         keep = localStorage.getItem(SAVED) || keep;
-      } catch (e) {
+      } catch {
         /* storage blocked */
       }
     }
     try {
       lost = addRecent(JSON.parse(keep));
-    } catch (e) {
+    } catch {
       /* not a song */
     }
     try {
@@ -509,7 +509,7 @@ export default function (app) {
       // the song from before Make it yours is now in PREV too, and newer: the Song menu's way back to it can go
       const bf = localStorage.getItem(BEFORE_FORK);
       if (bf && JSON.parse(bf).id === JSON.parse(keep).id) localStorage.removeItem(BEFORE_FORK);
-    } catch (e) {
+    } catch {
       /* too big for storage: kept in memory */
     }
     return { prev, lost };
@@ -519,7 +519,7 @@ export default function (app) {
     try {
       const q = JSON.parse(localStorage.getItem(BEFORE_FORK) || 'null');
       return q && Array.isArray(q.tracks) && q.id !== store.get().id ? q : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -534,7 +534,7 @@ export default function (app) {
     if (rec && rec.state === 'count') {
       try {
         rec.cancel();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -546,14 +546,14 @@ export default function (app) {
     try {
       if (app.engine?.playing) app.engine.stop();
       app.engine?.seek?.(0);
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
     store.load(next, { by: 'you' });
     // the old song's toasts with an Undo go with it (the take just put in, a delete): their Undo would land on this one
     try {
       for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove();
-    } catch (e) {
+    } catch {
       /* no DOM */
     }
     ui.select({ track: null, clip: null, notes: [], insert: null, range: null });
@@ -606,7 +606,7 @@ export default function (app) {
     let p;
     try {
       p = JSON.parse(text);
-    } catch (e) {
+    } catch {
       ui.toast(`${name} isn’t a project file (not JSON)`, { kind: 'bad' });
       return false;
     }

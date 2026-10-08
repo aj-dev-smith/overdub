@@ -61,7 +61,6 @@ export const pkey = (lane, i, f) => `${lane}${i}_${f}`; // i is 1-based: pkey('v
 export const slotDefault = (lane, i) => ({ x: i === 1 ? 0 : 1, y: laneOf(lane)?.rest ?? 1, c: 0, s: 0 });
 
 /* ------------------------------------------------------------------------------------------------ reading a shape */
-const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const cl = (x, a, b) => (x < a ? a : x > b ? b : x);
 const num = (v, d) => {
   const x = Number(v);

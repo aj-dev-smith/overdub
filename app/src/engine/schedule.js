@@ -120,7 +120,7 @@ export function playBuffer(c, buffer, dest, { t0, offset = 0, t1, gainDb = 0 }) 
     h.stopped = true;
     try {
       env.disconnect();
-    } catch (e) {
+    } catch {
       /* ok */
     }
   };
@@ -138,7 +138,7 @@ export function playBuffer(c, buffer, dest, { t0, offset = 0, t1, gainDb = 0 }) 
         env.gain.setTargetAtTime(0, t, fade / 4);
         src.stop(t + fade * 3);
       }
-    } catch (e) {
+    } catch {
       /* already stopped */
     }
   };

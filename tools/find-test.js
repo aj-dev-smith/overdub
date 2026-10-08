@@ -402,7 +402,7 @@ try {
           sessionStorage.setItem('seeded', '1');
           localStorage.setItem('overdub:workspace', JSON.stringify({ v: 1, view: 'simple', added: { mixer: 'you' } }));
         }
-      } catch (e) {
+      } catch {
         /* ok */
       }
     };

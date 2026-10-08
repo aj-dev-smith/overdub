@@ -1286,7 +1286,7 @@ try {
       const a = window.overdub;
       try {
         await a.engine.start();
-      } catch (e) {
+      } catch {
         /* */
       }
       a.engine.play(0);

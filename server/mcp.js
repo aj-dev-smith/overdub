@@ -62,7 +62,7 @@ async function http(method, route, body, timeoutMs = 10000) {
     let data;
     try {
       data = JSON.parse(text);
-    } catch (e) {
+    } catch {
       data = { error: text.slice(0, 200) };
     }
     return { status: res.status, data };
@@ -76,7 +76,7 @@ async function ensureServer() {
   try {
     const r = await http('GET', '/bridge/status', null, 1500);
     if (r.status === 200) return true;
-  } catch (e) {
+  } catch {
     /* not running */
   }
   if (started) return started;
@@ -102,7 +102,7 @@ async function listTools() {
   try {
     const r = await http('GET', '/bridge/tools', null, 4000);
     if (r.status === 200 && r.data.tools?.length) return r.data.tools;
-  } catch (e) {
+  } catch {
     /* fall back */
   }
   // no tab yet: the whole catalog, including the tools page modules register at boot (agent/extra-schemas.js)
@@ -129,7 +129,7 @@ async function checkCatalog() {
       out({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' });
       log('the studio tab has a different tool catalog: told the client to list again');
     }
-  } catch (e) {
+  } catch {
     /* next call */
   }
 }
@@ -232,7 +232,7 @@ function openBrowser(url) {
     c.on('error', () => {});
     c.unref();
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -240,7 +240,7 @@ async function studioOpen() {
   try {
     const r = await http('GET', '/bridge/status', null, 1500);
     return r.status === 200 && r.data.pages > 0;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -392,7 +392,7 @@ function main() {
     if (!TURN) {
       try {
         await http('POST', '/bridge/agent', { agent: agentName, state: 'leave' }, 1500);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -411,7 +411,7 @@ function main() {
       let msg;
       try {
         msg = JSON.parse(line);
-      } catch (e) {
+      } catch {
         fail(null, -32700, 'parse error');
         continue;
       }

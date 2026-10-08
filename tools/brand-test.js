@@ -114,7 +114,7 @@ T.ok(
   let fontsSrc = '';
   try {
     fontsSrc = fs.readFileSync(path.join(ROOT, 'app/style/fonts.css'), 'utf8');
-  } catch (e) {
+  } catch {
     /* none: the check fails */
   }
   T.ok(
@@ -580,7 +580,7 @@ const canvasShot = (page) => page.locator('#weave').screenshot();
   const readOr = (f) => {
     try {
       return fs.readFileSync(f, 'utf8');
-    } catch (e) {
+    } catch {
       return '';
     }
   };

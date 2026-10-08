@@ -21,7 +21,7 @@ export function cloudOrigin(value) {
   let u;
   try {
     u = new URL(value);
-  } catch (e) {
+  } catch {
     return null;
   }
   if (u.username || u.password) return null;
@@ -47,7 +47,7 @@ export function loadSiteConfig({ fetch: f = globalThis.fetch, search, host, fres
     try {
       const r = await f('site-config.json', { cache: 'no-store', credentials: 'same-origin' });
       if (r.ok && (r.headers.get('content-type') || '').includes('json')) j = await r.json();
-    } catch (e) {
+    } catch {
       j = null;
     }
     const api = cloudOrigin(j?.cloud?.api);

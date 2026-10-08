@@ -137,7 +137,7 @@ export function createLatency(audio) {
   try {
     all = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
     if (typeof all !== 'object' || Array.isArray(all)) all = {};
-  } catch (e) {
+  } catch {
     all = {};
   }
   const fns = new Set();
@@ -153,7 +153,7 @@ export function createLatency(audio) {
   const save = () => {
     try {
       localStorage.setItem(KEY, JSON.stringify(all));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
   };
@@ -256,7 +256,7 @@ export function createLatency(audio) {
           for (const s of src) {
             try {
               s.stop();
-            } catch (e) {
+            } catch {
               /* done */
             }
           }
@@ -305,7 +305,7 @@ export function createLatency(audio) {
         for (const s of src) {
           try {
             s.stop();
-          } catch (e) {
+          } catch {
             /* done */
           }
         }

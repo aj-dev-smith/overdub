@@ -39,7 +39,7 @@ async function staticTools() {
   try {
     const m = await import('../app/src/agent/tools.js');
     catalog = m.catalogSchemas ? await m.catalogSchemas() : m.schemas();
-  } catch (e) {
+  } catch {
     catalog = [];
   }
   return catalog;
@@ -68,7 +68,7 @@ function readBody(req, limit = 8 * 1024 * 1024) {
       try {
         const s = Buffer.concat(parts).toString('utf8');
         resolve(s ? JSON.parse(s) : {});
-      } catch (e) {
+      } catch {
         reject(new Error('body is not JSON'));
       }
     });
@@ -87,7 +87,7 @@ export function foreignOrigin(req) {
   if (o === 'null') return true;
   try {
     return new URL(o).host !== req.headers.host;
-  } catch (e) {
+  } catch {
     return true;
   }
 }
@@ -102,7 +102,7 @@ function send(page, obj) {
   try {
     page.res.write(`data: ${JSON.stringify(obj)}\n\n`);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -120,7 +120,7 @@ export function timeoutFor(tool, input = {}) {
   if (typeof input === 'string') {
     try {
       input = JSON.parse(input);
-    } catch (e) {
+    } catch {
       input = {};
     }
   }
@@ -186,7 +186,7 @@ export function register({ addRoute }) {
         if (p.res && p.res !== res) {
           try {
             p.res.end();
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
@@ -203,7 +203,7 @@ export function register({ addRoute }) {
         const ping = setInterval(() => {
           try {
             res.write(': ping\n\n');
-          } catch (e) {
+          } catch {
             /* closed */
           }
         }, 15000);

@@ -262,7 +262,7 @@ await section('13 the tool, Node', async () => {
       try {
         const m = JSON.parse(l);
         if (m.id === 2 && m.result) listed = m.result.tools;
-      } catch (e) {
+      } catch {
         /* partial */
       }
     }

@@ -24,7 +24,7 @@ function findPlaywright() {
   ].filter(Boolean)) {
     try {
       return require(p);
-    } catch (e) {
+    } catch {
       /* next */
     }
   }
@@ -102,7 +102,7 @@ child.stdout.on('data', (chunk) => {
     let m;
     try {
       m = JSON.parse(line);
-    } catch (e) {
+    } catch {
       stray.push(line);
       continue;
     }
@@ -135,7 +135,7 @@ const call = async (name, args = {}, timeoutMs) => {
   for (const s of text) {
     try {
       data = JSON.parse(s);
-    } catch (e) {
+    } catch {
       /* a note */
     }
   }
@@ -146,7 +146,7 @@ let browser = null;
 const finish = async () => {
   try {
     child.stdin.end();
-  } catch (e) {
+  } catch {
     /* gone */
   }
   await Promise.race([new Promise((r) => child.on('exit', r)), sleep(3000)]);
@@ -174,7 +174,7 @@ try {
   for (let i = 0; i < 50 && !up; i++) {
     try {
       up = (await fetch(BASE + '/bridge/status')).ok;
-    } catch (e) {
+    } catch {
       await sleep(100);
     }
   }
@@ -425,7 +425,7 @@ try {
         if (String(u).includes('/bridge/result')) {
           try {
             window.__ids.push(JSON.parse(o.body).id);
-          } catch (e) {
+          } catch {
             /* not a result */
           }
         }
@@ -995,7 +995,7 @@ try {
     try {
       const m = JSON.parse(l);
       return !(m.jsonrpc === '2.0' && m.method && m.id === undefined);
-    } catch (e) {
+    } catch {
       return true;
     }
   });

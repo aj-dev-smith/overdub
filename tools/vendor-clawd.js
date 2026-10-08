@@ -39,7 +39,7 @@ try {
   rev = execSync('git log -1 --format=%h', { cwd: SRC, stdio: ['ignore', 'pipe', 'ignore'] })
     .toString()
     .trim();
-} catch (e) {
+} catch {
   /* not a checkout */
 }
 try {
@@ -49,7 +49,7 @@ try {
       .trim()
   )
     rev += '+dirty';
-} catch (e) {
+} catch {
   /* fine */
 }
 

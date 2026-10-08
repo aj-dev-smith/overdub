@@ -213,7 +213,7 @@ export default function (app) {
       if (S.pads || S.guide) {
         try {
           engine.stop?.();
-        } catch (e) {
+        } catch {
           /* ok */
         }
         release();
@@ -240,7 +240,7 @@ export default function (app) {
     if (S.guide) {
       try {
         S.guide.release();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       S.guide = null;
@@ -263,7 +263,7 @@ export default function (app) {
     S.guidePlan = { ops: plan.ops, summary: plan.summary };
     try {
       if (!engine.playing) engine.play(0);
-    } catch (e) {
+    } catch {
       /* silent engine */
     }
     return true;
@@ -309,7 +309,7 @@ export default function (app) {
     document.documentElement.classList.remove('st-open');
     try {
       if (opener?.isConnected) opener.focus();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     opener = null;
@@ -334,7 +334,7 @@ export default function (app) {
       const f = stage.querySelector('.st-first') || stage;
       try {
         f.focus({ preventScroll: true });
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -349,12 +349,12 @@ export default function (app) {
     }
     try {
       app.input?.qwerty?.on && app.input.qwerty.toggle(false);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     try {
       if (engine.playing) engine.stop();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     Object.assign(S, { kind, hits: [], read: null, landed: null, level: 'tight', reading: 0, before: null, gridAt: 0 });
@@ -370,7 +370,7 @@ export default function (app) {
       const b = stage?.querySelector('.st-first') || stage;
       try {
         b?.focus({ preventScroll: true });
-      } catch (e) {
+      } catch {
         /* ok */
       }
     });
@@ -384,7 +384,7 @@ export default function (app) {
     if (!playing || to !== 'song') {
       try {
         if (engine.playing && (S.guide || S.step === 'play')) engine.stop();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -428,11 +428,11 @@ export default function (app) {
         setTimeout(() => {
           try {
             engine.liveNoteOff(tid, r.p);
-          } catch (e) {
+          } catch {
             /* ok */
           }
         }, 160);
-      } catch (e) {
+      } catch {
         /* silent engine */
       }
     }
@@ -484,12 +484,12 @@ export default function (app) {
     S.reading = 0;
     try {
       ui.select({ track: S.landed.track, clip: S.landed.clip, notes: [] });
-    } catch (e) {
+    } catch {
       /* ok */
     }
     try {
       engine.play(0);
-    } catch (e) {
+    } catch {
       /* silent engine */
     }
     setStep('in');
@@ -565,7 +565,7 @@ export default function (app) {
     close({ to: 'song' });
     try {
       if (!engine.playing) engine.play(0);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     app.onboard?.humOver?.();
@@ -582,7 +582,7 @@ export default function (app) {
     S.guide = null;
     try {
       g?.release();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     const res = store.dispatch(ops, { by: 'you', label: `a beat to hum over, 4 bars at ${S.speed} BPM` });
@@ -596,7 +596,7 @@ export default function (app) {
     close({ to: 'song' });
     try {
       if (!engine.playing) engine.play(0);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     app.onboard?.humOver?.();

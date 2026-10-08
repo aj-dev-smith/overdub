@@ -89,7 +89,7 @@ function install() {
         ctl.classList.add(o.heldClass || 'ew-held');
         try {
           navigator.vibrate?.(12);
-        } catch (err) {
+        } catch {
           /* no buzz */
         }
         const name = o.name || 'knob',
@@ -98,7 +98,7 @@ function install() {
         try {
           first = localStorage.getItem(key) !== '1';
           if (first) localStorage.setItem(key, '1');
-        } catch (err) {
+        } catch {
           first = false;
         }
         if (first)

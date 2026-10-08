@@ -32,7 +32,7 @@ import { holdToMove } from './touch.js';
 let dom = null;
 try {
   dom = await import('./dom.js');
-} catch (e) {
+} catch {
   dom = null;
 } // FALLBACK until ui/dom.js lands: inject <style> here
 
@@ -116,7 +116,7 @@ export function valueText(p, v) {
     try {
       const s = p.fmt(v);
       if (s != null) return String(s);
-    } catch (e) {
+    } catch {
       /* its own business */
     }
   }
@@ -1102,7 +1102,7 @@ function ensureCss() {
 function fontDeclared(family) {
   try {
     for (const f of document.fonts) if (String(f.family).replace(/^["']|["']$/g, '') === family) return true;
-  } catch (e) {
+  } catch {
     /* no FontFaceSet */
   }
   return false;

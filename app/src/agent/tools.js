@@ -281,7 +281,7 @@ function parseMaybeJSON(v) {
   if (typeof v === 'string') {
     try {
       return JSON.parse(v);
-    } catch (e) {
+    } catch {
       return v;
     }
   }
@@ -544,7 +544,7 @@ function endPlay(app) {
   if (s.playOff) {
     try {
       s.playOff();
-    } catch (e) {
+    } catch {
       /* the engine went */
     }
     s.playOff = null;
@@ -937,7 +937,7 @@ With detail "params" (the default while the list stays short; one device always 
         for (const q of Array.isArray(src.params) ? src.params : []) {
           try {
             params.push(paramLine(normParam(q)));
-          } catch (e) {
+          } catch {
             /* a param the song got wrong */
           }
         }
@@ -1261,7 +1261,7 @@ Words people disagree on (warm/cold, fat, tight): the first time, adjust doesn't
       if (rg.error) return rg.error; // before anything sounds
       try {
         await app.engine.start?.();
-      } catch (e) {
+      } catch {
         /* needs a gesture: the human can press play */
       }
       endPlay(app);
@@ -1575,7 +1575,7 @@ export async function catalogSchemas() {
   try {
     const { EXTRA_SCHEMAS } = await import('./extra-schemas.js');
     for (const x of EXTRA_SCHEMAS) if (!out.some((t) => t.name === x.name)) out.push(schemaOf(x));
-  } catch (e) {
+  } catch {
     /* the core tools still list */
   }
   return out;
@@ -1986,7 +1986,7 @@ function keepRequest(app, by, { ops, items, label, reason, fine = null }) {
   let target = Object.keys(t0).length ? t0 : null;
   try {
     if (target && app.presence?.resolve) target = app.presence.resolve(target);
-  } catch (e) {
+  } catch {
     target = t0;
   }
   const req = {
@@ -2015,7 +2015,7 @@ function keepRequest(app, by, { ops, items, label, reason, fine = null }) {
   try {
     if (target && app.presence?.highlight)
       app.presence.highlight(target, `wants to ${items[0]?.verb || 'change'} this`, by, 8000);
-  } catch (e) {
+  } catch {
     /* a nicety */
   }
   app.ui?.emit('agent:request', { id, req });
@@ -2126,7 +2126,7 @@ function selectionInfo(app) {
   if (ws && ws.view?.() === 'simple') {
     try {
       out.studio = { view: 'simple', hidden: ws.hidden?.() || [] };
-    } catch (e) {
+    } catch {
       /* the layout is a nicety */
     }
   }
@@ -2141,7 +2141,7 @@ function selectionInfo(app) {
       if (was?.device && out.track && out.track.id === tr.track)
         out.track.instrument = `${was.device} ${JSON.stringify(was.params || {})}`;
     }
-  } catch (e) {
+  } catch {
     /* a nicety */
   }
   out.trying = trying;
@@ -2764,7 +2764,7 @@ function parsePointsSafe(v) {
       .map((y) => Number(y && y.t))
       .filter(Number.isFinite)
       .sort((a, b) => a - b);
-  } catch (e) {
+  } catch {
     return [];
   }
 }
@@ -2829,7 +2829,7 @@ function droppedLanes(app, before, ops) {
 function planSummary(before, op, by) {
   try {
     return ARRANGEMENT_OPS[op.type](before, op, { by, refs: {} }).summary || '';
-  } catch (e) {
+  } catch {
     return '';
   }
 }
@@ -2846,7 +2846,7 @@ const SYNTAX = (src) => {
 async function loadCheck() {
   try {
     return (await import('../kernel/check.js')).checkDevice || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -2940,7 +2940,7 @@ async function defineDevice(app, by, device, input, signal = null) {
     let shelf = null;
     try {
       shelf = await app.community?.matchKernel?.(d.kernel);
-    } catch (e) {
+    } catch {
       shelf = null;
     }
     if (shelf)
@@ -2995,7 +2995,7 @@ async function defineDevice(app, by, device, input, signal = null) {
       .map((x) => {
         try {
           return normParam(x);
-        } catch (e) {
+        } catch {
           return null;
         }
       })
@@ -3120,7 +3120,7 @@ async function defineDevice(app, by, device, input, signal = null) {
       try {
         if (prevDoc) app.devices.defineDevice({ ...prevDoc, source: 'project' }, { replace: true });
         else app.devices.removeDevice?.(d.id);
-      } catch (e) {
+      } catch {
         /* the next sync puts it right */
       }
     }
@@ -3896,8 +3896,7 @@ function opsForMoves(app, trackId, moves) {
 // fader from or to FADE_FLOOR instead.
 function overOps(app, t, plan, rg, shape, fade = null, opts = {}) {
   const p = P(app),
-    trackId = t ? t.id : 'master',
-    gd = app.devices.getDevice;
+    trackId = t ? t.id : 'master';
   if (fade) {
     const addr = { track: trackId, param: 'gain' },
       lane = laneAt(p, addr),
@@ -4080,7 +4079,7 @@ function pointsReplaced(app, ops, by) {
     let next = [];
     try {
       next = parsePoints(o.points);
-    } catch (e) {
+    } catch {
       /* described only */
     }
     const t = o.track === 'master' ? null : p.tracks.find((x) => x.id === o.track);
@@ -4605,7 +4604,7 @@ async function askReading(app, by, input, ctx, { word, readings, rootDir, amount
     if (over) {
       try {
         plan = { ...plan, ops: overOps(app, t, plan, over, SHAPE_OF[input.shape || 'hold'] || 'hold') };
-      } catch (e) {
+      } catch {
         continue;
       }
     }
@@ -4937,7 +4936,7 @@ async function keepCode(app, req, card, idx) {
     if (req.result?.kept) {
       try {
         app.trust?.allow?.(req.keep.code.map((d) => d.kernel).filter((k) => typeof k === 'string'));
-      } catch (e) {
+      } catch {
         /* main.js's listener has it */
       }
     }
@@ -5216,7 +5215,7 @@ function audition(app, id, index, on) {
         () => {},
       );
       a.started = true;
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
   }
@@ -5259,13 +5258,13 @@ function getCapture(app, input) {
   let list = [];
   try {
     list = (typeof cap.list === 'function' ? cap.list() : cap.takes || []) || [];
-  } catch (e) {
+  } catch {
     list = [];
   } // newest first
   let latest = null;
   try {
     latest = typeof cap.latest === 'function' ? cap.latest() : list[0];
-  } catch (e) {
+  } catch {
     latest = list[0];
   }
   const view = (c) => {
@@ -5273,7 +5272,7 @@ function getCapture(app, input) {
     let pn = null;
     try {
       pn = typeof cap.phraseNotes === 'function' ? cap.phraseNotes(c.id) : null;
-    } catch (e) {
+    } catch {
       pn = null;
     }
     const notes = pn?.notes || c.notes || [];

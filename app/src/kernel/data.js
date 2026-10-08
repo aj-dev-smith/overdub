@@ -71,7 +71,7 @@ function db() {
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) {
+    } catch {
       resolve(null);
     }
   });
@@ -137,7 +137,7 @@ function expectedLength(head, r) {
       let n = 0;
       for (const e of k.samples || []) n += (e.frames | 0) * (k.channels | 0);
       return 12 + H + 2 * n;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -188,7 +188,7 @@ async function fetchBytes(url, hash) {
       o += p.length;
     }
     return out;
-  } catch (e) {
+  } catch {
     /* offline, or not served */
   }
   return null;
@@ -209,7 +209,7 @@ export function loadData(hash) {
           const odk = isPacked(b) ? await odkOf(hash, b, 'the cached copy') : b;
           if (odk) return odk;
         }
-      } catch (e) {
+      } catch {
         /* not cached */
       }
     }
@@ -236,7 +236,7 @@ export function loadData(hash) {
         await tx(d, 'readwrite', (s) =>
           s.put({ hash, bytes: keep.buffer.slice(keep.byteOffset, keep.byteOffset + keep.byteLength) }),
         );
-      } catch (e) {
+      } catch {
         /* kept for this session only */
       }
     }

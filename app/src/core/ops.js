@@ -241,7 +241,7 @@ function clipChanged(c, print) {
   let was = [];
   try {
     was = JSON.parse(print);
-  } catch (e) {
+  } catch {
     /* an unreadable print never matches */
   }
   if (!Array.isArray(was)) was = [];
@@ -261,7 +261,7 @@ function expectTrack(t, print) {
   let was = [];
   try {
     was = JSON.parse(print);
-  } catch (e) {
+  } catch {
     /* never matches */
   }
   const old = new Map(Array.isArray(was) ? was : []);

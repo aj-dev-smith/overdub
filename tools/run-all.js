@@ -92,7 +92,7 @@ if (!only.length) {
         2,
       ) + '\n',
     );
-  } catch (e) {
+  } catch {
     /* the totals are a convenience */
   }
   console.log(`${oks + fails} checks in ${results.length} suites (${fails} failed)`);

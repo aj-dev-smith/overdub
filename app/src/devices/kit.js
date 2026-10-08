@@ -99,7 +99,7 @@ export function workletsReady(c, worklets) {
 export function endWorklet(n) {
   try {
     if (n && n.port) n.port.postMessage({ __pfxEnd: true });
-  } catch (e) {
+  } catch {
     /* gone */
   }
 }
@@ -127,7 +127,7 @@ export function glide(c, param, v, dur, at, from) {
   }
   try {
     param.setValueCurveAtTime(cv, t, dur);
-  } catch (e) {
+  } catch {
     param.setTargetAtTime(v, t, dur / 4);
   }
 }
@@ -282,7 +282,7 @@ export function makeKit(c, { uid = 'device', seed = 1, clock = null } = {}) {
       unlink = (a, b) => {
         try {
           AudioNode.prototype.disconnect.call(a, b);
-        } catch (e) {
+        } catch {
           /* gone */
         }
       };
@@ -411,19 +411,19 @@ export function makeKit(c, { uid = 'device', seed = 1, clock = null } = {}) {
       for (const s of own.src) {
         try {
           s.stop();
-        } catch (e) {
+        } catch {
           /* not started */
         }
         try {
           s.disconnect();
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }
       for (const fn of own.fns) {
         try {
           fn();
-        } catch (e) {
+        } catch {
           /* its business */
         }
       }

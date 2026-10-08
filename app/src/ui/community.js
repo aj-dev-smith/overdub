@@ -110,7 +110,7 @@ function tryPart(e) {
 const hostOf = (url) => {
   try {
     return new URL(url).host;
-  } catch (e) {
+  } catch {
     return String(url);
   }
 };
@@ -138,7 +138,7 @@ async function fetchCapped(url, cap, types = null) {
     if (total > cap) {
       try {
         await reader.cancel();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       throw Object.assign(new Error('it’s too large'), { refused: true });
@@ -194,7 +194,7 @@ export default async function (app) {
           n++;
         }
       if (n) history.replaceState(history.state, '', u.pathname + u.search + u.hash);
-    } catch (e) {
+    } catch {
       /* fine */
     }
   };
@@ -231,7 +231,7 @@ export default async function (app) {
     (() => {
       try {
         return localStorage.getItem(TRY_KEY) === '1';
-      } catch (e) {
+      } catch {
         return false;
       }
     })();
@@ -251,7 +251,7 @@ export default async function (app) {
         const u = indexUrlAllowed(s.url, { page: location.href, live: COMMUNITY_LIVE });
         if (u) return { url: u, how: 'stored' };
       }
-    } catch (e) {
+    } catch {
       /* none */
     }
     return { url: bundledUrl, how: 'bundled' };
@@ -301,7 +301,7 @@ export default async function (app) {
           // (a line of its own under the purpose, which stays the spec's word for word)
           f.note = S.entries.length ? 'And the community shelf: devices other people asked their agents for.' : null;
         }
-      } catch (e) {
+      } catch {
         /* no workspace */
       }
       app.browser?.render?.();
@@ -334,7 +334,7 @@ export default async function (app) {
             const def = parseDeviceFile(new TextDecoder().decode(bytes));
             if (kernelHash(def.kernel) === e.sha256)
               out.push({ id: e.id, name: e.name, print: kernelPrint(def.kernel) });
-          } catch (err) {
+          } catch {
             /* unreadable: nothing to match */
           }
         }
@@ -363,7 +363,7 @@ export default async function (app) {
       clearInterval(fade);
       try {
         audio.pause();
-      } catch (e) {
+      } catch {
         /* fine */
       }
       if (blobUrl) {
@@ -402,7 +402,7 @@ export default async function (app) {
       if (app.engine?.playing) {
         try {
           app.engine.stop();
-        } catch (e) {
+        } catch {
           /* fine */
         }
       }
@@ -415,7 +415,7 @@ export default async function (app) {
       tell();
       try {
         audio.currentTime = at;
-      } catch (e) {
+      } catch {
         /* not seekable yet */
       }
       try {
@@ -428,7 +428,7 @@ export default async function (app) {
       if (at) {
         try {
           audio.currentTime = Math.min(at, (audio.duration || at) - 0.01);
-        } catch (e) {
+        } catch {
           /* fine */
         }
       }
@@ -635,7 +635,7 @@ export default async function (app) {
       const keyHere = (() => {
         try {
           return Object.keys(localStorage).some((k) => /anthropic|api-key|apikey/i.test(k) && localStorage.getItem(k));
-        } catch (e2) {
+        } catch {
           return false;
         }
       })();
@@ -700,7 +700,7 @@ export default async function (app) {
         window.removeEventListener('keydown', onKey, true);
         try {
           (anchor && anchor.isConnected ? anchor : null)?.focus?.();
-        } catch (e3) {
+        } catch {
           /* fine */
         }
         resolve(result);
@@ -846,14 +846,14 @@ export default async function (app) {
       const tid = target.track === 'new' ? r.created?.n : target.track;
       try {
         if (tid) ui.select({ track: tid, clip: null, insert: r.created?.insert || null });
-      } catch (err) {
+      } catch {
         /* fine */
       }
       // on a phone, the song comes back into view
       if (window.innerWidth <= 640) {
         try {
           ui.setOpen('left', false);
-        } catch (err) {
+        } catch {
           /* fine */
         }
       }
@@ -873,7 +873,7 @@ export default async function (app) {
                   player.stop();
                   try {
                     app.transport?.playOn ? app.transport.playOn() : app.engine.play();
-                  } catch (err) {
+                  } catch {
                     /* fine */
                   }
                 },
@@ -918,20 +918,18 @@ export default async function (app) {
   }
 
   /* ---------------------------------------------------------------- the section */
-  let reachedBy = null;
   // The Browser open on the shelf: on an entry's detail (id), or with the section's head at the top (no id). The shelf
   // sits under the studio's own instruments and effects, a screen or two down, so it's always scrolled to.
   function reach(id = null, by = 'you') {
-    reachedBy = by;
     try {
       ui.workspace?.reach?.('browser', by);
-    } catch (e) {
+    } catch {
       /* no workspace */
     }
     try {
       ui.show('browser');
       if (!ui.isOpen?.('left')) ui.setOpen('left', true);
-    } catch (e) {
+    } catch {
       /* fine */
     }
     S.reached = true;
@@ -1100,7 +1098,7 @@ export default async function (app) {
     }
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({ url: u }));
-    } catch (e) {
+    } catch {
       /* this load only */
     }
     params.delete('community');
@@ -1109,7 +1107,7 @@ export default async function (app) {
   function back() {
     try {
       localStorage.removeItem(STORE_KEY);
-    } catch (e) {
+    } catch {
       /* fine */
     }
     params.delete('community');

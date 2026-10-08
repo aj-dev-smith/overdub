@@ -12,7 +12,7 @@ export const VIEWS = ['simple', 'full'];
 const get = (storage, key) => {
   try {
     return storage ? storage.getItem(key) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -23,7 +23,7 @@ export function readSaved(storage) {
   let s = null;
   try {
     s = JSON.parse(get(storage, WORKSPACE_KEY) || 'null');
-  } catch (e) {
+  } catch {
     s = null;
   }
   if (!s || typeof s !== 'object' || Array.isArray(s)) return out;
@@ -44,7 +44,7 @@ export function decideView({ search = '', storage = null, webdriver = false } = 
   let q = null;
   try {
     q = new URLSearchParams(search || '').get('view');
-  } catch (e) {
+  } catch {
     q = null;
   }
   if (VIEWS.includes(q)) return { view: q, persist: false, from: 'url' };

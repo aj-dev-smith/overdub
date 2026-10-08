@@ -389,7 +389,7 @@ export default function (app) {
     if (!S.mix || S.mix.version !== version) {
       try {
         await measureMix();
-      } catch (e) {
+      } catch {
         /* A/B at unity, said below */
       }
     }
@@ -406,7 +406,7 @@ export default function (app) {
     if (mon) {
       try {
         mon.disconnect(c.destination);
-      } catch (e) {
+      } catch {
         /* not wired there */
       }
       mon.connect(gA);
@@ -437,37 +437,37 @@ export default function (app) {
     S.ab = null;
     try {
       ab.off?.();
-    } catch (e) {
+    } catch {
       /* gone */
     }
     const c = engine.ctx;
     try {
       ab.src.stop();
-    } catch (e) {
+    } catch {
       /* not started */
     }
     for (const n of [ab.src, ab.match, ab.gB]) {
       try {
         n.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
     if (ab.mon) {
       try {
         ab.mon.disconnect(ab.gA);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       try {
         ab.mon.connect(c.destination);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
     try {
       ab.gA.disconnect();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     refresh();

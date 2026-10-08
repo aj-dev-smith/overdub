@@ -467,7 +467,7 @@ async function offerTakes(
     try {
       const r = takenBy(app.store.get(), t.ops, { by, getDevice: app.devices?.getDevice || null });
       if (r.ok) items = r.items;
-    } catch (e) {
+    } catch {
       items = [];
     }
     if (!items.length)

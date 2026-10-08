@@ -40,7 +40,7 @@ const MAX_RINGS = 8;
 const PHONE = () => {
   try {
     return matchMedia('(max-width: 640px)').matches;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -48,7 +48,6 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 // a kit's three lanes: 0 kick, 1 snare / clap / toms, 2 hats, cymbals and the rest (General MIDI numbers)
 const laneOf = (p) =>
   p === 35 || p === 36 ? 0 : (p >= 37 && p <= 41) || p === 43 || p === 45 || p === 47 || p === 48 || p === 50 ? 1 : 2;
-const LANE_NAMES = ['kick', 'snare', 'hats'];
 const SOUNDING_HIT = 0.32; // beats a drum hit stays lit after the hand passes it
 
 export default function installRound(app) {
@@ -57,7 +56,7 @@ export default function installRound(app) {
     (() => {
       try {
         return new URLSearchParams(location.search).get('view') === 'round';
-      } catch (e) {
+      } catch {
         return false;
       }
     })();
@@ -88,7 +87,7 @@ export default function installRound(app) {
         u.searchParams.delete('view');
         history.replaceState(history.state, '', u.pathname + u.search + u.hash);
       }
-    } catch (e) {
+    } catch {
       /* fine */
     }
   }
@@ -574,7 +573,7 @@ export default function installRound(app) {
       requestAnimationFrame(() => {
         try {
           strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        } catch (e) {
+        } catch {
           /* fine */
         }
       });

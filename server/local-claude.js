@@ -56,7 +56,7 @@ export function claudeStatus() {
               .split(/\s/)[0],
           }
         : { available: false };
-  } catch (e) {
+  } catch {
     probe = { available: false };
   }
   return probe;
@@ -82,7 +82,7 @@ function readBody(req, limit = 2 * 1024 * 1024) {
       try {
         const s = Buffer.concat(parts).toString('utf8');
         resolve(s ? JSON.parse(s) : {});
-      } catch (e) {
+      } catch {
         reject(new Error('body is not JSON'));
       }
     });
@@ -185,7 +185,7 @@ export function register({ addRoute }) {
     const line = (obj) => {
       try {
         res.write(JSON.stringify(obj) + '\n');
-      } catch (e) {
+      } catch {
         /* gone */
       }
     };
@@ -204,7 +204,7 @@ export function register({ addRoute }) {
         if (l.startsWith('{')) {
           try {
             res.write(l + '\n');
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
@@ -280,7 +280,7 @@ async function messages(req, res) {
   res.writeHead(up.status, head);
   try {
     if (up.body) for await (const c of up.body) res.write(c);
-  } catch (e) {
+  } catch {
     /* stopped, or the API went away mid-stream */
   }
   res.end();

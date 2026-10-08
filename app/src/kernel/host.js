@@ -122,7 +122,7 @@ function offlineBarrier(c, inst) {
         },
         () => {},
       );
-    } catch (e) {
+    } catch {
       /* already rendering: nothing to line up */
     }
   }
@@ -165,7 +165,7 @@ export async function kernelInstance(c, def, opts = {}) {
         if (clock.beatAt) beat = +clock.beatAt(now) || 0;
         else if (clock.barAt) beat = (+clock.barAt(now) || 0) * (clock.beatsPerBar ? +clock.beatsPerBar() || 4 : 4);
       }
-    } catch (e) {
+    } catch {
       /* a clock mid-rebuild: keep the defaults */
     }
     return { bpm, playing, beat, time: now };
@@ -311,7 +311,7 @@ export async function kernelInstance(c, def, opts = {}) {
   const post = (m) => {
     try {
       node.port.postMessage(m);
-    } catch (e) {
+    } catch {
       /* closed */
     }
   };
@@ -625,13 +625,13 @@ export async function kernelInstance(c, def, opts = {}) {
     try {
       node.port.onmessage = null;
       node.port.close();
-    } catch (e) {
+    } catch {
       /* closed */
     }
     for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) {
       try {
         if (n) n.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }

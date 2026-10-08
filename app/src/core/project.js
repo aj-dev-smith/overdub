@@ -643,7 +643,7 @@ export function summarize(p, { detail = 'full', track = null, devices = null, he
       try {
         const s = d.describe(params || {});
         if (typeof s === 'string' && s) return s;
-      } catch (e) {
+      } catch {
         /* the JSON, then */
       }
     }

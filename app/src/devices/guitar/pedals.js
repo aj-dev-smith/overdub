@@ -51,7 +51,7 @@ export function unitOf(k) {
   let s = '';
   try {
     s = String(k.fmt(k.def));
-  } catch (e) {
+  } catch {
     return null;
   }
   if (k.fmt === clawd.PFX.noteFmt || /^1\/(2|4|8|16|32)(\.|T)?$/.test(s)) return 'note';

@@ -241,7 +241,7 @@ function runTool(app, by, input) {
   }
   try {
     app.presence?.highlight?.(r.target, label, by, 4000);
-  } catch (e) {
+  } catch {
     /* presence is a nicety */
   }
   const created = {};

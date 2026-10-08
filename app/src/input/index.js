@@ -85,7 +85,7 @@ export default function (app) {
     if (tid) {
       try {
         app.engine.liveNoteOff(tid, p);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -102,7 +102,7 @@ export default function (app) {
   const sendExpr = (id, x) => {
     try {
       app.engine.liveExpr?.(id, x);
-    } catch (e) {
+    } catch {
       /* ok */
     }
   };

@@ -18,7 +18,7 @@ export function createMidi(app, input) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const supported = typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
@@ -48,7 +48,7 @@ export function createMidi(app, input) {
   const save = () => {
     try {
       localStorage.setItem(SAVE, JSON.stringify({ want: true, device: state.device, bendRange: state.bendRange }));
-    } catch (e) {
+    } catch {
       /* ok */
     }
   };
@@ -138,7 +138,7 @@ export function createMidi(app, input) {
       }
       try {
         access = access || (await navigator.requestMIDIAccess({ sysex: false }));
-      } catch (e) {
+      } catch {
         state.status = quiet
           ? ''
           : 'MIDI wasn’t allowed. Allow it for this site (the icon in the address bar), then connect again.';

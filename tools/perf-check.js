@@ -350,7 +350,7 @@ if (!SCENES.length) {
 }
 
 const INIT = () => {
-  const P = (window.__perf = {});
+  window.__perf = {};
   // every worklet processor is wrapped: its process() is timed and its name kept (kernels: their kind and param keys)
   const HOOK = `if(!globalThis.__pf){globalThis.__pf={list:[]};const RP=globalThis.registerProcessor;
 globalThis.registerProcessor=function(name,C){if(name==='perf-probe')return RP(name,C);

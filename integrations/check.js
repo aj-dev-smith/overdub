@@ -141,7 +141,7 @@ function probe(command, args, env = {}) {
           try {
             const m = JSON.parse(l);
             waiters.get(m.id)?.(m);
-          } catch (e) {
+          } catch {
             res.badLine = l.slice(0, 120);
           }
         }

@@ -116,7 +116,7 @@ export function resolveUrl(x, indexUrl, { under } = {}) {
   try {
     base = new URL(indexUrl);
     u = new URL(x, base);
-  } catch (e) {
+  } catch {
     return null;
   }
   if (u.origin !== base.origin || !/^https?:$/.test(u.protocol) || u.username || u.password) return null;
@@ -135,7 +135,7 @@ export function indexUrlAllowed(url, { page, live = false } = {}) {
   try {
     p = new URL(page);
     u = new URL(url, p);
-  } catch (e) {
+  } catch {
     return null;
   }
   if (u.username || u.password) return null;
@@ -149,14 +149,14 @@ function sourceLink(x, repo) {
   let u;
   try {
     u = new URL(x);
-  } catch (e) {
+  } catch {
     return null;
   }
   if (u.protocol !== 'https:' || u.username || u.password) return null;
   let repoHost = null;
   try {
     repoHost = repo ? new URL(repo).hostname : null;
-  } catch (e) {
+  } catch {
     repoHost = null;
   }
   return u.hostname === 'github.com' || (repoHost && u.hostname === repoHost) ? u.href : null;
@@ -217,7 +217,7 @@ function readParams(list) {
     let n;
     try {
       n = normParam(q);
-    } catch (e) {
+    } catch {
       continue;
     }
     if (![n.min, n.max, n.def].every(Number.isFinite)) continue;
@@ -385,7 +385,7 @@ export function readIndex(json, { base, bundled = false } = {}) {
     }
     try {
       o = JSON.parse(json);
-    } catch (e) {
+    } catch {
       out.error = 'not JSON';
       return out;
     }
@@ -408,7 +408,7 @@ export function readIndex(json, { base, bundled = false } = {}) {
   let indexUrl;
   try {
     indexUrl = new URL(base || BUNDLED_INDEX, 'http://localhost/').href;
-  } catch (e) {
+  } catch {
     out.error = 'no base';
     return out;
   }

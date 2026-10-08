@@ -55,7 +55,7 @@ await page.evaluate(async () => {
           done = () => {
             try {
               node.disconnect(cap);
-            } catch (e) {
+            } catch {
               /* ok */
             }
             cap.disconnect();

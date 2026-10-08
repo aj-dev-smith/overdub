@@ -5826,7 +5826,7 @@ const run = (page, name, input, by = 'claude') =>
       hook2?.vs_before && hook2.vs_before.vs_rest_lu > 1.5 && /more forward/.test(hook2.gloss || ''),
       `after +2.5 dB on the Hook: ${JSON.stringify(hook2?.vs_before)} (${hook2?.gloss})`,
     );
-    const mix = await run(page, 'render_and_measure', { section: 'Chorus' });
+    await run(page, 'render_and_measure', { section: 'Chorus' });
     await run(
       page,
       'apply_ops',
@@ -6050,7 +6050,7 @@ const run = (page, name, input, by = 'claude') =>
         const s = typeof x === 'string' ? x : JSON.stringify(x);
         const m = s && s.match(/MARK-[A-Z]+/g);
         if (m) seen.push(...m);
-      } catch (e) {
+      } catch {
         /* not a kernel */
       }
     };

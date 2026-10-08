@@ -88,14 +88,14 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: 'no-store',
       });
-    } catch (e) {
+    } catch {
       throw new AccountError(0);
     }
     if (res.status === 204) return null;
     let j = null;
     try {
       j = await res.json();
-    } catch (e) {
+    } catch {
       j = null;
     }
     if (!res.ok) {
@@ -108,7 +108,7 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
   async function load() {
     try {
       config = await req('GET', '/v1/config');
-    } catch (e) {
+    } catch {
       config = null;
     }
     await refresh().catch(() => null);
@@ -159,7 +159,7 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
       frame.addEventListener('load', () => {
         try {
           frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api);
-        } catch (e) {
+        } catch {
           /* the frame says hello again */
         }
       });

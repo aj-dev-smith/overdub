@@ -196,7 +196,7 @@ await page.evaluate(() => {
           done = () => {
             try {
               node.disconnect(cap);
-            } catch (e) {
+            } catch {
               /* ok */
             }
             cap.disconnect();

@@ -72,7 +72,7 @@ export function parseDeviceFile(input) {
   if (typeof input === 'string') {
     try {
       o = JSON.parse(input);
-    } catch (e) {
+    } catch {
       throw new Error('the file isn’t JSON');
     }
   }
@@ -269,7 +269,7 @@ export default function (app) {
       let o = null;
       try {
         o = JSON.parse(text);
-      } catch (err) {
+      } catch {
         /* reported below */
       }
       if (o && (o.format === FORMAT || (o.device && o.device.kernel))) await importDevice(o, { name: f.name });
@@ -308,7 +308,7 @@ export default function (app) {
           ops.push({ type: 'device.define', device: { ...src } });
           def = src;
         }
-      } catch (e) {
+      } catch {
         /* no showcase: fall through */
       }
     }
@@ -350,7 +350,7 @@ export default function (app) {
     ui.select({ track: tid, clip: null, insert: null });
     try {
       ui.show('rack');
-    } catch (e) {
+    } catch {
       /* no rack panel */
     }
     ui.toast(
@@ -370,7 +370,7 @@ export default function (app) {
           u.searchParams.delete('device');
           u.searchParams.delete('new');
           history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
-        } catch (e) {
+        } catch {
           /* fine */
         }
       });

@@ -46,7 +46,7 @@ export function reader({ allow, onFrame, onError, maxHeader = 1 << 20 }) {
           let header;
           try {
             header = JSON.parse(buf.subarray(8, 8 + hl).toString('utf8'));
-          } catch (e) {
+          } catch {
             return fail('a header that is not JSON');
           }
           let want;

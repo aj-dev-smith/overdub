@@ -83,7 +83,7 @@ export default async function (app) {
   try {
     S = await import('../core/sounds.js');
     if (typeof S?.soundsFor !== 'function') S = null;
-  } catch (e) {
+  } catch {
     S = null;
   }
   installSounds(app, S || FALLBACK);
@@ -105,7 +105,7 @@ function installSounds(app, S) {
   const dev = (id) => {
     try {
       return app.devices.getDevice(id) || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -113,7 +113,7 @@ function installSounds(app, S) {
   const agentName = (by = 'claude') => {
     try {
       return store.author?.(by)?.name || 'Claude';
-    } catch (e) {
+    } catch {
       return 'Claude';
     }
   };
@@ -179,14 +179,14 @@ function installSounds(app, S) {
   function kindOf(track, take) {
     try {
       return S.kindOfTake(takeOf(track, take)) || 'played';
-    } catch (e) {
+    } catch {
       return 'played';
     }
   }
   function familyOf(row, def) {
     try {
       return S.familyOf(row, def) || '';
-    } catch (e) {
+    } catch {
       return '';
     }
   }
@@ -219,7 +219,7 @@ function installSounds(app, S) {
           currentPreset: now.preset,
           genre: S.genreOf?.(store.get().title) || null,
         }) || [];
-    } catch (e) {
+    } catch {
       list = [];
     }
     // ("now" is named for its family the way the set's rows are, "Electric piano", even off the set or on a preset)
@@ -264,7 +264,7 @@ function installSounds(app, S) {
     try {
       const r = S.newPartFor(kind, P());
       if (r?.device) return { name: r.name, device: r.device, preset: null };
-    } catch (e) {
+    } catch {
       /* below */
     }
     return kind === 'pads'
@@ -294,13 +294,13 @@ function installSounds(app, S) {
           if (!trial && !newH) {
             try {
               localStorage.removeItem(TRYING_KEY);
-            } catch (e) {
+            } catch {
               /* blocked */
             }
           }
         }, 1500);
       else localStorage.removeItem(TRYING_KEY);
-    } catch (e) {
+    } catch {
       /* storage blocked: a closed tab can't leave a leftover either */
     }
   };
@@ -310,13 +310,13 @@ function installSounds(app, S) {
     let rec = null;
     try {
       rec = JSON.parse(localStorage.getItem(TRYING_KEY) || 'null');
-    } catch (e) {
+    } catch {
       rec = null;
     }
     if (!rec) return;
     try {
       localStorage.removeItem(TRYING_KEY);
-    } catch (e) {
+    } catch {
       /* blocked */
     }
     if (!rec || rec.song !== P().id) return;
@@ -360,7 +360,7 @@ function installSounds(app, S) {
     loopH = null;
     try {
       l.release();
-    } catch (e) {
+    } catch {
       /* gone */
     }
   }
@@ -370,7 +370,7 @@ function installSounds(app, S) {
     newH = null;
     try {
       n.handle.release();
-    } catch (e) {
+    } catch {
       /* gone */
     }
   }
@@ -559,7 +559,7 @@ function installSounds(app, S) {
     tr.handle = null;
     try {
       hd?.release();
-    } catch (e) {
+    } catch {
       /* gone */
     }
     if (!card || why === 'keep') releaseLoop();
@@ -604,7 +604,7 @@ function installSounds(app, S) {
     if (why !== 'load') {
       try {
         tr.handle?.release();
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -722,7 +722,7 @@ function installSounds(app, S) {
     // (and the track's own instrument has been handed them: its first notes sound)
     try {
       await engine()?.settled?.();
-    } catch (e) {
+    } catch {
       /* plays anyway */
     }
     await instReady(engine(), tr.track, 10000);
@@ -770,14 +770,14 @@ function installSounds(app, S) {
     }
     try {
       await E.settled?.();
-    } catch (e) {
+    } catch {
       /* plays anyway */
     }
     if (!(await kitFirst())) return;
     if (E.playing || recording()) return;
     try {
       await E.play(sp.start);
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
   }
@@ -839,7 +839,7 @@ function installSounds(app, S) {
     if (from === 'take' && hostFn) {
       try {
         host = hostFn({ track, take }) || null;
-      } catch (e) {
+      } catch {
         host = null;
       }
     }
@@ -1308,7 +1308,7 @@ function installSounds(app, S) {
     run: () => {
       try {
         app.transport?.playStop?.();
-      } catch (e) {
+      } catch {
         /* none */
       }
     },
@@ -1353,14 +1353,14 @@ function installSounds(app, S) {
         releaseLoop();
         try {
           wasHum = !!rec.humming?.();
-        } catch (er) {
+        } catch {
           wasHum = false;
         }
       }
       if (e?.state !== 'rec') return;
       try {
         wasHum = wasHum || !!rec.humming?.();
-      } catch (er) {
+      } catch {
         /* ok */
       }
       if (!trial) return;
@@ -1371,7 +1371,7 @@ function installSounds(app, S) {
       const lands = (() => {
         try {
           return rec.lands?.()?.id || null;
-        } catch (er) {
+        } catch {
           return null;
         }
       })();
@@ -1573,7 +1573,7 @@ function installSounds(app, S) {
     for (const fn of q.waiters.splice(0)) {
       try {
         fn(api.result(id));
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }

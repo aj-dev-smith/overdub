@@ -182,7 +182,7 @@ export function valueWords(spec, v, addr = {}) {
     try {
       const s = spec.fmt(v);
       if (s != null) return String(s);
-    } catch (e) {
+    } catch {
       /* its own business */
     }
   }
@@ -221,7 +221,7 @@ export function createAutorec(app, input, rec) {
   const getDevice = (id) => {
     try {
       return app.devices?.getDevice?.(id) || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -231,7 +231,7 @@ export function createAutorec(app, input, rec) {
   const toast = (text, o) => {
     try {
       app.ui?.toast?.(text, o);
-    } catch (e) {
+    } catch {
       /* no ui */
     }
   };
@@ -286,7 +286,7 @@ export function createAutorec(app, input, rec) {
         ts = ev && ev.timeStamp,
         now = performance.now();
       return fin(ts) && ts > 0 && now - ts >= 0 && now - ts < 150 ? ts : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -340,7 +340,7 @@ export function createAutorec(app, input, rec) {
     if (x.doc !== P()) return;
     try {
       x.release();
-    } catch (e) {
+    } catch {
       /* the commit puts it right */
     }
   }
@@ -484,8 +484,7 @@ export function createAutorec(app, input, rec) {
     const vals = G.pts.map((x) => x.v);
     if (!(span >= 1 / 64) || (Math.max(...vals) === Math.min(...vals) && vals[0] === G.before)) return;
     const name = nameOf(P(), G.addr, G.spec);
-    const from = Math.min(...writes.map((o) => o.from)),
-      to = Math.max(...writes.map((o) => o.to));
+    const from = Math.min(...writes.map((o) => o.from));
     const bars = barsWords(bpbNow(), from, Math.max(from, G.pts[G.pts.length - 1].beat));
     // (the move already stuck: the toast says the level stays where it was left, and offers to write the move into the
     // lane; "Keep that move" read as if the move would be taken back otherwise, docs/FRESH-EYES-5.md)
@@ -508,7 +507,7 @@ export function createAutorec(app, input, rec) {
     toast(text, { kind: 'info', ms: 10000, action: { label: 'Write it into the lane', run: () => keep(mv.id) } });
     try {
       input.emit('automove', { id: mv.id, text });
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }
@@ -548,7 +547,7 @@ export function createAutorec(app, input, rec) {
       // (the count cancelled: what the hand held in it is let go, and the knob is as it was)
       else if (d.state === 'idle' && !take) dropCount();
     });
-  } catch (e) {
+  } catch {
     /* no recorder */
   }
   // The downbeat: a control held through the count-in starts writing here, at the value the hand is at (a jump in
@@ -644,7 +643,7 @@ export function createAutorec(app, input, rec) {
     let hit = null;
     try {
       hit = gestureOf(ops, o || {});
-    } catch (e) {
+    } catch {
       hit = null;
     }
     if (hit) {
@@ -683,14 +682,14 @@ export function createAutorec(app, input, rec) {
       down.clear();
       endAll({ pointer: true });
     });
-  } catch (e) {
+  } catch {
     /* node */
   }
   try {
     engine.on('transport', (e) => {
       if (e && !e.playing) endAll({ mode: 'play' });
     });
-  } catch (e) {
+  } catch {
     /* no engine */
   }
   // a song loaded: nothing in progress carries over

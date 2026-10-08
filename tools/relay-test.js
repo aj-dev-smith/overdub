@@ -32,7 +32,7 @@ const until = async (fn, ms = 3000) => {
   while (Date.now() < end) {
     try {
       if (fn()) return true;
-    } catch (e) {
+    } catch {
       /* not yet */
     }
     await sleep(20);
@@ -53,7 +53,7 @@ const realErrors = (errs) => errs.filter((e) => !/Failed to load resource|favico
 const read = (f) => {
   try {
     return fs.readFileSync(path.join(ROOT, f), 'utf8');
-  } catch (e) {
+  } catch {
     return '';
   }
 };
@@ -113,7 +113,7 @@ async function post(
   } else if (text.trim()) {
     try {
       data = JSON.parse(text);
-    } catch (e) {
+    } catch {
       data = text;
     }
   }
@@ -145,7 +145,7 @@ async function call(base, tok, sid, name, args = {}, opts = {}) {
   for (const s of texts) {
     try {
       data = JSON.parse(s);
-    } catch (e) {
+    } catch {
       /* note */
     }
   }
@@ -207,7 +207,7 @@ async function fakeTab(
               );
           }
         }
-      } catch (e) {
+      } catch {
         /* aborted */
       }
     })();
@@ -297,7 +297,7 @@ function fakeAccounts() {
       let c = {};
       try {
         c = JSON.parse(Buffer.from(String(f.get('token')).split('.')[1], 'base64url').toString());
-      } catch (e) {
+      } catch {
         return send(200, { active: false });
       }
       S.introspections.push({ hint: f.get('token_type_hint'), gid: c.gid, sid: c.sid });
@@ -339,7 +339,7 @@ function fakeAccounts() {
     let b = {};
     try {
       b = body ? JSON.parse(body) : {};
-    } catch (e) {
+    } catch {
       /* */
     }
     const C = S.cloud,
@@ -481,13 +481,13 @@ async function apost(base, token, body, { sid, headers = {}, path = '/mcp' } = {
       .join('');
     try {
       data = JSON.parse(d);
-    } catch (e) {
+    } catch {
       /* */
     }
   } else {
     try {
       data = JSON.parse(text);
-    } catch (e) {
+    } catch {
       data = text;
     }
   }
@@ -509,7 +509,7 @@ async function acall(base, token, sid, name, args = {}) {
   for (const s of texts) {
     try {
       data = JSON.parse(s);
-    } catch (e) {
+    } catch {
       /* a note */
     }
   }
@@ -532,7 +532,7 @@ async function accountTab(base, ticket, { tab = 'tab_acct' + Math.floor(Math.ran
     let j = null;
     try {
       j = await r.json();
-    } catch (e) {
+    } catch {
       /* */
     }
     return { status: r.status, body: j };
@@ -572,7 +572,7 @@ async function accountTab(base, ticket, { tab = 'tab_acct' + Math.floor(Math.ran
             }
           }
         }
-      } catch (e) {
+      } catch {
         /* aborted */
       }
       T.closed = true;
@@ -1426,7 +1426,7 @@ try {
       try {
         pwlib = require(p);
         break;
-      } catch (e) {
+      } catch {
         /* next */
       }
     }
@@ -1507,7 +1507,7 @@ try {
           localStorage.setItem('overdub:remote-token', old);
           localStorage.setItem('overdub:remote-on', '1');
         }
-      } catch (e) {
+      } catch {
         /* no storage */
       }
     }, OLD);
@@ -1605,7 +1605,7 @@ try {
     await ctx.addInitScript(() => {
       try {
         localStorage.setItem('overdub:remote-on', '1');
-      } catch (e) {
+      } catch {
         /* no storage */
       }
     });
@@ -2104,7 +2104,7 @@ try {
           const r = await accountRelay(AS, { oauth: o });
           relays.push(r);
           bad.push(why);
-        } catch (e) {
+        } catch {
           /* refused, as it should */
         }
       }
@@ -2173,7 +2173,7 @@ try {
     // rejections
     {
       const good = accessToken(AS);
-      const [h, p] = good.split('.');
+      const [, p] = good.split('.');
       const { privateKey: evil, publicKey: evilPub } = crypto.generateKeyPairSync('ed25519');
       const old = Math.floor(Date.now() / 1000) - 1000;
       const flip = good.slice(0, -3) + (good.at(-3) === 'A' ? 'B' : 'A') + good.slice(-2);

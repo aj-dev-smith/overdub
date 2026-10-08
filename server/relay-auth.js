@@ -63,7 +63,7 @@ function checkUrl(name, s, dev) {
   let u;
   try {
     u = new URL(s);
-  } catch (e) {
+  } catch {
     throw new Error(`${name} is not a URL`);
   }
   if (u.protocol === 'https:') return u.href.replace(/\/$/, '');
@@ -82,7 +82,7 @@ export function oauthConfig(o) {
   let canon;
   try {
     canon = canonicalResource(o.resource);
-  } catch (e) {
+  } catch {
     throw new Error('RELAY_OAUTH_RESOURCE is not a URL');
   }
   if (canon !== o.resource) throw new Error(`RELAY_OAUTH_RESOURCE must be canonical: ${canon}`);
@@ -157,7 +157,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
         continue;
       try {
         out.set(k.kid, crypto.createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: k.x }, format: 'jwk' }));
-      } catch (e) {
+      } catch {
         /* not a key */
       }
     }
@@ -206,7 +206,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     try {
       head = b64json(parts[0]);
       claims = b64json(parts[1]);
-    } catch (e) {
+    } catch {
       return fail('unreadable');
     }
     if (!head || typeof head !== 'object' || !claims || typeof claims !== 'object') return fail('unreadable');
@@ -218,7 +218,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     let good = false;
     try {
       good = crypto.verify(null, Buffer.from(parts[0] + '.' + parts[1]), key, Buffer.from(parts[2], 'base64url'));
-    } catch (e) {
+    } catch {
       good = false;
     }
     if (!good) return fail('unreadable');
@@ -264,7 +264,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
         body,
         signal: AbortSignal.timeout(2000),
       });
-    } catch (e) {
+    } catch {
       return null;
     }
     // 401 or 403: the service refused the relay's own secret. That's a misconfiguration, not an outage, so it fails
@@ -283,7 +283,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     try {
       const j = await r.json();
       return j && typeof j === 'object' ? j : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }

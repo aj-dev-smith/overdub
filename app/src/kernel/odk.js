@@ -95,7 +95,7 @@ export function decodeOdk(bytes) {
   let head;
   try {
     head = JSON.parse(json);
-  } catch (e) {
+  } catch {
     throw new Error('odk: the header is not JSON');
   }
   if (!head || head.format !== ODK_FORMAT) throw new Error('odk: unknown format ' + (head && head.format));

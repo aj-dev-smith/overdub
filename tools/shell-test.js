@@ -411,7 +411,7 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     await E(() => {
       try {
         localStorage.removeItem('overdub:keys-moved');
-      } catch (e) {
+      } catch {
         /* ok */
       }
     });
@@ -549,7 +549,7 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
         return Object.keys(JSON.parse(localStorage.getItem('overdub:keys-moved') || '{}'))
           .sort()
           .join(' ');
-      } catch (e) {
+      } catch {
         return '';
       }
     });

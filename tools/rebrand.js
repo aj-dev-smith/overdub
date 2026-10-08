@@ -71,7 +71,7 @@ const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8'
 let tracked;
 try {
   tracked = new Set(git('ls-files', '-z').split('\0').filter(Boolean));
-} catch (e) {
+} catch {
   usage(`${ROOT} is not a git work tree`);
 }
 const all = git('ls-files', '-z', '-c', '-o', '--exclude-standard').split('\0').filter(Boolean);

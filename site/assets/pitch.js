@@ -109,7 +109,7 @@ export async function startMic({ onPitch, rate = 30 } = {}) {
       clearInterval(timer);
       try {
         src.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       stream.getTracks().forEach((tr) => tr.stop());

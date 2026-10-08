@@ -53,7 +53,7 @@ export function deviceClock(c, src, getBpm) {
     if (!src) return null;
     try {
       return src.playing() ? src : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -75,7 +75,7 @@ export function deviceClock(c, src, getBpm) {
     let n = 4;
     try {
       if (s && s.beatsPerBar) n = +s.beatsPerBar() || 4;
-    } catch (e) {
+    } catch {
       /* 4 */
     }
     return n;
@@ -147,7 +147,7 @@ export function graphInstance(c, def, opts = {}) {
   let bpm = 120;
   try {
     if (opts.clock && opts.clock.bpm) bpm = +opts.clock.bpm() || 120;
-  } catch (e) {
+  } catch {
     /* 120 */
   }
   if (opts.bpm) bpm = opts.bpm;
@@ -188,7 +188,7 @@ export function graphInstance(c, def, opts = {}) {
     } else if (!yes && fed) {
       try {
         i.disconnect(p.input);
-      } catch (e) {
+      } catch {
         /* gone */
       }
       fed = false;
@@ -409,7 +409,7 @@ export function graphInstance(c, def, opts = {}) {
         if (i) i.disconnect();
         o.disconnect();
         if (p) p.output.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
     },

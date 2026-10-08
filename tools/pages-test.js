@@ -74,7 +74,7 @@ for (const width of [1440, 390]) {
     try {
       const u = new URL(r.url());
       if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host);
-    } catch (e) {
+    } catch {
       /* data: */
     }
   });
@@ -1196,7 +1196,7 @@ for (const width of [1440, 390]) {
   let last = null;
   try {
     last = JSON.parse(fs.readFileSync(path.join(HERE, '.out', 'run-all.json'), 'utf8'));
-  } catch (e) {
+  } catch {
     /* no full run here yet */
   }
   if (last && checks.length) {

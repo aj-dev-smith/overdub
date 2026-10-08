@@ -374,7 +374,7 @@ export function displayFont(g, px, { stretch = 'expanded' } = {}) {
   if ('fontStretch' in g) {
     try {
       g.fontStretch = stretch;
-    } catch (e) {
+    } catch {
       /* older canvas */
     }
   }

@@ -288,7 +288,7 @@ export function createHum(app, input) {
       if (opts.withSong && !engine.playing && !s.rec) {
         try {
           await engine.play();
-        } catch (e) {
+        } catch {
           /* silent engine */
         }
       }
@@ -355,7 +355,7 @@ export function createHum(app, input) {
           low: n.low,
           tr: n.tr,
         }));
-      } catch (e) {
+      } catch {
         return [];
       }
     },
@@ -411,7 +411,7 @@ export function createHum(app, input) {
     try {
       audioId = 'a_hum' + Date.now().toString(36);
       await app.engine.assets.put(audioId, { sr: s.sr, channels: [samples] });
-    } catch (e) {
+    } catch {
       audioId = null;
     }
     // in a take: the notes go to the recorder, each at its grid beat (it places them in their passes), a note moved into
@@ -525,7 +525,7 @@ export function createHum(app, input) {
         kind: 'info',
         action: { label: 'Undo', run: () => (sung ? backInSong(tk, sung) : backAsSung(tk)) },
       });
-    } catch (e) {
+    } catch {
       /* no shell (Node) */
     }
   }
@@ -563,7 +563,7 @@ export function createHum(app, input) {
       const tk = hum.take;
       if (tk && tk.rec && tk.recTake && res && res.ok && res.take === tk.recTake && res.sung) sayMoved(tk, res.sung);
     });
-  } catch (e) {
+  } catch {
     /* no recorder */
   }
   Object.assign(hum, {
@@ -605,7 +605,7 @@ export function createHum(app, input) {
         emit('take', null);
       }
     });
-  } catch (e) {
+  } catch {
     /* no store */
   }
 
@@ -620,7 +620,7 @@ export function createHum(app, input) {
     let toNew = false;
     try {
       toNew = !!input.recorder && !input.recorder.targetFor('hum');
-    } catch (e) {
+    } catch {
       toNew = false;
     }
     const alone = !s.rec && !(p.tracks || []).some((t) => (t.clips || []).length) && !app.engine?.metronome;

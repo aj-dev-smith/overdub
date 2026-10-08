@@ -138,7 +138,7 @@ const asHash = (x) => (typeof x === 'string' && HEX64.test(x) ? x : kernelHash(x
 function defaultStorage() {
   try {
     return typeof localStorage !== 'undefined' ? localStorage : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -163,7 +163,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
         if (v && Array.isArray(v.sha256)) list = v.sha256.filter((x) => typeof x === 'string' && HEX64.test(x));
         if (v && Number.isFinite(v.since)) since = v.since;
       }
-    } catch (e) {
+    } catch {
       /* blocked, or not ours: start empty */
     }
     set = new Set(list);
@@ -181,7 +181,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
         const v = JSON.parse(storage.getItem(TRUST_KEY) || 'null');
         if (v && Array.isArray(v.sha256))
           theirs = v.sha256.filter((x) => typeof x === 'string' && HEX64.test(x) && !set.has(x));
-      } catch (e) {
+      } catch {
         /* ours win */
       }
       if (theirs.length) {
@@ -192,7 +192,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
       storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since }));
       present = true;
       return true;
-    } catch (e) {
+    } catch {
       return false;
     } // full or blocked: trusted for this session only
   };
@@ -263,7 +263,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
       set = new Set(list);
       try {
         if (storage) storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since: since ?? now() }));
-      } catch (e) {
+      } catch {
         /* blocked: this session only */
       }
       return gone.size;

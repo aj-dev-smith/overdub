@@ -92,7 +92,7 @@ export const authorVar = (kind) =>
 export function authorName(app, by) {
   try {
     return app.store.author(by).name;
-  } catch (e) {
+  } catch {
     return String(by || '');
   }
 }
@@ -135,7 +135,7 @@ export function swatchOf(def) {
   if (faces?.colorsOf) {
     try {
       return faces.colorsOf(def);
-    } catch (e) {
+    } catch {
       /* below */
     }
   }
@@ -625,7 +625,7 @@ export function laneFor(app, addr) {
   let spec = null;
   try {
     spec = specFor(p, addr, (id) => app.devices?.getDevice?.(id));
-  } catch (e) {
+  } catch {
     spec = null;
   }
   return { lane, spec, held: !!lane.off };
@@ -900,7 +900,7 @@ function presetDist(ps, a, b) {
     try {
       px = toPos(p, x);
       py = toPos(p, y);
-    } catch (e) {
+    } catch {
       px = (x - p.min) / (p.max - p.min || 1);
       py = (y - p.min) / (p.max - p.min || 1);
     }
@@ -1584,7 +1584,7 @@ export default async function (app) {
         try {
           const inst = app.engine.instance?.(tId, key);
           if (inst && Number.isFinite(inst.latency)) lat = inst.latency;
-        } catch (e) {
+        } catch {
           /* no engine yet */
         }
         // its window (ui/plugin.js, app.plugin): Open, or a double-click on the caption
@@ -1775,7 +1775,7 @@ export default async function (app) {
         const q = (def?.params || []).find((x) => (Array.isArray(x) ? x[0] : x.key) === k);
         try {
           return q && faces?.valueText ? faces.valueText(normParam(q), v) : String(v);
-        } catch (e) {
+        } catch {
           return String(v);
         }
       };
@@ -2180,7 +2180,7 @@ export default async function (app) {
         const writer = projDev?.by || def?.by;
         // a device that came through someone else's link says whose, as the track header does ("Sam via Jo")
         const via = [projDev?.via, def?.via].find((v) => v && v !== writer) || null;
-        const wk = authorKind(app, writer);
+        authorKind(app, writer);
         const madeBy = writer ? byline(writer, { app }) || h('span.rk-house', authorName(app, writer) || writer) : '—';
         const body = h(
           'div.rk-info',
@@ -2282,7 +2282,7 @@ export default async function (app) {
           { tabindex: 0, 'aria-label': 'Kernel source (read-only)' },
           lines.map((l, i) => h('div', h('i', String(i + 1)), h('span', l || ' '))),
         );
-        const wk = authorKind(app, src?.by || def?.by);
+        authorKind(app, src?.by || def?.by);
         sheet = h(
           'aside.rk-sheet',
           { role: 'complementary', 'aria-label': 'Device code' },

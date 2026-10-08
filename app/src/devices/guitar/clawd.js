@@ -74,7 +74,7 @@ const SONG = {
       const e = typeof window !== 'undefined' && window.overdub;
       const p = e && e.store && e.store.get();
       return majorKeyOf(p && p.key);
-    } catch (e) {
+    } catch {
       return 0;
     }
   },

@@ -194,7 +194,7 @@ export function createTap(app, input) {
   let trained = {};
   try {
     trained = JSON.parse(localStorage.getItem(TRAIN_KEY) || '{}') || {};
-  } catch (e) {
+  } catch {
     trained = {};
   }
   let cur = null,
@@ -251,11 +251,11 @@ export function createTap(app, input) {
           setTimeout(() => {
             try {
               eng.liveNoteOff(dt.id, r.p);
-            } catch (e) {
+            } catch {
               /* ok */
             }
           }, 160);
-        } catch (e) {
+        } catch {
           /* silent engine */
         }
       }
@@ -271,7 +271,7 @@ export function createTap(app, input) {
         const ev = globalThis.event,
           ts = ev && ev.timeStamp;
         if (ts > 0 && performance.now() - ts >= 0 && performance.now() - ts < 150) at = ts / 1000;
-      } catch (e) {
+      } catch {
         /* ok */
       }
       if (!cur) cur = { hits: [], t0: at, playing: !!eng.playing, track: dt ? dt.id : null };
@@ -412,7 +412,7 @@ export function createTap(app, input) {
       if (!s.rec) {
         try {
           tune = tuneOf(x, s.sr, { tempo: p.tempo, hits });
-        } catch (e) {
+        } catch {
           tune = null;
         }
       }
@@ -474,7 +474,7 @@ export function createTap(app, input) {
       let key = null;
       try {
         key = input.hum?.songKey?.() || null;
-      } catch (e) {
+      } catch {
         key = null;
       }
       let r = transcribe(tune.segs, { tempo: p.tempo, meter: p.meter, key, grid: input.options?.grid || 0.25 });
@@ -506,7 +506,7 @@ export function createTap(app, input) {
       if (trained[row].length > 12) trained[row].shift();
       try {
         localStorage.setItem(TRAIN_KEY, JSON.stringify(trained));
-      } catch (e) {
+      } catch {
         /* private mode */
       }
     },
@@ -514,7 +514,7 @@ export function createTap(app, input) {
       for (const k of Object.keys(trained)) delete trained[k];
       try {
         localStorage.removeItem(TRAIN_KEY);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     },

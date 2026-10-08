@@ -610,7 +610,7 @@ export function mount(el, ctx) {
   const liveInst = () => {
     try {
       return app.engine?.instance?.(ctx.addr.track, ctx.addr.slot) || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -621,7 +621,7 @@ export function mount(el, ctx) {
     if (soloInst && soloInst !== inst) {
       try {
         soloInst.autoClear?.('solo', now, true);
-      } catch (e) {
+      } catch {
         /* gone */
       }
       soloInst = null;
@@ -634,7 +634,7 @@ export function mount(el, ctx) {
     } else if (soloInst) {
       try {
         soloInst.autoClear('solo', now, true);
-      } catch (e) {
+      } catch {
         /* gone */
       }
       soloInst = null;
@@ -860,7 +860,7 @@ export function mount(el, ctx) {
         p = local(e);
       try {
         nd.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       if (memo.sel !== n) pick(n);
@@ -965,7 +965,7 @@ export function mount(el, ctx) {
     pinch.d0 = Math.max(12, Math.hypot(pinch.bx - pinch.ax, pinch.by - pinch.ay));
     try {
       plot.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     drag.moved = true;

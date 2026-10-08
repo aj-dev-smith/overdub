@@ -127,8 +127,7 @@ const ours = (errors) =>
 const s = await open('/app/', { query: 'demo' });
 const { page, errors, shot } = s;
 page.setDefaultTimeout(15000);
-let goboTrack = null,
-  kitTrack = null;
+let kitTrack = null;
 try {
   await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   await sleep(400);
@@ -180,7 +179,6 @@ try {
     return { kit: r.created.k, clip: r.created.kc, gobo: r.created.g, goboClip: r.created.gc };
   });
   kitTrack = made.kit;
-  goboTrack = made.gobo;
   await E(() => {
     const a = window.overdub;
     window.__notes = [];

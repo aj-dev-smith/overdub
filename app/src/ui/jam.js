@@ -103,7 +103,6 @@ const pcOf = (p) => ((Math.round(p) % 12) + 12) % 12;
 const EPS = 1e-6;
 const DI_CLEAN = { body: 0, pick: 0.3, pickup: 0.55, tone: 0.65, decay: 1, strum: 10, mute: 0 };
 const DEFAULT_TONE = 'jangle';
-const SPEEDS = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 const ORD = [
   'open',
   '1st',
@@ -181,7 +180,7 @@ export default function (app) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(PREFS) || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const J = (ui.state.jam = {
@@ -219,7 +218,7 @@ export default function (app) {
           cab: J.cab,
         }),
       );
-    } catch (e) {
+    } catch {
       /* private mode */
     }
   };
@@ -602,7 +601,7 @@ export default function (app) {
   function keysTarget() {
     try {
       return app.input?.target?.('keys') || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -851,13 +850,13 @@ export default function (app) {
     try {
       if (engine.playing) engine.stop();
       engine.seek?.(0);
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
     store.load(res.project, { by });
     try {
       for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove();
-    } catch (e) {
+    } catch {
       /* no DOM */
     }
     ui.select({ track: null, clip: null, notes: [], insert: null, range: null });
@@ -876,7 +875,7 @@ export default function (app) {
     try {
       const s = localStorage.getItem('overdub:project');
       return s ? JSON.parse(s) : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -1042,7 +1041,7 @@ export default function (app) {
   function bringNeck() {
     try {
       neck?.el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
-    } catch (e) {
+    } catch {
       /* no layout */
     }
   }
@@ -1093,7 +1092,7 @@ export default function (app) {
   async function voiceReady() {
     try {
       if (!engine.ctx) await engine.start();
-    } catch (e) {
+    } catch {
       return null;
     }
     const c = engine.ctx,
@@ -1144,7 +1143,7 @@ export default function (app) {
       try {
         inst.flush?.(t);
         inst.allOff(t);
-      } catch (e) {
+      } catch {
         /* gone */
       }
     }
@@ -1168,7 +1167,7 @@ export default function (app) {
       try {
         inst.noteOn(n.p, n.v ?? 0.8, on);
         inst.noteOff(n.p, on + Math.max(0.05, n.d));
-      } catch (e) {
+      } catch {
         /* gone */
       }
       voice.timers.push(
@@ -1260,7 +1259,7 @@ export default function (app) {
           try {
             inst.noteOn(n.p, n.v ?? 0.8, on);
             inst.noteOff(n.p, on + Math.max(0.1, n.d * 0.95) * b);
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
@@ -1827,7 +1826,7 @@ export default function (app) {
     if (started) {
       try {
         await engine.play(app.transport?.marker?.beat ?? playhead());
-      } catch (e) {
+      } catch {
         /* no audio: it listens all the same */
       }
     }
@@ -2085,7 +2084,6 @@ export default function (app) {
 
   function mountRoom(root) {
     root.classList.add('jm');
-    const V = {};
     /* ---- the head: what you play over */
     const songBtn = h('button.jm-song', {
       type: 'button',
@@ -3352,7 +3350,7 @@ export default function (app) {
       app.input?.recorder?.on?.('aim', () => {
         if (view) view.keys();
       });
-    } catch (e) {
+    } catch {
       /* no recorder */
     }
     function toSpec(s) {
@@ -3385,7 +3383,7 @@ export default function (app) {
           J.offered = true;
           if (!J.match) J.match = { phase: 'offer' };
         }
-      } catch (e) {
+      } catch {
         /* the state says why */
       }
       view.input();
@@ -3784,7 +3782,6 @@ function fitsHere(pc, key, ch) {
 }
 
 function createNeck(app, J, { timeline, where, describe, onPlay, fitHeight = null }) {
-  const { ui, engine } = app;
   const cv = canvas('jm-neck-cv');
   const scroller = h(
     'div.jm-neck-scroll',

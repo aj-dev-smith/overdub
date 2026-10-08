@@ -484,7 +484,6 @@ export function riffStyleFor(p) {
   if (p?.key && /blues/i.test(p.key.scale || '')) return 'blues';
   return 'rock';
 }
-const levelOf = (d) => Math.max(0, DIFFICULTIES.indexOf(String(d || 'medium').toLowerCase()));
 
 /* ================================================================================================ where */
 // The stretch a riff is for: a section (its name or id), bars [first, last] (1-based), or the section the playhead is
@@ -945,7 +944,6 @@ function realize({ style, styleId, lvl, motif, pal, harm, chordAtT, key, keyPcs,
         : pent;
   const [rlo, rhi] = style.register;
   const P = pal.pitches;
-  const inPal = (q) => P.includes(q);
   const fits = (q, ch) => fitsOver(pcOf(q), key, ch);
   const out = [];
   let prev = null,

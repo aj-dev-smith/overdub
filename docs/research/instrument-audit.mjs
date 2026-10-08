@@ -5,7 +5,7 @@ const { renderSong } = await import(ROOT + 'engine/node/render.js');
 const { createProject } = await import(ROOT + 'core/project.js');
 const { measure } = await import(ROOT + 'audio/measure.js');
 const { SHOWCASE } = await import(ROOT + 'devices/showcase.js');
-const { phrase, PHRASE_BEATS, PHRASE_BPM } = await import(ROOT + 'audio/testsignals.js');
+const { phrase, PHRASE_BEATS } = await import(ROOT + 'audio/testsignals.js');
 
 // the four instruments of the day run's first batch (until they are in builtin/index.js)
 for (const f of ['piano', 'organ', 'strings', 'bassguitar']) {
@@ -290,7 +290,7 @@ for (const c of CASES) {
           row.B = +pa.B.toExponential(2);
           row.cents = +pa.centsOff.toFixed(1);
           row.amps = pa.amps.join(' ');
-        } catch (e) {
+        } catch {
           row.B = 'err';
         }
       }

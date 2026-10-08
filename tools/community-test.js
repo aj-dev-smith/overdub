@@ -578,7 +578,7 @@ await section('shelf', async () => {
         await P.page.waitForSelector('.cs-prompt', { timeout: 2500 });
         await sleep(700);
         await P.page.click('.cs-prompt .cs-go');
-      } catch (e) {
+      } catch {
         /* refused before asking */
       }
       await P.page.waitForFunction(

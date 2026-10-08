@@ -635,7 +635,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       if (this.logs++ >= 20) return;
       try {
         this.post({ type: 'log', args: args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))) });
-      } catch (e) {
+      } catch {
         /* unclonable */
       }
     }
@@ -1080,7 +1080,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
         }
         try {
           this.old.run(fl, fr, n, p, t, null);
-        } catch (e) {
+        } catch {
           this.old = null;
         }
       }
@@ -1168,7 +1168,7 @@ export function overdubKernelWorklet(overdubDsp, kernelCompiler, kernelCore) {
           let x = null;
           try {
             x = decodeOdk(v.bytes);
-          } catch (e) {
+          } catch {
             /* not a kit file: nothing */
           }
           DATA.set(v.hash, x);

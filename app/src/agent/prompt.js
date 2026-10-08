@@ -79,7 +79,7 @@ export async function kernelGuide() {
   try {
     const m = await import('../kernel/guide.js');
     return m.KERNEL_GUIDE || m.default || KERNEL_FALLBACK;
-  } catch (e) {
+  } catch {
     return KERNEL_FALLBACK;
   }
 }

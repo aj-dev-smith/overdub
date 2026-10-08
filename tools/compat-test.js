@@ -48,7 +48,7 @@ function findPlaywright() {
   for (const t of tries) {
     try {
       return require(t);
-    } catch (e) {
+    } catch {
       /* next */
     }
   }
@@ -137,7 +137,7 @@ async function openPage(b, base, route) {
     try {
       const u = new URL(r.url());
       if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host + u.pathname.slice(0, 40));
-    } catch (e) {
+    } catch {
       /* data:, blob: */
     }
   });
@@ -234,7 +234,7 @@ async function studio(b, base, tag) {
   let booted = true;
   try {
     await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 });
-  } catch (e) {
+  } catch {
     booted = false;
   }
   T.ok(booted, `${tag}: the studio boots (/app/?demo&autostart)`);
@@ -273,7 +273,7 @@ async function studio(b, base, tag) {
         const s = new CSSStyleSheet();
         s.replaceSync('.a { .b { color: red } }');
         return s.cssRules[0].cssRules?.length === 1;
-      } catch (e) {
+      } catch {
         return false;
       }
     })(),
@@ -356,7 +356,7 @@ async function studio(b, base, tag) {
       }
       try {
         inst.dispose();
-      } catch (e) {
+      } catch {
         /* fine */
       }
       return { nan, pk };
@@ -636,7 +636,7 @@ async function studio(b, base, tag) {
       try {
         const x = new URL(u, location.href);
         return x.origin === location.origin && x.pathname.startsWith('/app/');
-      } catch (e) {
+      } catch {
         return false;
       }
     };
@@ -1281,7 +1281,7 @@ async function simple(b, base, tag) {
     let booted = true;
     try {
       await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 });
-    } catch (e) {
+    } catch {
       booted = false;
     }
     T.ok(

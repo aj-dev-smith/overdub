@@ -81,7 +81,7 @@ export function relayOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) {
+  } catch {
     return null; /* not a URL */
   }
 }
@@ -94,7 +94,7 @@ export function cloudOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) {
+  } catch {
     return null; /* not a URL */
   }
 }
@@ -132,7 +132,7 @@ export async function tokenFor(secret) {
 const get = (k) => {
   try {
     return localStorage.getItem(k);
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -140,7 +140,7 @@ const put = (k, v) => {
   try {
     if (v == null) localStorage.removeItem(k);
     else localStorage.setItem(k, v);
-  } catch (e) {
+  } catch {
     /* storage blocked: this session only */
   }
 };
@@ -305,7 +305,7 @@ export default async function (app) {
         if (typeof j.live === 'boolean') liveIs(j.live);
       } else agentState(!!j.agent);
       return { ok: true };
-    } catch (e) {
+    } catch {
       return { ok: false };
     }
   }
@@ -394,7 +394,7 @@ export default async function (app) {
             error: 'this call’s author couldn’t be read, so the studio didn’t run it',
           }),
         });
-      } catch (e) {
+      } catch {
         /* the call times out */
       }
       return;
@@ -438,7 +438,7 @@ export default async function (app) {
         headers: headers({ 'content-type': 'application/json' }),
         body: JSON.stringify(body),
       });
-    } catch (e) {
+    } catch {
       console.warn('overdub remote: could not return a result');
     }
   }
@@ -447,7 +447,7 @@ export default async function (app) {
     let ev;
     try {
       ev = JSON.parse(data);
-    } catch (e) {
+    } catch {
       return;
     }
     if (ev.type === 'call') onCall(ev);
@@ -483,7 +483,7 @@ export default async function (app) {
         signal: ac.signal,
         cache: 'no-store',
       });
-    } catch (e) {
+    } catch {
       /* offline, refused, aborted */
     }
     if (my !== epoch) {
@@ -496,7 +496,7 @@ export default async function (app) {
       let why = '';
       try {
         why = String((await res.json())?.error || '').slice(0, 200);
-      } catch (e) {
+      } catch {
         /* no body */
       }
       if (why && why !== R.connectError) {
@@ -539,7 +539,7 @@ export default async function (app) {
         }
         if (buf.length > MAX_EVENT) break; // a runaway event: drop the stream and connect again
       }
-    } catch (e) {
+    } catch {
       /* aborted, or the connection dropped */
     }
     clearInterval(watch);
@@ -621,7 +621,7 @@ export default async function (app) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -651,7 +651,7 @@ export default async function (app) {
     grantsAt = Date.now();
     try {
       R.grants = await acct.grants();
-    } catch (e) {
+    } catch {
       R.grants = R.grants || [];
     }
     emit();

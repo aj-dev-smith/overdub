@@ -58,7 +58,7 @@ export function heldCodeFirst(app, by) {
   if (!app || by === 'you') return false;
   try {
     return (app.devices?.heldDevices?.() || []).length > 0;
-  } catch (e) {
+  } catch {
     return true;
   } // (can't tell: wait)
 }

@@ -36,7 +36,7 @@ const parse = (v) => {
   if (typeof v === 'string') {
     try {
       return JSON.parse(v);
-    } catch (e) {
+    } catch {
       return v;
     }
   }
@@ -72,7 +72,7 @@ export function newestNewTrack(app) {
   try {
     const id = app.input?.recorder?.newestTrack?.();
     if (ok(id)) return ok(id);
-  } catch (e) {
+  } catch {
     /* the History has it */
   }
   const hist = app.store.history || [];
@@ -101,7 +101,7 @@ function soundOf(app, t) {
   let preset = null;
   try {
     preset = def && app.devices?.presetOf ? app.devices.presetOf(def, inst.params)?.name || null : null;
-  } catch (e) {
+  } catch {
     /* no preset */
   }
   return { device: inst.device, preset };
@@ -132,7 +132,7 @@ function settle(app, req, result) {
   for (const off of req.offs.splice(0)) {
     try {
       off();
-    } catch (e) {
+    } catch {
       /* gone */
     }
   }

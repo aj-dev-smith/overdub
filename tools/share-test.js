@@ -1183,7 +1183,7 @@ let link = null,
         window.__copied = t;
         window.__copies.push(t);
       };
-    } catch (e) {
+    } catch {
       /* ok */
     }
   });
@@ -1785,13 +1785,13 @@ let link = null,
     for (const tab of ['mixer', 'arranger']) {
       try {
         app.ui.show(tab);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
     try {
       app.ui.select({ track: app.store.get().tracks[0].id });
-    } catch (e) {
+    } catch {
       /* ok */
     }
   });
@@ -2007,7 +2007,7 @@ const WATCH = () => {
       const s = typeof x === 'string' ? x : JSON.stringify(x);
       const m = s && s.match(/MARK-[A-Z]+/g);
       if (m) seen.push(...m);
-    } catch (e) {
+    } catch {
       /* not a kernel */
     }
   };
@@ -2813,7 +2813,7 @@ console.log('Take one');
     const e = window.overdub.engine;
     try {
       await e.start();
-    } catch (x) {
+    } catch {
       /* ok */
     }
     e.play(0);

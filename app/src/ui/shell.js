@@ -420,7 +420,7 @@ export function createShell(root, app) {
     try {
       const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
       if (s) return { ...def, ...s, open: { ...def.open, ...(s.open || {}) }, tabs: { ...(s.tabs || {}) } };
-    } catch (e) {
+    } catch {
       /* fresh */
     }
     return def;
@@ -428,7 +428,7 @@ export function createShell(root, app) {
   function saveLayout() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(layout));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
   }
@@ -667,13 +667,13 @@ export function createShell(root, app) {
     try {
       const v = JSON.parse(localStorage.getItem(MOVED_KEY) || '{}');
       if (v && typeof v === 'object' && !Array.isArray(v)) seen = v;
-    } catch (e) {
+    } catch {
       /* blocked or unreadable: once a session */
     }
     if (Object.keys(seen).length) return false;
     try {
       localStorage.setItem(MOVED_KEY, JSON.stringify(Object.fromEntries([...MOVED_IDS, id].map((k) => [k, 1]))));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
     return true;
@@ -746,7 +746,7 @@ export function createShell(root, app) {
   let singleKeys = true;
   try {
     singleKeys = JSON.parse(localStorage.getItem('overdub:keys') || '{}').single !== false;
-  } catch (e) {
+  } catch {
     /* default on */
   }
   ui.keys.single = (on) => {
@@ -754,7 +754,7 @@ export function createShell(root, app) {
     singleKeys = !!on;
     try {
       localStorage.setItem('overdub:keys', JSON.stringify({ single: singleKeys }));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
     ui.emit('keys:single', singleKeys);
@@ -902,17 +902,14 @@ export function createShell(root, app) {
   // A floating window (a device's, ui/plugin.js) is never under a toast: it registers itself while it is open
   // (ui.dockToasts({ el, box }) -> undock), and the toasts stand beside it where there's room for them, else in its own
   // line (box: a phone's full-screen window always), and go back to the stack when it closes.
-  let placedAt = '',
-    dock = null;
+  let dock = null;
   ui.dockToasts = (d) => {
     dock = d;
-    placedAt = '';
     placeToasts();
     return () => {
       if (dock !== d) return;
       dock = null;
       for (const t of [...d.box.children]) toasts.append(t);
-      placedAt = '';
       placeToasts();
     };
   };
@@ -1001,14 +998,12 @@ export function createShell(root, app) {
       }
     }
     if (!lifted) unlift();
-    placedAt = `${right}|${bottom}`;
     toasts.style.right = right == null || phone() ? '' : right + 'px';
     toasts.style.bottom = bottom == null ? '' : bottom + 'px';
     if (right == null || phone()) toasts.style.maxWidth = '';
     if (dock) keepClear();
   }
   ui.placeToasts = () => {
-    placedAt = '';
     placeToasts();
   };
 
@@ -1059,7 +1054,6 @@ export function createShell(root, app) {
         setTimeout(() => x.remove(), 300);
       }
     }
-    placedAt = '';
     placeToasts();
     let left = action ? Math.max(ms, 10000) : ms,
       since = performance.now(),

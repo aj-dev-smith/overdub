@@ -307,14 +307,14 @@ export function mount(el, ctx) {
   const coarse = () => {
     try {
       return matchMedia('(pointer: coarse)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
   const reduced = () => {
     try {
       return matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -704,7 +704,7 @@ export function mount(el, ctx) {
       e.preventDefault();
       try {
         b.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* gone */
       }
       down();
@@ -739,7 +739,7 @@ export function mount(el, ctx) {
   function playNote(p, v) {
     try {
       app.engine.liveNoteOn(track, p, clamp(v, 0.05, 1));
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
     strike(PIECE_OF[p] || 'snare', p, v, 'you');
@@ -747,7 +747,7 @@ export function mount(el, ctx) {
   function release(p) {
     try {
       app.engine.liveNoteOff(track, p);
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }
@@ -853,7 +853,7 @@ export function mount(el, ctx) {
       top = Math.min(a[1], b[1]);
       bottom = Math.max(a[1], b[1]);
     } else {
-      const [cx, cy] = toS(t, sh.x, sh.y),
+      const [, cy] = toS(t, sh.x, sh.y),
         rz = Math.max(r.rz * sh.r * t.s, 8);
       top = cy - rz;
       bottom = cy + rz;
@@ -883,7 +883,7 @@ export function mount(el, ctx) {
     e.preventDefault();
     try {
       stage.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     playNote(hit.note, hit.v);
@@ -953,7 +953,7 @@ export function mount(el, ctx) {
     pr.grabbed = p;
     try {
       app.engine.liveNoteOn(track, p, 0.05);
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
     const l = lights.get(pr.piece);
@@ -2146,7 +2146,7 @@ export function mount(el, ctx) {
       pal = colors();
       cv.dirty();
     });
-  } catch (e) {
+  } catch {
     /* no font loading API */
   }
 
@@ -2187,7 +2187,7 @@ export function mount(el, ctx) {
         bell: [0, 0.24],
         bow: [0.24, 0.84],
       }[zone] || [0, 1];
-      const [cx, cy] = toS(t, sh.x, sh.y),
+      const [, cy] = toS(t, sh.x, sh.y),
         rad = sh.r * t.s;
       const rz = R[1] * rad,
         dy = (at - 0.5) * 2 * rz * 0.9;

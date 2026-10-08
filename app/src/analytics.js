@@ -41,7 +41,7 @@ export function optedOut(nav = globalThis.navigator, win = globalThis) {
   try {
     const dnt = nav?.doNotTrack ?? win?.doNotTrack ?? nav?.msDoNotTrack;
     return dnt === '1' || dnt === 'yes' || dnt === 1 || nav?.globalPrivacyControl === true;
-  } catch (e) {
+  } catch {
     return true;
   }
 }
@@ -52,7 +52,7 @@ export function allowed(loc = globalThis.location, nav = globalThis.navigator, w
     if (!loc || loc.hostname !== HOST || loc.protocol !== 'https:') return false;
     if (nav?.webdriver) return false;
     return !optedOut(nav, win);
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -63,7 +63,7 @@ export function referrerHost(ref) {
   try {
     const h = new URL(ref).hostname.toLowerCase().replace(/^www\./, '');
     return /^[a-z0-9.-]{1,64}$/.test(h) ? h : '';
-  } catch (e) {
+  } catch {
     return '';
   }
 }
@@ -99,7 +99,7 @@ function sendBeacon(url) {
       img.referrerPolicy = 'no-referrer';
       img.src = url;
     }
-  } catch (e) {
+  } catch {
     /* never let counting break the studio */
   }
 }

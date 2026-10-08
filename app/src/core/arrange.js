@@ -296,7 +296,6 @@ export function findStyle(name) {
   return STYLES[k] ? k : STYLE_ALIASES[k] || null;
 }
 export const levelFor = (style, part) => STYLES[style]?.level?.[part] ?? -6;
-const PART_WORD = { chords: 'chords', bass: 'bass', drums: 'drums', pad: 'pad' };
 
 /* ------------------------------------------------------------------------------------------------ keys and time */
 // The 7-note scale chords are built from (pentatonic, blues and chromatic keys borrow their parent major/minor).
@@ -443,7 +442,7 @@ function cfmPrior(mel, ctx, chords, units, every) {
       const ch = chords.find((c) => c.triad.every((pc) => pcs.has(pc)) && pcs.size === 3);
       if (ch) out[i] = ch.degree;
     }
-  } catch (e) {
+  } catch {
     /* no prior: fine */
   }
   return out;
@@ -587,7 +586,6 @@ export function arrangeAround(opts = {}) {
   const kind = opts.kind || seedKind(seedNotes, opts.drums);
   const key = opts.key || (kind === 'drums' ? { root: 'C', scale: 'major' } : guessKey(seedNotes));
   const hk = harmonyKeyOf(key);
-  const keyPcs = new Set(scalePcs(hk));
   const chords = diatonic(hk);
   const units = unitsOf({ start, length, meter });
   const ctx = { key, meter, tempo, start };

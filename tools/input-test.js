@@ -1684,7 +1684,7 @@ function drum(kind, sr, len = 0.25) {
     await page.evaluate(() => {
       try {
         localStorage.removeItem('overdub:input');
-      } catch (e) {
+      } catch {
         /* ok */
       }
     });
@@ -2273,7 +2273,7 @@ const IGNORE = (e) => /Failed to load resource/.test(e) && !/\/input\/|sketch|sp
         engine.seek(26);
         try {
           await engine.play(26);
-        } catch (e) {
+        } catch {
           /* no audio here */
         }
         const before = { playing: !!engine.playing, beat: engine.beat };
@@ -2836,7 +2836,7 @@ console.log('  ..   screenshots in ' + path.relative(process.cwd(), OUTDIR));
     await page.addInitScript(() => {
       try {
         delete Navigator.prototype.requestMIDIAccess;
-      } catch (e) {
+      } catch {
         /* ok */
       }
     });

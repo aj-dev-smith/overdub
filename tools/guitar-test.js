@@ -102,7 +102,7 @@ async function boot(page) {
         if (p.fmt) {
           try {
             if (typeof p.fmt(p.def) !== 'string') badParams.push(d.id + '.' + p.key + ' fmt');
-          } catch (e) {
+          } catch {
             badParams.push(d.id + '.' + p.key + ' fmt throws');
           }
         }
@@ -217,7 +217,7 @@ async function boot(page) {
   );
 
   const ops = await page.evaluate(async () => {
-    const { G, R } = window.__gt;
+    const { G } = window.__gt;
     let store = null;
     try {
       const S = await import('/app/src/core/store.js');

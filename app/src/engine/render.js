@@ -242,7 +242,7 @@ function scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held })
       }
       try {
         inst.set(v, { at: t });
-      } catch (e) {
+      } catch {
         /* a device that can't take it */
       }
     }

@@ -143,7 +143,7 @@ export function newPart(kind, project) {
     try {
       const r = SOUNDS.newPartFor(k, project);
       if (r && r.name && r.device) return r;
-    } catch (e) {
+    } catch {
       /* the table */
     }
   }
@@ -325,7 +325,7 @@ function mount(el, app) {
   let mode = 'hum';
   try {
     mode = localStorage.getItem(MODE_KEY) || 'hum';
-  } catch (e) {
+  } catch {
     /* ok */
   }
   if (!MODES.some((m) => m.id === mode)) mode = 'hum';
@@ -457,7 +457,6 @@ function mount(el, app) {
   const isDrumTrack = (t) => t && /drum/i.test(t.instrument?.device || '');
   // this song's takes (another song's are listed apart, never as this one's)
   const ofSong = (p) => !!p && !!p.song && p.song === store.get().id;
-  const latestOf = (kind) => input.capture.list({ all: true }).find((p) => p.kind === kind && ofSong(p)) || null;
   // where a take is kept now: the last keep whose clip is still in the song (an undone keep doesn't count)
   const keptOn = (p) =>
     (p?.kept || [])
@@ -582,19 +581,19 @@ function mount(el, app) {
     if (tr && tr.newTrack) {
       try {
         if (toNew && typeof app.sounds.takeNew === 'function') handed = app.sounds.takeNew();
-      } catch (e) {
+      } catch {
         handed = null;
       }
       if (!handed) {
         try {
           app.sounds.back?.({ why: 'kept' });
-        } catch (e) {
+        } catch {
           /* ok */
         }
         if (!toNew) {
           try {
             app.sounds.close?.();
-          } catch (e) {
+          } catch {
             /* ok */
           }
         } else handed = { device: tr.device, preset: tr.preset || null };
@@ -611,7 +610,7 @@ function mount(el, app) {
     } else if (tr && !toNew && tr.track === value) {
       try {
         app.sounds.keepIfTrying?.(value);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -681,7 +680,7 @@ function mount(el, app) {
     ui.emit('agent:compose', { text: AGENT_TEXT[p?.src] || 'Here’s an idea — ', attach: { capture: id } });
     try {
       ui.setOpen && ui.setOpen('right', true);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     ui.toast('Handed to the agent. Tell it what to play over it.', { kind: 'agent' });
@@ -720,7 +719,7 @@ function mount(el, app) {
             try {
               eng.liveNoteOn(t, n.p, n.v ?? 0.8);
               pv.on.add(n.p);
-            } catch (e) {
+            } catch {
               /* ok */
             }
           },
@@ -732,7 +731,7 @@ function mount(el, app) {
           try {
             eng.liveNoteOff(t, n.p);
             pv.on.delete(n.p);
-          } catch (e) {
+          } catch {
             /* ok */
           }
         }, off),
@@ -752,7 +751,7 @@ function mount(el, app) {
     for (const p of pv.on) {
       try {
         app.engine.liveNoteOff(pv.track, p);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -760,7 +759,7 @@ function mount(el, app) {
       try {
         pv.src.stop();
         pv.src.disconnect();
-      } catch (e) {
+      } catch {
         /* ended */
       }
     }
@@ -827,7 +826,7 @@ function mount(el, app) {
   const reduced = () => {
     try {
       return matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -845,7 +844,7 @@ function mount(el, app) {
     try {
       const ev = globalThis.event;
       if (ev && ev.timeStamp > 0 && performance.now() - ev.timeStamp < 150) ts = ev.timeStamp;
-    } catch (e) {
+    } catch {
       /* ok */
     }
     try {
@@ -853,7 +852,7 @@ function mount(el, app) {
         const b = eng.beatAt(ts);
         if (Number.isFinite(b) && Math.abs(b - eng.beat) < 1) return b;
       }
-    } catch (e) {
+    } catch {
       /* ok */
     }
     return eng.beat;
@@ -1367,7 +1366,7 @@ function mount(el, app) {
     if (typeof rec.stacks === 'function') {
       try {
         return !!rec.stacks(kind, t.id);
-      } catch (e) {
+      } catch {
         /* the guess below */
       }
     }
@@ -1400,7 +1399,7 @@ function mount(el, app) {
         n = c === 1 ? 2 : c === 2 ? 0 : 1;
       try {
         input.audio.setCountIn(n > 0);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       rec.setCountIn(n);
@@ -2027,7 +2026,7 @@ function mount(el, app) {
     if (keep) {
       try {
         localStorage.setItem(MODE_KEY, m);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -2151,12 +2150,12 @@ function mount(el, app) {
       ro = new ResizeObserver(fit);
       ro.observe(ex);
       for (const c of ex.children) ro.observe(c);
-    } catch (e) {
+    } catch {
       /* no ResizeObserver: it scrolls */
     }
     try {
       document.fonts?.ready?.then(fit);
-    } catch (e) {
+    } catch {
       /* no font loading API */
     }
     requestAnimationFrame(fit);
@@ -2200,7 +2199,7 @@ function mount(el, app) {
     let micOk = false;
     try {
       micOk = localStorage.getItem(MIC_OK) === '1';
-    } catch (e) {
+    } catch {
       /* ok */
     }
     let explaining = !micOk && !input.audio.state.open;
@@ -2563,7 +2562,7 @@ function mount(el, app) {
         else await rec.record({ hum: true });
         try {
           localStorage.setItem(MIC_OK, '1');
-        } catch (e) {
+        } catch {
           /* ok */
         }
       } catch (e) {
@@ -2904,7 +2903,7 @@ function mount(el, app) {
               await tap.startBeatbox();
               try {
                 localStorage.setItem(MIC_OK, '1');
-              } catch (e) {
+              } catch {
                 /* ok */
               }
             }
@@ -3839,7 +3838,7 @@ function mount(el, app) {
       e.preventDefault();
       try {
         keysEl.setPointerCapture(e.pointerId);
-      } catch (err) {
+      } catch {
         /* ok */
       }
       up(e.pointerId);
@@ -3984,7 +3983,7 @@ function mount(el, app) {
                     await audio.open();
                     try {
                       localStorage.setItem(MIC_OK, '1');
-                    } catch (e) {
+                    } catch {
                       /* ok */
                     }
                     loadDevs();
@@ -4386,7 +4385,7 @@ function mount(el, app) {
     ui.select({ track: ins.track.id, clip: ins.clip.id, notes: [] });
     try {
       app.arranger?.reveal?.(ins.clip.start);
-    } catch (e) {
+    } catch {
       /* no arranger */
     }
   }
@@ -4599,7 +4598,7 @@ function mount(el, app) {
       if (hostSet && hostSet === app.sounds) {
         try {
           app.sounds?.setHost?.(null);
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }

@@ -49,7 +49,7 @@ export function takeCheckoutReturn(win = globalThis) {
     .join('&');
   try {
     win.history?.replaceState(win.history.state, '', loc.pathname + (rest ? '?' + rest : '') + (loc.hash || ''));
-  } catch (e) {
+  } catch {
     /* a sandboxed frame */
   }
   if (plus === 'cancel') return { cancelled: true };
@@ -64,7 +64,7 @@ const money = (usd) => {
       currency: 'USD',
       minimumFractionDigits: Number.isInteger(usd) ? 0 : 2,
     }).format(usd);
-  } catch (e) {
+  } catch {
     return '$' + usd;
   }
 };
@@ -73,14 +73,14 @@ const ls = {
   get: (k) => {
     try {
       return localStorage.getItem(k);
-    } catch (e) {
+    } catch {
       return null;
     }
   },
   set: (k, v) => {
     try {
       localStorage.setItem(k, v);
-    } catch (e) {
+    } catch {
       /* full */
     }
   },
@@ -137,7 +137,7 @@ export function cloudPanel({
     let devices = [];
     try {
       devices = listDevices();
-    } catch (e) {
+    } catch {
       devices = [];
     }
     return freeMove(text, { devices, hasTrack: !!ui.state.selection?.track });
@@ -830,7 +830,7 @@ export function cloudPanel({
     let all = {};
     try {
       all = JSON.parse(ls.get('overdub:cloud:takes') || '{}') || {};
-    } catch (e) {
+    } catch {
       all = {};
     }
     const txns = all[actionId]?.txns || [];
@@ -846,7 +846,7 @@ export function cloudPanel({
     try {
       const r = await c.activity();
       activity = Array.isArray(r?.items) ? r.items : [];
-    } catch (e) {
+    } catch {
       activity = [];
     }
     cached.sig = '';
@@ -1073,7 +1073,7 @@ export function cloudPanel({
       try {
         ui.setOpen?.('right', true);
         ui.show?.('agent');
-      } catch (e) {
+      } catch {
         /* no right pane on this layout */
       }
       checkoutRef = null;
@@ -1090,14 +1090,14 @@ export function cloudPanel({
     try {
       if (c.me && ref) paid = (await c.sync(ref)).paid;
       else await c.refresh();
-    } catch (e) {
+    } catch {
       paid = !ref;
       await c.refresh().catch(() => {});
     }
     try {
       ui.setOpen?.('right', true);
       ui.show?.('agent');
-    } catch (e) {
+    } catch {
       /* no right pane on this layout */
     }
     if (!c.me) {

@@ -286,7 +286,7 @@ T.ok(
 
 /* ------------------------------------------------------------------ time.remove */
 {
-  const { s, ids, T: tr, C } = song();
+  const { s, ids, C } = song();
   const da0 = C(ids.da).notes.length;
   const r = roundTrip(s, { type: 'time.remove', at: 8, length: 8 }, 'claude', 'delete bars 3–4');
   const p = s.get();
@@ -404,7 +404,7 @@ T.ok(
     'without push nothing moves',
   );
   // a clip that runs past the section's end is copied up to it
-  const { s: s3, ids: i3, T: tr3, C: C3 } = song();
+  const { s: s3, ids: i3, T: tr3 } = song();
   s3.dispatch({ type: 'clip.set', track: tr3('Keys').id, clip: i3.kb, patch: { start: 12 } }, { by: 'you' });
   roundTrip(
     s3,

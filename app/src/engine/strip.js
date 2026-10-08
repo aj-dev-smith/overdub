@@ -76,7 +76,7 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
     if (kind === 'effect') {
       try {
         inst.setOn(on !== false);
-      } catch (e) {
+      } catch {
         /* optional */
       }
     }
@@ -103,7 +103,7 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
     if (inst) {
       try {
         inst.dispose();
-      } catch (e2) {
+      } catch {
         /* gone */
       }
     }
@@ -273,14 +273,14 @@ export class Strip {
       if (mode === 'clean') {
         try {
           this.fader.disconnect(this.clip.input);
-        } catch (e) {
+        } catch {
           /* ok */
         }
         this.fader.connect(this.out);
       } else {
         try {
           this.fader.disconnect(this.out);
-        } catch (e) {
+        } catch {
           /* ok */
         }
         this.fader.connect(this.clip.input);
@@ -430,7 +430,7 @@ export class Strip {
     if (changed) {
       const gone = this.fx.filter((f) => !next.includes(f));
       // pooled instances not in `next` are no longer wanted either
-      for (const [id, f] of this.pool) if (!next.includes(f) && !gone.includes(f)) gone.push(f);
+      for (const [, f] of this.pool) if (!next.includes(f) && !gone.includes(f)) gone.push(f);
       this.pool.clear();
       await this.rewire(next);
       for (const f of gone) {
@@ -445,14 +445,14 @@ export class Strip {
     const c = this.c;
     try {
       old.inst.allOff(soon(c));
-    } catch (e) {
+    } catch {
       /* ok */
     }
     if (!this.live) {
       safeDispose(old.inst);
       try {
         old.gain.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       return;
@@ -461,12 +461,12 @@ export class Strip {
     afterAudio(c, soon(c) + 0.05, () => {
       try {
         old.inst.output.disconnect(old.gain);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       try {
         old.gain.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       safeDispose(old.inst);
@@ -480,7 +480,7 @@ export class Strip {
     if (this.job) {
       try {
         await this.job;
-      } catch (e) {
+      } catch {
         /* rebuilt below */
       }
     }
@@ -488,12 +488,12 @@ export class Strip {
     if (this.instr) {
       try {
         this.instr.inst.output.disconnect(this.instr.gain);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       try {
         this.instr.gain.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -515,7 +515,7 @@ export class Strip {
       g.cancelScheduledValues(t);
       g.setTargetAtTime(0, t, dur / 6);
       g.setTargetAtTime(0, t + dur, 0.004);
-    } catch (e) {
+    } catch {
       /* closed */
     }
   }
@@ -579,7 +579,7 @@ export class Strip {
     for (const [a, b] of this.links || []) {
       try {
         a.disconnect(b);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -607,7 +607,7 @@ export class Strip {
       let l = 0;
       try {
         l = +inst.latency;
-      } catch (e) {
+      } catch {
         l = 0;
       }
       if (Number.isFinite(l) && l > 0) s += l;
@@ -654,7 +654,7 @@ export class Strip {
       for (const [a, b] of this.links || []) {
         try {
           a.disconnect(b);
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -680,7 +680,7 @@ export class Strip {
         if (n) {
           try {
             n.disconnect();
-          } catch (e) {
+          } catch {
             /* ok */
           }
         }
@@ -688,7 +688,7 @@ export class Strip {
       if (this.instr) {
         try {
           this.instr.gain.disconnect();
-        } catch (e) {
+        } catch {
           /* ok */
         }
         safeDispose(this.instr.inst);
@@ -699,7 +699,7 @@ export class Strip {
     if (this.instr) {
       try {
         this.instr.inst.allOff(soon(c));
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }

@@ -204,7 +204,7 @@ const parse = (v) => {
   if (typeof v === 'string') {
     try {
       return JSON.parse(v);
-    } catch (e) {
+    } catch {
       return v;
     }
   }
@@ -261,7 +261,7 @@ async function runArrangeTool(app, by, input) {
       by,
       4000,
     );
-  } catch (e) {
+  } catch {
     /* a nicety */
   }
   return {
@@ -303,14 +303,14 @@ function readPref(k, def) {
   try {
     const v = JSON.parse(localStorage.getItem(k) || 'null');
     return v ?? def;
-  } catch (e) {
+  } catch {
     return def;
   }
 }
 function writePref(k, v) {
   try {
     localStorage.setItem(k, JSON.stringify(v));
-  } catch (e) {
+  } catch {
     /* storage blocked: fine */
   }
 }
@@ -458,7 +458,7 @@ function installUI(app) {
       // (not while recording, and not over a song that's already playing)
       try {
         app.arranger?.show?.(Object.values(r.clips || {}).filter(Boolean), 'overdub');
-      } catch (e) {
+      } catch {
         /* a nicety */
       }
       const eng = app.engine,
@@ -466,7 +466,7 @@ function installUI(app) {
       if (eng && !eng.playing && !isRecording(app) && Number.isFinite(from)) {
         try {
           await eng.play(from);
-        } catch (e) {
+        } catch {
           /* no audio yet: the toast still says it's in */
         }
       }

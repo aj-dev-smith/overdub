@@ -81,7 +81,7 @@ console.log('the FFT');
   for (const n of [8, 12, 16384, 100]) {
     try {
       fft(n);
-    } catch (e) {
+    } catch {
       threw++;
     }
   }
@@ -204,7 +204,7 @@ const errOf = (a, b) => {
   let longer = false;
   try {
     C.set(rand(5000, 1));
-  } catch (e) {
+  } catch {
     longer = true;
   }
   ok(
@@ -216,7 +216,7 @@ const errOf = (a, b) => {
   for (const o of [{ direct: 64 }, { head: 100 }, { head: 1024, body: 512 }]) {
     try {
       convolver(h1, o);
-    } catch (e) {
+    } catch {
       bad++;
     }
   }

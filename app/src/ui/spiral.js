@@ -22,7 +22,7 @@ const NO_KEY = { root: 'C', scale: 'major' };
 const REDUCED = () => {
   try {
     return matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch (e) {
+  } catch {
     return false;
   }
 };

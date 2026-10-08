@@ -594,7 +594,7 @@ export function createRecorder(app, input, opts = {}) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const modes = new Map(); // track id -> 'layer' | 'take' (this song, while it's open)
@@ -648,7 +648,7 @@ export function createRecorder(app, input, opts = {}) {
     try {
       const v = app.ui?.workspace?.view?.();
       if (v) return v;
-    } catch (e) {
+    } catch {
       /* no shell */
     }
     const v = typeof opts.view === 'function' ? opts.view() : opts.view;
@@ -658,7 +658,7 @@ export function createRecorder(app, input, opts = {}) {
     mine++;
     try {
       app.ui?.select?.(s);
-    } catch (e) {
+    } catch {
       /* ok */
     } finally {
       mine--;
@@ -685,7 +685,7 @@ export function createRecorder(app, input, opts = {}) {
       if (!mine && viewOf() === 'full') clearChoices();
       aimChanged();
     });
-  } catch (e) {
+  } catch {
     /* no shell (Node) */
   }
 
@@ -853,13 +853,13 @@ export function createRecorder(app, input, opts = {}) {
     let dev = 'Lamp Tines';
     try {
       dev = app.devices?.getDevice?.(np.device)?.name || dev;
-    } catch (e) {
+    } catch {
       /* ok */
     }
     const text = `Keys play a new track, ${np.name} (${dev}). Undo takes it away.`;
     try {
       app.ui?.announce?.(text);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     input.emit('keys:track', { track: id, name: np.name, device: np.device, text });
@@ -882,7 +882,7 @@ export function createRecorder(app, input, opts = {}) {
         ts = ev && ev.timeStamp,
         now = performance.now();
       return fin(ts) && ts > 0 && now - ts >= 0 && now - ts < 150 ? ts : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -1073,7 +1073,7 @@ export function createRecorder(app, input, opts = {}) {
     for (const pv of pt.previews.splice(0).reverse()) {
       try {
         pv.release();
-      } catch (e) {
+      } catch {
         /* the commit puts it right */
       }
     }
@@ -1085,7 +1085,7 @@ export function createRecorder(app, input, opts = {}) {
       for (const pv of pt.previews.splice(0).reverse()) {
         try {
           pv.release();
-        } catch (e) {
+        } catch {
           /* the commit puts it right */
         }
       }
@@ -1386,7 +1386,7 @@ export function createRecorder(app, input, opts = {}) {
   async function startTransport(r, beats) {
     try {
       engine.recording = true;
-    } catch (e) {
+    } catch {
       /* ok */
     }
     await engine.play(r.startBeat, beats ? { countIn: { beats, preroll: true } } : null);
@@ -1459,7 +1459,7 @@ export function createRecorder(app, input, opts = {}) {
         rec: true,
       });
       return c ? c.id : true;
-    } catch (e) {
+    } catch {
       return true;
     }
   }
@@ -1475,7 +1475,7 @@ export function createRecorder(app, input, opts = {}) {
       }
       if (id) input.capture.update(id, capturedNotes(notes));
       else ps.captured = captureOf(r, pt, { ...ps, notes });
-    } catch (e) {
+    } catch {
       /* capture is best effort here: the take still goes in */
     }
   }
@@ -1518,7 +1518,7 @@ export function createRecorder(app, input, opts = {}) {
     if (lastTx && lastTx.id === m.txn && t && !t.clips.length) {
       try {
         store.undo({ id: m.txn, redo: false });
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1547,7 +1547,7 @@ export function createRecorder(app, input, opts = {}) {
           app.ui?.announce?.(keeps);
         }
       }
-    } catch (e) {
+    } catch {
       /* the take still records */
     }
     const capture = !au && (hum || tapArmed());
@@ -1689,7 +1689,7 @@ export function createRecorder(app, input, opts = {}) {
     } else {
       try {
         engine.recording = true;
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -1726,7 +1726,7 @@ export function createRecorder(app, input, opts = {}) {
     R = r;
     try {
       input.tap?.flush?.();
-    } catch (e) {
+    } catch {
       /* ok */
     } // (an earlier phrase of taps is its own take)
     setState(r, 'rec');
@@ -1757,7 +1757,7 @@ export function createRecorder(app, input, opts = {}) {
     if (r.hum) {
       try {
         await r.humStart;
-      } catch (e) {
+      } catch {
         /* said */
       }
       const tk = input.hum?.active ? await input.hum.stop() : null;
@@ -1784,7 +1784,7 @@ export function createRecorder(app, input, opts = {}) {
       try {
         app.ui?.toast?.(text, { ms: 4000 });
         app.ui?.announce?.(text);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       const res = { ok: true, take: r.id, empty: true, why, free: true, parts: [], summary: '' };
@@ -1860,7 +1860,7 @@ export function createRecorder(app, input, opts = {}) {
     });
     try {
       app.ui?.announce?.(summary);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     emit('commit', res);
@@ -1957,12 +1957,12 @@ export function createRecorder(app, input, opts = {}) {
       // the sources that finish on their own: the hum (transcribed now), the beatbox (its hits found now)
       try {
         if (input.hum?.active && input.hum.recording) await input.hum.stop();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       try {
         if (input.tap?.beatboxing && input.tap.recording) await input.tap.stopBeatbox();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       const audioRes = await finishAudio(r, stopG);
@@ -1971,7 +1971,7 @@ export function createRecorder(app, input, opts = {}) {
       R = null;
       try {
         engine.recording = false;
-      } catch (e) {
+      } catch {
         /* ok */
       }
       releasePreviews(r);
@@ -1992,7 +1992,7 @@ export function createRecorder(app, input, opts = {}) {
     // you play after the take is a phrase of its own)
     try {
       input.capture.flush?.();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     for (const pt of r.parts.values()) {
@@ -2072,7 +2072,7 @@ export function createRecorder(app, input, opts = {}) {
           pass: 0,
           rec: true,
         });
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -2099,13 +2099,13 @@ export function createRecorder(app, input, opts = {}) {
       if (!(r.audioTrack && !audioRes)) {
         try {
           app.ui?.toast?.(text, { ms: 4000 });
-        } catch (e) {
+        } catch {
           /* ok */
         }
       } // (the mic said why already)
       try {
         app.ui?.announce?.(text);
-      } catch (e) {
+      } catch {
         /* ok */
       }
       return res;
@@ -2137,7 +2137,7 @@ export function createRecorder(app, input, opts = {}) {
         for (const ps of pt.passes.values())
           if (typeof ps.captured === 'string') input.capture.update(ps.captured, { track: tid });
       }
-    } catch (e) {
+    } catch {
       /* best effort: the take is in */
     }
     const res = {
@@ -2201,7 +2201,7 @@ export function createRecorder(app, input, opts = {}) {
     for (const x of made) for (const k of x.kinds || []) took(k, x.track);
     try {
       app.arranger?.show?.(clips, 'you');
-    } catch (e) {
+    } catch {
       /* no arranger */
     }
     // a take that muted what played under it: "Put it on its own track" (both play, each on its own sound)
@@ -2227,7 +2227,7 @@ export function createRecorder(app, input, opts = {}) {
     let line = null;
     try {
       line = app.sounds?.toastLine?.(res) || null;
-    } catch (e) {
+    } catch {
       line = null;
     }
     const parts = [text, more ? ' ' : null, more, own ? ' ' : null, own, line ? ' ' : null, line].filter(Boolean);
@@ -2285,7 +2285,7 @@ export function createRecorder(app, input, opts = {}) {
         e.currentTarget.closest('.ew-toast')?.remove();
       });
       return b;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -2325,12 +2325,12 @@ export function createRecorder(app, input, opts = {}) {
               if (!R && input.hum?.active) input.hum.cancel();
             })
             .catch(() => {});
-      } catch (e) {
+      } catch {
         /* ok */
       }
       try {
         input.tap?.discard?.();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       unmake(r);
@@ -2346,7 +2346,7 @@ export function createRecorder(app, input, opts = {}) {
     if (input.autorec) input.autorec.finish(r, { cancel: true });
     try {
       engine.recording = false;
-    } catch (e) {
+    } catch {
       /* ok */
     }
     if (stopTransport && (engine.playing || engine.starting)) engine.stop(); // (a count still waiting to start too)
@@ -2392,7 +2392,7 @@ export function createRecorder(app, input, opts = {}) {
     engine.on('silence', () => {
       if (R) R.silenced = true;
     });
-  } catch (e) {
+  } catch {
     /* no engine (Node) */
   }
   // tempo, meter or the loop changing mid-take: the take so far goes in (it was placed on the old timeline)
@@ -2436,7 +2436,7 @@ export function createRecorder(app, input, opts = {}) {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && R) R.state === 'count' ? cancel() : stop({ why: 'hidden' });
     });
-  } catch (e) {
+  } catch {
     /* node */
   }
 
@@ -2446,7 +2446,7 @@ export function createRecorder(app, input, opts = {}) {
     cap.flush?.();
     try {
       if (input.tap?.take) input.tap.flush();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     const ph = id
@@ -2511,7 +2511,7 @@ export function createRecorder(app, input, opts = {}) {
         saved.captureClick = !!on;
         try {
           localStorage.setItem(SAVE, JSON.stringify(saved));
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -2535,7 +2535,7 @@ export function createRecorder(app, input, opts = {}) {
       saved.countIn = Math.max(0, Math.min(4, Math.round(+bars || 0)));
       try {
         localStorage.setItem(SAVE, JSON.stringify(saved));
-      } catch (e) {
+      } catch {
         /* ok */
       }
       emit('state', { state: rec.state, countIn: saved.countIn });

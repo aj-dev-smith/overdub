@@ -326,7 +326,7 @@ function forkLine(f, app) {
 function clock(at) {
   try {
     return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  } catch (e) {
+  } catch {
     return '';
   }
 }

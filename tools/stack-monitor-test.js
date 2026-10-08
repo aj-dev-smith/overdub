@@ -33,7 +33,7 @@ try {
   await page.evaluate(() => {
     try {
       localStorage.removeItem('overdub:input');
-    } catch (e) {
+    } catch {
       /* ok */
     }
   });

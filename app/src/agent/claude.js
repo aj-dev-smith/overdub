@@ -84,7 +84,7 @@ const ls = {
   get(k) {
     try {
       return localStorage.getItem(k);
-    } catch (e) {
+    } catch {
       return null;
     }
   },
@@ -93,7 +93,7 @@ const ls = {
       if (v == null) localStorage.removeItem(k);
       else localStorage.setItem(k, v);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   },
@@ -142,7 +142,7 @@ export function createAgent(app) {
   let plan = null; // the plan's usage windows, from Claude Code's rate_limit_event
   try {
     plan = JSON.parse(ls.get(PLAN_KEY) || 'null');
-  } catch (e) {
+  } catch {
     plan = null;
   } // the running Claude Code turn's token (its bridge calls carry it)
   let model = ls.get(MODEL_KEY) || MODELS[0].id;
@@ -164,7 +164,7 @@ export function createAgent(app) {
   function sessionStorageGet(k) {
     try {
       return sessionStorage.getItem(k);
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -199,7 +199,7 @@ export function createAgent(app) {
     try {
       const s = ls.get(CONV_KEY + projectId);
       if (s) messages = sanitize(JSON.parse(s));
-    } catch (e) {
+    } catch {
       messages = [];
     }
     system = null; // a reloaded conversation starts a new cache prefix anyway
@@ -328,7 +328,7 @@ export function createAgent(app) {
         const j = await res.json();
         err = j?.error || null;
         detail = j?.error?.message || JSON.stringify(j);
-      } catch (e) {
+      } catch {
         detail = res.statusText;
       }
       const retryAfter = Number(err?.retryAfter) || Number(res.headers.get('retry-after')) || 0;
@@ -387,7 +387,7 @@ export function createAgent(app) {
             const raw = partial.get(ev.index) || '';
             try {
               b.input = raw.trim() ? JSON.parse(raw) : {};
-            } catch (e) {
+            } catch {
               b.input = {};
               b._invalid = raw;
             }
@@ -430,7 +430,7 @@ export function createAgent(app) {
         let ev;
         try {
           ev = JSON.parse(data);
-        } catch (e) {
+        } catch {
           continue;
         }
         handle(ev);
@@ -701,7 +701,7 @@ export function createAgent(app) {
     let st = null;
     try {
       st = await cloud.finish(actionId, { outcome, cardPending, deviceWritten });
-    } catch (e) {
+    } catch {
       st = null;
     }
     if (st?.charged > 0 && st.creditBackUntil) {
@@ -726,7 +726,7 @@ export function createAgent(app) {
       try {
         const j = JSON.parse(ls.get(TAKES_KEY) || '{}');
         return j && typeof j === 'object' ? j : {};
-      } catch (e) {
+      } catch {
         return {};
       }
     },
@@ -810,7 +810,7 @@ export function createAgent(app) {
       let m = `HTTP ${res.status}`;
       try {
         m = (await res.json()).error || m;
-      } catch (e) {
+      } catch {
         /* plain */
       }
       throw new Error(m);
@@ -874,7 +874,7 @@ export function createAgent(app) {
           let ev;
           try {
             ev = JSON.parse(l);
-          } catch (e) {
+          } catch {
             continue;
           }
           handle(ev);
@@ -1093,7 +1093,7 @@ export function createAgent(app) {
         mockOn = false;
         try {
           sessionStorage.removeItem('overdub:agent-mock');
-        } catch (e) {
+        } catch {
           /* ok */
         }
         if (localOn) {
@@ -1124,7 +1124,7 @@ export function createAgent(app) {
         mockOn = false;
         try {
           sessionStorage.removeItem('overdub:agent-mock');
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -1151,7 +1151,7 @@ export function createAgent(app) {
       try {
         if (on) sessionStorage.setItem('overdub:agent-mock', '1');
         else sessionStorage.removeItem('overdub:agent-mock');
-      } catch (e) {
+      } catch {
         /* ok */
       }
       decide();

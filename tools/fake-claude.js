@@ -50,7 +50,7 @@ mcp.stdout.on('data', (c) => {
     try {
       const m = JSON.parse(l);
       waiting.get(m.id)?.(m);
-    } catch (e) {
+    } catch {
       /* not ours */
     }
   }

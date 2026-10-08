@@ -1055,7 +1055,7 @@ try {
 
   /* ==== fresh eyes 3 (docs/FRESH-EYES-3.md): editing with the value in view, finding lanes, credit, copy, the master ==== */
   // a clean Level lane on the first instrument track: -30 dB at bars 1, 5 and 9 (a flat line well under unity)
-  const fe = await E((id) => {
+  await E((id) => {
     const o = window.overdub,
       p = o.store.get(),
       t = p.tracks.find((x) => x.id === id);
@@ -1147,8 +1147,7 @@ try {
         dpr = cv.width / r.width;
       const y0 = Math.round(o.arranger.laneY(k, 0) - r.top);
       const lit = (yy) => {
-        const d = g.getImageData(0, Math.round(yy * dpr), cv.width, 1).data,
-          bg = [d[0], d[1], d[2]];
+        const d = g.getImageData(0, Math.round(yy * dpr), cv.width, 1).data;
         let n = 0,
           all = 0;
         for (let i = 0; i < d.length; i += 4 * Math.round(dpr)) {
@@ -1473,7 +1472,6 @@ try {
   await E(() => document.querySelector('.ek-pop')?.remove());
   await E((id) => {
     const o = window.overdub;
-    const t = o.store.get().tracks.find((x) => x.id === id);
     return o.arranger.showLane('master', { param: 'gain' });
   }, tid);
   await sleep(250);
@@ -1492,7 +1490,7 @@ try {
     );
   });
   await sleep(200);
-  const mr2 = (await E(() => window.overdub.arranger.laneRows())).find((r) => r.key === 'master/gain');
+  await E(() => window.overdub.arranger.laneRows());
   await sleep(450);
   await page.mouse.click(await xOf(8), await yAt('master/gain', -40));
   await sleep(150);

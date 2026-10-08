@@ -104,7 +104,7 @@ export function createStore(project, { getDevice = null } = {}) {
       for (const inv of inverse) {
         try {
           applyOp(doc, inv, rb);
-        } catch (e2) {
+        } catch {
           /* the snapshot below puts it right */
         }
       }
@@ -304,7 +304,7 @@ export function createStore(project, { getDevice = null } = {}) {
             for (const inv of r.inverse) {
               try {
                 run([inv], by, { restore: true });
-              } catch (e2) {
+              } catch {
                 skipped++;
               }
             }

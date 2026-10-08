@@ -327,7 +327,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   let storage = null;
   try {
     storage = window.localStorage;
-  } catch (e) {
+  } catch {
     storage = null;
   }
   const saved = readSaved(storage);
@@ -338,7 +338,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (saved.view) out.view = saved.view;
     try {
       storage?.setItem(WORKSPACE_KEY, JSON.stringify(out));
-    } catch (e) {
+    } catch {
       /* private mode: this visit only */
     }
   };
@@ -349,13 +349,13 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     let said = false;
     try {
       said = !!storage?.getItem('overdub:start.merged');
-    } catch (e) {
+    } catch {
       said = false;
     }
     if (!said) {
       try {
         storage?.setItem('overdub:start.merged', '1');
-      } catch (e) {
+      } catch {
         /* once a visit, then */
       }
       ui.on?.('ready', () => ui.toast?.(T.merged.replace('⌘K', `${MODK}K`), { ms: 8000 })); // (Ctrl+K off a Mac)
@@ -510,7 +510,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
         u.searchParams.delete('view');
         history.replaceState(history.state, '', u.pathname + u.search + u.hash);
       }
-    } catch (e) {
+    } catch {
       /* fine */
     }
     clearNote();
@@ -539,7 +539,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     const panel = f.panels.find((p) => ui.panels?.has?.(p)) || null;
     try {
       if (panel) ui.show?.(panel, { by });
-    } catch (e) {
+    } catch {
       /* pointing is the answer */
     }
     const el = panel
@@ -617,7 +617,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     let fresh = true;
     try {
       fresh = storage?.getItem('overdub:layout') == null;
-    } catch (e) {
+    } catch {
       /* fresh */
     }
     if (fresh)
@@ -667,7 +667,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (k.feature && !app.transport?.locked?.()) {
       try {
         api.reach(k.feature, 'you');
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -679,7 +679,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     let defs = [];
     try {
       defs = app.devices?.listDevices?.() || [];
-    } catch (e) {
+    } catch {
       defs = [];
     }
     for (const d of defs) {
@@ -713,7 +713,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
       const id = ui.state?.selection?.track;
       const t = id ? app.store.track(id) : null;
       return t && t.kind === 'instrument' ? t : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -722,7 +722,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (it.def.kind === 'instrument' && t && app.sounds?.try) {
       try {
         app.sounds.offer?.({ track: t.id, from: 'find' });
-      } catch (e) {
+      } catch {
         /* the trial still plays */
       }
       const r = app.sounds.try(
@@ -815,7 +815,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
       closeFind();
       try {
         window.open(it.href, '_blank', 'noopener');
-      } catch (e) {
+      } catch {
         location.href = it.href;
       }
     }

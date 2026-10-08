@@ -36,14 +36,14 @@ const ls = {
   get() {
     try {
       return JSON.parse(localStorage.getItem(KEY) || 'null');
-    } catch (e) {
+    } catch {
       return null;
     }
   },
   set(v) {
     try {
       localStorage.setItem(KEY, JSON.stringify(v));
-    } catch (e) {
+    } catch {
       /* storage blocked: it just won't remember */
     }
   },
@@ -78,7 +78,7 @@ export default function (app) {
   const firstVisit = (() => {
     try {
       return localStorage.getItem('overdub:project') == null;
-    } catch (e) {
+    } catch {
       return false;
     }
   })();
@@ -181,7 +181,7 @@ export default function (app) {
     for (const o of offs.splice(0)) {
       try {
         o();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -227,7 +227,7 @@ export default function (app) {
     for (const o of offs.splice(0)) {
       try {
         o();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -443,7 +443,7 @@ export default function (app) {
   function select(c) {
     try {
       ui.select({ track: c.track, clip: c.clip, notes: [] });
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }
@@ -571,7 +571,7 @@ export default function (app) {
     if (l.click && engine?.metronome) {
       try {
         app.transport?.click?.set?.({ on: false });
-      } catch (e) {
+      } catch {
         /* ok */
       }
       if (engine.metronome) engine.metronome = false;
@@ -625,7 +625,7 @@ export default function (app) {
     for (const o of offs.splice(0)) {
       try {
         o();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -654,7 +654,7 @@ export default function (app) {
     }
     try {
       app.transport?.click?.set?.({ on: true });
-    } catch (e) {
+    } catch {
       if (engine) engine.metronome = true;
     }
     if (!engine) return;
@@ -664,7 +664,7 @@ export default function (app) {
       if (lp?.on && !(b >= lp.start - 1e-6 && b < lp.end)) {
         try {
           engine.seek(lp.start);
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -716,7 +716,7 @@ export default function (app) {
     }
     try {
       ui.select({ track: t.id, clip: null, notes: [] });
-    } catch (e) {
+    } catch {
       /* ok */
     }
     disarmOthers(t);
@@ -768,7 +768,7 @@ export default function (app) {
     }
     try {
       ui.select({ track: t.id, clip: null, notes: [] });
-    } catch (e) {
+    } catch {
       /* ok */
     }
     disarmOthers(t);
@@ -802,7 +802,7 @@ export default function (app) {
     if (!c) return;
     try {
       app.transport?.click?.set?.(c);
-    } catch (e) {
+    } catch {
       if (engine) engine.metronome = !!c.on;
     }
   }
@@ -925,7 +925,7 @@ export default function (app) {
   const touch = () => {
     try {
       return matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -937,7 +937,7 @@ export default function (app) {
   const phoneStrip = () => {
     try {
       return matchMedia('(max-width: 640px)').matches;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -1516,7 +1516,7 @@ export default function (app) {
       stop('reset');
       try {
         localStorage.removeItem(KEY);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     },

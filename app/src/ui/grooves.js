@@ -50,7 +50,7 @@ const PLAN_WORD = {
 export default function (app) {
   installGrooveTools(app);
   css('grooves', CSS);
-  const { ui, store } = app;
+  const { ui } = app;
   // (once the studio is up: the autosave listens from then on, so the healed song is saved)
   if (document.documentElement.dataset.ready === '1') healLeftover(app);
   else {
@@ -75,13 +75,13 @@ function healLeftover(app) {
   let rec = null;
   try {
     rec = JSON.parse(localStorage.getItem(HEARING_KEY) || 'null');
-  } catch (e) {
+  } catch {
     rec = null;
   }
   if (!rec) return;
   try {
     localStorage.removeItem(HEARING_KEY);
-  } catch (e) {
+  } catch {
     /* storage blocked */
   }
   const p = app.store.get();
@@ -452,7 +452,7 @@ function mountGrooves(el, app) {
     });
     try {
       app.arranger?.show?.([r.clip], 'you');
-    } catch (e) {
+    } catch {
       /* the arranger draws it anyway */
     }
     return r;
@@ -574,7 +574,7 @@ function mountGrooves(el, app) {
     };
     try {
       localStorage.setItem(HEARING_KEY, JSON.stringify({ song: p.id, track: A.track, muted, soloed, at: Date.now() }));
-    } catch (e) {
+    } catch {
       /* storage blocked: the release still happens */
     }
     syncBar();
@@ -610,7 +610,7 @@ function mountGrooves(el, app) {
     ) {
       try {
         engine.stop({ live: false });
-      } catch (e) {
+      } catch {
         /* stopped already */
       }
     }
@@ -620,7 +620,7 @@ function mountGrooves(el, app) {
         if (!A) {
           try {
             localStorage.removeItem(HEARING_KEY);
-          } catch (e) {
+          } catch {
             /* storage blocked */
           }
         }
@@ -647,7 +647,7 @@ function mountGrooves(el, app) {
     if (tr && pd) {
       try {
         engine.audition?.(tr, pd.p, 0.85, 0.25);
-      } catch (e) {
+      } catch {
         /* no sound yet */
       }
     }
@@ -940,7 +940,7 @@ function mountGrooves(el, app) {
         r.clips.map((c) => c.clip),
         'you',
       );
-    } catch (e) {
+    } catch {
       /* drawn anyway */
     }
     return r;
@@ -971,7 +971,7 @@ function mountGrooves(el, app) {
             d.held = true;
             try {
               navigator.vibrate?.(10);
-            } catch (err) {
+            } catch {
               /* no buzz */
             }
           }
@@ -992,7 +992,7 @@ function mountGrooves(el, app) {
         d.on = true;
         try {
           rowEl.setPointerCapture(e.pointerId);
-        } catch (err) {
+        } catch {
           /* fine */
         }
         d.ghost = h('div.gv-ghost', { role: 'presentation' }, `${g.styleName}, ${g.name}`);

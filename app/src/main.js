@@ -106,7 +106,7 @@ function shippedKernels(boot) {
       try {
         for (const dev of Object.values(d.make().devices || {}))
           if (typeof dev?.kernel === 'string') out.push(dev.kernel);
-      } catch (e) {
+      } catch {
         /* a demo that won't build ships nothing */
       }
     }
@@ -135,7 +135,7 @@ function keptSongs() {
     try {
       const s = localStorage.getItem(k);
       if (s) out.push(JSON.parse(s));
-    } catch (e) {
+    } catch {
       /* unreadable: nothing to keep */
     }
   };
@@ -145,7 +145,7 @@ function keptSongs() {
   try {
     const r = JSON.parse(localStorage.getItem('overdub:recent') || '[]');
     if (Array.isArray(r)) for (const e of r) if (e && e.song) out.push(e.song);
-  } catch (e) {
+  } catch {
     /* none */
   }
   return out;
@@ -162,7 +162,7 @@ function migrateLegacyStorage() {
       const nk = 'overdub:' + k.slice(old.length);
       if (localStorage.getItem(nk) == null) localStorage.setItem(nk, localStorage.getItem(k));
     }
-  } catch (e) {
+  } catch {
     /* storage blocked: nothing to carry */
   }
 }
@@ -191,7 +191,7 @@ function putAside(next) {
       localStorage.setItem(PREV_KEY, s);
       displaced = p;
     }
-  } catch (e) {
+  } catch {
     /* storage blocked, or a saved song that can't be read: nothing here to keep */
   }
   return next;
@@ -243,7 +243,7 @@ async function boot() {
     let storage = null;
     try {
       storage = window.localStorage;
-    } catch (e) {
+    } catch {
       /* blocked */
     }
     workspace = decideView({ search: location.search, storage, webdriver: !!navigator.webdriver });
@@ -254,7 +254,7 @@ async function boot() {
           WORKSPACE_KEY,
           JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view }),
         );
-      } catch (e) {
+      } catch {
         /* private mode */
       }
     }
@@ -406,7 +406,7 @@ async function boot() {
     saveT = 0;
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(store.get()));
-    } catch (e) {
+    } catch {
       app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' });
     }
   };
@@ -468,7 +468,7 @@ async function boot() {
       u.searchParams.delete('new');
       u.searchParams.delete('demo');
       history.replaceState(history.state, '', u.pathname + u.search + u.hash);
-    } catch (e) {
+    } catch {
       /* fine */
     }
   }

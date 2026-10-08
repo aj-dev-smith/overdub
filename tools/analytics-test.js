@@ -204,7 +204,7 @@ async function passThrough(route, url) {
   for (let i = 0; i < 3; i++) {
     try {
       return await route.fulfill({ response: await route.fetch({ url }) });
-    } catch (e) {
+    } catch {
       /* retry */
     }
   }
@@ -620,7 +620,7 @@ try {
     const cfgOf = (out) => {
       try {
         return JSON.parse((/^app\/site-config\.json: (.*)$/m.exec(out) || [])[1]);
-      } catch (e) {
+      } catch {
         return null;
       }
     };

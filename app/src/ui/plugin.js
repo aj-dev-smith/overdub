@@ -434,7 +434,7 @@ export default function (app) {
     // params it has no control on screen for come last, by the device's groups, marked shown: false)
     try {
       out.sections = w.sections();
-    } catch (e) {
+    } catch {
       out.sections = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys }));
     }
     out.note =
@@ -509,7 +509,7 @@ export default function (app) {
         onclick: () => {
           try {
             app.transport?.playStop?.();
-          } catch (e) {
+          } catch {
             /* no transport */
           }
         },
@@ -1331,14 +1331,14 @@ export default function (app) {
       let inst = null;
       try {
         inst = app.engine.instance?.(track, slot) || null;
-      } catch (e) {
+      } catch {
         inst = null;
       }
       if (inst !== tapS.inst) {
         if (tapS.inst && tapS.an) {
           try {
             tapS.inst.output.disconnect(tapS.an);
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
@@ -1354,7 +1354,7 @@ export default function (app) {
           try {
             inst.output.connect(tapS.an);
             tapS.inst = inst;
-          } catch (e) {
+          } catch {
             tapS.inst = null;
           }
         }
@@ -1390,7 +1390,7 @@ export default function (app) {
       let inst = null;
       try {
         inst = app.engine.instance?.(track, slot) || null;
-      } catch (e) {
+      } catch {
         inst = null;
       }
       const node = (inst && (which === 'input' ? inst.input : inst.output)) || null;
@@ -1403,7 +1403,7 @@ export default function (app) {
       if (t.node && t.node !== node) {
         try {
           t.node.disconnect(t.an);
-        } catch (e) {
+        } catch {
           /* gone */
         }
         t.node = null;
@@ -1418,7 +1418,7 @@ export default function (app) {
         try {
           node.connect(t.an);
           t.node = node;
-        } catch (e) {
+        } catch {
           return null;
         }
       }
@@ -1583,7 +1583,7 @@ export default function (app) {
               try {
                 if (isOn) app.engine.liveNoteOn(track, p, v);
                 else app.engine.liveNoteOff(track, p);
-              } catch (e) {
+              } catch {
                 /* no audio yet */
               }
               for (const fn of [...kbListeners]) {
@@ -1841,7 +1841,7 @@ export default function (app) {
         if (changed.length && typeof editor?.said === 'function') {
           try {
             words = editor.said(changed, evt.by);
-          } catch (e) {
+          } catch {
             words = null;
           }
         }
@@ -1926,14 +1926,14 @@ export default function (app) {
       try {
         offQw?.();
         offMode?.();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       scopeCv.destroy();
       if (tapS.inst && tapS.an) {
         try {
           tapS.inst.output.disconnect(tapS.an);
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }
@@ -1941,7 +1941,7 @@ export default function (app) {
         if (t.node && t.an) {
           try {
             t.node.disconnect(t.an);
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
@@ -1950,7 +1950,7 @@ export default function (app) {
       kbListeners.clear();
       try {
         undock?.();
-      } catch (e) {
+      } catch {
         /* the shell's own */
       }
       el.remove();

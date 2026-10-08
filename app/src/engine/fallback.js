@@ -60,7 +60,7 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
       for (const o of v.nodes) {
         try {
           o.stop(v.t0);
-        } catch (e) {
+        } catch {
           /* stopped */
         }
       }
@@ -74,14 +74,14 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     const tc = fast ? 0.008 : 0.07;
     try {
       v.env.gain.setTargetAtTime(0, t, tc);
-    } catch (e) {
+    } catch {
       /* gone */
     }
     const end = t + tc * 10;
     for (const o of v.nodes) {
       try {
         o.stop(end);
-      } catch (e) {
+      } catch {
         /* stopped */
       }
     }
@@ -140,7 +140,7 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
         env.disconnect();
         lp.disconnect();
         sawG.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
       const i = voices.indexOf(voice);
@@ -200,13 +200,13 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
         for (const s of slots) {
           try {
             s.node.disconnect();
-          } catch (e) {
+          } catch {
             /* gone */
           }
         }
         try {
           output.disconnect();
-        } catch (e) {
+        } catch {
           /* gone */
         }
       }, 200);
@@ -237,7 +237,7 @@ export function passThrough(c, { uid = 'pass', missing = null, held = null } = {
     dispose() {
       try {
         node.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
     },
@@ -280,7 +280,7 @@ export function silentInstrument(c, { uid = 'held', held = null } = {}) {
     dispose() {
       try {
         output.disconnect();
-      } catch (e) {
+      } catch {
         /* gone */
       }
     },

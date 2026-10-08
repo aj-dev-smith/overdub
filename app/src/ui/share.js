@@ -65,7 +65,7 @@ const ls = {
   get(k) {
     try {
       return localStorage.getItem(k);
-    } catch (e) {
+    } catch {
       return null;
     }
   },
@@ -73,7 +73,7 @@ const ls = {
     try {
       localStorage.setItem(k, v);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   },
@@ -85,7 +85,6 @@ export default function (app) {
   const share = (app.share = Object.assign(app.share || { incoming: null, listening: false }, { lastLink: null }));
   let banner = null,
     edited = false,
-    from = null,
     dropped = null;
   // the ask about the song's held devices: { from, answered } for the song on screen (a new one each time a song opens;
   // Make it yours keeps it)
@@ -171,7 +170,7 @@ export default function (app) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
-    } catch (e) {
+    } catch {
       /* fall through */
     }
     try {
@@ -180,14 +179,14 @@ export default function (app) {
         field.select();
       }
       return document.execCommand('copy');
-    } catch (e) {
+    } catch {
       return false;
     }
   }
   const phone = () => {
     try {
       return matchMedia('(pointer: coarse)').matches && !!navigator.share;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -225,7 +224,7 @@ export default function (app) {
       try {
         await navigator.share({ title: r.title, text: `“${r.title}” in Overdub`, url: r.url });
         how = 'shared';
-      } catch (e) {
+      } catch {
         how = (await writeClipboard(r.url)) ? 'copied' : 'shown';
       }
     } else how = (await writeClipboard(r.url, into?.field)) ? 'copied' : 'shown';
@@ -365,7 +364,7 @@ export default function (app) {
           nameIn.focus();
           nameIn.select();
         } else if (r.ok) field.select();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }, 0);
@@ -374,7 +373,6 @@ export default function (app) {
 
   /* ---------------------------------------------------------------- listening */
   function enter(res) {
-    from = res.from || {};
     dropped = res.dropped || null;
     edited = false;
     share.incoming = res;
@@ -422,7 +420,7 @@ export default function (app) {
     let prevTitle = null;
     try {
       prevTitle = prev ? JSON.parse(prev).title : null;
-    } catch (e) {
+    } catch {
       /* ok */
     }
     ui.toast(
@@ -451,7 +449,7 @@ export default function (app) {
     try {
       const s = ls.get(SAVE_KEY);
       if (s) p = cleanProject(JSON.parse(s));
-    } catch (e) {
+    } catch {
       p = null;
     }
     clearHash();
@@ -470,7 +468,7 @@ export default function (app) {
   function clearHash() {
     try {
       history.replaceState(null, '', location.pathname + location.search);
-    } catch (e) {
+    } catch {
       /* ok */
     }
   }

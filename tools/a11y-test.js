@@ -357,7 +357,7 @@ const ignorable = (e) =>
     await E(() => {
       try {
         return JSON.parse(localStorage.getItem('overdub:keys')).single === true;
-      } catch (e) {
+      } catch {
         return false;
       }
     }),
@@ -407,7 +407,7 @@ const ignorable = (e) =>
     st.dispatch([...ops, { type: 'track.add', track: { kind: 'audio', name: 'Gtr', arm: true } }], { by: 'you' });
     try {
       await overdub.input.audio.open();
-    } catch (e) {
+    } catch {
       /* fake device */
     }
     overdub.ui.show('sketch');

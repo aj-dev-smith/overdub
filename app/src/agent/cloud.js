@@ -59,7 +59,7 @@ export function safeUrl(u) {
     return x.protocol === 'https:' || (x.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname))
       ? x.href
       : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -127,7 +127,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     let j = null;
     try {
       j = await res.json();
-    } catch (e) {
+    } catch {
       j = null;
     }
     if (!res.ok) {
@@ -145,7 +145,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     try {
       config = await req('GET', '/v1/config');
       emit('config', config);
-    } catch (e) {
+    } catch {
       config = null;
     }
     await refresh().catch(() => null);
@@ -206,7 +206,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
       frame.addEventListener('load', () => {
         try {
           frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api);
-        } catch (e) {
+        } catch {
           /* the frame says hello again */
         }
       });
@@ -255,7 +255,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
   function forgetLocal() {
     try {
       win.localStorage?.removeItem('overdub:cloud:takes');
-    } catch (e) {
+    } catch {
       /* storage blocked */
     }
   }

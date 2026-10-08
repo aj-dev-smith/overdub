@@ -423,14 +423,14 @@ function silenceAll(app) {
   const { engine, ui } = app;
   try {
     if (app.input?.audio?.state?.monitoring) app.input.audio.monitor(false);
-  } catch (e) {
+  } catch {
     /* ok */
   }
   ui.emit('silence');
   if (!engine?.silence) {
     try {
       engine?.stop?.();
-    } catch (e) {
+    } catch {
       /* ok */
     }
     return Promise.resolve();
@@ -528,7 +528,7 @@ function clickSettings(app) {
           engine.click = o;
         });
     }
-  } catch (e) {
+  } catch {
     /* storage blocked: the defaults */
   }
   // what the person set (a borrowed click reads as off)
@@ -553,7 +553,7 @@ function clickSettings(app) {
           level: Math.round((+c.level || 0) * 10) / 10,
         }),
       );
-    } catch (e) {
+    } catch {
       /* ok */
     }
   };
@@ -691,7 +691,7 @@ function startMarker(app) {
     try {
       const m = JSON.parse(localStorage.getItem(MARKER_KEY) || '{}');
       return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
-    } catch (e) {
+    } catch {
       return {};
     }
   };
@@ -708,7 +708,7 @@ function startMarker(app) {
         const ks = Object.keys(m); // the newest 24 songs
         for (const k of ks.slice(0, Math.max(0, ks.length - 24))) delete m[k];
         localStorage.setItem(MARKER_KEY, JSON.stringify(m));
-      } catch (e) {
+      } catch {
         /* storage blocked: it just won't remember */
       }
     }, 200);
@@ -733,7 +733,7 @@ function startMarker(app) {
     if (!engine.playing && Math.abs((+engine.beat || 0) - beat) > 1e-6) {
       try {
         engine.seek(beat);
-      } catch (e) {
+      } catch {
         /* no audio yet */
       }
     }
@@ -1807,7 +1807,7 @@ function mountTransport(el, app) {
   try {
     document.fonts?.ready?.then(refit);
     document.fonts?.addEventListener?.('loadingdone', refit);
-  } catch (e) {
+  } catch {
     /* no font loading API */
   }
   requestAnimationFrame(refit);
@@ -2141,7 +2141,7 @@ function mountTransport(el, app) {
   let rmq = null;
   try {
     rmq = matchMedia('(prefers-reduced-motion: reduce)');
-  } catch (e) {
+  } catch {
     /* no media queries */
   }
   const still = () => !!rmq?.matches;
@@ -2247,7 +2247,7 @@ function mountTransport(el, app) {
       window.removeEventListener('resize', refit);
       try {
         document.fonts?.removeEventListener?.('loadingdone', refit);
-      } catch (e) {
+      } catch {
         /* ok */
       }
     },

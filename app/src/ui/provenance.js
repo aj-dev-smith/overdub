@@ -381,7 +381,7 @@ function fmtDate(x, { time = true } = {}) {
       year: 'numeric',
       ...(time ? { hour: '2-digit', minute: '2-digit' } : {}),
     });
-  } catch (e) {
+  } catch {
     return d.toISOString();
   }
 }
@@ -390,7 +390,7 @@ function fmtTime(x) {
   if (Number.isNaN(+d)) return '';
   try {
     return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch (e) {
+  } catch {
     return d.toISOString().slice(11, 19);
   }
 }
@@ -848,7 +848,7 @@ async function svgDataUrl(path) {
     if (!r.ok) return null;
     const t = await r.text();
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -911,7 +911,7 @@ async function gatherChecks(app, model) {
     const m = await import('../devices/library/reports.js');
     REPORTS = m.REPORTS;
     MEASURED = m.MEASURED;
-  } catch (e) {
+  } catch {
     /* none */
   }
   let checkDevice = null;
@@ -932,7 +932,7 @@ async function gatherChecks(app, model) {
     if (!checkDevice) {
       try {
         checkDevice = (await import('../kernel/check.js')).checkDevice;
-      } catch (e) {
+      } catch {
         break;
       }
     }
@@ -942,7 +942,7 @@ async function gatherChecks(app, model) {
         new Promise((res) => setTimeout(() => res(null), 12000)),
       ]);
       if (rep) out[d.id] = normCheck(rep, 'rerun', Date.now());
-    } catch (e) {
+    } catch {
       /* leave it unchecked: the page says so */
     }
   }
@@ -966,7 +966,7 @@ export async function openProvenanceReport(app) {
   let w = null;
   try {
     w = window.open('', '_blank');
-  } catch (e) {
+  } catch {
     w = null;
   }
   try {
@@ -975,7 +975,7 @@ export async function openProvenanceReport(app) {
       w.document.body.style.cssText = 'margin:0;padding:32px;background:#f4ead6;color:#16130f;font:15px system-ui';
       w.document.body.textContent = 'Writing the provenance report…';
     }
-  } catch (e) {
+  } catch {
     /* cross-origin or closed */
   }
   const pre = modelFor(app);
@@ -1121,7 +1121,7 @@ export function installProvenance(app) {
       app.agent?.on?.('user', (e) => {
         if (e && e.text) lastAsk = { text: String(e.text).slice(0, 600), at: Date.now() };
       });
-    } catch (e) {
+    } catch {
       /* no in-app agent */
     }
   };

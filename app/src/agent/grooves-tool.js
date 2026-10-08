@@ -321,7 +321,7 @@ function useTool(app, by, input = {}) {
   if (r.ok && !r.dry_run) {
     try {
       app.presence?.highlight?.({ track: r.track.id, clip: r.clip }, `${g.styleName}, ${g.name}`, by, 4000);
-    } catch (e) {
+    } catch {
       /* presence is a nicety */
     }
   }
@@ -364,7 +364,7 @@ function drumTool(app, by, input = {}) {
         by,
         4000,
       );
-    } catch (e) {
+    } catch {
       /* presence is a nicety */
     }
   }

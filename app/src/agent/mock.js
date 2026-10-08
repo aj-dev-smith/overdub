@@ -141,7 +141,7 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
     if (!r.error && input.target?.track) {
       try {
         app.presence?.highlight?.({ track: input.target.track }, 'the takes are for this track', 'claude', 15000);
-      } catch (e) {
+      } catch {
         /* a nicety */
       }
     }
@@ -391,7 +391,7 @@ async function setsOrder(app, track) {
     const m = await import('../core/sounds.js');
     S = m.SOUND_SETS || null;
     kindOf = m.kindOfTake || null;
-  } catch (e) {
+  } catch {
     /* the table above */
   }
   const rows = (v) => {
@@ -411,7 +411,7 @@ async function setsOrder(app, track) {
     const hummed = app.input?.recorder?.last?.take?.src === 'hum' || /^melody\b/i.test(track.name);
     try {
       first = kindOf ? kindOf({ kind: 'notes', src: hummed ? 'hum' : 'keys', notes }) : hummed ? 'hum' : 'played';
-    } catch (e) {
+    } catch {
       first = hummed ? 'hum' : 'played';
     }
     if (!sets[first] || first === 'drums') first = hummed ? 'hum' : 'played';
@@ -432,7 +432,7 @@ async function sceneSounds(app, { say, tool }, ask) {
   if (!track) {
     try {
       track = (await import('./sounds-tool.js')).newestNewTrack(app);
-    } catch (e) {
+    } catch {
       /* none */
     }
   }
@@ -480,7 +480,7 @@ async function sceneSounds(app, { say, tool }, ask) {
   let house = null;
   try {
     house = app.sounds?.setsFor?.(track.id) || null;
-  } catch (e) {
+  } catch {
     house = null;
   }
   const onCard = [
@@ -563,7 +563,7 @@ async function sceneStudio(app, { say }, ask) {
   // (layout, never the song: the panel is shown and the control pointed at, as Find's Go to does, signed by the agent)
   try {
     ws.go?.(f.id, { by: 'claude' });
-  } catch (e) {
+  } catch {
     /* saying where is the answer */
   }
   const where = ws.where?.(f.id);
@@ -581,7 +581,7 @@ function pointAt(app, match, ms = 6000) {
     if (!b) return;
     b.classList.add('ag-pointed');
     setTimeout(() => b.classList.remove('ag-pointed'), ms);
-  } catch (e) {
+  } catch {
     /* a nicety */
   }
 }
@@ -703,7 +703,7 @@ const JAMTRACK_MOVES = ['Make me a slow blues in E', 'Make me a funk jam in E mi
 const inJam = (app) => {
   try {
     return !!app.ui?.visible?.('jam');
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -802,7 +802,7 @@ function movesFor(app, first = []) {
     : ['Play over this part', 'Make it darker', 'Fade it in over 4 bars', 'Build me a fuzz pedal'];
   try {
     if (app.input?.capture?.latest?.()) moves.unshift('Place my take');
-  } catch (e) {
+  } catch {
     /* no captures */
   }
   return [...new Set([...first, ...moves])].slice(0, 4);
@@ -906,7 +906,7 @@ const SILENT = -50; // LUFS: a part this quiet on its own is near silence, not a
 const touch = () => {
   try {
     return !!globalThis.matchMedia?.('(pointer: coarse)').matches;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -1421,14 +1421,14 @@ function lineTakes(app, src, notes, rg) {
   const made = (name, params) => {
     try {
       return transform(name, ids, params, ctx).notes.filter((n) => !n.id);
-    } catch (e) {
+    } catch {
       return [];
     }
   };
   const moved = (name, params) => {
     try {
       return transform(name, ids, params, ctx).notes;
-    } catch (e) {
+    } catch {
       return [];
     }
   };

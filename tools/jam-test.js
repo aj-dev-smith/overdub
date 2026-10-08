@@ -312,13 +312,11 @@ function fakeGuitar(file, level = 0.6) {
   const climb = 'E3 G3 A3 C4 D4 E4 G4 A4 C5 D5 E5 G5 A5'.split(' ').map((p, i) => ({ p, t: i * 0.5 }));
   const fc = FB.fingering(climb, 'standard', { near: 5 });
   let pos = null,
-    spanOk = true,
-    moves = 0;
+    spanOk = true;
   for (const n of fc.notes) {
     if (!n.f) continue;
     const lo = n.f - n.finger + 1;
     if (pos == null || n.f < pos || n.f > pos + 3) {
-      if (pos != null) moves++;
       pos = lo;
     }
     if (n.f - pos > 3 || n.f < pos) spanOk = false;
@@ -783,7 +781,7 @@ const boot = async (opts = {}) => {
     `it plays at 70%: ${bps.toFixed(3)} beats a second (${want.toFixed(3)} wanted)`,
   );
   const reg = await E(async () => {
-    const { renderProject } = await import('/app/src/engine/render.js');
+    await import('/app/src/engine/render.js');
     return window.overdub.engine.beatToSec(4);
   });
   T.ok(Math.abs(reg - (4 * 60) / 92) < 1e-9, "the song's own clock (beatToSec, renders, exports) is unchanged");
@@ -1985,7 +1983,7 @@ const boot = async (opts = {}) => {
     try {
       pw = require(t);
       break;
-    } catch (e) {
+    } catch {
       /* next */
     }
   }

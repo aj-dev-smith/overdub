@@ -39,7 +39,6 @@ import { readInks, staffShape, paintStaff } from './tabstaff.js';
 import { installTabTools, riffOps } from '../agent/tabs-tool.js';
 
 const EPS = 1e-6;
-const r4 = (x) => Math.round(x * 10000) / 10000;
 const ORD = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
 const barsWord = (a, b) => (b > a ? `bars ${a}–${b}` : `bar ${a}`);
 const STRING_WORD = ['low E', 'A', 'D', 'G', 'B', 'high e'];
@@ -64,7 +63,7 @@ export function installTabs(app, room) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem('overdub:tabs') || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const TB = (ui.state.tabs = {
@@ -80,7 +79,7 @@ export function installTabs(app, room) {
   const savePrefs = () => {
     try {
       localStorage.setItem('overdub:tabs', JSON.stringify({ style: TB.style, level: TB.level }));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
   };
@@ -193,8 +192,7 @@ export function installTabs(app, room) {
     followKey = '',
     prevMarks = new Map(),
     passOn = false,
-    lastBeat = null,
-    passStart = null;
+    lastBeat = null;
   const msPerBeat = () => 60000 / ((store.get().tempo || 120) * (engine.rate || 1));
   function followFor(pt) {
     const k = pt ? `${partKey}` : '';
@@ -321,13 +319,13 @@ export function installTabs(app, room) {
       learn.at = g.t;
       try {
         engine.stop({ live: false });
-      } catch (e) {
+      } catch {
         /* no audio */
       }
       setTimeout(() => {
         try {
           app.transport?.marker?.set?.(g.t, { seek: true });
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }, 0);
@@ -354,7 +352,7 @@ export function installTabs(app, room) {
       TB.lineKind = 'learn';
       try {
         engine.play(g.t);
-      } catch (e) {
+      } catch {
         /* no audio */
       }
       view?.line();
@@ -388,7 +386,7 @@ export function installTabs(app, room) {
     const ids = pt?.clipId && visible() && (TB.learn || !TB.hear) ? [pt.clipId] : [];
     try {
       engine.hush?.(ids);
-    } catch (e) {
+    } catch {
       /* the silent engine */
     }
   }
@@ -551,7 +549,7 @@ export function installTabs(app, room) {
       try {
         held.play = Promise.resolve(engine.play(it.riff.start)).catch(() => {});
         held.started = true;
-      } catch (e) {
+      } catch {
         /* no audio */
       }
     }
@@ -700,7 +698,7 @@ export function installTabs(app, room) {
     syncHush();
     try {
       Promise.resolve(engine.play(from, { countIn: { beats: pt.bpb, preroll: false } })).catch(() => {});
-    } catch (e) {
+    } catch {
       /* no audio yet */
     }
     return { playing: true, from };
@@ -727,7 +725,7 @@ export function installTabs(app, room) {
     try {
       await navigator.clipboard.writeText(t);
       ok = true;
-    } catch (e) {
+    } catch {
       try {
         const ta = h('textarea', { style: { position: 'fixed', left: '-9999px', top: '0' } });
         ta.value = t;
@@ -735,7 +733,7 @@ export function installTabs(app, room) {
         ta.select();
         ok = document.execCommand('copy');
         ta.remove();
-      } catch (e2) {
+      } catch {
         ok = false;
       }
     }
@@ -917,7 +915,7 @@ export function installTabs(app, room) {
       if (engine.playing) {
         try {
           engine.seek(b);
-        } catch (err) {
+        } catch {
           /* ok */
         }
       } else app.transport?.marker?.set?.(b, { seek: true });
@@ -1269,7 +1267,7 @@ export function installTabs(app, room) {
     learn.waiting = false;
     try {
       engine.hush?.([]);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     syncListen();

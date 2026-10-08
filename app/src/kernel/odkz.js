@@ -43,7 +43,7 @@ function readHeader(u, off, what) {
   let head;
   try {
     head = JSON.parse(json);
-  } catch (e) {
+  } catch {
     throw new Error(`${what}: the header is not JSON`);
   }
   if (

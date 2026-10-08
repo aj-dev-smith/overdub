@@ -611,7 +611,7 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
     let packed = false;
     try {
       packed = here && 'sha256-' + sha256(unpackOdk(fs.readFileSync(file + 'z'))) === pinned;
-    } catch (e) {
+    } catch {
       /* missing or bad */
     }
     console.log(

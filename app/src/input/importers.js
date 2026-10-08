@@ -36,7 +36,7 @@ export function keyFromSignature(sf, mi) {
 function decodeText(bytes) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/, '').trim();
-  } catch (e) {
+  } catch {
     /* latin-1 */
   }
   let s = '';
@@ -516,7 +516,7 @@ export default function (app) {
         const buf = toBufferLike(it.buffer) || toBufferLike(it) || (await decodeAudio(await it.arrayBuffer()));
         if (!buf || !buf.length) throw new Error('no audio in it');
         decoded.push({ name: nm, buf });
-      } catch (e) {
+      } catch {
         failed.push(nm);
       }
     }

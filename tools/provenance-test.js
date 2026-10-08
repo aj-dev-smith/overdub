@@ -1083,7 +1083,7 @@ function expected(p) {
           const s = typeof x === 'string' ? x : JSON.stringify(x);
           const m = s && s.match(/MARK-[A-Z]+/g);
           if (m) seen.push(...m);
-        } catch (e) {
+        } catch {
           /* not a kernel */
         }
       };

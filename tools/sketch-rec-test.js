@@ -48,7 +48,6 @@ import { perform, sloppyHum, wav } from './sloppy.js';
 
 const t = tally('sketch-rec');
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
-const lineOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
 
 /* ---- 0. the line's words (input/qwerty.js snapWords): what the grid and Scale lock do to what the keys play, in every
    state (fresh eyes 5: notes moved and nothing on screen said they would) */
@@ -659,7 +658,7 @@ try {
       for (const x of document.querySelectorAll('.ew-toast')) x.remove();
       try {
         localStorage.removeItem('overdub:mic-ok');
-      } catch (e) {
+      } catch {
         /* ok */
       }
       const a = window.overdub;
@@ -1241,7 +1240,7 @@ try {
         a = window.overdub;
       try {
         localStorage.removeItem('overdub:mic-ok');
-      } catch (e) {
+      } catch {
         /* ok */
       }
       a.input.emit('sketch:mode', 'tap');
@@ -1551,7 +1550,7 @@ try {
         let saved = {};
         try {
           saved = JSON.parse(localStorage.getItem('overdub:qwerty') || '{}');
-        } catch (e) {
+        } catch {
           /* none */
         }
         return {
@@ -1884,7 +1883,7 @@ try {
       try {
         localStorage.removeItem('overdub:mic-ok');
         localStorage.setItem('overdub:sketch-mode', 'hum');
-      } catch (e) {
+      } catch {
         /* ok */
       }
       app.onboard?.stop?.();
@@ -2607,7 +2606,7 @@ const notesText = (ns) =>
 // so the check doesn't hang on the page's timers.
 {
   const s = await blank();
-  const { page, ev, door, song } = s;
+  const { page, ev, door } = s;
   try {
     await door('Tap a beat');
     await page.waitForTimeout(1000);

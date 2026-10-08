@@ -189,14 +189,14 @@ export function soundsFor(
   const ok = (id) => {
     try {
       return !!has(id);
-    } catch (e) {
+    } catch {
       return false;
     }
   };
   const def = (id) => {
     try {
       return getDevice ? getDevice(id) : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   };

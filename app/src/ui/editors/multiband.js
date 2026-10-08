@@ -351,7 +351,7 @@ export function mount(el, ctx) {
   function gesture(target, e, move, end) {
     try {
       target.setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       /* gone */
     }
     const pid = e.pointerId;

@@ -99,7 +99,6 @@ import {
   planTakeLaneDelete,
   planTakesFlatten,
   retake,
-  barBeat,
   barBeatSpan,
   planDropTrim,
 } from '../core/arrangement.js';
@@ -428,7 +427,7 @@ function mountArranger(el, app) {
     try {
       if (localStorage.getItem(KEY) === '1') return;
       localStorage.setItem(KEY, '1');
-    } catch (e) {
+    } catch {
       return;
     }
     if (app.ui.workspace?.view?.() === 'simple') return;
@@ -439,7 +438,7 @@ function mountArranger(el, app) {
       for (const o of offs.splice(0)) {
         try {
           o?.();
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -602,6 +601,7 @@ function mountArranger(el, app) {
 
   /* ======================================================= state */
   let dirty = true,
+    // biome-ignore lint/correctness/noUnusedVariables: set everywhere the ruler changes, but drawRuler never checks it yet (it redraws every frame)
     rulerDirty = true;
   let follow = true,
     followPauseUntil = 0;
@@ -1262,14 +1262,14 @@ function mountArranger(el, app) {
     let cfg = {};
     try {
       cfg = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {};
-    } catch (e) {
+    } catch {
       cfg = {};
     }
     if (on === undefined) return cfg.followLanes !== false;
     cfg.followLanes = !!on;
     try {
       localStorage.setItem(FOLLOW_KEY, JSON.stringify(cfg));
-    } catch (e) {
+    } catch {
       /* private mode */
     }
     return cfg.followLanes;
@@ -1378,12 +1378,12 @@ function mountArranger(el, app) {
       held = [];
     try {
       w = ar.writes?.() || [];
-    } catch (e) {
+    } catch {
       w = [];
     }
     try {
       held = (ar.touching?.() || []).filter((x) => !x.mode || x.mode === 'rec');
-    } catch (e) {
+    } catch {
       held = [];
     }
     const out = w.filter((op) => op && op.param && Number.isFinite(op.from) && Number.isFinite(op.to));
@@ -2039,7 +2039,7 @@ function mountArranger(el, app) {
     if (!R || typeof R.lands !== 'function') return null;
     try {
       return R.lands()?.id || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -2058,14 +2058,14 @@ function mountArranger(el, app) {
     let lands;
     try {
       lands = R.lands();
-    } catch (e) {
+    } catch {
       return null;
     }
     if (lands !== null) return null;
     let hum = false;
     try {
       hum = !!R.humming?.();
-    } catch (e) {
+    } catch {
       hum = false;
     }
     const kind = hum ? 'hum' : app.input?.mode === 'tap' ? 'pads' : 'keys';
@@ -2363,14 +2363,14 @@ function mountArranger(el, app) {
     trackMenu({ x: pt?.clientX ?? r.left + 20, y: pt?.clientY ?? r.top + r.height / 2 }, t);
     try {
       navigator.vibrate?.(12);
-    } catch (e) {
+    } catch {
       /* no buzz */
     }
     let first = false;
     try {
       first = localStorage.getItem(HEAD_LIFT_HINT) !== '1';
       if (first) localStorage.setItem(HEAD_LIFT_HINT, '1');
-    } catch (e) {
+    } catch {
       first = false;
     }
     if (first)
@@ -2894,7 +2894,7 @@ function mountArranger(el, app) {
     try {
       first = mute && localStorage.getItem(MUTE_HINT) !== '1';
       if (first) localStorage.setItem(MUTE_HINT, '1');
-    } catch (e) {
+    } catch {
       first = false;
     }
     const key = touchFirst() ? null : h('kbd', '0');
@@ -3635,7 +3635,7 @@ function mountArranger(el, app) {
     delete d.pan;
     try {
       navigator.vibrate?.(12);
-    } catch (e) {
+    } catch {
       /* no buzz */
     }
     // its menu opens while it is held (a drag from here closes it and moves the clip)
@@ -3648,7 +3648,7 @@ function mountArranger(el, app) {
     try {
       first = localStorage.getItem(LIFT_HINT) !== '1';
       if (first) localStorage.setItem(LIFT_HINT, '1');
-    } catch (e) {
+    } catch {
       first = false;
     }
     const name = c.name || t.name;
@@ -4176,7 +4176,7 @@ function mountArranger(el, app) {
     if (typeof rackKit.isMismatch === 'function') {
       try {
         return !!rackKit.isMismatch(def, t, P());
-      } catch (e) {
+      } catch {
         /* the rule below */
       }
     }
@@ -6110,7 +6110,7 @@ function mountArranger(el, app) {
     let held = [];
     try {
       held = ar.touching?.() || [];
-    } catch (e) {
+    } catch {
       held = [];
     }
     let changed = false;

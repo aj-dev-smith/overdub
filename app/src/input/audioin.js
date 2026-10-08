@@ -172,14 +172,14 @@ function ticker(fn, ms) {
     w.onerror = () => {
       try {
         w.terminate();
-      } catch (e) {
+      } catch {
         /* ok */
       }
       w = null;
       if (!iv) iv = setInterval(fn, ms);
     };
     w.postMessage(ms);
-  } catch (e) {
+  } catch {
     w = null;
     iv = setInterval(fn, ms);
   }
@@ -188,7 +188,7 @@ function ticker(fn, ms) {
       try {
         w.postMessage(0);
         w.terminate();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }
@@ -202,7 +202,7 @@ export function createAudioIn(app, input) {
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {};
-  } catch (e) {
+  } catch {
     saved = {};
   }
   const state = {
@@ -251,7 +251,7 @@ export function createAudioIn(app, input) {
         SAVE,
         JSON.stringify({ deviceId: picker.deviceId, channel: picker.channel, countIn: state.countIn }),
       );
-    } catch (e) {
+    } catch {
       /* ok */
     }
   };
@@ -270,7 +270,7 @@ export function createAudioIn(app, input) {
   async function ensureCtx() {
     try {
       await engine.start();
-    } catch (e) {
+    } catch {
       /* silent engine */
     }
     if (engine.ctx) {
@@ -282,7 +282,7 @@ export function createAudioIn(app, input) {
     if (ownCtx.state !== 'running') {
       try {
         await ownCtx.resume();
-      } catch (e) {
+      } catch {
         /* gesture */
       }
     }
@@ -364,7 +364,7 @@ export function createAudioIn(app, input) {
         const now = track && track.getSettings ? track.getSettings().channelCount : 0;
         if (max && now && max > now && track.applyConstraints)
           await track.applyConstraints({ ...plain, channelCount: { ideal: Math.min(32, max) } }).catch(() => {});
-      } catch (e) {
+      } catch {
         /* the browser can't say: what it opened is what there is */
       }
       const st = (track && track.getSettings && track.getSettings()) || {};
@@ -448,7 +448,7 @@ export function createAudioIn(app, input) {
       if (recording) {
         try {
           recorder()?.stop({ keepPlaying: true });
-        } catch (e) {
+        } catch {
           /* ok */
         }
       }
@@ -456,7 +456,7 @@ export function createAudioIn(app, input) {
         try {
           cap.port.postMessage('off');
           cap.disconnect();
-        } catch (e) {
+        } catch {
           /* ok */
         }
         cap = null;
@@ -468,7 +468,7 @@ export function createAudioIn(app, input) {
         try {
           rig.src.disconnect();
           rig.pick.disconnect();
-        } catch (e) {
+        } catch {
           /* ok */
         }
         rig = null;
@@ -539,7 +539,7 @@ export function createAudioIn(app, input) {
           try {
             cap.port.postMessage('off');
             cap.disconnect();
-          } catch (e) {
+          } catch {
             /* ok */
           }
           cap = null;
@@ -772,13 +772,13 @@ export function createAudioIn(app, input) {
       m.gain.cancelScheduledValues(t);
       m.gain.setValueAtTime(v, t);
       m.gain.setTargetAtTime(0, t, fast ? 0.004 : 0.01);
-    } catch (e) {
+    } catch {
       /* ok */
     }
     setTimeout(() => {
       try {
         m.disconnect();
-      } catch (e) {
+      } catch {
         /* ok */
       }
     }, 80);
@@ -802,7 +802,7 @@ export function createAudioIn(app, input) {
     engine.on('graph', (e) => {
       if (state.monitoring && rig && (!e || e.kind === 'track')) later();
     });
-  } catch (e) {
+  } catch {
     /* ok */
   }
   // an interface plugged in (or out) shows up without a reload
@@ -818,7 +818,7 @@ export function createAudioIn(app, input) {
           changed();
         }
       });
-  } catch (e) {
+  } catch {
     /* node */
   }
   return audio;

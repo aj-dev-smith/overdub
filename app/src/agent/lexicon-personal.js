@@ -25,7 +25,7 @@ const listeners = new Set();
 function storage() {
   try {
     return globalThis.localStorage || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -35,14 +35,14 @@ function read() {
   if (s) {
     try {
       raw = s.getItem(KEY);
-    } catch (e) {
+    } catch {
       /* blocked: memory */
     }
   }
   let data = null;
   try {
     data = raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch {
     data = null;
   }
   const words = {};
@@ -68,7 +68,7 @@ function write(data) {
   if (s) {
     try {
       s.setItem(KEY, raw);
-    } catch (e) {
+    } catch {
       /* full or blocked: memory keeps it for this page */
     }
   }
@@ -210,6 +210,6 @@ try {
   globalThis.addEventListener?.('storage', (e) => {
     if (e.key === KEY || e.key === null) emit();
   });
-} catch (e) {
+} catch {
   /* Node */
 }

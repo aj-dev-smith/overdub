@@ -25,7 +25,7 @@ export async function readConfig(url = CONFIG_URL) {
       preview: c.preview === true,
       ref: typeof c.ref === 'string' ? c.ref.slice(0, 12) : '',
     };
-  } catch (e) {
+  } catch {
     return { env: 'production', preview: false };
   }
 }

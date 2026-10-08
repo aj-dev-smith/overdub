@@ -200,7 +200,7 @@ for (const name of [
   let j = null;
   try {
     j = JSON.parse(r.stdout);
-  } catch (e) {
+  } catch {
     /* below */
   }
   t.ok(
@@ -231,7 +231,7 @@ for (const name of [
   let pj = null;
   try {
     pj = JSON.parse(part.stdout);
-  } catch (e) {
+  } catch {
     /* below */
   }
   t.ok(
@@ -249,7 +249,7 @@ for (const name of [
   let fj = null;
   try {
     fj = JSON.parse(fr.stdout);
-  } catch (e) {
+  } catch {
     /* below */
   }
   t.ok(

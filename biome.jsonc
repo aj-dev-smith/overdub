@@ -75,16 +75,15 @@
       "correctness": {
         // Panels, ops and kernels implement interfaces (frame(now), (t, i) => ...): an unused parameter is the shape.
         "noUnusedFunctionParameters": "off",
-        // 878 today. The next ratchet: on, once they are gone.
-        "noUnusedVariables": "off"
+        "noUnusedVariables": "error"
       }
     }
   },
   "overrides": [
     {
-      // A CloudFront Function: ES5.1 (cloudfront-js-1.0), so var in blocks.
+      // A CloudFront Function: ES5.1 (cloudfront-js-1.0), so var in blocks; the runtime calls handler, so it looks unused.
       "includes": ["deploy/path-rewrite.js"],
-      "linter": { "rules": { "correctness": { "noInnerDeclarations": "off" } } }
+      "linter": { "rules": { "correctness": { "noInnerDeclarations": "off", "noUnusedVariables": "off" } } }
     },
     {
       // A function whose source becomes kernel text runs standalone there, so its 'use strict' is not redundant.

@@ -80,7 +80,7 @@ function loadHeights() {
     if (s && s.h && typeof s.h === 'object')
       for (const [k, v] of Object.entries(s.h))
         if (Number.isFinite(v)) heights[k] = clamp(Math.round(v), LANE_MIN, LANE_MAX);
-  } catch (e) {
+  } catch {
     /* fresh */
   }
   return heights;
@@ -101,7 +101,7 @@ export function setLaneHeight(key, px, { save = true } = {}) {
     if (keys.length > 300) for (const k of keys.slice(0, keys.length - 300)) delete H[k];
     try {
       localStorage.setItem(HKEY, JSON.stringify({ h: H }));
-    } catch (e) {
+    } catch {
       /* private mode: this session only */
     }
   }
@@ -238,7 +238,7 @@ export function fmtValue(spec, v) {
     try {
       const s = spec.fmt(v);
       if (s != null) return String(s);
-    } catch (e) {
+    } catch {
       /* its own business */
     }
   }
@@ -1187,7 +1187,7 @@ export function laneEditor(app, host) {
     );
     try {
       navigator.vibrate?.(12);
-    } catch (e) {
+    } catch {
       /* no buzz */
     }
     host.dirty();

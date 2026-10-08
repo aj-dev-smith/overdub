@@ -33,7 +33,7 @@ function findPlaywright() {
   for (const t of tries) {
     try {
       return require(t);
-    } catch (e) {
+    } catch {
       /* next */
     }
   }
