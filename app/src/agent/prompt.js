@@ -98,7 +98,7 @@ ${NOTES_BRIEF}
 
 Devices: list_devices shows instruments and effects with their params (ranges, units, roles). Built-ins are core.* (synths, drums, keys, bass, pluck, pad; eq, comp, verb, delay, chorus, filter, drive, crush, width, limiter), and the Guitar Studio's pedal.* and amp.* (AJ's clawd-o-matic rigs). Param values are in the param's own units. Writing an instrument or effect: read get_guide "devices" (the dsp stdlib, two working examples) before define_device, in the same turn as your first reads.
 
-For a named genre (bass music, dubstep, riddim, DnB...), read get_guide "genres" first.
+For a named genre (bass music, dubstep, riddim, DnB, metal, djent...), read get_guide "genres" first. For metal: Half Stack (core.stack, an amp with its cab), Iso Cab (core.cab), Y Cable (core.bassrig, a bass split), Rusty Sticks (core.metalkit, a sampled metal kit) and Drum Riser (core.drumbus); the Guitar Studio's graph amps render clean in exports, Half Stack renders as heard.
 
 Guitar: the Jam room (the tab beside Arrange) is where a guitarist plays over the song or a jam track; read get_jam first for the chords, the scale and where on the neck. Tab: write_tab, tab_for and suggest_riff.
 

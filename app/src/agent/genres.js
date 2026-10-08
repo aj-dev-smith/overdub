@@ -41,6 +41,37 @@ Check it (render_and_measure { targets: "bass-music" })
 - Say what you changed first, then the numbers in one line: "The drop is louder and the bass breathes with the kick. -5.6 LUFS short-term, -1.0 dBTP, sub mono."
 
 Etiquette: make a whole drop only when asked; otherwise offer it, and offer two bass patches as takes (propose_variations).`,
+  metal: `METAL (modern metal, djent, thrash, extreme; from a guitar DI)
+
+Tunings and tempo
+- Drop D, D standard, drop C, B standard; a 7-string in B, an 8-string in F#. The bass follows the guitar.
+- Grooves and djent 90-140 bpm; thrash and metalcore 150-200; blasts 180-260 (the snare on eighths at the felt tempo).
+- Form: intro, verse, pre-chorus, chorus (open chords, the crash or China riding), breakdown (half time, the China, the kick in unison with the chug), solo, last chorus or outro. A beat of silence before a breakdown.
+
+The rhythm guitar (DI Box, or a DI recorded on an audio track)
+- Half Stack (core.stack) on the track: "Modern" is a tight rhythm tone; "Djent", "Thrash", "Doom" and "Lead" the others. In it: GATE, TIGHT (the input high-pass), a green BOOST, GAIN (6-7 for rhythm), BASS MID TREBLE, MASTER and SAG, PRESENCE and DEPTH, CAB (six miked 4x12s), LOW CUT, HIGH CUT, LEVEL. It renders in exports, as heard (the Guitar Studio's graph amps render clean in exports).
+- Double-track: two performances, two tracks, hard left (pan -1) and hard right (pan 1). Never a copy: write the second take's notes again, with its own small timing and velocity differences.
+- Palm mutes: DI Box with MUTE SOFT mutes notes under velocity 0.35. Lock the low-string chugs to the kick.
+- After the amp, Slide Rule: a 24 dB low cut at 80-100 Hz, a few dB out around 400 Hz, a high cut where the fizz starts (8-10 kHz).
+- Iso Cab (core.cab) is the cab alone, after a graph amp or any drive.
+
+The bass
+- Roundwound (core.ebass) or Flatwound on the guitar's roots an octave down, into Y Cable (core.bassrig) "Modern": a clean, compressed, mono low end under a driven top through a cab. XOVER 150-250 Hz.
+
+Drums
+- Rusty Sticks (core.metalkit), "Modern": a kick with a click and a sub (CLICK, SUB, TRIG VEL), TIGHT for fast double kick (10 for blasts), a room on the snare. Studio A's note map: 36 kick, 38 snare, 42 hat, 49 crash, 52 China, 51 ride.
+- Drum Riser (core.drumbus) after it: "Modern" punches, squashes and adds a crushed room underneath.
+- Grooves: find_grooves { style: "modernmetal" } (djent unison, half-time China breakdowns, gallops, a bar of silence before the breakdown) or "extreme" (blasts, d-beat, double kick under the ride and China); drum_track plays them on Rusty Sticks.
+
+Master
+- Slide Rule (a low cut at 35 Hz), Gatefold (core.width) { monobass: 120, mono_mode: "STEEP" }, Clip Lamp "Master clip (+3)", Red Line (core.limiter) ceiling -1, gain about 5 dB; then master.set { patch: { clip: "clean" } }.
+
+Check it (render_and_measure { targets: "metal", window: "song" })
+- The whole master: -9 to -7 LUFS integrated, the loudest 3 s at -6.5 to -5, true peak -1 dBTP at most, PLR 6-9 dB, crest 7-10, loudness range 3-7 LU, the low end mono (side under 120 Hz at -20 dB or less), the bands a metal tilt (low 60-250 Hz -6 to -2 dB of the energy, the mids filled, air -23 to -15).
+- The rhythm guitars alone (tracks: the two guitars): 89% of their energy in 100 Hz-5 kHz, -20 dB or less under 80 Hz, -30 dB or less over 8 kHz.
+- Say what changed, then the numbers: "Rhythm guitars: 98% between 100 Hz and 5 kHz, fizz -52 dB. The master's -7.2 LUFS, -1.1 dBTP."
+
+Etiquette: make a whole song only when asked; otherwise offer the chain, and offer two tones as takes (propose_variations).`,
 };
 
 export const GENRE_LIST = Object.keys(GENRE_SECTIONS);

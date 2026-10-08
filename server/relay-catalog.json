@@ -29,7 +29,7 @@
  },
  {
   "name": "get_guide",
-  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), \"transforms\" (every transform with its params and defaults), \"genres\" (how a named genre is built and mixed here: bass music's tempo, form, drums, sounds by preset, mix, master and the numbers it is held to).",
+  "description": "Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): \"etiquette\" (how to work with the human here: scope, proposals vs direct edits, measuring), \"devices\" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), \"ops\" (every op and the notes / drum-grid text formats), \"lexicon\" (musical words → perceptual axes, for adjust; plus \"personal\": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), \"transforms\" (every transform with its params and defaults), \"genres\" (how a named genre is built and mixed here, bass music and metal: the tempo, form, drums, sounds by device and preset, mix, master and the numbers it is held to).",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -46,7 +46,7 @@
     },
     "section": {
      "type": "string",
-     "description": "genres: one genre (bass-music)"
+     "description": "genres: one genre (bass-music, metal)"
     }
    },
    "required": [
@@ -320,7 +320,7 @@
  },
  {
   "name": "render_and_measure",
-  "description": "Listen (you can't hear, so the studio renders offline through the exact graph the human hears, and measures). Renders a range (bars, beats or a section; default: the selection, else the loop) of some tracks (default: the whole mix) and returns LUFS, true peak, crest, energy per band (sub low lowmid mid highmid presence air) as bands (each band's share of the total: the balance) and bandsAbs (each band's own energy: what an EQ move changes), brightness centre (Hz), stereo correlation, onsets/s, key, plus musician-language glosses.\nIt keeps a baseline per scope: measure BEFORE a change and again AFTER, and you get the deltas with glosses (\"low-mid −3.1 dB vs before: less muddy\"; bands far under the total aren't glossed). \"previous\" moves on with every measurement, so for a change in several steps save_as: \"before\" first and compare_to: \"before\" after. spectrogram: true adds an image (log-frequency, 20 Hz bottom → 20 kHz top, time left → right).\nbypass: [insert ids] and mute: [tracks] apply to this render only (a scratch copy: no History entries), e.g. your effect on vs bypassed in two calls.\nper_track: true measures balance in one call (is the hook buried?): each track on its own and the rest of the mix without it, with its level against the mix and the rest, and its main band against the rest of the mix in that band. The summed mix's loudness and tone can stay put while one track moves 2 LU, so use this for balance.\nseries: \"bars\" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers (\"bars 1–4: −41, −29, −22, −17 LUFS short-term, rising\").\ntargets: \"bass-music\" checks the render against the genre's measured targets (window \"drop\": short-term loudness, crest, the low end's mono-ness, the bands; \"song\": integrated loudness, true peak), the misses first.",
+  "description": "Listen (you can't hear, so the studio renders offline through the exact graph the human hears, and measures). Renders a range (bars, beats or a section; default: the selection, else the loop) of some tracks (default: the whole mix) and returns LUFS, true peak, crest, energy per band (sub low lowmid mid highmid presence air) as bands (each band's share of the total: the balance) and bandsAbs (each band's own energy: what an EQ move changes), brightness centre (Hz), stereo correlation, onsets/s, key, plus musician-language glosses.\nIt keeps a baseline per scope: measure BEFORE a change and again AFTER, and you get the deltas with glosses (\"low-mid −3.1 dB vs before: less muddy\"; bands far under the total aren't glossed). \"previous\" moves on with every measurement, so for a change in several steps save_as: \"before\" first and compare_to: \"before\" after. spectrogram: true adds an image (log-frequency, 20 Hz bottom → 20 kHz top, time left → right).\nbypass: [insert ids] and mute: [tracks] apply to this render only (a scratch copy: no History entries), e.g. your effect on vs bypassed in two calls.\nper_track: true measures balance in one call (is the hook buried?): each track on its own and the rest of the mix without it, with its level against the mix and the rest, and its main band against the rest of the mix in that band. The summed mix's loudness and tone can stay put while one track moves 2 LU, so use this for balance.\nseries: \"bars\" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers (\"bars 1–4: −41, −29, −22, −17 LUFS short-term, rising\").\ntargets: \"bass-music\" or \"metal\" checks the render against the genre's measured targets (bass music: window \"drop\": short-term loudness, crest, the low end's mono-ness, the bands; \"song\": integrated loudness, true peak; metal: window \"song\", every number on the whole master), the misses first.",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -388,7 +388,8 @@
     "targets": {
      "type": "string",
      "enum": [
-      "bass-music"
+      "bass-music",
+      "metal"
      ],
      "description": "a genre: check against its targets"
     },
