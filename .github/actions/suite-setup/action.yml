@@ -2,10 +2,6 @@
 # Ubuntu runner. Run it after actions/checkout.
 name: suite setup
 description: Node from mise.toml, playwright-core and its browsers, and the sampled kits
-inputs:
-  previous-kit:
-    description: Also build the kit HEAD~1 names (analytics-test dry-runs deploy.sh --next HEAD~1; needs fetch-depth 2)
-    default: 'false'
 runs:
   using: composite
   steps:
@@ -17,7 +13,7 @@ runs:
         path: ~/.cache/ms-playwright
         key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.PLAYWRIGHT_CORE_VERSION }}
 
-    # Chromium for the studio's checks (tools/pw.js), WebKit for phone-test and compat-test, Firefox for compat-test and
+    # Chromium for the studio's checks (tools/pw.js), WebKit for compat-test and relay-test (and phone-test, locally), Firefox for compat-test and
     # relay-test. --with-deps: their system libraries and fonts too (apt), every run, since the cache holds only the
     # browsers. tools/pw.js looks for Chromium in macOS's cache only, so CHROMIUM names this one.
     - name: Install playwright-core and its browsers (not saved to package.json)
@@ -55,7 +51,7 @@ runs:
         restore-keys: kits-cache-
 
     # The built kits too: a kit already here that is the pinned one isn't rebuilt (each is named by its hash), which
-    # saves the eight minutes building them takes. An exact key only, so old kits don't pile up in it.
+    # saves the five minutes building them takes. An exact key only, so old kits don't pile up in it.
     - name: Cache the built kits
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -65,18 +61,3 @@ runs:
     - name: Build the sampled kits this commit names
       shell: bash
       run: node tools/fetch-kits.js
-
-    - name: Build the sampled kits HEAD~1 names
-      if: inputs.previous-kit == 'true'
-      shell: bash
-      run: |
-        PREV="$RUNNER_TEMP/prev"
-        git worktree add --detach "$PREV" HEAD~1
-        mkdir -p "$PREV/tools/.out" "$PREV/app/kits"
-        ln -s "$PWD/tools/.out/kits-cache" "$PREV/tools/.out/kits-cache"
-        # the kits both commits name aren't built twice
-        cp -l app/kits/*.odk "$PREV/app/kits/" 2> /dev/null || cp app/kits/*.odk "$PREV/app/kits/"
-        (cd "$PREV" && node tools/fetch-kits.js)
-        cp -n "$PREV"/app/kits/*.odk app/kits/ || true
-        git worktree remove --force "$PREV"
-        ls -l app/kits

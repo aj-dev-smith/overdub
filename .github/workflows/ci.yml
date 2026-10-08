@@ -2,17 +2,15 @@
 # suite passes, a deploy of that commit to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the
 # same by hand; on any other branch it runs nothing. Node comes from mise.toml, as it does locally.
 #
-# On Linux (ubuntu-latest), with LOCAL_ONLY=skip: the few suites that only hold on a Mac say so in their header
-# (`// local-only: <why>`), and run-all prints each one it leaves out and why. Run `node tools/run-all.js` on a Mac
-# before merging: it runs every suite, those included.
+# One job on Linux (ubuntu-latest), with LOCAL_ONLY=skip: the suites that need a Mac, a real-time audio clock or more
+# time than a runner has say so in their header (`// local-only: <why>`), and run-all prints each one it leaves out
+# and why. Run `node tools/run-all.js` locally before merging: it runs every suite, those included.
 #
-# The suite needs three things the repo doesn't carry (zero dependencies, no build), set up by
+# The suite needs two things the repo doesn't carry (zero dependencies, no build), set up by
 # .github/actions/suite-setup:
-#   - playwright-core and the browsers it drives (tools/pw.js, compat-test, phone-test), installed with --no-save,
-#     with their system libraries;
-#   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files;
-#   - the kit HEAD~1 names as well: analytics-test dry-runs deploy.sh --next HEAD~1, and deploy.sh refuses a ref
-#     whose kit isn't built.
+#   - playwright-core and the browsers it drives (tools/pw.js, compat-test), installed with --no-save, with their
+#     system libraries;
+#   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files.
 # The deploy job reaches AWS through GitHub's OIDC token: no keys are stored anywhere. The role it assumes can only
 # write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
 # (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
@@ -43,61 +41,46 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
-  # Every suite, about 2 h 15 one suite at a time, split ten ways by .github/shard.js (each suite in exactly one shard,
-  # dealt by its usual time), each shard running its suites one at a time: about 15 minutes a shard, but demos-test
-  # alone takes 20.
+  # Every suite CI can hold, three at a time, in one job. The suites tagged `// local-only: <why>` (a Mac's keys, a
+  # real-time audio clock, or too long for a runner) are left out and named, with their reason, in the log.
   test:
-    name: test (${{ matrix.shard }}/10)
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
           persist-credentials: false
 
       - uses: ./.github/actions/suite-setup
-        with:
-          previous-kit: true
 
-      - name: This shard's suites (node tools/run-all.js <names>)
+      - name: The suite (LOCAL_ONLY=skip node tools/run-all.js)
         env:
-          SHARD: ${{ matrix.shard }}
           LOCAL_ONLY: skip # the suites tagged `// local-only:` are left out, each named with its reason
-          REQUIRE_ALL: 1   # compat-test and phone-test fail, rather than skip, a browser that didn't install
-          PAR: 1           # one suite at a time, so timings measure the suite and not its neighbours
+          REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
+          PAR: 3
           # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
           # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
           CPU: 0
-        run: |
-          # run-all takes a whole file name as exactly that file
-          mapfile -t names < <(node .github/shard.js "$SHARD" 10)
-          [ "${#names[@]}" -gt 0 ] || { echo "::error::shard $SHARD has no suites"; exit 1; }   # no names = every suite
-          echo "shard $SHARD: ${names[*]}"
-          node tools/run-all.js "${names[@]}"
+        run: node tools/run-all.js
 
       - name: Keep the screenshots and reports when it fails
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: tools-out-${{ matrix.shard }}
+          name: tools-out
           path: |
             tools/.out/
             !tools/.out/kits-cache/
           retention-days: 7
 
-  # One status for branch protection to require, whatever the shard count.
+  # One status for branch protection to require.
   suite:
     needs: test
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Every shard passed
+      - name: The suite passed
         env:
           RESULT: ${{ needs.test.result }}
         run: '[ "$RESULT" = success ] || { echo "the suite: $RESULT"; exit 1; }'
