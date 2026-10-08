@@ -17,6 +17,9 @@
 //   inst:<id>#<12 hex>   a sampled instrument (kernel data) on its phrase: the name carries the first 12 hex digits of
 //               the kit it plays, so a different kit is a different scene, never a moved hash. Only when the kit has
 //               been fetched (node tools/fetch-kits.js); otherwise it is listed by missingScenes() and skipped.
+//   inst:core.metalkit#<12 hex>:trigger   Rusty Sticks with its trigger up and its room off: the synthesized layers
+//   fx:core.stack, fx:core.cab, fx:core.bassrig   the amps (tools/amp-scenes.js builds them): Half Stack on its filter
+//               cab, and each on the cab bank as fx:<id>[:cab]#<12 hex>, only when the bank has been fetched
 //
 // `browser: true` marks the kernel-only scenes tools/golden-test.js also renders in Chromium's OfflineAudioContext.
 import fs from 'node:fs';
@@ -25,6 +28,7 @@ import { dataPath } from '../app/src/engine/node/data.js';
 import { SHOWCASE } from '../app/src/devices/showcase.js';
 import { demoProject, demoById } from '../app/src/core/demo.js';
 import { createProject } from '../app/src/core/project.js';
+import { ampScenes } from './amp-scenes.js';
 import { phrase, drumPhrase, diStrum, PHRASE_BPM, PHRASE_BEATS, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 
 const STAMP = '2026-09-30T00:00:00.000Z';
@@ -138,7 +142,9 @@ function sampledScenes() {
   });
 }
 // the scenes skipped because their kernel data hasn't been fetched
-export const missingScenes = () => sampledScenes().filter(([, here]) => !here).map(([s]) => s.name);
+const AMPS = new Set(['core.stack', 'core.cab', 'core.bassrig']);
+const ampHere = () => ampScenes().map((s) => [s, Object.values(s.data || {}).every((h) => fs.existsSync(dataPath(h)))]);
+export const missingScenes = () => [...sampledScenes(), ...ampHere()].filter(([, here]) => !here).map(([s]) => s.name);
 
 export function scenes() {
   const out = [];
@@ -154,7 +160,11 @@ export function scenes() {
     out.push(instrumentScene(lt, {}, { a_table: ti('AKWF VOICE'), a_pos: 0.3, b_table: ti('AKWF BASS'), b_pos: 0.5, b_oct: -1, b_level: 0.35, m1_src: 5, m1_dst: 1, m1_amt: 0.25 }, ':akwf'));
   }
   for (const d of showcase('instrument')) out.push(instrumentScene(d, asDevices([d])));
-  for (const d of EFFECTS) out.push(effectScene(d));
+  // Rusty Sticks with its trigger up and its room off: the synthesized layers pinned on their own
+  const mk = SAMPLED.find((d) => d.id === 'core.metalkit');
+  if (mk && Object.values(mk.data).every((h) => fs.existsSync(dataPath(h)))) out.push({ ...instrumentScene(mk, {}, { click: 0, sub: 0, trig_vel: 0, room: -40 }, '#' + mk.data.kit.slice(7, 19) + ':trigger'), data: { ...mk.data } });
+  for (const d of EFFECTS) if (!AMPS.has(d.id)) out.push(effectScene(d));
+  for (const [s, here] of ampHere()) if (here) out.push(s);
   for (const d of showcase('effect')) out.push(effectScene(d, asDevices([d])));
   const demo = fixedDemo();
   out.push({ name: 'demo', browser: false, opts: { from: 0, to: 32, tail: 2 }, assets: {}, project: demo });

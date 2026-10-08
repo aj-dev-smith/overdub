@@ -183,6 +183,19 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 | Kit | `sha256-3b61055341a0939a835c2ee27c751c7cedb275147923da73ad03aca91e2100b4` |
 | Verified | 2026-10-07 |
 
+## Jester's Brutal Pack and Emerald Pack: the cabs of Half Stack, Iso Cab and Y Cable (`core.stack`, `core.cab`, `core.bassrig`)
+
+| | |
+|---|---|
+| Source | https://www.jester-dyne-productions.com/brutal-ir-pack/ and https://www.jester-dyne-productions.com/emerald-ir-pack/ (each page links its zip) |
+| Pinned | `JestersBrutalPack_1.0.zip` sha256 `299dc053f01ebd1e980459adc48f9c6b8a8c7af91917b4f946512eefdbb311ea`; `Emerald-Pack-1.0.zip` sha256 `a5b3eeea4816bf94d85182341877b42876dfa0cd6c2c570cf6761933b0c79d70`; the handbooks (the licence) sha256 `265e887fc747a154916bf56408e9c4a371c9d9036aaf1b22997ad4d161cd079e` and `906d36291d900907ddafa245920587578654589d6fceb964cd1ebbaa3995c6eb`; all 21 48 kHz WAVs, each by sha256, in [`tools/kits/jester-cabs.js`](../tools/kits/jester-cabs.js) |
+| Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Each pack's handbook, inside its zip: "LICENSED 2022 UNDER: CC0 (aka CC Zero) … CC0 allows reusers to distribute, remix, adapt, and build upon the material in any medium or format, with no conditions." |
+| Author | Jester Dyne Productions |
+| What they are | Brutal: a modified 4x12 (upper speakers), close-miked: #1 Celestion Vintage 30 / Shure SM57, #2 Eminence DV-77 / SM57, #3 Celestion G12F-60 / Sennheiser e606, #8 G12F-60 and Vintage 30 / e606 and SM57. Emerald: a 1998 Marshall 1960AX with Celestion G12M-25 Greenbacks, #1 SM57, #4 e606. The studio names them by what they are (Modern 4x12, close dynamic, …), never by the packs' patch names. |
+| Modifications | Six of the 21, at 48 kHz. Each cut to 2048 taps (the shortest of 2048 or 4096 within 1.0 dB of the whole IR in every third octave, 80 Hz-10 kHz; worst 0.26 dB) with a 5 ms half-Hann fade; each set to unity mean power gain between 1 and 3 kHz; kept at 24 bits. |
+| Kit | `sha256-7fd30c061e6b087e7694961ba78b953045f2ef0ac082a0fda6f21e370a8bc08e` |
+| Verified | 2026-10-07 |
+
 ## AKWF: Light Table's recorded tables (`core.wavetable`)
 
 | | |

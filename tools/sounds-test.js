@@ -125,7 +125,7 @@ try {
     const B = await import('/app/src/devices/builtin/index.js');
     return B.BUILTINS.map((d) => d.id);
   });
-  t.ok(ids.length === 47, `builtin/index.js registers ${ids.length} devices`);
+  t.ok(ids.length === 52, `builtin/index.js registers ${ids.length} devices`);
   // a sampled device whose samples haven't been fetched plays nothing: skipped here (tools/drumkit-test.js says so)
   const unfetched = SAMPLED.filter((d) => Object.values(d.data || {}).some((h) => !fs.existsSync(dataPath(h)))).map((d) => d.id);
   for (const id of unfetched) t.note(`${id}: skipped, its samples haven't been fetched (node tools/fetch-kits.js)`);
@@ -189,7 +189,10 @@ try {
       const dry = measure(T.program(8, res.sr)).lufs, d = Math.round((mine.lufs - dry) * 100) / 100;
       level = `ΔLU strum ${r.level && r.level.deltaLU} / drums ${r.level && r.level.drumsDeltaLU} / program ${d}`;
       const lo = id === 'core.drive' ? 0 : -1.5, hi = id === 'core.drive' ? 3 : 1.5;
-      levelOk = r.level && [r.level.deltaLU, r.level.drumsDeltaLU, d].every((x) => x >= lo - 0.3 && x <= hi + 0.3);
+      // an amp's output barely follows its input (as Hot Print's), so drums and the program read far under: Half Stack
+      // and Y Cable are held here on the DI strum only, and to their own DIs' level by stack-test and bassrig-test
+      const amp = id === 'core.stack' || id === 'core.bassrig';
+      levelOk = r.level && (amp ? [r.level.deltaLU].every((x) => x >= -3 && x <= 1.8) : [r.level.deltaLU, r.level.drumsDeltaLU, d].every((x) => x >= lo - 0.3 && x <= hi + 0.3));
     }
     const tp = Math.max(r.truePeak ?? -120, mine.truePeak);
     rows.push([id, level, `${tp} dBTP`, `${r.cpu && r.cpu.pct}%`, r.tail ? `${r.tail.seconds}s${r.tail.decays === false ? ' (rings)' : ''}` : '-', r.deterministic ? 'yes' : 'NO', r.latency ? `${r.latency.samples ?? '-'}/${r.latency.declared}` : '-']);

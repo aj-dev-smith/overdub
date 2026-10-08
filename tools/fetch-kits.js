@@ -377,7 +377,6 @@ const KITS = [[KIT_RECIPE, KIT_HASH, build], [UPRIGHT_RECIPE, UPRIGHT_HASH, buil
   [FLUTE_RECIPE, FLUTE_HASH, buildLaidOut],
   [TRUMPET_RECIPE, TRUMPET_HASH, buildLaidOut],
   [STICKS_RECIPE, METALKIT_HASH, buildMixed],
-
   [CABS_RECIPE, CABS_HASH, buildCabBank]];
 
 async function one(recipe, pinned, make, { check, verify, rebuild }) {

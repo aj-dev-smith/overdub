@@ -597,6 +597,71 @@ come by [kernel data](#kernel-data-samples-a-kernel-plays), built from `tools/ki
 
 `tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.handkit#a449e40fb8b4` pins its render.
 
+## Rusty Sticks (`core.metalkit`): a metal kit
+
+Big Rusty Drums (Karoryfer Samples, CC0 1.0), the kit Rusty Brushes plays, hit hard with sticks: each drum is its close mic panned to its place
+in Studio A's layout plus the overhead pair, the hats and cymbals the same with the overheads louder. `app/src/devices/builtin/metalkit.js`;
+the samples come by kernel data, built from `tools/kits/big-rusty-sticks.js` by `tools/kits/blend.js`.
+
+- **What it plays.** On Studio A's note map: 35 and 36 the kick; 38 snare, 40 rimshot, 37 side stick; 42 closed hat, 22 tight, 44 pedal,
+  23 quarter-open, 24 half-open, 46 open, 21 foot splash; 50/48, 47, 45 and 43/41 the 14", 15", 18" and 22" toms (the 22" is a kick on its
+  side); 49 crash, 57 sizzle crash, 52 China, 55 stack, 51 ride, 53 bell, 59 ride edge; 27, 28 and 29 choke the crashes and the China, 25
+  the ride. Any other note plays nothing. 176 strokes, 12.6 MB over the wire.
+- **Strokes never repeat.** Each hit draws from its velocity layer and the nearer neighbour's, never either of the last two strokes on that
+  piece, with a seeded +-0.4 dB and +-4 cents of its own. Every stroke starts 1 ms before its attack, and the kernel declares that with its
+  limiter's look-ahead as latency, so hits land on the grid.
+- **TIGHT** (5-60 ms, 18): a new kick fades the last over that time, and each kick's tail is held to it (40-150 Hz T60 0.19 s at 18).
+- **The trigger.** CLICK (a 2-6 kHz burst and a one-sample beater impulse, 4 ms) and SUB (a sine that falls an octave onto SUB HZ over
+  12 ms and dies with TIGHT), at each kick's attack, the sub in the stroke's own polarity; TRIG VEL is how much velocity moves them. -40
+  is off. At the defaults (-12, -10) the 2-6 kHz band in a kick's first 10 ms is 9.4 dB under its low band. A missing kit plays the trigger
+  alone.
+- **ROOM** (-14 dB) and **ROOM SIZE**: a small live room (`kitroom.js`) each piece sends into: the snare 1, the toms 0.8, the cymbals 0.3,
+  the hats 0.15, the kick 0.1.
+- **Levels and presets.** A level for the kick, snare, hats, toms, ride, crashes and China; the drum phrase measures -16.7 LUFS, -1.4 dBTP.
+  Modern (the defaults), Natural (no trigger, more room), Tight (TIGHT 10, the room low).
+
+`tools/metalkit-test.js` holds it to this; the golden scenes `inst:core.metalkit#9e0becc0ce4f` and its `:trigger` twin pin its render.
+
+## Drum Riser (`core.drumbus`): a drum bus
+
+What a record's drum bus does, as one insert on the drum track (the studio has no sends, so the parallel paths are inside it):
+`app/src/devices/builtin/drumbus.js`.
+
+- **ATTACK and SUSTAIN** (-100 to +100%): a transient shaper on the difference of a fast and a slow follower, linked.
+- **SQUASH** (0-1) with **COMP ATK** (1-50 ms) and **COMP REL** (20-400 ms): a bus compressor, threshold -6 to -30 dB and 2:1 to 8:1
+  together, its detector Squeeze Box's (the lows out of it, half peak and half RMS, a release that slows while it works, a slow makeup).
+- **DRIVE** and **CLIP** (SOFT, HARD): 4x oversampled, the level given back by a measured table.
+- **ROOM** and **ROOM SIZE**: the kit room on the whole kit; **CRUSH**: a mono copy high-passed at 120 Hz, a brick wall and a drive. Both
+  in parallel, lined up with the main path.
+- **MIX** and **OUTPUT**. It declares 23 samples of latency. At its defaults it is within 0.3 LU of bypass. Presets: Modern (the snare's
+  crest from 15.4 to 12.6 dB), Room, Smash, Glue.
+
+`tools/drumbus-test.js` holds it to this; the golden scene `fx:core.drumbus` pins its render.
+
+## Half Stack, Iso Cab and Y Cable (core.stack, core.cab, core.bassrig): a guitar amp that renders
+
+A high-gain head into a measured 4x12, as a kernel. The canonical render, the agent's render_and_measure and the
+studio hear the same amp, within the house's -90 dB. (The Guitar Studio's graph amps render clean in Node.) The devices
+are `app/src/devices/builtin/stack.js`, `cab.js` and `bassrig.js`. The DSP they share is `amp-lib.js`: kernel text,
+not `dsp` names.
+- **Half Stack**:
+  - GATE: before the gain.
+  - TIGHT: a 12 dB/oct input high-pass.
+  - BOOST, with B DRIVE and B LEVEL: a green overdrive whose clipped branch starts at 720 Hz.
+  - GAIN, over three triode stages.
+  - BASS, MID and TREBLE: the TMB stack's own response.
+  - The power amp: MASTER and SAG, then PRESENCE and DEPTH.
+  - CAB: six IRs, FILTER 4X12 or OFF.
+  - LOW CUT, HIGH CUT and LEVEL.
+  - QUALITY: 4X by default; 8X aliases about 15 dB less for twice the cost.
+  - 28 samples of latency, so it can be played live. Presets: Modern, Djent, Thrash, Doom, Lead.
+- **Iso Cab**: CAB, LOW CUT, HIGH CUT, MIX and LEVEL. The cab on its own, after a graph amp, a pedal or any drive. No
+  latency.
+- **Y Cable**: XOVER (80-400 Hz), LOW, DRIVE, MID, TREBLE, CAB, HIGH and LEVEL. A clean, compressed, mono low end under
+  a driven top through a guitar cab. Presets: Modern, Grind, Clean.
+- The cab IRs are kernel data (`data: { cabs }`, 39 KB). Until they arrive, or on a server without them, every IR
+  choice plays the Filter 4x12 at the same level, and the card says so.
+
 ## Kernel data: samples a kernel plays
 
 A kernel sees only `dsp`, so a device that plays recordings needs the host to bring them. A def can name files by
@@ -902,6 +967,12 @@ modal(freqs, decays, gains?) (resonator bank: drums, bells, bars; arrays; decays
 Space: fdn(size = 0.6, decay = 2, damp = 0.4, seed?) (8-line modulated reverb; size 0..1 room to hall, decay = T60 s,
 damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp). chorus(depth = 0.5, rate = 0.8)
 (two voices in quadrature) -> .tick(l, r) then .l .r (wet) .set(depth, rate). buffer(n) -> Float32Array(n).
+
+Convolution: convolver(taps, { direct }?) (taps: one array, or [left, right]; a cab, a room) -> .process(x, outL, outR,
+n) (mono x in, one output per taps channel; in place is fine) .set(taps) (new taps up to the first length, no
+allocation) .reset() .latency (128 frames; 0 with direct: 128, which convolves the first 128 taps directly: declare
+it). fft(n) (n a power of two, 16..8192) -> .forward(x, Xr, Xi) (n/2 + 1 bins) .inverse(Xr, Xi, x). Both are the
+same doubles on every engine.
 
 ## What the check reports (define_device returns it)
 

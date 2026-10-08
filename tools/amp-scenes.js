@@ -1,6 +1,6 @@
 // The golden scenes Half Stack, Iso Cab and Y Cable add, and what its tests share (below). Each is built the
 // way tools/golden-scenes.js builds an fx: scene (the effect on the house's DI strum, 16 beats at 120 bpm, 4 s of
-// tail, fixed ids), and pinned here until the integration branch moves them into golden-scenes.js and golden.json by
+// tail, fixed ids), and pinned here; tools/golden-scenes.js adds them to golden.json from this list, by
 // name. A scene that plays the cab bank carries its first 12 hex digits in its name, as a sampled instrument's does: a
 // different bank is a different scene.
 //   fx:core.stack                       Half Stack at its defaults but the Filter 4x12 (no kernel data)
