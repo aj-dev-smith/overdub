@@ -46,11 +46,47 @@ env:
   PLAYWRIGHT_CORE_VERSION: 1.63.0
 
 jobs:
+  # TEMPORARY: what slows the heaviest renders and the tap checks on the runner
+  diag:
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [a, b]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/suite-setup
+      - name: checkDevice timings
+        timeout-minutes: 20
+        run: |
+          node tools/ci-probe.js
+          STILL=1 node tools/ci-probe.js
+          CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization" node tools/ci-probe.js
+          CHROMIUM_ARGS="--enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization" STILL=1 node tools/ci-probe.js
+      - name: Suites, GPU flags
+        timeout-minutes: 15
+        if: always()
+        env:
+          PAR: 1
+          CPU: 0
+          CHROMIUM_ARGS: --enable-gpu --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization
+        run: node tools/run-all.js sounds-test.js grooves-test.js sketch-rec-test.js
+      - name: Suites, as the shards run them
+        timeout-minutes: 15
+        if: always()
+        env:
+          PAR: 1
+          CPU: 0
+        run: node tools/run-all.js sounds-test.js grooves-test.js sketch-rec-test.js
+
   # Every suite, about an hour one suite at a time, split four ways: each lands in exactly one shard (round-robin by
   # name), and each shard runs its suites one at a time.
   test:
     name: test (${{ matrix.shard }}/4)
-    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'never'
     runs-on: macos-15
     timeout-minutes: 75
     strategy:
