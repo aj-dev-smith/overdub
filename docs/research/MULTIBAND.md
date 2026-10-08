@@ -182,6 +182,23 @@ rounded off, the first version's crossover alone rebuilt them: +4.5 dB of true p
 Kit, at the same loudness. The shelves leave them alone until the bands' gains differ, and then only as far as they
 differ.
 
+## Upward and downward (added for bass music)
+
+The classic plugin's two other big knobs, after Depth and Time, are its upward and downward amounts: producers turn
+upward down on a bass whose lift brings up hiss and noise between notes, and downward up on a top end that bites.
+Gaffer Tape appends them as `upward` and `downward` (0-200%, default 100): each scales the dB of gain change its side
+of every band's curve asks for (the hold and the catch on the downward side, the lift on the upward), after the
+smoothing, so the times are the band's as before; the lift is still at most 30 dB. They are parameters on `mbStep`
+(multiband-curve.js), and at 100% each it returns exactly what it did, the same operations in the same order (an `if`,
+not a multiply by 1), so `fx:core.multiband` and every song are unchanged. The window draws the curves with them
+(`scaledCurve`).
+
+Measured (tools/multiband-test.js) on a 1 kHz tone held 22.3 dB at 100% downward: 11.2 dB at 50%, 33.1 dB at 150%,
+the shared curve agreeing to 0.01 dB; a -50 dBFS tone lifted 21.3 dB at 100% upward, 0.05 dB at 0% and 29.1 dB at
+150%. Two presets for bass music: Bass density (depth 60, upward 60) is +1.2 LU on the drum loop and the bass DI, the
+crest 0.1 to 0.2 dB down; Drum density (depth 50, upward 90, downward 130, time 80) is +1.0 LU, the crest 0.1 to 0.2
+dB down. (The classic's name is a trademark, so the presets say what they do instead.)
+
 ## What adjust does with it
 
 `adjust` measures what it does: "punch" by the crest factor, "squashed" and "glue" by the crest factor and the loudness

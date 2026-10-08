@@ -754,8 +754,9 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     const lt = await run(app, 'get_device', { id: 'core.wavetable' }), full = await run(app, 'get_device', { id: 'core.wavetable', detail: 'full' });
     const ltSize = JSON.stringify(lt).length, fullSize = JSON.stringify(full).length;
     const lines = lt.params || [];
-    t.ok(ltSize < 15000 && lines.some((l) => /^m1_src \[0=OFF .*\[also m\{2-8\}_src, the same\]$/.test(l)) && lines.some((l) => /^lfo1_rate .*\[also lfo\{2-4\}_rate, def=0\.5, 4, 3\]$/.test(l)) && !lines.some((l) => /^m2_src/.test(l))
-      && lt.presets.length >= 20 && lt.presets.every((x) => x.name && x.blurb && !x.changes) && /preset: "<name>"/.test(lt.preset_hint || '') && full.presets.every((x) => x.changes) && full.params.length === 114
+    // (17,000: 40 presets since bass music's 16, each a name and a blurb; it was 15,000 at 24)
+    t.ok(ltSize < 17000 && lines.some((l) => /^m1_src \[0=OFF .*\[also m\{2-8\}_src, the same\]$/.test(l)) && lines.some((l) => /^lfo1_rate .*\[also lfo\{2-4\}_rate, def=0\.5, 4, 3\]$/.test(l)) && !lines.some((l) => /^m2_src/.test(l))
+      && lt.presets.length >= 20 && lt.presets.every((x) => x.name && x.blurb && !x.changes) && /preset: "<name>"/.test(lt.preset_hint || '') && full.presets.every((x) => x.changes) && full.params.length === 117
       && ![...lines, ...full.params].some((l) => /docs\/|research\//.test(l)),
     `node: get_device on Light Table is ${ltSize} chars (it was 33 KB: the mod slots and LFOs told once, presets by name and blurb), detail "full" ${fullSize}, no repo paths`);
     // Light Table's AKWF library: the families, a family's waves with their params, one picked and played by name

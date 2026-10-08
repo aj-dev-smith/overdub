@@ -16,6 +16,8 @@
 //                                                  in. take: a kindOfTake() result or a take for it
 //   familyOf(row, def)                             the row's family word ("Electric piano"), else its blurb's words
 //                                                  before ':' (the wavetable presets' blurbs start with their family)
+//   genreOf(text)                                  -> 'bass-music' | null: the genre a song's title or a request names
+//   GENRE_ROWS[genre][set]                         the rows a genre puts first (its tagged presets), before the set's own
 //   newPartFor(kind, project)                      -> { name, device } for a track a take makes: hum Melody, keys Keys,
 //                                                  pads / beatbox / drums Drums, then "Melody 2", "Melody 3"
 
@@ -49,6 +51,24 @@ export const SOUND_SETS = {
   },
 };
 
+// A named genre's sounds, first in the card when the song (its title) or the request names the genre: its tagged
+// presets (devices/registry.js PRESET_TAGS), then the set's own rows
+export const GENRE_ROWS = {
+  'bass-music': {
+    bass: [row('core.wavetable', 'Sub', 'Dark Slide'), row('core.wavetable', 'Growl', 'Fixer'), row('core.wavetable', 'Riddim stab', 'Hard Cut'), row('core.wavetable', 'Reese', 'Double Exposure'), row('core.wavetable', 'Wobble', 'Strobe')],
+    played: [row('core.wavetable', 'Lead', 'Key Light'), row('core.wavetable', 'Growl', 'Emulsion'), row('core.wavetable', 'Supersaw', 'Wide Angle')],
+    hum: [row('core.wavetable', 'Lead', 'Key Light'), row('core.wavetable', 'Growl', 'Emulsion')],
+    chords: [row('core.wavetable', 'Supersaw', 'Wide Angle'), row('core.wavetable', 'Pad', 'Long Exposure')],
+    drums: [row('core.clubkit', 'Club kit', 'Dubstep'), row('core.clubkit', 'Club kit', 'Riddim'), row('core.clubkit', 'Club kit', 'Drum and bass')],
+  },
+};
+const GENRE_WORDS = [['bass-music', /\b(bass music|dubstep|brostep|riddim|tearout|drum ?(?:and|&|n|'n') ?bass|dnb|d&b|neuro(?:funk)?|melodic bass|wobble|growl)\b/i]];
+export function genreOf(text) {
+  const s = String(text || '');
+  for (const [g, re] of GENRE_WORDS) if (re.test(s)) return g;
+  return null;
+}
+
 const median = (xs) => { const s = xs.slice().sort((a, b) => a - b), n = s.length; return n ? (n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN; };
 
 export function kindOfTake({ kind = null, src = null, notes = [] } = {}) {
@@ -76,8 +96,9 @@ const SETS = Object.keys(SOUND_SETS);
 const setOf = (take) => (typeof take === 'string' && SETS.includes(take) ? take : kindOfTake(take && typeof take === 'object' ? take : {}));
 const same = (a, b) => a.device === b.device && (a.preset || null) === (b.preset || null);
 
-export function soundsFor(take, { has = () => true, current = null, currentPreset = null, getDevice = null, n = 4 } = {}) {
-  const set = setOf(take), S = SOUND_SETS[set];
+export function soundsFor(take, { has = () => true, current = null, currentPreset = null, getDevice = null, n = 4, genre = null } = {}) {
+  const set = setOf(take), S0 = SOUND_SETS[set], G = genre && GENRE_ROWS[genre] && GENRE_ROWS[genre][set];
+  const S = G ? { ...S0, rows: [...G, ...S0.rows] } : S0;
   const ok = (id) => { try { return !!has(id); } catch (e) { return false; } };
   const def = (id) => { try { return getDevice ? getDevice(id) : null; } catch (e) { return null; } };
   const out = [];

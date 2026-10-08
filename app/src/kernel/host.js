@@ -28,6 +28,8 @@
 // (AudioContext seconds, a and b in knob travel) to the worklet, evaluated per block inside KernelCore; while a key
 // follows a lane, set() leaves it alone. autoClear(key | null, from, release?) drops what was queued from `from`
 // (release: the key goes back to set()'s value); autoStop() drops everything and releases every key.
+// Keys (docs/DEVICES.md "Keys"): an effect whose def says key: true gets keyInput (a GainNode into the worklet's second
+// input, which the engine connects another track's sound to) and setKey(on) (whether a key is wired: t.key.on).
 // Expression (kernel/expr.js, docs/DEVICES.md "Expression"): noteOn(pitch, vel, time, x) takes the note's own
 // { bend, mod } (from noteExpr), and expr({ bend?, mod?, sustain? }, time) sets the channel's.
 // Kernel data (docs/DEVICES.md "Kernel data"): a def whose `data` names files ({ kit: 'sha256-<hex>' }) gets them in
@@ -154,11 +156,15 @@ export async function kernelInstance(c, def, opts = {}) {
     return { state: vals.every(Boolean) ? 'ready' : waiting ? 'loading' : 'missing', hashes: { ...files } };
   };
 
+  // a keyed effect (def.key: true) has a second input, its key: the engine wires another track's sound to
+  // inst.keyInput and says so with inst.setKey(true) (t.key.on in the kernel)
+  const keyed = kind === 'effect' && def.key === true;
   const node = new AudioWorkletNode(c, 'overdub-kernel', {
-    numberOfInputs: kind === 'effect' ? 1 : 0,
+    numberOfInputs: kind === 'effect' ? (keyed ? 2 : 1) : 0,
     numberOfOutputs: 1,
     outputChannelCount: [2],
     processorOptions: { source: def.kernel, kind, params: specs, values, poly: def.poly, seed, transport: transport(), idle: !offline, tail: def.tail,
+      ...(keyed ? { key: true, keyOn: false } : {}),
       ...(files ? { data: dataOptions(c, files, have) } : {}) },
   });
 
@@ -220,6 +226,13 @@ export async function kernelInstance(c, def, opts = {}) {
     if (lat > 0) { dryDelay = c.createDelay(Math.max(1, lat * 2)); dryDelay.delayTime.value = lat; dry.connect(dryDelay); dryDelay.connect(out); }
     else dry.connect(out);
     inst.input = input;
+    if (keyed) {
+      const k = c.createGain();
+      k.connect(node, 0, 1);
+      inst.keyInput = k;
+      inst.keyOn = false;
+      inst.setKey = (v) => { v = !!v; if (v !== inst.keyOn) { inst.keyOn = v; post({ type: 'key', on: v }); } };
+    }
   } else {
     node.connect(out);
   }
@@ -398,7 +411,7 @@ export async function kernelInstance(c, def, opts = {}) {
     if (sleepTimer) clearTimeout(sleepTimer);
     post({ type: 'end' });
     try { node.port.onmessage = null; node.port.close(); } catch (e) { /* closed */ }
-    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input]) { try { if (n) n.disconnect(); } catch (e) { /* gone */ } }
+    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) { try { if (n) n.disconnect(); } catch (e) { /* gone */ } }
     for (const p of pending.values()) p.reject(new Error('disposed'));
     pending.clear();
   };

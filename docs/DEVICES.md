@@ -187,13 +187,95 @@ measured, is [research/MULTIBAND.md](research/MULTIBAND.md).
   method) on everything it puts out, holds it at −1 dBTP at any setting; it lets go of a short over within 10 ms and a
   long one over 150 ms. The look-ahead and the ceiling cost 328 samples (6.8 ms) of latency, declared. About 2% of
   real time.
+- **Upward and downward** (appended): `upward` and `downward` (0-200%, default 100) scale every band's lift and hold,
+  in dB of gain change, as the classic plugin's two big knobs do: less upward on a bass that hisses, more downward on
+  a top end that bites (the lift stays at most 30 dB). At 100% each the arithmetic is exactly what it was.
 - **Presets**: Full depth (the classic, all of it, a decibel up), Glue (bus), Drum smash, Vocal presence, Bass
-  tighten, Subtle 30%. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
+  tighten, Subtle 30%, and for bass music Bass density (60% in, upward 60%) and Drum density (50%, downward 130%),
+  each about 1 LU up on the test signals. Full depth, Drum smash and Vocal presence come out 1 to 3 LU louder on drums, the crest factor
   down; Glue, Subtle and Bass tighten stay within a decibel or so of the input. `tools/multiband-test.js` holds it to
   all of this.
 - **The window says what it does**: while the song plays, the loudness out against in (in LU, large, in the warning
   ink when it takes a decibel or more off), In and Out meters, and each band held or lifted, all worked out on the
   page from the window's own taps (`ctx.meter.tap`) and the shared functions.
+
+## Dim Switch (core.ducker): the sidechain duck
+
+The track it sits on dips under another track: the bass makes room for the kick, the pads breathe with the drums.
+`app/src/devices/builtin/ducker.js`. It is the studio's first **keyed** device (`key: true`, below): its window has a
+**Key** menu listing the song's other tracks, which sets the insert's key (`insert.set { patch: { key: { track } } }`,
+signed whoever picked it), and the mixer shows "keyed by Kick" under the track.
+
+- **What it hears**: the key track after its inserts and before its fader, mute and pan, so a muted "ghost kick"
+  track still keys it and moving the kick's fader doesn't change the duck. A band-pass on the key, `key_lo` to
+  `key_hi` (24 dB per octave each side), lets a whole drum track key it on its kick alone (30-150 Hz); the band adds
+  about a millisecond of delay before it hears a kick.
+- **`mode`**: `TRIGGER` fires one fixed shape each time the key's band rises past `thresh` (and has fallen 6 dB under
+  it since, at least 30 ms after the last): down by `depth` (0-48 dB) over `attack` (0.1-50 ms, a raised cosine),
+  held `hold` (0-500 ms), back over `release` (10-2000 ms) in a straight line in dB, `curve` bending it (+ waits and
+  then comes back fast, a harder pump; - comes back fast and eases in). `FOLLOW` is a compressor listening to the
+  key: down by however far it is over `thresh`, dB for dB, at most `depth`, at the attack; held, then back with a time
+  constant of a third of the release.
+- **`nokey`** (`OFF`, `1/4`, `1/8`, `1/2`, `1 BAR`): with no key set, `TRIGGER` fires on that grid of the song while the
+  transport plays. `mix` blends the dry back in.
+- **At its defaults with no key it is bypass**, bit for bit. No look-ahead, no latency. Measured
+  (`tools/sidechain-test.js`): keyed by a kick it is at its depth within ATTACK + 1 ms of the kick crossing its
+  threshold, and within 1 dB of the way back at 91% of RELEASE (CURVE 0).
+- **Presets**: Kick duck, Kick and snare duck (dubstep's), Gentle pump, Hard pump (riddim), Bus breathe (FOLLOW),
+  Quarter pump (no key), each tagged `bass-music`.
+
+## Clip Lamp (core.clipper): a ceiling it never passes
+
+A clipper for drums and loud masters: `drive` (0-24 dB) pushes the sound into `ceiling` (-12 to 0 dBFS), and what
+would have gone over is cut off (`shape` `HARD`), rounded (`SOFT`, a tanh) or leaned on like tape (`TAPE`, a tanh on a
+bias, for even harmonics), `knee` (0-1) setting how far under the ceiling the bend starts (up to 6 dB). `output` and
+`mix` (the clean sound, from before the drive) after. `app/src/devices/builtin/clipper.js`.
+
+- **At 4x.** The curve runs at 4x the sample rate through the stdlib's `oversample4x`, so the harmonics a corner
+  makes above the band are filtered out, not folded back. At the 4x rate nothing passes the ceiling; the filters after
+  it rebuild a little (0.02 dB on a 100 Hz tone pushed 18 dB into -6 dBFS), which `meter()` reports and a limiter
+  after it catches. Its latency, 27.5 samples, is declared.
+- **At its defaults** (drive 0, ceiling 0 dBFS, no knee) anything under full scale passes as it was, delayed and
+  band-limited: within 0.1 LU on the house's test signals.
+- **Presets**: Drum bus clip (4 dB into -3 dBFS), Master clip (+3) and Master clip (+6) (into -1 dBFS, for in front
+  of Red Line), Bass grit (14 dB into tape, 60% in). The loud master is Clip Lamp, then Red Line at -1 dBTP, then the
+  master's clean ceiling (`master.set { clip: 'clean' }`). `tools/clipper-test.js` holds it to this.
+
+## Sandbag (core.clubkit): a club kit for bass music
+
+A synthesized drum kit for dubstep, riddim, drum and bass and melodic bass, on the GM map (the riser on note 34, the
+impact on 33). `app/src/devices/builtin/clubkit.js`; the design note and what was measured is
+[research/CLUBKIT.md](research/CLUBKIT.md).
+
+- **Kick**: a sine falling from about five times `kick_note` (C1-B1, F1 by default: tune it to the song's root) into
+  the note within 60 ms, a knock and a tail at the kit's length; `click` adds a tick on top; `drive` warms it.
+- **Snare**: a body of two membrane modes (182-235 Hz), a noise crack whose ring falls with frequency, a `clap`, and a
+  short `room` whose highs die first. **Hats**: two struck plates of 48 modes each (closed, pedal and open are one hat:
+  a closed stroke chokes an open one). Toms, the crash and ride (metal.js's FDN), the riser and the impact.
+- **KIT** (`DUBSTEP`, `RIDDIM`, `DNB`, `MELODIC`) sets each piece's character; `tune` moves everything but the kick,
+  `decay` every ring, `width` the hats and cymbals; `clip` (on) is a 2x soft clipper on the kit, set per kit; `level`.
+- Measured (`tools/clubkit-test.js`): the kick peaks 1.3-1.8 ms in with a crest of 10.3-11.2 dB over 100 ms and a tail
+  within 15 cents of its note; the snare peaks 0.4 ms in, crest 12.3-13.8 dB, its highs ringing 0.23-0.29 s; the hats
+  carry their body under 2.5 kHz and a top as strong (12-20 kHz within 1 dB of 150-600 Hz, centroid about 5.4 kHz) and
+  correlate 0.30; every piece ends 60 dB under its peak; the drum phrase plays at -17.9 to -18.5 LUFS. Presets: Dubstep, Riddim, Drum and bass, Melodic. The groove library's Dubstep style plays on it.
+
+## Keys: an effect that hears another track
+
+A def with `key: true` (effects only) gets a second input, its **key**: the sound of the track the insert's `key`
+names (`{ track: '<track id>' }`, set with `insert.add` / `insert.set`), taken after that track's inserts and before
+its fader, mute and pan. In `process(L, R, n, p, t)` it reads `t.key = { l, r, on }`: two preallocated
+`Float32Array` views of this block's key (silent when there is none) and `on`, false when the insert has no key or its
+track is gone. A def without `key` never sees `t.key` and behaves exactly as before.
+
+- Both renderers render every key source before the tracks it keys, in the same 128-frame block (a topological order,
+  stable on the track order, so a song without keys renders exactly as it did), and render a key source even when it
+  isn't heard (muted, soloed out, left out of a stem), without summing it. The browser and Node agree bit for bit on
+  the `sidechain` golden scene.
+- The ops refuse a key naming no track, the insert's own track, a master insert, and a loop (a track's sound reaching,
+  through keys, the track it keys). A key whose track is removed stays in the song, is heard as silence, and comes back
+  with an undo.
+- The key is the source's place on the master timeline after delay compensation; inserts after the keyed device that
+  add latency make the key that much late (reported in the latency, not corrected).
 
 ## Under the hood
 
@@ -246,9 +328,12 @@ with `t.bend` and adds finger vibrato from `t.mod`.
 
 ## Presets
 
-`presets: [{ name, params, blurb? }]` names sounds a newcomer picks by name. The registry checks and fills them in
-(`normPresets`): every param left out takes its default, values are clamped to their ranges and snapped to their
-steps, a switch may be given by its label (`'NYLON'`) or its index, names are unique (any case), up to 24. So a
+`presets: [{ name, params, blurb?, tags? }]` names sounds a newcomer picks by name. The registry checks and fills them
+in (`normPresets`): every param left out takes its default, values are clamped to their ranges and snapped to their
+steps, a switch may be given by its label (`'NYLON'`) or its index, names are unique (any case), up to 24 (64 for a
+built-in, by `overdub`). `tags` are words from the registry's `PRESET_TAGS` (`bass-music`, `dubstep`, `riddim`,
+`dnb`, `melodic`, `sub`, `growl`, `reese`, `wobble`, `stab`, `lead`, `chords`, `fx`, `drums`, `bus`, `master`,
+`pump`): what the browser's genre filter and `list_devices { tag }` find a preset by. So a
 preset's `params` is the whole sound: `instrument.set { params }` (or `insert.set { patch: { params } }`) applies it
 as it is, and `presetParams(def, name)` looks one up. `list_devices` lists their names and `get_device` their params
 for agents. A device file and a `define_device` call carry the field too (a bad preset is refused with the reason).
@@ -634,7 +719,8 @@ ships only with a written waiver in the recipe.
 ## A big instrument: Light Table (`core.wavetable`)
 
 Light Table is the wavetable synth: two oscillators that sweep through tables of single-cycle frames, a sub, noise,
-a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX. It is the largest built-in, with 114 params, and a
+a filter, three envelopes, four LFOs, an 8-slot mod matrix and FX (drive in six shapes, `fx_dist`, and Gaffer Tape's
+three-band dynamics inside it, `fx_mband`). It is the largest built-in, with 117 params, and a
 worked example of three things a big kernel needs. The design note, with every param, table and number, is
 `docs/research/LIGHT-TABLE.md`.
 
@@ -655,7 +741,9 @@ worked example of three things a big kernel needs. The design note, with every p
   - **Nothing allocates** once it runs.
 
 To drive it, as an agent or by hand:
-- **Start from a preset.** Each preset's blurb opens with its family, as in "Bass: a Reese, …".
+- **Start from a preset.** Each preset's blurb opens with its family, as in "Bass: a Reese, …". Sixteen are for bass
+  music (tagged `bass-music`: subs, growls, riddim stabs, Reeses, wobbles, chords, a lead and a riser), each with MACRO
+  1 wired to its main move; `list_devices { tag: "growl" }` finds them.
 - **Pick a table.** `a_table` is a switch over 26 tables: 14 built in code, then 12 of recorded single cycles from
   AKWF (Adventure Kid Waveforms, CC0), nine waves each. `list_devices` with `detail: "params"` lists them, and the
   design note says what each sounds like. `a_pos` moves through the table.
@@ -689,6 +777,7 @@ host does stereo I/O, polyphony, sample-accurate notes, param smoothing, hot rel
   params: [ParamSpec], look: { ... }, tail?: seconds it rings after the input/notes stop (default 0),
   drone?: true if it never falls silent on its own, trails?: true to let the tail ring out when bypassed,
   presets?: [{ name: 'Felt', params: { tone: 0.2 } }] (named sounds; a param left out keeps its default),
+  key?: true (an effect that hears another track: t.key, "Keys" above),
   kernel: '<source>' }
 ```
 
@@ -742,6 +831,8 @@ oldest, with a 5 ms fade):
   the mod wheel 0..1 (vibrato, brightness, a rotor: your choice), t.sustain whether the pedal is down (the host
   already holds note-offs while it is). In a voice's render they are that note's own (a note can carry its own bend
   and mod); in process, the channel's. A kernel that ignores them still plays.
+- A keyed effect (`key: true`) also sees t.key = { l, r, on }: this block's key (another track's sound, "Keys" above),
+  silent with on false when it has none.
 - Mono sources arrive on both L and R. Output is always stereo.
 - render must return false (e.g. return env.active()) when the voice has finished, or the note counts as stuck.
 
@@ -815,7 +906,9 @@ damp 0 bright .. 1 dark) -> .tick(l, r) then .l .r (wet) .set(size, decay, damp)
 ## What the check reports (define_device returns it)
 
 { ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
-latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck? }.
+latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck?,
+keyed?: { deltaLU, grMaxDb } }. keyed is a key: true effect's DI strum again, keyed by the drum loop (a warning if
+nothing changes: the key is ignored).
 ok is false on a compile error (with the line), NaN/Infinity, a peak over +6 dBTP at defaults, a runaway at an
 extreme setting, a stuck note, or no sound at all at defaults. Effects are
 rendered with a DI guitar strum and a drum loop; instruments play chords, a melody, a fast run, low to high notes

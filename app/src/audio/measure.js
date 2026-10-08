@@ -4,7 +4,10 @@
 //
 //   measure(buffer, { from?, to? }) -> { lufs, lufsShortMax, lra, truePeak, peak, rms, crest, bands, bandsAbs, centroid,
 //                                        width, correlation, sideDb, onsetsPerSec, silencePct, clipped, duration, sr,
-//                                        chroma, key }
+//                                        chroma, key, lowSideDb, lowCorrelation }
+//   lowSideDb / lowCorrelation: the low end's mono-ness, under 120 Hz (a 4th-order Linkwitz-Riley low pass): the side
+//             channel's energy against the mid's there (dB; -120 for a mono low end) and L/R correlation there. Club subs
+//             are summed to mono; a sub that isn't loses itself there. lowMono(buffer, { hz }) is the same on its own.
 //   bands: each band's share of the total energy, dB (the balance: cutting the loudest band raises the others' share)
 //   bandsAbs: each band's own energy, dB per analysis frame and channel (compare two renders of the same range: an EQ
 //             cut of 3 dB reads as about -3 here, whatever the other bands do)
@@ -333,7 +336,7 @@ export function measure(buffer, opts = {}) {
   const { ch, sr } = channelsOf(buffer, opts);
   const n = ch[0] ? ch[0].length : 0;
   const out = { duration: r3(n / sr), sr, channels: ch.length };
-  if (!n) return Object.assign(out, { lufs: FLOOR, lufsShortMax: FLOOR, lra: 0, truePeak: FLOOR, peak: FLOOR, rms: FLOOR, crest: 0, bands: null, bandsAbs: null, centroid: 0, width: 1, correlation: 1, sideDb: FLOOR, onsetsPerSec: 0, silencePct: 100, clipped: 0, chroma: null, key: null });
+  if (!n) return Object.assign(out, { lufs: FLOOR, lufsShortMax: FLOOR, lra: 0, truePeak: FLOOR, peak: FLOOR, rms: FLOOR, crest: 0, bands: null, bandsAbs: null, centroid: 0, width: 1, correlation: 1, sideDb: FLOOR, onsetsPerSec: 0, silencePct: 100, clipped: 0, chroma: null, key: null, lowSideDb: FLOOR, lowCorrelation: 1 });
 
   const ld = loudnessParts(ch, sr);
   let sp = 0, tp = 0, sq = 0, clipped = 0;
@@ -369,7 +372,22 @@ export function measure(buffer, opts = {}) {
     width: r3(correlation), correlation: r3(correlation), sideDb: r2(sideDb),
     onsetsPerSec: r2(on.length / (n / sr)), silencePct: r2(100 * silent / nf), clipped,
     chroma: chr, key: chr ? keyOf(chr) : null,
+    ...lowMono({ channels: ch, sr }),
   });
+}
+
+// The low end's mono-ness: L and R through a 4th-order Linkwitz-Riley low pass at `hz` (two 2nd-order Butterworths in
+// a row), then the side's energy against the mid's (dB) and the two channels' correlation. A mono buffer is mono.
+export function lowMono(buffer, { hz = 120, ...opts } = {}) {
+  const { ch, sr } = channelsOf(buffer, opts);
+  if (ch.length < 2 || !ch[0].length) return { lowSideDb: FLOOR, lowCorrelation: 1 };
+  const K = Math.tan(Math.PI * hz / sr), q = Math.SQRT1_2, a0 = 1 + K / q + K * K;
+  const c = { b0: K * K / a0, b1: 2 * K * K / a0, b2: K * K / a0, a1: 2 * (K * K - 1) / a0, a2: (1 - K / q + K * K) / a0 };
+  const n = ch[0].length, L = biquad(biquad(ch[0], c, new Float64Array(n)), c, new Float64Array(n)), R = biquad(biquad(ch[1], c, new Float64Array(n)), c, new Float64Array(n));
+  let ab = 0, aa = 0, bb = 0, mm = 0, ss = 0;
+  for (let i = 0; i < n; i++) { const l = L[i], r = R[i]; ab += l * r; aa += l * l; bb += r * r; const m = l + r, s2 = l - r; mm += m * m; ss += s2 * s2; }
+  const corr = aa > 0 && bb > 0 ? ab / Math.sqrt(aa * bb) : (aa + bb > 0 ? 0 : 1);
+  return { lowSideDb: r2(mm > 0 ? dBp(ss / mm) : (ss > 0 ? 0 : FLOOR)), lowCorrelation: r3(corr) };
 }
 
 // ---------------------------------------------------------------------------------------------------- spectrogram

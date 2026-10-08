@@ -270,7 +270,7 @@ const TARGET_SCHEMA = {
   },
 };
 // get_guide's topics, said once for both its descriptions
-const GUIDE_TOPICS = '"etiquette" (how to work with the human here: scope, proposals vs direct edits, measuring), "devices" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), "ops" (every op and the notes / drum-grid text formats), "lexicon" (musical words → perceptual axes, for adjust; plus "personal": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), "transforms" (every transform with its params and defaults).';
+const GUIDE_TOPICS = '"etiquette" (how to work with the human here: scope, proposals vs direct edits, measuring), "devices" (how to write a kernel instrument or effect for define_device, with the dsp stdlib and two complete examples), "ops" (every op and the notes / drum-grid text formats), "lexicon" (musical words → perceptual axes, for adjust; plus "personal": what THIS person means by warm, fat, tight, learned from their own A/B picks — follow it), "transforms" (every transform with its params and defaults), "genres" (how a named genre is built and mixed here: bass music\'s tempo, form, drums, sounds by preset, mix, master and the numbers it is held to).';
 // Descriptions the in-app agent (agent/claude.js) gets in place of the catalog's: its system prompt already carries the
 // etiquette, so get_guide doesn't send it to read that again (the prompt diet; outside agents keep the catalog's).
 export const IN_APP_DESCRIPTIONS = {
@@ -319,9 +319,10 @@ Ids: tracks t_…, clips c_…, inserts fx_…, sections s_…. All times are in
     name: 'get_guide',
     annotations: { title: 'Read a guide', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     description: `Read one of the studio's guides (outside agents don't get Overdub's system prompt, so read these first): ${GUIDE_TOPICS}`,
-    input_schema: { type: 'object', properties: { topic: { type: 'string', enum: ['etiquette', 'devices', 'ops', 'lexicon', 'transforms'] } }, required: ['topic'], additionalProperties: false },
+    input_schema: { type: 'object', properties: { topic: { type: 'string', enum: ['etiquette', 'devices', 'ops', 'lexicon', 'transforms', 'genres'] }, section: { type: 'string', description: 'genres: one genre (bass-music)' } }, required: ['topic'], additionalProperties: false },
     async run(input) {
       switch (input.topic) {
+        case 'genres': { const { genresGuide } = await import('./genres.js'); return { guide: genresGuide(input.section || null) }; }
         case 'etiquette': return { guide: ETIQUETTE };
         case 'devices': return { guide: await kernelGuide() };
         case 'ops': return { guide: OPS_CHEATSHEET + '\n\n' + NOTES_FORMAT };
@@ -376,10 +377,10 @@ ${OPS_BRIEF}`,
     name: 'list_devices',
     annotations: { title: 'List devices', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     description: `Instruments and effects you can put on tracks: built-ins (core.*), the Guitar Studio (pedal.*, amp.*), and devices written in this project. Filter by kind ("instrument" | "effect"), cat (synth keys drums bass pluck sampler dynamics eq filter pitch drive fuzz amp mod time ambient glitch utility) or a free-text query; a cat nothing is filed under finds the devices that mention the word.
-With detail "params" (the default while the list stays short; one device always has them) each param is listed as: key min..max unit (log) def=… role — what it does. Param values in ops are in these units and inside these ranges. Presets (named sounds) are listed by name: preset: "<name>" in instrument.set, track.add's instrument, insert.add or insert.set sets one.`,
-    input_schema: { type: 'object', properties: { kind: { type: 'string', enum: ['instrument', 'effect'] }, cat: { type: 'string' }, query: { type: 'string' }, detail: { type: 'string', enum: ['brief', 'params'] } }, additionalProperties: false },
+With detail "params" (the default while the list stays short; one device always has them) each param is listed as: key min..max unit (log) def=… role — what it does. Param values in ops are in these units and inside these ranges. Presets (named sounds) are listed by name: preset: "<name>" in instrument.set, track.add's instrument, insert.add or insert.set sets one. tag ("bass-music", "growl", "sub"...) lists only the devices with presets tagged so, and those presets.`,
+    input_schema: { type: 'object', properties: { kind: { type: 'string', enum: ['instrument', 'effect'] }, cat: { type: 'string' }, query: { type: 'string' }, tag: { type: 'string', description: 'a preset tag: bass-music, dubstep, riddim, dnb, melodic, sub, growl, reese, wobble, stab, lead, chords, fx, drums, bus, master, pump' }, detail: { type: 'string', enum: ['brief', 'params'] } }, additionalProperties: false },
     run(input, { app }) {
-      let list = app.devices.listDevices({ kind: input.kind, cat: input.cat, q: input.query });
+      let list = app.devices.listDevices({ kind: input.kind, cat: input.cat, q: input.query, tag: input.tag });
       // the song's held devices aren't in the registry (nothing can play them yet): said beside the list
       const held = heldNow(app).filter((d) => !input.kind || d.kind === input.kind);
       const heldOut = held.length ? { held: held.map((d) => `${d.id} "${String(d.name).slice(0, 100)}" (${d.kind}, kept off)`).join(', '), held_note: HELD_NOTE } : {};
@@ -401,7 +402,8 @@ With detail "params" (the default while the list stays short; one device always 
         return { count: list.length, ...(note ? { note } : {}), categories: categories(), project_devices: list.filter((d) => d.source === 'project').map((d) => `${d.id} "${d.name}"`).join(', ') || undefined, ...heldOut, hint: 'call again with cat (e.g. "eq", "ambient") or a query (e.g. "fuzz", "plate") to see the devices and their params' };
       }
       const head = (d) => `${d.id} "${d.name}" (${d.kind}, ${d.cat}${d.source === 'project' ? ', this project' : ''}) — ${d.blurb || ''}`;
-      const names = (d) => (d.presets && d.presets.length ? d.presets.map((x) => x.name).join(', ') : '');
+      const tagged = (d) => (input.tag ? (d.presets || []).filter((x) => x.tags && x.tags.includes(input.tag)) : d.presets || []);
+      const names = (d) => (tagged(d).length ? tagged(d).map((x) => x.name + (input.tag && x.blurb ? ` (${x.blurb})` : '')).join(', ') : '');
       const brief = (d) => `${head(d)} [params: ${d.params.map((p) => p.key).join(' ')}]${names(d) ? ` [presets: ${names(d)}]` : ''}`;
       const withParams = (d) => {
         const big = d.params.length > BIG_DEVICE, shown = big ? d.params.filter((q) => !q.hidden) : d.params;
@@ -425,7 +427,7 @@ With detail "params" (the default while the list stays short; one device always 
     name: 'get_device',
     annotations: { title: 'Read a device', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     description: 'One device: params (ranges, units, roles, descriptions), presets, look, flavour, and — for kernel devices written in this project — the kernel source (set source: true to also read a built-in kernel, e.g. core.testfilter, as a worked example to fork). A device the song brought whose code hasn\'t been allowed on this computer comes back with held: true (kept off; only the person can let it play). A device with over 40 params tells the params that repeat by number (mod slots, LFOs, bands) once and names its presets with their blurbs; detail "full" gives every param on its own line and what each preset changes. preset: "<name>" returns one preset\'s whole params.',
-    input_schema: { type: 'object', properties: { id: { type: 'string' }, source: { type: 'boolean' }, preset: { type: 'string', description: 'a preset\'s name: returns that preset\'s whole params' }, detail: { type: 'string', enum: ['brief', 'full'], description: 'a device with over 40 params: "brief" (default) or "full"' }, library: { type: 'string', description: 'a device with a library (Light Table\'s AKWF waves): "" lists its families, a family or part of a wave\'s name lists those waves, each with the params that play it' } }, required: ['id'], additionalProperties: false },
+    input_schema: { type: 'object', properties: { id: { type: 'string' }, source: { type: 'boolean' }, preset: { type: 'string', description: 'a preset\'s name: returns that preset\'s whole params' }, tag: { type: 'string', description: 'only the presets tagged so ("bass-music", "growl", "sub"...)' }, detail: { type: 'string', enum: ['brief', 'full'], description: 'a device with over 40 params: "brief" (default) or "full"' }, library: { type: 'string', description: 'a device with a library (Light Table\'s AKWF waves): "" lists its families, a family or part of a wave\'s name lists those waves, each with the params that play it' } }, required: ['id'], additionalProperties: false },
     run(input, { app }) {
       const kept = app.devices.heldDevice?.(input.id);
       if (kept) {
@@ -472,20 +474,21 @@ With detail "params" (the default while the list stays short; one device always 
       const kn = kitNotes(d);
       if (kn) { out.notes = kn; out.notes_hint = NOTES_HINT; }
       if (d.library && Array.isArray(d.library.items)) out.library_hint = `${d.library.about}. get_device { "id": "${d.id}", "library": "" } lists the families and their waves; "library": "<family or wave>" gives each one's params`;
-      if (d.presets && d.presets.length) {
+      const dPresets = input.tag ? (d.presets || []).filter((x) => x.tags && x.tags.includes(input.tag)) : d.presets;
+      if (dPresets && dPresets.length) {
         if (big && !full) {
-          out.presets = d.presets.map((x) => ({ name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}) }));
+          out.presets = dPresets.map((x) => ({ name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}) }));
           out.preset_hint = `preset: "<name>" sets one, whole, in instrument.set, track.add's instrument, insert.add or insert.set (params given with it go on top); get_device { "id": "${d.id}", "preset": "<name>" } returns one's params, and detail: "full" what each changes from the defaults`;
         } else if (big) {
           const defs = Object.fromEntries(d.params.map((q) => [q.key, q.def]));
-          out.presets = d.presets.map((x) => {
+          out.presets = dPresets.map((x) => {
             const full = presetParams(d, x.name) || {}, changes = {};
             for (const [k, v] of Object.entries(full)) if (v !== defs[k]) changes[k] = v;
             return { name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}), changes };
           });
           out.preset_hint = `each lists only what it changes from the defaults; get_device { "id": "${d.id}", "preset": "<name>" } returns one preset's whole params, then ${applyHint}`;
         } else {
-          out.presets = d.presets.map((x) => ({ name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}), params: { ...x.params } }));
+          out.presets = dPresets.map((x) => ({ name: x.name, ...(x.blurb ? { blurb: x.blurb } : {}), ...(x.tags ? { tags: x.tags } : {}), params: { ...x.params } }));
           out.preset_hint = applyHint;
         }
       }
@@ -522,8 +525,9 @@ On a song from someone's link, or one that has held devices (code that came with
 It keeps a baseline per scope: measure BEFORE a change and again AFTER, and you get the deltas with glosses ("low-mid −3.1 dB vs before: less muddy"; bands far under the total aren't glossed). "previous" moves on with every measurement, so for a change in several steps save_as: "before" first and compare_to: "before" after. spectrogram: true adds an image (log-frequency, 20 Hz bottom → 20 kHz top, time left → right).
 bypass: [insert ids] and mute: [tracks] apply to this render only (a scratch copy: no History entries), e.g. your effect on vs bypassed in two calls.
 per_track: true measures balance in one call (is the hook buried?): each track on its own and the rest of the mix without it, with its level against the mix and the rest, and its main band against the rest of the mix in that band. The summed mix's loudness and tone can stay put while one track moves 2 LU, so use this for balance.
-series: "bars" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers ("bars 1–4: −41, −29, −22, −17 LUFS short-term, rising").`,
-    input_schema: { type: 'object', properties: { ...RANGE_PROPS, series: { type: 'string', enum: ['bars'], description: 'bars: per-bar loudness and brightness over the range (to check a fade or a sweep)' }, tracks: { type: 'array', items: { type: 'string' }, description: 'track ids or names (default: the mix)' }, spectrogram: { type: 'boolean' }, compare_to: { type: 'string', description: '"previous" (default) | "none" | a save_as name' }, save_as: { type: 'string' }, bypass: { type: 'array', items: { type: 'string' }, description: 'insert ids to bypass in this render only' }, mute: { type: 'array', items: { type: 'string' }, description: 'tracks to mute in this render only' }, per_track: { type: 'boolean', description: 'balance: every audible track (or the tracks given) against the rest of the mix' } }, additionalProperties: false },
+series: "bars" adds per-bar numbers over the range (lufsShortMax, rms, centroid for each bar), so a fade or a sweep can be checked as numbers ("bars 1–4: −41, −29, −22, −17 LUFS short-term, rising").
+targets: "bass-music" checks the render against the genre's measured targets (window "drop": short-term loudness, crest, the low end's mono-ness, the bands; "song": integrated loudness, true peak), the misses first.`,
+    input_schema: { type: 'object', properties: { ...RANGE_PROPS, series: { type: 'string', enum: ['bars'], description: 'bars: per-bar loudness and brightness over the range (to check a fade or a sweep)' }, tracks: { type: 'array', items: { type: 'string' }, description: 'track ids or names (default: the mix)' }, spectrogram: { type: 'boolean' }, compare_to: { type: 'string', description: '"previous" (default) | "none" | a save_as name' }, save_as: { type: 'string' }, bypass: { type: 'array', items: { type: 'string' }, description: 'insert ids to bypass in this render only' }, mute: { type: 'array', items: { type: 'string' }, description: 'tracks to mute in this render only' }, per_track: { type: 'boolean', description: 'balance: every audible track (or the tracks given) against the rest of the mix' }, targets: { type: 'string', enum: ['bass-music'], description: 'a genre: check against its targets' }, window: { type: 'string', enum: ['drop', 'song'], description: 'with targets: a drop\'s numbers (default) or the whole song\'s' } }, additionalProperties: false },
     run(input, { app, signal }) { return renderAndMeasure(app, input, signal); },
   },
   {
@@ -1763,6 +1767,15 @@ async function renderAndMeasure(app, input, signal) {
   s.baselines.set(scopeKey, { m, at: Date.now(), scope });
   if (input.save_as) s.named.set(input.save_as, { m, at: Date.now(), scope });
   if (input.series === 'bars') out.series = barSeries(app, M, buf, rg);
+  // a genre's targets (audio/targets.js): each row in words, the misses first
+  if (input.targets) {
+    const TG = await import('../audio/targets.js');
+    const rows = TG.checkTargets(m, input.targets, { window: input.window === 'song' ? 'song' : 'drop' });
+    const miss = rows.filter((r) => !r.ok);
+    out.targets = { genre: input.targets, window: input.window === 'song' ? 'song' : 'drop', met: rows.length - miss.length, of: rows.length, rows: rows.map(TG.targetWords) };
+    out.low_end = { lowSideDb: m.lowSideDb, lowCorrelation: m.lowCorrelation, lufsShortMax: m.lufsShortMax };
+    out.targets_hint = miss.length ? 'say what you will change first, then the numbers on one line; the provisional rows (crest, PLR, bands) are house starting points, not law' : 'every target met';
+  }
   if (input.spectrogram) { try { out.image = await M.spectrogram(buf, { width: 640, height: 240 }); out.image_note = 'log frequency: 20 Hz at the bottom to 20 kHz at the top; time left to right; faint lines at octaves from 62.5 Hz'; } catch (e) { out.image_error = e.message; } }
   return out;
 }

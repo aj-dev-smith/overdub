@@ -87,7 +87,14 @@ export default function (app) {
         for (const s of strips.values()) fitScale(s);
       }
 
-      const structure = () => store.get().tracks.map((t) => [t.id, t.name, t.color, t.kind, t.by, t.inserts.length, t.instrument?.device || ''].join(':')).join('|') + '|m' + store.get().master.inserts.length;
+      const structure = () => store.get().tracks.map((t) => [t.id, t.name, t.color, t.kind, t.by, t.inserts.length, t.instrument?.device || '', keyedBy(t)].join(':')).join('|') + '|m' + store.get().master.inserts.length;
+      // "keyed by Kick": the track a keyed insert on this one (Dim Switch) listens to, in words, or ''
+      function keyedBy(t) {
+        const x = t && t.inserts.find((i) => i.key && i.key.track);
+        if (!x) return '';
+        const src = store.get().tracks.find((o) => o.id === x.key.track);
+        return src ? `keyed by ${src.name}` : 'key track missing';
+      }
 
       function build() {
         sig = structure();
@@ -112,7 +119,7 @@ export default function (app) {
         const head = h('button.mx-name', { title: t ? `${t.name}: select (double-click: inspect)` : 'The master', onclick: () => ui.select({ track: id, insert: null }), ondblclick: () => ui.show('inspector') },
           h('span.mx-nl', h('i.mx-chip', { style: { background: color } }), h('b', t ? t.name : 'Master')), t ? (byline(t.by, { app, title: `Last shaped by ${authorName(app, t.by)}` }) || h('span.mx-by-none')) : null);
         const fx = h('button.mx-fx', { title: 'Show the chain (Devices)', onclick: () => { ui.select({ track: id, insert: null }); ui.show('rack'); } },
-          h('span', inst), h('em', fxN ? `${fxN} fx` : '+ fx'));
+          h('span', inst), h('em', fxN ? `${fxN} fx` : '+ fx'), t && keyedBy(t) ? h('small.mx-keyed', keyedBy(t)) : null);
         let pan = null, panOut = null;
         if (t) {
           panOut = h('output.mx-pan-v', panText(t.pan));
@@ -483,6 +490,7 @@ const MIXER_CSS = `
 .mx-fx { display: grid; gap: 1px; padding: 3px 0 4px; border: 0; border-top: var(--rule); border-bottom: var(--rule); background: none; color: var(--text-3); cursor: pointer; text-align: left; font-size: 10px; min-width: 0; }
 .mx-fx span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
 .mx-fx em { font-style: normal; font-family: var(--font-mono); }
+.mx-fx .mx-keyed { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mx-fx:hover { border-color: var(--line-2); color: var(--text); }
 .mx-pan { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .mx-pan-v { width: 28px; font: 600 10px var(--font-mono); color: var(--text-3); text-align: left; }

@@ -83,6 +83,11 @@ params.push(
     desc: 'the level out, after everything; a safety ceiling then holds everything it puts out at -1 dBTP, at any setting' },
   { key: 'time', label: 'TIME', min: 10, max: 1000, def: 100, curve: 'log', unit: '%', role: 'time', group: 'Main',
     desc: 'scales every attack and release together: under 100% everything reacts faster (more aggressive, more pumping), over 100% slower (smoother, more of each attack gets through)' },
+  // (appended: the two big knobs, how much of every band's lift and of its hold is used)
+  { key: 'upward', label: 'UPWARD', min: 0, max: 200, def: 100, unit: '%', role: 'depth', group: 'Main',
+    desc: 'how much every band lifts its quiet parts, as a share of what its UP settings ask: less on a bass that hisses or a room that gets too big, more for more detail' },
+  { key: 'downward', label: 'DOWNWARD', min: 0, max: 200, def: 100, unit: '%', role: 'depth', group: 'Main',
+    desc: 'how much every band holds its loud parts down, as a share of what its DOWN settings ask: more on a top end that bites, less to keep the punch' },
 );
 
 // presets: each is the whole sound; params left out take their defaults
@@ -105,6 +110,10 @@ export const PRESETS = [
     params: { ...band('low', [-4, 2, -24, 4, 45, 80, 2]), ...band('mid', [-4, 2, -18, 4, 30, 80, 1]), ...band('high', [-6, 2, -60, 1, 15, 60, -3]), xover_lo: 100, xover_hi: 1800, depth: 70 } },
   { name: 'Subtle 30%', blurb: 'The classic at 30%: density and detail, the dynamics still there',
     params: { depth: 30 } },
+  { name: 'Bass density', tags: ['bass-music', 'growl', 'reese'], blurb: 'On a growl or a reese: the classic at 60%, less lift (60%) so the hiss stays down',
+    params: { depth: 60, upward: 60, downward: 100 } },
+  { name: 'Drum density', tags: ['bass-music', 'drums', 'bus'], blurb: 'On a drum bus: the room and tails up, the hits held harder (downward 130%), 50% in',
+    params: { depth: 50, upward: 90, downward: 130, time: 80 } },
 ];
 
 // what the library page plays it at (app/library.html: def.demo)
@@ -121,7 +130,8 @@ export function describe(values = {}) {
     const k = (s) => +v[`${B.id}_${s}`];
     return `${B.word}: down above ${dbs(k('down_thresh'))} at ${ratioText(k('down_ratio'))}, up below ${dbs(k('up_thresh'))} at ${ratioText(k('up_ratio'))}, attack ${r1(k('attack'))} ms, release ${Math.round(k('release'))} ms, gain ${dbs(k('gain'))}`;
   };
-  return `depth ${Math.round(+v.depth)}%, splits at ${hzs(+v.xover_lo)} and ${hzs(+v.xover_hi)}; ${MB_BANDS.map(bandText).join('; ')}; input ${dbs(+v.in_gain)}, output ${dbs(+v.out_gain)}, time ${Math.round(+v.time)}%`;
+  const ud = +v.upward !== 100 || +v.downward !== 100 ? `upward ${Math.round(+v.upward)}%, downward ${Math.round(+v.downward)}%, ` : '';
+  return `depth ${Math.round(+v.depth)}%, ${ud}splits at ${hzs(+v.xover_lo)} and ${hzs(+v.xover_hi)}; ${MB_BANDS.map(bandText).join('; ')}; input ${dbs(+v.in_gain)}, output ${dbs(+v.out_gain)}, time ${Math.round(+v.time)}%`;
 }
 
 // The face's screen in the rack (ui/faces.js): each band's transfer curve, low to high, drawn with the window's own
@@ -220,6 +230,7 @@ return {
           if (first) { bg[b] = bgT[b]; tD[b] = tDT[b]; rDn[b] = rDnT[b]; tU[b] = tUT[b]; rUp[b] = rUpT[b]; }
         }
         const ginT = Math.pow(10, P.in_gain / 20), goutT = Math.pow(10, P.out_gain / 20), depT = P.depth / 100;
+        const sdn = P.downward / 100, sup = P.upward / 100;
         if (first) { gin = ginT; gout = goutT; dep = depT; }
         mbFreqs(P.xover_lo, P.xover_hi, sr, fr);
         const g1b = mbG(fr[0], sr), g2b = mbG(fr[1], sr);
@@ -236,7 +247,7 @@ return {
           for (let b = 0; b < 3; b++) {
             const l = BL[b][i], r = BR[b][i], ll = l * l, rr = r * r;
             tD[b] += (tDT[b] - tD[b]) * kS; rDn[b] += (rDnT[b] - rDn[b]) * kS; tU[b] += (tUT[b] - tU[b]) * kS; rUp[b] += (rUpT[b] - rUp[b]) * kS;
-            const g = mbStep(ll > rr ? ll : rr, S, 6 * b, tD[b], rDn[b], tU[b], rUp[b], cA[b], cR[b], cD[b], cC, cL);
+            const g = mbStep(ll > rr ? ll : rr, S, 6 * b, tD[b], rDn[b], tU[b], rUp[b], cA[b], cR[b], cD[b], cC, cL, sdn, sup);
             bg[b] += (bgT[b] - bg[b]) * kS;
             M[b] = 1 + dep * (Math.exp(0.11512925464970229 * (g + bg[b])) - 1);
           }

@@ -61,7 +61,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Overdub architecture (v0.1 contracts)</a></h1>
-    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 110 min to read</p>
+    <p class="doc-meta">From <code>docs/ARCHITECTURE.md</code> (<a href="/docs/ARCHITECTURE.md">the Markdown</a>), about 112 min to read</p>
     <article class="prose">
 <p>Overdub is a web DAW where a musician and their agents play over each other. This document is the contract every
 module is built against. If code and this document disagree, fix one of them in the same change.</p>
@@ -327,9 +327,9 @@ the house returns null), never a stripe, a tint or a fill (<code>design/LINER-NO
 <tr><td><code>track.remove</code> / <code>track.move</code></td><td><code>track</code>, (<code>index</code>)</td></tr>
 <tr><td><code>track.set</code></td><td><code>track</code>, <code>patch: { name?, color?, gain?, pan?, mute?, solo?, arm?, input? }</code> (gain −96..24 dB, pan −1..1)</td></tr>
 <tr><td><code>instrument.set</code></td><td><code>track</code>, <code>device?</code>, <code>params?</code> (params merge; <code>null</code> resets one to its default)</td></tr>
-<tr><td><code>insert.add</code></td><td><code>track</code>, <code>insert: { device, params?, on? }</code>, <code>index?</code>, <code>ref?</code></td></tr>
+<tr><td><code>insert.add</code></td><td><code>track</code>, <code>insert: { device, params?, on?, key? }</code>, <code>index?</code>, <code>ref?</code></td></tr>
 <tr><td><code>insert.remove</code> / <code>insert.move</code></td><td><code>track</code>, <code>insert</code>, (<code>index</code>)</td></tr>
-<tr><td><code>insert.set</code></td><td><code>track</code>, <code>insert</code>, <code>patch: { on?, params? }</code> (params merge)</td></tr>
+<tr><td><code>insert.set</code></td><td><code>track</code>, <code>insert</code>, <code>patch: { on?, params?, key? }</code> (params merge; key: <code>{ track }</code> or null, below)</td></tr>
 <tr><td><code>clip.add</code></td><td><code>track</code>, <code>clip: Partial&lt;Clip&gt;</code> (notes may be the text format, or <code>grid</code>), <code>ref?</code></td></tr>
 <tr><td><code>clip.remove</code></td><td><code>track</code>, <code>clip</code></td></tr>
 <tr><td><code>clip.set</code></td><td><code>track</code>, <code>clip</code>, <code>patch: { start?, length?, name?, color?, offset?, gain?, mute?, tuning?, capo? }</code> (<code>mute: true</code> silences the clip and keeps it; <code>false</code> stores no flag; <code>tuning</code> and <code>capo</code>, a notes clip's, for its tab: <code>null</code> or capo 0 removes them)</td></tr>
@@ -345,7 +345,7 @@ the house returns null), never a stripe, a tint or a fill (<code>design/LINER-NO
 <tr><td><code>time.insert</code> / <code>time.remove</code></td><td><code>at</code>, <code>length</code> (beats, across the whole song: clips, sections, the loop)</td></tr>
 <tr><td><code>clip.repeat</code></td><td><code>track</code>, <code>clip</code>, <code>times</code> (2..64, in all), <code>mode?: 'copies' | 'loop'</code>, <code>ref?</code></td></tr>
 <tr><td><code>clip.split</code></td><td><code>track</code>, <code>clip</code>, <code>at</code> (a song beat inside it), <code>ref?</code> (the right half)</td></tr>
-<tr><td><code>master.set</code></td><td><code>patch: { gain }</code> (dB, −96..24)</td></tr>
+<tr><td><code>master.set</code></td><td><code>patch: { gain?, clip? }</code> (gain dB, −96..24; clip <code>'soft'</code> or <code>'clean'</code>, below)</td></tr>
 <tr><td><code>auto.write</code></td><td><code>track</code>, <code>insert?</code>, <code>param</code>, <code>points: [Point] | &quot;text&quot;</code>, <code>from?</code>, <code>to?</code>: replaces the lane's points in [from, to] (default: the span of the points; none with a range clears it), making the lane if there is none; signs it <code>by</code> the writer; values checked against the param's range</td></tr>
 <tr><td><code>auto.clear</code></td><td><code>track</code>, <code>insert?</code>, <code>param</code>, <code>from?</code>, <code>to?</code>: removes the points in the range; with neither, the lane</td></tr>
 <tr><td><code>auto.set</code></td><td><code>track</code>, <code>insert?</code>, <code>param</code>, <code>patch: { off }</code>: <code>true</code> holds the lane (its static value plays), <code>false</code> gives it back (no flag stored)</td></tr>
@@ -437,7 +437,7 @@ function to draw them, so the editor shows exactly what plays. The bank (<code>a
 is a literal in the kernel's source, packed so the kernel stays under its 256 KB. Its design note, with the param map its editor works from, is
 <code>docs/research/LIGHT-TABLE.md</code>.</p>
 <p>Param <code>role</code> (for agents and semantic controls): <code>tone level drive mix time feedback rate depth size decay attack release pitch shape width gate sens</code> (or omit). <code>unit</code>: <code>Hz dB ms s % st note x</code>.</p>
-<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 44 built-ins, thirteen
+<p><strong>Where devices come from.</strong> <code>main.js</code> imports three libraries at boot: <code>devices/builtin/</code> (the 47 built-ins, thirteen
 of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
 Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), <code>devices/guitar/</code> (the
 Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
@@ -595,7 +595,7 @@ frames the host asks for and returns true for that block. <code>process</code> t
 (<code>n</code> minus the frames) and runs the instrument itself, its buses shared. The host's contract is unchanged: notes stay
 sample accurate, and a probe the host steals or releases simply tells <code>process</code>.</p>
 <p>The device check (<code>kernel/check.js</code>, <code>checkDevice(def, { quick, signal, timeout })</code>) parses it, renders test signals through it
-offline and reports <code>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency, deterministic, extremes }</code> (plus <code>voices</code> and <code>stuck</code> for instruments). <code>define_device</code> returns this report to the
+offline and reports <code>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail, cpu, latency, deterministic, extremes }</code> (plus <code>voices</code> and <code>stuck</code> for instruments, and <code>keyed</code> for an effect with a key input). <code>define_device</code> returns this report to the
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
 setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline
@@ -664,6 +664,19 @@ moving with it); <code>masterTap</code> and every render are after the clip. The
 on every store change (add, remove, reorder, params with a glide, bypass with a crossfade). Notes are read by a lookahead scheduler (<code>engine/schedule.js</code>; 25 ms tick,
 120 ms ahead) each tick, so editing notes never rebuilds anything. <code>render</code> builds the same graph in an
 OfflineAudioContext with the same functions, so what an agent measures is what the human hears.</p>
+<p><strong>Keys</strong> (sidechains; <code>strip.js keyPlan</code>, <code>tools/sidechain-test.js</code>). An insert may carry <code>key: { track }</code>
+(<code>insert.add</code> / <code>insert.set</code>; the ops refuse a missing track, the insert's own, a master insert and a loop). A keyed
+device (<code>def.key: true</code>, such as Dim Switch) has a second input, fed from the key track's <code>keyTap()</code>: its sound after its
+inserts, before its fader, mute and pan. Live, the engine wires each key after the strips sync (<code>updateKeys</code>), and a
+change of key is rewired inside the keyed strip's dip, so it never clicks; <code>inst.setKey(on)</code> tells the kernel whether a
+key is wired (<code>t.key.on</code>). Every render builds each key source even when it isn't heard (muted, soloed out, not in a
+stem's <code>tracks</code>) and doesn't sum it; Node renders the strips in key order (a topological sort, stable on track order)
+into their own buffers and sums them in track order, so a song without keys is bit-exact with before, and Web Audio
+processes a key's source before the node it feeds in the same render quantum, so the two agree.</p>
+<p><strong>The master's end</strong> (<code>master.clip</code>, absent = <code>'soft'</code>): the safety soft clip, or <code>'clean'</code> for a master that ends in a
+limiter: nothing between the master gain and the output but the output's own ceiling at 0 dBFS (<code>Strip.setClip</code>; an
+offline render clamps its buffer to ±1.0, as Node's renderer and every export do). The metronome's monitor clip is the
+same either way.</p>
 <p>Timing rules (<code>engine/engine.js</code> header; checked in <code>tools/engine-test.js</code>):</p>
 <ul>
 <li><strong>Plugin delay compensation.</strong> Every track's notes and clips are scheduled <code>comp</code> samples late (the latest track's
@@ -755,8 +768,13 @@ renders (a few vendored pedals move their LFOs from main-thread timers; <code>to
   centroid, width, correlation, sideDb,                          <span class="c">// Hz; stereo</span>
   onsetsPerSec, silencePct, clipped, duration, sr,               <span class="c">// clipped: samples at or over 0 dBFS</span>
   key?: { root, scale, confidence }, chroma?: number[12],
+  lowSideDb, lowCorrelation,                                     <span class="c">// the low end under 120 Hz (LR4): side vs mid (dB), L/R correlation</span>
 }
 spectrogram(buffer, { width, height, from?, to?, floor? }) → Promise&lt;string&gt;   <span class="c">// PNG data URL (agents can look at it)</span></code></pre></div>
+<p>Genre targets (<code>audio/targets.js</code>): <code>TARGETS['bass-music']</code> holds the genre's numbers as ranges (the song's
+loudness and true peak, a drop's short-term loudness, crest, low-end mono-ness and band balance, and each part's), and
+<code>checkTargets(m, genre, { window: 'drop' | 'song' })</code> returns <code>{ metric, value, lo, hi, ok, delta }</code> rows, the misses
+first. <code>render_and_measure { targets }</code> puts them in words for an agent.</p>
 <p>Bands: sub &lt; 60 Hz, low 60-250, low-mid 250-500, mid 500-2k, high-mid 2-4k, presence 4-8k, air &gt; 8k. dB values never
 go below −120, so results survive JSON. Pure JS: it runs in Node (the bench, the canonical render) and the browser.</p>
 <h2 id="the-ui"><a class="h-link" href="#the-ui">The UI</a></h2>

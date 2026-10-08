@@ -489,6 +489,41 @@
       "data": {
         "kit": "sha256-3b61055341a0939a835c2ee27c751c7cedb275147923da73ad03aca91e2100b4"
       }
+    },
+    "fx:core.ducker": {
+      "sha256": "0d776a471bb41918fd99eea31b66f1172d6b2edc9ec9bf064da2c196dd3e82e3",
+      "frames": 576000,
+      "lufs": -21.08,
+      "truePeak": -9.46,
+      "peak": -10
+    },
+    "sidechain": {
+      "sha256": "b968f0d6fc0bfc438129d2a54bff7840976b9378a4836c9ae207871f1c155ece",
+      "frames": 276000,
+      "lufs": -15.77,
+      "truePeak": -3.71,
+      "peak": -3.71
+    },
+    "master-clean": {
+      "sha256": "20b8b6da51006dac661c969d310141b4e737a78fd4ed251735d32231687d9b70",
+      "frames": 276000,
+      "lufs": -9.1,
+      "truePeak": -1.1,
+      "peak": -1.1
+    },
+    "fx:core.clipper": {
+      "sha256": "35a2a7dc6088998f651ce247c17c3b92aa44e3160f1de041ce2730be873a8f90",
+      "frames": 576000,
+      "lufs": -21.17,
+      "truePeak": -9.35,
+      "peak": -9.35
+    },
+    "inst:core.clubkit": {
+      "sha256": "ccf6a89de7523c3e696da2e578f08e63754424e7c6a92c8f2018c4ed368db1b5",
+      "frames": 672000,
+      "lufs": -17.73,
+      "truePeak": -0.96,
+      "peak": -1.88
     }
   }
 }

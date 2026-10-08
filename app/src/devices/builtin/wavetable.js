@@ -20,7 +20,9 @@
 //   M1-M8         the mod matrix: SOURCE, DEST, AMOUNT (-1..1, in the destination knob's travel). A slot can
 //                 target another slot's amount (MOD WHEEL -> M1 AMT: a vibrato depth on the wheel).
 //   MACRO 1-4     four knobs that do nothing until a slot uses them.
-//   FX            drive (2x oversampled), chorus, a ping-pong delay synced to the song, a small room, each with a mix.
+//   FX            drive (2x oversampled, in six shapes: DIST MODE), Gaffer Tape's three-band upward and downward
+//                 compression (MULTIBAND, MB TIME), chorus, a ping-pong delay synced to the song, a small room, each
+//                 with a mix.
 //   VOICES        POLY (8), MONO (retriggers), LEGATO (overlapping notes slide without retriggering); GLIDE.
 // The mod wheel adds vibrato (up to 35 cents at 5.5 Hz) while no slot uses it; the bend wheel bends.
 // Every change ramps: switches crossfade (tables over 30 ms, filter types and routings over 10 ms, a warp mode by
@@ -30,6 +32,7 @@ import { defineDevice } from '../registry.js';
 import { kernel } from './lib.js';
 import { lightTables, TABLE_NAMES, AKWF_FAMILIES } from './wavetables.js';
 import { AKWF } from './akwf.js';
+import { MB_SOURCE } from './multiband-curve.js';
 
 // Switch options. Songs store indexes: append new options at the end, never reorder.
 export const WARPS = ['OFF', 'SYNC', 'BEND', 'PW', 'MIRROR', 'FM'];
@@ -39,10 +42,13 @@ export const LFO_SYNCS = ['OFF', '1/32', '1/16T', '1/16', '1/16D', '1/8T', '1/8'
 export const LFO_MODES = ['FREE', 'RETRIG', 'ENV'];
 export const DELAY_TIMES = ['1/16', '1/8T', '1/8', '1/8D', '1/4T', '1/4', '1/4D', '1/2'];
 export const VOICE_MODES = ['POLY', 'MONO', 'LEGATO'];
+export const DIST_MODES = ['TANH', 'HARD', 'FOLD', 'SINE FOLD', 'RECTIFY', 'DOWNSAMPLE'];
 export const SOURCES = ['OFF', 'ENV1', 'ENV2', 'ENV3', 'LFO1', 'LFO2', 'LFO3', 'LFO4', 'VELOCITY', 'NOTE', 'MOD WHEEL', 'MACRO 1', 'MACRO 2', 'MACRO 3', 'MACRO 4', 'RANDOM'];
 export const DESTS = ['OFF', 'A POS', 'A WARP', 'A PITCH', 'A LEVEL', 'A PAN', 'A DETUNE', 'B POS', 'B WARP', 'B PITCH', 'B LEVEL', 'B PAN', 'B DETUNE',
   'SUB LEVEL', 'NOISE LEVEL', 'CUTOFF', 'RESO', 'FLT DRIVE', 'PITCH', 'FINE', 'AMP', 'PAN', 'LFO1 RATE', 'LFO2 RATE', 'LFO3 RATE', 'LFO4 RATE',
-  'M1 AMT', 'M2 AMT', 'M3 AMT', 'M4 AMT', 'M5 AMT', 'M6 AMT', 'M7 AMT', 'M8 AMT', 'DRIVE', 'CHORUS MIX', 'DELAY MIX', 'VERB MIX'];
+  'M1 AMT', 'M2 AMT', 'M3 AMT', 'M4 AMT', 'M5 AMT', 'M6 AMT', 'M7 AMT', 'M8 AMT', 'DRIVE', 'CHORUS MIX', 'DELAY MIX', 'VERB MIX',
+  // (appended: global, as DRIVE is)
+  'MULTIBAND', 'DRIVE MIX'];
 // What an amount of 1 does at each destination (the editor draws it as an arc on the knob; agents read it here):
 // a param's own destination moves it its knob's whole travel (CUTOFF: 10 octaves); PITCH and A/B PITCH 24 semitones;
 // FINE 1 semitone; AMP multiplies the voice by 1 + amount x source (0..2); Mn AMT adds to slot n's amount.
@@ -53,6 +59,7 @@ export const DEST_SCALE = {
   PITCH: '24 semitones on every oscillator', FINE: '1 semitone on every oscillator (0.2 x an LFO = a 20-cent vibrato)', AMP: 'the voice\'s level times 1 + amount x source (0 to 2)',
   PAN: 'the voice\'s pan travel', 'LFO1 RATE': 'the rate knob\'s travel (11 octaves; RETRIG and ENV modes)', 'M1 AMT': 'added to slot 1\'s amount',
   DRIVE: 'the drive\'s travel (global: the newest note\'s value)', 'CHORUS MIX': 'the mix\'s travel (global)', 'DELAY MIX': 'the mix\'s travel (global)', 'VERB MIX': 'the mix\'s travel (global)',
+  MULTIBAND: 'the multiband\'s travel, 0 to 100% (global)', 'DRIVE MIX': 'the drive mix\'s travel (global)',
 };
 
 // the tables built in code come first (14); the AKWF families follow them in the switch
@@ -138,15 +145,22 @@ kn('fx_verb_mix', 'VERB MIX', 0, 1, 0.12, 'mix', 'how much room (0 is off)');
 sw('voice_mode', 'VOICES', VOICE_MODES, 0, 'shape', 'POLY plays 8 notes; MONO one at a time, retriggering; LEGATO one, sliding between overlapping notes');
 kn('voice_glide', 'GLIDE', 0, 1000, 0, 'time', 'slide time to each new note (MONO always, LEGATO between overlapping notes, POLY from the last note)', { unit: 'ms' });
 kn('voice_level', 'VOLUME', -24, 6, 0, 'level', 'the output level', { unit: 'dB' });
+// (appended for bass music: the drive's other shapes, and Gaffer Tape's three-band dynamics inside the synth, so one
+// preset can be a whole growl)
+sw('fx_dist', 'DIST MODE', DIST_MODES, 0, 'shape', 'the drive\'s shape: TANH (warm, the original), HARD (clipped flat), FOLD (folded back on itself: buzz that grows with DRIVE), SINE FOLD (folded round: vocal, metallic), RECTIFY (folded up: an octave up and grit), DOWNSAMPLE (held steps: lo-fi crunch)');
+kn('fx_mband', 'MULTIBAND', 0, 100, 0, 'mix', 'the three-band upward and downward compression after the drive (Gaffer Tape\'s, at its classic settings): 30-60% thickens a growl and brings its grit forward, 100% is all of it (0 is off)', { unit: '%' });
+kn('fx_mband_time', 'MB TIME', 10, 1000, 100, 'time', 'the multiband\'s attack and release, scaled: under 100% faster and more aggressive, over 100% smoother', { curve: 'log', unit: '%' });
 export const PARAMS = P;
 
 /* ------------------------------------------------------------------------------------------------ the kernel */
-// The host's params object holds 114 keys and changes only between blocks: the kernel copies it once a block into
+// The host's params object holds 117 keys and changes only between blocks: the kernel copies it once a block into
 // an object of fixed shape (a literal, generated here from PARAMS), so the voices' hundreds of reads a block are fast.
 const Q_LIT = '{ ' + P.map((q) => `${q.key}: ${q.def}`).join(', ') + ' }';
 const Q_LOAD = P.map((q) => `Q.${q.key} = P.${q.key};`).join(' ');
 
 const BODY = String.raw`
+// Gaffer Tape's crossover, dynamics and shelves (multiband-curve.js), for the FX's multiband
+${MB_SOURCE}
 const LT = (${lightTables})(${JSON.stringify(AKWF)});
 const F = LT.F, FS = LT.FS, MN = LT.MN, MO = LT.MO, TB = LT.TABLES;
 const CR = 16;                            // modulation and coefficients every 16 samples, ramped between
@@ -935,9 +949,56 @@ class Room {
   clear() { this.buf.fill(0); this.lp.fill(0); }
 }
 
+// The multiband after the drive: Gaffer Tape's three-band upward and downward compression (multiband-curve.js's
+// crossover, mbStep and shelves) at its classic settings, split at 88 Hz and 2.5 kHz, with no look-ahead (so turning
+// it on never moves the sound in time). Its depth glides; at depth 0 the shelves are flat and the sound passes as it
+// was, and it sleeps.
+const MBC = [[-4, 3, -26, 6, 20, 60, 2], [-8, 3, -24, 6, 10, 50, 1.5], [-14, 3, -32, 6, 5, 40, 2]];
+class Mband {
+  constructor(sr) {
+    this.sr = sr; this.zL = new Float64Array(14); this.zR = new Float64Array(14); this.cap = 128;
+    this.BL = [new Float64Array(128), new Float64Array(128), new Float64Array(128)]; this.BR = [new Float64Array(128), new Float64Array(128), new Float64Array(128)];
+    this.S = new Float64Array(18); this.sL = new Float64Array(8); this.sR = new Float64Array(8); this.co = new Float64Array(12); this.M = new Float64Array(3);
+    const fr = mbFreqs(88.3, 2500, sr, new Float64Array(2)); this.g1 = mbG(fr[0], sr); this.g2 = mbG(fr[1], sr);
+    this.cD = [mbCoef(MB_DET_MS[0], sr), mbCoef(MB_DET_MS[1], sr), mbCoef(MB_DET_MS[2], sr)]; this.cC = mbCoef(MB_CATCH_MS, sr); this.cL = mbCoef(MB_LIFT_MS, sr);
+    this.cA = new Float64Array(3); this.cR = new Float64Array(3); this.bg = new Float64Array(3); this.tm = -1;
+    for (let b = 0; b < 3; b++) this.bg[b] = MBC[b][6];
+    this.dep = 0; this.live = false; this.kS = 1 - Math.exp(-1 / (0.012 * sr));
+  }
+  run(XL, XR, n, depT, time) {
+    if (!this.live) {
+      if (!(depT > 0)) return;
+      this.zL.fill(0); this.zR.fill(0); this.S.fill(0); this.sL.fill(0); this.sR.fill(0); this.dep = 0; this.live = true;
+    }
+    if (n > this.cap) { this.cap = n; for (let b = 0; b < 3; b++) { this.BL[b] = new Float64Array(n); this.BR[b] = new Float64Array(n); } }
+    const sr = this.sr, tm = time / 100;
+    if (tm !== this.tm) { this.tm = tm; for (let b = 0; b < 3; b++) { this.cA[b] = mbCoef(MBC[b][4] * tm, sr); this.cR[b] = mbCoef(MBC[b][5] * tm, sr); } }
+    const g1 = this.g1, g2 = this.g2, BL = this.BL, BR = this.BR, S = this.S, M = this.M, co = this.co, kS = this.kS, bg = this.bg;
+    mbSplit(XL, n, this.zL, 0, g1, g1, g2, g2, BL[0], BL[1], BL[2]);
+    mbSplit(XR, n, this.zR, 0, g1, g1, g2, g2, BR[0], BR[1], BR[2]);
+    let dep = this.dep;
+    for (let i = 0; i < n; i++) {
+      dep += (depT - dep) * kS;
+      for (let b = 0; b < 3; b++) {
+        const l = BL[b][i], r = BR[b][i], ll = l * l, rr = r * r, c = MBC[b];
+        const g = mbStep(ll > rr ? ll : rr, S, 6 * b, c[0], c[1], c[2], c[3], this.cA[b], this.cR[b], this.cD[b], this.cC, this.cL);
+        M[b] = 1 + dep * (Math.exp(0.11512925464970229 * (g + bg[b])) - 1);
+      }
+      mbShelfCoefs(M[0], M[1], M[2], g1, g2, co);
+      XL[i] = mbShelve(XL[i], this.sL, 0, co); XR[i] = mbShelve(XR[i], this.sR, 0, co);
+    }
+    for (let j = 0; j < 8; j++) { if (this.sL[j] < 1e-25 && this.sL[j] > -1e-25) this.sL[j] = 0; if (this.sR[j] < 1e-25 && this.sR[j] > -1e-25) this.sR[j] = 0; }
+    this.dep = dep;
+    if (depT === 0 && dep < 1e-5) this.live = false;
+  }
+}
+
 // The FX after the voices: drive (lib.js's 2x half-band oversampler, written out; the dry path always 15 samples late,
-// the oversampler's delay, so turning it on never jumps), chorus, a ping-pong delay synced to the song, the room; then
-// the level, a DC blocker and lib.js's knee. Each effect sleeps (costs nothing) while its mix is at 0.
+// the oversampler's delay, so turning it on never jumps) in one of DIST MODE's shapes, the multiband (above), chorus, a
+// ping-pong delay synced to the song, the room; then the level, a DC blocker and lib.js's knee. Each effect sleeps
+// (costs nothing) while its mix is at 0. The drive runs over the block first, into the 64-bit xl/xr (so nothing is
+// rounded on the way), the multiband over those, then the rest sample by sample: the same operations in the same
+// order as when it was one loop, so a sound without the multiband is exactly what it was.
 class Fx {
   constructor(sr, seed) {
     this.sr = sr;
@@ -954,6 +1015,44 @@ class Fx {
     this.gDrv = 0; this.gDm = 1; this.gCh = 0; this.gChD = 0.5; this.gDl = 0; this.gFb = 0.35; this.gVb = 0; this.gLv = 1; this.gT = 0.375 * sr;
     this.lp1 = 0; this.lp2 = 0; this.hp1 = 0; this.hp2 = 0; this.rh1 = 0; this.rh2 = 0; this.dcx1 = 0; this.dcy1 = 0; this.dcx2 = 0; this.dcy2 = 0;
     this.drvLive = false; this.chLive = false; this.dlLive = false; this.vbLive = false; this.first = true;
+    this.xl = new Float64Array(128); this.xr = new Float64Array(128); this.mb = new Mband(sr);
+    this.hL0 = 0; this.hL1 = 0; this.hR0 = 0; this.hR1 = 0; this.hc = 0;
+    // the last 2x input of each channel, for the shapes' antiderivative anti-aliasing (adaa)
+    this.aL = 0; this.aR = 0;
+  }
+  // HARD, FOLD, SINE FOLD and RECTIFY are run with first-order antiderivative anti-aliasing (Parker, Zavalishin and Le
+  // Bivic, DAFx 2016): the output is the mean of the shape over the step from the last input to this one,
+  // (F(z) - F(z1)) / (z - z1), F the shape's integral, which takes most of what their corners would fold back under
+  // 20 kHz out at the 2x rate (a quarter of a sample of delay at 1x). F for each:
+  F(z, mode) {
+    if (mode === 1) { const a = z < 0 ? -z : z; return a <= 1 ? 0.5 * z * z : a - 0.5; }
+    if (mode === 2) { let u = (z + 1) * 0.25; u -= Math.floor(u); return u < 0.5 ? 8 * u * u - 4 * u : 12 * u - 8 * u * u - 4; }
+    if (mode === 3) return -0.6366197723675814 * Math.cos(1.5707963267948966 * z);
+    // RECTIFY: the integral of |y| for the rational tanh y = z/9 + (8/3) z / (z^2 + 3) (|z| <= 3), then |z| past it
+    const a = z < 0 ? -z : z, v = a <= 3 ? a * a / 18 + 1.3333333333333333 * Math.log((a * a + 3) / 3) : 2.3483924814931874 + a - 3;
+    return z < 0 ? -v : v;
+  }
+  adaa(z, mode, q) {
+    const z1 = q < 2 ? this.aL : this.aR;
+    if (q < 2) this.aL = z; else this.aR = z;
+    const d = z - z1;
+    if (d > 1e-5 || d < -1e-5) return (this.F(z, mode) - this.F(z1, mode)) / d;
+    return this.shape(0.5 * (z + z1), mode, q, 0);
+  }
+  // a DIST MODE's shape (not TANH: that one is written out in run) at the 2x rate, for one of the four values a
+  // sample makes: q 0..3 is left even, left odd, right even, right odd (DOWNSAMPLE holds each channel's)
+  shape(z, mode, q, drv) {
+    if (mode === 1) return z < -1 ? -1 : z > 1 ? 1 : z;
+    if (mode === 2) { let t = (z + 1) * 0.25; t -= Math.floor(t); return 1 - 4 * (t < 0.5 ? 0.5 - t : t - 0.5); }
+    if (mode === 3) return Math.sin(1.5707963267948966 * z);
+    const y = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+    if (mode === 4) return y < 0 ? -y : y;
+    // DOWNSAMPLE: each channel held for N of the 2x samples, N from 1 to 25 with the drive
+    const N = 1 + Math.floor(24 * drv * drv);
+    if (q === 0 || q === 1) { if (q === 0 ? this.hc % N === 0 : (this.hc + 1) % N === 0) this.hL0 = y; return this.hL0; }
+    if ((q === 2 ? this.hc % N : (this.hc + 1) % N) === 0) this.hR0 = y;
+    if (q === 3) this.hc = (this.hc + 2) % 100800;
+    return this.hR0;
   }
   run(L, R, n, P, T, fxm) {
     const sr = this.sr;
@@ -963,7 +1062,9 @@ class Fx {
     x = P.fx_chorus_mix + fxm[1]; const tCh = x < 0 ? 0 : x > 1 ? 1 : x;
     x = P.fx_delay_mix + fxm[2]; const tDl = x < 0 ? 0 : x > 1 ? 1 : x;
     x = P.fx_verb_mix + fxm[3]; const tVb = x < 0 ? 0 : x > 1 ? 1 : x;
-    const cDepth = P.fx_chorus_depth, fb = P.fx_delay_fb, dmT = P.fx_drive_mix, lv = Math.pow(10, P.voice_level / 20);
+    x = P.fx_mband / 100 + fxm[4]; const tMb = x < 0 ? 0 : x > 1 ? 1 : x;
+    x = P.fx_drive_mix + fxm[5]; const dmT = x < 0 ? 0 : x > 1 ? 1 : x;
+    const cDepth = P.fx_chorus_depth, fb = P.fx_delay_fb, lv = Math.pow(10, P.voice_level / 20), dist = P.fx_dist | 0;
     if (this.first) { this.gDrv = tDrv; this.gDm = dmT; this.gCh = tCh; this.gChD = cDepth; this.gDl = tDl; this.gFb = fb; this.gVb = tVb; this.gLv = lv; this.gT = dt; this.first = false; }
     const room = this.room;
     room.size = 0.15 + 0.85 * P.fx_verb_size; room.t60 = 0.5 + 4.5 * P.fx_verb_size * P.fx_verb_size; room.damp = 0.45; room.set();
@@ -978,6 +1079,8 @@ class Fx {
     let gDrv = this.gDrv, gDm = this.gDm, gCh = this.gCh, gChD = this.gChD, gDl = this.gDl, gFb = this.gFb, gVb = this.gVb, gLv = this.gLv, gT = this.gT;
     let lp1 = this.lp1, lp2 = this.lp2, hp1 = this.hp1, hp2 = this.hp2, rh1 = this.rh1, rh2 = this.rh2, dcx1 = this.dcx1, dcy1 = this.dcy1, dcx2 = this.dcx2, dcy2 = this.dcy2;
     let drvLive = this.drvLive, chLive = this.chLive, dlLive = this.dlLive, vbLive = this.vbLive;
+    if (n > this.xl.length) { this.xl = new Float64Array(n); this.xr = new Float64Array(n); }
+    const XL = this.xl, XR = this.xr;
     for (let i = 0; i < n; i++) {
       let l = L[i], r = R[i];
       // drive
@@ -991,10 +1094,14 @@ class Fx {
         const xs = oxi; oxi = (oxi + 1) & 15;
         let ua = 0, ub = 0, va = 0, vb = 0;
         for (let q = 0; q < 16; q++) { const h0 = HB[2 * q], h1 = 2 * q + 1 < 31 ? HB[2 * q + 1] : 0, xl = oxL[(xs - q) & 15], xr = oxR[(xs - q) & 15]; ua += h0 * xl; ub += h1 * xl; va += h0 * xr; vb += h1 * xr; }
-        let z = 2 * ua; const yl0 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
-        z = 2 * ub; const yl1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
-        z = 2 * va; const yr0 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
-        z = 2 * vb; const yr1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+        let yl0, yl1, yr0, yr1;
+        if (dist === 0) {
+          let z = 2 * ua; yl0 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+          z = 2 * ub; yl1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+          z = 2 * va; yr0 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+          z = 2 * vb; yr1 = z <= -3 ? -1 : z >= 3 ? 1 : (z * (27 + z * z)) / (27 + 9 * z * z);
+        } else if (dist === 5) { yl0 = this.shape(2 * ua, dist, 0, gDrv); yl1 = this.shape(2 * ub, dist, 1, gDrv); yr0 = this.shape(2 * va, dist, 2, gDrv); yr1 = this.shape(2 * vb, dist, 3, gDrv); }
+        else { yl0 = this.adaa(2 * ua, dist, 0); yl1 = this.adaa(2 * ub, dist, 1); yr0 = this.adaa(2 * va, dist, 2); yr1 = this.adaa(2 * vb, dist, 3); }
         ouL[oui] = yl0; ouR[oui] = yr0;
         let wl = 0, wr = 0;
         for (let q = 0; q < 31; q++) { wl += HB[q] * ouL[(oui - q) & 31]; wr += HB[q] * ouR[(oui - q) & 31]; }
@@ -1003,6 +1110,12 @@ class Fx {
         l = pl + (wl - pl) * mx; r = pr + (wr - pr) * mx;
         if (gDrv < 1e-5 && tDrv === 0) drvLive = false;
       } else { l = pl; r = pr; }
+      XL[i] = l; XR[i] = r;
+    }
+    // the multiband, over the block (it sleeps at 0)
+    this.mb.run(XL, XR, n, tMb, P.fx_mband_time);
+    for (let i = 0; i < n; i++) {
+      let l = XL[i], r = XR[i];
       // chorus: two taps in quadrature, read cubic
       gCh = tCh + (gCh - tCh) * a30; gChD = cDepth + (gChD - cDepth) * a60;
       if (chLive) {
@@ -1103,7 +1216,7 @@ return {
     // the mono note stack: the newest held key sounds; letting it go returns to the one under it
     function push(p) { let j = 0; for (let i = 0; i < sh.sn; i++) if (sh.stack[i] !== p) sh.stack[j++] = sh.stack[i]; sh.sn = j; if (sh.sn < 16) sh.stack[sh.sn++] = p; }
     function drop(p) { let j = 0; for (let i = 0; i < sh.sn; i++) if (sh.stack[i] !== p) sh.stack[j++] = sh.stack[i]; sh.sn = j; }
-    const fx = new Fx(sr, seed), fxm = new Float64Array(4), vs = sh.vsrc;
+    const fx = new Fx(sr, seed), fxm = new Float64Array(6), vs = sh.vsrc;
 
     return {
       voice(i) {
@@ -1157,7 +1270,7 @@ return {
         const P = fresh(P0);
         sync(P);
         // FX destinations: the slots aimed at them, from the global sources and the newest note's own
-        fxm[0] = 0; fxm[1] = 0; fxm[2] = 0; fxm[3] = 0;
+        fxm[0] = 0; fxm[1] = 0; fxm[2] = 0; fxm[3] = 0; fxm[4] = 0; fxm[5] = 0;
         vs[10] = T && T.mod > 0 ? T.mod : 0; vs[11] = P.macro1; vs[12] = P.macro2; vs[13] = P.macro3; vs[14] = P.macro4;
         // (named reads, slot by slot: a read by a computed key boxes the number it returns)
         let d = P.m1_dst | 0; if (d >= 34) fxm[d - 34] += P.m1_amt * vs[P.m1_src | 0];
@@ -1192,6 +1305,120 @@ return {
 // or more in 100 Hz-2 kHz, and its 500 Hz-2 kHz band within 20 dB of its 0-60 Hz band (wavetable-test; the numbers,
 // before and after, are in LIGHT-TABLE.md section 4).
 const slot = (n, src, dst, amt) => ({ [`m${n}_src`]: src, [`m${n}_dst`]: dst, [`m${n}_amt`]: amt });
+// The bass-music presets (docs/research/LIGHT-TABLE.md "Bass music"): three subs, four growls, two riddim stabs, two
+// Reeses, two wobbles, chords, a lead and a riser. Levels set by measurement (-16 LUFS on the bass phrase; chords, lead
+// and riser on the test phrase).
+const BM_DRY = { fx_verb_mix: 0, fx_chorus_mix: 0, fx_delay_mix: 0, noise_level: 0, sub_level: 0 };
+const BM_MONO = { a_unison: 1, a_spread: 0, a_pan: 0, b_unison: 1, b_spread: 0, b_pan: 0 };
+const BM_BASE = { ...BM_DRY, env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.08, voice_mode: 'MONO', voice_glide: 15, flt_env: 0, flt_vel: 0 };
+const BASS_MUSIC = [
+  { name: 'Dark Slide', tags: ['bass-music', 'sub'], blurb: 'Bass: a pure sine sub, mono and clean (macro 1: its octave, for small speakers)', params: {
+    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0, flt_a: 'OFF', flt_b: 'OFF',
+    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_curve: 0, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, ...slot(1, 'MACRO 1', 'B LEVEL', 0.25), voice_level: 1 } },
+  { name: 'Contact Sheet', tags: ['bass-music', 'sub'], blurb: 'Bass: a sine sub with a little of its octave, mono (macro 1: warmth)', params: {
+    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0.07, flt_a: 'OFF', flt_b: 'OFF',
+    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, fx_drive: 0.1, ...slot(1, 'MACRO 1', 'DRIVE', 0.4), voice_level: 0.1 } },
+  { name: 'Push Process', tags: ['bass-music', 'sub'], blurb: 'Bass: a rounded triangle sub, mono, a touch of edge (macro 1: more edge)', params: {
+    ...BM_DRY, ...BM_MONO, a_table: 'BASIC', a_pos: 0.22, a_level: 0.8, b_level: 0, flt_a: 'OFF', flt_b: 'OFF',
+    env1_attack: 0.003, env1_decay: 1, env1_sustain: 1, env1_release: 0.06, env1_vel: 0.2, voice_mode: 'LEGATO', voice_glide: 25, ...slot(1, 'MACRO 1', 'A POS', 0.15), voice_level: 2.1 } },
+  { name: 'Fixer', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a growl that yawns every beat, FM from osc B (macro 1: more FM)', params: {
+    ...BM_BASE,
+    a_table: 'BASIC', a_pos: 2 / 3, a_warp: 'FM', a_warp_amt: 0.3, a_unison: 3, a_detune: 0.1, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 1, b_level: 0,
+    flt_type: 'LP24', flt_cutoff: 3200, flt_res: 0.25, flt_drive: 0.35, flt_key: 0.5,
+    lfo1_shape: 'SINE', lfo1_sync: '1/4', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'A WARP', 0.4), ...slot(2, 'LFO1', 'CUTOFF', 0.2), ...slot(3, 'MACRO 1', 'A WARP', 0.4),
+    fx_dist: 'HARD', fx_drive: 0.55, fx_mband: 70, voice_level: -8.1 } },
+  { name: 'Stop Bath', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a comb growl that says yoi in eighths (macro 1: more ring)', params: {
+    ...BM_BASE,
+    a_table: 'GROWL', a_pos: 0.35, a_unison: 3, a_detune: 0.12, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 6, b_level: 0.4,
+    flt_type: 'COMB', flt_cutoff: 700, flt_res: 0.4, flt_drive: 0.3, flt_key: 1,
+    lfo1_shape: 'TRI', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.6), ...slot(2, 'LFO1', 'A POS', 0.8), ...slot(3, 'MACRO 1', 'RESO', 0.3),
+    fx_dist: 'HARD', fx_drive: 0.5, fx_mband: 70, voice_level: -11.8 } },
+  { name: 'Emulsion', tags: ['bass-music', 'dubstep', 'growl'], blurb: 'Bass: a talking growl, U to E each beat; the wheel and macro 1 talk', params: {
+    ...BM_BASE,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.1, a_spread: 0.2, a_level: 0.75, b_table: 'GROWL', b_pos: 0.5, b_oct: 0, b_level: 0.5,
+    flt_type: 'FORMANT', flt_cutoff: 700, flt_res: 0.6, flt_drive: 0.4, flt_key: 0,
+    lfo1_shape: 'SINE', lfo1_sync: '1/4', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.18), ...slot(2, 'MOD WHEEL', 'CUTOFF', 0.5), ...slot(3, 'MACRO 1', 'CUTOFF', 0.3),
+    fx_dist: 'SINE FOLD', fx_drive: 0.45, fx_mband: 60, voice_level: -7.9 } },
+  { name: 'Halation', tags: ['bass-music', 'dubstep', 'riddim', 'growl'], blurb: 'Bass: a wavefolded growl buzzing in eighths (macro 1: more fold)', params: {
+    ...BM_BASE,
+    a_table: 'BASIC', a_pos: 0.55, a_unison: 1, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 1, b_fine: 7, b_level: 0.6,
+    flt_type: 'LP24', flt_cutoff: 2500, flt_res: 0.2, flt_key: 0.3,
+    lfo1_shape: 'SINE', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'DRIVE', 0.3), ...slot(2, 'LFO1', 'CUTOFF', 0.3), ...slot(3, 'MACRO 1', 'DRIVE', 0.3),
+    fx_dist: 'FOLD', fx_drive: 0.85, fx_mband: 60, voice_level: -11.8 } },
+  { name: 'Hard Cut', tags: ['bass-music', 'riddim', 'stab'], blurb: 'Bass: a riddim stab, a clipped square, short and loud (macro 1: brighter)', params: {
+    ...BM_BASE,
+    a_table: 'PULSE', a_pos: 0, a_unison: 2, a_detune: 0.06, a_spread: 0.15, a_level: 0.8, b_table: 'PULSE', b_pos: 0.25, b_oct: 0, b_fine: 8, b_level: 0.45,
+    flt_type: 'BP', flt_cutoff: 1000, flt_res: 0.1, flt_drive: 0.4, flt_key: 0.3, flt_env: 0.25,
+    env1_attack: 0.002, env1_decay: 0.2, env1_sustain: 0.75, env1_release: 0.03, env2_attack: 0.001, env2_decay: 0.12, env2_sustain: 0.2, env2_release: 0.05,
+    voice_mode: 'MONO', voice_glide: 0, ...slot(1, 'MACRO 1', 'CUTOFF', 0.25), fx_dist: 'HARD', fx_drive: 0.6, fx_mband: 75, voice_level: -5.9 } },
+  { name: 'Jump Cut', tags: ['bass-music', 'riddim', 'stab'], blurb: 'Bass: a metallic riddim stab, sync through a comb (macro 1: harsher)', params: {
+    ...BM_BASE,
+    a_table: 'SYNC', a_pos: 0.55, a_unison: 2, a_detune: 0.05, a_spread: 0.15, a_level: 0.8, b_table: 'FM', b_pos: 0.6, b_oct: 0, b_fine: 9, b_level: 0.4,
+    flt_type: 'COMB', flt_cutoff: 1200, flt_res: 0.55, flt_key: 1, flt_env: 0.2,
+    env1_attack: 0.001, env1_decay: 0.18, env1_sustain: 0.7, env1_release: 0.03, env2_attack: 0.001, env2_decay: 0.1, env2_sustain: 0.1, env2_release: 0.05,
+    voice_mode: 'MONO', voice_glide: 0, ...slot(1, 'ENV2', 'A POS', 0.25), ...slot(2, 'MACRO 1', 'A POS', 0.35), fx_dist: 'RECTIFY', fx_drive: 0.45, fx_mband: 75, voice_level: -0.7 } },
+  { name: 'Double Exposure', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a rolling drum and bass Reese, wide and dark (macro 1: opens it)', params: {
+    ...BM_DRY,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.3, a_blend: 1, a_spread: 0.5, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 25, b_unison: 2, b_detune: 0.3, b_blend: 1, b_spread: 0.5, b_level: 0.6,
+    flt_type: 'LP24', flt_cutoff: 1800, flt_res: 0.2, flt_drive: 0.4, flt_key: 0, flt_env: 0.1,
+    env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 40,
+    lfo1_shape: 'SINE', lfo1_rate: 0.15, lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'A DETUNE', 0.1), ...slot(2, 'MACRO 1', 'CUTOFF', 0.3), fx_dist: 'TANH', fx_drive: 0.25, fx_mband: 35, fx_chorus_mix: 0.15, voice_level: 0.7 } },
+  { name: 'Cross Process', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a neuro Reese, notched and clipped, sweeping (macro 1: grit)', params: {
+    ...BM_DRY,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.6, a_blend: 1, a_spread: 0.6, a_level: 0.7, b_table: 'HOLLOW', b_pos: 0.5, b_oct: 1, b_fine: -30, b_unison: 2, b_detune: 0.25, b_spread: 0.7, b_level: 0.6,
+    flt_type: 'NOTCH', flt_cutoff: 900, flt_res: 0.5, flt_drive: 0.6, flt_key: 0.5,
+    env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 40,
+    lfo1_shape: 'TRI', lfo1_sync: '1/2', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.25), ...slot(2, 'MACRO 1', 'DRIVE', 0.35), fx_dist: 'HARD', fx_drive: 0.45, fx_mband: 60, voice_level: -12.5 } },
+  { name: 'Strobe', tags: ['bass-music', 'dubstep', 'wobble'], blurb: 'Bass: a wobble in eighths, locked to the song (macro 1: deeper)', params: {
+    ...BM_BASE,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.1, a_spread: 0.15, a_level: 0.8, b_table: 'BASIC', b_pos: 1, b_oct: 1, b_fine: -5, b_level: 0.5,
+    flt_type: 'LP24', flt_cutoff: 1000, flt_res: 0.55, flt_drive: 0.45, flt_key: 0.3,
+    lfo1_shape: 'SINE', lfo1_sync: '1/8', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.27), ...slot(2, 'MACRO 1', 'M1 AMT', 0.6), fx_dist: 'TANH', fx_drive: 0.45, fx_mband: 45, voice_level: -7.2 } },
+  { name: 'Iris', tags: ['bass-music', 'dubstep', 'wobble'], blurb: 'Bass: a wobble in eighth triplets, locked to the song (macro 1: deeper)', params: {
+    ...BM_BASE,
+    a_table: 'BASIC', a_pos: 0.8, a_unison: 2, a_detune: 0.1, a_spread: 0.15, a_level: 0.75, b_table: 'GROWL', b_pos: 0.3, b_oct: 1, b_level: 0.6,
+    flt_type: 'LP24', flt_cutoff: 1000, flt_res: 0.6, flt_drive: 0.45, flt_key: 0.3,
+    lfo1_shape: 'SINE', lfo1_sync: '1/8T', lfo1_mode: 'FREE', ...slot(1, 'LFO1', 'CUTOFF', 0.27), ...slot(2, 'MACRO 1', 'M1 AMT', 0.6), fx_dist: 'TANH', fx_drive: 0.45, fx_mband: 45, voice_level: -5.7 } },
+  { name: 'Wide Angle', tags: ['bass-music', 'melodic', 'chords'], blurb: 'Poly: supersaw chords for a melodic drop, wide and bright (macro 1: opens)', params: {
+    ...BM_DRY,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 7, a_detune: 0.45, a_blend: 0.8, a_spread: 0.9, a_level: 0.7, b_table: 'BASIC', b_pos: 2 / 3, b_oct: 1, b_unison: 5, b_detune: 0.35, b_spread: 0.9, b_level: 0.3,
+    flt_type: 'LP24', flt_cutoff: 5500, flt_res: 0.1, flt_key: 0.3, flt_env: 0.15,
+    env1_attack: 0.01, env1_decay: 0.6, env1_sustain: 0.9, env1_release: 0.45, voice_mode: 'POLY',
+    fx_chorus_mix: 0.25, fx_chorus_depth: 0.45, fx_delay_time: '1/8D', fx_delay_fb: 0.25, fx_delay_mix: 0.1, fx_verb_mix: 0.25, fx_verb_size: 0.7, ...slot(1, 'MACRO 1', 'CUTOFF', 0.3), voice_level: 0.3 } },
+  { name: 'Key Light', tags: ['bass-music', 'melodic', 'lead'], blurb: 'Lead: a melodic bass lead, saws gliding into echoes (macro 1: brighter)', params: {
+    ...BM_DRY,
+    a_table: 'BASIC', a_pos: 2 / 3, a_unison: 3, a_detune: 0.2, a_spread: 0.6, a_level: 0.75, b_table: 'PULSE', b_pos: 0.2, b_oct: 0, b_fine: 6, b_level: 0.35,
+    flt_type: 'LP24', flt_cutoff: 4500, flt_res: 0.2, flt_key: 0.5, flt_env: 0.2,
+    env1_attack: 0.005, env1_decay: 0.6, env1_sustain: 0.85, env1_release: 0.25, voice_mode: 'LEGATO', voice_glide: 60,
+    fx_delay_time: '1/4D', fx_delay_fb: 0.3, fx_delay_mix: 0.18, fx_verb_mix: 0.2, fx_verb_size: 0.6, fx_chorus_mix: 0.15, ...slot(1, 'MACRO 1', 'CUTOFF', 0.25), ...slot(2, 'MOD WHEEL', 'FINE', 0.2), voice_level: 4.1 } },
+  { name: 'Fade Up', tags: ['bass-music', 'fx'], blurb: 'FX: an eight-second riser, sync and noise sweeping up (macro 1: more noise)', params: {
+    ...BM_DRY,
+    a_table: 'SYNC', a_pos: 0.2, a_unison: 5, a_detune: 0.3, a_spread: 0.9, a_level: 1, b_level: 0, noise_level: 0.55, noise_color: 0.7,
+    flt_type: 'BP', flt_cutoff: 300, flt_res: 0.3, flt_key: 0,
+    env1_attack: 0.5, env1_decay: 1, env1_sustain: 1, env1_release: 0.6, env3_attack: 8, env3_decay: 1, env3_sustain: 1, env3_release: 0.5, env3_curve: -0.6,
+    voice_mode: 'MONO', ...slot(1, 'ENV3', 'PITCH', 0.5), ...slot(2, 'ENV3', 'CUTOFF', 0.65), ...slot(3, 'ENV3', 'A POS', 0.7), ...slot(4, 'MACRO 1', 'NOISE LEVEL', 0.5),
+    fx_delay_time: '1/8', fx_delay_fb: 0.4, fx_delay_mix: 0.15, fx_verb_mix: 0.35, fx_verb_size: 0.8, voice_level: 5.1 } },
+];
+// what each bass-music preset is (tools/bassmusic-test.js measures each against its part's target): kind, and for a
+// growl or a wobble its LFO's cycle in beats (per) and where in it the LFO puts the darkest point (phase)
+export const BASS_MUSIC_PARTS = {
+  'Dark Slide': { kind: 'sub' },
+  'Contact Sheet': { kind: 'sub' },
+  'Push Process': { kind: 'sub' },
+  'Fixer': { kind: 'growl', per: 1, phase: 0.75 },
+  'Stop Bath': { kind: 'growl', per: 0.5, phase: 0.75 },
+  'Emulsion': { kind: 'growl', per: 1, phase: 0.75 },
+  'Halation': { kind: 'growl', per: 0.5, phase: 0.75 },
+  'Hard Cut': { kind: 'stab' },
+  'Jump Cut': { kind: 'stab' },
+  'Double Exposure': { kind: 'reese' },
+  'Cross Process': { kind: 'reese' },
+  'Strobe': { kind: 'wobble', per: 0.5, phase: 0.75 },
+  'Iris': { kind: 'wobble', per: 1 / 3, phase: 0.75 },
+  'Wide Angle': { kind: 'chords' },
+  'Key Light': { kind: 'lead' },
+  'Fade Up': { kind: 'fx' },
+};
 export const PRESETS = [
   { name: 'First Light', blurb: 'Poly: a warm three-voice saw through the ladder, a touch of room (the defaults)', params: {} },
   // bass
@@ -1200,14 +1427,14 @@ export const PRESETS = [
     flt_type: 'LP24', flt_cutoff: 650, flt_res: 0.2, flt_drive: 0.25, flt_key: 0.3, flt_env: 0.35,
     env1_attack: 0.002, env1_decay: 0.6, env1_sustain: 0.85, env1_release: 0.08, env1_curve: 0.3, env2_attack: 0.001, env2_decay: 0.22, env2_sustain: 0.1, env2_release: 0.1, env2_curve: 0.6,
     voice_mode: 'LEGATO', voice_glide: 35, fx_verb_mix: 0, fx_drive: 0.15, ...slot(1, 'VELOCITY', 'CUTOFF', 0.12), voice_level: 2.2 } },
-  { name: 'Gate Weave', blurb: 'Bass: a Reese, two detuned saw pairs drifting against each other', params: {
+  { name: 'Gate Weave', tags: ['bass-music', 'dnb', 'reese'], blurb: 'Bass: a Reese, two detuned saw pairs drifting against each other', params: {
     a_table: 'BASIC', a_pos: 2 / 3, a_unison: 2, a_detune: 0.35, a_blend: 1, a_spread: 0.3, a_level: 0.7,
     b_table: 'BASIC', b_pos: 2 / 3, b_oct: 0, b_fine: 11, b_unison: 2, b_detune: 0.35, b_blend: 1, b_level: 0.6, sub_level: 0.1, flt_sub: 'OFF',
     flt_type: 'LP24', flt_cutoff: 700, flt_res: 0.25, flt_drive: 0.4, flt_key: 0.3, flt_env: 0.2,
     env1_attack: 0.005, env1_decay: 1, env1_sustain: 1, env1_release: 0.15, voice_mode: 'LEGATO', voice_glide: 20, fx_verb_mix: 0, fx_drive: 0.2,
     lfo1_shape: 'SINE', lfo1_rate: 0.18, lfo1_mode: 'FREE', lfo2_shape: 'TRI', lfo2_rate: 0.11, lfo2_mode: 'FREE',
     ...slot(1, 'LFO1', 'A DETUNE', 0.15), ...slot(2, 'LFO2', 'CUTOFF', 0.06), voice_level: 3 } },
-  { name: 'Solarized', blurb: 'Bass: a talking growl that wobbles in eighths over a clean sine, retriggered', params: {
+  { name: 'Solarized', tags: ['bass-music', 'dubstep', 'growl', 'wobble'], blurb: 'Bass: a talking growl that wobbles in eighths over a clean sine, retriggered', params: {
     a_table: 'GROWL', a_pos: 0.3, a_unison: 2, a_detune: 0.15, a_spread: 0.2, a_level: 0.8, b_table: 'BASIC', b_pos: 0, b_oct: 0, b_level: 0.25, flt_b: 'OFF',
     flt_type: 'LP24', flt_cutoff: 1400, flt_res: 0.35, flt_drive: 0.45, flt_key: 0.2, flt_env: 0,
     env1_attack: 0.002, env1_decay: 0.4, env1_sustain: 0.9, env1_release: 0.1, voice_mode: 'MONO', voice_glide: 25, fx_verb_mix: 0, fx_drive: 0.25, fx_drive_mix: 0.6,
@@ -1316,9 +1543,13 @@ export const PRESETS = [
     env1_attack: 0.01, env1_decay: 1, env1_sustain: 0.8, env1_release: 0.4, lfo1_shape: 'S&H', lfo1_sync: '1/16', lfo1_mode: 'FREE', lfo2_shape: 'S&H', lfo2_sync: '1/8', lfo2_mode: 'FREE',
     fx_delay_time: '1/16', fx_delay_fb: 0.5, fx_delay_mix: 0.25, fx_verb_mix: 0.3,
     ...slot(1, 'LFO1', 'A POS', 0.5), ...slot(2, 'LFO1', 'CUTOFF', 0.3), ...slot(3, 'LFO2', 'PAN', 0.5), voice_level: -1.7 } },
+  // bass music (tagged: list_devices { tag: 'bass-music' }): measured on the bass phrase like the basses above, and each
+  // on its part's own target in tools/bassmusic-test.js (a sub mono and clean, a growl's talk on the grid, a Reese's
+  // width and beating). Each wires MACRO 1, and its blurb says to what.
+  ...BASS_MUSIC,
 ];
 // the bass presets are measured on the bass phrase (a mono bass plays chords as one line)
-export const BASS_PRESETS = ['Low Key', 'Gate Weave', 'Solarized', 'Safelight', 'Sprocket'];
+export const BASS_PRESETS = ['Low Key', 'Gate Weave', 'Solarized', 'Safelight', 'Sprocket', ...BASS_MUSIC.filter((p) => /^Bass:/.test(p.blurb)).map((p) => p.name)];
 
 /* ------------------------------------------------------------------------------------------------ the page's maths */
 // Light Table's editor (ui/editors/wavetable.js) draws with these: the warped frame, the filter's curve, the envelopes'
@@ -1339,7 +1570,7 @@ export const DEST_TARGETS = Object.freeze(DESTS.map((d) => {
   if (m) return { key: `${m[1].toLowerCase()}_${{ POS: 'pos', WARP: 'warp_amt', PITCH: 'semi', LEVEL: 'level', PAN: 'pan', DETUNE: 'detune' }[m[2]]}`, travel: 1 };
   const lr = /^LFO(\d) RATE$/.exec(d); if (lr) return { key: `lfo${lr[1]}_rate`, travel: 1 };
   const ma = /^M(\d) AMT$/.exec(d); if (ma) return { key: `m${ma[1]}_amt`, travel: 0.5 };
-  const own = { 'SUB LEVEL': 'sub_level', 'NOISE LEVEL': 'noise_level', CUTOFF: 'flt_cutoff', RESO: 'flt_res', 'FLT DRIVE': 'flt_drive', DRIVE: 'fx_drive', 'CHORUS MIX': 'fx_chorus_mix', 'DELAY MIX': 'fx_delay_mix', 'VERB MIX': 'fx_verb_mix' };
+  const own = { 'SUB LEVEL': 'sub_level', 'NOISE LEVEL': 'noise_level', CUTOFF: 'flt_cutoff', RESO: 'flt_res', 'FLT DRIVE': 'flt_drive', DRIVE: 'fx_drive', 'CHORUS MIX': 'fx_chorus_mix', 'DELAY MIX': 'fx_delay_mix', 'VERB MIX': 'fx_verb_mix', MULTIBAND: 'fx_mband', 'DRIVE MIX': 'fx_drive_mix' };
   if (own[d]) return { key: own[d], travel: 1 };
   return { key: null, travel: d === 'PAN' ? 1 : 0.5 };
 }));

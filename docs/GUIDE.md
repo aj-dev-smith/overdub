@@ -205,6 +205,11 @@ yours to pick by ear:
   card, each saying why, signed *suggested by Claude*. Nothing changes until you keep one, and the kept sound is yours.
   Name an instrument (*"make it a Choir Loft"*) and it sets it, and says what it was.
 - Recording on a track while you're trying a sound keeps that sound first, and says so before the take starts.
+- **Sounds by genre.** Under the browser's search, **Bass music** lists that genre's sounds by name: Light Table's
+  subs, growls, riddim stabs, Reeses and wobbles (Dark Slide, Fixer, Hard Cut, Double Exposure, Strobe...), Sandbag's
+  kits, and the presets of Dim Switch, Clip Lamp and Gaffer Tape made for it. A click tries one on the selected track.
+  Each Light Table one has its main move on **Macro 1**. A song whose title says dubstep, riddim or drum and bass gets
+  them first on its sound card too.
 
 ## Shape the song
 
@@ -372,12 +377,23 @@ yours to pick by ear:
   bar, and a green dot rides its curve where the band is now. **Time** makes every band react faster or slower; a
   fast **Attack** (under 5 ms) catches each hit's front, a slow one lets it through. Thresholds and splits take the
   arrow keys too.
+- **Make the bass duck under the kick.** Put **Dim Switch** on the bass (Add an effect, in the Devices tab), **Open**
+  it and pick the drums or the kick in its **Key** menu: the bass dips each time the kick hits and comes back before
+  the next one. The mixer says "keyed by Kick" under the bass. **Kick duck** listens to the key's low end only
+  (30-150 Hz), so the hats don't set it off; **Hard pump (riddim)** all but cuts the bass on each kick; **Gentle
+  pump** is for pads. **Depth** is how far it dips, **Release** how long it takes to come back. A muted kick track
+  still keys it, so you can duck to a kick you don't hear. With no key, **No key** dips on the song's beat instead.
+- **A loud master.** Put **Clip Lamp** then **Red Line** on the master. Clip Lamp's **Master clip (+3)** takes the
+  tops off the kicks and snares so Red Line has less to do; turn Red Line's **Gain** up until the master is as loud as
+  you want it. Then right-click the master's level in the mixer and pick **Clean ceiling (for a limited master)**: the
+  safety clip after the limiter would otherwise round the last half decibel off.
 
 ## Grooves
 
 The **Grooves** tab, beside Beat, is a drummer's book. The styles run down the side, from rock and funk to bossa, trap
 and gospel. Each has grooves for the parts of a song: intro, verse, chorus, bridge, a half-time feel where it fits,
-fills of a beat, two beats and a bar, and an ending. Each groove is drawn as a picture of its hits: the bigger the
+fills of a beat, two beats and a bar, and an ending. **Dubstep** plays half-time at 140 on **Sandbag**, the club kit
+(kick on one, snare on three, riddim's triplet kicks, a four-bar build roll from quarters to 32nds). Each groove is drawn as a picture of its hits: the bigger the
 mark, the harder the hit, and a hollow mark is a ghost note. They play with a feel, not on a grid: swing that tightens
 as the tempo rises, a neo-soul snare a little behind the beat, punk hats a hair ahead, and a drummer's small drift.
 
@@ -639,7 +655,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 57 devices: the 44 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 60 devices: the 47 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

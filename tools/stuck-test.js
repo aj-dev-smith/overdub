@@ -444,8 +444,8 @@ t.ok(!tapBad.length, `a live note let go in the same render quantum it was press
 // snare roll, 33, the one stroke that holds its voice for as long as the note is held)
 // (Virtuosity Kit, sampled, gets its crash too, once its samples are in: a kit that isn't here plays nothing, so it has
 // no voice to hold and is left out, as tools/drumkit-test.js says; Rusty Brushes gets its stir, 73, and Hand Crate its
-// tambourine roll, 33: each rings for as long as its note is held)
-const wdPitch = (id) => (every.dev[id] === 'core.drums' || every.dev[id] === 'core.drumkit' ? 49 : every.dev[id] === 'core.drumroom' ? 33 : every.dev[id] === 'core.brushkit' ? 73 : every.dev[id] === 'core.handkit' ? 33 : 77);
+// tambourine roll, 33, and Sandbag its riser, 34: each rings for as long as its note is held)
+const wdPitch = (id) => (every.dev[id] === 'core.drums' || every.dev[id] === 'core.drumkit' ? 49 : every.dev[id] === 'core.drumroom' ? 33 : every.dev[id] === 'core.brushkit' ? 73 : every.dev[id] === 'core.handkit' ? 33 : every.dev[id] === 'core.clubkit' ? 34 : 77);
 const noData = await page.evaluate(async (ids) => {
   const { engine } = window.overdub;
   const t0 = performance.now();
