@@ -23,7 +23,6 @@
 // A piece keeps at most three strokes ringing. Params: tune, decay, tone, level and each `<name>_level` (drumkit.js has
 // the words for them). The output runs through Studio A's stereo-linked true-peak limiter (-1.5 dBTP, 1.5 ms ahead).
 import { kernel } from './lib.js';
-import { KITROOM } from './kitroom.js';
 
 export function drumSamplerKernel({ pieces, levelOf, note, choke = {}, metal = {}, held = {}, makeup = 1, poly = 24, even = false, offset = null, rr = null, tight = null, trigger = null, room = null, onset = 0 }) {
   // (the options after `offset` are Rusty Sticks'; with none of them passed, the source is exactly what it was before
@@ -273,7 +272,9 @@ ${trigger ? `          if (trg.on && trg.render(Lo, Ro, n, g / KN)) alive = true
 //                                    stroke's attack, the sub's polarity the stroke's own (`pol`, from the kit file);
 //                                    params click, sub (dB re `ref`, -40 off), sub_hz and trig_vel (0: every hit the same,
 //                                    1: following the velocity). With no kit file, the trigger still plays.
-//   room: { send: { piece: amount }, gain }   per-piece sends into kitroom.js; params room (dB, -40 off), room_size
+//   room: { send: { piece: amount }, gain, src }   per-piece sends into the room whose kernel text is src (kitroom.js's
+//                                    KITROOM: the kit passes it in, so a kit without a room loads nothing more); params
+//                                    room (dB, -40 off), room_size
 //   onset                            seconds each stroke starts before its attack: added to the declared latency
 function OPTIONS_SRC({ NR, tight, trigger, room, onset }) {
   return `
@@ -281,7 +282,7 @@ function OPTIONS_SRC({ NR, tight, trigger, room, onset }) {
 const TIGHT = ${JSON.stringify(tight)};
 const TRIG = ${JSON.stringify(trigger)};
 const ROOMSEND = ${JSON.stringify(room ? room.send : null)}, ROOM_GAIN = ${room ? room.gain : 0};
-const ONSET = ${onset};${room ? KITROOM : ''}${trigger ? TRIGGER_SRC : ''}`;
+const ONSET = ${onset};${room ? room.src : ''}${trigger ? TRIGGER_SRC : ''}`;
 }
 const TRIGGER_SRC = String.raw`
 // the trigger's click: a burst of seeded noise, high-passed at 2 kHz and low-passed at 6 kHz (two one-poles each),

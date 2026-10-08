@@ -18,6 +18,7 @@
 // A missing kit plays the trigger alone (a click and a sub on the kick notes), and the studio says the kit is missing.
 import { defineDevice } from '../registry.js';
 import { drumSamplerKernel, pieceLevel } from './drumsampler.js';
+import { KITROOM } from './kitroom.js';
 
 // The kit this device plays: the SHA-256 of app/kits/<hex>.odk, built by tools/fetch-kits.js. A different kit is a new
 // hash (and a new golden scene); songs carry only this.
@@ -71,7 +72,7 @@ export const KIT_OPTIONS = {
   rr: 'norepeat',
   tight: { piece: 'kick', key: 'tight', hold: 3, t60: 20 },
   trigger: { piece: 'kick', ref: -15.7, ck: 4, sk: 2, imp: 2 },
-  room: { send: SEND, gain: 3 },
+  room: { send: SEND, gain: 3, src: KITROOM },
   onset: 0.001,
 };
 
