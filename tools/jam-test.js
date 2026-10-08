@@ -30,7 +30,6 @@
 //      on the live meters; never the song, History or a render; shown in the room, back to 0 dB on leaving; Match the
 //      band uses it when the fader's top can't put a quiet guitar 3 dB over the band
 // usage: node tools/jam-test.js     (screenshots: tools/.out/jam-*.png; LEVELS=0 skips the level renders)
-// local-only: the Jam room's timelines and styles, played live in the browser: 6 min on a CI runner
 import { open, tally, OUTDIR, QUIET, TEXT } from './pw.js';
 import path from 'node:path';
 import fs from 'node:fs';

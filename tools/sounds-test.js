@@ -9,7 +9,6 @@
 // Writes tools/.out/sounds/<id>.wav: each instrument playing its test phrase, each effect on the test program
 // (drums + guitar + bass), rendered in the browser through the same worklet the studio runs, so AJ can listen to what
 // was measured. Prints a table: id | LUFS (instruments) or ΔLU vs bypass (effects) | true peak | cpu% | tail | deterministic.
-// local-only: renders every built-in device in the browser: 5.5 min on a CI runner, and once it exited there with no check failed
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

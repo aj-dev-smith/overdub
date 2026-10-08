@@ -1,20 +1,15 @@
-# The suite (node tools/run-all.js) on every pull request and every push to main, and on a push to main (a merge) whose
-# suite passes, a deploy of that commit to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the
-# same by hand; on any other branch it runs nothing. Node comes from mise.toml, as it does locally.
+# The unit tests (node --test "test/unit/*.test.js": the pure logic in app/src, no browser, no server, seconds) on
+# every pull request and every push to main, and on a push to main (a merge) whose tests pass, a deploy of that commit
+# to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the same by hand; on any other branch it
+# runs nothing. Node comes from mise.toml, as it does locally.
 #
-# One job on Linux (ubuntu-latest), with LOCAL_ONLY=skip: the suites that need a Mac, a real-time audio clock or more
-# time than a runner has say so in their header (`// local-only: <why>`), and run-all prints each one it leaves out
-# and why. Run `node tools/run-all.js` locally before merging: it runs every suite, those included.
+# The integration suites (node tools/run-all.js: browsers, servers, renders) don't run here: run them locally before
+# merging.
 #
-# The suite needs two things the repo doesn't carry (zero dependencies, no build), set up by
-# .github/actions/suite-setup:
-#   - playwright-core and the browsers it drives (tools/pw.js, compat-test), installed with --no-save, with their
-#     system libraries;
-#   - the sampled kits (app/kits/, gitignored), built by tools/fetch-kits.js from pinned upstream files.
 # The deploy job reaches AWS through GitHub's OIDC token: no keys are stored anywhere. The role it assumes can only
 # write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
 # (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
-# NEXT_DISTRIBUTION), never committed.
+# NEXT_DISTRIBUTION), never committed. It builds the sampled kits (app/kits/, gitignored) that deploy.sh uploads.
 # Actions are pinned to a commit; the comment names the release.
 name: ci
 
@@ -25,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy to https://next.overdubstudio.com once the suite passes (main only)
+        description: Deploy to https://next.overdubstudio.com once the unit tests pass (main only)
         type: boolean
         default: true
 
@@ -37,56 +32,23 @@ concurrency:
   group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  PLAYWRIGHT_CORE_VERSION: 1.63.0
-
 jobs:
-  # Every suite CI can hold, three at a time, in one job. The suites tagged `// local-only: <why>` (a Mac's keys, a
-  # real-time audio clock, or too long for a runner) are left out and named, with their reason, in the log.
-  test:
+  unit:
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/suite-setup
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
-      - name: The suite (LOCAL_ONLY=skip node tools/run-all.js)
-        env:
-          LOCAL_ONLY: skip # the suites tagged `// local-only:` are left out, each named with its reason
-          REQUIRE_ALL: 1   # compat-test fails, rather than skips, a browser that didn't install
-          PAR: 3
-          # Skips the CPU-budget timings (timbre, wavetable, studioa, instruments3): on a shared VM they measure the
-          # neighbours, and strings and choir sit within 1% of their 6% budget. Every other check still runs.
-          CPU: 0
-        run: node tools/run-all.js
-
-      - name: Keep the screenshots and reports when it fails
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: tools-out
-          path: |
-            tools/.out/
-            !tools/.out/kits-cache/
-          retention-days: 7
-
-  # One status for branch protection to require.
-  suite:
-    needs: test
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: The suite passed
-        env:
-          RESULT: ${{ needs.test.result }}
-        run: '[ "$RESULT" = success ] || { echo "the suite: $RESULT"; exit 1; }'
+      - name: The unit tests (node --test "test/unit/*.test.js")
+        run: node --test "test/unit/*.test.js"
 
   deploy-staging:
-    needs: test
+    needs: unit
     # a merge to main, or a by-hand run on main that asked for it; the role trusts main only
     # (deploy/next/github-oidc.sh, BRANCHES)
     if: >-
@@ -130,7 +92,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: us-east-1
 
-      - name: Deploy to https://next.overdubstudio.com (the test job already passed)
+      - name: Deploy to https://next.overdubstudio.com (the unit tests already passed)
         run: |
           echo "$NEXT_DISTRIBUTION" > deploy/.next-distribution-id
           deploy/deploy.sh --skip-tests --next "$GITHUB_SHA"

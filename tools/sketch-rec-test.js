@@ -42,7 +42,6 @@
 //      keys, its parts 40 px to a finger, in view while a take records.
 //
 //   node tools/sketch-rec-test.js
-// local-only: hums and taps into the fake microphone in time (the hum's rhythm, the pass line): real-time, flaked on CI runners
 import { open, tally, OUTDIR } from './pw.js';
 import path from 'node:path';
 import { perform, sloppyHum, wav } from './sloppy.js';

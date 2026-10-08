@@ -7,7 +7,6 @@
 // declared latency, engine/strip.js, so the bypassed path shows only latency the amp has and doesn't declare.)
 // engine.latency reports the track's latency; plugin delay compensation never holds live input back.
 //   node tools/stack-monitor-test.js        (HEADED=1 to watch)
-// local-only: times a click through live input to 1 ms; on a Linux VM the input's buffering moves 100-300 samples a click
 import { open, tally } from './pw.js';
 
 const T = tally('stack-monitor');

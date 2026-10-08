@@ -29,7 +29,6 @@
 //               preset (quick), with its declared latency where the onset lands
 //
 //   node tools/studioa-test.js            NODE_ONLY=1 skips Chromium
-// local-only: Studio A measured on the canonical render, then in Chromium: 2 min on a CI runner, and it crashed once on Linux
 import crypto from 'node:crypto';
 import { tally } from './pw.js';
 import { renderSong } from '../app/src/engine/node/render.js';

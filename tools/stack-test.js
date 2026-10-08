@@ -13,7 +13,6 @@
 // Writes tools/.out/stack/*.wav to listen to: each metal DI fixture dry and through Modern with the close dynamic and the
 // British cabs, all at -16 LUFS (loudness-matched, so the comparison is the tone, not the level).
 //   node tools/stack-test.js            (NODE_ONLY=1 skips Chromium)
-// local-only: times Half Stack's CPU cost against real time and Gaffer Tape's: a shared runner measures its neighbours
 import { tally, OUTDIR } from './pw.js';
 import '../app/src/devices/builtin/index.js';
 import def, { STACK_TRIM } from '../app/src/devices/builtin/stack.js';

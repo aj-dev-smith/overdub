@@ -33,7 +33,6 @@
 //      plays from its first note once they're in; the browser starts a kit on hover; a key pressed while one loads
 //      sounds once it's in
 //   node tools/pick-sound-test.js      (screenshots: tools/.out/pick-sound-*.png; SECTIONS=21 runs just those)
-// local-only: picks sounds by hearing them, live in the browser with the fake mic: 3 min on a CI runner
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';

@@ -17,7 +17,6 @@
 //   - a phone: no sideways scroll; the Song menu has Find anything
 //   - the keys that moved on 2 October say so once, in one line, for all of them
 //   node tools/find-test.js      (screenshots: tools/.out/find-*.png)
-// local-only: holds the copy to a Mac's "Find (⌘K)"; on Linux and Windows the studio says Ctrl+K
 import fs from 'node:fs';
 import path from 'node:path';
 import { open, tally, OUTDIR } from './pw.js';

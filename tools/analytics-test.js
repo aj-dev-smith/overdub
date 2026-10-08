@@ -8,7 +8,6 @@
 //      things with DRY_RUN=1 (a stub aws on PATH, no credentials), the config the deploy writes puts up the Preview
 //      ribbon there (desktop and phone), and nothing is counted there; the committed config, and so the live site, has
 //      no ribbon
-// local-only: the counting checks across studio and site, and a deploy.sh --next HEAD~1 dry run: 8 min on a CI runner
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

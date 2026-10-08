@@ -1,7 +1,6 @@
 // Engine checks: offline renders (length, determinism, timing, mix, solo, fader, audio clips, soft clip) and the live
 // transport (loop wrap scheduling, tempo, seek, stop, live notes, reconcile while playing), in real Chromium.
 //   node tools/engine-test.js
-// local-only: the live transport's loop wrap, tempo and stop, timed against the audio clock: real-time, flaked on CI runners
 import { open, tally } from './pw.js';
 import { renderSong } from '../app/src/engine/node/render.js';
 import { CLICK } from '../app/src/engine/click.js';

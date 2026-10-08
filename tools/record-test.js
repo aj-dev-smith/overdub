@@ -18,7 +18,6 @@
 //      that pass ("(5 notes)").
 //
 //   node tools/record-test.js
-// local-only: records takes from the fake microphone live, against the audio clock: real-time, 3 min on a CI runner
 import { open, tally } from './pw.js';
 import { createStore } from '../app/src/core/store.js';
 import { createProject, cleanProject } from '../app/src/core/project.js';

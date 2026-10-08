@@ -10,7 +10,6 @@
 // takes back whole. The kits must be fetched (node tools/fetch-kits.js): a demo whose kernel data is missing is
 // skipped, and said so.
 //   node tools/genre-demos-test.js
-// local-only: renders the genre demos and holds them to their genre's targets: 4.5 min on a CI runner
 import fs from 'node:fs';
 import { tally } from './pw.js';
 import '../app/src/devices/builtin/index.js';

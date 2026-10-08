@@ -37,15 +37,18 @@ applies, since it comes from the distribution.
 
 ## The preview from GitHub Actions
 
-`.github/workflows/ci.yml` runs the suite on every pull request and every push to `main`, in one job on Linux
-(`ubuntu-latest`, three suites at a time, every check blocking, nothing retried). A push to `main` (a merge) whose suite
-passes is deployed to the preview by its `deploy-staging` job; you can also start the workflow by hand on `main`
-(Actions › ci › Run workflow), which runs the suite and then deploys. CI sets `LOCAL_ONLY=skip`: the suites that need a
-Mac's keys, a real-time audio clock or more time than a runner has say so in their header (`// local-only: <why>`),
-and `tools/run-all.js` names each one it leaves out (`grep -l '^// local-only:' tools/*-test.js` lists them). So run
-`node tools/run-all.js` locally before merging, as before: it runs every suite, those included. The deploy signs in
-to AWS with GitHub's OIDC token, never a stored key, as a role that can write the preview's bucket and invalidate its
-distribution and nothing else.
+`.github/workflows/ci.yml` runs the unit tests on every pull request and every push to `main`, in one job on Linux
+(`ubuntu-latest`):
+
+```sh
+node --test "test/unit/*.test.js"    # unit tests, what CI runs (seconds)
+```
+
+A push to `main` (a merge) whose tests pass is deployed to the preview by its `deploy-staging` job; you can also start
+the workflow by hand on `main` (Actions › ci › Run workflow), which runs the tests and then deploys. CI doesn't run the
+integration suites (browsers, servers, renders), so run `node tools/run-all.js` locally before merging.
+The deploy signs in to AWS with GitHub's OIDC token, never a stored key, as a role that can write the preview's bucket
+and invalidate its distribution and nothing else.
 `deploy/next/github-oidc.sh` (once, `AWS_PROFILE=overdub`; `DRY_RUN=1` prints the plan) makes the role and GitHub's
 identity provider; `BRANCHES` names the branches whose runs may assume it (default `main`). The role's
 ARN and the distribution id go in the repository variables `NEXT_DEPLOY_ROLE` and `NEXT_DISTRIBUTION`.

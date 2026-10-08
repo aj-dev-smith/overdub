@@ -1,7 +1,6 @@
 // First-impression checks for the studio's look and feel [ui]: the demo song at three sizes, nothing overlapping,
 // no sideways scroll on a phone, the rack fitting its pane, Space playing, the "?" keys overlay and the one-time welcome.
 //   node tools/studio-test.js      (screenshots: tools/.out/studio-*.png)
-// local-only: builds a band while the song plays and reads the live transport: on a loaded CI runner it had restarted (beat 0.17)
 import { open, tally } from './pw.js';
 
 const T = tally('studio');

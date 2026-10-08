@@ -14,7 +14,6 @@
 // budget and rebuilds byte for byte from the download cache; the device passes checkDevice, renders bit-exact twice
 // and at 44.1 kHz; every one of the 88 keys plays its zone's sample at the right pitch; the level climbs with
 // velocity on every octave, across the layer seam too; the studio fetches it packed and renders what Node does.
-// local-only: the sampled-instrument kernel over every sampled kit: 9 min on a CI runner
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

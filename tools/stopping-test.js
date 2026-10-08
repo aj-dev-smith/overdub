@@ -17,7 +17,6 @@
 //   6. In 7/8 the click starts every bar and a 1-bar count-in is one bar (3.5 beats).
 //
 //   node tools/stopping-test.js
-// local-only: stops every demo song mid-play and waits out the tails: 3.5 min on a CI runner
 import { open, tally } from './pw.js';
 import { MORE_DEMOS } from '../app/src/core/demos/index.js';
 

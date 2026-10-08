@@ -13,7 +13,6 @@
 // choke, and its stir: it rings, looped without a click, for as long as its note is held, then fades. Hand Crate (the
 // same kernel) to its pinned file and budget, the house level, a drum beat played on it, its congas' choke and its
 // held tambourine roll.
-// local-only: the sampled drum kits and kernel data, rendered: 4 min on a CI runner
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

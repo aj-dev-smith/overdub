@@ -5,7 +5,6 @@
 // tuner over a played guitar phrase (cents only once a note settles; nothing under the low string), and monitoring
 // with no audio track (said once, then it waits and wires itself when one appears).
 //   node tools/input-test.js        (screenshots: tools/.out/input-*.png)
-// local-only: the fake mic's meter, a hummed take and the feedback guard, timed live: real-time, flaked on CI runners
 import { open, tally, OUTDIR } from './pw.js';
 import path from 'node:path';
 import fs from 'node:fs';

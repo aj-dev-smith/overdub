@@ -15,7 +15,6 @@
 // meters while the song plays, each band's held or lifted readout, an agent's change flashes, the keys, the screen
 // reader's words, the phone sheet); adjust on it; no page errors.
 //   node tools/multiband-test.js        screenshots: tools/.out/multiband-*.png
-// local-only: Gaffer Tape's kernel, curves and window, rendered: 2 min on a CI runner
 import { open, tally } from './pw.js';
 import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
 import { kernelSpecs } from '../app/src/kernel/host.js';

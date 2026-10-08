@@ -8,7 +8,6 @@
 // Screenshots of each in the arranger (1440 wide) and of the Song menu's Demos list land in tools/.out/.
 // Their devices are the studio's own code: every demo opens with nothing held (devices/trust.js), from the shelf or
 // from a link someone else made of it.
-// local-only: renders every demo song offline through the real engine and holds it to its targets: 21 min on a CI runner
 import { open, tally } from './pw.js';
 import { validateProject } from '../app/src/core/project.js';
 import { DEMOS, demoById } from '../app/src/core/demo.js';
