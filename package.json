@@ -7,7 +7,11 @@
   "scripts": {
     "start": "node server/serve.js",
     "mcp": "node server/mcp.js",
-    "test": "node tools/run-all.js"
+    "test": "node tools/run-all.js",
+    "check": "tools/check.sh",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "engines": { "node": ">=22" },
   "license": "MIT"
