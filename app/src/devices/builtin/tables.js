@@ -1,3 +1,4 @@
+// @ts-check
 // Shared kernel source for batch 3 of the instrument roadmap (core.poly2, core.brass, core.choir): band-limited
 // single-cycle tables and a 24 dB ladder low-pass. Like lib.js it is kernel source, prepended to each device's body,
 // so a device carries its DSP with it and stays exactly as measured. (It sits beside lib.js rather than in it: a change

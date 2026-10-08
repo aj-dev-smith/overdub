@@ -1,3 +1,4 @@
+// @ts-check
 // Metal. The format: core/grooves.js's header. Two feet on the kick: sixteenths, gallops, blasts.
 export default `
 style metal  Metal

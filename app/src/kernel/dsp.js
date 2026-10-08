@@ -1,3 +1,4 @@
+// @ts-check
 // The kernel stdlib: everything a kernel gets as `dsp`. docs/DEVICES.md and kernel/guide.js document it.
 //
 //   import { makeDsp, overdubDsp } from './dsp.js';

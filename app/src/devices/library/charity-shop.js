@@ -1,3 +1,4 @@
+// @ts-check
 // claude.charity-shop: Charity Shop. A record that has been loved too much: the signal is narrowed toward mono, its
 // band shrunk (WEAR: the low end thins and the top rolls off, with a little mid honk and soft saturation), warped by
 // the slow once-per-turn pitch sway of a dished disc (WARP, 33 rpm), and laid over the needle's crackle and surface

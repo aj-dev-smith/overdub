@@ -1,3 +1,4 @@
+// @ts-check
 // Gospel. The format: core/grooves.js's header. Groups of six cells are sixteenth triplets: the chops.
 export default `
 style gospel  Gospel

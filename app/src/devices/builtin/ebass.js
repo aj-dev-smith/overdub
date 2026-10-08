@@ -1,3 +1,4 @@
+// @ts-check
 // core.ebass: Roundwound. An electric bass, sampled: Karoryfer's Black And Blue Basses (CC0), the "dark black"
 // five-string played with the fingers, recorded dry, played by the sampled-instrument kernel (sampler.js). Flatwound
 // (core.bassguitar) is the synthesized one. docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit

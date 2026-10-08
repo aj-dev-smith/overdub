@@ -1,3 +1,4 @@
+// @ts-check
 // Samba. The format: core/grooves.js's header. The kick is the surdo: soft on one, strong on two, a sixteenth before each.
 export default `
 style samba  Samba

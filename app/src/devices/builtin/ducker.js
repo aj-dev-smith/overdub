@@ -1,3 +1,4 @@
+// @ts-check
 // core.ducker: Dim Switch. The sidechain duck: the track it sits on dips under another track (its key: the insert's
 // key, set in its window's Key menu or with insert.set { patch: { key: { track } } }), the way a bass makes room for
 // the kick in every club record. It is the console's dim button, pressed by the kick.

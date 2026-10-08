@@ -1,3 +1,4 @@
+// @ts-check
 // The `arrange_song` agent tool: the arranger's structural moves (core/arrangement.js) for agents. Duplicate a section
 // with its clips, insert or delete bars across the song, repeat a clip, split a clip. One call = one undo step signed
 // by the agent, with a one-line summary of what moved. The human has the same moves in the section and clip menus.

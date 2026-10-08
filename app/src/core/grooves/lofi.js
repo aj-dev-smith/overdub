@@ -1,3 +1,4 @@
+// @ts-check
 // Lo-fi. The format: core/grooves.js's header. Dusty and late.
 export default `
 style lofi  Lo-fi

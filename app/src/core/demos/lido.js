@@ -1,3 +1,4 @@
+// @ts-check
 // "Lido": summer house, 16 bars in G major at 122 bpm. Four on the floor on the machine kit, the bass on every offbeat
 // between the kicks (so the two never fight), house piano stabs on the grand in a 3-3-2, a warm pad, and a kalimba
 // topline. The house played all of that. Claude played over it: a sixteenth-note arpeggio on Patch Bay that takes the

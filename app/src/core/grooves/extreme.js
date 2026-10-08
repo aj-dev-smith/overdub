@@ -1,3 +1,4 @@
+// @ts-check
 // Extreme metal. The format: core/grooves.js's header. Blasts with the snare on eighths at the felt tempo (each limb
 // on eighths: a sixteenth grid at 180-260 BPM), the Swedish d-beat, double kick under ride and China, and fills of
 // sixteenth triplets and thirty-seconds over the feet. Written for Studio A's note map; `kit metal` plays it on Rusty

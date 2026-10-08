@@ -1,3 +1,4 @@
+// @ts-check
 // Start a song's landing (ui/start.js): the take into the song as ordinary ops (core/ops.js), for one store.dispatch
 // signed by whoever played it, so one undo takes all of it out. Pure (Node and the browser).
 //

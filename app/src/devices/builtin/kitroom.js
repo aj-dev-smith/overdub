@@ -1,3 +1,4 @@
+// @ts-check
 // The kit room: a small live room for a drum kit, as kernel source that a kit and a drum bus interpolate into their
 // own kernels (Rusty Sticks sends each piece into it; Drum Riser puts the whole kit through it in parallel). It is not
 // a `dsp` name, so it can be tuned without touching the forever list; a change to it moves both devices' sound (and

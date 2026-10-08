@@ -1,3 +1,4 @@
+// @ts-check
 // core.organ: Rotor Cabinet. A tonewheel organ through a rotating speaker.
 //   WHEELS    nine footages per key (16', 5 1/3', 8', 4', 2 2/3', 2', 1 3/5', 1 1/3', 1'), each a sine tuned to the
 //             equal-tempered note the real drawbar plays (so the fifths and thirds are tempered and beat slowly against

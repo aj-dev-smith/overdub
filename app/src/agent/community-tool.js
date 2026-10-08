@@ -1,3 +1,4 @@
+// @ts-check
 // find_community_device (docs/COMMUNITY-SHELF.md, section 5): an agent searches the community shelf, and can put one
 // of its devices in front of the person as a card. One tool: put_on is a parameter, and it produces a card, never a
 // change. Nothing here reaches app.trust: only the person's Try on the card (and the trust prompt after it) lets

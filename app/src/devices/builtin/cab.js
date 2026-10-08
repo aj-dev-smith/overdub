@@ -1,3 +1,4 @@
+// @ts-check
 // core.cab: Iso Cab. The speaker cabinet on its own: Half Stack's cab stage for anything else,
 // after a Guitar Studio amp, a pedal, a kernel drive or a line out. One of six measured 4x12 impulse responses
 // (Jester Dyne Productions' Brutal and Emerald packs, CC0: tools/kits/jester-cabs.js) through dsp.convolver with no

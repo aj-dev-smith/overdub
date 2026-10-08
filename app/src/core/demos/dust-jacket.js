@@ -1,3 +1,4 @@
+// @ts-check
 // "Dust Jacket": 90s boom bap, 16 bars in D minor at 90 bpm. An electric piano loop played like a record you'd
 // sample (rootless ninth voicings, chopped hits, run through a dusty record and a little bit-crush), a lazy sampler
 // swing on the kit with the snare laid back, and an upright-ish bass that lands on the kicks and walks into each

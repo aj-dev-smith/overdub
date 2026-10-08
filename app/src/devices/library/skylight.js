@@ -1,3 +1,4 @@
+// @ts-check
 // claude.skylight: Skylight. A shimmer reverb: a large modulated room (an 8-line FDN) whose wet signal is pitched up
 // an octave (or a fifth) by a two-tap delay-line shifter and fed back into the room, so each echo climbs and the tail
 // glows above the note. The loop is high-passed, darkened and soft-limited, so it climbs, fades, and never runs away.

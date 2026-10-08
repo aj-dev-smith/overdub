@@ -1,3 +1,4 @@
+// @ts-check
 // Punk. The format: core/grooves.js's header. The lay line pushes: hands a hair ahead of the beat.
 export default `
 style punk  Punk

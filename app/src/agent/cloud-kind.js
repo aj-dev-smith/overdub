@@ -1,3 +1,4 @@
+// @ts-check
 // What kind of ask this is, for Claude on Overdub credits: the price is shown on the ask before it's sent
 // ("A new part · 5 credits ▾"), so the page names the kind itself, from open rules, in the browser. Nothing of the
 // draft leaves the page until Send. The person can always pick another kind from the ▾; the service then runs that

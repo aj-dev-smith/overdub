@@ -1,3 +1,4 @@
+// @ts-check
 // core.wavetable: Light Table, Overdub's wavetable synth. (A light table is where you lay out film frames to look at
 // them; a wavetable is a strip of single-cycle frames.) docs/research/LIGHT-TABLE.md is the design note: the engine,
 // the param map an editor and an agent work from, the tables, the CPU numbers and what the editor wave builds.

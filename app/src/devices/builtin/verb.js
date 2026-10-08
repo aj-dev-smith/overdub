@@ -1,3 +1,4 @@
+// @ts-check
 // core.verb: Stairwell. An algorithmic reverb: a pre-delay, four allpass diffusers per side (the early smear), then an
 // 8-line feedback delay network with Householder mixing, a damping low-pass in every loop and slowly wandering line
 // lengths (so long tails stay smooth instead of ringing metallic). A low cut keeps the wash out of the bass. Wet and dry

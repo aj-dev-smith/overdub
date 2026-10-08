@@ -1,3 +1,4 @@
+// @ts-check
 // Recording automation: Touch, and Write it into the lane (docs/research/AUTOMATION.md 3.9, where it was "Keep that
 // move"). There is no automation arm.
 //

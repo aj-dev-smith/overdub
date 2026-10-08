@@ -1,3 +1,4 @@
+// @ts-check
 // KERNEL_GUIDE: what an agent needs in context to write an Overdub device (the agent layer puts it in the system
 // prompt / the define_device tool description). Every API name and signature here is checked against kernel/dsp.js
 // by tools/kernel-test.js, and both examples pass checkDevice there. Keep it compact and exact.

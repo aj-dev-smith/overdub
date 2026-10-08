@@ -1,3 +1,4 @@
+// @ts-check
 // core.eq8: Slide Rule. An eight-band parametric EQ you shape by dragging its bands over a live spectrum
 // (ui/editors/eq8.js). Each band is a bell, a low or high shelf, a low or high cut (12, 24 or 48 dB per octave), a
 // notch or a band pass, with its own frequency, gain and Q; an output gain and auto gain come after (a trim guessed

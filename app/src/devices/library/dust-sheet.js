@@ -1,3 +1,4 @@
+// @ts-check
 // claude.dust-sheet: Dust Sheet. The string machine: every note is a sawtooth plus one an octave up (the 8' and 4'
 // stops), summed in mono, thinned and softened, then through the ensemble: one bucket-brigade-style delay read by
 // three taps 120 degrees apart, each swept by a slow and a fast sine at once. That swirl is the whole sound.

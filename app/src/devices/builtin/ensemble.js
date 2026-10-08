@@ -1,3 +1,4 @@
+// @ts-check
 // core.ensemble: Rosin. A string section, sampled: Versilian's VS Chamber Orchestra 2 Community Edition (CC0), its
 // contrabass, cello, viola and violin sections bowing sustained notes with vibrato, one section per register as an
 // ensemble patch splits them, played by the sampled-instrument kernel (sampler.js). docs/DEVICES.md "Melodic kits" is

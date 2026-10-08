@@ -1,3 +1,4 @@
+// @ts-check
 // Rounds: play it as many times round as you like, and what you played most often is kept. Pure (Node and the
 // browser): nothing here touches the song. Built on input/timing.js (the pulse, the gentle snap, the three timing
 // words), which it never changes. Start a song (ui/start.js) uses it on a beat tapped in free time.

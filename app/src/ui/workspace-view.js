@@ -1,3 +1,4 @@
+// @ts-check
 // Which view a load opens in, and what this browser keeps about its layout. Pure (no DOM, no globals), so Node tests it
 // with a fake storage (anything with getItem). ui/workspace.js holds the rest of the seam.
 //

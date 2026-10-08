@@ -1,3 +1,4 @@
+// @ts-check
 // Graph devices: a def whose build(c, kit) makes a Web Audio node graph (the ported pedals and amps, Overdub's own
 // trusted built-ins). graphInstance(c, def, opts) wraps one in the Instance contract (docs/ARCHITECTURE.md, "Devices"),
 // with clawd-o-matic's pedalRig manners (app/vendor/clawd/pedals.js): click-free bypass, gliding knobs, the bar clock.

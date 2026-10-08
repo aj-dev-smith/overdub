@@ -1,3 +1,4 @@
+// @ts-check
 // core.flute: Head Joint. A flute, sampled: Versilian's VS Chamber Orchestra 2 Community Edition (CC0), the solo flute's
 // sustained notes with vibrato, played by the sampled-instrument kernel (sampler.js). docs/DEVICES.md "Melodic kits" is
 // how; tools/fetch-kits.js builds the kit (tools/kits/vsco-flute.js pins every upstream file, and says why the vibrato

@@ -1,3 +1,4 @@
+// @ts-check
 // FALLBACK devices: what the engine plays through when a track names a device that isn't there (not registered yet,
 // misspelled, or its build threw). Instruments get a small, pleasant, click-free synth so the song stays audible;
 // effects get a pass-through. Both have the full Instance interface (docs/ARCHITECTURE.md, "Instance"), and both

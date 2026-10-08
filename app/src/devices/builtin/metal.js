@@ -1,3 +1,4 @@
+// @ts-check
 // Cymbal candidates for the two drum kits (Gobo Kit, core.drums; Studio A, core.drumroom), as kernel source each kit
 // puts in front of its own. Each kit's `cym_model` param picks them: 0 CLASSIC is the kit's own cymbals, unchanged
 // (so every old song plays as it did); 1 FDN and 2 MODAL are these. They come from the drum audit and the synthesis

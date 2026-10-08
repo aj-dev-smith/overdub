@@ -1,3 +1,4 @@
+// @ts-check
 // The page side of the agent bridge: outside agents (Claude Code over MCP, via server/mcp.js and server/bridge.js)
 // call this tab's tools. Calls run with by = 'mcp:<agent>' so their edits are signed, coloured cool, and undoable on
 // their own; the agent shows up as a presence in the Agent panel.

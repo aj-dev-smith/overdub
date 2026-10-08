@@ -1,3 +1,4 @@
+// @ts-check
 // The sampled drum kit kernel, for kits after Virtuosity Kit: drumSamplerKernel(opts) -> kernel source. It plays an
 // .odk whose samples carry { piece, layer, rr, vel, start, loop? } (tools/fetch-kits.js builds them from a recipe in
 // tools/kits/). It is Virtuosity Kit's kernel (drumkit.js) with the kit's shape passed in, so the next kit is a recipe,

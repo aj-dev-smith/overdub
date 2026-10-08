@@ -1,3 +1,4 @@
+// @ts-check
 // Drum and bass. The format: core/grooves.js's header. The two-step: kick on one and the and of three.
 export default `
 style dnb  Drum and bass

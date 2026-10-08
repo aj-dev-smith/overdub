@@ -1,3 +1,4 @@
+// @ts-check
 // core.handkit: Hand Crate. Hand and aux percussion, sampled: a cajon, congas, bongos, shakers, tambourines, a
 // cowbell, claves, a woodblock, an agogo and a guiro, and a tambourine roll that rings while its note is held from VCSL (Versilian Studios, CC0), through VCSL's stereo pair.
 // docs/DEVICES.md "Hand Crate" is what it does; tools/fetch-kits.js builds the kit (tools/kits/vcsl-hand.js pins every

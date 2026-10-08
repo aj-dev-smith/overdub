@@ -1,3 +1,4 @@
+// @ts-check
 // core.brass: Brass Rail. A horn section, sample-free, built on the one thing every analysis of brass agrees on: the
 // louder a horn plays, the brighter it gets, harmonic by harmonic, and on the way in the low harmonics arrive first
 // (Risset & Mathews 1969; docs/research/INSTRUMENTS.md, 2.7). So each note is:

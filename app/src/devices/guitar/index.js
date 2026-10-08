@@ -1,3 +1,4 @@
+// @ts-check
 // The Guitar Studio in Overdub: one import registers every pedal ('pedal.<id>') and every amp ('amp.<id>') from
 // clawd-o-matic, and exports the rigs (its presets as device chains).
 //

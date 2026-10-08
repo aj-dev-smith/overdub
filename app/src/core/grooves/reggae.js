@@ -1,3 +1,4 @@
+// @ts-check
 // Reggae. The format: core/grooves.js's header. The one drop: nothing on one, kick and cross-stick on three.
 export default `
 style reggae  Reggae

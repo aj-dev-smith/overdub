@@ -1,3 +1,4 @@
+// @ts-check
 // core.bassguitar: Flatwound. An electric bass, played and heard the way it is recorded: a string, a pickup, an amp.
 //   STRING    a waveguide (a delay loop one period long, read with cubic interpolation, a one-zero loss filter in the
 //             loop) rings for a few seconds, the low strings longest. The pluck sets the string's shape where the

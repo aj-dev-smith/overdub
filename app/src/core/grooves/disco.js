@@ -1,3 +1,4 @@
+// @ts-check
 // Disco. The format: core/grooves.js's header.
 export default `
 style disco  Disco

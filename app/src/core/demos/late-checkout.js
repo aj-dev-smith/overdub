@@ -1,3 +1,4 @@
+// @ts-check
 // "Late Checkout": neo-soul, 24 bars in Eb major at 84 bpm. An electric piano on IV-iii-ii-V (Abmaj9, Gm9, Fm9,
 // Bb13) in rootless voicings that fall a step at a time, the chords pushed ahead of the barline; a kit on the dusty
 // sampler played drunk the way the genre likes it (the kick early, the snare late, swung sixteenths, ghost notes); a

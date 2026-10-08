@@ -1,3 +1,4 @@
+// @ts-check
 // core.brushkit: Rusty Brushes. A kit played with brushes and mallets, where Virtuosity Kit is played with sticks: Big
 // Rusty Drums (Karoryfer Samples, CC0), a big Polish kit from about 1980, recorded through one stereo pair of overheads
 // and played from samples. docs/DEVICES.md "Rusty Brushes" is what it does; tools/fetch-kits.js builds the kit

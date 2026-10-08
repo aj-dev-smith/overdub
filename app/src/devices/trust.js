@@ -1,3 +1,4 @@
+// @ts-check
 // Which song devices this browser runs. A song's devices are kernels: code from whoever made the song, which runs in the
 // AudioWorklet on this computer as soon as it plays. A song device runs here only when its kernel is trusted; one that
 // isn't is held: not registered, an instrument plays silence and an effect lets the sound through untouched

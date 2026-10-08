@@ -1,3 +1,4 @@
+// @ts-check
 // The sampled-instrument kernel: plays a melodic kit (kernel data, docs/DEVICES.md "Kernel data" and "Melodic kits")
 // across the keyboard. A device is `samplerKernel(opts)` plus its kit's hash; core.upright (Upright) is the first.
 //

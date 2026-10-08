@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data on the wire: `.odkz`, a lossless, reversible packing of a 16-bit `.odk` (kernel/odk.js) that gzips to
 // about two thirds of the size the plain file does (docs/DEVICES.md, "Kernel data"). It exists for the transfer only:
 // the page unpacks it back to the exact `.odk` bytes and checks those against the hash the device pins, so the worklet,

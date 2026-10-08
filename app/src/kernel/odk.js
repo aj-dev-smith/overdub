@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data: the .odk container a sampled device's samples travel in (docs/DEVICES.md, "Kernel data"). Integer PCM
 // in a container of our own, so decoding is the same integers on every engine: the AudioWorklet, Node and every
 // browser read the same bytes into the same Int16Arrays (no decodeAudioData, which resamples by each browser's own

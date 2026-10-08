@@ -1,3 +1,4 @@
+// @ts-check
 // Country. The format: core/grooves.js's header. The train beat: sixteenths on the snare, 2 and 4 on top.
 export default `
 style country  Country
