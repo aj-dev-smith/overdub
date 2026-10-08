@@ -4,8 +4,11 @@
 // the sample, so a check fails the instrument only when more than 10% of its samples are rejected (fewer are named,
 // for the listening room). A recipe can waive a check with a written reason. Zero dependencies, plain arithmetic.
 //
-//   qaSample({ ch: [Int32Array, ...], bits, sr }, { key, looped })  -> the numbers for one sample
-//   qaInstrument(rows, waive)                                       -> { verdicts: [[check, verdict, why]], rows }
+//   qaSample({ ch: [Int32Array, ...], bits, sr }, { key, looped, tuning })  -> the numbers for one sample (tuning:
+//                                                    false for a drum: no pitch is read)
+//   qaInstrument(rows, waive, { drums })                            -> { verdicts: [[check, verdict, why]], rows }
+//                                                    drums: a kit's rows ({ id, key: the piece, layer, rr, hash, qa }):
+//                                                    no tuning checks; check 15 reads the round robins instead
 //   pitchAt(x, sr, from, len, f0)                -> { cents, amp, edge }: the strongest peak within 100 cents of f0
 const dbfs = (x, full) => (x > 0 ? 20 * Math.log10(x / full) : -200);
 
@@ -27,7 +30,7 @@ export function pitchAt(x, sr, from, len, f0) {
   return { cents: best, edge: Math.abs(c0) >= 100, amp: bv };
 }
 
-export function qaSample({ ch, bits, sr }, { key, looped = false }) {
+export function qaSample({ ch, bits, sr }, { key, looped = false, tuning = true }) {
   const full = 2 ** (bits - 1), [L, R] = [ch[0], ch[1] || ch[0]], n = L.length;
   // 2. clipping: runs of 3 or more samples at or above -0.1 dBFS, and flat tops (3 or more equal samples up there)
   const clipAt = full * Math.pow(10, -0.1 / 20);
@@ -68,7 +71,7 @@ export function qaSample({ ch, bits, sr }, { key, looped = false }) {
   const half = Math.round(0.5 * sr);
   if (on + Math.round(1.5 * sr) <= n) wins = [on + Math.round(0.5 * sr), on + Math.round(1.0 * sr)].map((a) => [a, half]);
   else { const a = on + Math.round(0.05 * sr), len = Math.floor((n - a) * 0.6); wins = [[a, len], [n - len, len]]; }
-  const t = wins.map(([a, len]) => (len > 4 * sr / f0 ? pitchAt(mono, sr, a, len, f0) : null));
+  const t = wins.map(([a, len]) => (tuning && len > 4 * sr / f0 ? pitchAt(mono, sr, a, len, f0) : null));
   // 12. L/R correlation over the first 300 ms, and what summing to mono costs there (dB against the stereo level)
   const C = Math.min(n - on, Math.round(0.3 * sr));
   let lr = 0, ll = 0, rr = 0; for (let i = on; i < on + C; i++) { lr += L[i] * R[i]; ll += L[i] * L[i]; rr += R[i] * R[i]; }
@@ -101,11 +104,12 @@ const CHECKS = {
 };
 
 // The instrument's verdicts. rows: [{ id, key, layer, qa }]; waive: [{ check, why }]
-export function qaInstrument(rows, waive = []) {
+export function qaInstrument(rows, waive = [], { drums = false } = {}) {
   const waived = new Map(waive.map((w) => [w.check, w.why]));
   const out = [];
   for (const r of rows) r.verdicts = {};
   for (const [check, fn] of Object.entries(CHECKS)) {
+    if (drums && check === '11 tuning') continue;
     const got = rows.map((r) => [r, fn(r.qa)]).filter(([, v]) => v);
     for (const [r, v] of got) r.verdicts[check] = v[0];
     const rej = got.filter(([, v]) => v[0] === 'reject'), rev = got.filter(([, v]) => v[0] === 'review');
@@ -124,9 +128,44 @@ export function qaInstrument(rows, waive = []) {
   const spans = [];
   for (const rs of by.values()) if (rs.length > 1) { rs.sort((a, b) => a.layer - b.layer); spans.push(rs[rs.length - 1].qa.attack - rs[0].qa.attack); }
   let v9 = peaks.size === 1 ? 'review' : spans.every((s) => s >= 0) ? 'accept' : 'reject';
-  let w9 = `every file peaks at ${[...peaks].join(' / ')} dBFS: peak-normalized, so the recorded levels are gone (hard minus soft attack, ${spans.length} notes with both: ${Math.min(...spans).toFixed(1)} to ${Math.max(...spans).toFixed(1)} dB)`;
+  const span = spans.length ? `hard minus soft attack, ${spans.length} notes with both: ${Math.min(...spans).toFixed(1)} to ${Math.max(...spans).toFixed(1)} dB` : 'one layer: nothing to compare';
+  let w9 = peaks.size === 1 ? `every file peaks at ${[...peaks][0]} dBFS: peak-normalized, so the recorded levels are gone (${span})` : `the recorded levels kept (peaks ${Math.min(...[...peaks].map(Number)).toFixed(1)} to ${Math.max(...[...peaks].map(Number)).toFixed(1)} dBFS; ${span})`;
+  if (drums) {
+    // a kit: each piece's layers (the mean attack level of their strokes) climb, soft to hard, and span 10 dB or more
+    const per = [];
+    let flat = 0, down = 0;
+    for (const rs of by.values()) {
+      const L = [];
+      for (const r of rs) (L[r.layer] ??= []).push(r.qa.attack);
+      const m = L.filter(Boolean).map((a) => a.reduce((x, y) => x + y, 0) / a.length);
+      if (m.length < 2) continue;
+      if (m.some((x, i) => i && x < m[i - 1])) down++;
+      const sp = m[m.length - 1] - m[0]; if (sp < 10) flat++;
+      per.push(`${rs[0].id.replace(/\..*$/, '')} ${m.map((x) => x.toFixed(1)).join(' < ')}`);
+    }
+    v9 = down ? 'reject' : flat ? 'review' : 'accept';
+    w9 = `the recorded levels kept (each layer's mean attack, dBFS): ${per.join('; ')}${down ? `; ${down} pieces don't climb` : ''}${flat ? `; ${flat} span under 10 dB` : ''}`;
+  }
   if (v9 !== 'accept' && waived.has('9 velocity loudness')) { v9 = 'waived'; w9 += ` (waived: ${waived.get('9 velocity loudness')})`; }
   out.splice(5, 0, ['9 velocity loudness', v9, w9]);
+  if (drums) {
+    // 15: the round robins of each layer: their attack levels within 1.5 dB (3 is for review), and never one recording
+    // twice (the same bytes)
+    const groups = new Map();
+    for (const r of rows) { const k = `${r.key}.${r.layer}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+    const wide = [], dup = [];
+    for (const rs of groups.values()) {
+      if (rs.length < 2) continue;
+      const at = rs.map((r) => r.qa.attack), sp = Math.max(...at) - Math.min(...at);
+      if (sp > 1.5) wide.push(`${rs[0].id.replace(/\.\d+$/, '')} (${sp.toFixed(1)} dB)`);
+      if (new Set(rs.map((r) => r.hash)).size < rs.length) dup.push(rs[0].id.replace(/\.\d+$/, ''));
+    }
+    let v15 = dup.length ? 'reject' : wide.length ? 'review' : 'accept';
+    let w15 = `${groups.size} layers; ${dup.length ? 'the same recording twice in ' + dup.join(', ') + '; ' : ''}${wide.length ? 'strokes more than 1.5 dB apart in ' + wide.join(', ') : 'every layer\'s strokes within 1.5 dB of each other'}`;
+    if (v15 !== 'accept' && waived.has('15 round robins')) { v15 = 'waived'; w15 += ` (waived: ${waived.get('15 round robins')})`; }
+    out.push(['15 round robins', v15, w15]);
+    return { verdicts: out, rows };
+  }
   // 11, across layers: one note's layers within 8 cents of each other
   const split = [];
   for (const [k, rs] of by) if (rs.length > 1) { const cs = rs.map((r) => r.qa.cents).filter(([a, b]) => a != null && b != null && Math.abs(a - b) <= 3).map(([a, b]) => (a + b) / 2); if (cs.length > 1 && Math.max(...cs) - Math.min(...cs) > 8) split.push(`${k} (${cs.map((c) => c.toFixed(1)).join(' / ')})`); }

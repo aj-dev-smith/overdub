@@ -83,6 +83,7 @@ overdub/
                          transport.js, arranger.js, lanes.js (automation lanes),
                          arrange-kit.js, pianoroll.js, drumgrid.js, grooves.js (the Grooves tab)        [ui-arrange]
                          mixer.js, rack.js, faces.js*, browser.js, inspector.js                         [ui-mix] (*faces: guitar)
+                         kitload.js (a sampled sound's samples: fetched when shown or pointed at, how far along)  [ui-mix]
                          touch.js (a finger on a knob, a slider or a fader: a drag scrolls, a hold moves it)  [ui-mix]
                          plugin.js (device windows: a device opened big), plugin-kit.js (their widgets),
                          editors/ (generic.js, and the editors the studio's own devices name: eq8.js, shaper.js,
@@ -418,15 +419,16 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 33 built-ins, two of
-them sampled: Virtuosity Kit and Parlour Upright, whose samples come as kernel data),
-`devices/guitar/` (the Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its
-156 rigs as device chains) and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source:
-'library'`, each with its `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices
-the demo song carries as project devices. Project devices (`project.devices`) follow the song: `main.js`
-`syncProjectDevices` registers each one the song has whose kernel this browser trusts (`source: 'project'`), holds the
-rest (below), and calls `registry.removeDevice(id)` for every one it no longer has or now holds (undo, another song
-loaded, `revert_my_changes`), which puts back the def it shadowed, if any (`shadowedDevice(id)`).
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 44 built-ins, thirteen
+of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
+Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), `devices/guitar/` (the
+Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
+and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source: 'library'`, each with its
+`request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices the demo song carries as
+project devices. Project devices (`project.devices`) follow the song: `main.js` `syncProjectDevices` registers each one
+the song has whose kernel this browser trusts (`source: 'project'`), holds the rest (below), and calls
+`registry.removeDevice(id)` for every one it no longer has or now holds (undo, another song loaded,
+`revert_my_changes`), which puts back the def it shadowed, if any (`shadowedDevice(id)`).
 
 **Device files** (`ui/devices-io.js`, `app.devicesIO`): `.overdub-device.json` (`overdub-device/0`) out and in; an
 import runs `checkDevice` first and becomes one `device.define` by you (its kernel trusted here: the person chose the
@@ -600,9 +602,9 @@ deterministic, extremes }` (plus `voices` and `stuck` for instruments). `define_
 agent. A device that fails to compile, produces NaN, peaks over +6 dBTP at its defaults, runs away at an extreme
 setting, leaves a note stuck or makes no sound at its defaults is refused; loudness, tail, CPU, latency and
 determinism problems are warnings. DEVICES.md has the full table. Every wait on the audio thread races a deadline
-(60 s by default) and the caller's signal: a render that doesn't end refuses the device ("process() may never
-return"), and Stop ends `define_device` at once. A render can't be cancelled, and Chrome renders every offline context
-on one worklet thread, so the renders a check gave up on are counted until they end (`heldRenders()`): meanwhile a
+(60 s by default, per render: it moves on each time a render comes back, since a check renders twice per param) and the
+caller's signal: a render that doesn't end refuses the device ("process() may never return"), and Stop ends
+`define_device` at once. A render can't be cancelled, and Chrome renders every offline context on one worklet thread, so the renders a check gave up on are counted until they end (`heldRenders()`): meanwhile a
 check, a song render (`engine/render.js`: an export, a reference compare, `arrange_around`) and the agent's measuring
 say the thread is held instead of queueing behind it, since loading a worklet then would block the page.
 
@@ -888,7 +890,14 @@ one step. While a preview is applied `localStorage['overdub:sound-trying'] = { s
 browser follows the same rule: a click on an instrument tries it on the selected track (Keep, Back in its target
 line); a melodic instrument on a drum track, or a kit on a pitched track with notes (`rack.isMismatch`), asks first
 (**New track with …**); Shift-click and a drop onto empty space make a new track, a drop onto a lane keeps at once.
-`suggest_sounds` (`agent/sounds-tool.js`) puts an agent's rows on the card, signed by it.
+`suggest_sounds` (`agent/sounds-tool.js`) puts an agent's rows on the card, signed by it. A sampled sound's first try
+is never silent (`ui/kitload.js` over `kernel/data.js`): the card starts a sampled row's samples coming when it shows
+the row, the browser and Find when the pointer or the keys rest on one; the row, the track's header and the browser's
+trial bar show a hairline that fills as the bytes arrive (`dataProgress(hash)`; the size from the packed file's own
+header, so a gzipped response still reads right) with "Loading samples"; the tried take waits for them and for the
+track's instrument to have them (`inst.on('data')`), then plays from its first note; `engine.liveNoteOn` holds a key
+pressed meanwhile and sounds it once they're in if it is still down (`'kitwait'`), as `audition` waits. A render
+waits for every kit as before.
 
 ```js
 app.sounds = { setHost(fn), offer({ track, from, anchor?, take? }), try(track, { device, preset? }, { play }),

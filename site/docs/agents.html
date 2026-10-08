@@ -377,9 +377,12 @@ anything else.</p>
 <p><strong>Drum grids:</strong> <code>{ steps: 16, step: 0.25, rows: { kick: 'x...x...x...x...', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' } }</code>
 (<code>X</code> accent, <code>x</code> hit, <code>o</code> ghost, <code>.</code> rest; rows kick snare clap rim hat pedal open tom1 tom2 tom3 crash ride cowbell
 shaker), in <code>clip.add</code> (<code>clip.grid</code>) or <code>notes.replace</code> (<code>grid</code>). A row may also be a MIDI number.</p>
-<p><strong>Drum kits.</strong> Gobo Kit (<code>core.drums</code>), Studio A (<code>core.drumroom</code>) and Virtuosity Kit (<code>core.drumkit</code>, a real kit
+<p><strong>Drum kits.</strong> Gobo Kit (<code>core.drums</code>), Studio A (<code>core.drumroom</code>), Virtuosity Kit (<code>core.drumkit</code>, a real kit
 from samples: kick, snare, hats closed, half open, open and pedal, ride and bell, crash, two toms; <code>get_device</code> gives
-its note names) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
+its note names) and Rusty Brushes (<code>core.brushkit</code>, a real kit played with brushes and mallets: brush taps on 38,
+digs for accents on 40, a stir that rings while its note is held on 33 or 73, brushed hats and ride, a mallet crash and
+toms) and Hand Crate (<code>core.handkit</code>, real hand percussion on General MIDI's percussion notes, with a kit's kick,
+snare and hats played as cajon and shakers and a tambourine roll held on 33) all play General MIDI. Studio A is an acoustic kit with a mic mix, and it plays articulations under
 these extra row names:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>rows</th><th>notes</th><th>what they play</th></tr></thead>

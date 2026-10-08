@@ -28,7 +28,7 @@ Where things live:
 | `app/src/kernel/examples.js` | `core.testsynth` and `core.testfilter`, the reference kernels (registered on import) |
 | `tools/kernel-test.js` | the platform's checks (`node tools/kernel-test.js`) |
 | `app/src/kernel/odk.js` | kernel data: the `.odk` container (`encodeOdk`, `decodeOdk`), `normData(def.data)` |
-| `app/src/kernel/data.js` | kernel data on the page: `loadData(hash)` (fetch once, check, IndexedDB), `dataState`, `onData` |
+| `app/src/kernel/data.js` | kernel data on the page: `loadData(hash)` (fetch once, check, IndexedDB), `dataState`, `dataProgress`, `onData` |
 | `app/src/engine/node/data.js` | kernel data in Node: `dataFor(def.data)` reads `app/kits/` for the renderer and the check |
 | `tools/fetch-kits.js` | builds the sampled kits into `app/kits/` from pinned upstream files (`tools/kits/`, `tools/flac.js`) |
 
@@ -61,7 +61,7 @@ reports:
 | `extremes` | every param at min and at max, all min, all max: NaN, errors, raw peak (`hot`: cases over +6 dBFS) | same, with a short phrase |
 | `voices` | | `{ poly, maxVoices, steals }` after poly + 4 held notes |
 | `stuck` | | a note still sounding after note-off, after `allOff()`, or after stealing |
-| `timedOut` | `'process'`: a render didn't finish by the deadline (60 s); `'create'`: `create()` didn't return; `'busy'`: the audio thread is still held by an earlier render that didn't; else `false` | same |
+| `timedOut` | `'process'`: a render didn't finish within 60 s of the one before it (the deadline is per render, not for the whole check, whose length grows with the params); `'create'`: `create()` didn't return; `'busy'`: the audio thread is still held by an earlier render that didn't; else `false` | same |
 
 `ok` is false on a compile error, NaN/Infinity, a peak over +6 dBTP at default settings, a runaway at an extreme setting
 (a raw peak over +24 dBFS), a stuck note, or no sound at all at default settings (under -60 LUFS). Over +6 dBFS at an extreme is a warning (an EQ with every band at max is
@@ -304,9 +304,17 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's two sampled
-  instruments; the other is Parlour Upright (`core.upright`), a real upright piano
-  ([Melodic kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)).
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's thirteen sampled
+  instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
+  concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone),
+  Roundwound (`core.ebass`, a real five-string bass), Hollow Body (`core.eguitar`, a real hollow-body electric guitar),
+  Bell Up (`core.barisax`, a real baritone sax), Endpin (`core.cello`, a real solo cello), Head Joint (`core.flute`, a
+  real flute) and Spit Valve (`core.trumpet`, a real trumpet) ([Melodic
+  kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
+- **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
+  (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
+- **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would
+  (below: [Hand Crate](#hand-crate-corehandkit-hand-percussion)).
 
 **Cymbal models.** Gobo Kit and Studio A take `cym_model` (CYMBALS): CLASSIC (the default: each kit's own cymbals, so old songs
 play as they did), FDN or MODAL. These two are new models of the crashes, ride (bow, bell and edge), china and splash,
@@ -430,6 +438,80 @@ of overheads. `app/src/devices/builtin/drumkit.js`; the samples come by [kernel 
 
 `tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.drumkit#e590dc685420` pins its render.
 
+## Rusty Brushes (`core.brushkit`): brushes and mallets
+
+Big Rusty Drums (Karoryfer Samples, CC0 1.0): a big kit Zygmunt Szpaderski made in Poland, probably in the early
+1980s, recorded with brushes, mallets and sticks. Overdub plays the brushes and mallets, which Virtuosity Kit doesn't
+have, through one stereo pair of overheads. `app/src/devices/builtin/brushkit.js`; the samples come by
+[kernel data](#kernel-data-samples-a-kernel-plays), built from `tools/kits/big-rusty.js`.
+
+- **What it plays.** Thirteen articulations, two to four velocity layers of two strokes each: the kick (a felt
+  beater); on the snare, brush taps (four layers), digs (the brush pressed into the head: an accent), a stir and the
+  brush lifting off; on the hi-hat, brushed closed, quarter-open and open strokes and the pedal; the brushed ride; a
+  mallet on the crash, a 14" rack tom and an 18" floor tom. 68 samples, 106.7 s of 16-bit, 44.1 kHz stereo (the
+  source's own rate: the kernel converts as Virtuosity Kit's does), 7.06 MB over the wire as `.odkz`.
+- **The note map** is General MIDI: 35 and 36 kick, 38 brush snare, 40 dig, 42 hat closed, 44 pedal, 46 open, 49 and 57
+  crash, 51 and 59 ride; 50, 48 and 47 the rack tom, 45, 43 and 41 the floor tom. Studio A's notes play what they
+  name: 23 and 24 the quarter-open hat, 22 and 26 closed and open, 33 (its held roll) the stir. Big Rusty's own notes
+  play too: 73 and 74 the stir, 76 the dig; 77 is the brush lifting off. Any other note plays nothing.
+- **The stir rings while its note is held.** A brush stirs the snare for as long as the note lasts: three seconds of
+  the recording loop (the last 0.3 s crossfaded at equal power into the loop's start, baked into the file, so the
+  jump back is seamless and bit-exact), fading in over 40 ms and out over 150 ms after the note ends. Two layers: a
+  soft stir and a hard one.
+- **Everything else is Virtuosity Kit's.** The same kernel (`drumsampler.js`, Virtuosity Kit's with the kit's shape
+  passed in): velocity crossfades between layers along their measured levels (the brushes, like the cymbals, at equal
+  power: two brush strokes are noise to each other), strokes from the instance's seed, the hats choking each other,
+  three strokes per piece at most, the same params (`tune`, `decay`, `tone`, `level`) and a level for the kick,
+  snare, swirl, hats, toms, ride and crash.
+- **Levels.** The defaults ease the kick back 4 dB and the toms 3, lift the snare 4, the stir 6 and the ride 8 (a
+  brushed ride is quiet), with the crash at -2; **As recorded** is the pair's own balance. At the defaults the device
+  check's drum phrase measures -17.8 LUFS and -1.5 dBTP, and the limiter eases only the hardest strokes (velocity 0.95
+  and up: the snare by 4 to 5.5 dB, the rack tom by 2 to 3.5, the kick by 1 to 2).
+- **The QA rubric** (`tools/kits/qa.js`, run by `fetch-kits.js` on every stroke) accepts clipping, DC and the heads.
+  Every piece's velocity layers climb, 10.3 to 21.9 dB soft to hard, but the stir's two (a soft and a hard stir)
+  are 5.6 dB apart, so that check is for review. It waives three checks in the
+  recipe, each with its reason: the noise floor and the tails (every file sits on the same room at -91 dBFS: the
+  soft brush strokes are quiet, not noisy) and phase coherence (a spaced pair over brushed hats and cymbals, whose
+  noise is uncorrelated between the mics, about -3 dB summed to mono, not a mic out of phase). Its round robins are
+  for the listening room: four layers' two strokes are 1.6 to 2.2 dB apart.
+
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.brushkit#653ce5fbd513` pins its render.
+
+## Hand Crate (`core.handkit`): hand percussion
+
+VCSL's hand and aux percussion (the Versilian Community Sample Library, Versilian Studios, CC0 1.0), through VCSL's
+stereo pair. `app/src/devices/builtin/handkit.js` on the same kernel as Rusty Brushes (`drumsampler.js`); the samples
+come by [kernel data](#kernel-data-samples-a-kernel-plays), built from `tools/kits/vcsl-hand.js`.
+
+- **What it plays.** Sixteen pieces, one to three velocity layers of one or two strokes: a cajon's bass and slap, an
+  open, a muted and a low conga, high and low bongos, a small and a big shaker, tambourine strokes and a tambourine
+  roll, a cowbell, claves, a woodblock, a high agogo and a guiro. 66 samples, 39.0 s of 16-bit, 44.1 kHz stereo,
+  2.56 MB over the wire as `.odkz`.
+- **The note map.** General MIDI's percussion where it is: 54 tambourine, 56 cowbell, 60 and 61 bongos, 62 muted,
+  63 open and 64 low conga, 67 agogo, 69 and 70 the big shaker, 73 guiro, 75 claves, 76 and 77 woodblock, 82 shaker.
+  A kit's notes play as a hand player would: 35 and 36 the cajon's bass, 38 and 40 its slap, 42 and 44 the shaker,
+  46 the tambourine, the high toms (50, 48, 47) the conga and the low ones (45, 43, 41) the low conga. So any beat
+  written for a kit plays on it. 33 (Studio A's held roll) is the tambourine roll, which rings while its note is
+  held (a 3 s loop, as Rusty Brushes' stir). Cymbal notes play nothing ("Not in this kit").
+- **Even strokes.** VCSL's two strokes of one layer were recorded up to 6.6 dB apart (the low bongo), so each stroke
+  plays at its layer's level, measured from its own first 150 ms (`even` in `drumSamplerKernel`): a run of one note
+  at one velocity is level whichever stroke plays. A few pieces VCSL recorded quieter than their neighbours on one
+  knob sit higher by a fixed `offset` (the small shaker 10 dB, the guiro 12, the agogo 6, the claves 4, the low
+  conga 3).
+- **A muted conga stops the open one** (within 30 ms), and an open stroke the muted one (60 ms).
+- **Params:** `tune`, `decay`, `tone` and `level`, as the other kits, and a level for the cajon, congas, bongos,
+  shakers (with the tambourines and guiro) and bells (cowbell, agogo, claves, woodblock). The defaults ease the cajon
+  back 3 dB and lift the congas and bongos 6, the shakers 6 and the bells 3. At the defaults the drum phrase
+  measures -18.1 LUFS and -1.5 dBTP; the limiter eases only the hardest strokes, by 2.2 dB at most (the low bongo).
+- **The QA rubric** accepts clipping (the cajon's loudest bass pairs one stroke of hit 3 with one of hit 2, as the
+  other of hit 3 is clipped), DC and the heads. For review: the small shaker's floor and tail (VCSL's files stop while
+  it sounds; the build cuts it at 0.24 s with a 30 ms fade), the softest woodblock's floor, the round robins (the
+  kernel evens them) and the tambourine roll's two layers, 8.3 dB apart (the rubric asks 10). Waived in the recipe, with its reason:
+  phase coherence (a spaced pair over small, bright percussion, the high bongo, the tambourines and the woodblock:
+  r from -0.2 to 0.2, not a mic out of phase).
+
+`tools/drumkit-test.js` holds it to all of this, and the golden scene `inst:core.handkit#a449e40fb8b4` pins its render.
+
 ## Kernel data: samples a kernel plays
 
 A kernel sees only `dsp`, so a device that plays recordings needs the host to bring them. A def can name files by
@@ -450,15 +532,18 @@ frames, ch: [Int16Array, ...] }] }`.
   never see it, and the pinned hash is still the `.odk`'s. A wrong byte fails that check: the studio says which file
   in the console and fetches the plain `.odk` instead, and without one the device plays nothing. Plain copies an
   earlier visit cached still load.
-- **Loaded lazily, once.** Nothing is fetched until a track uses the device (`kernel/host.js` asks when it builds an
-  instance). `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
+- **Loaded lazily, once.** Nothing is fetched until something asks: a track using the device (`kernel/host.js` asks
+  when it builds an instance), or a sound picker showing it (the suggested-sounds card's rows) or the pointer resting
+  on it (the browser, Find), through `ui/kitload.js`, so a first try isn't silent. `kernel/data.js` fetches the file, checks its SHA-256 against its name, and keeps it in IndexedDB
   (`overdub-kits`, beside the audio assets; the packed bytes, which are smaller), so the next visit never fetches it. Each audio context's worklet decodes
   it once: the first node that needs it carries the bytes, and every node after names the hash (a node whose hash
   arrives before those bytes do gets its kit when they land).
 - **Nothing streams mid-render.** An offline render (an export, the device check, the preview) waits for the file
   before it starts, however long the download takes (an export never swaps in a stand-in for want of it). A live instance starts at once with `data.kit = null` (silence). When the file arrives,
   `create()` runs again with it, crossfading from that silence. While it loads, the device's card says **Loading
-  samples…**.
+  samples…**, and the track's header, a picker's row and the browser's trial bar show how far along it is. A trial
+  of the sound waits for it before it plays the take, and a key pressed meanwhile sounds once it lands if it is still
+  down, so no note of a first try is lost to the download.
 - **A missing file plays nothing, and says so.** A hash this server doesn't have (never fetched, or a song from
   somewhere else) gives the kernel `null`. The card says **No samples here**, the engine reports it (kind `'data'`),
   and the Node renderer warns. The device check fails it as silent.
@@ -502,6 +587,35 @@ The kit's `meta` may add `kind: 'melodic'`, `velcurve: [[vel, dB], ...]` (defaul
 
 `samplerKernel(opts)` in `app/src/devices/builtin/sampler.js` plays one. A device is that kernel, its params
 (`samplerParams()`) and a kit hash; Upright (`core.upright`) is the first.
+
+| device | kit | recipe |
+|---|---|---|
+| Parlour Upright (`core.upright`) | FreePats Upright Piano KW: 2 layers, 66 zones, the source's own SFZ | `tools/kits/upright-kw.js` |
+| Full Stick (`core.grand`) | Salamander Grand Piano V3: 3 of its 16 layers at 30 notes, release noise, cut to fit 15 MB | `tools/kits/salamander.js` |
+| Rosin (`core.ensemble`) | VSCO 2 CE: four string sections' sustains, 15 zones, 2 layers, looped | `tools/kits/vsco-strings.js` |
+| Damper Bar (`core.vibes`) | VCSL Vibraphone: 11 bars, soft and hard mallets, 4 layers | `tools/kits/vcsl-vibes.js` |
+| Roundwound (`core.ebass`) | Karoryfer Black And Blue Basses, dark black: 14 zones, 4 layers, 2 round robins, mono | `tools/kits/karoryfer-bass.js` |
+| Hollow Body (`core.eguitar`) | Karoryfer Black And Green Guitars, green: 16 zones, 3 layers, 2 round robins, mono | `tools/kits/karoryfer-guitar.js` |
+| Bell Up (`core.barisax`) | Karoryfer Bear Sax: 11 zones, 2 layers, looped on Karoryfer's own loops, mono | `tools/kits/karoryfer-barisax.js` |
+| Endpin (`core.cello`) | Karoryfer x bigcat cello: 16 zones, 2 layers, looped on Karoryfer's own loops, mono | `tools/kits/karoryfer-cello.js` |
+| Head Joint (`core.flute`) | VSCO 2 CE: the flute's sustains with vibrato, 10 zones, 1 layer, looped | `tools/kits/vsco-flute.js` |
+| Spit Valve (`core.trumpet`) | VSCO 2 CE: the trumpet's straight sustains, 10 zones, 2 layers, looped | `tools/kits/vsco-trumpet.js` |
+
+**Building one.** `node tools/fetch-kits.js` builds every kit a device names (`--only <name>` for one). Parlour
+Upright's recipe names an upstream SFZ; the others lay out their own regions (`file, key, lo, hi, vlo, vhi, layer,
+tune, trig`) and `tools/kits/build.js` builds them. A recipe also says:
+
+- **`cut`**: where each note ends. A level (`db` dBFS, or `rel` dB under its own attack) or a length by register
+  (`cap`), whichever comes first, then a squared fade, so a note cut for size dies a little early instead of stopping.
+- **`level`**: `'flat'` puts every sample on one smooth curve across the keys, and the kit's `velcurve` makes the
+  dynamics; `'key'` keeps the layers' recorded distance. **`align`** lines each layer's start up with the next layer
+  of its key, for the kernel's `'aligned'` crossfade.
+- **`loop`**: a sustain loop for each note, found by searching for the loop whose two ends match best, with the
+  crossfade baked into the samples (check 14 of the QA rubric reads it).
+- **`channels: 1`** stores the mid of a stereo source.
+
+Every build runs the QA rubric (`tools/kits/qa.js`) and writes `tools/.out/library/<name>/qa.json`; a check that fails
+ships only with a written waiver in the recipe.
 
 - **Pitch by resampling**, through a 16-tap Kaiser-windowed sinc with 512 phases. The table is built in `create()`
   from `+ - * /` and `sqrt` alone (its own sine and Bessel series), so it is the same numbers on every engine. A

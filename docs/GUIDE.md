@@ -281,10 +281,45 @@ yours to pick by ear:
     mics are faders along the bottom, and **VIEW** turns the picture round with the stereo image. On a phone, tap the
     kit and scroll for the rest.
 - **A real piano.** Parlour Upright, under Keys in **Add a track**, plays a recorded upright piano, every key from
-  samples. The first song that uses it fetches them (the device says **Loading samples…** beside its name until
-  they land) and the studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
+  samples. The studio fetches them the first time it's offered or you point at it (the row, the track's header and
+  the device say **Loading samples…**, with a line that fills, until they land), and a sound tried before then plays
+  your take from its first note once they're in. The studio keeps them, so the next time it plays at once. **DYNAMICS** sets how far soft notes fall
   below hard ones, **RELEASE** how long a note takes to die once you let go, and a sustain pedal holds notes as on
   a piano. Its sources and licence are in [`docs/SOUNDS.md`](https://github.com/overdubstudio/overdub/blob/main/docs/SOUNDS.md).
+- **A concert grand.** Full Stick, under Keys too, is a recorded grand with its lid open: Alexander Holm's Salamander
+  Grand. Every note is cut to fit a 15 MB download, so a chord held under the pedal dies after three or four seconds;
+  for long held chords, Parlour Upright rings longer. **DYNAMICS**, **RELEASE** and the pedal work as on the upright,
+  and the **Half stick** preset is the lid lowered.
+- **Strings.** Rosin, under Keys, is a recorded string section: double bass at the bottom, then cellos, violas and
+  violins, each note held for as long as you hold the key. Soft notes swell in as a bow does; **RELEASE** is how long
+  the bow takes to leave the string, and the **Long hall** preset lets every note ring on.
+- **A vibraphone.** Damper Bar, under Keys, is a recorded vibraphone with the motor off: soft mallets for soft notes,
+  hard mallets for hard ones. **RELEASE** is the damper bar; the **Pedal down** preset lets every bar ring.
+- **A bass guitar.** Roundwound, under Bass, is a recorded five-string bass played with the fingers, down to the low
+  B. A repeated note alternates between two plucks, so a line of eighths doesn't sound like a machine. Flatwound
+  beside it is the synthesized one.
+- **An electric guitar.** Hollow Body, under Plucked, is a recorded hollow-body electric guitar (a Gretsch), picked
+  and played dry: soft notes are softer picks, not just quieter ones, and a repeated note alternates between two picks.
+  Put an amp from the Guitar Studio after it for the room. DI Box beside it is the synthesized one.
+- **A saxophone.** Bell Up, under Keys, is a recorded baritone sax (a 1926 Conn), each note held for as long as you
+  hold the key, soft takes for soft notes and loud ones for loud. **RELEASE** is the breath stopping; the **Stabs**
+  preset cuts every note at once, for horn hits.
+- **A cello.** Endpin, under Keys, is one recorded cellist, bowing each note for as long as you hold the key, from
+  the open C string up. The bow is straight, as recorded (no vibrato); Rosin beside it is a whole section.
+- **A flute.** Head Joint, under Keys, is a recorded flute with vibrato, each note held for as long as you hold the
+  key, from middle C up three octaves. It has one dynamic, so **TONE** does what breath does: the **Breathy** preset
+  is softer and darker.
+- **A trumpet.** Spit Valve, under Keys, is a recorded trumpet, a straight tone held for as long as you hold the
+  key, soft and loud takes on every note. Brass Rail beside it is the synthesized section; the **Stabs** preset is
+  for horn hits.
+- **Brushes.** Rusty Brushes, under Drums in **Add a track**, is a recorded kit played with brushes and mallets:
+  brush taps on the snare, digs for accents, brushed hats and ride, a mallet crash and toms. Hold the swirl's note
+  (33 or 73) and the brush stirs the snare for as long as you hold it. It fetches its samples the first time, as
+  Parlour Upright does.
+- **Hand percussion.** Hand Crate, also under Drums, is a cajon, congas, bongos, shakers, tambourines, a cowbell,
+  claves, a woodblock, an agogo and a guiro, recorded. A beat written for a kit plays on it as a hand player would:
+  the kick is the cajon's bass, the snare its slap, the hats a shaker and a tambourine, the toms the congas. Hold
+  note 33 and the tambourine rolls for as long as you hold it.
 - **A synth to dig into.** Light Table is a wavetable synth. Each of its two oscillators sweeps through a table of
   waves (vowels, bells, organ drawbars, eight-bit pulses and more) as you turn its **POS** knob. Twelve more tables
   are recorded single cycles from AKWF: voices, electric pianos, organs, guitars, basses, strings, winds and more,
@@ -604,7 +639,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 46 devices: the 33 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 57 devices: the 44 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

@@ -15,7 +15,8 @@
 //     the Jam room's tab lane; never in a render, the song or History) ; engine.hushed (a copy of the set)
 //   engine.band(db, { keep: trackIds }) -> { db, keep } (practice: every track but `keep` turned down by db, -60..0, the
 //     Jam room's Band fader; live only, never in a render, the song or History) ; engine.bandLevel ({ db, keep })
-//   engine.on('transport' | 'meters' | 'error' | 'graph', fn) -> off
+//   engine.on('transport' | 'meters' | 'error' | 'graph' | 'kitwait', fn) -> off ('kitwait' { track, pitch }: a key
+//                          waits for its sampled instrument's samples, liveNoteOn below)
 //   engine.liveNoteOn(trackId, pitch, vel) / liveNoteOff(trackId, pitch) / audition(trackId, pitch, vel, beats)
 //   engine.inputNode(trackId) / instance(trackId, insertId | 'instrument') / masterTap / clock / meters
 //   engine.render({ from, to, tracks, sr, tail, latencyMax }) -> AudioBuffer ; songEnd() ; beatToSec(b) ; secToBeat(s) ; assets
@@ -484,7 +485,13 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
         T.wraps++;
         const at = uToTime(T.schedU), gen = T.gen, heard = at + outLatency() + pdc.total;
         const pass = { n: T.wraps + 1, start: lp.start, end: lp.end, grid: T.s0 + T.schedU, time: heard };
-        setTimeout(() => { if (T.playing && T.gen === gen) transportEvt('loop', { pass }); }, Math.max(0, (heard - ctx.currentTime) * 1000));
+        // (re-armed if the timer fires early: it counts wall time, and the audio clock can fall behind it)
+        const fire = () => {
+          if (!T.playing || T.gen !== gen) return;
+          if (ctx.currentTime < heard - 0.005) { setTimeout(fire, (heard - ctx.currentTime) * 1000); return; }
+          transportEvt('loop', { pass });
+        };
+        setTimeout(fire, Math.max(0, (heard - ctx.currentTime) * 1000));
       }
     }
   }
@@ -1152,7 +1159,8 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
 
   // ------------------------------------------------------------------------------------------- live play
   function liveInst(trackId) { const s = strips.get(trackId); return s ? s.instance('instrument') : null; }
-  // a key pressed before the engine was up plays once it is, unless it was let go meanwhile (its off came first)
+  // a key pressed before the engine was up plays once it is, unless it was let go meanwhile (its off came first); so
+  // does one pressed while the track's samples are loading
   const liveWait = new Map();        // `${track}:${pitch}` -> token
   function liveNoteOn(trackId, pitch, vel = 0.8) {
     if (!ctx) {
@@ -1166,6 +1174,16 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     const inst = liveInst(trackId);
     if (!inst) return;
     const k = trackId + ':' + pitch;
+    // a sampled instrument whose samples are still on their way: the key waits for them and sounds once they're in,
+    // if it is still down (as a key pressed before the engine was up does). The track's header says they're loading;
+    // 'kitwait' tells anyone listening that a note is waiting
+    if (inst.data && inst.data.state === 'loading' && typeof inst.on === 'function') {
+      const h0 = hush, tok = {};
+      liveWait.set(k, tok);
+      const off = inst.on('data', () => { off(); if (liveWait.get(k) !== tok) return; liveWait.delete(k); if (h0 === hush) liveNoteOn(trackId, pitch, vel); });
+      ev.emit('kitwait', { track: trackId, pitch });
+      return;
+    }
     if (liveHeld.has(k)) { try { liveHeld.get(k).noteOff(pitch, ctx.currentTime); } catch (e) { /* ok */ } }
     liveHeld.set(k, inst);
     try { inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), ctx.currentTime); } catch (e) { report({ kind: 'note', track: trackId, message: e.message }); }
@@ -1192,8 +1210,15 @@ export function createEngine(store, { assets = sharedAssets } = {}) {
     if (h0 !== hush || renewing) return; // the killswitch went in the meantime
     liveTouch(trackId);
     if (calm && calm.renewing) await calm.job;
-    const inst = liveInst(trackId);
+    let inst = liveInst(trackId);
     if (!inst) return;
+    // (a sampled instrument still loading: the audition waits for its samples, up to 30 s, and then sounds)
+    if (inst.data && inst.data.state === 'loading' && typeof inst.on === 'function') {
+      await new Promise((resolve) => { const off = inst.on('data', () => { off(); clearTimeout(tm); resolve(); }); const tm = setTimeout(() => { off(); resolve(); }, 30000); });
+      if (h0 !== hush) return;
+      inst = liveInst(trackId);
+      if (!inst) return;
+    }
     const t = ctx.currentTime;
     try { inst.noteOn(pitch, Math.max(0, Math.min(1, vel)), t); } catch (e) { return; }
     pendingOffs.push({ t: t + Math.max(0.03, beats * spbNow()), inst, p: pitch, onT: t, track: trackId, kind: 'live' });

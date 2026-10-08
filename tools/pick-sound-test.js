@@ -1,5 +1,5 @@
 // Picking a sound (docs/INSTRUMENTS-UX.md, section 6.1): a new idea is a new track, and you pick its sound by hearing it.
-// Twenty checks, numbered as the spec numbers them; each is a section, so one that throws fails with its reason and the
+// Twenty-one checks, numbered as the spec numbers them (21 is the sampled sounds' first try); each is a section, so one that throws fails with its reason and the
 // rest still run. QUIET: tools/pw.js open() launches Chromium with --mute-audio. The fake mic is tools/fake-wav.js's
 // (the hummed line AJ's repro uses, a 4-bar one, and a beatbox: noise bursts on the beat).
 //
@@ -28,7 +28,11 @@
 //  18  liner notes: no stripes, no pills, bylines, one primary, the .sel row's ink
 //  19  phone: 44 px rows, the sheet in the viewport, pinned Keep/Back, a tap above doesn't close it
 //  20  full studio: no card by itself; the toast line and the pending Sounds
-//   node tools/pick-sound-test.js      (screenshots: tools/.out/pick-sound-*.png)
+//  21  a sampled sound on a slow network (every kit held 3 s by a route): the card's rows start their samples coming
+//      when shown; a tried row says Loading on the row, the track's header and the status line; the take waits and
+//      plays from its first note once they're in; the browser starts a kit on hover; a key pressed while one loads
+//      sounds once it's in
+//   node tools/pick-sound-test.js      (screenshots: tools/.out/pick-sound-*.png; SECTIONS=21 runs just those)
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -41,7 +45,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const T = tally('pick-sound');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allowed|fonts\.g|Failed to load resource|getUserMedia|NotAllowedError|NotFoundError/i.test(e);
-const section = async (name, fn) => { try { await fn(); } catch (e) { T.ok(false, `${name}: ran to the end (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); } };
+const ONLY = process.env.SECTIONS ? new Set(process.env.SECTIONS.split(',')) : null;   // SECTIONS=6,21: just those
+const section = async (name, fn) => { if (ONLY && !ONLY.has(name.split(' ')[0])) return; try { await fn(); } catch (e) { T.ok(false, `${name}: ran to the end (${String(e && e.stack || e).split('\n').slice(0, 3).join(' ')})`); } };
 const WAVS = path.join(OUTDIR, 'pick-sound');
 const HUM = humWav(path.join(WAVS, 'hum.wav'));
 const HUM4 = humWav(path.join(WAVS, 'hum-4bars.wav'), { notes: [60, 64, 67, 69, 67, 64, 62, 60, 64, 67, 69, 72, 69, 67, 64, 60], dur: 0.42, gap: 0.08, tail: 4 });   // 16 notes, 8 s: 4 bars at 120
@@ -88,6 +93,12 @@ await section('2 soundsFor', async () => {
   T.ok(c.length === 4 && c[0].device === 'core.wavetable' && c.filter((r) => r.device === 'core.wavetable' && !r.preset).length === 1, `2: the current sound comes first, once, and there are still four (${ids(c).join(', ')})`);
   T.ok(d.filter((r) => r.device === 'core.drums' && /^studio kit$/i.test(r.preset || '')).length + d.filter((r) => r.device === 'core.drums' && !r.preset).length <= 1, `2: Gobo Kit on Studio kit isn't listed twice (${ids(d).join(', ')})`);
   T.ok([a, b, c, d].flat().every((r) => typeof r.family === 'string' && r.family.length > 1), '2: every row has a family word');
+  // the sampled instruments are offered where they fit: Parlour Upright for played lines and chords, Virtuosity Kit for a beat
+  const pl = sf({ kind: 'notes', src: 'qwerty', notes: line([60, 62, 64, 65]) }, { has });
+  const ch = sf('chords', { has }), dr = sf({ kind: 'drums', src: 'tap', notes: [] }, { has });
+  const noKit = sf({ kind: 'drums', src: 'tap', notes: [] }, { has: (id) => id !== 'core.drumroom' && has(id) });
+  T.ok(ids(pl)[1] === 'core.upright' && ids(ch)[1] === 'core.upright' && ids(dr)[1] === 'core.drumkit' && !ids(sf(hum, { has })).includes('core.upright') && ids(noKit)[3] === 'core.brushkit' && sounds.SOUND_SETS.drums.fallbacks.some((r) => r.device === 'core.handkit'),
+    `2: the sampled instruments are offered: Parlour Upright second for what you played (${ids(pl).join(', ')}) and for chords (${ids(ch).join(', ')}), Virtuosity Kit second for a beat (${ids(dr).join(', ')}), Rusty Brushes the first fallback and Hand Crate among them (${ids(noKit).join(', ')}); a hum keeps the voices that sing`);
   // every device and preset the sets name is real: walk SOUND_SETS whatever its shape
   const named = [];
   const walk = (x, depth = 0) => {
@@ -742,6 +753,71 @@ try {
     await sleep(400);
     const g = await Fu.E(() => ({ card: !!window.overdub.sounds?.current, line: !!document.querySelector('.ew-toast .snd-tl') }));
     T.ok(g.card && !g.line, `20: Sounds in the toast opens the card, and the toast's line goes, asked and answered (${JSON.stringify(g)})`);
+  });
+
+  await section('21 a sampled sound on a slow network', async () => {
+    const B = await fresh({ query: 'view=full' });
+    // every kit file held 3 s on its way, as a slow connection would (ui/kitload.js, kernel/data.js)
+    const reqs = [];
+    await B.page.route(/\/app\/kits\/[0-9a-f]{64}\.odkz?$/, async (route) => { reqs.push(route.request().url().replace(/^.*\/([0-9a-f]{12})[0-9a-f]+(\.odkz?)$/, '$1$2')); await sleep(3000); await route.continue().catch(() => {}); });
+    const hex = (id) => B.E((d) => window.overdub.devices.getDevice(d).data.kit.slice(7, 19), id);
+    const [ens, gtr] = [await hex('core.ensemble'), await hex('core.eguitar')];
+    // a chord held four beats on Keys: Rosin is in the chords rows
+    await B.E(() => { const o = window.overdub; o.store.dispatch([{ type: 'track.add', ref: 'k', track: { name: 'Keys', instrument: { device: 'core.keys' } } }, { type: 'clip.add', track: '$k', clip: { start: 0, length: 8, notes: 'C4@0:4 E4@0:4 G4@0:4' } }], { by: 'you' }); const id = o.store.get().tracks.at(-1).id; window.__keys = id; o.ui.select({ track: id }); o.sounds.offer({ track: id, from: 'header' }); });
+    await sleep(500);
+    const shown = await B.E(() => [...document.querySelectorAll('.snd-row')].map((r) => r.dataset.device));
+    T.ok(shown.includes('core.ensemble') && reqs.some((r) => r.startsWith(ens)), `21: the card shows Rosin in the chords rows, and its samples start coming before anything is tried (rows ${shown.join(', ')}; asked for ${reqs.join(', ')})`);
+    // what the first chord sounds like, and when the take starts, against when the samples are in
+    await B.E((h) => {
+      const o = window.overdub, id = window.__keys;
+      window.__k = { peaks: [], start: null };
+      import('/app/src/kernel/data.js').then((D) => { window.__k.D = D; });
+      o.engine.on('transport', (e) => { if (e.playing && !window.__k.start) window.__k.start = { t: performance.now(), state: window.__k.D?.dataState('sha256-' + h) || null }; });
+      window.__k.iv = setInterval(async () => { const v = await o.engine.voices?.(); const p = v?.[id]?.peak; window.__k.peaks.push({ t: performance.now(), p: p == null ? -180 : p }); }, 50);
+    }, (await B.E(() => window.overdub.devices.getDevice('core.ensemble').data.kit.slice(7))));
+    await B.page.locator('.snd-row[data-device="core.ensemble"]').click();
+    await sleep(500);
+    const ld = await B.E(() => {
+      const row = document.querySelector('.snd-row[data-device="core.ensemble"] .kitload'), head = document.querySelector(`.ar-head[data-track="${window.__keys}"] > .kitload`);
+      return { row: row && !row.hidden ? row.textContent : '', head: head && !head.hidden ? head.getAttribute('aria-label') || '' : '', status: document.querySelector('.snd-status')?.textContent || '', playing: !!window.overdub.engine.playing };
+    });
+    await B.shot('21-loading');
+    T.ok(/Loading samples/.test(ld.row) && /Loading its samples/.test(ld.head) && /Loading Rosin’s samples.*It plays once they’re in/.test(ld.status) && !ld.playing, `21: tried while its samples load, Rosin says so on its row, the track's header and the status line, and the take hasn't started (${JSON.stringify(ld)})`);
+    const began = await B.until(() => window.__k.start, null, 12000);
+    await sleep(1500);
+    const r = await B.E(() => { clearInterval(window.__k.iv); const k = window.__k, s = k.start; const first = k.peaks.filter((x) => s && x.t >= s.t && x.t <= s.t + 1200); return { state: s && s.state, max: Math.max(-180, ...first.map((x) => x.p)), row: document.querySelector('.snd-row[data-device="core.ensemble"] .kitload')?.hidden !== false, status: document.querySelector('.snd-status')?.textContent || '' }; });
+    T.ok(began && r.state === 'ready' && r.max > -50 && r.row, `21: once they're in, the take starts from its first chord and it sounds (the samples ${r.state} when it started; the first 1.2 s peak at ${r.max} dBFS; the row's loading line gone)`);
+    T.ok(/Hearing .* on Rosin/.test(r.status), `21: the status line goes back to what it's hearing ("${r.status}")`);
+    await B.E(() => { window.overdub.engine.stop?.(); window.overdub.sounds.back?.(); window.overdub.sounds.close?.(); });
+    // the browser: resting the pointer on Hollow Body starts its samples, and its row says how far along they are
+    await B.E(() => window.overdub.ui.show('browser'));
+    await sleep(500);
+    await B.E(() => window.overdub.browser?.search?.('Hollow Body'));
+    await sleep(500);
+    const n0 = reqs.length;
+    await B.page.locator('.br-row[data-device="core.eguitar"]').first().hover();
+    await sleep(400);
+    const hv = await B.E(() => { const k = document.querySelector('.br-row[data-device="core.eguitar"] .kitload'); return k && !k.hidden ? k.textContent : ''; });
+    T.ok(reqs.slice(n0).some((x) => x.startsWith(gtr)) && /Loading samples/.test(hv), `21: in the browser, the pointer on Hollow Body starts its samples, and its row says Loading ("${hv}"; asked for ${reqs.slice(n0).join(', ')})`);
+    // a key pressed while they load sounds once they're in, if it is still down
+    const live = await B.E(async () => {
+      const o = window.overdub;
+      o.store.dispatch({ type: 'track.add', ref: 'g', track: { name: 'Guitar', instrument: { device: 'core.eguitar' } } }, { by: 'you' });
+      const id = o.store.get().tracks.at(-1).id;
+      await o.engine.settled?.();
+      let waited = 0;
+      const off = o.engine.on('kitwait', (e) => { if (e.track === id) waited++; });
+      const state0 = o.engine.instance(id)?.data?.state;
+      o.engine.liveNoteOn(id, 64, 0.9);
+      const peaks = [];
+      const t0 = performance.now();
+      while (performance.now() - t0 < 6000) { await new Promise((r) => setTimeout(r, 60)); const v = await o.engine.voices(); peaks.push({ t: performance.now() - t0, p: v?.[id]?.peak ?? -180, ready: o.engine.instance(id)?.data?.state }); if (peaks.at(-1).ready === 'ready' && peaks.filter((x) => x.ready === 'ready').length > 12) break; }
+      o.engine.liveNoteOff(id, 64);
+      off();
+      const after = peaks.filter((x) => x.ready === 'ready');
+      return { state0, waited, before: Math.max(-180, ...peaks.filter((x) => x.ready !== 'ready').map((x) => x.p)), after: Math.max(-180, ...after.map((x) => x.p)) };
+    });
+    T.ok(live.state0 === 'loading' && live.waited === 1 && live.after > -50, `21: a key pressed on Hollow Body while its samples load waits (kitwait once) and sounds once they're in, still held (${JSON.stringify(live)})`);
   });
 
   const all = [...s.errors, ...pages.flatMap((p) => p.errors)].filter((e) => !ignorable(e));

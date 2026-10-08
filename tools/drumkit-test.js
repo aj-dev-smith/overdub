@@ -1,4 +1,4 @@
-// Virtuosity Kit (core.drumkit) and kernel data (docs/DEVICES.md, "Kernel data").
+// Virtuosity Kit (core.drumkit), Rusty Brushes (core.brushkit) and kernel data (docs/DEVICES.md, "Kernel data").
 //
 //   node tools/drumkit-test.js
 //
@@ -8,7 +8,11 @@
 // pinned one (and rebuilds byte for byte from the download cache), the device passes checkDevice in Node and in the
 // page, renders bit-exact twice, follows velocity without jumps, chokes its hats, varies its strokes by seed, tunes,
 // gates and tilts as its params say, renders at 44.1 kHz, and the studio loads it once (IndexedDB), says "loading"
-// while it does, and renders the same samples as Node.
+// while it does, and renders the same samples as Node. Rusty Brushes (drumsampler.js, the same kernel with the kit's
+// shape passed in) is held to its pinned file, its 8 MB budget, the house level, velocity without jumps, its hats'
+// choke, and its stir: it rings, looped without a click, for as long as its note is held, then fades. Hand Crate (the
+// same kernel) to its pinned file and budget, the house level, a drum beat played on it, its congas' choke and its
+// held tambourine roll.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -27,6 +31,10 @@ import { getDevice, defineDevice } from '../app/src/devices/registry.js';
 import '../app/src/devices/builtin/index.js';
 import { KIT_HASH, NOTE_MAP, PIECES } from '../app/src/devices/builtin/drumkit.js';
 import { RECIPE } from './kits/virtuosity.js';
+import { BRUSH_HASH, NOTE_MAP as BRUSH_MAP, PIECES as BRUSH_PIECES } from '../app/src/devices/builtin/brushkit.js';
+import { RECIPE as BRUSH_RECIPE } from './kits/big-rusty.js';
+import { HAND_HASH, NOTE_MAP as HAND_MAP, PIECES as HAND_PIECES } from '../app/src/devices/builtin/handkit.js';
+import { RECIPE as HAND_RECIPE } from './kits/vcsl-hand.js';
 import { createProject } from '../app/src/core/project.js';
 import { drumPhrase, PHRASE_BPM, DRUM_PHRASE_BEATS } from '../app/src/audio/testsignals.js';
 import { kernelCore, kernelCompiler } from '../app/src/kernel/worklet.js';
@@ -262,6 +270,105 @@ console.log('the device');
   t.ok(peak(none) === 0 && def.notes.other === 'Not in this kit', 'notes it has no samples for (clap, cowbell, 60) are silent, and named "Not in this kit"');
 }
 
+// ---------------------------------------------------------------------------------------------- Rusty Brushes
+console.log('Rusty Brushes (core.brushkit)');
+const bdef = getDevice('core.brushkit');
+const HAVE_B = fs.existsSync(dataPath(BRUSH_HASH));
+if (!HAVE_B) t.note(`Rusty Brushes' kit isn't fetched (${path.relative(path.join(HERE, '..'), dataPath(BRUSH_HASH))}): node tools/fetch-kits.js, then this runs in full`);
+else {
+  const bb = fs.readFileSync(dataPath(BRUSH_HASH));
+  const bk = decodeOdk(new Uint8Array(bb.buffer, bb.byteOffset, bb.length));
+  const brender = (notes, params, opts = {}) => renderSong(song(notes, params, 'core.brushkit'), { from: 0, to: opts.to || 4, tail: opts.tail ?? 4, sr: opts.sr || 48000 });
+  t.ok('sha256-' + crypto.createHash('sha256').update(bb).digest('hex') === BRUSH_HASH && bk.sr === 44100 && bk.bits === 16 && bk.channels === 2, `the file is the pinned kit (${BRUSH_HASH.slice(0, 19)}...), 44.1 kHz, 16-bit, stereo, as recorded`);
+  const want = BRUSH_RECIPE.pieces.reduce((n, p) => n + p.layers.reduce((m, l) => m + l.files.length, 0), 0);
+  t.ok(bk.samples.length === want && BRUSH_PIECES.every((p) => bk.samples.some((s) => s.piece === p)) && bk.meta.licence === 'CC0-1.0' && bk.meta.commit === BRUSH_RECIPE.commit, `${bk.samples.length} samples over ${BRUSH_PIECES.length} articulations, with its source and licence (${bk.meta.licence}, ${bk.meta.repo}@${bk.meta.commit.slice(0, 12)})`);
+  const zf = dataPath(BRUSH_HASH) + 'z';
+  const zb = fs.existsSync(zf) ? fs.readFileSync(zf) : null;
+  const gz = zb ? zlib.gzipSync(zb, { level: 9 }).length : Infinity;
+  t.ok(zb && 'sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === BRUSH_HASH && gz <= 8e6, `its .odkz unpacks to it, and goes over the wire in ${(gz / 1e6).toFixed(2)} MB (the budget for a kit is 8 MB)`);
+  const swirls = bk.samples.filter((s) => s.piece === 'swirl');
+  t.ok(swirls.length && swirls.every((s) => s.loop && s.loop.e > s.loop.s && s.frames === s.loop.e + 4) && bk.samples.filter((s) => s.loop).length === swirls.length, `the stir's ${swirls.length} samples carry their loop (${swirls[0] && (swirls[0].loop.e - swirls[0].loop.s) / bk.sr} s); nothing else loops`);
+  t.ok(BRUSH_MAP.every(([, piece]) => BRUSH_PIECES.includes(piece)) && Object.values(bdef.notes).every((x) => typeof x === 'string' && x.length <= 40) && BRUSH_MAP.filter(([n]) => [35, 36, 38, 42, 44, 46, 49, 51, 45, 50].includes(n)).length === 10, `every mapped note (${BRUSH_MAP.length}) plays a piece in the kit and names it; the General MIDI kit notes are all there`);
+  const cache = path.join(HERE, '.out', 'kits-cache');
+  if (fs.existsSync(cache)) {
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', 'rusty'], { encoding: 'utf8' });
+    if (v.status === 2) t.note('the download cache is incomplete: Rusty Brushes\' byte-for-byte rebuild was not run');
+    else t.ok(v.status === 0, `it rebuilds byte for byte from the pinned upstream files (${(v.stdout.trim().split('\n').pop() || '').trim()})`);
+  }
+  const rep = await checkDeviceNode(bdef, {});
+  t.ok(rep.ok && !rep.warnings.length && rep.deterministic === true, `checkDevice (Node) passes with no warnings, bit-identical twice${rep.ok ? '' : ': ' + rep.errors.join('; ')}${rep.warnings.length ? ' (' + rep.warnings.join('; ') + ')' : ''}`);
+  t.ok(rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1, `checkDevice: ${rep.level.lufs} LUFS on the drum phrase, ${rep.truePeak} dBTP`);
+  const phrase = drumPhrase();
+  const a = brender(phrase, {}, { to: DRUM_PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(a) === sha256(brender(phrase, {}, { to: DRUM_PHRASE_BEATS, tail: 2 })) && !a.warnings.length, `the drum phrase renders bit-exact twice (${sha256(a).slice(0, 16)}), no warnings`);
+  // velocity: the brush snare climbs with velocity and never jumps where its four layers change
+  const lv = [];
+  for (let v = 0.1; v <= 1.0001; v += 0.02) lv.push(db(rms(brender([{ p: 38, t: 0, v }], {}, { to: 1, tail: 0.6 }), 0, 0.3)));
+  let down = 0, jump = 0;
+  for (let i = 1; i < lv.length; i++) { const d = lv[i] - lv[i - 1]; if (d < -0.5) down++; if (Math.abs(d) > jump) jump = Math.abs(d); }
+  t.ok(down === 0 && jump < 2, `the brush snare's level follows velocity (${lv[0].toFixed(1)} dB at 0.1 to ${lv[lv.length - 1].toFixed(1)} dB at 1; biggest step ${jump.toFixed(2)} dB per 0.02)`);
+  // the hats: a closed note chokes the open one; the crash rings on
+  const open1 = brender([{ p: 46, t: 0, v: 0.9 }], {}, { to: 2, tail: 2 }), choked = brender([{ p: 46, t: 0, v: 0.9 }, { p: 42, t: 1, v: 0.3 }], {}, { to: 2, tail: 2 });
+  t.ok(db(rms(open1, 0.7, 1.2)) - db(rms(choked, 0.7, 1.2)) > 15, `a closed hat chokes the open one (${db(rms(open1, 0.7, 1.2)).toFixed(1)} dB open, ${db(rms(choked, 0.7, 1.2)).toFixed(1)} dB choked)`);
+  const cr = brender([{ p: 49, t: 0, v: 0.9 }, { p: 42, t: 1, v: 0.3 }], {}, { to: 2, tail: 3 }), cr1 = brender([{ p: 49, t: 0, v: 0.9 }], {}, { to: 2, tail: 3 });
+  t.ok(Math.abs(db(rms(cr, 1.5, 2.5)) - db(rms(cr1, 1.5, 2.5))) < 1, 'a hat note leaves the mallet crash ringing');
+  // the stir rings for as long as its note is held, looping (8 s held, from a 3 s loop) at a steady level and without a
+  // click at the seam, then fades out within 200 ms of the note's end; a short note is a short stir
+  for (const sr of [44100, 48000]) {
+    const r = brender([{ p: 73, t: 0, v: 0.8, d: 16 }], {}, { to: 20, tail: 1, sr }), L = r.channels[0], W = Math.round(0.25 * sr);
+    const win = []; for (let i = W; i + W <= 8 * sr; i += W) { let e = 0; for (let j = i; j < i + W; j++) e += L[j] * L[j]; win.push(10 * Math.log10(e / W)); }
+    const st = []; for (let i = sr; i < 8 * sr; i++) st.push(Math.abs(L[i] - L[i - 1]));
+    const sorted = st.slice().sort((x, y) => x - y), p999 = sorted[Math.floor(sorted.length * 0.999)], max = sorted[sorted.length - 1];
+    const after = db(rms(r, 8.2, 8.6));
+    t.ok(Math.max(...win) - Math.min(...win) < 6 && max < 2 * p999 && after < -90, `at ${sr / 1000} kHz a stir held 8 s rings throughout (${Math.min(...win).toFixed(1)} to ${Math.max(...win).toFixed(1)} dB in 250 ms windows), no step at the loop's seam beyond twice the 99.9th percentile (${max.toExponential(1)} against ${p999.toExponential(1)}), and is gone 200 ms after the note (${after.toFixed(0)} dB)`);
+  }
+  const short = brender([{ p: 73, t: 0, v: 0.8, d: 1 }], {}, { to: 4, tail: 1 });
+  t.ok(db(rms(short, 0.1, 0.4)) > -45 && db(rms(short, 0.75, 1.5)) < -90, `a half-second stir is half a second (${db(rms(short, 0.1, 0.4)).toFixed(1)} dB while held, ${db(rms(short, 0.75, 1.5)).toFixed(0)} dB after)`);
+  // the levels: each piece answers to its knob; notes it has no samples for are silent
+  t.ok(peak(brender([{ p: 73, t: 0, v: 0.8, d: 2 }], { swirl_level: -40 }, { to: 2, tail: 1 })) === 0 && peak(brender([{ p: 51, t: 0, v: 0.8 }], { ride_level: -40 }, { to: 1, tail: 1 })) === 0, 'the stir and the ride at -40 dB are off');
+  t.ok(peak(brender([{ p: 37, t: 0 }, { p: 53, t: 1 }, { p: 60, t: 2 }], {}, { to: 3, tail: 1 })) === 0 && bdef.notes.other === 'Not in this kit', 'notes it has no samples for (side stick, ride bell, 60) are silent, and named "Not in this kit"');
+}
+
+// ---------------------------------------------------------------------------------------------- Hand Crate
+console.log('Hand Crate (core.handkit)');
+const hdef = getDevice('core.handkit');
+if (!fs.existsSync(dataPath(HAND_HASH))) t.note(`Hand Crate's kit isn't fetched (${path.relative(path.join(HERE, '..'), dataPath(HAND_HASH))}): node tools/fetch-kits.js, then this runs in full`);
+else {
+  const hb = fs.readFileSync(dataPath(HAND_HASH));
+  const hk = decodeOdk(new Uint8Array(hb.buffer, hb.byteOffset, hb.length));
+  const hrender = (notes, params, opts = {}) => renderSong(song(notes, params, 'core.handkit'), { from: 0, to: opts.to || 4, tail: opts.tail ?? 4, sr: opts.sr || 48000 });
+  const want = HAND_RECIPE.pieces.reduce((n, p) => n + p.layers.reduce((m, l) => m + l.files.length, 0), 0);
+  const zb = fs.existsSync(dataPath(HAND_HASH) + 'z') ? fs.readFileSync(dataPath(HAND_HASH) + 'z') : null, gz = zb ? zlib.gzipSync(zb, { level: 9 }).length : Infinity;
+  t.ok('sha256-' + crypto.createHash('sha256').update(hb).digest('hex') === HAND_HASH && hk.sr === 44100 && hk.samples.length === want && HAND_PIECES.every((p) => hk.samples.some((s) => s.piece === p)) && hk.meta.licence === 'CC0-1.0' && hk.meta.commit === HAND_RECIPE.commit,
+    `the file is the pinned kit (${HAND_HASH.slice(0, 19)}...): ${hk.samples.length} samples over ${HAND_PIECES.length} pieces, 44.1 kHz, with its source and licence (${hk.meta.repo}@${hk.meta.commit.slice(0, 12)})`);
+  t.ok(zb && 'sha256-' + crypto.createHash('sha256').update(unpackOdk(zb)).digest('hex') === HAND_HASH && gz <= 8e6, `its .odkz unpacks to it, and goes over the wire in ${(gz / 1e6).toFixed(2)} MB (the budget is 8 MB)`);
+  t.ok(HAND_MAP.every(([, piece]) => HAND_PIECES.includes(piece)) && Object.values(hdef.notes).every((x) => typeof x === 'string' && x.length <= 40) && [36, 38, 42, 46, 54, 56, 60, 61, 62, 63, 64, 75].every((n) => HAND_MAP.some(([m]) => m === n)), `every mapped note (${HAND_MAP.length}) plays a piece and names it: General MIDI's percussion, and a kit's kick, snare and hats as cajon and shakers`);
+  if (fs.existsSync(path.join(HERE, '.out', 'kits-cache'))) {
+    const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', 'crate'], { encoding: 'utf8' });
+    if (v.status === 2) t.note('the download cache is incomplete: Hand Crate\'s byte-for-byte rebuild was not run');
+    else t.ok(v.status === 0, `it rebuilds byte for byte from the pinned upstream files (${(v.stdout.trim().split('\n').pop() || '').trim()})`);
+  }
+  const rep = await checkDeviceNode(hdef, {});
+  t.ok(rep.ok && !rep.warnings.length && rep.deterministic === true && rep.level.lufs >= -18.5 && rep.level.lufs <= -13.5 && rep.truePeak <= -1, `checkDevice (Node) passes with no warnings, bit-identical twice: ${rep.level.lufs} LUFS on the drum phrase, ${rep.truePeak} dBTP${rep.ok ? '' : ': ' + rep.errors.join('; ')}`);
+  // a kit's beat plays on it: the drum phrase's kick, snare and hats are the cajon and the shakers
+  const ph = hrender(drumPhrase(), {}, { to: DRUM_PHRASE_BEATS, tail: 2 });
+  t.ok(sha256(ph) === sha256(hrender(drumPhrase(), {}, { to: DRUM_PHRASE_BEATS, tail: 2 })) && !ph.warnings.length && db(rms(ph, 0, 2)) > -40, `the drum phrase plays on it (${db(rms(ph, 0, 2)).toFixed(1)} dB over its first bar), bit-exact twice`);
+  // velocity: the open conga climbs without jumps; its strokes play at their layer's level (VCSL's are up to 6.6 dB apart)
+  const lv = [];
+  for (let v = 0.1; v <= 1.0001; v += 0.02) lv.push(db(rms(hrender([{ p: 63, t: 0, v }], {}, { to: 1, tail: 0.6 }), 0, 0.3)));
+  let down = 0, jump = 0;
+  for (let i = 1; i < lv.length; i++) { const d = lv[i] - lv[i - 1]; if (d < -0.5) down++; if (Math.abs(d) > jump) jump = Math.abs(d); }
+  t.ok(down === 0 && jump < 2, `the open conga's level follows velocity (${lv[0].toFixed(1)} to ${lv[lv.length - 1].toFixed(1)} dB; biggest step ${jump.toFixed(2)} dB per 0.02)`);
+  const eight = Array.from({ length: 8 }, (_, k) => ({ p: 61, t: 2 * k, v: 0.6 }));
+  const r8 = hrender(eight, {}, { to: 16, tail: 1 }), lvl = eight.map((n) => db(rms(r8, n.t / 2, n.t / 2 + 0.15)));
+  t.ok(Math.max(...lvl) - Math.min(...lvl) < 1.5, `eight low bongos at one velocity land within ${(Math.max(...lvl) - Math.min(...lvl)).toFixed(2)} dB of each other, whichever stroke plays`);
+  const op = hrender([{ p: 63, t: 0, v: 0.9 }], {}, { to: 1, tail: 1 }), mu = hrender([{ p: 63, t: 0, v: 0.9 }, { p: 62, t: 0.5, v: 0.01 }], {}, { to: 1, tail: 1 });
+  t.ok(db(rms(op, 0.4, 0.6)) - db(rms(mu, 0.4, 0.6)) > 6, `a muted stroke stops the open conga (${db(rms(op, 0.4, 0.6)).toFixed(1)} dB open, ${db(rms(mu, 0.4, 0.6)).toFixed(1)} dB stopped)`);
+  const roll = hrender([{ p: 33, t: 0, v: 0.8, d: 12 }], {}, { to: 16, tail: 1 });
+  t.ok(db(rms(roll, 5, 5.9)) > -45 && db(rms(roll, 6.3, 7)) < -90, `the tambourine roll rings while its note is held, looped (${db(rms(roll, 5, 5.9)).toFixed(1)} dB at 5 s, from a 3 s loop), and stops after it (${db(rms(roll, 6.3, 7)).toFixed(0)} dB)`);
+  t.ok(peak(hrender([{ p: 49, t: 0 }, { p: 51, t: 1 }, { p: 57, t: 2 }], {}, { to: 3, tail: 1 })) === 0 && hdef.notes.other === 'Not in this kit', 'cymbal notes are silent (it has none), and named "Not in this kit"');
+}
+
 // ---------------------------------------------------------------------------------------------- the studio
 console.log('the studio');
 {
@@ -293,6 +400,22 @@ console.log('the studio');
     t.ok(out.len === node.length && db(worst) <= -90, `the page's render matches Node's within -90 dBFS (worst ${worst ? db(worst).toFixed(1) : '-inf'} dBFS${worst ? '' : ': bit-identical'})`);
     t.ok(fetched === 1 && plain === 0, `the kit was fetched once, packed (.odkz), for a render and a device check (${fetched} requests, ${plain} for the plain .odk)`);
     t.ok(out.ok, `checkDevice in the page passes (${out.lufs} LUFS)${out.ok ? '' : ': ' + out.errors.join('; ')}`);
+    // Rusty Brushes in the page: its own kit, the same samples as Node (a stir held over the phrase's first bars)
+    if (HAVE_B) {
+      const bp = [...drumPhrase().filter((n) => n.t < 8), { p: 73, t: 0, v: 0.7, d: 3 }];
+      const bnode = renderSong(song(bp, {}, 'core.brushkit'), { from: 0, to: 8, tail: 2 });
+      const bo = await page.evaluate(async ({ p }) => {
+        const { renderProject } = await import('/app/src/engine/render.js');
+        const { cleanProject } = await import('/app/src/core/project.js');
+        const buf = await renderProject(cleanProject(p), { from: 0, to: 8, tail: 2, assets: { get: async () => null } });
+        const enc = (f) => { const u = new Uint8Array(f.buffer.slice(0)); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+        return { ch: [enc(buf.getChannelData(0)), enc(buf.getChannelData(1))], len: buf.length };
+      }, { p: song(bp, {}, 'core.brushkit') });
+      const bch = bo.ch.map(unb);
+      let bw = 0;
+      for (let c = 0; c < 2; c++) for (let i = 0; i < Math.min(bch[c].length, bnode.channels[c].length); i++) bw = Math.max(bw, Math.abs(bch[c][i] - bnode.channels[c][i]));
+      t.ok(bo.len === bnode.length && peak(bnode) > 0.05 && db(bw) <= -90, `Rusty Brushes in the page matches Node within -90 dBFS (worst ${bw ? db(bw).toFixed(1) : '-inf'} dBFS${bw ? '' : ': bit-identical'})`);
+    }
     // cached: a reload takes it from IndexedDB, not the network
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => window.overdub && window.overdub.store, null, { timeout: 30000 });
