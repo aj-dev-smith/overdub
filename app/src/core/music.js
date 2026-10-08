@@ -170,14 +170,15 @@ export function quantize(t, grid = 0.25, strength = 1, swing = 0) {
 }
 
 /* ---------------------------------------------------------------- the notes text format */
-// "pitch@start:dur[*vel]" separated by spaces or commas. Lines starting with # are comments.
+// "pitch@start:dur[*vel]" separated by spaces or commas. A # that starts a line or a word comments out the rest of
+// the line (a sharp, C#4, is inside a word).
 export function parseNotes(text) {
   if (Array.isArray(text)) return text.map(normNote);
   const out = [];
   const errors = [];
-  for (const raw of String(text).split(/[\s,;]+/)) {
+  for (const raw of String(text).replace(/(^|[\s,;])#[^\n]*/g, '$1').split(/[\s,;]+/)) {
     const tok = raw.trim();
-    if (!tok || tok.startsWith('#')) continue;
+    if (!tok) continue;
     const m = /^([^@]+)@(-?[\d.]+(?:\/\d+)?):([\d.]+(?:\/\d+)?)(?:\*([\d.]+))?$/.exec(tok);
     if (!m) { errors.push(tok); continue; }
     const p = parsePitch(m[1]);

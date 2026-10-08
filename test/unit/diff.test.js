@@ -37,7 +37,7 @@ describe('diffProjects', () => {
 
   // ops.js track.add calls toNotes() on each clip's notes to read the text form, but normTrack -> normClip has already
   // turned a string into [] by then, so the notes vanish (while opsSummary reports them as added).
-  test('a new track whose clip notes are given as text keeps them', { todo: 'BUG: track.add drops a clip\'s text-form notes (core/ops.js track.add: normTrack empties them before toNotes)' }, () => {
+  test('a new track whose clip notes are given as text keeps them', () => {
     const s = createStore(createProject());
     const A = snap(s);
     s.dispatch({ type: 'track.add', track: { name: 'Bass', clips: [{ start: 0, length: 4, notes: 'C2@0:1 G2@1:1 C3@2:1' }] } });

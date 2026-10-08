@@ -171,8 +171,11 @@ describe('the notes text format', () => {
     assert.equal(ns[1].v, 1);
     assert.equal(ns[2].p, 62);
   });
-  test('a comment line of several words is skipped', { todo: 'BUG: music.js parseNotes splits on whitespace before dropping #-comments, so "# a line" throws on "a" and "line"' }, () => {
+  test('a comment line of several words is skipped', () => {
     assert.deepEqual(parseNotes('# the verse riff\nC4@0:1'), [{ p: 60, t: 0, d: 1, v: 0.8 }]);
+  });
+  test('a comment after the notes ends the line, and a sharp is not a comment', () => {
+    assert.deepEqual(parseNotes('C#4@0:1 # the hook\nD4@1:1').map((n) => n.p), [61, 62]);
   });
   test('an empty text is no notes', () => {
     assert.deepEqual(parseNotes(''), []);
