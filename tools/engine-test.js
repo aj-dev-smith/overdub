@@ -884,10 +884,11 @@ await page.evaluate(() => {
       const ons = spy(engine, 't_a'), ctx = engine.ctx;
       await engine.play(8, { countIn: { beats: 4, preroll } });
       await T.waitCtx(engine.ctx, 0.25);
-      const c = engine.counting, beat = engine.beat;
+      // the latency counting.time allowed for, read in the same breath: the output latency can move while it plays, and
+      // a reading at the end measured that instead of the pre-roll (-2.003 s on a CI runner)
+      const c = engine.counting, beat = engine.beat, lat = (ctx.outputLatency || ctx.baseLatency || 0) + engine.latency.total;
       await T.until(() => engine.beat > 9.6);
       engine.stop();
-      const lat = (ctx.outputLatency || ctx.baseLatency || 0) + engine.latency.total;
       await engine.dispose();
       const t60 = (ons.find((o) => o.p === 60) || {}).t;
       return { c, beat, down: t60 + lat - c.time, ons: ons.map((o) => ({ p: o.p, rel: +(o.t - t60).toFixed(5) })) };
@@ -919,6 +920,27 @@ await page.evaluate(() => {
   T.ok(L.length >= 2 && L[0].n === 2 && L[1].n === 3 && L[0].start === 8 && L[0].end === 12 && L[0].grid === 12 && L[1].grid === 16 && Math.abs(L[1].time - L[0].time - 2) < 1e-6 && Math.abs(L[0].at - L[0].time) < 0.06,
     `the loop event carries the pass: ${JSON.stringify(L.map((x) => ({ n: x.n, start: x.start, end: x.end, grid: x.grid })))}, ${L.length > 1 ? (L[1].time - L[0].time).toFixed(4) : '?'} s apart, fired ${L.length ? ((L[0].at - L[0].time) * 1000).toFixed(0) : '?'} ms from when it is heard`);
   T.ok(r.pastLoop.loops.length === 0 && r.pastLoop.beat > 13.5 && r.pastLoop.beat < 15, `a count from beat 13 runs past the loop's end (12) and reaches it (beat ${r.pastLoop.beat.toFixed(3)}, ${r.pastLoop.loops.length} wraps)`);
+}
+
+{
+  // the loop event waits for the audio clock, not the wall's: with the audio thread held up after the wrap is scheduled
+  // (a busy machine's; here a suspended context) it fired when the wall clock got there, before the wrap was heard
+  // (-71 ms here, -97 ms on a CI runner)
+  const r = await page.evaluate(async () => {
+    const { engine } = mk(T.proj({ tempo: 120, loop: { on: true, start: 8, end: 12 } }));
+    await engine.start();
+    const loops = [];
+    engine.on('transport', (e) => { if (e.why === 'loop') loops.push({ time: e.pass.time, at: engine.ctx.currentTime }); });
+    await engine.play(8);
+    await T.until(() => engine.beat > 11.85);   // (the wrap at 12 is inside the lookahead, and not heard yet)
+    const early = loops.length;
+    await engine.ctx.suspend(); await T.sleep(300); await engine.ctx.resume();
+    await T.until(() => loops.length > early);
+    engine.stop();
+    await engine.dispose();
+    return { early, loop: loops[early] };
+  });
+  T.ok(r.early === 0 && r.loop && Math.abs(r.loop.at - r.loop.time) < 0.06, `with the audio clock held up 300 ms, the loop event still fires when the wrap is heard (${r.loop ? ((r.loop.at - r.loop.time) * 1000).toFixed(0) : '?'} ms from it)`);
 }
 
 {
