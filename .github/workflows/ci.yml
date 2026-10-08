@@ -51,84 +51,41 @@ env:
     jam-test.js mcp-e2e-test.js phone-test.js plugin-test.js record-test.js sketch-rec-test.js sounds-test.js
 
 jobs:
-  # TEMPORARY: macOS headed (full Chromium on the runner's display), probe and the real-time suites
+  # TEMPORARY: macOS timer coalescing, App Nap and sleep: the probe each way, then the real-time suites with all off
   diag:
     runs-on: macos-15
-    timeout-minutes: 50
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/suite-setup
-      - name: Quiet the machine
+      - name: Probe each way
+        timeout-minutes: 12
         run: |
-          sudo mdutil -a -i off || true
-          node node_modules/playwright-core/cli.js install chromium
-      - name: Probe
-        timeout-minutes: 5
-        env:
-          HEADED: 1
-        run: node tools/ci-probe.js
+          sudo mdutil -a -i off > /dev/null || true
+          pmset -g || true
+          sysctl kern.timer || true
+          echo "::group::baseline"; node tools/ci-probe.js; echo "::endgroup::"
+          defaults write NSGlobalDomain NSAppSleepDisabled -bool YES
+          echo "::group::App Nap off"; node tools/ci-probe.js; echo "::endgroup::"
+          echo "::group::App Nap off, caffeinate"; caffeinate -dimsu node tools/ci-probe.js; echo "::endgroup::"
+          sudo sysctl -w kern.timer.coalescing_enabled=0 || true
+          echo "::group::App Nap off, caffeinate, no timer coalescing"; caffeinate -dimsu node tools/ci-probe.js; echo "::endgroup::"
       - name: Suites
-        timeout-minutes: 30
+        timeout-minutes: 38
         env:
-          HEADED: 1
           PAR: 1
           CPU: 0
         run: |
           mkdir -p tools/.out
-          node tools/run-all.js arrange-test.js brand-test.js engine-test.js input-test.js stopping-test.js plugin-test.js \
-            | tee tools/.out/diag.log
+          caffeinate -dimsu node tools/run-all.js engine-test.js input-test.js arrange-test.js brand-test.js stopping-test.js \
+            plugin-test.js agent-test.js phone-test.js sounds-test.js | tee tools/.out/diag.log
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: diag-mac-headed
+          name: diag-mac
           path: tools/.out/diag.log
-          retention-days: 7
-
-  # TEMPORARY: every suite on Linux, four shards
-  linux:
-    name: linux (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-      - uses: ./.github/actions/suite-setup
-        with:
-          previous-kit: true
-      - name: The machine
-        run: |
-          nproc; free -g; echo "CHROMIUM=$CHROMIUM"
-          node tools/ci-probe.js || true
-      - name: This shard's suites
-        timeout-minutes: 50
-        env:
-          SHARD: ${{ matrix.shard }}
-          REQUIRE_ALL: 1
-          PAR: 1
-          CPU: 0
-        run: |
-          names=()
-          while IFS= read -r f; do names+=("$f"); done < <(
-            cd tools && printf '%s\n' *-test.js | LC_ALL=C sort | awk -v k="$SHARD" '(NR - 1) % 4 == k')
-          echo "shard $SHARD: ${names[*]}"
-          mkdir -p tools/.out
-          set -o pipefail
-          node tools/run-all.js "${names[@]}" | tee tools/.out/shard.log
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: linux-${{ matrix.shard }}
-          path: |
-            tools/.out/
-            !tools/.out/kits-cache/
           retention-days: 7
 
   # Every suite but the real-time ones, about 40 minutes one suite at a time, split four ways: each lands in exactly
