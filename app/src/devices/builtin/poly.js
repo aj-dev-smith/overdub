@@ -1,3 +1,4 @@
+// @ts-check
 // core.poly: Patch Bay, Overdub's everyday polysynth. Two band-limited oscillators a few cents apart (saw, square or
 // pulse), a sine sub an octave down, a 12 dB state-variable low-pass per side with its own decay envelope, an
 // analog-style ADSR, optional glide and a light unison. Every voice drifts a cent or two of its own (seeded), so

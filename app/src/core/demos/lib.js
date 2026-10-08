@@ -1,3 +1,4 @@
+// @ts-check
 // What the demo songs are made with: tracks, clips and inserts in the project format, and a seeded groove (swing,
 // lay-back, velocity and timing drift) so the house parts sound played rather than pasted. Everything is seeded: the
 // same demo builds the same notes every time (only the ids differ), so its renders and measurements are repeatable.

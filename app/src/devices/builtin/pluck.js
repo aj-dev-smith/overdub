@@ -1,3 +1,4 @@
+// @ts-check
 // core.pluck: Pinch Roller. A plucked string (extended Karplus-Strong): a burst of seeded noise, shaped by where the pick
 // hits (a comb notch at the pick position) and how hard (softer is darker), circulates in a tuned delay loop with a
 // one-zero damping filter and an allpass for exact tuning, losing just enough each pass to ring for DECAY seconds.

@@ -1,3 +1,4 @@
+// @ts-check
 // core.ep: Suitcase. Electric pianos built the way the real ones make their sound, not the way FM imitates it:
 //   TINE   a struck steel tine (a near-sine, a short inharmonic ping at about 7x for the strike, and its tone bar a
 //          hair apart, so long notes breathe), read by a magnetic pickup: the tine's tip swings through the pickup's

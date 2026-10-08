@@ -1,3 +1,4 @@
+// @ts-check
 // core.cello: Endpin. A solo cello, sampled: Karoryfer x bigcat cello (CC0), Kamila Borowiak bowing sustained notes,
 // played by the sampled-instrument kernel (sampler.js). Rosin (core.ensemble) is a section; this is one player.
 // docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit (tools/kits/karoryfer-cello.js pins every

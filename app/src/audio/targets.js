@@ -1,3 +1,4 @@
+// @ts-check
 // Genre targets as data: what a finished track in a genre measures, as ranges, so a render can be checked against them
 // (render_and_measure's targets, tools/bassmusic-test.js). Pure, Node and the browser.
 //

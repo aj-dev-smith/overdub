@@ -1,3 +1,4 @@
+// @ts-check
 // claude.leading-edge: Leading Edge. A transient shaper, no threshold to set: two pairs of envelope followers on the
 // signal. A fast-attack and a slow-attack follower differ only at the start of a hit (ATTACK turns that difference
 // into gain: more snap, or less); a long-release and a short-release follower differ only while a note rings out

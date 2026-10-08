@@ -1,3 +1,4 @@
+// @ts-check
 // Two reference kernels that prove the platform end to end (compile -> worklet -> check -> instance). Importing this
 // module registers them. They are small on purpose: read them next to docs/DEVICES.md.
 import { defineDevice, getDevice } from '../devices/registry.js';

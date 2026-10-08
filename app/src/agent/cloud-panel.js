@@ -1,3 +1,4 @@
+// @ts-check
 // The Agent panel's side of Claude on Overdub credits (agent/cloud.js): the sign-in sheet, the balance in the head, the
 // price on an ask before it's sent, out of credits, paused, top up, where the credits went, credits back. Only when the
 // deploy names the service (app/src/site-config.js); otherwise nothing here draws. No prices live in this file: the

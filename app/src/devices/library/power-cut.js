@@ -1,3 +1,4 @@
+// @ts-check
 // claude.power-cut: Power Cut. The tape stop: the last LENGTH beats of every cycle (one, two or four bars of four),
 // the output is read from a buffer at a speed that falls from 1 to 0 (CURVE: a long slow wind-down or a sudden
 // brake), so the pitch and the level sink together; the next cycle starts live again with a short crossfade. NOW

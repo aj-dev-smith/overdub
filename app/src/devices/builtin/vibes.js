@@ -1,3 +1,4 @@
+// @ts-check
 // core.vibes: Damper Bar. A vibraphone, sampled: the Versilian Community Sample Library's (CC0), every bar it
 // recorded, the motor off, played by the sampled-instrument kernel (sampler.js). docs/DEVICES.md "Melodic kits" is how;
 // tools/fetch-kits.js builds the kit (tools/kits/vcsl-vibes.js pins every upstream file, and says why the vibraphone

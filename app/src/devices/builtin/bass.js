@@ -1,3 +1,4 @@
+// @ts-check
 // core.bass: Capstan. One voice, played legato: a saw/square blend with a sine sub underneath, a 24 dB low-pass
 // (two state-variable stages, Butterworth-spaced, resonance on the second) swept by its own envelope, then a 2x
 // oversampled drive. Overlapping notes slide (GLIDE) without retriggering the envelopes, like a mono synth's legato

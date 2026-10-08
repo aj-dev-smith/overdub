@@ -1,3 +1,4 @@
+// @ts-check
 // core.crush: Chewed Tape. Fewer bits and a lower sample rate, on purpose: the sound of early samplers and game consoles.
 // RATE holds each sample (zero-order hold at a fractional rate, so any rate works, not just divisions), BITS rounds
 // the level to fewer steps (fractional bits are fine: the step size moves smoothly), and a gentle anti-alias low-pass before the hold

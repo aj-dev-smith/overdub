@@ -1,3 +1,4 @@
+// @ts-check
 // Pop. The format: core/grooves.js's header.
 export default `
 style pop  Pop

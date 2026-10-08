@@ -1,3 +1,4 @@
+// @ts-check
 // Small shared helpers for the engine: dB, sample-frame times, click-free parameter moves, waiting on the audio clock.
 
 export const dbToGain = (d) => (d <= -120 ? 0 : Math.pow(10, d / 20));

@@ -1,3 +1,4 @@
+// @ts-check
 // Neo-soul. The format: core/grooves.js's header. The lay line is the feel: the snare well behind the beat.
 export default `
 style neosoul  Neo-soul

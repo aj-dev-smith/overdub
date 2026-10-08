@@ -1,3 +1,4 @@
+// @ts-check
 // Indie. The format: core/grooves.js's header.
 export default `
 style indie  Indie

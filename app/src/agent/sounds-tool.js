@@ -1,3 +1,4 @@
+// @ts-check
 // The `suggest_sounds` agent tool (docs/INSTRUMENTS-UX.md 2.6): an agent's sounds for one track, as rows on the
 // person's sound card (ui/sounds.js, app.sounds). It never changes the song by itself: the person hears their take on
 // each row and Keeps one, and that Keep is theirs (signed you; History's reason line says who suggested it). So it is in

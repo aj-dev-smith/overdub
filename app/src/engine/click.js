@@ -1,3 +1,4 @@
+// @ts-check
 // The click's sound (pure: Node and the browser). The engine plays it from a buffer made here (engine.js clickAt), so
 // the click a person hears is the click tools/input-test.js measures against the drum kit.
 //

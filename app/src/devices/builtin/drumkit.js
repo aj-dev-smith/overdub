@@ -1,3 +1,4 @@
+// @ts-check
 // core.drumkit: Virtuosity Kit. The studio's first sampled instrument: a real jazz-club kit (Virtuosity Drums, CC0),
 // recorded through one stereo pair of overheads, played from samples instead of synthesized. docs/DEVICES.md "Kernel
 // data" is how the samples reach the kernel; tools/fetch-kits.js builds them (tools/kits/virtuosity.js names every

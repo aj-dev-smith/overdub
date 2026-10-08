@@ -1,3 +1,4 @@
+// @ts-check
 // core.poly2: Step Ladder. The analogue polysynth people mean when they say "a poly": oscillators that never alias,
 // a 24 dB ladder low-pass and a chorus, with velocity opening the filter by default (docs/research/INSTRUMENTS.md,
 // 2.11; Patch Bay stays as it is, since songs and golden scenes use it).

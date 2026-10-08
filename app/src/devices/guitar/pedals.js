@@ -1,3 +1,4 @@
+// @ts-check
 // Every clawd-o-matic pedal as an Overdub effect device, 'pedal.<id>' (ids are forever: the original ones, prefixed).
 // The pedal's own build(c, kit) runs unchanged on Overdub's kit (devices/kit.js) inside devices/graph.js's bypass.
 // Params are its knobs, with a role and a unit added where the label or the knob's own readout makes them obvious.

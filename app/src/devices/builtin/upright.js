@@ -1,3 +1,4 @@
+// @ts-check
 // core.upright: Parlour Upright. The studio's first sampled melodic instrument: a Kawai upright in a living room
 // (FreePats' Upright Piano KW, CC0), played from samples across the keyboard by the sampled-instrument kernel
 // (sampler.js). docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit (tools/kits/upright-kw.js

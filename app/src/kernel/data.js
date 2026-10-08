@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data on the page: the files a device's `data` names ({ kit: 'sha256-<hex>' }), fetched once, checked against
 // their name, kept in IndexedDB beside the audio assets ('overdub-kits'), and handed to kernel/host.js as bytes. The
 // worklet decodes them (kernel/odk.js); the page never does. Songs and share links carry only the hash.

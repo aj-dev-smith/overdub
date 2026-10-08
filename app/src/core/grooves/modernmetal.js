@@ -1,3 +1,4 @@
+// @ts-check
 // Modern metal. The format: core/grooves.js's header. The kick locked to a syncopated, palm-muted riff (djent unison)
 // over a steady hat, half-time China breakdowns, double-kick gallops, a bar of silence before the breakdown, and
 // choruses ridden on the crash or the China. Written for Studio A's note map; `kit metal` plays it on Rusty Sticks

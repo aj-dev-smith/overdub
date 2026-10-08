@@ -1,3 +1,4 @@
+// @ts-check
 // claude.biscuit-tin: Biscuit Tin. A struck bar or a plucked tine, modelled as a few resonant modes: a rosewood
 // marimba bar (partials near 1 : 4 : 9.2, the high ones dying first) or a steel kalimba tine (a cantilever: 1 : 6.27 :
 // 17.55). A raised-cosine mallet pulse excites them: a short pulse is a hard mallet (bright), a long one a yarn mallet

@@ -1,3 +1,4 @@
+// @ts-check
 // The main-thread side of kernels: load the processor once per context, make Instances, check source.
 //
 //   ensureKernelWorklet(c)            Promise<true>: the kernel processor (kernel/processor.js, with the dsp stdlib)

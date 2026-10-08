@@ -1,3 +1,4 @@
+// @ts-check
 // Dubstep, riddim and melodic bass. The format: core/grooves.js's header. Half-time at 140: the kick on one, the snare
 // on three of each bar, which makes a bar of 140 feel like 70. Plays on Sandbag (core.clubkit), kit DUBSTEP.
 export default `

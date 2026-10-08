@@ -1,3 +1,4 @@
+// @ts-check
 // get_guide "genres": how a named genre is built and mixed here, section by section. Each section is the know-how an
 // agent needs before it writes a part in that genre: the tempo and the form, the drum pattern, the sounds to start
 // from (by device and preset name), the mix and the master, and the numbers it is held to (audio/targets.js). Kept

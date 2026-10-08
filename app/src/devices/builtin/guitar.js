@@ -1,3 +1,4 @@
+// @ts-check
 // core.guitar: DI Box. A guitar played from the keys, heard the way it leaves the guitar: a clean DI, ready for the
 // Guitar Studio's amps and pedals (put amp.jangle or amp.crunch after it), or as it is.
 //   STRING    a waveguide (a delay loop one period long, read with cubic interpolation) with a loss filter designed

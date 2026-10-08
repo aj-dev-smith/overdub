@@ -1,3 +1,4 @@
+// @ts-check
 // core.mallets: Mallet Bag. Tuned bars, struck. Each note is four modes of a bar (two-pole resonators at the bar's
 // own ratios) hit by a mallet:
 //   BARS     MARIMBA  rosewood, the first overtone tuned two octaves up (1 : 4 : 9.9), a tube under each bar

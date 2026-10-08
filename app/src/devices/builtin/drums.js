@@ -1,3 +1,4 @@
+// @ts-check
 // core.drums: Gobo Kit. A whole drum kit synthesized per hit (no samples), General MIDI mapped:
 //   35/36 kick  37 rim  38/40 snare  39 clap  42 closed hat  44 pedal hat  46 open hat (choked by 42/44)
 //   41/43 floor toms  45 low tom  47 mid tom  48 high-mid tom  50 high tom  49/57 crash  51/59 ride  53 ride bell

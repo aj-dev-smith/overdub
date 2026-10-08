@@ -1,3 +1,4 @@
+// @ts-check
 // core.eq: Top Shelf. A musical five-band equaliser: a low cut, a low shelf, a sweepable bell, a high shelf and a high
 // cut, all state-variable filters (Simper's trapezoidal SVF), so sweeping a band while the song plays never zips or
 // blows up. Flat at defaults (every gain 0 dB, the cuts out of the way).

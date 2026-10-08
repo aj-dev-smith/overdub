@@ -1,3 +1,4 @@
+// @ts-check
 // House. The format: core/grooves.js's header. A machine: little humanising, a little shuffle on the sixteenths.
 export default `
 style house  House

@@ -1,3 +1,4 @@
+// @ts-check
 // core.delay: Echo Reel. A stereo delay that locks to the song (note divisions from the transport's tempo, or free
 // milliseconds), straight stereo or ping-pong, with the repeats darkening (TONE) and thinning (LOW CUT) as they go,
 // a soft saturation in the loop so high feedback blooms instead of exploding, and a touch of tape wander. Changing the

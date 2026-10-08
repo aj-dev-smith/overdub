@@ -1,3 +1,4 @@
+// @ts-check
 // The groove library's style files, in the order the panel lists them. Each file is one family in the text format
 // core/grooves.js documents; add a style by adding a file here. [file, text] pairs, so a parse error names its file.
 import rock from './rock.js';

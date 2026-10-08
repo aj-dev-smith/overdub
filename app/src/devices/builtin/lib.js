@@ -1,3 +1,4 @@
+// @ts-check
 // The built-ins' shared DSP, as kernel source. Each built-in kernel is `kernel(body)`: this prelude followed by the
 // device's own body, wrapped into one expression. Built-ins carry their DSP with them (rather than leaning on every
 // corner of kernel/dsp.js) so they stay exactly as measured whatever the stdlib grows into, and so an agent reading

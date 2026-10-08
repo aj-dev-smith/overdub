@@ -1,3 +1,4 @@
+// @ts-check
 // core.width: Gatefold. The utility every track needs: GAIN, a balance PAN, stereo WIDTH (mid/side: 0 is mono, 1 as
 // it was, 2 extra wide) and MONO BASS below a frequency (the side signal's lows are taken out with a complementary
 // split, so nothing else changes). Unity and transparent at defaults.

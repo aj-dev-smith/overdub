@@ -1,3 +1,4 @@
+// @ts-check
 // core.piano: Baby Grand. An acoustic grand, additive and sample-free, built from what a piano string does:
 //   PARTIALS  up to 48 per note (to 10 kHz) at f_k = k f0 sqrt(1 + B k^2): stiff strings, so the overtones run sharp.
 //             B follows the register (3.4e-4 at A0, lowest, 1.3e-4, at C3, rising to about 7e-3 at the top), and

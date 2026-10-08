@@ -1,3 +1,4 @@
+// @ts-check
 // The pitch spiral: a functional pitch picture, not a logo. One turn is one octave (the angle is the pitch class, so every C lines up
 // on one spoke), and the radius grows with pitch, so a melody draws itself as a path that winds out as it climbs. The
 // live pitch is a bright head with a fading trail, held notes are glowing beads, the song's key shows as faint spokes

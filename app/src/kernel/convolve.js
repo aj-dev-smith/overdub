@@ -1,3 +1,4 @@
+// @ts-check
 // The FFT and the partitioned convolver behind dsp.fft and dsp.convolver (kernel/dsp.js lists them; docs/DEVICES.md
 // and kernel/guide.js document them). They run in the AudioWorkletGlobalScope as well as in Node (kernel/dsp.js
 // imports this module, and kernel/processor.js imports that), so the top level uses nothing but the language.

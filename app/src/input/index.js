@@ -1,3 +1,4 @@
+// @ts-check
 // Inputs: meet the musician where they are. Hum it, tap it, play it, record it, and never lose an idea.
 // Builds app.input = { pitch, audio, hum, tap, midi, qwerty, capture, recorder } (docs/ARCHITECTURE.md, "Capture") plus:
 //   input.on(type, fn) -> off ; input.emit(type, detail)

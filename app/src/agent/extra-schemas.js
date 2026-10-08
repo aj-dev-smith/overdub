@@ -1,3 +1,4 @@
+// @ts-check
 // The schemas of the tools that page modules add to the catalog at boot (installTools(app).register): name,
 // annotations, description and input_schema only, with no DOM at import, so Node can list them too. server/mcp.js,
 // server/bridge.js and server/relay.js read the full catalog (tools.js catalogSchemas()) when no studio tab is connected

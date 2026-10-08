@@ -1,3 +1,4 @@
+// @ts-check
 // core.keys: Lamp Tines. Two keyboards in one:
 //   TINES  a tine electric piano: two-operator FM (the index barks at the strike and settles mellow, more the harder
 //          you play), a bell partial on top, a two-stage decay that is long in the bass and short up high, a little

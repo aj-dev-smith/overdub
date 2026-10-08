@@ -1,3 +1,4 @@
+// @ts-check
 // The personal lexicon: what THIS person means by the words people disagree on. docs/UX-RESEARCH.md §7 (P1, "personal
 // lexicon learned by A/B"): "warm" is the most-taught word in SocialEQ but only 10th for agreement, so the studio asks
 // once, with two audible readings (agent/lexicon.js READINGS), and keeps the pick.

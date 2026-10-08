@@ -1,3 +1,4 @@
+// @ts-check
 // core.grand: Full Stick. A concert grand, sampled: Alexander Holm's Salamander Grand Piano V3 (public domain since
 // 2022; he is credited anyway), played across the keyboard by the sampled-instrument kernel (sampler.js), the lid on
 // the full stick. docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit (tools/kits/salamander.js

@@ -1,3 +1,4 @@
+// @ts-check
 // claude.say-ahh: Say Ahh. A vowel filter: three formant band-passes per side, morphing through ooh, oh, aah, eh and
 // ee. VOWEL sets where the mouth rests; TALK lets your playing open it (an envelope follower: louder notes say more);
 // SWAY moves it in time with the song. Makeup follows the vowel, so every vowel sits at about the same level.

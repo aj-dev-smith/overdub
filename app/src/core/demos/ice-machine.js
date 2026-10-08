@@ -1,3 +1,4 @@
+// @ts-check
 // "Ice Machine": dub, 24 bars in G minor at 75 bpm, Gm Eb Cm Dm round and round. A one drop on the Gobo Kit (the
 // kick and the rim together on three, swung eighths on the hat), a deep round bass, a DI Box skanking on two and
 // four, the Rotor Cabinet bubbling on the offbeats (faded in from nothing over the first two bars: the house's lane).
