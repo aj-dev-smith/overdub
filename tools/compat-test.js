@@ -838,7 +838,7 @@ async function shelf(b, base, tag) {
   // (the page probes for the shared reader, app/src/devices/community.js, until Work package 1 lands: Firefox reports
   // the missing module as a disallowed MIME type)
   const readerThere = fs.existsSync(new URL('../app/src/devices/community.js', import.meta.url));
-  const errs = real(errors).filter((e) => readerThere || !/devices\/community\.js[^]*MIME type/.test(e));
+  const errs = real(errors).filter((e) => readerThere || !/devices\/community\.js[\s\S]*MIME type/.test(e));
   await page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-community.png`) });
   const pol = await policy(page);
   T.ok(
@@ -1069,7 +1069,7 @@ async function phoneLoop(b, base, tag) {
   await sleep(30);
   await touch.tap(target.x, target.y);
   await page.waitForTimeout(500);
-  let rollOpen = await E(() => !document.querySelector('[data-panel="pianoroll"]').hidden);
+  const rollOpen = await E(() => !document.querySelector('[data-panel="pianoroll"]').hidden);
   T.ok(rollOpen, `${tag}: a double tap opens its notes in the Notes tab`);
   if (!rollOpen) {
     await E(() => {

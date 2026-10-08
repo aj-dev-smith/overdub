@@ -698,7 +698,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const drumClip = () => E(() => overdub.store.findClip(overdub.ui.state.selection.clip).clip.notes);
   const has = (ns, p, t) => ns.find((n) => n.p === p && Math.abs(n.t - t) < 0.13);
   // clap row (index 2): step 2 is empty
-  let c = cellPt(2, 2);
+  const c = cellPt(2, 2);
   await page.mouse.click(c.x, c.y);
   let dn2 = await drumClip();
   T.ok(!!has(dn2, 39, 0.5), 'clicking an empty step adds a hit');

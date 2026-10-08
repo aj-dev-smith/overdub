@@ -1957,7 +1957,9 @@ try {
         );
         return {
           rows: new Set(btns.map((b) => Math.round(b.getBoundingClientRect().top / 10))).size,
-          row: btns.map((b) => (b.tagName === 'SELECT' ? b.selectedOptions[0]?.textContent : b.textContent).trim()),
+          row: btns.map((b) =>
+            (b.tagName === 'SELECT' ? (b.selectedOptions[0]?.textContent ?? '') : b.textContent).trim(),
+          ),
           modes: seen('.sk-modes'),
           allow: seen('.sk-explain .btn-go'),
           dial: seen('.sk-spiral'),

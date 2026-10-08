@@ -577,7 +577,7 @@ export function mount(el, ctx) {
   };
   const used = (s) => s.src !== 0 || s.dst !== 0;
   const freeSlot = () => slots().find((s) => !used(s)) || null;
-  const valueOf = (t) => (t.key.startsWith('@') ? 0.5 : kit.pos(p(t.key), P[t.key]));
+  const valueAt = (t) => (t.key.startsWith('@') ? 0.5 : kit.pos(p(t.key), P[t.key]));
   function ringGeo(t) {
     const size = t.dial ? t.dial.offsetWidth || 34 : 34;
     return { size, r: (i) => size / 2 + 4 + 4.5 * i };
@@ -608,7 +608,7 @@ export function mount(el, ctx) {
     t.svg.setAttribute('viewBox', `0 0 ${W} ${W}`);
     t.svg.setAttribute('width', W);
     t.svg.setAttribute('height', W);
-    const x = valueOf(t),
+    const x = valueAt(t),
       travel = DEST_TARGETS[t.d].travel;
     const seen = new Set();
     want.forEach((s, i) => {
@@ -2495,7 +2495,7 @@ export function mount(el, ctx) {
       let at = Object.fromEntries(
         ks.map((k) => [k, k.endsWith('sustain') || k.endsWith('curve') ? P[k] : kit.pos(p(k), P[k])]),
       );
-      let cur = Object.fromEntries(ks.map((k) => [k, P[k]]));
+      const cur = Object.fromEntries(ks.map((k) => [k, P[k]]));
       const mv = (ev) => {
         if (ev.shiftKey !== fine) {
           fine = ev.shiftKey;
@@ -3408,7 +3408,7 @@ export function mount(el, ctx) {
   function ticks(t) {
     if (!t.rings.size) return;
     const L = liveState,
-      x = valueOf(t),
+      x = valueAt(t),
       travel = DEST_TARGETS[t.d].travel;
     for (const r of t.rings.values()) {
       if (!L || !r.R) {

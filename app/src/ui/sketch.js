@@ -53,7 +53,6 @@ import { transcribe, keyChosen } from '../input/hum.js';
 import { spellNote, keyLabel, scalePcs, parsePc, beatsPerBar, DRUM_MAP } from '../core/music.js';
 import { barsOf, isDrumTrack as isDrumT, leanWords } from '../input/recorder.js';
 import { snapGentle } from '../input/timing.js';
-import { newPartFor } from '../core/sounds.js';
 
 const MODES = [
   {

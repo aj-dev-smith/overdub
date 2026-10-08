@@ -295,9 +295,6 @@ export function createAudioIn(app, input) {
     get ctx() {
       return ctx;
     },
-    get open() {
-      return state.open;
-    },
     async devices() {
       const md = navigator.mediaDevices;
       if (!md || !md.enumerateDevices) return [];
@@ -634,7 +631,7 @@ export function createAudioIn(app, input) {
     const p = store.get(),
       sel = app.ui?.state?.selection?.track;
     const audios = p.tracks.filter((t) => t.kind === 'audio');
-    let t = audios.find((x) => x.arm) || audios.find((x) => x.id === sel) || audios[0] || null;
+    const t = audios.find((x) => x.arm) || audios.find((x) => x.id === sel) || audios[0] || null;
     if (!make) return t;
     if (!t) {
       const r = store.dispatch(

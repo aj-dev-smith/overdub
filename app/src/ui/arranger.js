@@ -95,7 +95,6 @@ import {
   whereLabel,
   followClips,
   takeFolders,
-  takeNumber,
   planTakeComp,
   planTakeLaneDelete,
   planTakesFlatten,
@@ -628,7 +627,7 @@ function mountArranger(el, app) {
   // a track whose instrument is held (a song's code this browser hasn't allowed, devices/trust.js): it plays silence
   const keptOffTrack = (t) =>
     !!(t && t.kind !== 'audio' && t.instrument && app.devices?.heldDevice?.(t.instrument.device));
-  let rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null }; // what the take in progress drew
+  const rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null }; // what the take in progress drew
 
   const ppb = () => zoom.pxPerBeat;
   const th = () => zoom.trackH;

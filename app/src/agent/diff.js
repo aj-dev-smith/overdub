@@ -605,8 +605,7 @@ const clipName = (p, id) => {
   }
   return 'a clip';
 };
-export const isArrangementOp = (o) =>
-  !!o && typeof o.type === 'string' && Object.prototype.hasOwnProperty.call(ARRANGEMENT_OPS, o.type);
+export const isArrangementOp = (o) => !!o && typeof o.type === 'string' && Object.hasOwn(ARRANGEMENT_OPS, o.type);
 
 // Tracks and clips an op list touches (ids resolved where possible), for highlights. An arrangement op (time.insert,
 // clip.split, …) plans its change from the song when it's applied, so the op alone doesn't say what moved: pass the

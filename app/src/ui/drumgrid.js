@@ -30,7 +30,6 @@ import {
   drawCrop,
   roundRect,
   menu,
-  MOD,
 } from './arrange-kit.js';
 
 const STEP = 0.25;

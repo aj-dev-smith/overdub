@@ -25,7 +25,6 @@ import { automate, backToLane } from '../rack.js';
 import { popover, closePopover, menuKeys } from '../arrange-kit.js';
 import {
   EQ_BANDS,
-  EQ_TYPES,
   EQ_PARK,
   EQ_SHAPES,
   EQ_SLOPES,

@@ -210,7 +210,7 @@ function looseGroove() {
 
 // JSON, two-space indented, with every innermost object (a note, a param set) on one line.
 export function pretty(x) {
-  return JSON.stringify(x, null, 2).replace(/\{[^{}\[\]]*\}/g, (m) =>
+  return JSON.stringify(x, null, 2).replace(/\{[^{}[\]]*\}/g, (m) =>
     m
       .replace(/\s*\n\s*/g, ' ')
       .replace(/\{ /, '{ ')

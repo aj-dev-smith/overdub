@@ -1425,7 +1425,7 @@ export function jamTrack({
     form = S.form.map(([name, id]) => ({ name, bars: parseProgression(S.progs[id], k).bars }));
   }
   const formBars = form.reduce((a, f) => a + f.bars.length, 0);
-  let total =
+  const total =
     bars == null
       ? progression
         ? Math.max(formBars, Math.ceil(16 / formBars) * formBars)

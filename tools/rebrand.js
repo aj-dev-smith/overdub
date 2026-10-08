@@ -277,7 +277,7 @@ if (!opt.dry) {
 }
 
 // ---- after a real run: what's left of the old name, outside the excluded paths
-let leftovers = [];
+const leftovers = [];
 if (!opt.dry) {
   const now = git('ls-files', '-z', '-c', '-o', '--exclude-standard').split('\0').filter(Boolean).filter(inScope);
   for (const f of now) {

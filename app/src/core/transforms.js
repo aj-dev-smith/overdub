@@ -989,7 +989,7 @@ export const TRANSFORMS = [
         ),
       );
       const out = [...ns];
-      let made = [];
+      const made = [];
       const lastStart = barFloor(before[before.length - 1].t, c);
       if (p.style === 'motif' || c.drums) {
         // tile the last bar before the gap across it, each copy a little nearer the next phrase
@@ -1111,7 +1111,7 @@ export function catalog() {
 export function readParams(t, input = {}) {
   const out = {};
   for (const [k, s] of Object.entries(t.params)) {
-    let v = input[k];
+    const v = input[k];
     if (v === undefined || v === null || v === '') {
       out[k] = s.def;
       continue;

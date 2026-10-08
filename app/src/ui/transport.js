@@ -311,25 +311,24 @@ function keysOverlay(app) {
           h('h3', g),
           h(
             'dl',
-            [...rows.values()]
-              .map((r) => [
-                r.keys.length > 3
-                  ? // a whole row of keys for one action (musical typing): a keyboard strip, then the action
-                    [
-                      h('dt.tpk-strip', r.keys.map((caps) => caps.map((c) => h('kbd', c))).flat()),
-                      h('dd.tpk-strip-l', r.label),
-                    ]
-                  : [
-                      h(
-                        'dt',
-                        r.keys
-                          .map((caps, i) => [i ? h('span.tpk-or', 'or') : null, ...caps.map((c) => h('kbd', c))])
-                          .flat(),
-                      ),
-                      h('dd', r.label),
-                    ],
-              ])
-              .flat(),
+            [...rows.values()].flatMap((r) => [
+              r.keys.length > 3
+                ? // a whole row of keys for one action (musical typing): a keyboard strip, then the action
+                  [
+                    h(
+                      'dt.tpk-strip',
+                      r.keys.flatMap((caps) => caps.map((c) => h('kbd', c))),
+                    ),
+                    h('dd.tpk-strip-l', r.label),
+                  ]
+                : [
+                    h(
+                      'dt',
+                      r.keys.flatMap((caps, i) => [i ? h('span.tpk-or', 'or') : null, ...caps.map((c) => h('kbd', c))]),
+                    ),
+                    h('dd', r.label),
+                  ],
+            ]),
           ),
         );
       });
@@ -1787,7 +1786,7 @@ function mountTransport(el, app) {
   );
   el.append(row);
 
-  let last = {};
+  const last = {};
   // The title fits: a long one (or a tight bar) steps its type down, to 13 px, before it is cut; only then an ellipsis.
   // Fitted when it changes, when the window or a pane moves, and once the fonts are in.
   function fitTitle() {

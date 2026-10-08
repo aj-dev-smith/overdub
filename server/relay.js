@@ -306,7 +306,9 @@ export function carriesSongText(tool, r) {
   const some = SOMETIMES_SONG_TEXT[tool];
   return some ? !!some(r) : true;
 }
+// about twice: the first puts it first in the JSON, the second wins over a result's own about
 export const withNote = (tool, result) =>
+  // biome-ignore lint/suspicious/noDuplicateObjectKeys: the key order is the point (see above)
   carriesSongText(tool, result) ? { about: SONG_TEXT, ...result, about: SONG_TEXT } : result;
 // A call that went to another tab than the session's last one (a second studio with this link took over, or the tab
 // reloaded) says so first: ids from before may not apply there.

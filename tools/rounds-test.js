@@ -109,7 +109,7 @@ function score(notes, length, pat) {
   // a loop twice the pattern's length is the pattern twice: read it at the pattern's length
   // (a loop shorter than the pattern, a divisor of it, is heard played round to fill it)
   const len = pat.len;
-  let folded =
+  const folded =
     length % len === 0
       ? notes
       : len % length === 0
@@ -366,10 +366,7 @@ console.log('\nthe 1, the readings, the timing words');
   t.ok(!downbeatOf(hats, { length: 4 }).sure, "hats only: the 1 is the first hit, and the reading says it isn't sure");
   const rd = readingsOf({ notes: rock, length: 4, bpm: 96 });
   t.ok(
-    rd.length >= 2 &&
-      rd.length <= 3 &&
-      rd[0].bpm === 96 &&
-      rd.some((x) => (x.why === 'slower' && x.bpm === 48 ? false : x.bpm === 48 || x.bpm === 192 ? false : true)),
+    rd.length >= 2 && rd.length <= 3 && rd[0].bpm === 96 && rd.some((x) => !(x.bpm === 48 || x.bpm === 192)),
     `readings: 1 to 3, the current first (${rd.map((x) => `${x.bpm} ${x.why}`).join(', ')})`,
   );
   const rd2 = readingsOf({ notes: rock, length: 4, bpm: 140 });

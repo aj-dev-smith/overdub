@@ -47,7 +47,6 @@ import {
 import { kernelHash } from '../devices/trust.js';
 import { parseDeviceFile } from './devices-io.js';
 import { currentTrack } from './rack.js';
-import { touchFirst } from './arrange-kit.js';
 import { installTools } from '../agent/tools.js';
 import { kernelPrint } from '../agent/keep.js';
 import { communityTool } from '../agent/community-tool.js';
@@ -551,7 +550,7 @@ export default async function (app) {
   }
   function targetFor(e, ref = null) {
     const p = store.get();
-    let tid = ref == null || ref === '' ? currentTrack(app) : ref;
+    const tid = ref == null || ref === '' ? currentTrack(app) : ref;
     if (tid === 'new') return { track: 'new', name: 'a new track' };
     if (tid === 'master')
       return e.kind === 'effect'

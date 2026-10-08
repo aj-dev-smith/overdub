@@ -1172,6 +1172,7 @@ async function phone(pw, srvUrl, run) {
         row.innerHTML =
           '<button class="sk-chip">Snap: C minor</button><span class="sk-seg"><button class="on">1/16</button><button>1/8</button></span>';
         pane.prepend(row);
+        // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
         const out = (0, eval)(reachSrc)(['.sk-probe .sk-chip', '.sk-probe .sk-seg button']);
         row.remove();
         return out;

@@ -599,7 +599,7 @@ try {
     tid,
   );
   await sleep(150);
-  let hh = await E((k) => {
+  const hh = await E((k) => {
     const el = document.querySelector(`.ar-lhead[data-lane="${k}"]`);
     return {
       struck: !!el?.querySelector('.ar-lname.struck'),

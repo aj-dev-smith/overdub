@@ -78,11 +78,8 @@ import {
   positionsOf,
   MAX_FRET,
   INLAYS,
-  fingering,
-  formatTab,
   stringNumber,
   stringIndex,
-  boxOf,
 } from '../core/fretboard.js';
 import { scalePcs, noteName, spellPc, parsePitch, beatsPerBar, SCALES, parsePc } from '../core/music.js';
 import { isDrumDevice } from '../core/transforms.js';
@@ -571,7 +568,7 @@ export default function (app) {
   function ensureAudioGuitar({ by = 'you', chain = null, gain = null } = {}) {
     const p = store.get(),
       g = guitars(p);
-    let t = g.audio;
+    const t = g.audio;
     if (!t) {
       const name = freeName(p, 'Guitar', 'Live guitar'),
         coalesce = `jam:live-guitar:${Date.now()}`;
@@ -1737,14 +1734,12 @@ export default function (app) {
       shown: {
         label: r.shown.label,
         frets: r.shown.frets,
-        places: r.shown.places
-          .slice(0, 48)
-          .map((x) => ({
-            string: stringNumber(x.s, T.strings.length),
-            fret: x.f,
-            note: noteName(x.p),
-            ...(x.role ? { role: x.role } : {}),
-          })),
+        places: r.shown.places.slice(0, 48).map((x) => ({
+          string: stringNumber(x.s, T.strings.length),
+          fret: x.f,
+          note: noteName(x.p),
+          ...(x.role ? { role: x.role } : {}),
+        })),
         ...(r.shown.places.length > 48 ? { more: r.shown.places.length - 48 } : {}),
       },
       played,
@@ -2734,7 +2729,7 @@ export default function (app) {
         stageKey = k;
         const has = tl.chords.length > 0;
         empty.hidden = has;
-        stage.hidden = neckSec.hidden ? false : false;
+        stage.hidden = false;
         if (!has) {
           put(
             empty,

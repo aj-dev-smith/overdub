@@ -51,6 +51,8 @@
         "noCommaOperator": "off",
         "useArrowFunction": "off",
         "noUselessStringRaw": "off",
+        // A bare { } with a comment over it is how a long function is sectioned here ("the drummer's seat").
+        "noUselessLoneBlockStatements": "off",
         "noImportantStyles": "off"
       },
       "suspicious": {
@@ -64,7 +66,9 @@
         "noApproximativeNumericConstant": "off",
         // Number.isFinite / Number.isNaN don't coerce, the globals do: swapping one for the other changes behaviour.
         "noGlobalIsFinite": "off",
-        "noGlobalIsNan": "off"
+        "noGlobalIsNan": "off",
+        // x !== x is the NaN test in the worklet's hot loops, on purpose.
+        "noSelfCompare": "off"
       },
       "correctness": {
         // Panels, ops and kernels implement interfaces (frame(now), (t, i) => ...): an unused parameter is the shape.
@@ -75,6 +79,11 @@
     }
   },
   "overrides": [
+    {
+      // A CloudFront Function: ES5.1 (cloudfront-js-1.0), so var in blocks.
+      "includes": ["deploy/path-rewrite.js"],
+      "linter": { "rules": { "correctness": { "noInnerDeclarations": "off" } } }
+    },
     {
       // A function whose source becomes kernel text runs standalone there, so its 'use strict' is not redundant.
       "includes": ["app/src/kernel/dsp.js", "app/src/devices/builtin/wavetables.js"],

@@ -401,7 +401,7 @@ function chipOf({ name, input = {}, result = {} }) {
   return null;
 }
 
-let installed = new WeakSet();
+const installed = new WeakSet();
 export function installGrooveTools(app) {
   if (installed.has(app)) return;
   installed.add(app);

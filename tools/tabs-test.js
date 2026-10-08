@@ -26,7 +26,6 @@ import { createStore } from '../app/src/core/store.js';
 import { createProject, cleanProject } from '../app/src/core/project.js';
 import { encodeShare, decodeShare, listenCopy } from '../app/src/core/share.js';
 import { demoProject } from '../app/src/core/demo.js';
-import { scalePcs } from '../app/src/core/music.js';
 
 const T = tally('tabs');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

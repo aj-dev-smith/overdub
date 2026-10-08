@@ -924,7 +924,7 @@ const run = (page, name, input, by = 'claude') =>
 
     // an agent's undo / revert of the track the human is recording on is refused (it was a track.add: only its inverse
     // names the track by id)
-    let r = await app.tools.run(
+    const r = await app.tools.run(
       'apply_ops',
       {
         label: 'probe',

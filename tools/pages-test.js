@@ -1250,6 +1250,7 @@ for (const width of [1440, 390]) {
     'Stems',
     'Save the project file',
     'Takes',
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the label as the source spells it, template and all
     "Revert all ${store.author(by).name}'s changes (keep mine)",
     'Import MIDI…',
     'Import audio…',
@@ -1259,6 +1260,7 @@ for (const width of [1440, 390]) {
   const missing = LABELS.filter(
     (l) => !src.includes(`'${l}'`) && !src.includes(`\`${l}\``) && !src.includes(`"${l}"`),
   ).concat(
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the label as the source spells it, template and all
     LABELS.filter((l) => !guide.includes(l.replace('${store.author(by).name}', 'Claude'))).map(
       (l) => 'not in the guide: ' + l,
     ),

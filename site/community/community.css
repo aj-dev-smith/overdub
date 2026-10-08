@@ -90,7 +90,6 @@ h3,
   text-decoration: underline;
 }
 .cs-seg button i {
-  font-style: normal;
   font: 400 13px var(--font-mono);
   color: var(--text-3);
   margin-left: 6px;

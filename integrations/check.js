@@ -35,6 +35,7 @@ const readJSON = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 const pluginDir = path.join(HERE, 'claude-code');
 const plugin = readJSON(path.join(pluginDir, '.claude-plugin/plugin.json'));
 ok(plugin.name === 'overdub', 'plugin.json: name is "overdub"');
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const pdArgs = plugin.mcpServers?.overdub?.args?.map((a) => a.replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir)) || [];
 ok(
   pdArgs.length && fs.existsSync(pdArgs[0]),
@@ -61,6 +62,7 @@ for (const s of [].concat(entry.skills || []))
     fs.existsSync(path.join(ROOT, s, 'overdub/SKILL.md')),
     `marketplace entry: skills path ${s} holds overdub/SKILL.md`,
   );
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const mpArgs = entry.mcpServers?.overdub?.args?.map((a) => a.replaceAll('${CLAUDE_PLUGIN_ROOT}', ROOT)) || [];
 ok(
   mpArgs.length && fs.existsSync(mpArgs[0]),
@@ -168,6 +170,7 @@ function probe(command, args, env = {}) {
   });
 }
 
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const sub = (s) => String(s).replaceAll('/path/to/overdub', ROOT).replaceAll('${CLAUDE_PLUGIN_ROOT}', ROOT);
 const runs = [
   {

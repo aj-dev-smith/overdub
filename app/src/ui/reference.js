@@ -16,7 +16,7 @@
 // app.reference = { set(file | { name, buffer }), clear(), measureMix(), compare(input), ab: { start(side), side(s),
 //                   stop(), get state() }, get mix() }
 
-import { h, css, icon, byline } from './dom.js';
+import { h, css, byline } from './dom.js';
 import { newId, songEnd, isValidReference } from '../core/project.js';
 import { beatsPerBar } from '../core/music.js';
 import { glossDeltas } from '../agent/lexicon.js';

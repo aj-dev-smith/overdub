@@ -26,7 +26,7 @@ function overlaps(rootSel) {
     return true;
   };
   const clipBox = (el) => {
-    let r = el.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
     let x0 = r.left,
       y0 = r.top,
       x1 = r.right,

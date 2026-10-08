@@ -24,7 +24,7 @@ import { snapGentle, fitHits, fitSegs, tightness, blend, placeTake, leanOf } fro
 import { newPartFor } from '../app/src/core/sounds.js';
 import { clickSamples } from '../app/src/engine/click.js';
 import { renderSong } from '../app/src/engine/node/render.js';
-import { perform, sloppyHum, rng, wav } from './sloppy.js';
+import { perform, sloppyHum, rng } from './sloppy.js';
 
 const T = tally('input');
 let seed = 12345;
@@ -2442,6 +2442,7 @@ const AMIN = [
           },
           { by: 'you', label: 'tapped beat' },
         );
+        // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
         const tk = await eval(src);
         return (
           tk && {
@@ -2477,6 +2478,7 @@ const AMIN = [
       `after the first minute's tapped beat, a hum keeps the tune as sung, E E G A A G E D E, nothing moved into a key nobody picked (${h0 && h0.ps}, moved ${h0 && h0.moved}, heard ${h0?.heard?.root} ${h0?.heard?.scale})`,
     );
     const h1 = await page.evaluate(async (src) => {
+      // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
       const tk = await eval(src);
       return (
         tk && {
@@ -2535,6 +2537,7 @@ const AMIN = [
     );
     const h2 = await page.evaluate(
       async (src) => {
+        // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
         const tk = await eval(src);
         return tk && { moved: tk.result.moved.length, key: tk.opts.key };
       },

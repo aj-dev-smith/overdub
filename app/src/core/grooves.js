@@ -1433,7 +1433,7 @@ export function planDrumTrack(
   const plan = secs.map((s, i) => {
     const said = parts && (parts[s.id] || parts[s.name] || parts[String(s.name).toLowerCase()]);
     let part = said ? (partWord(said) === 'ending' ? 'outro' : partWord(said) || partOfName(said)) : partOfName(s.name);
-    let by = said ? 'asked' : part ? 'name' : 'energy';
+    const by = said ? 'asked' : part ? 'name' : 'energy';
     if (!part) {
       const e = energy[i];
       part = !median ? 'verse' : e >= median * 1.25 ? 'chorus' : e <= median * 0.6 && e > 0 ? 'bridge' : 'verse';

@@ -23,14 +23,12 @@ const state = () =>
   page.evaluate(() => {
     const { store, input, ui, plugin } = window.overdub;
     return {
-      tracks: store
-        .get()
-        .tracks.map((t) => ({
-          name: t.name,
-          dev: t.instrument?.device,
-          arm: !!t.arm,
-          clips: t.clips.map((c) => ({ name: c.name, by: c.by, n: (c.notes || []).length })),
-        })),
+      tracks: store.get().tracks.map((t) => ({
+        name: t.name,
+        dev: t.instrument?.device,
+        arm: !!t.arm,
+        clips: t.clips.map((c) => ({ name: c.name, by: c.by, n: (c.notes || []).length })),
+      })),
       sel: ui.state.selection.track && store.track(ui.state.selection.track)?.name,
       lands: input.recorder?.lands?.()?.name ?? null,
       plugin: plugin?.current?.name ?? null,

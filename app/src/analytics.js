@@ -70,7 +70,7 @@ export function referrerHost(ref) {
 
 // The URL for one count, or null if the event or its field isn't on the list.
 export function beaconUrl(e, p, { r = '', base = BEACON } = {}) {
-  if (!Object.prototype.hasOwnProperty.call(EVENTS, e)) return null;
+  if (!Object.hasOwn(EVENTS, e)) return null;
   const opts = EVENTS[e];
   const q = new URLSearchParams({ e });
   if (opts) {

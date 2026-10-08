@@ -210,7 +210,7 @@ describe('normalisers', () => {
     assert.ok(!('capo' in c));
     assert.equal(c.notes.length, 1);
     assert.ok(!('s' in c.notes[0]) && !('f' in c.notes[0]));
-    assert.equal(normClip({ start: 1e400, length: NaN }).start, 0);
+    assert.equal(normClip({ start: Infinity, length: NaN }).start, 0);
     assert.equal(normClip({ length: NaN }).length, 4);
   });
   test('normClip: an audio clip keeps asset, offset and gain', () => {

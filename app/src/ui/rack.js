@@ -50,7 +50,7 @@
 // when the sound is less than half as far from it as from the next nearest, and less than half way to the nearest
 // other sound.
 
-import { h, css, icon, drag, clamp, fmtDb, esc, byline } from './dom.js';
+import { h, css, icon, drag, clamp, fmtDb, byline } from './dom.js';
 import {
   DEVICE_CATS,
   paramValues,

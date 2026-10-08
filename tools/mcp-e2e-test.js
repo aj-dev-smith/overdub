@@ -421,7 +421,7 @@ try {
     await page.evaluate(() => {
       window.__ids = [];
       const f = (window.__fetch = window.fetch);
-      window.fetch = function (u, o) {
+      window.fetch = function (u, o, ...rest) {
         if (String(u).includes('/bridge/result')) {
           try {
             window.__ids.push(JSON.parse(o.body).id);
@@ -429,7 +429,7 @@ try {
             /* not a result */
           }
         }
-        return f.apply(this, arguments);
+        return f.call(this, u, o, ...rest);
       };
     });
     await call('get_selection', {});

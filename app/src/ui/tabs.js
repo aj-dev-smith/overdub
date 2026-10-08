@@ -30,10 +30,10 @@
 
 import { h, css, icon, byline, canvas, clamp } from './dom.js';
 import { placeNotes, tabText, tuningOf, capoOf, stringNumber } from '../core/fretboard.js';
-import { riffTakes, RIFF_STYLES, RIFF_STYLE_IDS, DIFFICULTIES, riffStyleFor } from '../core/riff.js';
-import { groupsOf, createFollow, passLine, learnStep, describeGroup } from '../core/playalong.js';
+import { riffTakes, RIFF_STYLES, RIFF_STYLE_IDS, DIFFICULTIES } from '../core/riff.js';
+import { groupsOf, createFollow, passLine, learnStep } from '../core/playalong.js';
 import { chordAt } from '../core/jam.js';
-import { beatsPerBar, noteName, spellPc } from '../core/music.js';
+import { beatsPerBar, spellPc } from '../core/music.js';
 import { createNoteFinder } from '../input/onsets.js';
 import { readInks, staffShape, paintStaff } from './tabstaff.js';
 import { installTabTools, riffOps } from '../agent/tabs-tool.js';

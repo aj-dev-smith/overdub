@@ -132,17 +132,15 @@ function offlineBarrier(c, inst) {
 
 // The param specs a KernelCore takes (processorOptions.params), from a def. Shared with the Node renderer.
 export function kernelSpecs(def) {
-  return (def.params || [])
-    .map(normParam)
-    .map(({ key, min, max, def: d, step, curve, opts: o }) => ({
-      key,
-      min,
-      max,
-      def: d,
-      step,
-      curve,
-      opts: o ? o.length : undefined,
-    }));
+  return (def.params || []).map(normParam).map(({ key, min, max, def: d, step, curve, opts: o }) => ({
+    key,
+    min,
+    max,
+    def: d,
+    step,
+    curve,
+    opts: o ? o.length : undefined,
+  }));
 }
 
 // opts: { uid, seed, clock, params, on = true, bpm? }

@@ -2137,7 +2137,7 @@ T.ok(
         ),
     );
   await page.keyboard.press('ArrowRight');
-  let k1 = await E(() => ({
+  const k1 = await E(() => ({
     range: window.overdub.ui.state.selection.range,
     secs: window.overdub.store.get().sections.map((s) => `${s.name}@${s.start}+${s.length}`),
   }));
@@ -2316,7 +2316,7 @@ T.ok(
   pre = await snapshot();
   h0 = await E(() => window.overdub.store.history.length);
   const a1 = await run({ op: 'duplicate_section', section: 'Chorus', reason: 'the song needs a second chorus' });
-  let last = await E(() => {
+  const last = await E(() => {
     const h = window.overdub.store.history.at(-1);
     return { n: window.overdub.store.history.length, by: h.by, label: h.label, reason: h.reason };
   });
@@ -2386,7 +2386,7 @@ T.ok(
   await E(() => window.overdub.store.undo());
   // an outside agent can't freeze the tab: loop ×64 three times (5,242,880 notes on the demo's bass before the limits)
   const n0 = await E(() => window.overdub.store.history.length);
-  let t1 = Date.now();
+  const t1 = Date.now();
   const amp = await E(
     (c) =>
       window.overdub.tools.run(

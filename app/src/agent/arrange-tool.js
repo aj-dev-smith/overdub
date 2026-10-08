@@ -40,7 +40,7 @@ export function resolveSeed(app, target) {
   const store = app.store,
     sel = app.ui?.state?.selection || {};
   const t = target && typeof target === 'object' ? target : {};
-  let track = t.track ? findTrack(app, t.track) : null;
+  const track = t.track ? findTrack(app, t.track) : null;
   if (t.track && !track)
     return err(
       `no track "${t.track}"`,

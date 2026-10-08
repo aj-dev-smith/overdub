@@ -538,7 +538,7 @@ export default async function (app) {
                 continue;
               kids.push(presetRow(d, pr));
             }
-          const label = (GENRE_FILTERS.find(([t]) => t === genre) || [, genre])[1];
+          const label = (GENRE_FILTERS.find(([t]) => t === genre) || [undefined, genre])[1];
           out.push(
             section(
               'genre:' + genre,

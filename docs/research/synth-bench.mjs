@@ -128,7 +128,7 @@ function va(V, O) {
   return (n) => {
     const ph = new Float64Array(V * O),
       dt = new Float64Array(V * O).map((_, i) => 0.002 + i * 1e-5);
-    let ic1 = new Float64Array(V),
+    const ic1 = new Float64Array(V),
       ic2 = new Float64Array(V);
     const g = Math.tan((Math.PI * 2000) / SR),
       k = 1,

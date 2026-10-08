@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tally, OUTDIR } from './pw.js';
-import { measure, lufs, truePeak, spectrogram, onsets, keyOf, chroma } from '../app/src/audio/measure.js';
+import { measure, lufs, truePeak, spectrogram, onsets } from '../app/src/audio/measure.js';
 import * as T from '../app/src/audio/testsignals.js';
 import { SAMPLED } from '../app/src/devices/builtin/index.js';
 import { dataPath } from '../app/src/engine/node/data.js';

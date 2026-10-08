@@ -33,7 +33,6 @@
 //      plays from its first note once they're in; the browser starts a kit on hover; a key pressed while one loads
 //      sounds once it's in
 //   node tools/pick-sound-test.js      (screenshots: tools/.out/pick-sound-*.png; SECTIONS=21 runs just those)
-import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import net from 'node:net';

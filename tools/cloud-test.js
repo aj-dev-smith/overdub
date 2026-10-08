@@ -60,7 +60,7 @@ function fakeCloud() {
   const actions = new Map();
   const log = []; // every request: { method, path, body, headers }
   const script = []; // what the next calls answer: SSE events, { status, error }, or { hang: true }
-  let studio = /^http:\/\/localhost:\d+$/; // the studio origins it answers (a local studio on any port)
+  const studio = /^http:\/\/localhost:\d+$/; // the studio origins it answers (a local studio on any port)
   let paused = false;
   const cookies = (req) =>
     Object.fromEntries(

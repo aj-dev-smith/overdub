@@ -197,7 +197,7 @@ function partials(x, at, f0, K = 12, N = 16384) {
   const m = spectrum(x, at, N),
     bin = SR / N,
     out = [];
-  let fEst = f0;
+  const fEst = f0;
   for (let k = 1; k <= K; k++) {
     const target = k * fEst;
     if (target > SR * 0.45) break;

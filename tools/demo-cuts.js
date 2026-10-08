@@ -47,7 +47,7 @@ fs.mkdirSync(WORK, { recursive: true });
 fs.mkdirSync(DEST, { recursive: true });
 const ff = (args) => {
   if (process.env.DEBUG_FF)
-    console.log('ffmpeg', args.map((a) => (/[\s;\[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
+    console.log('ffmpeg', args.map((a) => (/[\s;[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
   try {
     return execFileSync(FFMPEG, ['-y', '-loglevel', 'error', ...args], {
       maxBuffer: 1 << 26,

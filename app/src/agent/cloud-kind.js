@@ -75,7 +75,7 @@ export function freeMove(text, { devices = [], hasTrack = false } = {}) {
   }
   if (!hasTrack) return null;
   const word = /^make it (.+)$/.exec(t)?.[1] || t;
-  const known = (w) => Object.prototype.hasOwnProperty.call(WORDS, w);
+  const known = (w) => Object.hasOwn(WORDS, w);
   if (known(word)) return { tool: 'adjust', input: { axis: word, reason: `you asked for ${word}` } };
   return null;
 }

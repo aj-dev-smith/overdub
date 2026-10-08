@@ -126,7 +126,7 @@ function mountPanel(el, app) {
   let showKey = false;
   let held = false; // a message sent with no agent on: it waits in the box, with the choice under it
   let contextOff = false;
-  let bridge = { state: 'off', agents: [] };
+  const bridge = { state: 'off', agents: [] };
   let root = '';
   const nodes = new Map(); // entry -> element
   let dirty = new Set();

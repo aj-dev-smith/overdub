@@ -530,7 +530,7 @@ const up = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length
         .split('\n')
         .filter((l) => /rebuilt|cache/.test(l))
         .pop() || '';
-    if (/Upright[^]*isn't in the download cache/.test(v.stdout))
+    if (/Upright[\s\S]*isn't in the download cache/.test(v.stdout))
       t.note('the download cache is incomplete: the byte-for-byte rebuild was not run');
     else
       t.ok(

@@ -29,7 +29,7 @@
 
 import { scalePcs, parsePc, beatsPerBar, noteName, spellPc } from './music.js';
 import { rng } from './transforms.js';
-import { chordAt, pentatonicFor, isMinorKey, spellTone, spellIn, QUALITIES, findJamStyle } from './jam.js';
+import { chordAt, pentatonicFor, isMinorKey, spellIn, QUALITIES, findJamStyle } from './jam.js';
 import { tuningOf, fingering, formatTab, handSpan, MAX_FRET, capoOf, placeOk, tabLayout } from './fretboard.js';
 
 const EPS = 1e-6;

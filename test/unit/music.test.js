@@ -268,7 +268,7 @@ describe('normNote', () => {
       p: 127,
       t: 0,
       d: 1 / 64,
-      v: 5 / 127 > 1 ? 1 : Math.round((5 / 127) * 1e4) / 1e4,
+      v: Math.round((5 / 127) * 1e4) / 1e4,
     });
     assert.equal(normNote({ p: -5, t: 0 }).p, 0);
     assert.equal(normNote({ p: 60, t: 0, v: 0 }).v, 0.01);

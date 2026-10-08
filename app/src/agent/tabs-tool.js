@@ -234,9 +234,9 @@ export function tabFor(app, input, room) {
 // dropped in the arranger cuts (core/arrangement.js planDropTrim). -> { ops, track (id or '$g'), replaces: [clip names] }
 export function riffOps(app, room, { notes, start, length, tuning, capo, name }, { track = null } = {}) {
   const p = app.store.get();
-  let t = track ? findTrack(app, track) : room.guitars().keys;
+  const t = track ? findTrack(app, track) : room.guitars().keys;
   const ops = [];
-  let tref = t ? t.id : '$g';
+  const tref = t ? t.id : '$g';
   if (!t) {
     const op = room.guitarOp('g');
     if (!op) return err('no Guitar track to write onto', 'give track');
