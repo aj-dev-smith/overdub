@@ -2187,7 +2187,7 @@ export function mount(el, ctx) {
         bell: [0, 0.24],
         bow: [0.24, 0.84],
       }[zone] || [0, 1];
-      const [, cy] = toS(t, sh.x, sh.y),
+      const [cx, cy] = toS(t, sh.x, sh.y),
         rad = sh.r * t.s;
       const rz = R[1] * rad,
         dy = (at - 0.5) * 2 * rz * 0.9;

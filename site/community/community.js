@@ -514,6 +514,7 @@ export async function boot(root = document) {
     lede.textContent = `Instruments and effects people asked their agents for, as the shelf at ${where} lists them. What it says about each one is that shelf’s word, not the studio’s.`;
   }
   // the licence explainer links to the repo's LICENSING.md once the repo has a public URL (https on an allowed host)
+  // biome-ignore lint/correctness/noUndeclaredVariables: BUG, linkable is defined nowhere: a shelf index with a repo throws here
   const lic = idx.repo && linkable(idx.repo.replace(/\/+$/, '') + '/blob/HEAD/LICENSING.md', idx.repo);
   if (lic)
     $('#licence-note')?.append(

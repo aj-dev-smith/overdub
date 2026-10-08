@@ -75,11 +75,25 @@
       "correctness": {
         // Panels, ops and kernels implement interfaces (frame(now), (t, i) => ...): an unused parameter is the shape.
         "noUnusedFunctionParameters": "off",
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        // A name nothing declares is a ReferenceError waiting for its branch to run.
+        "noUndeclaredVariables": "error"
       }
     }
   },
   "overrides": [
+    {
+      // (Before the worklet scope below: a later override's globals replace an earlier's.)
+      // The browser suites' page.evaluate callbacks run in the studio page: window.overdub, and the helpers a suite
+      // puts on window first (engine-test's mk, bareStore).
+      "includes": ["tools/**"],
+      "javascript": { "globals": ["overdub", "mk", "bareStore"] }
+    },
+    {
+      // AudioWorkletGlobalScope
+      "includes": ["app/src/kernel/worklet.js", "app/src/devices/worklets/*.js", "app/src/input/cap-worklet.js", "tools/test-worklets.js"],
+      "javascript": { "globals": ["AudioWorkletProcessor", "registerProcessor", "sampleRate", "currentFrame", "currentTime"] }
+    },
     {
       // A CloudFront Function: ES5.1 (cloudfront-js-1.0), so var in blocks; the runtime calls handler, so it looks unused.
       "includes": ["deploy/path-rewrite.js"],
