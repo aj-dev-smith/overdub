@@ -1,7 +1,8 @@
-# The unit tests (node --test "test/unit/*.test.js": the pure logic in app/src, no browser, no server, seconds) on
-# every pull request and every push to main, and on a push to main (a merge) whose tests pass, a deploy of that commit
-# to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the same by hand; on any other branch it
-# runs nothing. Node comes from mise.toml, as it does locally.
+# The unit tests (node --test "test/unit/*.test.js": the pure logic in app/src, no browser, no server, seconds) and the
+# static checks (npm run check: Biome's lint and format check, tsc on the // @ts-check files, ShellCheck, actionlint,
+# zizmor; tools/check.sh) on every pull request and every push to main, and on a push to main (a merge) whose checks
+# pass, a deploy of that commit to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the same
+# by hand; on any other branch it runs nothing. Node and the checkers come from mise.toml, as they do locally.
 #
 # The integration suites (node tools/run-all.js: browsers, servers, renders) don't run here: run them locally before
 # merging.
@@ -20,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy to https://next.overdubstudio.com once the unit tests pass (main only)
+        description: Deploy to https://next.overdubstudio.com once the unit tests and static checks pass (main only)
         type: boolean
         default: true
 
@@ -47,8 +48,25 @@ jobs:
       - name: The unit tests (node --test "test/unit/*.test.js")
         run: node --test "test/unit/*.test.js"
 
+  static:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # installs node and every checker mise.toml pins
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: The static checks (npm run check)
+        run: tools/check.sh
+        env:
+          BIOME_REPORTER: github
+
   deploy-staging:
-    needs: unit
+    needs: [unit, static]
     # a merge to main, or a by-hand run on main that asked for it; the role trusts main only
     # (deploy/next/github-oidc.sh, BRANCHES)
     if: >-
@@ -92,7 +110,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: us-east-1
 
-      - name: Deploy to https://next.overdubstudio.com (the unit tests already passed)
+      - name: Deploy to https://next.overdubstudio.com (the unit tests and static checks already passed)
         run: |
           echo "$NEXT_DISTRIBUTION" > deploy/.next-distribution-id
           deploy/deploy.sh --skip-tests --next "$GITHUB_SHA"

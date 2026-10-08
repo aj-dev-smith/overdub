@@ -16,7 +16,7 @@ run biome ci --reporter="${BIOME_REPORTER:-default}" .
 run tsc -p jsconfig.json
 run sh -c "git ls-files -z '*.sh' | xargs -0 shellcheck -S warning"
 run actionlint
-run zizmor --offline --min-severity=low .github/workflows
+run zizmor --offline --min-severity=low .github
 
 if [ "$fail" = 0 ]; then echo "static checks: ok"; else echo "static checks: FAIL"; fi
 exit "$fail"
