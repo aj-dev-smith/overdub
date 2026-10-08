@@ -1,0 +1,257 @@
+{
+ "format": "overdub/0",
+ "id": "p_metal_chords",
+ "title": "metal DI: chords",
+ "tempo": 132,
+ "meter": [
+  4,
+  4
+ ],
+ "key": null,
+ "loop": {
+  "on": false,
+  "start": 0,
+  "end": 32
+ },
+ "tracks": [
+  {
+   "id": "t_di",
+   "name": "DI",
+   "kind": "instrument",
+   "instrument": {
+    "device": "core.guitar",
+    "params": {
+     "body": 0,
+     "pick": 0.15,
+     "pickup": 0,
+     "tone": 0.7,
+     "decay": 1.2,
+     "strum": 12,
+     "mute": 0
+    }
+   },
+   "inserts": [],
+   "gain": 0,
+   "pan": 0,
+   "mute": false,
+   "solo": false,
+   "arm": false,
+   "by": "overdub",
+   "clips": [
+    {
+     "id": "c_di",
+     "kind": "notes",
+     "start": 0,
+     "length": 32,
+     "by": "overdub",
+     "notes": [
+      {
+       "id": "n1",
+       "p": 36,
+       "t": 0,
+       "d": 3.9,
+       "v": 0.791,
+       "by": "overdub"
+      },
+      {
+       "id": "n2",
+       "p": 43,
+       "t": 0,
+       "d": 3.9,
+       "v": 0.816,
+       "by": "overdub"
+      },
+      {
+       "id": "n3",
+       "p": 48,
+       "t": 0,
+       "d": 3.9,
+       "v": 0.776,
+       "by": "overdub"
+      },
+      {
+       "id": "n4",
+       "p": 44,
+       "t": 4,
+       "d": 3.9,
+       "v": 0.801,
+       "by": "overdub"
+      },
+      {
+       "id": "n5",
+       "p": 51,
+       "t": 4,
+       "d": 3.9,
+       "v": 0.826,
+       "by": "overdub"
+      },
+      {
+       "id": "n6",
+       "p": 56,
+       "t": 4,
+       "d": 3.9,
+       "v": 0.786,
+       "by": "overdub"
+      },
+      {
+       "id": "n7",
+       "p": 46,
+       "t": 8,
+       "d": 3.9,
+       "v": 0.811,
+       "by": "overdub"
+      },
+      {
+       "id": "n8",
+       "p": 53,
+       "t": 8,
+       "d": 3.9,
+       "v": 0.771,
+       "by": "overdub"
+      },
+      {
+       "id": "n9",
+       "p": 58,
+       "t": 8,
+       "d": 3.9,
+       "v": 0.796,
+       "by": "overdub"
+      },
+      {
+       "id": "n10",
+       "p": 41,
+       "t": 12,
+       "d": 3.9,
+       "v": 0.821,
+       "by": "overdub"
+      },
+      {
+       "id": "n11",
+       "p": 48,
+       "t": 12,
+       "d": 3.9,
+       "v": 0.781,
+       "by": "overdub"
+      },
+      {
+       "id": "n12",
+       "p": 53,
+       "t": 12,
+       "d": 3.9,
+       "v": 0.806,
+       "by": "overdub"
+      },
+      {
+       "id": "n13",
+       "p": 36,
+       "t": 16,
+       "d": 3.9,
+       "v": 0.77,
+       "by": "overdub"
+      },
+      {
+       "id": "n14",
+       "p": 43,
+       "t": 16,
+       "d": 3.9,
+       "v": 0.791,
+       "by": "overdub"
+      },
+      {
+       "id": "n15",
+       "p": 48,
+       "t": 16,
+       "d": 3.9,
+       "v": 0.816,
+       "by": "overdub"
+      },
+      {
+       "id": "n16",
+       "p": 39,
+       "t": 20,
+       "d": 3.9,
+       "v": 0.776,
+       "by": "overdub"
+      },
+      {
+       "id": "n17",
+       "p": 46,
+       "t": 20,
+       "d": 3.9,
+       "v": 0.801,
+       "by": "overdub"
+      },
+      {
+       "id": "n18",
+       "p": 51,
+       "t": 20,
+       "d": 3.9,
+       "v": 0.826,
+       "by": "overdub"
+      },
+      {
+       "id": "n19",
+       "p": 41,
+       "t": 24,
+       "d": 3.9,
+       "v": 0.786,
+       "by": "overdub"
+      },
+      {
+       "id": "n20",
+       "p": 48,
+       "t": 24,
+       "d": 3.9,
+       "v": 0.811,
+       "by": "overdub"
+      },
+      {
+       "id": "n21",
+       "p": 53,
+       "t": 24,
+       "d": 3.9,
+       "v": 0.771,
+       "by": "overdub"
+      },
+      {
+       "id": "n22",
+       "p": 42,
+       "t": 28,
+       "d": 3.9,
+       "v": 0.796,
+       "by": "overdub"
+      },
+      {
+       "id": "n23",
+       "p": 49,
+       "t": 28,
+       "d": 3.9,
+       "v": 0.821,
+       "by": "overdub"
+      },
+      {
+       "id": "n24",
+       "p": 54,
+       "t": 28,
+       "d": 3.9,
+       "v": 0.781,
+       "by": "overdub"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "sections": [],
+ "devices": {},
+ "assets": {},
+ "master": {
+  "gain": 0,
+  "inserts": []
+ },
+ "meta": {
+  "created": "2026-10-07T00:00:00.000Z",
+  "modified": "2026-10-07T00:00:00.000Z",
+  "authors": {}
+ }
+}

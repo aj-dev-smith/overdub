@@ -18,9 +18,9 @@
 //             Fender Bassman tone stack", DAFx-06) with a modern high-gain lead's values (C1 470 pF, C2 = C3 22 nF,
 //             R1 250k treble, R2 1M log bass, R3 25k mid, R4 47k), by the bilinear transform at the oversampled rate.
 //             It scoops the mids at noon, as the real one does
-//   power     DEPTH (a resonance bump near 90 Hz) and PRESENCE (a shelf from 3.5 kHz), standing in for the negative
-//             feedback loop; MASTER drives a symmetric push-pull soft clip whose headroom SAG lowers on sustained loud
-//             playing (a supply envelope, 8 ms in, 180 ms out)
+//   power     MASTER drives a symmetric push-pull soft clip whose headroom SAG lowers on sustained loud playing (a
+//             supply envelope, 8 ms in, 180 ms out); then DEPTH (a resonance bump near 90 Hz) and PRESENCE (a shelf
+//             from 3.5 kHz), standing in for the negative feedback loop letting go at the ends of the band
 // Steps boost to power run in one oversampled domain: 4x through dsp.oversample4x, or 8x with a further 2x stage inside
 // it (a 7-tap half-band, flat to 24 kHz within 0.04 dB and 47 dB down where its images would land), the filters
 // designed at that rate. Then the cab (CAB_LIB) and the cuts run at the host's rate.
@@ -33,28 +33,40 @@ export const CAB_LABELS = ['MODERN CLOSE', 'MODERN BRIGHT', 'MODERN SIDE', 'MODE
 export const CAB_NAMES = ['Modern 4x12, close dynamic', 'Modern 4x12, bright dynamic', 'Modern 4x12, side-address', 'Modern 4x12, two mics',
   'British 4x12, dynamic', 'British 4x12, side-address', 'Filter 4x12', 'Off (line out)'];
 export const CAB_FILTER = 6, CAB_OFF = 7;
+// what the rack and the pickers say while the bank is on its way, or isn't on this server (ui/rack.js dataLine): the
+// amp is never silent, it plays the filter cab meanwhile
+export const CAB_SAYS = {
+  loading: ['Loading cabs…', 'Loading the cab impulse responses: the filter cab plays until they’re in'],
+  missing: ['Cab file missing: playing the filter cab', 'The cab impulse responses aren’t on this server, so it plays the designed Filter 4x12'],
+};
 
-// The TMB tone stack: the analog transfer function's coefficients for knobs 0..10 (bass on a log taper), then the
-// bilinear transform at rate fs. Returns [b0, b1, b2, b3, a1, a2, a3] (a0 = 1) into `out`.
-export function tmbCoefs(bass, mid, treble, fs, out) {
+// The TMB tone stack. tmbAnalog: the circuit's transfer function H(s) = (b1 s + b2 s^2 + b3 s^3) / (1 + a1 s + a2 s^2 +
+// a3 s^3) for knobs 0..10 (bass on an audio taper; a whisker of resistance at each end of every pot), into
+// out = [b1, b2, b3, a1, a2, a3]. tmbCoefs: that, by the bilinear transform at rate fs, into out = [b0, b1, b2, b3, a1,
+// a2, a3] (a0 = 1).
+export function tmbAnalog(bass, mid, treble, out) {
   const R1 = 250e3, R2 = 1e6, R3 = 25e3, R4 = 47e3, C1 = 470e-12, C2 = 22e-9, C3 = 22e-9;
   const kb = bass < 0 ? 0 : bass > 10 ? 1 : bass / 10, km = mid < 0 ? 0 : mid > 10 ? 1 : mid / 10, kt = treble < 0 ? 0 : treble > 10 ? 1 : treble / 10;
-  // the pots: bass is an audio taper (about 10% of its travel at noon); a whisker of resistance at each end
   const l = 0.001 + 0.999 * (Math.exp(3.4 * kb) - 1) / (Math.exp(3.4) - 1), m = 0.001 + 0.998 * km, t = 0.001 + 0.998 * kt;
-  const b1 = t * C1 * R1 + m * C3 * R3 + l * (C1 * R2 + C2 * R2) + (C1 * R3 + C2 * R3);
-  const b2 = t * (C1 * C2 * R1 * R4 + C1 * C3 * R1 * R4) - m * m * (C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3)
+  out[0] = t * C1 * R1 + m * C3 * R3 + l * (C1 * R2 + C2 * R2) + (C1 * R3 + C2 * R3);
+  out[1] = t * (C1 * C2 * R1 * R4 + C1 * C3 * R1 * R4) - m * m * (C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3)
     + m * (C1 * C3 * R1 * R3 + C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3) + l * (C1 * C2 * R1 * R2 + C1 * C2 * R2 * R4 + C1 * C3 * R2 * R4)
     + l * m * (C1 * C3 * R2 * R3 + C2 * C3 * R2 * R3) + (C1 * C2 * R1 * R3 + C1 * C2 * R3 * R4 + C1 * C3 * R3 * R4);
-  const b3 = l * m * (C1 * C2 * C3 * R1 * R2 * R3 + C1 * C2 * C3 * R2 * R3 * R4) - m * m * (C1 * C2 * C3 * R1 * R3 * R3 + C1 * C2 * C3 * R3 * R3 * R4)
+  out[2] = l * m * (C1 * C2 * C3 * R1 * R2 * R3 + C1 * C2 * C3 * R2 * R3 * R4) - m * m * (C1 * C2 * C3 * R1 * R3 * R3 + C1 * C2 * C3 * R3 * R3 * R4)
     + m * (C1 * C2 * C3 * R1 * R3 * R3 + C1 * C2 * C3 * R3 * R3 * R4) + t * C1 * C2 * C3 * R1 * R3 * R4 - t * m * C1 * C2 * C3 * R1 * R3 * R4
     + t * l * C1 * C2 * C3 * R1 * R2 * R4;
-  const a1 = (C1 * R1 + C1 * R3 + C2 * R3 + C2 * R4 + C3 * R4) + m * C3 * R3 + l * (C1 * R2 + C2 * R2);
-  const a2 = m * (C1 * C3 * R1 * R3 - C2 * C3 * R3 * R4 + C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3) + l * m * (C1 * C3 * R2 * R3 + C2 * C3 * R2 * R3)
+  out[3] = (C1 * R1 + C1 * R3 + C2 * R3 + C2 * R4 + C3 * R4) + m * C3 * R3 + l * (C1 * R2 + C2 * R2);
+  out[4] = m * (C1 * C3 * R1 * R3 - C2 * C3 * R3 * R4 + C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3) + l * m * (C1 * C3 * R2 * R3 + C2 * C3 * R2 * R3)
     - m * m * (C1 * C3 * R3 * R3 + C2 * C3 * R3 * R3) + l * (C1 * C2 * R2 * R4 + C1 * C2 * R1 * R2 + C1 * C3 * R2 * R4 + C2 * C3 * R2 * R4)
     + (C1 * C2 * R1 * R4 + C1 * C3 * R1 * R4 + C1 * C2 * R3 * R4 + C1 * C2 * R1 * R3 + C1 * C3 * R3 * R4 + C2 * C3 * R3 * R4);
-  const a3 = l * m * (C1 * C2 * C3 * R1 * R2 * R3 + C1 * C2 * C3 * R2 * R3 * R4) - m * m * (C1 * C2 * C3 * R1 * R3 * R3 + C1 * C2 * C3 * R3 * R3 * R4)
+  out[5] = l * m * (C1 * C2 * C3 * R1 * R2 * R3 + C1 * C2 * C3 * R2 * R3 * R4) - m * m * (C1 * C2 * C3 * R1 * R3 * R3 + C1 * C2 * C3 * R3 * R3 * R4)
     + m * (C1 * C2 * C3 * R3 * R3 * R4 + C1 * C2 * C3 * R1 * R3 * R3 - C1 * C2 * C3 * R1 * R3 * R4) + l * C1 * C2 * C3 * R1 * R2 * R4
     + C1 * C2 * C3 * R1 * R3 * R4;
+  return out;
+}
+export function tmbCoefs(bass, mid, treble, fs, out) {
+  tmbAnalog(bass, mid, treble, out);
+  const b1 = out[0], b2 = out[1], b3 = out[2], a1 = out[3], a2 = out[4], a3 = out[5];
   // bilinear: s = c (1 - 1/z) / (1 + 1/z), c = 2 fs
   const c = 2 * fs, c2 = c * c, c3 = c2 * c;
   const B0 = b1 * c + b2 * c2 + b3 * c3, B1 = b1 * c - b2 * c2 - 3 * b3 * c3, B2 = -b1 * c - b2 * c2 + 3 * b3 * c3, B3 = -b1 * c + b2 * c2 - b3 * c3;
@@ -67,6 +79,7 @@ export function tmbCoefs(bass, mid, treble, fs, out) {
 // makeAmp(sr, dsp) -> { set(P), tick(x) (one sample at the host's rate in, one out: gate, tight, then the oversampled
 // chain), latency }. CAB_LIB defines makeCab(sr, dsp, bank) -> { set(cab, now?), process(x, n) (in place), plays(cab) }.
 export const AMP_LIB = String.raw`
+${tmbAnalog.toString()}
 ${tmbCoefs.toString()}
 // the 2x stage inside the 4x one, for QUALITY 8X: a 7-tap half-band [c3, 0, c1, 1/2, c1, 0, c3] up and down (3 samples
 // of delay each way at 8x), c1 = 9/32, c3 = -1/32
@@ -153,19 +166,19 @@ function chain(fs) {
       y = T3 - s3(6 * m2 + B3);
       c3 += kC3 * (y - c3); m3 += kM3 * (y - c3 - m3);
       dc += kDc * (m3 - dc);
-      // the tone stack (its own loss is about -14 dB through the middle), depth and presence, the power amp
+      // the tone stack (its own loss is about -9 dB through the middle), then the power amp's drive
       const v = m3 - dc;
       let z = t0 * v + z1; z1 = t1 * v - ta1 * z + z2; z2 = t2 * v - ta2 * z + z3; z3 = t3 * v - ta3 * z;
-      y = z * 4;
-      z = e0 * y + d1; d1 = e1 * y - ea1 * z + d2; d2 = e2 * y - ea2 * z; y = z;
-      z = f0 * y + p1; p1 = f1 * y - fa1 * z + p2; p2 = f2 * y - fa2 * z;
-      y = z * drv;
+      y = z * 4 * drv;
       // sag: the supply's envelope, and the headroom it leaves (its reciprocal worked out once a host sample)
       const a = y < 0 ? -y : y;
       env += (a > env ? eA : eR) * (a - env);
       if (--hn <= 0) { hn = OS; h = 1 - sag * (env > 1.5 ? 1.5 : env); ih = 1 / h; }
       y = h * s4(y * ih);
-      oh += kOh * (y - oh); ol += kOl * (y - oh - ol);
+      // depth and presence: where the feedback loop lets go, so they shape what the power amp put out
+      z = e0 * y + d1; d1 = e1 * y - ea1 * z + d2; d2 = e2 * y - ea2 * z; y = z;
+      z = f0 * y + p1; p1 = f1 * y - fa1 * z + p2; p2 = f2 * y - fa2 * z;
+      oh += kOh * (z - oh); ol += kOl * (z - oh - ol);
       return ol * 0.5;
     },
   };
@@ -233,7 +246,8 @@ function makeCab(sr, dsp, bank) {
   fHp.set(80, 0.7071); fLo.bell(110, 1.4, 4); fMid.bell(400, 1.0, -3); fHi.bell(2500, 1.2, 3); fLp.set(5000, 0.7071);
   const FILTER_TRIM = dbg(${FILTER_TRIM});
   const filt = (x) => { fHp.tick(x); let y = fLo.eq(fHp.hp); y = fMid.eq(y); y = fHi.eq(y); return fLp.tick(y) * FILTER_TRIM; };
-  // what plays: a slot (0, 1: a convolver; 2: the filter; 3: off), and the one fading out over 30 ms
+  // what plays: a slot (0, 1: a convolver; 2: the filter; 3: off), and the one fading out over 30 ms (linearly: two
+  // cabs on one signal are nearly in phase, so an equal-power fade would swell)
   let A = new Float64Array(128), B = new Float64Array(128);
   let cur = -1, curSlot = 3, prevSlot = -1, fade = 0;
   const FADE = Math.round(0.03 * sr);
@@ -266,7 +280,7 @@ function makeCab(sr, dsp, bank) {
       for (let i = 0; i < n; i++) {
         const g = fade > 0 ? fade / FADE : 0;
         if (fade > 0) fade--;
-        x[i] = A[i] * Math.sqrt(1 - g) + B[i] * Math.sqrt(g);
+        x[i] = A[i] + (B[i] - A[i]) * g;
       }
     },
   };

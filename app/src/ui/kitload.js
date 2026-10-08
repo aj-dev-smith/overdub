@@ -77,6 +77,9 @@ export function kitAmount(def) {
 }
 export function kitSays(def, { short = false } = {}) {
   const s = kitState(def);
+  // (a device whose data isn't samples says its own words: def.dataSays, as the rack's line does)
+  const own = def && def.dataSays && def.dataSays[s];
+  if (own) return own[0];
   if (s === 'missing') return 'No samples here';
   if (s !== 'loading') return '';
   const n = short ? '' : kitAmount(def);
@@ -96,7 +99,8 @@ function draw(el) {
   bar.style.width = f == null ? '' : (100 * f).toFixed(1) + '%';
   el.classList.toggle('kl-unknown', s === 'loading' && f == null);
   const n = s === 'loading' ? kitAmount(def) : '';
-  const long = s === 'loading' ? `Loading its samples${n ? `, ${n}` : ''}: it plays once they’re in` : s === 'missing' ? 'Its samples aren’t on this server, so it plays nothing' : '';
+  const own = def && def.dataSays && def.dataSays[s];
+  const long = own ? own[1] : s === 'loading' ? `Loading its samples${n ? `, ${n}` : ''}: it plays once they’re in` : s === 'missing' ? 'Its samples aren’t on this server, so it plays nothing' : '';
   el.setAttribute('aria-label', long);
   el.title = long;
 }
