@@ -22,31 +22,34 @@ work too (`tools/compat-test.js` and `tools/phone-test.js` check them).
 
 - **A real DAW.** Tracks, clips, an arranger with sections and loops, a piano roll, a step grid for drums, a mixer and
   device racks. Everything is synthesized in the page. Sections duplicate with their clips, bars go in and out across
-  the whole song, and clips repeat and split. Twelve demo songs come with it: Night Shift (lo-fi), Dust Jacket
+  the whole song, and clips repeat and split. Fifteen demo songs come with it: Night Shift (lo-fi), Dust Jacket
   (boom bap), Halation (shoegaze), Lido (house), Sodium (synthwave), Red Eye (trap), Late Checkout (neo-soul),
-  Wake-Up Call (gospel), Lobby Bar (bossa nova), Room Service (boogie), Turndown (French house) and Ice Machine (dub).
+  Wake-Up Call (gospel), Lobby Bar (bossa nova), Room Service (boogie), Turndown (French house), Ice Machine (dub), Vacancy (indie pop), Service Lift (dubstep) and Boiler
+  Room (metal).
 - **Capture first.** The Sketch tab turns humming into notes and tapping or beatboxing into drums, and it shows its
   repairs. It also keeps everything you played on MIDI or the computer keyboard, so "keep that" works after the fact.
   **Band** (or ⇧B) builds chords, bass and drums around a kept take in one of five styles, on new tracks, with your
   notes untouched.
 - **The Guitar Studio, inside a DAW.** Plug a guitar into an audio interface and play it through the pedals, amps and
   cabs ported from [Claw'd-o-Matic](https://clawd.ajsmithhq.com): 101 pedals, 27 amps and 156 rigs, on any track. They
-  also work on synths and drums. Overdub adds 47 built-in instruments and effects of its own, named after things in a
+  also work on synths and drums. Overdub adds 52 built-in instruments and effects of its own, named after things in a
   studio: Patch Bay, Capstan, Lamp Tines, Pinch Roller, Gobo Kit, Room Tone, Baby Grand, Rotor Cabinet, Music Stands,
   Flatwound, Suitcase, Mallet Bag, DI Box, Step Ladder, Brass Rail, Risers, Studio A, Light Table, Sandbag, Virtuosity Kit,
   Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound, Hollow Body, Bell Up, Endpin,
-  Head Joint and Spit Valve; Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed
-  Tape, Gatefold, Red Line, Slide Rule, Scribble Strip, Gaffer Tape, Dim Switch and Clip Lamp. All are synthesized but thirteen, which play
+  Head Joint, Spit Valve and Rusty Sticks; Top Shelf, Squeeze Box, Stairwell, Echo Reel, Double Track, Keyhole, Hot Print, Chewed
+  Tape, Gatefold, Red Line, Slide Rule, Scribble Strip, Gaffer Tape, Dim Switch, Clip Lamp, Drum Riser, Half Stack, Iso Cab and Y Cable. All are
+  synthesized but fourteen, which play
   samples: Virtuosity Kit, a real jazz-club kit, Parlour Upright, a real upright piano, Rusty Brushes, a real kit played
   with brushes and mallets, Hand Crate, real hand percussion, Full Stick, a real concert grand, Rosin, a real string
   section, Damper Bar, a real vibraphone, Roundwound, a real five-string bass, Hollow Body, a real hollow-body electric
-  guitar, Bell Up, a real baritone sax, Endpin, a real solo cello, Head Joint, a real flute, and Spit Valve, a real
-  trumpet. (Light Table's AKWF tables are recorded too: 108 single cycles, nine to a table.)
+  guitar, Bell Up, a real baritone sax, Endpin, a real solo cello, Head Joint, a real flute, Spit Valve, a real
+  trumpet, and Rusty Sticks, a real kit hit hard with sticks. (Light Table's AKWF tables are recorded too: 108 single
+  cycles, nine to a table, and Half Stack, Iso Cab and Y Cable play six recorded 4x12 cabinets.)
 - **A second player.** The agent works on what you've selected. It proposes alternatives as A/B cards you
   audition and pick from, and it writes devices: describe a pedal and it writes the DSP, the studio checks it
   (level, peaks, tails, CPU, determinism), and a face appears that you can play. The
   [device library](https://overdubstudio.com/app/library.html) has 13 devices Claude wrote, each with the request
-  behind it, next to the 47 built-ins.
+  behind it, next to the 52 built-ins.
 - **Words that mean what you mean.** "Warmer" goes through a lexicon to real knob moves. For words people disagree on
   (warm, fat, tight), the first time you hear two readings and pick one, and the studio remembers it. Sixteen note
   transforms (humanize, strum, arpeggiate, chords from a melody, continue a phrase, fill a gap…) are in the piano

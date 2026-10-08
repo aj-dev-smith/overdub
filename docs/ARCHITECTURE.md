@@ -50,7 +50,7 @@ overdub/
                          transforms.js (note transforms and infill), arrange.js (Build a band),
                          grooves.js + grooves/ (the groove library: a style file per family, feel and humanising,
                          tap-to-find, the song creator), share.js (share links, forks), dawproject.js (DAWproject
-                         export), demo.js + demos/ (the twelve demo songs)                             [core]
+                         export), demo.js + demos/ (the fifteen demo songs)                            [core]
                          jam.js (chords read from notes, jam tracks, tips, licks), fretboard.js (tunings, positions,
                          fingering in one hand position, tab text in and out), riff.js (the house riff writer),
                          playalong.js (judging what you play against a part)                           [jam]
@@ -419,9 +419,9 @@ is a literal in the kernel's source, packed so the kernel stays under its 256 KB
 Param `role` (for agents and semantic controls): `tone level drive mix time feedback rate depth size decay attack
 release pitch shape width gate sens` (or omit). `unit`: `Hz dB ms s % st note x`.
 
-**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 47 built-ins, thirteen
+**Where devices come from.** `main.js` imports three libraries at boot: `devices/builtin/` (the 52 built-ins, fourteen
 of them sampled: Virtuosity Kit, Parlour Upright, Rusty Brushes, Hand Crate, Full Stick, Rosin, Damper Bar, Roundwound,
-Hollow Body, Bell Up, Endpin, Head Joint and Spit Valve, whose samples come as kernel data), `devices/guitar/` (the
+Hollow Body, Bell Up, Endpin, Head Joint, Spit Valve and Rusty Sticks, whose samples come as kernel data), `devices/guitar/` (the
 Guitar Studio's 101 pedals and 27 amps, with 16 cabinets and 5 mics inside the amps, and its 156 rigs as device chains)
 and `devices/library/` (the house shelf: ten kernels Claude wrote, `claude.*`, `source: 'library'`, each with its
 `request`; also loaded by the Node renderer). `devices/showcase.js` holds the three devices the demo song carries as

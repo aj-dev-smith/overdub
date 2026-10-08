@@ -665,7 +665,7 @@ underwater in a cathedral."* The agent writes it as a small piece of audio code.
   `.overdub-device.json` file. In another song, **Import a device…** in the Song menu (`⌘⇧I`) brings it in. It is
   checked again on the way in, and refused, with the report, if it fails.
 
-The [device library](/app/library.html) has 60 devices: the 47 built-in instruments and effects, and 13 Claude
+The [device library](/app/library.html) has 65 devices: the 52 built-in instruments and effects, and 13 Claude
 wrote, each from one request, and the request is on the card. Play any of them on the page. The Guitar Studio's 101
 pedals and 27 amps aren't on that shelf; find them in the studio's browser. To write one by hand, see
 [Writing devices](DEVICES.md).

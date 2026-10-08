@@ -389,13 +389,14 @@ a track with one gets the drum grid.
   articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
   Its design note is `docs/research/STUDIO-A.md`.
 - **Virtuosity Kit** (`core.drumkit`): a real jazz-club kit, recorded through a pair of overheads and played from
-  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's thirteen sampled
+  samples (below: [Virtuosity Kit](#virtuosity-kit-coredrumkit-a-sampled-kit)). One of the studio's fourteen sampled
   instruments; the others are Parlour Upright (`core.upright`, a real upright piano), Full Stick (`core.grand`, a real
   concert grand), Rosin (`core.ensemble`, a real string section), Damper Bar (`core.vibes`, a real vibraphone),
   Roundwound (`core.ebass`, a real five-string bass), Hollow Body (`core.eguitar`, a real hollow-body electric guitar),
   Bell Up (`core.barisax`, a real baritone sax), Endpin (`core.cello`, a real solo cello), Head Joint (`core.flute`, a
   real flute) and Spit Valve (`core.trumpet`, a real trumpet) ([Melodic
-  kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes and Hand Crate.
+  kits](#melodic-kits-a-sampled-instrument-across-the-keyboard)), Rusty Brushes, Hand Crate and Rusty Sticks (`core.metalkit`, a
+  metal kit: [Rusty Sticks](#rusty-sticks-coremetalkit-a-metal-kit)).
 - **Rusty Brushes** (`core.brushkit`): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
   (below: [Rusty Brushes](#rusty-brushes-corebrushkit-brushes-and-mallets)).
 - **Hand Crate** (`core.handkit`): real hand percussion, which plays a kit's beat as a hand player would

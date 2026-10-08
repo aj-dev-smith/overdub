@@ -61,6 +61,9 @@
 <li><a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit (core.drumkit): a sampled kit</a></li>
 <li><a href="#rusty-brushes-corebrushkit-brushes-and-mallets">Rusty Brushes (core.brushkit): brushes and mallets</a></li>
 <li><a href="#hand-crate-corehandkit-hand-percussion">Hand Crate (core.handkit): hand percussion</a></li>
+<li><a href="#rusty-sticks-coremetalkit-a-metal-kit">Rusty Sticks (core.metalkit): a metal kit</a></li>
+<li><a href="#drum-riser-coredrumbus-a-drum-bus">Drum Riser (core.drumbus): a drum bus</a></li>
+<li><a href="#half-stack-iso-cab-and-y-cable-corestack-corecab-corebassrig-a-guitar-amp-that-renders">Half Stack, Iso Cab and Y Cable (core.stack, core.cab, core.bassrig): a guitar amp that renders</a></li>
 <li><a href="#kernel-data-samples-a-kernel-plays">Kernel data: samples a kernel plays</a></li>
 <li><a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic kits: a sampled instrument across the keyboard</a></li>
 <li><a href="#a-big-instrument-light-table-corewavetable">A big instrument: Light Table (core.wavetable)</a></li>
@@ -77,7 +80,7 @@
   </aside>
   <main id="doc" class="doc">
     <h1 id="top" class="doc-title"><a class="h-link" href="#top">Devices: writing instruments and effects</a></h1>
-    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 59 min to read</p>
+    <p class="doc-meta">From <code>docs/DEVICES.md</code> (<a href="/docs/DEVICES.md">the Markdown</a>), about 63 min to read</p>
     <article class="prose">
 <p>Overdub's instruments and effects are <strong>devices</strong>: a small definition (id, name, params, look) plus either a Web Audio
 graph (<code>build(c, kit)</code>, trusted built-ins like the ported pedals and amps) or a <strong>kernel</strong>: a few dozen lines of pure DSP
@@ -442,13 +445,14 @@ on any character; 0 (KIT) is each character's own, as before.</li>
 articulations, velocity that changes the sound, strokes that never repeat, and a mic mix you balance.
 Its design note is <code>docs/research/STUDIO-A.md</code>.</li>
 <li><strong>Virtuosity Kit</strong> (<code>core.drumkit</code>): a real jazz-club kit, recorded through a pair of overheads and played from
-samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's thirteen sampled
+samples (below: <a href="#virtuosity-kit-coredrumkit-a-sampled-kit">Virtuosity Kit</a>). One of the studio's fourteen sampled
 instruments; the others are Parlour Upright (<code>core.upright</code>, a real upright piano), Full Stick (<code>core.grand</code>, a real
 concert grand), Rosin (<code>core.ensemble</code>, a real string section), Damper Bar (<code>core.vibes</code>, a real vibraphone),
 Roundwound (<code>core.ebass</code>, a real five-string bass), Hollow Body (<code>core.eguitar</code>, a real hollow-body electric guitar),
 Bell Up (<code>core.barisax</code>, a real baritone sax), Endpin (<code>core.cello</code>, a real solo cello), Head Joint (<code>core.flute</code>, a
 real flute) and Spit Valve (<code>core.trumpet</code>, a real trumpet) (<a href="#melodic-kits-a-sampled-instrument-across-the-keyboard">Melodic
-kits</a>), Rusty Brushes and Hand Crate.</li>
+kits</a>), Rusty Brushes, Hand Crate and Rusty Sticks (<code>core.metalkit</code>, a
+metal kit: <a href="#rusty-sticks-coremetalkit-a-metal-kit">Rusty Sticks</a>).</li>
 <li><strong>Rusty Brushes</strong> (<code>core.brushkit</code>): a real kit played with brushes and mallets, where Virtuosity Kit has sticks
 (below: <a href="#rusty-brushes-corebrushkit-brushes-and-mallets">Rusty Brushes</a>).</li>
 <li><strong>Hand Crate</strong> (<code>core.handkit</code>): real hand percussion, which plays a kit's beat as a hand player would
@@ -636,6 +640,69 @@ phase coherence (a spaced pair over small, bright percussion, the high bongo, th
 r from -0.2 to 0.2, not a mic out of phase).</li>
 </ul>
 <p><code>tools/drumkit-test.js</code> holds it to all of this, and the golden scene <code>inst:core.handkit#a449e40fb8b4</code> pins its render.</p>
+<h2 id="rusty-sticks-coremetalkit-a-metal-kit"><a class="h-link" href="#rusty-sticks-coremetalkit-a-metal-kit">Rusty Sticks (<code>core.metalkit</code>): a metal kit</a></h2>
+<p>Big Rusty Drums (Karoryfer Samples, CC0 1.0), the kit Rusty Brushes plays, hit hard with sticks: each drum is its close mic panned to its place
+in Studio A's layout plus the overhead pair, the hats and cymbals the same with the overheads louder. <code>app/src/devices/builtin/metalkit.js</code>;
+the samples come by kernel data, built from <code>tools/kits/big-rusty-sticks.js</code> by <code>tools/kits/blend.js</code>.</p>
+<ul>
+<li><strong>What it plays.</strong> On Studio A's note map: 35 and 36 the kick; 38 snare, 40 rimshot, 37 side stick; 42 closed hat, 22 tight, 44 pedal,
+23 quarter-open, 24 half-open, 46 open, 21 foot splash; 50/48, 47, 45 and 43/41 the 14&quot;, 15&quot;, 18&quot; and 22&quot; toms (the 22&quot; is a kick on its
+side); 49 crash, 57 sizzle crash, 52 China, 55 stack, 51 ride, 53 bell, 59 ride edge; 27, 28 and 29 choke the crashes and the China, 25
+the ride. Any other note plays nothing. 176 strokes, 12.6 MB over the wire.</li>
+<li><strong>Strokes never repeat.</strong> Each hit draws from its velocity layer and the nearer neighbour's, never either of the last two strokes on that
+piece, with a seeded +-0.4 dB and +-4 cents of its own. Every stroke starts 1 ms before its attack, and the kernel declares that with its
+limiter's look-ahead as latency, so hits land on the grid.</li>
+<li><strong>TIGHT</strong> (5-60 ms, 18): a new kick fades the last over that time, and each kick's tail is held to it (40-150 Hz T60 0.19 s at 18).</li>
+<li><strong>The trigger.</strong> CLICK (a 2-6 kHz burst and a one-sample beater impulse, 4 ms) and SUB (a sine that falls an octave onto SUB HZ over
+12 ms and dies with TIGHT), at each kick's attack, the sub in the stroke's own polarity; TRIG VEL is how much velocity moves them. -40
+is off. At the defaults (-12, -10) the 2-6 kHz band in a kick's first 10 ms is 9.4 dB under its low band. A missing kit plays the trigger
+alone.</li>
+<li><strong>ROOM</strong> (-14 dB) and <strong>ROOM SIZE</strong>: a small live room (<code>kitroom.js</code>) each piece sends into: the snare 1, the toms 0.8, the cymbals 0.3,
+the hats 0.15, the kick 0.1.</li>
+<li><strong>Levels and presets.</strong> A level for the kick, snare, hats, toms, ride, crashes and China; the drum phrase measures -16.7 LUFS, -1.4 dBTP.
+Modern (the defaults), Natural (no trigger, more room), Tight (TIGHT 10, the room low).</li>
+</ul>
+<p><code>tools/metalkit-test.js</code> holds it to this; the golden scenes <code>inst:core.metalkit#9e0becc0ce4f</code> and its <code>:trigger</code> twin pin its render.</p>
+<h2 id="drum-riser-coredrumbus-a-drum-bus"><a class="h-link" href="#drum-riser-coredrumbus-a-drum-bus">Drum Riser (<code>core.drumbus</code>): a drum bus</a></h2>
+<p>What a record's drum bus does, as one insert on the drum track (the studio has no sends, so the parallel paths are inside it):
+<code>app/src/devices/builtin/drumbus.js</code>.</p>
+<ul>
+<li><strong>ATTACK and SUSTAIN</strong> (-100 to +100%): a transient shaper on the difference of a fast and a slow follower, linked.</li>
+<li><strong>SQUASH</strong> (0-1) with <strong>COMP ATK</strong> (1-50 ms) and <strong>COMP REL</strong> (20-400 ms): a bus compressor, threshold -6 to -30 dB and 2:1 to 8:1
+together, its detector Squeeze Box's (the lows out of it, half peak and half RMS, a release that slows while it works, a slow makeup).</li>
+<li><strong>DRIVE</strong> and <strong>CLIP</strong> (SOFT, HARD): 4x oversampled, the level given back by a measured table.</li>
+<li><strong>ROOM</strong> and <strong>ROOM SIZE</strong>: the kit room on the whole kit; <strong>CRUSH</strong>: a mono copy high-passed at 120 Hz, a brick wall and a drive. Both
+in parallel, lined up with the main path.</li>
+<li><strong>MIX</strong> and <strong>OUTPUT</strong>. It declares 23 samples of latency. At its defaults it is within 0.3 LU of bypass. Presets: Modern (the snare's
+crest from 15.4 to 12.6 dB), Room, Smash, Glue.</li>
+</ul>
+<p><code>tools/drumbus-test.js</code> holds it to this; the golden scene <code>fx:core.drumbus</code> pins its render.</p>
+<h2 id="half-stack-iso-cab-and-y-cable-corestack-corecab-corebassrig-a-guitar-amp-that-renders"><a class="h-link" href="#half-stack-iso-cab-and-y-cable-corestack-corecab-corebassrig-a-guitar-amp-that-renders">Half Stack, Iso Cab and Y Cable (core.stack, core.cab, core.bassrig): a guitar amp that renders</a></h2>
+<p>A high-gain head into a measured 4x12, as a kernel. The canonical render, the agent's render_and_measure and the
+studio hear the same amp, within the house's -90 dB. (The Guitar Studio's graph amps render clean in Node.) The devices
+are <code>app/src/devices/builtin/stack.js</code>, <code>cab.js</code> and <code>bassrig.js</code>. The DSP they share is <code>amp-lib.js</code>: kernel text,
+not <code>dsp</code> names.</p>
+<ul>
+<li><strong>Half Stack</strong>:
+<ul>
+<li>GATE: before the gain.</li>
+<li>TIGHT: a 12 dB/oct input high-pass.</li>
+<li>BOOST, with B DRIVE and B LEVEL: a green overdrive whose clipped branch starts at 720 Hz.</li>
+<li>GAIN, over three triode stages.</li>
+<li>BASS, MID and TREBLE: the TMB stack's own response.</li>
+<li>The power amp: MASTER and SAG, then PRESENCE and DEPTH.</li>
+<li>CAB: six IRs, FILTER 4X12 or OFF.</li>
+<li>LOW CUT, HIGH CUT and LEVEL.</li>
+<li>QUALITY: 4X by default; 8X aliases about 15 dB less for twice the cost.</li>
+<li>28 samples of latency, so it can be played live. Presets: Modern, Djent, Thrash, Doom, Lead.</li>
+</ul></li>
+<li><strong>Iso Cab</strong>: CAB, LOW CUT, HIGH CUT, MIX and LEVEL. The cab on its own, after a graph amp, a pedal or any drive. No
+latency.</li>
+<li><strong>Y Cable</strong>: XOVER (80-400 Hz), LOW, DRIVE, MID, TREBLE, CAB, HIGH and LEVEL. A clean, compressed, mono low end under
+a driven top through a guitar cab. Presets: Modern, Grind, Clean.</li>
+<li>The cab IRs are kernel data (<code>data: { cabs }</code>, 39 KB). Until they arrive, or on a server without them, every IR
+choice plays the Filter 4x12 at the same level, and the card says so.</li>
+</ul>
 <h2 id="kernel-data-samples-a-kernel-plays"><a class="h-link" href="#kernel-data-samples-a-kernel-plays">Kernel data: samples a kernel plays</a></h2>
 <p>A kernel sees only <code>dsp</code>, so a device that plays recordings needs the host to bring them. A def can name files by
 their content: <code>data: { kit: 'sha256-&lt;64 hex&gt;' }</code>. The file is <code>app/kits/&lt;64 hex&gt;.odk</code>, and the kernel gets it,
@@ -911,6 +978,11 @@ modal(freqs, decays, gains?) (resonator bank: drums, bells, bars; arrays; decays
 <p>Space: fdn(size = 0.6, decay = 2, damp = 0.4, seed?) (8-line modulated reverb; size 0..1 room to hall, decay = T60 s,
 damp 0 bright .. 1 dark) -&gt; .tick(l, r) then .l .r (wet) .set(size, decay, damp). chorus(depth = 0.5, rate = 0.8)
 (two voices in quadrature) -&gt; .tick(l, r) then .l .r (wet) .set(depth, rate). buffer(n) -&gt; Float32Array(n).</p>
+<p>Convolution: convolver(taps, { direct }?) (taps: one array, or [left, right]; a cab, a room) -&gt; .process(x, outL, outR,
+n) (mono x in, one output per taps channel; in place is fine) .set(taps) (new taps up to the first length, no
+allocation) .reset() .latency (128 frames; 0 with direct: 128, which convolves the first 128 taps directly: declare
+it). fft(n) (n a power of two, 16..8192) -&gt; .forward(x, Xr, Xi) (n/2 + 1 bins) .inverse(Xr, Xi, x). Both are the
+same doubles on every engine.</p>
 <h2 id="what-the-check-reports-define_device-returns-it"><a class="h-link" href="#what-the-check-reports-define_device-returns-it">What the check reports (define_device returns it)</a></h2>
 <p>{ ok, errors, warnings, level: { lufs, deltaLU }, truePeak, nan, tail: { seconds, decays }, cpu: { pct },
 latency: { samples }, deterministic, extremes: { cases, failed }, voices?: { poly, maxVoices, steals }, stuck?,

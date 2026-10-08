@@ -6,7 +6,7 @@ synthesized from notes, parameters and code, so it has no sound files at all.
 
 The sampled kits' recordings aren't in this repository (Light Table's AKWF single cycles are the one exception: 108
 short cycles, embedded in `app/src/devices/builtin/akwf.js`, below). `node tools/fetch-kits.js` downloads each set from its source at a pinned
-commit, checks every file against its SHA-256, checks the upstream licence before building anything, and builds the
+commit (or a pinned zip), checks every file against its SHA-256, checks the upstream licence before building anything, and builds the
 kit file the device names (`app/kits/<sha256>.odk`, and its packed twin `.odkz`). The same files always build the
 same bytes, so the hash a device pins is also the record of exactly what was shipped. The recipes in `tools/kits/`
 list every file with its hash.
