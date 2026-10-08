@@ -34,7 +34,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { startServer, ready } from '../server/serve.js';
-import { OUTDIR, tally, QUIET } from './pw.js';
+import { OUTDIR, tally, QUIET, TEXT } from './pw.js';
 
 const require = createRequire(import.meta.url);
 const T = tally('phone');
@@ -119,7 +119,7 @@ async function phone(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);
@@ -561,7 +561,8 @@ async function phone(pw, srvUrl, run) {
       T.ok(a0.gy != null && a1.open && a1.top <= 2, `${label}: dragging the agent sheet's handle up takes it to the whole height (${a0.top} → ${a1.top})`);
       await shot('agent-full');
       await dragTouch(page, run.engine, a1.gx, a1.gy, a1.gx, vp.h - 10);
-      await sleep(300);
+      // a swipe that fast flings in Chromium on Linux, and a tap while the fling runs only stops it (no click): wait it out
+      await sleep(2000);
       const a2 = await ag();
       T.ok(!a2.open, `${label}: dragging it down closes the agent sheet (${a2.open ? 'still open at ' + a2.top : 'closed'})`);
       await tap('.ew-t-panelRight'); await sleep(450);
@@ -673,7 +674,7 @@ async function simplePhone(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);
@@ -752,7 +753,7 @@ async function sideways(pw, srvUrl, run) {
   let browser;
   try {
     browser = run.engine === 'webkit' ? await pw.webkit.launch({ headless: !HEADED })
-      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+      : await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   } catch (e) {
     const msg = String(e && e.message || e).split('\n')[0];
     if (process.env.REQUIRE_ALL) T.ok(false, `${label}: launches (${msg})`);

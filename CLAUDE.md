@@ -13,6 +13,7 @@ instrument or effect; [`docs/AGENTS.md`](docs/AGENTS.md) is how an agent drives 
 node server/serve.js                 # http://localhost:3279/ (landing) and /app/ (the studio). No install, no build.
 node server/mcp.js                   # MCP stdio server: `claude mcp add overdub -- node "$PWD/server/mcp.js"`
 node tools/run-all.js                # every check, PAR=3 at a time (each tools/*-test.js prints ok/FAIL, exits 1 on failure)
+node --test "test/unit/*.test.js"    # unit tests, what CI runs (seconds)
 node tools/<area>-test.js            # one area's checks; screenshots land in tools/.out/
 node tools/docs-build.js             # rebuild site/docs/ after editing GUIDE, AGENTS, DEVICES, BENCH, REMOTE-MCP,
                                      # ARCHITECTURE or integrations/README.md (pages-test fails on a stale page)

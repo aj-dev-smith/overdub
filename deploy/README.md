@@ -35,5 +35,23 @@ the tab's title with "Preview ·". The live site's copy has no `preview` key, so
 before the ribbon existed (no `app/src/ui/preview.js`) deploys without the slip or the title; the noindex header still
 applies, since it comes from the distribution.
 
+## The preview from GitHub Actions
+
+`.github/workflows/ci.yml` runs the unit tests on every pull request and every push to `main`, in one job on Linux
+(`ubuntu-latest`):
+
+```sh
+node --test "test/unit/*.test.js"    # unit tests, what CI runs (seconds)
+```
+
+A push to `main` (a merge) whose tests pass is deployed to the preview by its `deploy-staging` job; you can also start
+the workflow by hand on `main` (Actions › ci › Run workflow), which runs the tests and then deploys. CI doesn't run the
+integration suites (browsers, servers, renders), so run `node tools/run-all.js` locally before merging.
+The deploy signs in to AWS with GitHub's OIDC token, never a stored key, as a role that can write the preview's bucket
+and invalidate its distribution and nothing else.
+`deploy/next/github-oidc.sh` (once, `AWS_PROFILE=overdub`; `DRY_RUN=1` prints the plan) makes the role and GitHub's
+identity provider; `BRANCHES` names the branches whose runs may assume it (default `main`). The role's
+ARN and the distribution id go in the repository variables `NEXT_DEPLOY_ROLE` and `NEXT_DISTRIBUTION`.
+
 What a tester should know: songs, keys and settings saved on the preview stay on the preview (each site keeps its own
 browser storage). Connect to Claude doesn't work there: the relay accepts the live origin only.

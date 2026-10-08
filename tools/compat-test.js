@@ -21,7 +21,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { startServer, ready, byteRange, addRoute } from '../server/serve.js';
-import { OUTDIR, tally, QUIET } from './pw.js';
+import { OUTDIR, tally, QUIET, TEXT } from './pw.js';
 import { FIXED_TWIDDLES_SHA, FIXED_CONVOLUTION_SHA } from './fixtures/convolve-fixed.js';
 
 const require = createRequire(import.meta.url);
@@ -57,6 +57,9 @@ function findChromium() {
 //             (Safari's own state) until the first click, so the checks click once, like a person would.
 //   firefox:  prefs: media.navigator.streams.fake (a fake mic), media.navigator.permission.disabled (no prompt),
 //             media.autoplay.default=0 + media.autoplay.block-webaudio=false (sound without a gesture).
+//             On Linux it plays through PulseAudio, and with no sound server its AudioContext never starts (the demo
+//             silent, the take empty). FIREFOX_PULSE_SERVER names one for Firefox alone (CI starts one with a null
+//             sink): Chromium's checks are timed against its own fake output and fail through PulseAudio.
 async function launch(kind) {
   const pw = findPlaywright();
   const phone = kind.endsWith('-phone');
@@ -66,7 +69,7 @@ async function launch(kind) {
     : { viewport: { width: 1440, height: 900 } };
   let browser;
   if (engine === 'chromium') {
-    const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
+    const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
     browser = await pw.chromium.launch({ headless: !HEADED, executablePath: HEADED ? undefined : findChromium(), args });
     ctxOpts.permissions = ['microphone'];
   } else if (engine === 'webkit') {
@@ -75,6 +78,7 @@ async function launch(kind) {
   } else if (engine === 'firefox') {
     browser = await pw.firefox.launch({
       headless: !HEADED,
+      ...(process.env.FIREFOX_PULSE_SERVER && { env: { ...process.env, PULSE_SERVER: process.env.FIREFOX_PULSE_SERVER } }),
       firefoxUserPrefs: {
         'media.navigator.streams.fake': true, 'media.navigator.permission.disabled': true,
         'media.autoplay.default': 0, 'media.autoplay.blocking_policy': 0, 'media.autoplay.block-webaudio': false,

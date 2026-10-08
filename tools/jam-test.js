@@ -30,7 +30,7 @@
 //      on the live meters; never the song, History or a render; shown in the room, back to 0 dB on leaving; Match the
 //      band uses it when the fader's top can't put a quiet guitar 3 dB over the band
 // usage: node tools/jam-test.js     (screenshots: tools/.out/jam-*.png; LEVELS=0 skips the level renders)
-import { open, tally, OUTDIR, QUIET } from './pw.js';
+import { open, tally, OUTDIR, QUIET, TEXT } from './pw.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -806,7 +806,7 @@ const boot = async (opts = {}) => {
   const srv = await startServer({ port: 0, quiet: true });
   const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
   const exe = process.env.CHROMIUM || (fs.existsSync(base) ? fs.readdirSync(base).filter((d) => d.startsWith('chromium_headless_shell')).map((d) => path.join(base, d, 'chrome-headless-shell-mac-arm64/chrome-headless-shell')).find((p) => fs.existsSync(p)) : undefined);
-  const browser = await pw.chromium.launch({ headless: true, executablePath: exe, args: ['--autoplay-policy=no-user-gesture-required', ...QUIET] });
+  const browser = await pw.chromium.launch({ headless: true, executablePath: exe, args: ['--autoplay-policy=no-user-gesture-required', ...QUIET, ...TEXT] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];

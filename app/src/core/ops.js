@@ -396,7 +396,7 @@ export const OPS = {
     if (raw0.id && idUsed(p, raw0.id)) throw new Error(`id ${raw0.id} is already used`);
     const by = raw0.by || ctx.by;
     // (restored tracks keep their authors; new things are stamped with whoever is adding them)
-    const raw = { ...raw0, by, clips: (raw0.clips || []).map((c) => ({ ...c, by: c.by || by })), inserts: (raw0.inserts || []).map((fx) => ({ ...fx, by: fx.by || by })) };
+    const raw = { ...raw0, by, clips: (raw0.clips || []).map((c) => ({ ...c, by: c.by || by, ...(typeof c.notes === 'string' ? { notes: toNotes(c.notes) } : {}) })), inserts: (raw0.inserts || []).map((fx) => ({ ...fx, by: fx.by || by })) };
     const t = normTrack(raw, p.tracks.length);
     if (t.instrument) checkDevice(ctx, t.instrument.device, 'instrument');
     for (const fx of t.inserts) checkDevice(ctx, fx.device, 'effect');

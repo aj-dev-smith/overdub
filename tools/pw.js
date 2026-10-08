@@ -43,11 +43,15 @@ function findChromium() {
 // Test browsers keep quiet on this machine's speakers: Chromium's --mute-audio silences only what reaches the speakers
 // (the audio graph, its taps, captures and renders run as before). SOUND=1 lets a run be heard.
 export const QUIET = process.env.SOUND ? [] : ['--mute-audio'];
+// Text measures as it does on a Mac: Chromium on Linux hints fonts by default, which rounds each glyph's advance to a
+// whole pixel, so a line of text comes out a few px wider and the checks that fit a bar or a panel to the window ran
+// 2-16 px over on a Linux CI runner. No hinting is what macOS does anyway, so this changes nothing there.
+export const TEXT = ['--font-render-hinting=none'];
 
 // Open an absolute URL (production checks): same browser setup, no local server.
 export async function openUrl(url, { width = 1440, height = 900, headed = !!process.env.HEADED } = {}) {
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
+  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
   const browser = await pw.chromium.launch({ headless: !headed, executablePath: headed ? undefined : findChromium(), args });
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['microphone'] });
   const page = await context.newPage();
@@ -63,7 +67,7 @@ export async function open(route = '/app/', { width = 1440, height = 900, headed
   await ready;
   const srv = await startServer({ port: 0, quiet: true });
   const pw = findPlaywright();
-  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET];
+  const args = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', ...QUIET, ...TEXT];
   if (fakeAudio) args.push(`--use-file-for-fake-audio-capture=${fakeAudio}`);
   const exe = headed ? undefined : findChromium();
   const browser = await pw.chromium.launch({ headless: !headed, executablePath: exe, args });

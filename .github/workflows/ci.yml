@@ -1,0 +1,98 @@
+# The unit tests (node --test "test/unit/*.test.js": the pure logic in app/src, no browser, no server, seconds) on
+# every pull request and every push to main, and on a push to main (a merge) whose tests pass, a deploy of that commit
+# to https://next.overdubstudio.com. Run workflow (Actions > ci) on main does the same by hand; on any other branch it
+# runs nothing. Node comes from mise.toml, as it does locally.
+#
+# The integration suites (node tools/run-all.js: browsers, servers, renders) don't run here: run them locally before
+# merging.
+#
+# The deploy job reaches AWS through GitHub's OIDC token: no keys are stored anywhere. The role it assumes can only
+# write the next.overdubstudio.com bucket and invalidate its distribution, and only a run on main may assume it
+# (deploy/next/github-oidc.sh makes it). Its ARN and the distribution id are repository variables (NEXT_DEPLOY_ROLE,
+# NEXT_DISTRIBUTION), never committed. It builds the sampled kits (app/kits/, gitignored) that deploy.sh uploads.
+# Actions are pinned to a commit; the comment names the release.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to https://next.overdubstudio.com once the unit tests pass (main only)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # by event too, so a by-hand run and a merge to main don't replace each other
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  unit:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: The unit tests (node --test "test/unit/*.test.js")
+        run: node --test "test/unit/*.test.js"
+
+  deploy-staging:
+    needs: unit
+    # a merge to main, or a by-hand run on main that asked for it; the role trusts main only
+    # (deploy/next/github-oidc.sh, BRANCHES)
+    if: >-
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      AWS_ROLE: ${{ vars.NEXT_DEPLOY_ROLE }}
+      NEXT_DISTRIBUTION: ${{ vars.NEXT_DISTRIBUTION }}
+    steps:
+      - name: Check the repository variables are set (deploy/next/github-oidc.sh says what goes in them)
+        run: |
+          [ -n "$AWS_ROLE" ] || { echo "::error::set the repository variable NEXT_DEPLOY_ROLE"; exit 1; }
+          [ -n "$NEXT_DISTRIBUTION" ] || { echo "::error::set the repository variable NEXT_DISTRIBUTION"; exit 1; }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: Cache the kit downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.out/kits-cache
+          key: kits-cache-${{ hashFiles('tools/fetch-kits.js', 'app/src/devices/builtin/*.js') }}
+          restore-keys: kits-cache-
+
+      - name: Build the sampled kits this commit names
+        run: node tools/fetch-kits.js
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: us-east-1
+
+      - name: Deploy to https://next.overdubstudio.com (the unit tests already passed)
+        run: |
+          echo "$NEXT_DISTRIBUTION" > deploy/.next-distribution-id
+          deploy/deploy.sh --skip-tests --next "$GITHUB_SHA"

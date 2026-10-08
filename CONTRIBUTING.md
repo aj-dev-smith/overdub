@@ -14,9 +14,10 @@ Thanks for wanting to help. Overdub is small on purpose: native ES modules, no d
 ## Running it
 
 ```sh
-node server/serve.js          # the site at http://localhost:3279/, the studio at /app/
-node tools/<area>-test.js     # one area's checks
-node tools/run-all.js         # every check (a few minutes)
+node server/serve.js                 # the site at http://localhost:3279/, the studio at /app/
+node tools/<area>-test.js            # one area's checks
+node --test "test/unit/*.test.js"    # the unit tests, what CI runs (seconds)
+node tools/run-all.js                # every check (a few minutes): run it before a pull request
 ```
 
 The browser checks need playwright-core and a Chromium; `tools/pw.js` says where it looks (`PLAYWRIGHT_CORE`,
