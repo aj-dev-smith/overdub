@@ -1,3 +1,4 @@
+// @ts-check
 // claude.sub-basement: Sub Basement. The 808 bass: a sine that starts DROP semitones sharp and falls to the note
 // (exponentially, over FALL), so every hit has a knock before the boom. A long exponential DECAY while held, a quick
 // fade when you let go, then a tanh drive (2x oversampled) for the harmonics that let it read on small speakers, and a

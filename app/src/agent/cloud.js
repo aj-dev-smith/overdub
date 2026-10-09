@@ -49,7 +49,7 @@ export function maskEmail(email) {
 
 // A URL the service hands back to open in a new tab (a checkout): https, or http on this machine, else nothing
 export function safeUrl(u) {
-  try { const x = new URL(u); return x.protocol === 'https:' || (x.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname)) ? x.href : null; } catch (e) { return null; }
+  try { const x = new URL(u); return x.protocol === 'https:' || (x.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(x.hostname)) ? x.href : null; } catch { return null; }
 }
 
 export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(...a), win = globalThis } = {}) {
@@ -74,7 +74,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
     if (raw && res.ok) return res;
     if (res.status === 204) return null;
     let j = null;
-    try { j = await res.json(); } catch (e) { j = null; }
+    try { j = await res.json(); } catch { j = null; }
     if (!res.ok) {
       const err = new CloudError(res.status, j);
       if (!err.details.retryAfter && res.headers.get('retry-after')) err.details.retryAfter = Number(res.headers.get('retry-after')) || 0;
@@ -86,7 +86,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
 
   /* ------------------------------------------------------------------ account */
   async function load() {
-    try { config = await req('GET', '/v1/config'); emit('config', config); } catch (e) { config = null; }
+    try { config = await req('GET', '/v1/config'); emit('config', config); } catch { config = null; }
     await refresh().catch(() => null);
     return config;
   }
@@ -112,7 +112,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
       const onMsg = (ev) => { if (ev.origin === api && ev.data && ev.data.type === 'overdub:botcheck' && typeof ev.data.token === 'string') done(resolve, ev.data.token); };
       const t = setTimeout(() => done(reject, new CloudError(400, { error: { code: 'bot_check_failed', message: 'We couldn’t check you’re a person. Try again.' } })), 120000);
       win.addEventListener('message', onMsg);
-      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api); } catch (e) { /* the frame says hello again */ } });
+      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api); } catch { /* the frame says hello again */ } });
       frameHost.replaceChildren(frame);
     });
   }
@@ -140,7 +140,7 @@ export function createCloud({ api = null, fetch: f = (...a) => globalThis.fetch(
   }
   // The ask-to-takes map (for credits back on undo) holds the service's action ids, which point at its usage records:
   // it goes when the account does, or is signed out of, on this browser
-  function forgetLocal() { try { win.localStorage?.removeItem('overdub:cloud:takes'); } catch (e) { /* storage blocked */ } }
+  function forgetLocal() { try { win.localStorage?.removeItem('overdub:cloud:takes'); } catch { /* storage blocked */ } }
 
   // "Check your inbox": the link opened in this browser signs this tab in too, so /v1/me is asked every 5 s while the
   // tab is visible (and when it comes back into view), for up to 15 minutes

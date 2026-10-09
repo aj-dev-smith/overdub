@@ -1,3 +1,4 @@
+// @ts-check
 // core.barisax: Bell Up. A baritone saxophone, sampled: Karoryfer's Bear Sax (CC0), a 1926 Conn, sustained notes,
 // played by the sampled-instrument kernel (sampler.js). docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js
 // builds the kit (tools/kits/karoryfer-barisax.js pins every upstream file, and says why Bear Sax over Weresax);

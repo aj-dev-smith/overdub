@@ -1,3 +1,4 @@
+// @ts-check
 // core.bassrig: Y Cable. The modern metal bass sound: a clean, compressed low end under a distorted top. The
 // input is split at XOVER by a 4th-order Linkwitz-Riley crossover, whose two halves sum flat:
 //   low    mono and clean, through a light fixed compressor (2:1 above -18 dBFS, 20 ms attack, 200 ms release),

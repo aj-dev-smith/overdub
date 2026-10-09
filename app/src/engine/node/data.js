@@ -23,9 +23,9 @@ function load(hash) {
   let out = null;
   try {
     let b;
-    try { b = fs.readFileSync(dataPath(hash)); } catch (e) { b = Buffer.from(unpackOdk(fs.readFileSync(dataPath(hash) + 'z'))); }
+    try { b = fs.readFileSync(dataPath(hash)); } catch { b = Buffer.from(unpackOdk(fs.readFileSync(dataPath(hash) + 'z'))); }
     if ('sha256-' + crypto.createHash('sha256').update(b).digest('hex') === hash) out = decodeOdk(new Uint8Array(b.buffer, b.byteOffset, b.length));
-  } catch (e) { /* not here: null */ }
+  } catch { /* not here: null */ }
   cache.set(hash, out);
   return out;
 }

@@ -1,3 +1,4 @@
+// @ts-check
 // The module every graph-device worklet goes in behind: devices/kit.js loadWorklet loads it once per audio context,
 // before the first processor module (each a file on the page's own origin, as every worklet module is). A processor
 // whose node has been let go is sent { __pfxEnd } (kit.js endWorklet) and returns false from then on: one returning

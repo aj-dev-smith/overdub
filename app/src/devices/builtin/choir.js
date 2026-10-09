@@ -1,3 +1,4 @@
+// @ts-check
 // core.choir: Risers. A choir, sample-free: voices made the way a voice is made, a buzzing source through the
 // resonances of a throat and mouth (formants), with the tables changing by register the way a choir's sections do
 // (docs/research/INSTRUMENTS.md, 2.8; Choir Loft stays as it is).

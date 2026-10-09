@@ -1,3 +1,4 @@
+// @ts-check
 // core.strings: Music Stands. A bowed string section, sample-free. Every note is four players:
 //   BOWS      a bowed string moves in a sawtooth (the Helmholtz motion), so each player is a band-limited saw, a few
 //             cents from the others (ENSEMBLE), each with its own vibrato that only arrives once the note has settled

@@ -53,7 +53,6 @@ import { transcribe, keyChosen } from '../input/hum.js';
 import { spellNote, keyLabel, scalePcs, parsePc, beatsPerBar, DRUM_MAP } from '../core/music.js';
 import { barsOf, isDrumTrack as isDrumT, leanWords } from '../input/recorder.js';
 import { snapGentle } from '../input/timing.js';
-import { newPartFor } from '../core/sounds.js';
 
 const MODES = [
   { id: 'hum', label: 'Hum it', icon: 'hum', kbd: 'H', title: 'Hum it.', blurb: 'Sing or hum the idea. It comes back as notes, with every fix shown.' },
@@ -84,7 +83,7 @@ function loadSounds(app) {
 const NEW_PART = { hum: ['Melody', 'core.keys'], keys: ['Keys', 'core.keys'], pads: ['Drums', 'core.drums'] };
 export function newPart(kind, project) {
   const k = kind === 'drums' || kind === 'beatbox' ? 'pads' : NEW_PART[kind] ? kind : 'keys';
-  if (SOUNDS?.newPartFor) { try { const r = SOUNDS.newPartFor(k, project); if (r && r.name && r.device) return r; } catch (e) { /* the table */ } }
+  if (SOUNDS?.newPartFor) { try { const r = SOUNDS.newPartFor(k, project); if (r && r.name && r.device) return r; } catch { /* the table */ } }
   const [base, device] = NEW_PART[k], names = new Set((project?.tracks || []).map((t) => t.name));
   let name = base;
   for (let i = 2; names.has(name); i++) name = `${base} ${i}`;
@@ -199,7 +198,7 @@ export function longerOffer(app, { bars = 8, after = null } = {}) {
 function mount(el, app) {
   const input = app.input, store = app.store, ui = app.ui;
   let mode = 'hum';
-  try { mode = localStorage.getItem(MODE_KEY) || 'hum'; } catch (e) { /* ok */ }
+  try { mode = localStorage.getItem(MODE_KEY) || 'hum'; } catch { /* ok */ }
   if (!MODES.some((m) => m.id === mode)) mode = 'hum';
   let view = null;       // the current mode's view: { body, foot, opts, frame(now), update(evt), destroy() }
   const offs = [];
@@ -268,7 +267,6 @@ function mount(el, app) {
   const isDrumTrack = (t) => t && /drum/i.test(t.instrument?.device || '');
   // this song's takes (another song's are listed apart, never as this one's)
   const ofSong = (p) => !!p && !!p.song && p.song === store.get().id;
-  const latestOf = (kind) => input.capture.list({ all: true }).find((p) => p.kind === kind && ofSong(p)) || null;
   // where a take is kept now: the last keep whose clip is still in the song (an undone keep doesn't count)
   const keptOn = (p) => (p?.kept || []).slice().reverse().find((k) => store.clip(k.track, k.clip)) || null;
   // the stage's Keep, once its take is kept: "Kept ✓", no longer the bright primary
@@ -342,10 +340,10 @@ function mount(el, app) {
     // lets it go and says what sound was on trial for it)
     let handed = null;
     if (tr && tr.newTrack) {
-      try { if (toNew && typeof app.sounds.takeNew === 'function') handed = app.sounds.takeNew(); } catch (e) { handed = null; }
+      try { if (toNew && typeof app.sounds.takeNew === 'function') handed = app.sounds.takeNew(); } catch { handed = null; }
       if (!handed) {
-        try { app.sounds.back?.({ why: 'kept' }); } catch (e) { /* ok */ }
-        if (!toNew) { try { app.sounds.close?.(); } catch (e) { /* ok */ } }
+        try { app.sounds.back?.({ why: 'kept' }); } catch { /* ok */ }
+        if (!toNew) { try { app.sounds.close?.(); } catch { /* ok */ } }
         else handed = { device: tr.device, preset: tr.preset || null };
       }
     }
@@ -354,7 +352,7 @@ function mount(el, app) {
       newTrack = { name: part.name, device: part.device };
       if (handed?.device) { newTrack.device = handed.device; if (handed.preset) newTrack.preset = handed.preset; if (handed.params && Object.keys(handed.params).length) newTrack.params = handed.params; }
     }
-    else if (tr && !toNew && tr.track === value) { try { app.sounds.keepIfTrying?.(value); } catch (e) { /* ok */ } }
+    else if (tr && !toNew && tr.track === value) { try { app.sounds.keepIfTrying?.(value); } catch { /* ok */ } }
     const first = toNew || !(store.track(value)?.clips || []).length;
     // a hum on a song with no key yet: the key heard in it becomes the song's, so the next hum snaps to it (not to a
     // default nobody chose)
@@ -383,7 +381,7 @@ function mount(el, app) {
     if (ob?.active && ob.step === 'ask' && ob.ask && (!app.agent?.provider || app.agent.provider === 'mock')) { ob.ask(); return; }
     const p = input.capture.get(id);
     ui.emit('agent:compose', { text: AGENT_TEXT[p?.src] || 'Here’s an idea — ', attach: { capture: id } });
-    try { ui.setOpen && ui.setOpen('right', true); } catch (e) { /* ok */ }
+    try { ui.setOpen && ui.setOpen('right', true); } catch { /* ok */ }
     ui.toast('Handed to the agent. Tell it what to play over it.', { kind: 'agent' });
   }
   // play a phrase's notes on a track (an audition, not the transport). One preview at a time: `preview.id` names the
@@ -404,8 +402,8 @@ function mount(el, app) {
     for (const n of notes) {
       const off = (n.t + Math.max(0.1, n.d * 0.95)) * spb * 1000 + 30;
       end = Math.max(end, off);
-      pv.timers.push(setTimeout(() => { try { eng.liveNoteOn(t, n.p, n.v ?? 0.8); pv.on.add(n.p); } catch (e) { /* ok */ } }, n.t * spb * 1000 + 30));
-      pv.timers.push(setTimeout(() => { try { eng.liveNoteOff(t, n.p); pv.on.delete(n.p); } catch (e) { /* ok */ } }, off));
+      pv.timers.push(setTimeout(() => { try { eng.liveNoteOn(t, n.p, n.v ?? 0.8); pv.on.add(n.p); } catch { /* ok */ } }, n.t * spb * 1000 + 30));
+      pv.timers.push(setTimeout(() => { try { eng.liveNoteOff(t, n.p); pv.on.delete(n.p); } catch { /* ok */ } }, off));
     }
     pv.timers.push(setTimeout(() => { if (preview === pv) stopHear(); }, end + 60));
     markPreview();
@@ -414,8 +412,8 @@ function mount(el, app) {
     const pv = preview;
     preview = { id: null, timers: [], on: new Set(), track: null, src: null };
     for (const x of pv.timers) clearTimeout(x);
-    for (const p of pv.on) { try { app.engine.liveNoteOff(pv.track, p); } catch (e) { /* ok */ } }
-    if (pv.src) { try { pv.src.stop(); pv.src.disconnect(); } catch (e) { /* ended */ } }
+    for (const p of pv.on) { try { app.engine.liveNoteOff(pv.track, p); } catch { /* ok */ } }
+    if (pv.src) { try { pv.src.stop(); pv.src.disconnect(); } catch { /* ended */ } }
     if (pv.id) markPreview();
   }
   async function hearAudio(asset, id = null) {
@@ -456,7 +454,7 @@ function mount(el, app) {
   const bpbNow = () => beatsPerBar(store.get().meter);
   const spbNow = () => 60 / (+store.get().tempo || 120);
   const gridQ = () => input.options.grid || 0.25;
-  const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
   // (a free take, no click and nothing playing, has no song to follow: the tap grid and the hum's roll draw it)
   const following = () => !!(eng && eng.playing) || (rec.state !== 'idle' && !rec.free);
   const along = { marks: [], pass: 0, last: null, anchor: null, playing: false, open: new Map() };
@@ -468,8 +466,8 @@ function mount(el, app) {
   // the audible beat of the event being handled (a key's timeStamp: main-thread lag mustn't draw a tap late)
   function evBeat() {
     let ts = null;
-    try { const ev = globalThis.event; if (ev && ev.timeStamp > 0 && performance.now() - ev.timeStamp < 150) ts = ev.timeStamp; } catch (e) { /* ok */ }
-    try { if (ts != null && typeof eng.beatAt === 'function') { const b = eng.beatAt(ts); if (Number.isFinite(b) && Math.abs(b - eng.beat) < 1) return b; } } catch (e) { /* ok */ }
+    try { const ev = globalThis.event; if (ev && ev.timeStamp > 0 && performance.now() - ev.timeStamp < 150) ts = ev.timeStamp; } catch { /* ok */ }
+    try { if (ts != null && typeof eng.beatAt === 'function') { const b = eng.beatAt(ts); if (Number.isFinite(b) && Math.abs(b - eng.beat) < 1) return b; } } catch { /* ok */ }
     return eng.beat;
   }
   const rowOfP = (p) => (ROWS.find((r) => r.p === p || DRUM_MAP[r.id] === p) || null)?.id || null;
@@ -714,7 +712,7 @@ function mount(el, app) {
   // a take onto this track would stack over an earlier one (its bars overlap a take there): Onto says "a new take"
   function stacks(t, kind) {
     if (!t) return false;
-    if (typeof rec.stacks === 'function') { try { return !!rec.stacks(kind, t.id); } catch (e) { /* the guess below */ } }
+    if (typeof rec.stacks === 'function') { try { return !!rec.stacks(kind, t.id); } catch { /* the guess below */ } }
     if (rec.modeFor(t) !== 'take') return false;
     const p = store.get(), bpb = bpbNow(), lp = p.loop;
     const a = lp && lp.on ? lp.start : Math.floor((app.transport?.marker?.beat ?? eng.beat ?? 0) / bpb + 1e-9) * bpb, b = lp && lp.on ? lp.end : a + bpb;
@@ -725,7 +723,7 @@ function mount(el, app) {
   const passWrap = h('span.sk-each');
   const countB = h('button.sk-chip.sk-countin', { type: 'button', title: 'Count-in: clicks before the take, with the song’s previous bar under them. Click for 1 bar, 2 bars or none.', onclick: () => {
     const c = rec.countIn, n = c === 1 ? 2 : c === 2 ? 0 : 1;
-    try { input.audio.setCountIn(n > 0); } catch (e) { /* ok */ }
+    try { input.audio.setCountIn(n > 0); } catch { /* ok */ }
     rec.setCountIn(n); paintStrip(true);
   } });
   const clickB = h('button.sk-chip.sk-click', { type: 'button', title: touch ? 'The click: a metronome to play along to' : 'The click: a metronome to play along to (K)', onclick: () => { eng.metronome = !eng.metronome; ui.emit('transport-ui'); paintStrip(true); } }, 'Click');
@@ -1064,7 +1062,7 @@ function mount(el, app) {
     mode = m;
     input.sketchMode = m;   // (in Hum it, R records the mic into the song: input/recorder.js)
     root.dataset.mode = m;
-    if (keep) { try { localStorage.setItem(MODE_KEY, m); } catch (e) { /* ok */ } }
+    if (keep) { try { localStorage.setItem(MODE_KEY, m); } catch { /* ok */ } }
     for (const b of rail.children) { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); b.firstChild.classList.toggle('sk-title', on); }
     const def = MODES.find((x) => x.id === m);
     const blurb = (touch && TOUCH_BLURB[m]) || def.blurb;
@@ -1138,8 +1136,8 @@ function mount(el, app) {
     };
     // (its words, not only its box: a font arriving after the first fit wrapped the sentence to three lines in the same
     // box, and the button went under the bottom edge)
-    try { ro = new ResizeObserver(fit); ro.observe(ex); for (const c of ex.children) ro.observe(c); } catch (e) { /* no ResizeObserver: it scrolls */ }
-    try { document.fonts?.ready?.then(fit); } catch (e) { /* no font loading API */ }
+    try { ro = new ResizeObserver(fit); ro.observe(ex); for (const c of ex.children) ro.observe(c); } catch { /* no ResizeObserver: it scrolls */ }
+    try { document.fonts?.ready?.then(fit); } catch { /* no font loading API */ }
     requestAnimationFrame(fit);
   }
   function humView() {
@@ -1162,7 +1160,7 @@ function mount(el, app) {
       h('p.sk-short', h('b', 'Hum something.')),
       h(over ? 'button.btn' : 'button.btn.btn-go', { onclick: () => go() }, 'Allow the mic and hum'),
       h('p.sk-small', 'The browser asks once. Its voice processing stays off, so Overdub hears your pitch, not a phone call.'));
-    let micOk = false; try { micOk = localStorage.getItem(MIC_OK) === '1'; } catch (e) { /* ok */ }
+    let micOk = false; try { micOk = localStorage.getItem(MIC_OK) === '1'; } catch { /* ok */ }
     let explaining = !micOk && !input.audio.state.open;
     const unexplain = () => { explaining = false; explain.remove(); };
     const status = h('div.sk-status.sk-cap', { role: 'status', 'aria-live': 'polite' });
@@ -1310,7 +1308,7 @@ function mount(el, app) {
         // another take recording (keys, pads): the hum joins it; otherwise a take of its own, into the song
         if (st !== 'idle') await hum.start({ rec: true });
         else await rec.record({ hum: true });
-        try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ }
+        try { localStorage.setItem(MIC_OK, '1'); } catch { /* ok */ }
       } catch (e) { ui.toast(e.message, { kind: 'bad' }); }
       paintFoot(); dirty = true;
     }
@@ -1456,7 +1454,7 @@ function mount(el, app) {
     if (touch) body.append(padCol, gridWrap); else body.append(gridWrap);
     const paintBeats = () => band.paint();
     const status = h('div.sk-status.sk-cap', { role: 'status', 'aria-live': 'polite' });
-    const bbBtn = h('button.btn.sk-big.sk-bb', { onclick: async () => { try { if (tap.beatboxing) { await tap.stopBeatbox(); } else { await tap.startBeatbox(); try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ } } } catch (e) { ui.toast(e.message, { kind: 'bad' }); } paint(); }, title: 'Beatbox: the mic as drums. To hum a tune, use Hum it.' }, h('span.sk-dot'), h('span.sk-big-l', 'Beatbox'));
+    const bbBtn = h('button.btn.sk-big.sk-bb', { onclick: async () => { try { if (tap.beatboxing) { await tap.stopBeatbox(); } else { await tap.startBeatbox(); try { localStorage.setItem(MIC_OK, '1'); } catch { /* ok */ } } } catch (e) { ui.toast(e.message, { kind: 'bad' }); } paint(); }, title: 'Beatbox: the mic as drums. To hum a tune, use Hum it.' }, h('span.sk-dot'), h('span.sk-big-l', 'Beatbox'));
     const dest = h('span.sk-destwrap');
     // (a phone: Keep goes where Record's picker says, one picker for both)
     const keepDest = () => (isSplit() ? stripDest('drums') : dest.firstChild?.value);
@@ -1838,7 +1836,7 @@ function mount(el, app) {
     keysEl.addEventListener('pointerdown', (e) => {
       const k = e.target.closest?.('.sk-tk-k'); if (!k) return;
       e.preventDefault();
-      try { keysEl.setPointerCapture(e.pointerId); } catch (err) { /* ok */ }
+      try { keysEl.setPointerCapture(e.pointerId); } catch { /* ok */ }
       up(e.pointerId); down(e.pointerId, k, e.clientY);
     });
     keysEl.addEventListener('pointermove', (e) => {
@@ -1900,7 +1898,7 @@ function mount(el, app) {
       if (!st.open) {
         side.replaceChildren(h('div.sk-explain.small',
           h('p', h('b', 'Plug in a guitar, a bass or a mic.'), ' The browser asks first. Overdub turns its voice processing off, so your instrument sounds like itself.'),
-          h('button.btn.btn-go', { onclick: async () => { try { await audio.open(); try { localStorage.setItem(MIC_OK, '1'); } catch (e) { /* ok */ } loadDevs(); } catch (e) { ui.toast(e.message, { kind: 'bad' }); } } }, 'Open the input'),
+          h('button.btn.btn-go', { onclick: async () => { try { await audio.open(); try { localStorage.setItem(MIC_OK, '1'); } catch { /* ok */ } loadDevs(); } catch (e) { ui.toast(e.message, { kind: 'bad' }); } } }, 'Open the input'),
           st.error ? h('p.sk-err', st.error) : null));
         return;
       }
@@ -2063,7 +2061,7 @@ function mount(el, app) {
   }
   function revealIn(ins) {
     ui.select({ track: ins.track.id, clip: ins.clip.id, notes: [] });
-    try { app.arranger?.reveal?.(ins.clip.start); } catch (e) { /* no arranger */ }
+    try { app.arranger?.reveal?.(ins.clip.start); } catch { /* no arranger */ }
   }
   // Put it in the song (Shift+R for the newest): at the beats it was played on, or the marker's bar
   function putIn(id) {
@@ -2169,7 +2167,7 @@ function mount(el, app) {
       view && view.update && view.update(evt); if (evt && evt.ops && evt.ops.some((o) => /^(track|clip)\./.test(o.type))) ideasDirty = true;
     },
     refresh() { view && view.refresh && view.refresh(); ideasDirty = true; },
-    unmount() { if (hostSet && hostSet === app.sounds) { try { app.sounds?.setHost?.(null); } catch (e) { /* ok */ } } footRO?.disconnect(); input.sketchMode = null; view && view.destroy && view.destroy(); for (const o of offs) o(); closeMenu(); stopHear(); if (app.sketch && app.sketch.geom === sketchApi.geom) delete app.sketch; },
+    unmount() { if (hostSet && hostSet === app.sounds) { try { app.sounds?.setHost?.(null); } catch { /* ok */ } } footRO?.disconnect(); input.sketchMode = null; view && view.destroy && view.destroy(); for (const o of offs) o(); closeMenu(); stopHear(); if (app.sketch && app.sketch.geom === sketchApi.geom) delete app.sketch; },
   };
 }
 

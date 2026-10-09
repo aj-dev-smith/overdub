@@ -1,3 +1,4 @@
+// @ts-check
 // core.stack: Half Stack. A high-gain head into a real 4x12, as a kernel: it renders in the canonical Node render and
 // the studio alike, bit for bit, and plays live through an armed audio track with 28 samples (0.6 ms) of latency.
 // The DSP is amp-lib.js's (the gate, TIGHT, the boost, three triode stages, the TMB tone

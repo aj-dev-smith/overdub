@@ -1,3 +1,4 @@
+// @ts-check
 // Trap. The format: core/grooves.js's header. A group of 6 cells is sixteenth triplets, 8 is thirty-seconds.
 export default `
 style trap  Trap

@@ -99,7 +99,7 @@ await page.evaluate(() => {
     node.connect(cap);
     return { stop: () => new Promise((res) => {
       done = () => {
-        try { node.disconnect(cap); } catch (e) { /* ok */ }
+        try { node.disconnect(cap); } catch { /* ok */ }
         cap.disconnect(); z.disconnect();
         const n = chunks.reduce((a, c) => a + c[0].length, 0), L = new Float32Array(n), R = new Float32Array(n);
         let w = 0; for (const [l, r] of chunks) { L.set(l, w); R.set(r, w); w += l.length; }

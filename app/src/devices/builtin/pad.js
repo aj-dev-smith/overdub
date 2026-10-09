@@ -1,3 +1,4 @@
+// @ts-check
 // core.pad: Room Tone. Lush and slow: per voice three saws a few cents apart spread left / centre / right and a soft
 // triangle an octave down, through a low-pass that breathes on its own slow, seeded wander (MOTION), under a slow
 // attack and a long release. Then a stereo chorus and a built-in space (the same smooth feedback-delay-network room

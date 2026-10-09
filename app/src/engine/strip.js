@@ -67,7 +67,7 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
     if (!inst.output) throw new Error('instance has no output');
     if (kind === 'effect' && !inst.input) throw new Error('effect instance has no input');
     try { inst.set(values, { bpm, first: true }); } catch (e) { report && report({ kind: 'device', device: deviceId, uid, message: 'set: ' + e.message }); }
-    if (kind === 'effect') { try { inst.setOn(on !== false); } catch (e) { /* optional */ } }
+    if (kind === 'effect') { try { inst.setOn(on !== false); } catch { /* optional */ } }
     inst.__sig = sig(values) + '|' + bpm;
     inst.__on = on !== false;
     // kernel data that isn't on this server: the device plays nothing, and says so (once it knows)
@@ -78,7 +78,7 @@ export async function makeInstance(c, kind, deviceId, { uid, params, on = true, 
     }
     return { inst, key, failed: false };
   } catch (e) {
-    if (inst) { try { inst.dispose(); } catch (e2) { /* gone */ } }
+    if (inst) { try { inst.dispose(); } catch { /* gone */ } }
     return fallback(`device "${deviceId}" failed to build: ${e && e.message || e}`);
   }
 }
@@ -210,8 +210,8 @@ export class Strip {
     mode = mode === 'clean' ? 'clean' : 'soft';
     if (mode === this.clipMode) return;
     const swap = () => {
-      if (mode === 'clean') { try { this.fader.disconnect(this.clip.input); } catch (e) { /* ok */ } this.fader.connect(this.out); }
-      else { try { this.fader.disconnect(this.out); } catch (e) { /* ok */ } this.fader.connect(this.clip.input); }
+      if (mode === 'clean') { try { this.fader.disconnect(this.clip.input); } catch { /* ok */ } this.fader.connect(this.out); }
+      else { try { this.fader.disconnect(this.out); } catch { /* ok */ } this.fader.connect(this.clip.input); }
       this.clipMode = mode;
     };
     if (!this.live || this.c.state !== 'running') swap(); else this.dipped(swap);
@@ -318,7 +318,7 @@ export class Strip {
     if (changed) {
       const gone = this.fx.filter((f) => !next.includes(f));
       // pooled instances not in `next` are no longer wanted either
-      for (const [id, f] of this.pool) if (!next.includes(f) && !gone.includes(f)) gone.push(f);
+      for (const [, f] of this.pool) if (!next.includes(f) && !gone.includes(f)) gone.push(f);
       this.pool.clear();
       await this.rewire(next);
       for (const f of gone) {
@@ -331,12 +331,12 @@ export class Strip {
 
   retireInstrument(old) {
     const c = this.c;
-    try { old.inst.allOff(soon(c)); } catch (e) { /* ok */ }
-    if (!this.live) { safeDispose(old.inst); try { old.gain.disconnect(); } catch (e) { /* ok */ } return; }
+    try { old.inst.allOff(soon(c)); } catch { /* ok */ }
+    if (!this.live) { safeDispose(old.inst); try { old.gain.disconnect(); } catch { /* ok */ } return; }
     ramp(c, old.gain.gain, 0, 0.03);
     afterAudio(c, soon(c) + 0.05, () => {
-      try { old.inst.output.disconnect(old.gain); } catch (e) { /* ok */ }
-      try { old.gain.disconnect(); } catch (e) { /* ok */ }
+      try { old.inst.output.disconnect(old.gain); } catch { /* ok */ }
+      try { old.gain.disconnect(); } catch { /* ok */ }
       safeDispose(old.inst);
     });
   }
@@ -345,9 +345,9 @@ export class Strip {
   // zero): held voices and reverb and delay tails go with the old ones. Resolves when the strip is rebuilt.
   async renew() {
     if (this.disposed) return;
-    if (this.job) { try { await this.job; } catch (e) { /* rebuilt below */ } }
+    if (this.job) { try { await this.job; } catch { /* rebuilt below */ } }
     const old = [this.instr, ...this.fx, ...this.pool.values()].filter(Boolean);
-    if (this.instr) { try { this.instr.inst.output.disconnect(this.instr.gain); } catch (e) { /* ok */ } try { this.instr.gain.disconnect(); } catch (e) { /* ok */ } }
+    if (this.instr) { try { this.instr.inst.output.disconnect(this.instr.gain); } catch { /* ok */ } try { this.instr.gain.disconnect(); } catch { /* ok */ } }
     this.instr = null; this.fx = []; this.pool.clear();
     this.wire();
     for (const f of old) safeDispose(f.inst);
@@ -360,7 +360,7 @@ export class Strip {
   calmDown(t, dur) {
     if (!this.calm) return;
     const g = this.calm.gain;
-    try { g.cancelScheduledValues(t); g.setTargetAtTime(0, t, dur / 6); g.setTargetAtTime(0, t + dur, 0.004); } catch (e) { /* closed */ }
+    try { g.cancelScheduledValues(t); g.setTargetAtTime(0, t, dur / 6); g.setTargetAtTime(0, t + dur, 0.004); } catch { /* closed */ }
   }
   calmUp(now = false) {
     if (!this.calm || this.disposed) return;
@@ -411,7 +411,7 @@ export class Strip {
 
   // (only the connections the strip made are undone: a device may hang its own taps off its output)
   wire() {
-    for (const [a, b] of this.links || []) { try { a.disconnect(b); } catch (e) { /* ok */ } }
+    for (const [a, b] of this.links || []) { try { a.disconnect(b); } catch { /* ok */ } }
     this.links = [];
     let at = this.preDip;
     for (const f of this.fx) { at.connect(f.inst.input); this.links.push([at, f.inst.input]); at = f.inst.output; }
@@ -425,7 +425,7 @@ export class Strip {
   // Seconds of delay the strip's own devices add (the instrument and the wired inserts).
   latency() {
     let s = 0;
-    const add = (inst) => { if (!inst) return; let l = 0; try { l = +inst.latency; } catch (e) { l = 0; } if (Number.isFinite(l) && l > 0) s += l; };
+    const add = (inst) => { if (!inst) return; let l = 0; try { l = +inst.latency; } catch { l = 0; } if (Number.isFinite(l) && l > 0) s += l; };
     if (this.instr) add(this.instr.inst);
     for (const f of this.fx) add(f.inst);
     return s;
@@ -458,15 +458,15 @@ export class Strip {
     this.disposed = true;
     const c = this.c;
     const end = () => {
-      for (const [a, b] of this.links || []) { try { a.disconnect(b); } catch (e) { /* ok */ } }
+      for (const [a, b] of this.links || []) { try { a.disconnect(b); } catch { /* ok */ } }
       for (const n of [this.head, this.input, this.inTap, this.preDip, this.postDip, this.calm, this.fader, this.mute, this.split, this.panL, this.panR, this.merge, this.out, this.msplit, ...(this.an || []), ...(this.clip ? this.clip.nodes : []), ...(this.mon ? this.mon.nodes : [])]) {
-        if (n) { try { n.disconnect(); } catch (e) { /* ok */ } }
+        if (n) { try { n.disconnect(); } catch { /* ok */ } }
       }
-      if (this.instr) { try { this.instr.gain.disconnect(); } catch (e) { /* ok */ } safeDispose(this.instr.inst); }
+      if (this.instr) { try { this.instr.gain.disconnect(); } catch { /* ok */ } safeDispose(this.instr.inst); }
       for (const f of this.fx) safeDispose(f.inst);
       for (const f of this.pool.values()) safeDispose(f.inst);
     };
-    if (this.instr) { try { this.instr.inst.allOff(soon(c)); } catch (e) { /* ok */ } }
+    if (this.instr) { try { this.instr.inst.allOff(soon(c)); } catch { /* ok */ } }
     if (this.live && c.state === 'running') { ramp(c, this.out.gain, 0, 0.015); if (this.mon) ramp(c, this.mon.input.gain, 0, 0.015); afterAudio(c, soon(c) + 0.025, end); } else end();
   }
 }

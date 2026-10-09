@@ -1,3 +1,4 @@
+// @ts-check
 // Rock: the format is core/grooves.js's header (style lines, then grooves: one row per piece, a group of cells per beat).
 export default `
 style rock  Rock

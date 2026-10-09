@@ -1,3 +1,4 @@
+// @ts-check
 // The Agent panel's side of Claude on Overdub credits (agent/cloud.js): the sign-in sheet, the balance in the head, the
 // price on an ask before it's sent, out of credits, paused, top up, where the credits went, credits back. Only when the
 // deploy names the service (app/src/site-config.js); otherwise nothing here draws. No prices live in this file: the
@@ -42,15 +43,15 @@ export function takeCheckoutReturn(win = globalThis) {
   const ref = q.get('ref');
   // the other parts exactly as they were (?demo stays ?demo)
   const rest = loc.search.slice(1).split('&').filter((part) => part && !/^(plus|ref)(=|$)/.test(part)).join('&');
-  try { win.history?.replaceState(win.history.state, '', loc.pathname + (rest ? '?' + rest : '') + (loc.hash || '')); } catch (e) { /* a sandboxed frame */ }
+  try { win.history?.replaceState(win.history.state, '', loc.pathname + (rest ? '?' + rest : '') + (loc.hash || '')); } catch { /* a sandboxed frame */ }
   if (plus === 'cancel') return { cancelled: true };
   return { ref: ref && REF.test(ref) ? ref : null };
 }
 const NOT_YET = 'The payment hasn’t reached us yet. Give it a minute, then press I’ve paid.';
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const money = (usd) => { try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: Number.isInteger(usd) ? 0 : 2 }).format(usd); } catch (e) { return '$' + usd; } };
+const money = (usd) => { try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: Number.isInteger(usd) ? 0 : 2 }).format(usd); } catch { return '$' + usd; } };
 const day = (ms) => new Date(ms).toLocaleDateString([], { day: 'numeric', month: 'short' });
-const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* full */ } } };
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* full */ } } };
 
 export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll, renderHead, openOwn, useDemo, closeSettings = () => {} }) {
   css('agent-cloud', CSS);
@@ -71,7 +72,7 @@ export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll
   let current = null;           // what the chip shows: a quote, or { free }
   function freeFor(text) {
     let devices = [];
-    try { devices = listDevices(); } catch (e) { devices = []; }
+    try { devices = listDevices(); } catch { devices = []; }
     return freeMove(text, { devices, hasTrack: !!ui.state.selection?.track });
   }
   function update() {
@@ -313,7 +314,7 @@ export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll
   function takeWords(actionId) {
     if (!actionId) return '';
     let all = {};
-    try { all = JSON.parse(ls.get('overdub:cloud:takes') || '{}') || {}; } catch (e) { all = {}; }
+    try { all = JSON.parse(ls.get('overdub:cloud:takes') || '{}') || {}; } catch { all = {}; }
     const txns = all[actionId]?.txns || [];
     const labels = (store.history || []).filter((x) => txns.includes(x.id)).map((x) => x.label).filter(Boolean);
     return labels.length ? ` · ${labels.slice(0, 2).join(', ')}` : '';
@@ -321,7 +322,7 @@ export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll
   async function loadActivity() {
     const c = cloud();
     activity = null;
-    try { const r = await c.activity(); activity = Array.isArray(r?.items) ? r.items : []; } catch (e) { activity = []; }
+    try { const r = await c.activity(); activity = Array.isArray(r?.items) ? r.items : []; } catch { activity = []; }
     cached.sig = ''; if (view === 'account') renderAll();
   }
   function deleteRow(c) {
@@ -410,7 +411,7 @@ export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll
     landing = null;
     if (cancelled) {
       // nothing was bought: no sync, no refresh. Back on Top up, one plain line.
-      try { ui.setOpen?.('right', true); ui.show?.('agent'); } catch (e) { /* no right pane on this layout */ }
+      try { ui.setOpen?.('right', true); ui.show?.('agent'); } catch { /* no right pane on this layout */ }
       checkoutRef = null;
       if (!c.me) { said = ''; show('signin'); return; }
       said = 'Nothing was bought.';
@@ -418,8 +419,8 @@ export function cloudPanel({ app, agent, h, byline, input, grow, push, renderAll
       return;
     }
     let paid = true;
-    try { if (c.me && ref) paid = (await c.sync(ref)).paid; else await c.refresh(); } catch (e) { paid = !ref; await c.refresh().catch(() => {}); }
-    try { ui.setOpen?.('right', true); ui.show?.('agent'); } catch (e) { /* no right pane on this layout */ }
+    try { if (c.me && ref) paid = (await c.sync(ref)).paid; else await c.refresh(); } catch { paid = !ref; await c.refresh().catch(() => {}); }
+    try { ui.setOpen?.('right', true); ui.show?.('agent'); } catch { /* no right pane on this layout */ }
     if (!c.me) { said = 'Sign in with the email you paid with to see your credits.'; show('signin'); return; }
     if (!paid) { checkoutRef = ref; said = NOT_YET; show('topup'); return; }
     said = 'Paid. Your credits are in.';

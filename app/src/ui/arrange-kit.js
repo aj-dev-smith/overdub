@@ -250,7 +250,7 @@ export function bylineOf(app, by) {
 export function displayFont(g, px, { stretch = 'expanded' } = {}) {
   const p = palette();
   g.font = `italic 800 ${stretch} ${px}px ${p.display}`;
-  if ('fontStretch' in g) { try { g.fontStretch = stretch; } catch (e) { /* older canvas */ } }
+  if ('fontStretch' in g) { try { g.fontStretch = stretch; } catch { /* older canvas */ } }
 }
 
 export function roundRect(g, x, y, w, hh, r) {

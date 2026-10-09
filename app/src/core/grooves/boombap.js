@@ -1,3 +1,4 @@
+// @ts-check
 // Boom bap. The format: core/grooves.js's header.
 export default `
 style boombap  Boom bap

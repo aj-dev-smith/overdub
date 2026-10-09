@@ -257,7 +257,7 @@ const up = decodeOdk(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length
   if (fs.existsSync(cache)) {
     const v = spawnSync(process.execPath, [path.join(HERE, 'fetch-kits.js'), '--verify', '--only', 'upright'], { encoding: 'utf8' });
     const line = v.stdout.split('\n').filter((l) => /rebuilt|cache/.test(l)).pop() || '';
-    if (/Upright[^]*isn't in the download cache/.test(v.stdout)) t.note('the download cache is incomplete: the byte-for-byte rebuild was not run');
+    if (/Upright[\s\S]*isn't in the download cache/.test(v.stdout)) t.note('the download cache is incomplete: the byte-for-byte rebuild was not run');
     else t.ok(/ok rebuilt from the cache: sha256-c9b7|ok rebuilt from the cache: /.test(v.stdout.split('Upright Piano KW')[1] || ''), `the kit rebuilds byte for byte from the pinned upstream files (${line.trim()})`);
   } else t.note('no download cache: the byte-for-byte rebuild was not run');
 }

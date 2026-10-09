@@ -33,7 +33,6 @@
 //      plays from its first note once they're in; the browser starts a kit on hover; a key pressed while one loads
 //      sounds once it's in
 //   node tools/pick-sound-test.js      (screenshots: tools/.out/pick-sound-*.png; SECTIONS=21 runs just those)
-import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
@@ -147,7 +146,7 @@ await section('13 the tool, Node', async () => {
   let listed = null;
   for (let i = 0; i < 300 && !listed; i++) {
     await sleep(100);
-    for (const l of out.split('\n')) { try { const m = JSON.parse(l); if (m.id === 2 && m.result) listed = m.result.tools; } catch (e) { /* partial */ } }
+    for (const l of out.split('\n')) { try { const m = JSON.parse(l); if (m.id === 2 && m.result) listed = m.result.tools; } catch { /* partial */ } }
   }
   child.kill();
   T.ok(Array.isArray(listed) && listed.some((x) => x.name === 'suggest_sounds' && x.annotations?.title), `13: server/mcp.js lists suggest_sounds with no tab open (${listed ? listed.length + ' tools' : 'no answer'})`);

@@ -23,7 +23,7 @@ function openDB() {
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) { resolve(null); }
+    } catch { resolve(null); }
   });
 }
 
@@ -107,7 +107,7 @@ export function createAssets() {
     async remove(id) {
       mem.delete(id); loading.delete(id);
       const d = await db();
-      if (d) { try { await tx(d, 'readwrite', (s) => s.delete(id)); } catch (e) { /* gone */ } }
+      if (d) { try { await tx(d, 'readwrite', (s) => s.delete(id)); } catch { /* gone */ } }
     },
 
     async list() {
@@ -118,7 +118,7 @@ export function createAssets() {
         try {
           const recs = await tx(d, 'readonly', (s) => s.getAll());
           for (const r of recs || []) if (!out.has(r.id)) out.set(r.id, { id: r.id, sr: r.sr, channels: r.channels.length, duration: (r.channels[0] ? r.channels[0].length : 0) / r.sr, length: r.channels[0] ? r.channels[0].length : 0 });
-        } catch (e) { /* memory only */ }
+        } catch { /* memory only */ }
       }
       return [...out.values()];
     },

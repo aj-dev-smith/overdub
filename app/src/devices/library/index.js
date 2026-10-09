@@ -1,3 +1,4 @@
+// @ts-check
 // The house shelf: devices Claude wrote the way any agent writes them (kernel source against the public dsp stdlib,
 // from one plain-language request each, signed by: 'claude'), shipped with the studio so every song can use them.
 // Importing this module registers them all. Ids are forever ('claude.<slug>'); display names may change.

@@ -30,9 +30,9 @@ export async function exportBundle() {
     await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
     const { pageVersion, ...b } = await bundleFrom(page);
     let sha = 'unknown';
-    try { sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim(); } catch (e) { /* not a checkout */ }
+    try { sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { /* not a checkout */ }
     let branch = '';
-    try { branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim(); } catch (e) { /* not a checkout */ }
+    try { branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { /* not a checkout */ }
     return { version: b.version, source: `overdub@${sha}${branch ? ` (${branch})` : ''}`, system: b.system, tools: b.tools, pageVersion };
   } finally { await close(); }
 }

@@ -1,3 +1,4 @@
+// @ts-check
 // "Red Eye": trap, 32 bars in C minor at 140 bpm (half time: the clap on 3). A dark piano loop over iv-V-i-VI, the
 // melody a 3-3-2 figure that takes the raised seventh over the G; an 808 on Sub Basement, each hit falling into its
 // note, locked to the kick; a choir under the second hook. The house played all of that. Claude played over it: the

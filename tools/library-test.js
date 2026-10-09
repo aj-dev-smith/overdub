@@ -37,7 +37,7 @@ const pageErrors = (errors) => errors.filter((e) => !/Failed to load resource|fa
     const { BUILTINS } = await import('/app/src/devices/builtin/index.js');
     const { SHOWCASE } = await import('/app/src/devices/showcase.js');
     let REPORTS = {};
-    try { REPORTS = (await import('/app/src/devices/library/reports.js')).REPORTS; } catch (e) { /* none yet */ }
+    try { REPORTS = (await import('/app/src/devices/library/reports.js')).REPORTS; } catch { /* none yet */ }
     const shelf = [...BUILTINS, ...SHOWCASE.map((s) => reg.getDevice(s.id)), ...LIBRARY_DEFS];
     const names = new Map();
     for (const d of reg.listDevices()) { const k = d.name.toLowerCase(); names.set(k, (names.get(k) || []).concat(d.id)); }

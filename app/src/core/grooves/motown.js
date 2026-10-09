@@ -1,3 +1,4 @@
+// @ts-check
 // Motown. The format: core/grooves.js's header. The snare on every beat, the tambourine with it on 2 and 4.
 export default `
 style motown  Motown

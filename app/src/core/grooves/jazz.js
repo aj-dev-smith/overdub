@@ -1,3 +1,4 @@
+// @ts-check
 // Jazz. The format: core/grooves.js's header. Swing tightens as the tempo rises (68% slow, 55% fast).
 export default `
 style jazz  Jazz

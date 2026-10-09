@@ -51,7 +51,7 @@ if (!only.length) {
   try {
     fs.mkdirSync(path.join(HERE, '.out'), { recursive: true });
     fs.writeFileSync(path.join(HERE, '.out', 'run-all.json'), JSON.stringify({ at: new Date().toISOString(), suites: results.length, passed: results.length - bad.length, checks: oks + fails, oks, fails }, null, 2) + '\n');
-  } catch (e) { /* the totals are a convenience */ }
+  } catch { /* the totals are a convenience */ }
   console.log(`${oks + fails} checks in ${results.length} suites (${fails} failed)`);
 }
 process.exitCode = bad.length ? 1 : 0;

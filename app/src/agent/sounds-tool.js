@@ -1,3 +1,4 @@
+// @ts-check
 // The `suggest_sounds` agent tool (docs/INSTRUMENTS-UX.md 2.6): an agent's sounds for one track, as rows on the
 // person's sound card (ui/sounds.js, app.sounds). It never changes the song by itself: the person hears their take on
 // each row and Keeps one, and that Keep is theirs (signed you; History's reason line says who suggested it). So it is in
@@ -31,7 +32,7 @@ const MAX_WAIT = 120;
 let seq = 0;
 
 const P = (app) => app.store.get();
-const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return v; } } return v; };
+const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch { return v; } } return v; };
 function findTrack(app, ref) {
   if (ref == null || ref === '') return null;
   const p = P(app), s = String(ref);
@@ -47,7 +48,7 @@ const agentName = (app, by) => app.store.author?.(by)?.name || by;
 export function newestNewTrack(app) {
   const p = P(app);
   const ok = (id) => { const t = id && p.tracks.find((x) => x.id === id); return t && t.kind !== 'audio' ? t : null; };
-  try { const id = app.input?.recorder?.newestTrack?.(); if (ok(id)) return ok(id); } catch (e) { /* the History has it */ }
+  try { const id = app.input?.recorder?.newestTrack?.(); if (ok(id)) return ok(id); } catch { /* the History has it */ }
   const hist = app.store.history || [];
   for (let i = hist.length - 1; i >= 0; i--) {
     const x = hist[i];
@@ -67,7 +68,7 @@ function soundOf(app, t) {
   if (!inst) return null;
   const def = app.devices?.getDevice?.(inst.device);
   let preset = null;
-  try { preset = def && app.devices?.presetOf ? app.devices.presetOf(def, inst.params)?.name || null : null; } catch (e) { /* no preset */ }
+  try { preset = def && app.devices?.presetOf ? app.devices.presetOf(def, inst.params)?.name || null : null; } catch { /* no preset */ }
   return { device: inst.device, preset };
 }
 const nameOf = (app, device, preset) => {
@@ -82,7 +83,7 @@ function settle(app, req, result) {
   req.status = 'done';
   const picked = result?.picked && result.picked.device ? { device: result.picked.device, ...(result.picked.preset ? { preset: result.picked.preset } : {}), name: nameOf(app, result.picked.device, result.picked.preset) } : null;
   req.result = { id: req.id, picked, kept: !!(picked && result.kept), ...(result?.note ? { note: result.note } : {}) };
-  for (const off of req.offs.splice(0)) { try { off(); } catch (e) { /* gone */ } }
+  for (const off of req.offs.splice(0)) { try { off(); } catch { /* gone */ } }
   for (const w of [...req.waiters]) w();
 }
 

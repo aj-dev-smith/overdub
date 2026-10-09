@@ -1,3 +1,4 @@
+// @ts-check
 // Inputs: meet the musician where they are. Hum it, tap it, play it, record it, and never lose an idea.
 // Builds app.input = { pitch, audio, hum, tap, midi, qwerty, capture, recorder } (docs/ARCHITECTURE.md, "Capture") plus:
 //   input.on(type, fn) -> off ; input.emit(type, detail)
@@ -61,7 +62,7 @@ export default function (app) {
   input.noteOff = (src, p, kind = 'midi') => {
     const k = src + ':' + p, tid = live.get(k);
     live.delete(k);
-    if (tid) { try { app.engine.liveNoteOff(tid, p); } catch (e) { /* ok */ } }
+    if (tid) { try { app.engine.liveNoteOff(tid, p); } catch { /* ok */ } }
     input.capture.noteOff(kind, p);
     input.recorder.noteOff(src, p);
     input.emit('note', { src, kind, p, on: false, track: tid || null });
@@ -72,7 +73,7 @@ export default function (app) {
   // target changes while it is, its return to rest (the pedal's lift, the wheel back, CC 121) goes there too, so the
   // notes it held are let go where they sound (the note-offs follow the notes: `live`).
   const away = new Map(); // track id -> { sustain?, bend?, mod? } (only the ones away from rest; rest is false or 0)
-  const sendExpr = (id, x) => { try { app.engine.liveExpr?.(id, x); } catch (e) { /* ok */ } };
+  const sendExpr = (id, x) => { try { app.engine.liveExpr?.(id, x); } catch { /* ok */ } };
   input.expr = (src, x, kind = 'midi') => {
     const t = input.target();
     for (const [id, held] of away) {

@@ -1,3 +1,4 @@
+// @ts-check
 // core.metalkit: Rusty Sticks. A real kit played with sticks, made for heavy music: Big Rusty Drums (Karoryfer Samples,
 // CC0), the big Polish kit Rusty Brushes plays, here hit with sticks, each drum mixed from its close mic and the overhead
 // pair (tools/kits/big-rusty-sticks.js has the blend and why; tools/fetch-kits.js builds it; docs/SOUNDS.md is its

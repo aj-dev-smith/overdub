@@ -53,7 +53,7 @@ function fakeCloud() {
   const actions = new Map();
   const log = [];                 // every request: { method, path, body, headers }
   const script = [];              // what the next calls answer: SSE events, { status, error }, or { hang: true }
-  let studio = /^http:\/\/localhost:\d+$/;   // the studio origins it answers (a local studio on any port)
+  const studio = /^http:\/\/localhost:\d+$/;   // the studio origins it answers (a local studio on any port)
   let paused = false;
   const cookies = (req) => Object.fromEntries(String(req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => [c.slice(0, c.indexOf('=')), c.slice(c.indexOf('=') + 1)]));
   const userOf = (req) => { const e = sessions.get(cookies(req).od_session); return e ? users.get(e) : null; };
@@ -68,7 +68,7 @@ function fakeCloud() {
     let raw = '';
     for await (const c of req) raw += c;
     let body = null;
-    try { body = raw ? JSON.parse(raw) : null; } catch (e) { body = raw; }
+    try { body = raw ? JSON.parse(raw) : null; } catch { body = raw; }
     log.push({ method: req.method, path: url.pathname, body, headers: req.headers });
     const origin = req.headers.origin;
     const allowed = !!origin && studio.test(origin);
@@ -481,7 +481,7 @@ const fake = await fakeCloud();
 /* ------------------------------------------------------------------ 5. a Claude of your own first; free moves; the bundle */
 {
   fake.grant('jess@example.com', 30);
-  const { page, errors, close } = await studio(fake, { key: true });
+  const { page, close } = await studio(fake, { key: true });
   await page.waitForFunction(() => !!window.overdub.agent.cloud?.config && window.overdub.agent.local, null, { timeout: 10000 });
   await page.evaluate(() => { window.overdub.agent.useMock(false); window.overdub.agent.useCloud(true); });
   const prov = await page.evaluate(() => ({ p: window.overdub.agent.provider, chosen: window.overdub.agent.cloudChosen }));

@@ -1,3 +1,4 @@
+// @ts-check
 // "Sodium": synthwave, 24 bars in F# minor at 104 bpm, named for the orange of motorway lights at night. The house
 // played the bed: a machine kit with a big roomy snare on 2 and 4, a bass pumping eighths in octaves, Room Tone pads on
 // i-VI-III-VII voiced so every change moves a step or holds, and a sixteenth arpeggio on Patch Bay rising out of the

@@ -199,7 +199,7 @@ const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|Audi
   await sleep(60);
   const on = await E(() => overdub.store.get().loop.on);
   T.ok(off === loop0 && on !== loop0, `with single-key shortcuts off, L does nothing; on again, it loops (${loop0} → ${off} → ${on})`);
-  T.ok(await E(() => { try { return JSON.parse(localStorage.getItem('overdub:keys')).single === true; } catch (e) { return false; } }), 'the switch is remembered (overdub:keys)');
+  T.ok(await E(() => { try { return JSON.parse(localStorage.getItem('overdub:keys')).single === true; } catch { return false; } }), 'the switch is remembered (overdub:keys)');
   if (on !== loop0) await page.keyboard.press('KeyL');
 
   /* -------- labels that say which track, and a tempo with a value */
@@ -221,7 +221,7 @@ const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|Audi
     const st = overdub.store;
     const ops = st.get().tracks.filter((t) => t.kind === 'audio').map((t) => ({ type: 'track.set', track: t.id, patch: { arm: false } }));
     st.dispatch([...ops, { type: 'track.add', track: { kind: 'audio', name: 'Gtr', arm: true } }], { by: 'you' });
-    try { await overdub.input.audio.open(); } catch (e) { /* fake device */ }
+    try { await overdub.input.audio.open(); } catch { /* fake device */ }
     overdub.ui.show('sketch');
     overdub.input.emit('sketch:mode', 'rec');
   });

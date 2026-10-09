@@ -1,3 +1,4 @@
+// @ts-check
 // claude.choir-loft: Choir Loft. Each note is three sawtooth "singers" a few cents apart, with their own slow drift,
 // a vibrato that arrives after the note settles, and a breath of noise. The summed voices go through one bank of four
 // vowel formants (alto: ooh, oh, aah, eh, ee, morphed continuously), then a stone room at the back of the church.

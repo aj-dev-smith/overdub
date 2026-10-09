@@ -2,8 +2,21 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  arrangeAround, planArrangement, checkArrangement, balanceGains, findStyle, harmonyKeyOf, strongTimes, strongOffsets,
-  voice, nearestPitch, seedKind, STYLES, STYLE_IDS, PARTS, MAX_BEATS,
+  arrangeAround,
+  planArrangement,
+  checkArrangement,
+  balanceGains,
+  findStyle,
+  harmonyKeyOf,
+  strongTimes,
+  strongOffsets,
+  voice,
+  nearestPitch,
+  seedKind,
+  STYLES,
+  STYLE_IDS,
+  PARTS,
+  MAX_BEATS,
 } from '../../app/src/core/arrange.js';
 import { parseNotes, scalePcs } from '../../app/src/core/music.js';
 import { createStore } from '../../app/src/core/store.js';
@@ -12,15 +25,18 @@ import { createProject } from '../../app/src/core/project.js';
 const C_MAJOR = { root: 'C', scale: 'major' };
 // Four bars of a plain diatonic tune in C major.
 const TUNE = parseNotes('C4@0:1 E4@1:1 G4@2:2 F4@4:1 A4@5:1 G4@6:2 E4@8:1 D4@9:1 C4@10:2 D4@12:2 C4@14:2');
-const build = (o = {}) => arrangeAround({ notes: TUNE, start: 0, length: 16, key: C_MAJOR, meter: [4, 4], tempo: 110, ...o });
+const build = (o = {}) =>
+  arrangeAround({ notes: TUNE, start: 0, length: 16, key: C_MAJOR, meter: [4, 4], tempo: 110, ...o });
 
 describe('arrangeAround', () => {
   test('the same seed gives the same band; another seed can differ', () => {
     for (const style of STYLE_IDS) {
-      const a = build({ style, seed: 7, parts: PARTS }), b = build({ style, seed: 7, parts: PARTS });
+      const a = build({ style, seed: 7, parts: PARTS }),
+        b = build({ style, seed: 7, parts: PARTS });
       assert.deepEqual(a, b, style);
     }
-    const a = build({ seed: 1 }), c = build({ seed: 2 });
+    const a = build({ seed: 1 }),
+      c = build({ seed: 2 });
     assert.notDeepEqual(a.parts.drums, c.parts.drums, 'velocities and ghosts come from the seed');
   });
 
@@ -49,10 +65,15 @@ describe('arrangeAround', () => {
       }
       const [blo, bhi] = S.bass.range;
       // (the range is where roots sit: an octave jump may reach a fifth past its top, a walk-in a step past either end)
-      for (const n of r.parts.bass) assert.ok(n.p >= blo - 2 && n.p <= bhi + 7, `${style} bass ${n.p} near ${blo}-${bhi}`);
-      assert.ok(r.parts.bass.filter((n) => n.p >= blo && n.p <= bhi).length >= r.parts.bass.length / 2, `${style}: most of the bass in its range`);
+      for (const n of r.parts.bass)
+        assert.ok(n.p >= blo - 2 && n.p <= bhi + 7, `${style} bass ${n.p} near ${blo}-${bhi}`);
+      assert.ok(
+        r.parts.bass.filter((n) => n.p >= blo && n.p <= bhi).length >= r.parts.bass.length / 2,
+        `${style}: most of the bass in its range`,
+      );
       const [clo, chi] = S.chords.register;
-      for (const n of r.parts.chords) assert.ok(n.p >= clo && n.p <= chi, `${style} chord tone ${n.p} in ${clo}-${chi}`);
+      for (const n of r.parts.chords)
+        assert.ok(n.p >= clo && n.p <= chi, `${style} chord tone ${n.p} in ${clo}-${chi}`);
     }
   });
 
@@ -91,13 +112,18 @@ describe('arrangeAround', () => {
 
   test('refuses nothing to build on, and a clip too long to build over, saying what to do', () => {
     const empty = arrangeAround({ notes: [], length: 8, key: C_MAJOR });
-    assert.match(empty.error, /no notes/); assert.ok(empty.hint);
+    assert.match(empty.error, /no notes/);
+    assert.ok(empty.hint);
     const long = arrangeAround({ notes: TUNE, length: MAX_BEATS + 4, key: C_MAJOR });
-    assert.match(long.error, /up to 256 bars/); assert.ok(long.hint);
+    assert.match(long.error, /up to 256 bars/);
+    assert.ok(long.hint);
   });
 
   test('works in 3/4 and 6/8, and guesses a key when none is given', () => {
-    for (const meter of [[3, 4], [6, 8]]) {
+    for (const meter of [
+      [3, 4],
+      [6, 8],
+    ]) {
       const r = arrangeAround({ notes: TUNE, length: 12, meter, key: C_MAJOR });
       assert.equal(r.error, undefined);
       assert.deepEqual(r.check.outOfKey, []);
@@ -123,7 +149,7 @@ describe('time and harmony helpers', () => {
     assert.deepEqual(harmonyKeyOf({ root: 'E', scale: 'blues' }).scale, 'minor');
   });
 
-  test('voice: the chord\'s pitch classes, in range, moving little from the last voicing', () => {
+  test("voice: the chord's pitch classes, in range, moving little from the last voicing", () => {
     const v = voice([0, 4, 7], [52, 71], null);
     assert.deepEqual(v.map((p) => p % 12).sort(), [0, 4, 7]);
     assert.ok(v.every((p) => p >= 52 && p <= 71));
@@ -142,7 +168,11 @@ describe('time and harmony helpers', () => {
 
   test('checkArrangement finds a semitone rub on a strong beat and a note out of key', () => {
     const seed = parseNotes('E4@0:2');
-    const r = checkArrangement(seed, { chords: parseNotes('F4@0:2'), pad: parseNotes('C#4@2:2') }, { key: C_MAJOR, length: 4 });
+    const r = checkArrangement(
+      seed,
+      { chords: parseNotes('F4@0:2'), pad: parseNotes('C#4@2:2') },
+      { key: C_MAJOR, length: 4 },
+    );
     assert.equal(r.ok, false);
     assert.equal(r.clashes.length, 1);
     assert.equal(r.outOfKey.length, 1);
@@ -150,8 +180,12 @@ describe('time and harmony helpers', () => {
   });
 
   test('balanceGains puts each part its level under the seed', () => {
-    const g = balanceGains({ style: 'pop', seedLufs: -14, parts: { bass: { gain: -10, lufs: -20 }, drums: { gain: 0, lufs: -80 } } });
-    assert.deepEqual(g, { bass: -8 });   // -10 + (-14 - 4) - (-20)
+    const g = balanceGains({
+      style: 'pop',
+      seedLufs: -14,
+      parts: { bass: { gain: -10, lufs: -20 }, drums: { gain: 0, lufs: -80 } },
+    });
+    assert.deepEqual(g, { bass: -8 }); // -10 + (-14 - 4) - (-20)
     assert.deepEqual(balanceGains({ style: 'pop', seedLufs: -90, parts: { bass: { gain: 0, lufs: -20 } } }), {});
   });
 });

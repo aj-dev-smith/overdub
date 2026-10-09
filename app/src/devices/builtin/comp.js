@@ -1,3 +1,4 @@
+// @ts-check
 // core.comp: Squeeze Box. A feed-forward stereo compressor: a linked peak/RMS detector (the bass high-passed out of the
 // side-chain so the kick doesn't pump everything), a soft-knee gain computer, and gain smoothing in decibels with a
 // program-dependent release (quick after a lone transient, slower once it has been working a while, so sustained

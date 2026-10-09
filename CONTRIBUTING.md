@@ -18,11 +18,34 @@ node server/serve.js                 # the site at http://localhost:3279/, the s
 node tools/<area>-test.js            # one area's checks
 node --test "test/unit/*.test.js"    # the unit tests, what CI runs (seconds)
 node tools/run-all.js                # every check (a few minutes): run it before a pull request
+npm run check                        # the static checks CI runs: lint, format, types, shell, workflows (seconds)
+npm run format                       # format the paths on the formatting ratchet (Biome)
 ```
 
 The browser checks need playwright-core and a Chromium; `tools/pw.js` says where it looks (`PLAYWRIGHT_CORE`,
 `CHROMIUM`). Chrome is the reference browser, and `tools/compat-test.js` and `tools/phone-test.js` hold Safari,
 Firefox and phones to it.
+
+## Static checks
+
+`npm run check` runs what CI's static job runs: Biome's lint and format check, `tsc`, ShellCheck, actionlint and
+zizmor. The checkers are pinned in `mise.toml`, not `package.json` (`mise install` fetches them), so the studio still
+has no dependencies.
+
+Lint covers the whole repo. Formatting and types are ratchets, turned on a piece at a time so nobody's open branch
+is rewritten under them. Each step is a pull request of its own:
+
+- **Type-check a file:** add `// @ts-check` as its first line, then make `npm run typecheck` pass, with JSDoc where
+  inference falls short (`/** @type {Op} */`; the song's types are in `app/src/core`). Never take the line off a file.
+- **Format a directory:** add it to `formatter.includes` in `biome.jsonc` and run `npm run format`. Nothing else
+  goes in that pull request, and it lands when nobody has a branch open in that directory. A branch that conflicts
+  with it can run `npm run format` itself before rebasing, and most of the conflicts go.
+- **Turn on a lint rule:** take it off the list in `biome.jsonc` (each one there says why it's off), fix what it
+  finds or suppress a deliberate case with `// biome-ignore <rule>: <why>`, and run the full suite. Some rules stay
+  off for good: their fixes move the sound.
+
+Some files are never formatted, wherever the list grows to: their source becomes kernel text, which is trusted by
+its hash, or it ships inside a size-capped deploy. `biome.jsonc` names them and says why.
 
 ## Sound changes
 

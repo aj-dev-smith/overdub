@@ -1,3 +1,4 @@
+// @ts-check
 // core.eguitar: Hollow Body. An electric guitar, sampled: Karoryfer's Black And Green Guitars (CC0), the green Gretsch
 // Anniversary hollow body, picked, recorded dry, played by the sampled-instrument kernel (sampler.js). DI Box
 // (core.guitar) is the synthesized one. docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit

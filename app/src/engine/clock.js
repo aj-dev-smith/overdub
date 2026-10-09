@@ -1,3 +1,4 @@
+// @ts-check
 // The device clock: where bar lines fall in audio time, for devices that lock to the song (synced delays, LFOs,
 // gates, loopers). The shape the ported pedals expect (clawd-o-matic's PLUG.clock), as functions:
 //

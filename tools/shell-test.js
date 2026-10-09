@@ -219,7 +219,7 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
           toast: [...document.querySelectorAll('.ew-toast')].map((x) => x.textContent).join(' | '), click: !!o.engine.metronome, countIn: o.input?.recorder?.countIn ?? null };
       });
     };
-    await E(() => { try { localStorage.removeItem('overdub:keys-moved'); } catch (e) { /* ok */ } });
+    await E(() => { try { localStorage.removeItem('overdub:keys-moved'); } catch { /* ok */ } });
     // M and S, from the arranger, the mixer and Notes; the first of each says the key moved
     const m1 = await press('KeyM', { focus: 'arranger', sel: { track: 'bass' } });
     const m2 = await press('KeyM', { focus: 'arranger' });
@@ -264,7 +264,7 @@ const ignorable = (e) => /favicon|ERR_CONNECTION|net::|AudioContext was not allo
     T.ok(z1.n === 1 && /^mute clip /.test(z1.label) && z1.by === 'you' && z1.ops === 'clip.set{"mute":true}' && z2.n === 1 && /^unmute clip /.test(z2.label), `0 still mutes and unmutes the selected clips ("${z1.label}", "${z2.label}")`);
     // remembered: a new page in this browser (the song kept here, not a demo link, so Recent songs is left alone) says
     // none of it again
-    const said = await E(() => { try { return Object.keys(JSON.parse(localStorage.getItem('overdub:keys-moved') || '{}')).sort().join(' '); } catch (e) { return ''; } });
+    const said = await E(() => { try { return Object.keys(JSON.parse(localStorage.getItem('overdub:keys-moved') || '{}')).sort().join(' '); } catch { return ''; } });
     await sleep(900);   // (the song is kept here: a beat after the last edit)
     const p2 = await s.context.newPage();
     await p2.goto(s.base + '/app/', { waitUntil: 'load' });

@@ -76,7 +76,7 @@ export function resolveUrl(x, indexUrl, { under } = {}) {
   if (typeof x !== 'string' || !x || x.length > 500) return null;
   if (/^\s*(blob|data|javascript|file|about|vbscript):/i.test(x) || /\\/.test(x) || /%2e|%2f|%5c/i.test(x)) return null;
   let base, u;
-  try { base = new URL(indexUrl); u = new URL(x, base); } catch (e) { return null; }
+  try { base = new URL(indexUrl); u = new URL(x, base); } catch { return null; }
   if (u.origin !== base.origin || !/^https?:$/.test(u.protocol) || u.username || u.password) return null;
   const dir = base.pathname.replace(/[^/]*$/, '');
   const root = under ? `${dir}${under}/` : dir;
@@ -90,7 +90,7 @@ export function indexUrlAllowed(url, { page, live = false } = {}) {
   if (typeof url !== 'string' || !url || url.length > 1000) return null;
   if (/^\s*(blob|data|javascript|file|about|vbscript):/i.test(url)) return null;
   let p, u;
-  try { p = new URL(page); u = new URL(url, p); } catch (e) { return null; }
+  try { p = new URL(page); u = new URL(url, p); } catch { return null; }
   if (u.username || u.password) return null;
   if (u.origin === p.origin) return u.href;
   if (live || !isLocalHost(p.hostname)) return null;
@@ -100,10 +100,10 @@ export function indexUrlAllowed(url, { page, live = false } = {}) {
 function sourceLink(x, repo) {
   if (typeof x !== 'string') return null;
   let u;
-  try { u = new URL(x); } catch (e) { return null; }
+  try { u = new URL(x); } catch { return null; }
   if (u.protocol !== 'https:' || u.username || u.password) return null;
   let repoHost = null;
-  try { repoHost = repo ? new URL(repo).hostname : null; } catch (e) { repoHost = null; }
+  try { repoHost = repo ? new URL(repo).hostname : null; } catch { repoHost = null; }
   return u.hostname === 'github.com' || (repoHost && u.hostname === repoHost) ? u.href : null;
 }
 
@@ -145,7 +145,7 @@ function readParams(list) {
     }
     const desc = cleanText(p.desc, CAPS.desc); if (desc) q.desc = desc;
     let n;
-    try { n = normParam(q); } catch (e) { continue; }
+    try { n = normParam(q); } catch { continue; }
     if (![n.min, n.max, n.def].every(Number.isFinite)) continue;
     out.push({ key: n.key, label: n.label, min: n.min, max: n.max, def: n.def, step: n.step, curve: n.curve, ...(n.unit ? { unit: n.unit } : {}), ...(n.opts ? { opts: n.opts } : {}), ...(n.desc ? { desc: n.desc } : {}) });
   }
@@ -227,7 +227,7 @@ export function readIndex(json, { base, bundled = false } = {}) {
   let o = json;
   if (typeof json === 'string') {
     if (json.length > LIMITS.jsonBytes) { out.error = 'too large'; return out; }
-    try { o = JSON.parse(json); } catch (e) { out.error = 'not JSON'; return out; }
+    try { o = JSON.parse(json); } catch { out.error = 'not JSON'; return out; }
   }
   if (!isObj(o) || typeof o.format !== 'string') { out.error = 'not a shelf index'; return out; }
   const m = /^overdub-community-index\/(\d{1,4})$/.exec(o.format);
@@ -235,7 +235,7 @@ export function readIndex(json, { base, bundled = false } = {}) {
   if (Number(m[1]) !== 1) { out.newer = true; out.format = o.format; return out; }
   out.format = INDEX_FORMAT;
   let indexUrl;
-  try { indexUrl = new URL(base || BUNDLED_INDEX, 'http://localhost/').href; } catch (e) { out.error = 'no base'; return out; }
+  try { indexUrl = new URL(base || BUNDLED_INDEX, 'http://localhost/').href; } catch { out.error = 'no base'; return out; }
   if (isObj(o.built)) {
     const b = {};
     for (const k of ['from', 'at', 'studio', 'node', 'checker', 'checks', 'encoder']) b[k] = cleanText(o.built[k], 80);

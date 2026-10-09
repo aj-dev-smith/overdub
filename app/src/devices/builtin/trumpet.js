@@ -1,3 +1,4 @@
+// @ts-check
 // core.trumpet: Spit Valve. A trumpet, sampled: Versilian's VS Chamber Orchestra 2 Community Edition (CC0), the solo
 // trumpet's straight sustained notes, played by the sampled-instrument kernel (sampler.js). Brass Rail (core.brass) is
 // the synthesized section. docs/DEVICES.md "Melodic kits" is how; tools/fetch-kits.js builds the kit

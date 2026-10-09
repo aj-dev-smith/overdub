@@ -43,7 +43,7 @@ export function majorKeyOf(key) {
 const SONG = {
   get key() {
     if (keyOverride != null) return keyOverride;
-    try { const e = typeof window !== 'undefined' && window.overdub; const p = e && e.store && e.store.get(); return majorKeyOf(p && p.key); } catch (e) { return 0; }
+    try { const e = typeof window !== 'undefined' && window.overdub; const p = e && e.store && e.store.get(); return majorKeyOf(p && p.key); } catch { return 0; }
   },
 };
 // Tests and renders without a store: set the key the packs hear ({ root, scale }, a 0-11 major key, or null to follow

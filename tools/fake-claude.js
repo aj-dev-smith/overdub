@@ -25,7 +25,7 @@ const srv = JSON.parse(flag('--mcp-config')).mcpServers.overdub;
 const mcp = spawn(srv.command, srv.args, { env: { ...process.env, ...srv.env }, stdio: ['pipe', 'pipe', 'inherit'] });
 const waiting = new Map(); let buf = '', next = 1;
 mcp.stdout.setEncoding('utf8');
-mcp.stdout.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); try { const m = JSON.parse(l); waiting.get(m.id)?.(m); } catch (e) { /* not ours */ } } });
+mcp.stdout.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); try { const m = JSON.parse(l); waiting.get(m.id)?.(m); } catch { /* not ours */ } } });
 const rpc = (method, params) => new Promise((r) => { const id = next++; waiting.set(id, r); mcp.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'); });
 const tool = async (i, name, input) => {
   ev({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + i, name: 'mcp__overdub__' + name, input: {} } });

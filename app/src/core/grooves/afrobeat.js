@@ -1,3 +1,4 @@
+// @ts-check
 // Afrobeat. The format: core/grooves.js's header.
 export default `
 style afrobeat  Afrobeat

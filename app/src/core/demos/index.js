@@ -1,3 +1,4 @@
+// @ts-check
 // The demo shelf: songs in different genres, so a newcomer hears what Overdub can be. Each is a module with META
 // ({ id, title, genre, line, tempo, key }) and make() -> a fresh project. The house ('overdub', drawn neutral) played
 // most of each; Claude ('claude', drawn cool) played over it, and its parts make musical sense on their own.

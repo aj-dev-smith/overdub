@@ -210,16 +210,16 @@ export default function (app) {
   // comes back, as it is then, when something replaces it). When the list is full, a demo as the shelf has it (it can
   // always be opened again) or an empty untitled song goes before any song of yours, and the toast names a song of
   // yours that falls off the end.
-  const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(RECENT) || '[]'); return Array.isArray(v) ? v.filter((e) => e && e.song && Array.isArray(e.song.tracks)) : []; } catch (e) { return []; } };
+  const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(RECENT) || '[]'); return Array.isArray(v) ? v.filter((e) => e && e.song && Array.isArray(e.song.tracks)) : []; } catch { return []; } };
   const stamp = (song) => `${song.id || ''}|${song.meta?.modified || ''}|${song.title || ''}`;
   const writeRecent = (list) => {
     // too big for storage: the oldest go first
     while (list.length) {
       const text = JSON.stringify(list);
-      if (text.length <= RECENT_BYTES || list.length === 1) { try { localStorage.setItem(RECENT, text); return list; } catch (e) { if (list.length === 1) return []; } }
+      if (text.length <= RECENT_BYTES || list.length === 1) { try { localStorage.setItem(RECENT, text); return list; } catch { if (list.length === 1) return []; } }
       list.pop();
     }
-    try { localStorage.setItem(RECENT, '[]'); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem(RECENT, '[]'); } catch { /* storage blocked */ }
     return list;
   };
   // a song the studio can make again exactly: a demo untouched since the shelf made it, or a blank untitled one
@@ -232,7 +232,7 @@ export default function (app) {
     if (!demoIds) demoIds = new Map(DEMOS.map((d) => [stableIds({ tracks: [] }, d.id).id, d.id]));
     const d = demoIds.get(song.id);
     if (!d) return false;
-    try { return sameBody(cleanProject(demoById(d)), song); } catch (e) { return false; }
+    try { return sameBody(cleanProject(demoById(d)), song); } catch { return false; }
   }
   // -> the titles of songs of yours that fell off the end to make room
   function addRecent(song) {
@@ -275,35 +275,35 @@ export default function (app) {
     const prev = JSON.parse(JSON.stringify(store.get()));
     let keep = JSON.stringify(prev), lost = [];
     // while listening to a link the song on screen is theirs; yours is the saved one (ui/share.js), so keep that
-    if (app.share?.listening) { try { keep = localStorage.getItem(SAVED) || keep; } catch (e) { /* storage blocked */ } }
-    try { lost = addRecent(JSON.parse(keep)); } catch (e) { /* not a song */ }
+    if (app.share?.listening) { try { keep = localStorage.getItem(SAVED) || keep; } catch { /* storage blocked */ } }
+    try { lost = addRecent(JSON.parse(keep)); } catch { /* not a song */ }
     try {
       localStorage.setItem(PREV, keep);
       // the song from before Make it yours is now in PREV too, and newer: the Song menu's way back to it can go
       const bf = localStorage.getItem(BEFORE_FORK);
       if (bf && JSON.parse(bf).id === JSON.parse(keep).id) localStorage.removeItem(BEFORE_FORK);
-    } catch (e) { /* too big for storage: kept in memory */ }
+    } catch { /* too big for storage: kept in memory */ }
     return { prev, lost };
   }
   // the song Make it yours put aside (ui/share.js): the Song menu offers it back while it isn't the song on screen
   function beforeFork() {
-    try { const q = JSON.parse(localStorage.getItem(BEFORE_FORK) || 'null'); return q && Array.isArray(q.tracks) && q.id !== store.get().id ? q : null; } catch (e) { return null; }
+    try { const q = JSON.parse(localStorage.getItem(BEFORE_FORK) || 'null'); return q && Array.isArray(q.tracks) && q.id !== store.get().id ? q : null; } catch { return null; }
   }
   // from: the Recent songs entry being opened (it leaves the list: it's on screen). A take still recording goes into the
   // song first, so the copy in Recent songs and Undo have it (a count-in, with nothing recorded yet, is called off).
   function replaceSong(next, msg, { from = null } = {}) {
     const rec = app.input?.recorder;
     if (rec && rec.state === 'rec') return Promise.resolve(rec.stop({ why: 'stop' })).catch(() => null).then(() => replaceSong(next, msg, { from }));
-    if (rec && rec.state === 'count') { try { rec.cancel(); } catch (e) { /* ok */ } }
+    if (rec && rec.state === 'count') { try { rec.cancel(); } catch { /* ok */ } }
     // the entry being opened leaves the list first: a full list then has its place for the song on screen, and nothing
     // of yours falls off to make room for a song that is leaving it anyway
     if (from) dropRecent(from);
     const { prev, lost } = keepPrevious();
     // another song starts from the top, stopped: not at wherever the last one's playhead was left
-    try { if (app.engine?.playing) app.engine.stop(); app.engine?.seek?.(0); } catch (e) { /* no audio yet */ }
+    try { if (app.engine?.playing) app.engine.stop(); app.engine?.seek?.(0); } catch { /* no audio yet */ }
     store.load(next, { by: 'you' });
     // the old song's toasts with an Undo go with it (the take just put in, a delete): their Undo would land on this one
-    try { for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove(); } catch (e) { /* no DOM */ }
+    try { for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove(); } catch { /* no DOM */ }
     ui.select({ track: null, clip: null, notes: [], insert: null, range: null });
     undoToast(prev, msg, lost);
     return Promise.resolve(true);
@@ -339,7 +339,7 @@ export default function (app) {
   }
   function loadText(text, name = 'the file') {
     let p;
-    try { p = JSON.parse(text); } catch (e) { ui.toast(`${name} isn’t a project file (not JSON)`, { kind: 'bad' }); return false; }
+    try { p = JSON.parse(text); } catch { ui.toast(`${name} isn’t a project file (not JSON)`, { kind: 'bad' }); return false; }
     if (p && p.format === 'overdub-device/0' && app.devicesIO) { app.devicesIO.importText(text, name); return true; }
     if (p && p.format === 'overdub-provenance/0') { ui.toast('That’s an attribution log, not a song. Open the .overdub.json project file.', { kind: 'bad' }); return false; }
     if (!p || typeof p !== 'object' || !Array.isArray(p.tracks) || (p.format && !isProjectFormat(p.format))) { ui.toast(`${name} isn’t an Overdub project`, { kind: 'bad' }); return false; }

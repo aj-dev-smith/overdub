@@ -61,7 +61,7 @@ export default async function (app) {
   // core/sounds.js (the sets, kindOfTake, soundsFor, familyOf, newPartFor) is WP1's; until it is in the tree the same
   // rules from the spec stand in (FALLBACK, below)
   let S = null;
-  try { S = await import('../core/sounds.js'); if (typeof S?.soundsFor !== 'function') S = null; } catch (e) { S = null; }
+  try { S = await import('../core/sounds.js'); if (typeof S?.soundsFor !== 'function') S = null; } catch { S = null; }
   installSounds(app, S || FALLBACK);
 }
 
@@ -75,9 +75,9 @@ function installSounds(app, S) {
   // (a phone has no Space bar to name)
   const stops = () => (phone() || (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) ? 'Tap ■ (top) to stop.' : 'Space stops.');
   const P = () => store.get();
-  const dev = (id) => { try { return app.devices.getDevice(id) || null; } catch (e) { return null; } };
+  const dev = (id) => { try { return app.devices.getDevice(id) || null; } catch { return null; } };
   const has = (id) => dev(id)?.kind === 'instrument';
-  const agentName = (by = 'claude') => { try { return store.author?.(by)?.name || 'Claude'; } catch (e) { return 'Claude'; } };
+  const agentName = (by = 'claude') => { try { return store.author?.(by)?.name || 'Claude'; } catch { return 'Claude'; } };
   const bpb = () => beatsPerBar(P().meter);
   const trackOf = (id) => (id ? P().tracks.find((t) => t.id === id) || null : null);
   const nameOf = (device, preset) => { const d = dev(device); const n = d?.name || String(device || '').replace(/^[a-z]+\./, ''); return preset ? `${n}, ${preset}` : n; };
@@ -113,8 +113,8 @@ function installSounds(app, S) {
     for (const c of t.clips) if (c.kind === 'notes' && !c.mute) for (const n of c.notes) { notes.push({ p: n.p, t: c.start + n.t, d: n.d }); if (notes.length > 400) break; }
     return { kind: isDrumTrack(app, t) ? 'drums' : 'notes', src: null, notes };
   }
-  function kindOf(track, take) { try { return S.kindOfTake(takeOf(track, take)) || 'played'; } catch (e) { return 'played'; } }
-  function familyOf(row, def) { try { return S.familyOf(row, def) || ''; } catch (e) { return ''; } }
+  function kindOf(track, take) { try { return S.kindOfTake(takeOf(track, take)) || 'played'; } catch { return 'played'; } }
+  function familyOf(row, def) { try { return S.familyOf(row, def) || ''; } catch { return ''; } }
   // a device's family word from any set's rows ("core.wavetable" -> "Synth"), for a sound named off its own set
   function famOfDevice(device) {
     const sets = S.SOUND_SETS || {};
@@ -131,7 +131,7 @@ function installSounds(app, S) {
     const now = { device: cur.device, preset: cur.preset || null, now: true };
     let list = [];
     // (a song whose title names a genre, "Dubstep thing", is offered that genre's sounds first: core/sounds.js genreOf)
-    try { list = S.soundsFor(takeOf(track, take), { has, current: now.device, currentPreset: now.preset, genre: S.genreOf?.(store.get().title) || null }) || []; } catch (e) { list = []; }
+    try { list = S.soundsFor(takeOf(track, take), { has, current: now.device, currentPreset: now.preset, genre: S.genreOf?.(store.get().title) || null }) || []; } catch { list = []; }
     // ("now" is named for its family the way the set's rows are, "Electric piano", even off the set or on a preset)
     now.family = famOfDevice(now.device) || list.find((r) => r.now)?.family || '';
     // (a house row with no preset is the device as it comes: the same sound as "now" on that device, so not listed twice)
@@ -154,7 +154,7 @@ function installSounds(app, S) {
   const DRUM_SRC = new Set(['tap', 'pads', 'beatbox']);
   function kindOfTakeKind(take) { return take?.kind === 'drums' || take?.kind === 'pads' || DRUM_SRC.has(take?.src) ? 'pads' : take?.src === 'hum' || take?.kind === 'hum' ? 'hum' : 'keys'; }
   function newPart(kind) {
-    try { const r = S.newPartFor(kind, P()); if (r?.device) return { name: r.name, device: r.device, preset: null }; } catch (e) { /* below */ }
+    try { const r = S.newPartFor(kind, P()); if (r?.device) return { name: r.name, device: r.device, preset: null }; } catch { /* below */ }
     return kind === 'pads' ? { name: 'Drums', device: 'core.drums', preset: null } : { name: kind === 'hum' ? 'Melody' : 'Keys', device: 'core.keys', preset: null };
   }
 
@@ -167,17 +167,17 @@ function installSounds(app, S) {
     try {
       if (trial && !trial.newTrack) localStorage.setItem(TRYING_KEY, JSON.stringify({ song: P().id, track: trial.track, instrument: trial.was.inst, at: Date.now() }));
       else if (newH) localStorage.setItem(TRYING_KEY, JSON.stringify({ song: P().id, track: newH.track, newTrack: true, at: Date.now() }));
-      else if (defer) forgetT = setTimeout(() => { if (!trial && !newH) { try { localStorage.removeItem(TRYING_KEY); } catch (e) { /* blocked */ } } }, 1500);
+      else if (defer) forgetT = setTimeout(() => { if (!trial && !newH) { try { localStorage.removeItem(TRYING_KEY); } catch { /* blocked */ } } }, 1500);
       else localStorage.removeItem(TRYING_KEY);
-    } catch (e) { /* storage blocked: a closed tab can't leave a leftover either */ }
+    } catch { /* storage blocked: a closed tab can't leave a leftover either */ }
   };
   // On the next boot: the track's real instrument back, or the previewed new track out, with nothing in History (the
   // song never had them), as Grooves heals its "Hearing" track.
   function heal() {
     let rec = null;
-    try { rec = JSON.parse(localStorage.getItem(TRYING_KEY) || 'null'); } catch (e) { rec = null; }
+    try { rec = JSON.parse(localStorage.getItem(TRYING_KEY) || 'null'); } catch { rec = null; }
     if (!rec) return;
-    try { localStorage.removeItem(TRYING_KEY); } catch (e) { /* blocked */ }
+    try { localStorage.removeItem(TRYING_KEY); } catch { /* blocked */ }
     if (!rec || rec.song !== P().id) return;
     const t = trackOf(rec.track);
     if (!t) return;
@@ -198,11 +198,11 @@ function installSounds(app, S) {
     trial.handle = null;
     try { hd.release(); } catch (e) { console.error('sounds: release', e); }
   }
-  function releaseLoop() { if (!loopH) return; const l = loopH; loopH = null; try { l.release(); } catch (e) { /* gone */ } }
+  function releaseLoop() { if (!loopH) return; const l = loopH; loopH = null; try { l.release(); } catch { /* gone */ } }
   function releaseNew() {
     if (!newH) return;
     const n = newH; newH = null;
-    try { n.handle.release(); } catch (e) { /* gone */ }
+    try { n.handle.release(); } catch { /* gone */ }
   }
 
   function tryOn(track, { device, preset = null } = {}, { play = true, from = null, suggestedBy = null, sid = null } = {}) {
@@ -300,7 +300,7 @@ function installSounds(app, S) {
     // the preview let go and the keep dispatched in one task: the engine's reconcile runs once, on what is kept
     trial = null;
     const hd = tr.handle; tr.handle = null;
-    try { hd?.release(); } catch (e) { /* gone */ }
+    try { hd?.release(); } catch { /* gone */ }
     if (!card || why === 'keep') releaseLoop();
     mine++;
     let r;
@@ -324,7 +324,7 @@ function installSounds(app, S) {
     if (!trial) return false;
     const tr = trial;
     trial = null;
-    if (why !== 'load') { try { tr.handle?.release(); } catch (e) { /* gone */ } }
+    if (why !== 'load') { try { tr.handle?.release(); } catch { /* gone */ } }
     tr.handle = null;
     // (the loop held round the take goes with the trial, unless another sound takes its place on the same card)
     if (why !== 'switch' && why !== 'now' && (!card || why !== 'back')) releaseLoop();
@@ -402,7 +402,7 @@ function installSounds(app, S) {
       say(`Hearing ${heardWhat()} on ${tr.name}${barsText()}. ${stops()}`);
     }
     // (and the track's own instrument has been handed them: its first notes sound)
-    try { await engine()?.settled?.(); } catch (e) { /* plays anyway */ }
+    try { await engine()?.settled?.(); } catch { /* plays anyway */ }
     await instReady(engine(), tr.track, 10000);
     return trial === tr;
   }
@@ -430,10 +430,10 @@ function installSounds(app, S) {
       const hd = store.preview({ type: 'project.set', patch: { loop: { on: true, start, end } } }, { by: 'you' });
       if (hd.ok) loopH = hd;
     }
-    try { await E.settled?.(); } catch (e) { /* plays anyway */ }
+    try { await E.settled?.(); } catch { /* plays anyway */ }
     if (!(await kitFirst())) return;
     if (E.playing || recording()) return;
-    try { await E.play(sp.start); } catch (e) { /* no audio yet */ }
+    try { await E.play(sp.start); } catch { /* no audio yet */ }
   }
 
   /* ---------------------------------------------------------------- the card */
@@ -467,7 +467,7 @@ function installSounds(app, S) {
     const kind = kindOf(track, take);
     card = { key, track, take, from, anchor, kind, rows: [], focusI: 0, status: null, statusText: '', mode: 'pop', host: null };
     let host = null;
-    if (from === 'take' && hostFn) { try { host = hostFn({ track, take }) || null; } catch (e) { host = null; } }
+    if (from === 'take' && hostFn) { try { host = hostFn({ track, take }) || null; } catch { host = null; } }
     if (host) { card.mode = 'host'; card.host = host; }
     else if (phone()) card.mode = 'sheet';
     if (!card.anchor && card.mode === 'pop') card.anchor = (track && document.querySelector(`.ar-head[data-track="${globalThis.CSS?.escape ? globalThis.CSS.escape(track) : track}"]`)) || null;
@@ -689,7 +689,7 @@ function installSounds(app, S) {
   }, label: 'Keep the sound', group: 'Sounds' });
   ui.keys.add({ key: 'Escape', first: true, global: true, when: () => cardFocused() || (!!card && !!trial && card.mode !== 'host' && !document.querySelector('.ew-pop, .ek-pop, [role=menu]')), run: () => { clearTimeout(restT); if (trial) back(); else closeCard({ done: true }); }, label: 'Back, then close the sounds', group: 'Sounds' });
   // (a row has focus, and Space on a focused option is the option's: here it is still the transport's)
-  ui.keys.add({ key: 'Space', global: true, when: () => cardFocused() && !document.activeElement?.matches?.('button'), run: () => { try { app.transport?.playStop?.(); } catch (e) { /* none */ } }, label: 'Play or stop', group: 'Sounds', hidden: true });
+  ui.keys.add({ key: 'Space', global: true, when: () => cardFocused() && !document.activeElement?.matches?.('button'), run: () => { try { app.transport?.playStop?.(); } catch { /* none */ } }, label: 'Play or stop', group: 'Sounds', hidden: true });
 
   // A click outside: never ends a trial (you can press Play in the arranger and keep listening); with nothing on
   // trial it closes a floating card (a popover or the phone's sheet; Sketch's own place is Sketch's)
@@ -717,12 +717,12 @@ function installSounds(app, S) {
     if (!rec?.on || hookRecorder.done) return;
     hookRecorder.done = true;
     rec.on('state', (e) => {
-      if (e?.state === 'count') { releaseLoop(); try { wasHum = !!rec.humming?.(); } catch (er) { wasHum = false; } }
+      if (e?.state === 'count') { releaseLoop(); try { wasHum = !!rec.humming?.(); } catch { wasHum = false; } }
       if (e?.state !== 'rec') return;
-      try { wasHum = wasHum || !!rec.humming?.(); } catch (er) { /* ok */ }
+      try { wasHum = wasHum || !!rec.humming?.(); } catch { /* ok */ }
       if (!trial) return;
       if (trial.newTrack) { endTrial('switch', { quiet: true }); return; }
-      const lands = (() => { try { return rec.lands?.()?.id || null; } catch (er) { return null; } })();
+      const lands = (() => { try { return rec.lands?.()?.id || null; } catch { return null; } })();
       if (!lands || lands === trial.track) keep({ why: 'record' });
       else endTrial('record');
     });
@@ -838,7 +838,7 @@ function installSounds(app, S) {
     const q = requests.get(id);
     if (!q || q.status !== 'pending') return;
     q.status = 'done'; q.picked = picked || null; q.kept = !!kept;
-    for (const fn of q.waiters.splice(0)) { try { fn(api.result(id)); } catch (e) { /* ok */ } }
+    for (const fn of q.waiters.splice(0)) { try { fn(api.result(id)); } catch { /* ok */ } }
   }
   function suggest(track, sounds, { by = 'claude', reason = null } = {}) {
     if (recording()) return { error: 'the person is recording', hint: 'wait until they stop (get_recording with wait_seconds)' };

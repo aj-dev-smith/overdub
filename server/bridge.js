@@ -36,7 +36,7 @@ let catalog = null;
 async function staticTools() {
   if (catalog) return catalog;
   // no tab yet: the whole catalog, including the tools page modules register at boot (agent/extra-schemas.js)
-  try { const m = await import('../app/src/agent/tools.js'); catalog = m.catalogSchemas ? await m.catalogSchemas() : m.schemas(); } catch (e) { catalog = []; }
+  try { const m = await import('../app/src/agent/tools.js'); catalog = m.catalogSchemas ? await m.catalogSchemas() : m.schemas(); } catch { catalog = []; }
   return catalog;
 }
 
@@ -52,7 +52,7 @@ function readBody(req, limit = 8 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0; const parts = [];
     req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('body too large')); req.destroy(); } else parts.push(c); });
-    req.on('end', () => { try { const s = Buffer.concat(parts).toString('utf8'); resolve(s ? JSON.parse(s) : {}); } catch (e) { reject(new Error('body is not JSON')); } });
+    req.on('end', () => { try { const s = Buffer.concat(parts).toString('utf8'); resolve(s ? JSON.parse(s) : {}); } catch { reject(new Error('body is not JSON')); } });
     req.on('error', reject);
   });
 }
@@ -64,7 +64,7 @@ export function foreignOrigin(req) {
   const o = req.headers.origin;
   if (!o) return false;
   if (o === 'null') return true;
-  try { return new URL(o).host !== req.headers.host; } catch (e) { return true; }
+  try { return new URL(o).host !== req.headers.host; } catch { return true; }
 }
 // Browsers say who made a request: same-origin (the studio's own page), none (a person typing the URL), or
 // same-site / cross-site. Node clients like mcp.js send no Sec-Fetch-Site at all.
@@ -74,7 +74,7 @@ export function foreignSite(req) {
 }
 function send(page, obj) {
   if (!page?.res || !page.connected) return false;
-  try { page.res.write(`data: ${JSON.stringify(obj)}\n\n`); return true; } catch (e) { return false; }
+  try { page.res.write(`data: ${JSON.stringify(obj)}\n\n`); return true; } catch { return false; }
 }
 function livePage() {
   let best = null;
@@ -85,7 +85,7 @@ function broadcast(obj) { for (const p of pages.values()) send(p, obj); }
 // How long a call may take before the bridge gives up on the page: a tool that waits on the human (wait_seconds) gets
 // its wait on top of the time it needs, so a documented wait never comes back as "the studio did not answer".
 export function timeoutFor(tool, input = {}) {
-  if (typeof input === 'string') { try { input = JSON.parse(input); } catch (e) { input = {}; } }
+  if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = {}; } }
   const w = Number(input && input.wait_seconds);
   const wait = (def, max = Infinity) => Math.max(0, Math.min(max, Number.isFinite(w) ? w : def));
   if (tool === 'propose_variations') return (wait(90) + 30) * 1000;
@@ -134,13 +134,13 @@ export function register({ addRoute }) {
         const id = url.searchParams.get('page');
         const p = id && pages.get(id);
         if (!p) return json(res, 404, { error: 'no such page: POST /bridge/hello { page } first' });
-        if (p.res && p.res !== res) { try { p.res.end(); } catch (e) { /* gone */ } }
+        if (p.res && p.res !== res) { try { p.res.end(); } catch { /* gone */ } }
         Object.assign(p, { res, connected: true, at: Date.now() });
         pages.set(id, p);
         res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });
         res.write(`retry: 2000\n: overdub bridge\n\n`);
         for (const [name, a] of agents) if (!a.gone) send(p, { type: 'agent', agent: name, state: 'join' });
-        const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch (e) { /* closed */ } }, 15000);
+        const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch { /* closed */ } }, 15000);
         req.on('close', () => {
           clearInterval(ping);
           if (p.res === res) { p.connected = false; p.res = null; }

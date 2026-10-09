@@ -43,14 +43,14 @@ async function http(method, route, body, timeoutMs = 10000) {
   try {
     const res = await fetch(BASE + route, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: ac.signal });
     const text = await res.text();
-    let data; try { data = JSON.parse(text); } catch (e) { data = { error: text.slice(0, 200) }; }
+    let data; try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
     return { status: res.status, data };
   } finally { clearTimeout(t); }
 }
 
 // Make sure a bridge is reachable; start the server in-process if nothing answers on a local URL.
 async function ensureServer() {
-  try { const r = await http('GET', '/bridge/status', null, 1500); if (r.status === 200) return true; } catch (e) { /* not running */ }
+  try { const r = await http('GET', '/bridge/status', null, 1500); if (r.status === 200) return true; } catch { /* not running */ }
   if (started) return started;
   const u = new URL(BASE);
   if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname)) return false;
@@ -71,7 +71,7 @@ async function listTools() {
   try {
     const r = await http('GET', '/bridge/tools', null, 4000);
     if (r.status === 200 && r.data.tools?.length) return r.data.tools;
-  } catch (e) { /* fall back */ }
+  } catch { /* fall back */ }
   // no tab yet: the whole catalog, including the tools page modules register at boot (agent/extra-schemas.js)
   const m = await import(new URL('../app/src/agent/tools.js', import.meta.url).href);
   return m.catalogSchemas ? m.catalogSchemas() : m.schemas();
@@ -88,7 +88,7 @@ async function checkCatalog() {
     if (r.status !== 200 || r.data.source !== 'page' || !r.data.tools?.length) return;
     const now = namesOf(r.data.tools);
     if (now !== listed) { listed = now; out({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' }); log('the studio tab has a different tool catalog: told the client to list again'); }
-  } catch (e) { /* next call */ }
+  } catch { /* next call */ }
 }
 
 // A result that carries the song's own text (names, notes, device code, blurbs and requests, check reports, what a
@@ -152,10 +152,10 @@ function toContent(result) {
 // Open the studio in the default browser (once), so "ask Claude Code to make music" works without a manual step.
 function openBrowser(url) {
   const [cmd, args] = process.platform === 'darwin' ? ['open', [url]] : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]] : ['xdg-open', [url]];
-  try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); return true; } catch (e) { return false; }
+  try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); return true; } catch { return false; }
 }
 async function studioOpen() {
-  try { const r = await http('GET', '/bridge/status', null, 1500); return r.status === 200 && r.data.pages > 0; } catch (e) { return false; }
+  try { const r = await http('GET', '/bridge/status', null, 1500); return r.status === 200 && r.data.pages > 0; } catch { return false; }
 }
 // No studio tab connected: open one (once; never under tests) and wait for it to connect.
 async function waitForStudio() {
@@ -237,7 +237,7 @@ function main() {
   let inflight = 0, ending = false;
   const maybeExit = async () => {
     if (!ending || inflight) return;
-    if (!TURN) { try { await http('POST', '/bridge/agent', { agent: agentName, state: 'leave' }, 1500); } catch (e) { /* gone */ } }
+    if (!TURN) { try { await http('POST', '/bridge/agent', { agent: agentName, state: 'leave' }, 1500); } catch { /* gone */ } }
     if (!started) process.exit(0);
     // we host the studio server: keep it up while the tab may still be using it? No: the agent is gone, exit cleanly.
     process.exit(0);
@@ -250,7 +250,7 @@ function main() {
       const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
       if (!line) continue;
       let msg;
-      try { msg = JSON.parse(line); } catch (e) { fail(null, -32700, 'parse error'); continue; }
+      try { msg = JSON.parse(line); } catch { fail(null, -32700, 'parse error'); continue; }
       const list = Array.isArray(msg) ? msg : [msg];
       for (const m of list) { inflight++; handle(m).finally(() => { inflight--; maybeExit(); }); }
     }

@@ -38,8 +38,8 @@ export default async function (app) {
   css('ew-browser', BROWSER_CSS);
   const g = await Promise.race([guitar(), new Promise((r) => setTimeout(() => r(null), 2000))]);
   let prefs = { closed: { 'fx:': true, rigs: true } };
-  try { const s = JSON.parse(localStorage.getItem(PREF) || 'null'); if (s?.closed) prefs = s; } catch (e) { /* fresh */ }
-  const savePrefs = () => { try { localStorage.setItem(PREF, JSON.stringify(prefs)); } catch (e) { /* private mode */ } };
+  try { const s = JSON.parse(localStorage.getItem(PREF) || 'null'); if (s?.closed) prefs = s; } catch { /* fresh */ }
+  const savePrefs = () => { try { localStorage.setItem(PREF, JSON.stringify(prefs)); } catch { /* private mode */ } };
   let view = null;
   const local = localTrials(app);
   // the trials: app.sounds once ui/sounds.js is in the studio, else the browser's own (same calls)
@@ -252,7 +252,7 @@ export default async function (app) {
             if (s && !(pr.name + ' ' + (pr.blurb || '') + ' ' + d.name + ' ' + (pr.tags || []).join(' ')).toLowerCase().includes(s)) continue;
             kids.push(presetRow(d, pr));
           }
-          const label = (GENRE_FILTERS.find(([t]) => t === genre) || [, genre])[1];
+          const label = (GENRE_FILTERS.find(([t]) => t === genre) || [undefined, genre])[1];
           out.push(section('genre:' + genre, label, kids.length, kids.length ? kids : [h('div.br-none', `No ${label.toLowerCase()} sounds match.`)], { open: true }));
         }
         if (mine.length || held.length || !searching) {

@@ -1,3 +1,4 @@
+// @ts-check
 // core.limiter: Red Line. A look-ahead brickwall limiter for the master: it sees peaks 1.5 ms before they arrive
 // (including the peaks between samples, estimated by interpolation), ducks just enough with a smooth ramp, and recovers
 // over RELEASE. Nothing passes the CEILING (in dBTP; -1 by default, the streaming services' ask). GAIN pushes into it

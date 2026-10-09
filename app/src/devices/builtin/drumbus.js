@@ -1,3 +1,4 @@
+// @ts-check
 // core.drumbus: Drum Riser. The processing a produced record puts on its drum bus, as one insert on the drum track (a
 // kit is one instrument on one track, and the studio has no sends, so the parallel paths live inside the device):
 //

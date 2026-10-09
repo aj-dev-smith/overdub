@@ -37,7 +37,7 @@ await page.evaluate(async () => {
     cap.port.onmessage = (e) => { if (e.data === 'end') done && done(); else rows.push(e.data); };
     const z = ctx.createGain(); z.gain.value = 0; cap.connect(z); z.connect(ctx.destination);
     node.connect(cap);
-    return { rows, stop: () => new Promise((res) => { done = () => { try { node.disconnect(cap); } catch (e) { /* ok */ } cap.disconnect(); z.disconnect(); res(rows); }; cap.port.postMessage('stop'); }) };
+    return { rows, stop: () => new Promise((res) => { done = () => { try { node.disconnect(cap); } catch { /* ok */ } cap.disconnect(); z.disconnect(); res(rows); }; cap.port.postMessage('stop'); }) };
   };
   // the loudest quantum in [a, b) (audio times), in dBFS
   window.__over = (rows, a, b) => window.__db(rows.reduce((m, [tt, p]) => (tt >= a && tt < b && p > m ? p : m), 0));

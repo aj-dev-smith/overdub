@@ -175,7 +175,7 @@ function scheduleLanes(c, p, { from, len, spb, sr, want, strips, master, held })
     for (let t = GRAPH_STEP; t < dur; t += GRAPH_STEP) {
       const v = { ...(base || {}) }, beat = from + (t - h) / spb;
       for (const L of w.L) { const x = laneValue(L.lane, beat, L.spec); if (x != null) v[L.param] = x; }
-      try { inst.set(v, { at: t }); } catch (e) { /* a device that can't take it */ }
+      try { inst.set(v, { at: t }); } catch { /* a device that can't take it */ }
     }
   }
   // gain and pan: linear ramps through the 128-frame grid

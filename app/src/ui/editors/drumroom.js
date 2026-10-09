@@ -107,8 +107,8 @@ export function mount(el, ctx) {
   const track = ctx.addr.track;
   const uid = ++mounted;
   ctx.keyboard?.show?.(false);   // the drawn kit is the instrument here
-  const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
-  const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
+  const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
   /* ================================================================ state */
   let P = ctx.params();
@@ -277,7 +277,7 @@ export function mount(el, ctx) {
     let held = null;
     const down = () => { if (held != null) return; held = p; b.classList.add('on'); playNote(p, 0.8); lastHit = { piece, note: p, v: 0.8 }; say(); };
     const up = () => { if (held == null) return; release(held); held = null; b.classList.remove('on'); };
-    b.addEventListener('pointerdown', (e) => { if (e.button > 0) return; e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } down(); });
+    b.addEventListener('pointerdown', (e) => { if (e.button > 0) return; e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch { /* gone */ } down(); });
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
     b.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); down(); } });
     b.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); up(); } });
@@ -289,10 +289,10 @@ export function mount(el, ctx) {
 
   /* ================================================================ playing */
   function playNote(p, v) {
-    try { app.engine.liveNoteOn(track, p, clamp(v, 0.05, 1)); } catch (e) { /* no audio yet */ }
+    try { app.engine.liveNoteOn(track, p, clamp(v, 0.05, 1)); } catch { /* no audio yet */ }
     strike(PIECE_OF[p] || 'snare', p, v, 'you');
   }
-  function release(p) { try { app.engine.liveNoteOff(track, p); } catch (e) { /* ok */ } }
+  function release(p) { try { app.engine.liveNoteOff(track, p); } catch { /* ok */ } }
   // a light: how long it shows is how long the piece rings
   function ringOf(piece, p) {
     const L = look.t60, dk = (+P.decay || 1) * (+P[piece + '_decay'] || 1);
@@ -369,7 +369,7 @@ export function mount(el, ctx) {
       const a = toS(t, r.box[0], r.box[1]), b = toS(t, r.box[2], r.box[3]);
       top = Math.min(a[1], b[1]); bottom = Math.max(a[1], b[1]);
     } else {
-      const [cx, cy] = toS(t, sh.x, sh.y), rz = Math.max(r.rz * sh.r * t.s, 8);
+      const [, cy] = toS(t, sh.x, sh.y), rz = Math.max(r.rz * sh.r * t.s, 8);
       top = cy - rz; bottom = cy + rz;
     }
     const f = clamp((Y - top) / Math.max(1, bottom - top), 0, 1);
@@ -389,7 +389,7 @@ export function mount(el, ctx) {
     const hit = hitAt(X, Y, { touch: e.pointerType === 'touch' || e.pointerType === 'pen', alt: e.altKey });
     if (!hit) { if (e.pointerType !== 'touch') select(null, { focus: false }); return; }
     e.preventDefault();
-    try { stage.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try { stage.setPointerCapture(e.pointerId); } catch { /* gone */ }
     playNote(hit.note, hit.v);
     lastHit = hit;
     // a finger (or a pen) left on a cymbal is a hand closing on it: once it has stayed HOLD ms, its choke (frame())
@@ -434,7 +434,7 @@ export function mount(el, ctx) {
   function grab(pr) {
     const p = ALT[pr.piece];
     pr.grabbed = p;
-    try { app.engine.liveNoteOn(track, p, 0.05); } catch (e) { /* no audio yet */ }
+    try { app.engine.liveNoteOn(track, p, 0.05); } catch { /* no audio yet */ }
     const l = lights.get(pr.piece);
     if (l && !l.cut) l.cut = performance.now() + 110;
     lastHit = { piece: pr.piece, zone: 'choke', note: p, v: 0.05 };
@@ -957,7 +957,7 @@ export function mount(el, ctx) {
   }
 
   // the fonts arrive after the first drawing
-  try { document.fonts?.ready?.then(() => { pal = colors(); cv.dirty(); }); } catch (e) { /* no font loading API */ }
+  try { document.fonts?.ready?.then(() => { pal = colors(); cv.dirty(); }); } catch { /* no font loading API */ }
 
   /* ================================================================ for the checks */
   const api = {

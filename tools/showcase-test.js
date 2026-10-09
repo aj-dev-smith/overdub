@@ -14,7 +14,7 @@ const rows = await page.evaluate(async () => {
   const M = await import('/app/src/audio/measure.js');
   const T = await import('/app/src/audio/testsignals.js');
   let check = null;
-  try { check = (await import('/app/src/kernel/check.js')).checkDevice; } catch (e) { /* not yet */ }
+  try { check = (await import('/app/src/kernel/check.js')).checkDevice; } catch { /* not yet */ }
   const out = [];
   for (const src of SHOWCASE) {
     const row = { id: src.id };

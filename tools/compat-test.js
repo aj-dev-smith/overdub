@@ -36,7 +36,7 @@ const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|NS_B
 // Same resolution as tools/pw.js (PLAYWRIGHT_CORE, then a local install, then the copy already on this machine).
 function findPlaywright() {
   const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean);
-  for (const t of tries) { try { return require(t); } catch (e) { /* next */ } }
+  for (const t of tries) { try { return require(t); } catch { /* next */ } }
   throw new Error('playwright-core not found: set PLAYWRIGHT_CORE or `npm i --no-save playwright-core`');
 }
 function findChromium() {
@@ -95,7 +95,7 @@ async function openPage(b, base, route) {
   const errors = [], warns = [];
   // every request the page makes to a host other than the site's: none (fonts included: they're the site's own)
   const offsite = [];
-  page.on('request', (r) => { try { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host + u.pathname.slice(0, 40)); } catch (e) { /* data:, blob: */ } });
+  page.on('request', (r) => { try { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host + u.pathname.slice(0, 40)); } catch { /* data:, blob: */ } });
   page.on('pageerror', (e) => errors.push('pageerror: ' + (e && (e.stack || e.message) || e)));
   page.on('console', (m) => {
     const t = m.text();
@@ -163,7 +163,7 @@ async function studio(b, base, tag) {
   const shot = (n) => page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-${n}.png`) });
   const E = (fn, arg) => page.evaluate(fn, arg);
   let booted = true;
-  try { await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); } catch (e) { booted = false; }
+  try { await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); } catch { booted = false; }
   T.ok(booted, `${tag}: the studio boots (/app/?demo&autostart)`);
   if (!booted) { T.ok(false, `${tag}: boot errors${list(real(errors))}`); await page.close(); return; }
   await page.waitForTimeout(600);
@@ -178,7 +178,7 @@ async function studio(b, base, tag) {
 
   const css = await E(() => ({
     has: CSS.supports('selector(:has(a))'), container: CSS.supports('container-type: inline-size'), mix: CSS.supports('color', 'color-mix(in srgb, red 50%, blue)'),
-    nesting: (() => { try { const s = new CSSStyleSheet(); s.replaceSync('.a { .b { color: red } }'); return s.cssRules[0].cssRules?.length === 1; } catch (e) { return false; } })(),
+    nesting: (() => { try { const s = new CSSStyleSheet(); s.replaceSync('.a { .b { color: red } }'); return s.cssRules[0].cssRules?.length === 1; } catch { return false; } })(),
     sketchQuery: (() => { const el = document.querySelector('[data-panel="sketch"]'); return el ? getComputedStyle(el).containerType : 'none'; })(),
   }));
   T.ok(css.has && css.container && css.mix, `${tag}: the CSS the studio uses is supported (:has() ${css.has}, container queries ${css.container}, color-mix() ${css.mix}, nesting ${css.nesting})`);
@@ -213,7 +213,7 @@ async function studio(b, base, tag) {
       const r = await c.startRendering();
       let pk = 0, nan = 0;
       for (let ch = 0; ch < 2; ch++) { const x = r.getChannelData(ch); for (let k = 0; k < x.length; k++) { const v = x[k]; if (!Number.isFinite(v)) nan++; else if (Math.abs(v) > pk) pk = Math.abs(v); } }
-      try { inst.dispose(); } catch (e) { /* fine */ }
+      try { inst.dispose(); } catch { /* fine */ }
       return { nan, pk };
     }
     const queue = all.slice();
@@ -365,7 +365,7 @@ async function studio(b, base, tag) {
   // END, the input recorder's) is a file on the studio's own origin, none made from a string
   const mods = await E(() => {
     const all = [...new Set(window.__worklets)];
-    const here = (u) => { try { const x = new URL(u, location.href); return x.origin === location.origin && x.pathname.startsWith('/app/'); } catch (e) { return false; } };
+    const here = (u) => { try { const x = new URL(u, location.href); return x.origin === location.origin && x.pathname.startsWith('/app/'); } catch { return false; } };
     const path = (u) => new URL(u, location.href).pathname.replace(/^\/app\//, '');
     return { n: all.length, off: all.filter((u) => !here(u)).map((u) => u.slice(0, 60)), paths: all.filter(here).map(path) };
   });
@@ -457,7 +457,7 @@ async function shelf(b, base, tag) {
   // (the page probes for the shared reader, app/src/devices/community.js, until Work package 1 lands: Firefox reports
   // the missing module as a disallowed MIME type)
   const readerThere = fs.existsSync(new URL('../app/src/devices/community.js', import.meta.url));
-  const errs = real(errors).filter((e) => readerThere || !/devices\/community\.js[^]*MIME type/.test(e));
+  const errs = real(errors).filter((e) => readerThere || !/devices\/community\.js[\s\S]*MIME type/.test(e));
   await page.screenshot({ path: path.join(OUTDIR, `compat-${tag}-community.png`) });
   const pol = await policy(page);
   T.ok(ok && faces === 1 && played?.blob && !errs.length && !pol.seen.length && pol.first && !pol.ran && pol.refused && pol.srcdocLoaded && !pol.srcdoc && !pol.wdata && !pol.wblob,
@@ -578,7 +578,7 @@ async function phoneLoop(b, base, tag) {
   T.ok(sel1.clip === target.clip, `${tag}: a tap on the Bass clip selects it`);
   await touch.tap(target.x, target.y); await sleep(30); await touch.tap(target.x, target.y);
   await page.waitForTimeout(500);
-  let rollOpen = await E(() => !document.querySelector('[data-panel="pianoroll"]').hidden);
+  const rollOpen = await E(() => !document.querySelector('[data-panel="pianoroll"]').hidden);
   T.ok(rollOpen, `${tag}: a double tap opens its notes in the Notes tab`);
   if (!rollOpen) { await E(() => { window.overdub.ui.select({ track: window.overdub.store.get().tracks.find((x) => x.name === 'Bass').id }); window.overdub.ui.show('pianoroll'); }); await page.waitForTimeout(400); }
   await shot('notes');
@@ -678,7 +678,7 @@ async function simple(b, base, tag) {
   try {
     await page.goto(base + '/app/?view=simple', { waitUntil: 'load' });
     let booted = true;
-    try { await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); } catch (e) { booted = false; }
+    try { await page.waitForSelector('html[data-ready="1"]', { timeout: 45000 }); } catch { booted = false; }
     T.ok(booted && !warns.length, `${tag}: the simple view boots, every module started (/app/?view=simple)${list(warns)}`);
     if (!booted) return;
     await page.waitForTimeout(500);

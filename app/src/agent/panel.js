@@ -48,7 +48,7 @@ export default function (app) {
 }
 
 const isSimple = (app) => app.ui?.workspace?.view?.() === 'simple';
-const mcpHere = (app) => { try { return (app.presence?.agents?.() || []).some((a) => a.source === 'mcp' && a.connected !== false); } catch (e) { return false; } };
+const mcpHere = (app) => { try { return (app.presence?.agents?.() || []).some((a) => a.source === 'mcp' && a.connected !== false); } catch { return false; } };
 let autoDemo = false;    // the demo agent is on because the simple view chose it, not the person
 function demoByDefault(app) {
   const a = app.agent;
@@ -56,9 +56,9 @@ function demoByDefault(app) {
   a.useMock(true);
   autoDemo = true;
   // not remembered for the tab: the next load decides again, so Claude Code or a key set meanwhile wins
-  try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ }
+  try { sessionStorage.removeItem('overdub:agent-mock'); } catch { /* ok */ }
 }
-const localWanted = (app) => { try { return localStorage.getItem('overdub:agent-local') === '1' && !!app.agent?.local?.available; } catch (e) { return false; } };
+const localWanted = (app) => { try { return localStorage.getItem('overdub:agent-local') === '1' && !!app.agent?.local?.available; } catch { return false; } };
 function yieldDemo(app) {
   const a = app.agent;
   if (!autoDemo || !a) return;
@@ -71,7 +71,7 @@ function yieldDemo(app) {
 function mountPanel(el, app) {
   const { ui, store, agent } = app;
   el.classList.add('ag');
-  const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* full */ } } };
+  const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* full */ } } };
 
   /* ---------------------------------------------------------------- state */
   let pid = store.get().id;
@@ -80,7 +80,7 @@ function mountPanel(el, app) {
   let showKey = false;
   let held = false;                // a message sent with no agent on: it waits in the box, with the choice under it
   let contextOff = false;
-  let bridge = { state: 'off', agents: [] };
+  const bridge = { state: 'off', agents: [] };
   let root = '';
   const nodes = new Map();         // entry -> element
   let dirty = new Set();
@@ -115,7 +115,7 @@ function mountPanel(el, app) {
   /* ---------------------------------------------------------------- feed persistence */
   function loadFeed() {
     let list = [];
-    try { const s = ls.get(FEED_KEY + pid); list = s ? JSON.parse(s).filter((e) => e && e.k && e.action !== 'retired') : []; } catch (e) { list = []; }
+    try { const s = ls.get(FEED_KEY + pid); list = s ? JSON.parse(s).filter((e) => e && e.k && e.action !== 'retired') : []; } catch { list = []; }
     // the retired-key note is never saved with a song: it rides at the end of whichever song is open until it is
     // dismissed, so opening another song first doesn't lose it
     if (agent.keyRetired) list.push({ k: 'note', kind: 'ok', action: 'retired', at: Date.now() });
@@ -422,7 +422,7 @@ function mountPanel(el, app) {
           if (out) break;
         }
       }
-    } catch (e) { out = null; }
+    } catch { out = null; }
     rolls.set(c, out);
     return out;
   }
@@ -450,7 +450,7 @@ function mountPanel(el, app) {
   }
   function summarize(req) {
     const r = req.result || {};
-    if (typeof req.summarize === 'function') { try { return req.summarize(req); } catch (err) { return 'Closed'; } }
+    if (typeof req.summarize === 'function') { try { return req.summarize(req); } catch { return 'Closed'; } }
     if (req.kind === 'question') return r.answer ? `${req.question} You said “${r.answer}”.` : `${req.question} Skipped.`;
     if (req.keep) {
       const who = nameOf(req.by), items = req.keep.items;
@@ -479,7 +479,7 @@ function mountPanel(el, app) {
     const lead = first && live.length > 0, firstDemo = first && !lead && !cc;
     const models = h('div.ag-models', { role: 'radiogroup', 'aria-label': 'Model' }, MODELS.map((m) => h(`button.ag-model${agent.model === m.id ? '.on' : ''}`, { type: 'button', role: 'radio', 'aria-checked': String(agent.model === m.id), onclick: () => { agent.setModel(m.id); renderAll(); } }, h('b', m.name), h('span', m.blurb))));
     const cmd = MCP_CMD(root);
-    const copy = h('button.btn', { type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(cmd); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1500); } catch (e) { ui.toast('Select the command and copy it (the clipboard is blocked here)'); } } }, 'Copy');
+    const copy = h('button.btn', { type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(cmd); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1500); } catch { ui.toast('Select the command and copy it (the clipboard is blocked here)'); } } }, 'Copy');
     // Claude Code on this computer, answering in this panel on the person's Claude plan (agent/claude.js, 'local')
     const ccBtn = h(first ? 'button.btn.btn-go.ag-cc-use' : 'button.btn.ag-cc-use', { type: 'button', onclick: () => useLocal(!(agent.provider === 'local')) }, agent.provider === 'local' ? 'Turn Claude Code off' : 'Use Claude Code here');
     // (an agent already connected over MCP leads instead: it's the one in the room)

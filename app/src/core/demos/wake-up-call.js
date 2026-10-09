@@ -1,3 +1,4 @@
+// @ts-check
 // "Wake-Up Call": a gospel ballad in 12/8, 20 bars in Ab major at 66 bpm (each beat a dotted quarter, three triplet
 // eighths to it). The Baby Grand plays a Sunday-morning verse: I-iii-vi, Ab7 over its seventh walking the bass down to
 // Db/F, then the minor plagal (Dbm6) and home through Ab/Eb and Eb9sus4, every chord a step or a hold from the last;

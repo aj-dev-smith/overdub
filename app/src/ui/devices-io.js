@@ -42,7 +42,7 @@ export function toDeviceFile(def, { exportedBy } = {}) {
 // Parse a file's text (or an already-parsed object) into a def. Throws with a message a person can act on.
 export function parseDeviceFile(input) {
   let o = input;
-  if (typeof input === 'string') { try { o = JSON.parse(input); } catch (e) { throw new Error('the file isn’t JSON'); } }
+  if (typeof input === 'string') { try { o = JSON.parse(input); } catch { throw new Error('the file isn’t JSON'); } }
   if (!o || typeof o !== 'object') throw new Error('the file is empty');
   if (o.format && o.format !== FORMAT) {
     if (/^overdub\//.test(o.format) || Array.isArray(o.tracks)) throw new Error('that’s a song, not a device: open it from the Song menu');
@@ -170,7 +170,7 @@ export default function (app) {
     e.preventDefault();
     for (const f of files) {
       const text = await f.text();
-      let o = null; try { o = JSON.parse(text); } catch (err) { /* reported below */ }
+      let o = null; try { o = JSON.parse(text); } catch { /* reported below */ }
       if (o && (o.format === FORMAT || (o.device && o.device.kernel))) await importDevice(o, { name: f.name });
       else if (o && Array.isArray(o.tracks) && app.exporter?.loadText) app.exporter.loadText(text, f.name);
       else ui.toast(`${f.name} isn’t a device file (${FILE_EXT})`, { kind: 'bad' });
@@ -201,7 +201,7 @@ export default function (app) {
         const { SHOWCASE } = await import('../devices/showcase.js');
         const src = SHOWCASE.find((d) => d.id === id);
         if (src) { ops.push({ type: 'device.define', device: { ...src } }); def = src; }
-      } catch (e) { /* no showcase: fall through */ }
+      } catch { /* no showcase: fall through */ }
     }
     if (!def) { ui.toast(`No device "${id}" in this studio`, { kind: 'bad' }); return null; }
     if (def.kind === 'instrument') ops.push({ type: 'track.add', ref: 't', track: { name: def.name, kind: 'instrument', instrument: { device: id, params: {} } } });
@@ -215,7 +215,7 @@ export default function (app) {
       { type: 'project.set', patch: { loop: { on: true, start: 0, end: clip.length || 16 } } },
     ], { by: 'overdub', label: 'a few bars to hear it with' });
     ui.select({ track: tid, clip: null, insert: null });
-    try { ui.show('rack'); } catch (e) { /* no rack panel */ }
+    try { ui.show('rack'); } catch { /* no rack panel */ }
     ui.toast(`${def.name} is on a new track${def.kind === 'effect' ? `, after ${devices.getDevice('core.keys')?.name || 'the keys'}` : ''}, with a few bars to hear it. Press Space to play.`, { kind: 'ok', ms: 6000 });
     return tid;
   }
@@ -225,7 +225,7 @@ export default function (app) {
     ui.on('ready', () => {
       openWith(id).finally(() => {
         // don't redo it (or start another new song) on a reload: the song is saved now
-        try { const u = new URL(location.href); u.searchParams.delete('device'); u.searchParams.delete('new'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } catch (e) { /* fine */ }
+        try { const u = new URL(location.href); u.searchParams.delete('device'); u.searchParams.delete('new'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } catch { /* fine */ }
       });
     });
   }

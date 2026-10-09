@@ -33,7 +33,7 @@ export function reader({ allow, onFrame, onError, maxHeader = 1 << 20 }) {
           if (hl > maxHeader) return fail(`a header of ${hl} bytes`);
           if (buf.length < 8 + hl) return;
           let header;
-          try { header = JSON.parse(buf.subarray(8, 8 + hl).toString('utf8')); } catch (e) { return fail('a header that is not JSON'); }
+          try { header = JSON.parse(buf.subarray(8, 8 + hl).toString('utf8')); } catch { return fail('a header that is not JSON'); }
           let want;
           try { want = allow(header); } catch (e) { return fail(e.message); }
           if (want !== pl) return fail(`${pl} bytes where ${want} were expected`);

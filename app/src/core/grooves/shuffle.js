@@ -1,3 +1,4 @@
+// @ts-check
 // Blues shuffle. The format: core/grooves.js's header. Groups of three cells are eighth-note triplets: the 12/8 feel.
 export default `
 style shuffle  Blues shuffle

@@ -248,10 +248,10 @@ export function createShell(root, app) {
   function loadLayout() {
     // (a first visit: the song, its detail pane and the agent; the Browser and the Inspector wait behind B and their button)
     const def = { leftW: 236, rightW: 380, bottomH: 300, open: { left: false, right: true, bottom: true }, tabs: {} };
-    try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s) return { ...def, ...s, open: { ...def.open, ...(s.open || {}) }, tabs: { ...(s.tabs || {}) } }; } catch (e) { /* fresh */ }
+    try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s) return { ...def, ...s, open: { ...def.open, ...(s.open || {}) }, tabs: { ...(s.tabs || {}) } }; } catch { /* fresh */ }
     return def;
   }
-  function saveLayout() { try { localStorage.setItem(STORE_KEY, JSON.stringify(layout)); } catch (e) { /* private mode */ } }
+  function saveLayout() { try { localStorage.setItem(STORE_KEY, JSON.stringify(layout)); } catch { /* private mode */ } }
   if (window.innerWidth < 900) { layout.open.left = false; layout.open.right = false; applyLayout(); }
   // a phone's sheet starts just under half the screen, so the arrangement stays in view (drag it taller from there)
   if (phone()) { layout.bottomH = Math.round(window.innerHeight * (window.innerHeight < 720 ? 0.4 : 0.45)); applyLayout(); }
@@ -405,9 +405,9 @@ export function createShell(root, app) {
     if (movedSaid) return false;
     movedSaid = true;
     let seen = {};
-    try { const v = JSON.parse(localStorage.getItem(MOVED_KEY) || '{}'); if (v && typeof v === 'object' && !Array.isArray(v)) seen = v; } catch (e) { /* blocked or unreadable: once a session */ }
+    try { const v = JSON.parse(localStorage.getItem(MOVED_KEY) || '{}'); if (v && typeof v === 'object' && !Array.isArray(v)) seen = v; } catch { /* blocked or unreadable: once a session */ }
     if (Object.keys(seen).length) return false;
-    try { localStorage.setItem(MOVED_KEY, JSON.stringify(Object.fromEntries([...MOVED_IDS, id].map((k) => [k, 1])))); } catch (e) { /* private mode */ }
+    try { localStorage.setItem(MOVED_KEY, JSON.stringify(Object.fromEntries([...MOVED_IDS, id].map((k) => [k, 1])))); } catch { /* private mode */ }
     return true;
   };
   const typing = (t) => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
@@ -438,11 +438,11 @@ export function createShell(root, app) {
   // by a when() stay: they only fire in a mode you turned on or a panel you're in.
   const SINGLE = /^(Key[A-Z]|Digit\d|Backquote|Slash|Backslash|Comma|Period|Semicolon|Quote|BracketLeft|BracketRight|Minus|Equal)$/;
   let singleKeys = true;
-  try { singleKeys = JSON.parse(localStorage.getItem('overdub:keys') || '{}').single !== false; } catch (e) { /* default on */ }
+  try { singleKeys = JSON.parse(localStorage.getItem('overdub:keys') || '{}').single !== false; } catch { /* default on */ }
   ui.keys.single = (on) => {
     if (on === undefined) return singleKeys;
     singleKeys = !!on;
-    try { localStorage.setItem('overdub:keys', JSON.stringify({ single: singleKeys })); } catch (e) { /* private mode */ }
+    try { localStorage.setItem('overdub:keys', JSON.stringify({ single: singleKeys })); } catch { /* private mode */ }
     ui.emit('keys:single', singleKeys);
     return singleKeys;
   };
@@ -533,15 +533,15 @@ export function createShell(root, app) {
   // A floating window (a device's, ui/plugin.js) is never under a toast: it registers itself while it is open
   // (ui.dockToasts({ el, box }) -> undock), and the toasts stand beside it where there's room for them, else in its own
   // line (box: a phone's full-screen window always), and go back to the stack when it closes.
-  let placedAt = '', dock = null;
+  let dock = null;
   ui.dockToasts = (d) => {
     dock = d;
-    placedAt = ''; placeToasts();
+    placeToasts();
     return () => {
       if (dock !== d) return;
       dock = null;
       for (const t of [...d.box.children]) toasts.append(t);
-      placedAt = ''; placeToasts();
+      placeToasts();
     };
   };
   const toastsNow = () => [...toasts.children, ...(dock ? dock.box.children : [])].filter((t) => t.classList.contains('ew-toast'));
@@ -594,13 +594,12 @@ export function createShell(root, app) {
       }
     }
     if (!lifted) unlift();
-    placedAt = `${right}|${bottom}`;
     toasts.style.right = right == null || phone() ? '' : right + 'px';
     toasts.style.bottom = bottom == null ? '' : bottom + 'px';
     if (right == null || phone()) toasts.style.maxWidth = '';
     if (dock) keepClear();
   }
-  ui.placeToasts = () => { placedAt = ''; placeToasts(); };
+  ui.placeToasts = () => { placeToasts(); };
 
   // A toast with an action stays at least 10 s (time to reach its button from the keyboard), and its clock stops
   // while the pointer or focus is on it.
@@ -620,7 +619,7 @@ export function createShell(root, app) {
     t._key = key;
     toasts.append(t);
     if (phone()) { const up = toastsNow().filter((x) => !x.classList.contains('out')); for (const x of up.slice(0, Math.max(0, up.length - 2))) { x.classList.add('out'); setTimeout(() => x.remove(), 300); } }
-    placedAt = ''; placeToasts();
+    placeToasts();
     let left = action ? Math.max(ms, 10000) : ms, since = performance.now(), timer = 0, held = 0, n = 1;
     const go = () => { since = performance.now(); timer = setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, left); };
     const hold = () => { if (held++) return; clearTimeout(timer); left = Math.max(1500, left - (performance.now() - since)); };

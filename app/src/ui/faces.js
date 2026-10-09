@@ -30,7 +30,7 @@ import { toPos, fromPos } from '../core/automation.js';
 import { holdToMove } from './touch.js';
 
 let dom = null;
-try { dom = await import('./dom.js'); } catch (e) { dom = null; } // FALLBACK until ui/dom.js lands: inject <style> here
+try { dom = await import('./dom.js'); } catch { dom = null; } // FALLBACK until ui/dom.js lands: inject <style> here
 
 const FONTS = { dirt: '"Rubik Dirt", Impact, "Arial Black", sans-serif', pixel: 'Silkscreen, ui-monospace, monospace' };
 const LOOKS = evalLooks({ FONTS, PLUG_AMPS: {} });
@@ -71,7 +71,7 @@ const decimals = (q) => (q >= 1 ? 0 : q >= 0.1 ? 1 : q >= 0.01 ? 2 : 3);
 const quantum = (p) => p.step || (Math.abs(p.max - p.min) >= 5 ? 0.1 : Math.abs(p.max - p.min) / 200);
 export function valueText(p, v) {
   if (p.opts) return String(p.opts[clamp(Math.round(v), 0, p.opts.length - 1)] ?? '');
-  if (typeof p.fmt === 'function') { try { const s = p.fmt(v); if (s != null) return String(s); } catch (e) { /* its own business */ } }
+  if (typeof p.fmt === 'function') { try { const s = p.fmt(v); if (s != null) return String(s); } catch { /* its own business */ } }
   const d = decimals(quantum(p)), n = (x, k = d) => (+x).toFixed(k);
   switch (p.unit) {
     case 'Hz': return v >= 1000 ? n(v / 1000, v >= 10000 ? 1 : 2) + ' kHz' : Math.round(v) + ' Hz';
@@ -709,7 +709,7 @@ function ensureCss() {
   }
 }
 function fontDeclared(family) {
-  try { for (const f of document.fonts) if (String(f.family).replace(/^["']|["']$/g, '') === family) return true; } catch (e) { /* no FontFaceSet */ }
+  try { for (const f of document.fonts) if (String(f.family).replace(/^["']|["']$/g, '') === family) return true; } catch { /* no FontFaceSet */ }
   return false;
 }
 export { ensureCss as injectFaceCss };

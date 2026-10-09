@@ -24,7 +24,7 @@ import { snapGentle, fitHits, fitSegs, tightness, blend, placeTake, leanOf } fro
 import { newPartFor } from '../app/src/core/sounds.js';
 import { clickSamples } from '../app/src/engine/click.js';
 import { renderSong } from '../app/src/engine/node/render.js';
-import { perform, sloppyHum, rng, wav } from './sloppy.js';
+import { perform, sloppyHum, rng, } from './sloppy.js';
 
 const T = tally('input');
 let seed = 12345;
@@ -692,7 +692,7 @@ function drum(kind, sr, len = 0.25) {
   };
   try {
     await page.addInitScript(NAMED);
-    await page.evaluate(() => { try { localStorage.removeItem('overdub:input'); } catch (e) { /* ok */ } });
+    await page.evaluate(() => { try { localStorage.removeItem('overdub:input'); } catch { /* ok */ } });
     await page.reload({ waitUntil: 'load' });
     await ready();
     const r = await page.evaluate(async () => {
@@ -932,7 +932,7 @@ const IGNORE = (e) => /Failed to load resource/.test(e) && !/\/input\/|sketch|sp
       const ns = await page.evaluate(async () => {
         const app = window.overdub, { engine } = app;
         engine.seek(26);
-        try { await engine.play(26); } catch (e) { /* no audio here */ }
+        try { await engine.play(26); } catch { /* no audio here */ }
         const before = { playing: !!engine.playing, beat: engine.beat };
         await app.exporter.newSong();
         await new Promise((r) => setTimeout(r, 250));
@@ -1015,10 +1015,12 @@ const AMIN = [[57, 1], [60, 1], [64, 1], [60, 1], [57, 2]];   // A3 C4 E4 C4 A3:
       const app = window.overdub;
       const t = app.store.dispatch({ type: 'track.add', ref: 'b', track: { name: 'Beat', kind: 'instrument', instrument: { device: 'core.drums', params: {} } } }, { by: 'you', label: 'add a track' }).created.b;
       app.store.dispatch({ type: 'clip.add', track: t, clip: { kind: 'notes', start: 0, length: 8, name: 'Tapped beat', notes: [0, 1, 2, 3, 4, 5, 6, 7].map((b) => ({ p: b % 2 ? 38 : 36, t: b, d: 0.25, v: 0.8 })) } }, { by: 'you', label: 'tapped beat' });
+      // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
       const tk = await eval(src);
       return tk && { ps: tk.result.notes.map((n) => n.p).join(','), moved: tk.result.moved.length, key: tk.opts.key, heard: tk.opts.heard, toasts: [...document.querySelectorAll('.ew-toast')].map((x) => x.textContent).filter((x) => /^Moved/.test(x.trim())) };
     }, humLine([[64, 1], [64, 1], [67, 1], [69, 2], [69, 1], [67, 1], [64, 1], [62, 1], [64, 2]]));
     T.ok(h0 && h0.ps === '64,64,67,69,69,67,64,62,64' && h0.moved === 0 && !h0.key && h0.heard?.root === 'E' && !h0.toasts.length, `after the first minute's tapped beat, a hum keeps the tune as sung, E E G A A G E D E, nothing moved into a key nobody picked (${h0 && h0.ps}, moved ${h0 && h0.moved}, heard ${h0?.heard?.root} ${h0?.heard?.scale})`);
+    // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
     const h1 = await page.evaluate(async (src) => { const tk = await eval(src); return tk && { n: tk.result.notes.length, moved: tk.result.moved.length, ps: tk.result.notes.map((n) => n.p).join(','), key: tk.opts.key, heard: tk.opts.heard }; }, humLine(AMIN));
     await page.waitForTimeout(200);
     const s1 = await page.evaluate(() => ({ status: document.querySelector('.sk-status')?.textContent || '', snap: [...document.querySelectorAll('.sk-opts .sk-chip')].find((c) => /^Snap/.test(c.textContent)), opts: [...document.querySelectorAll('.sk-foot .sk-destwrap option')].map((o) => o.textContent) }));
@@ -1036,6 +1038,7 @@ const AMIN = [[57, 1], [60, 1], [64, 1], [60, 1], [57, 2]];   // A3 C4 E4 C4 A3:
     });
     T.ok(k1.text === 'Kept ✓' && !k1.primary && k1.disabled, `after Keep the button reads "${k1.text}" and is no longer the bright primary`);
     T.ok(k1.key?.root === 'A' && k1.key?.scale === 'minor' && /A minor/.test(k1.toast), `the kept hum gives the song its key: ${k1.key && k1.key.root} ${k1.key && k1.key.scale} ("${k1.toast}")`);
+    // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
     const h2 = await page.evaluate(async (src) => { const tk = await eval(src); return tk && { moved: tk.result.moved.length, key: tk.opts.key }; }, humLine([[57, 1], [61, 1], [64, 2]]));
     T.ok(h2 && h2.key?.root === 'A' && h2.moved === 1, `the next hum snaps to the song's key, now A minor (C#4 → C4: moved ${h2 && h2.moved})`);
     // and says so where it can be seen, with Undo, which puts the notes back as sung (and Snap off for the next hum)
@@ -1154,7 +1157,7 @@ console.log('  ..   screenshots in ' + path.relative(process.cwd(), OUTDIR));
   const { context, url, close } = await open('/app/', { query: 'demo', width: 1440, height: 900 });
   try {
     const page = await context.newPage();
-    await page.addInitScript(() => { try { delete Navigator.prototype.requestMIDIAccess; } catch (e) { /* ok */ } });
+    await page.addInitScript(() => { try { delete Navigator.prototype.requestMIDIAccess; } catch { /* ok */ } });
     await page.goto(url, { waitUntil: 'load' });
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30000 });
     await page.evaluate(() => document.querySelector('.sk-mode[data-mode="play"]')?.click());

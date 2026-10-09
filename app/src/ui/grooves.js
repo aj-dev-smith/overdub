@@ -34,7 +34,7 @@ const PLAN_WORD = { intro: 'Intro', verse: 'Verse', chorus: 'Chorus', bridge: 'B
 export default function (app) {
   installGrooveTools(app);
   css('grooves', CSS);
-  const { ui, store } = app;
+  const { ui } = app;
   // (once the studio is up: the autosave listens from then on, so the healed song is saved)
   if (document.documentElement.dataset.ready === '1') healLeftover(app);
   else { const off = ui.on('ready', () => { off(); healLeftover(app); }); }
@@ -45,9 +45,9 @@ export default function (app) {
 // would have, with nothing in History (the song never had it).
 function healLeftover(app) {
   let rec = null;
-  try { rec = JSON.parse(localStorage.getItem(HEARING_KEY) || 'null'); } catch (e) { rec = null; }
+  try { rec = JSON.parse(localStorage.getItem(HEARING_KEY) || 'null'); } catch { rec = null; }
   if (!rec) return;
-  try { localStorage.removeItem(HEARING_KEY); } catch (e) { /* storage blocked */ }
+  try { localStorage.removeItem(HEARING_KEY); } catch { /* storage blocked */ }
   const p = app.store.get();
   if (rec.song !== p.id) return;
   const t = p.tracks.find((x) => x.id === rec.track);
@@ -226,7 +226,7 @@ function mountGrooves(el, app) {
     const r = putGroove(app, { groove: g, track: opts.track, bar: opts.bar ?? putBar(), bars: opts.bars ?? putBars(g), by: 'you', under: 'cut' });
     if (!r.ok) { ui.toast(r.error, { kind: 'bad' }); return r; }
     ui.toast(`${r.summary.replace(/ \(.*?\)\./, '.').replace(/\.$/, '')}.`, { action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
-    try { app.arranger?.show?.([r.clip], 'you'); } catch (e) { /* the arranger draws it anyway */ }
+    try { app.arranger?.show?.([r.clip], 'you'); } catch { /* the arranger draws it anyway */ }
     return r;
   }
 
@@ -286,7 +286,7 @@ function mountGrooves(el, app) {
     const handle = store.preview(ops, { by: 'you' });
     if (!handle.ok) { ui.toast(`Can't play that groove here: ${handle.error}`, { kind: 'bad' }); return { ok: false, error: handle.error }; }
     A = { handle, track: handle.created.hear, start, end: start + len, loops: inLoop, gen: null, groove: g.id, alone: !!alone, started: false };
-    try { localStorage.setItem(HEARING_KEY, JSON.stringify({ song: p.id, track: A.track, muted, soloed, at: Date.now() })); } catch (e) { /* storage blocked: the release still happens */ }
+    try { localStorage.setItem(HEARING_KEY, JSON.stringify({ song: p.id, track: A.track, muted, soloed, at: Date.now() })); } catch { /* storage blocked: the release still happens */ }
     syncBar();
     const mine = A;
     try {
@@ -307,9 +307,9 @@ function mountGrooves(el, app) {
     let rel = null;
     if (why !== 'load') rel = a.handle.release();
     if (rel && rel.ok === false) ui.toast('Part of that groove couldn\'t be taken back out: the song changed while it played.', { kind: 'bad' });
-    if (a.started && engine?.playing && why !== 'stopped' && (a.gen == null || engine.gen == null || engine.gen === a.gen)) { try { engine.stop({ live: false }); } catch (e) { /* stopped already */ } }
+    if (a.started && engine?.playing && why !== 'stopped' && (a.gen == null || engine.gen == null || engine.gen === a.gen)) { try { engine.stop({ live: false }); } catch { /* stopped already */ } }
     // the autosave writes the song half a second after a change: keep the record until the song it saves is clean
-    if (why !== 'unload') setTimeout(() => { if (!A) { try { localStorage.removeItem(HEARING_KEY); } catch (e) { /* storage blocked */ } } }, 900);
+    if (why !== 'unload') setTimeout(() => { if (!A) { try { localStorage.removeItem(HEARING_KEY); } catch { /* storage blocked */ } } }, 900);
     syncBar();
   }
 
@@ -325,7 +325,7 @@ function mountGrooves(el, app) {
     // the sound of the pad, on the drum track the groove would go onto (or the one being heard)
     const pd = PAD.find((x) => x.voice === voice);
     const tr = A?.track || targetTrack(app)?.id;
-    if (tr && pd) { try { engine.audition?.(tr, pd.p, 0.85, 0.25); } catch (e) { /* no sound yet */ } }
+    if (tr && pd) { try { engine.audition?.(tr, pd.p, 0.85, 0.25); } catch { /* no sound yet */ } }
     syncTaps();
   }
   function find() {
@@ -450,7 +450,7 @@ function mountGrooves(el, app) {
     const others = otherKits(r.track.id);
     const still = others.length === 1 ? ` ${others[0]} still plays: M on its header mutes it.` : others.length ? ` ${others.length} other kits still play: M on a track's header mutes it.` : '';
     ui.toast(`Drums for the song: ${lib.styles.find((s) => s.id === r.style)?.name || r.style} on ${r.track.name}, ${r.clips.length} clip${r.clips.length === 1 ? '' : 's'}, one per section${r.plan.ending ? '' : ', no ending'}.${still}`, { kind: 'ok', ms: 9000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
-    try { app.arranger?.show?.(r.clips.map((c) => c.clip), 'you'); } catch (e) { /* drawn anyway */ }
+    try { app.arranger?.show?.(r.clips.map((c) => c.clip), 'you'); } catch { /* drawn anyway */ }
     return r;
   }
 
@@ -461,7 +461,7 @@ function mountGrooves(el, app) {
       if (e.button !== 0) return;
       drag = { g, id: e.pointerId, x: e.clientX, y: e.clientY, on: false, ghost: null, touch: e.pointerType === 'touch', held: false, timer: 0, el: rowEl };
       // a finger holds a moment first, so a drag can still scroll the list
-      if (drag.touch) { const d = drag; d.timer = setTimeout(() => { if (drag === d) { d.held = true; try { navigator.vibrate?.(10); } catch (err) { /* no buzz */ } } }, 320); }
+      if (drag.touch) { const d = drag; d.timer = setTimeout(() => { if (drag === d) { d.held = true; try { navigator.vibrate?.(10); } catch { /* no buzz */ } } }, 320); }
     });
     rowEl.addEventListener('pointermove', (e) => {
       const d = drag;
@@ -471,7 +471,7 @@ function mountGrooves(el, app) {
         if (!far) return;
         if (d.touch && !d.held) { clearTimeout(d.timer); drag = null; return; }   // a swipe: the list scrolls
         d.on = true;
-        try { rowEl.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+        try { rowEl.setPointerCapture(e.pointerId); } catch { /* fine */ }
         d.ghost = h('div.gv-ghost', { role: 'presentation' }, `${g.styleName}, ${g.name}`);
         document.body.append(d.ghost);
       }

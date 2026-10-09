@@ -1,3 +1,4 @@
+// @ts-check
 // core.clipper: Clip Lamp. A clipper for drums and loud masters: DRIVE pushes the sound into a CEILING it never passes,
 // and the peaks that would have gone over are cut off (HARD), rounded (SOFT) or leaned on like tape (TAPE), KNEE
 // setting how far under the ceiling the bend starts. The clip LED on a console, lit on purpose.

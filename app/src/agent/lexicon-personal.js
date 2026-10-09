@@ -1,3 +1,4 @@
+// @ts-check
 // The personal lexicon: what THIS person means by the words people disagree on. docs/UX-RESEARCH.md §7 (P1, "personal
 // lexicon learned by A/B"): "warm" is the most-taught word in SocialEQ but only 10th for agreement, so the studio asks
 // once, with two audible readings (agent/lexicon.js READINGS), and keeps the pick.
@@ -21,13 +22,13 @@ export const KEY = 'overdub:lexicon-personal';
 let memory = null;                    // the fallback when localStorage is missing or blocked
 const listeners = new Set();
 
-function storage() { try { return globalThis.localStorage || null; } catch (e) { return null; } }
+function storage() { try { return globalThis.localStorage || null; } catch { return null; } }
 function read() {
   let raw = memory;
   const s = storage();
-  if (s) { try { raw = s.getItem(KEY); } catch (e) { /* blocked: memory */ } }
+  if (s) { try { raw = s.getItem(KEY); } catch { /* blocked: memory */ } }
   let data = null;
-  try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
   const words = {};
   for (const [w, e] of Object.entries((data && data.words) || {})) {
     const rs = READINGS[w];
@@ -42,7 +43,7 @@ function write(data) {
   const raw = JSON.stringify(data);
   memory = raw;
   const s = storage();
-  if (s) { try { s.setItem(KEY, raw); } catch (e) { /* full or blocked: memory keeps it for this page */ } }
+  if (s) { try { s.setItem(KEY, raw); } catch { /* full or blocked: memory keeps it for this page */ } }
   emit();
 }
 function emit() { for (const fn of [...listeners]) { try { fn(); } catch (e) { console.error('lexicon-personal listener', e); } } }
@@ -128,4 +129,4 @@ export function forAgents() {
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 // another tab changed it: tell this one's listeners (the settings list)
-try { globalThis.addEventListener?.('storage', (e) => { if (e.key === KEY || e.key === null) emit(); }); } catch (e) { /* Node */ }
+try { globalThis.addEventListener?.('storage', (e) => { if (e.key === KEY || e.key === null) emit(); }); } catch { /* Node */ }

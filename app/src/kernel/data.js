@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data on the page: the files a device's `data` names ({ kit: 'sha256-<hex>' }), fetched once, checked against
 // their name, kept in IndexedDB beside the audio assets ('overdub-kits'), and handed to kernel/host.js as bytes. The
 // worklet decodes them (kernel/odk.js); the page never does. Songs and share links carry only the hash.
@@ -46,7 +47,7 @@ function db() {
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => resolve(null);
       rq.onblocked = () => resolve(null);
-    } catch (e) { resolve(null); }
+    } catch { resolve(null); }
   });
   return dbp;
 }
@@ -94,7 +95,7 @@ function expectedLength(head, r) {
       let n = 0;
       for (const e of k.samples || []) n += (e.frames | 0) * (k.channels | 0);
       return 12 + H + 2 * n;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
   const enc = r.headers.get('content-encoding'), len = +r.headers.get('content-length');
   return !enc && len > 0 ? len : null;
@@ -126,7 +127,7 @@ async function fetchBytes(url, hash) {
     let o = 0;
     for (const p of parts) { out.set(p, o); o += p.length; }
     return out;
-  } catch (e) { /* offline, or not served */ }
+  } catch { /* offline, or not served */ }
   return null;
 }
 
@@ -145,7 +146,7 @@ export function loadData(hash) {
           const odk = isPacked(b) ? await odkOf(hash, b, 'the cached copy') : b;
           if (odk) return odk;
         }
-      } catch (e) { /* not cached */ }
+      } catch { /* not cached */ }
     }
     // the packed file first (about two thirds of the transfer), then the plain one; each must rebuild to the hash
     const file = dataFile(hash);
@@ -158,7 +159,7 @@ export function loadData(hash) {
     }
     if (!odk) return null;
     // IndexedDB keeps what came over the wire: the packed bytes are about 3.4 times smaller (Safari's quota)
-    if (d) { try { await tx(d, 'readwrite', (s) => s.put({ hash, bytes: keep.buffer.slice(keep.byteOffset, keep.byteOffset + keep.byteLength) })); } catch (e) { /* kept for this session only */ } }
+    if (d) { try { await tx(d, 'readwrite', (s) => s.put({ hash, bytes: keep.buffer.slice(keep.byteOffset, keep.byteOffset + keep.byteLength) })); } catch { /* kept for this session only */ } }
     return odk;
   })().then((b) => {
     pending.delete(hash);

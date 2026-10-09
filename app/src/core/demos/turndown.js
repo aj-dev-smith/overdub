@@ -1,3 +1,4 @@
+// @ts-check
 // "Turndown": French house, 32 bars in B minor at 124 bpm. A disco loop on the Suitcase's reeds (the chords and the
 // root inside it, chopped in sixteenths, Bm9 Gmaj7 Em7 F#m7) through Keyhole, low-pass, and the song is that filter:
 // shut in the intro, opening slowly through the build, wide open on the drop, slammed shut for the break and swept back

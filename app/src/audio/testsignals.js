@@ -1,3 +1,4 @@
+// @ts-check
 // Test signals: what Overdub renders through a device (or a chain) when it needs to hear how something behaves.
 // Pure JS, deterministic (seeded), Node and browser. Audio comes back as Float32Arrays at `sr` (mono unless noted);
 // `stereo(x)` / `toBuffer(c, ...)` wrap them. Levels are stated, and checked in tools/sounds-test.js.

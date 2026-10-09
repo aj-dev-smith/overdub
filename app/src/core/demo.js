@@ -1,3 +1,4 @@
+// @ts-check
 // The song a new studio opens with: "Night Shift", 8 bars in A minor at 92 bpm, so there is something to play, look
 // at and ask the agent about. Most of it is by 'overdub' (the house: drawn neutral). The parts an agent made are
 // signed by 'claude' and drawn cool: the Fireflies track and its instrument, and the two effects it built (the

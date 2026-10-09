@@ -16,7 +16,7 @@ const SAVE = 'overdub:midi';
 
 export function createMidi(app, input) {
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { saved = {}; }
   const supported = typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess;
   const range0 = Number.isFinite(saved.bendRange) ? Math.max(1, Math.min(24, Math.round(saved.bendRange))) : 2;
   const state = { supported, connected: false, inputs: [], device: saved.device || '', status: supported ? '' : 'No Web MIDI in this browser: use Chrome, Edge or Firefox (or play the computer keys).', sustain: false, bend: 0, mod: 0, bendRange: range0, last: null };
@@ -27,7 +27,7 @@ export function createMidi(app, input) {
   const held = new Map();     // src:p -> true (key down)
   const sustained = new Set(); // src:p released while the pedal was down
   const changed = () => input.emit('midi', state);
-  const save = () => { try { localStorage.setItem(SAVE, JSON.stringify({ want: true, device: state.device, bendRange: state.bendRange })); } catch (e) { /* ok */ } };
+  const save = () => { try { localStorage.setItem(SAVE, JSON.stringify({ want: true, device: state.device, bendRange: state.bendRange })); } catch { /* ok */ } };
   const expr = (src, x) => { if (input.expr) input.expr(src, x, 'midi'); };
   const bendTo = (src, raw) => { ctlFrom = src; bendRaw = raw; state.bend = Math.round(raw * state.bendRange * 1000) / 1000; expr(src, { bend: state.bend }); };
 
@@ -74,7 +74,7 @@ export function createMidi(app, input) {
     },
     async connect({ quiet = false } = {}) {
       if (!supported) { changed(); return false; }
-      try { access = access || await navigator.requestMIDIAccess({ sysex: false }); } catch (e) {
+      try { access = access || await navigator.requestMIDIAccess({ sysex: false }); } catch {
         state.status = quiet ? '' : 'MIDI wasn’t allowed. Allow it for this site (the icon in the address bar), then connect again.';
         changed(); return false;
       }

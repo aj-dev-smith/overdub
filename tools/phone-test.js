@@ -55,7 +55,7 @@ const ignorable = (e) => /Failed to load resource|favicon|net::ERR|fonts\.g|the 
 
 function findPlaywright() {
   const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean);
-  for (const t of tries) { try { return require(t); } catch (e) { /* next */ } }
+  for (const t of tries) { try { return require(t); } catch { /* next */ } }
   throw new Error('playwright-core not found: set PLAYWRIGHT_CORE or `npm i --no-save playwright-core`');
 }
 function findChromium() {
@@ -542,6 +542,7 @@ async function phone(pw, srvUrl, run) {
         row.className = 'sk-opts sk-probe';
         row.innerHTML = '<button class="sk-chip">Snap: C minor</button><span class="sk-seg"><button class="on">1/16</button><button>1/8</button></span>';
         pane.prepend(row);
+        // biome-ignore lint/security/noGlobalEval: runs the test's own source in the page
         const out = (0, eval)(reachSrc)(['.sk-probe .sk-chip', '.sk-probe .sk-seg button']);
         row.remove();
         return out;
@@ -993,7 +994,7 @@ async function phoneSix(page, E, label, shot, tap) {
 // From a knob on the Jam room's rig (its amp, on the Rig tab) and from Studio A's ROOM strip, a swipe scrolls and
 // changes nothing; held still first, the same drag moves them (one step). Real touch points (CDP), Chromium only.
 async function thumbScrolls(page, E, label, shot) {
-  await E(() => { const o = window.overdub; o.engine.stop(); document.querySelectorAll('.ew-toast').forEach((t) => t.remove()); try { localStorage.removeItem('overdub:touch-hold-hint'); } catch (e) { /* ok */ } o.ui.setOpen('bottom', false); o.ui.show('jam'); o.jam.setView('rig'); });
+  await E(() => { const o = window.overdub; o.engine.stop(); document.querySelectorAll('.ew-toast').forEach((t) => t.remove()); try { localStorage.removeItem('overdub:touch-hold-hint'); } catch { /* ok */ } o.ui.setOpen('bottom', false); o.ui.show('jam'); o.jam.setView('rig'); });
   await sleep(900);
   // the scroller a probe sits in (the Rig tab: the amp's knobs, then the pedals'), and where the probe is: the knob's value is its --kv (0..1 of its travel)
   const jam = () => E(() => {
@@ -1047,7 +1048,7 @@ async function thumbScrolls(page, E, label, shot) {
 }
 
 async function fingerEdits(page, E, label, shot) {
-  await E(() => { const o = window.overdub; o.engine.stop(); try { localStorage.removeItem('overdub:beat-hold-hint'); localStorage.removeItem('overdub:mixer-hold-hint'); } catch (e) { /* ok */ } document.querySelectorAll('.ew-toast').forEach((t) => t.remove()); o.ui.setOpen('bottom', true); o.beat.draw(); });
+  await E(() => { const o = window.overdub; o.engine.stop(); try { localStorage.removeItem('overdub:beat-hold-hint'); localStorage.removeItem('overdub:mixer-hold-hint'); } catch { /* ok */ } document.querySelectorAll('.ew-toast').forEach((t) => t.remove()); o.ui.setOpen('bottom', true); o.beat.draw(); });
   await sleep(500);
   // the sheet at its first height, a little under half the screen (the runs above left it taller)
   const gr = await E(() => { const g = document.querySelector('.ew-grip').getBoundingClientRect(); return { x: innerWidth / 2, y: g.top + g.height / 2, to: Math.round(innerHeight * 0.55) }; });

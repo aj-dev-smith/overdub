@@ -4,12 +4,29 @@ import assert from 'node:assert/strict';
 import { createStore } from '../../app/src/core/store.js';
 import { createProject } from '../../app/src/core/project.js';
 import {
-  planClipSplit, planClipRepeat, planTimeInsert, planTimeRemove, planSectionDuplicate, followClips,
-  nextName, barBeat, whereLabel, spanLabel, retake, takeFolders, takeNumber, laneWrite,
+  planClipSplit,
+  planClipRepeat,
+  planTimeInsert,
+  planTimeRemove,
+  planSectionDuplicate,
+  followClips,
+  nextName,
+  barBeat,
+  whereLabel,
+  spanLabel,
+  retake,
+  takeFolders,
+  takeNumber,
+  laneWrite,
 } from '../../app/src/core/arrangement.js';
 
 // The song as a document, without the clock's last-modified stamp and the authors it has met (kept across undo).
-const snap = (p) => { const x = JSON.parse(JSON.stringify(p)); delete x.meta.modified; delete x.meta.authors; return x; };
+const snap = (p) => {
+  const x = JSON.parse(JSON.stringify(p));
+  delete x.meta.modified;
+  delete x.meta.authors;
+  return x;
+};
 
 // Keys (0-8): C4@0:1, E4@1:3 (across beat 2), G4@6:1. Drums (0-8): a kick, a long "hit" across beat 2, a snare at 3.5.
 // Sections Verse 0-8 and Chorus 8-16, the loop 0-16 on, a gain lane on Keys from -6 to 0 over the clip.
@@ -49,10 +66,13 @@ describe('clip.split', () => {
     const { store, ids, keys } = song();
     const r = roundTrip(store, { type: 'clip.split', track: 'Keys', clip: ids.kc, at: 2 });
     const [left, right] = keys().clips;
-    assert.equal(left.start, 0); assert.equal(left.length, 2);
-    assert.equal(right.start, 2); assert.equal(right.length, 6);
+    assert.equal(left.start, 0);
+    assert.equal(left.length, 2);
+    assert.equal(right.start, 2);
+    assert.equal(right.length, 6);
     assert.equal(right.id, r.created.clip);
-    const e4l = left.notes.find((n) => n.p === 64), e4r = right.notes.find((n) => n.p === 64);
+    const e4l = left.notes.find((n) => n.p === 64),
+      e4r = right.notes.find((n) => n.p === 64);
     assert.equal(e4l.id, e4r.id);
     assert.equal(e4l.d + e4r.d, 3);
     assert.equal(e4r.t, 0);
@@ -64,11 +84,18 @@ describe('clip.split', () => {
     const { store, ids, drums } = song();
     roundTrip(store, { type: 'clip.split', track: 'Drums', clip: ids.dc, at: 2 });
     const [left, right] = drums().clips;
-    assert.deepEqual(left.notes.map((n) => n.p), [36, 38]);
-    assert.deepEqual(right.notes.map((n) => [n.p, n.t]), [[38, 1.5]], 'only the snare at 3.5 lands in the right half');
+    assert.deepEqual(
+      left.notes.map((n) => n.p),
+      [36, 38],
+    );
+    assert.deepEqual(
+      right.notes.map((n) => [n.p, n.t]),
+      [[38, 1.5]],
+      'only the snare at 3.5 lands in the right half',
+    );
   });
 
-  test('the right half is signed by the clip\'s maker, whoever split it', () => {
+  test("the right half is signed by the clip's maker, whoever split it", () => {
     const { store, ids, keys } = song();
     assert.equal(store.dispatch({ type: 'clip.split', track: 'Keys', clip: ids.kc, at: 4 }, { by: 'claude' }).ok, true);
     assert.equal(keys().clips[1].by, 'you');
@@ -91,7 +118,10 @@ describe('clip.split', () => {
     const { store, ids, keys } = song();
     store.dispatch({ type: 'clip.split', track: 'Keys', clip: ids.kc, at: 4 }, { by: 'claude' });
     const right = keys().clips[1];
-    assert.equal(store.dispatch({ type: 'notes.add', track: 'Keys', clip: right.id, notes: 'A4@1:1' }, { by: 'you' }).ok, true);
+    assert.equal(
+      store.dispatch({ type: 'notes.add', track: 'Keys', clip: right.id, notes: 'A4@1:1' }, { by: 'you' }).ok,
+      true,
+    );
     const before = snap(store.get());
     const u = store.undo({ by: 'claude' });
     assert.equal(u.ok, false);
@@ -104,16 +134,29 @@ describe('clip.repeat', () => {
     const { store, ids, keys } = song();
     const r = roundTrip(store, { type: 'clip.repeat', track: 'Keys', clip: ids.kc, times: 3 }, { by: 'claude' });
     const cs = keys().clips;
-    assert.deepEqual(cs.map((c) => c.start), [0, 8, 16]);
+    assert.deepEqual(
+      cs.map((c) => c.start),
+      [0, 8, 16],
+    );
     assert.equal(new Set(cs.map((c) => c.id)).size, 3);
-    assert.deepEqual(r.created.clips ?? cs.slice(1).map((c) => c.id), cs.slice(1).map((c) => c.id));
+    assert.deepEqual(
+      r.created.clips ?? cs.slice(1).map((c) => c.id),
+      cs.slice(1).map((c) => c.id),
+    );
     for (const c of cs.slice(1)) {
       assert.equal(c.by, 'claude');
-      assert.deepEqual(c.notes.map((n) => [n.p, n.t, n.d, n.by]), cs[0].notes.map((n) => [n.p, n.t, n.d, n.by]));
+      assert.deepEqual(
+        c.notes.map((n) => [n.p, n.t, n.d, n.by]),
+        cs[0].notes.map((n) => [n.p, n.t, n.d, n.by]),
+      );
     }
     // the gain lane's ramp under the clip is written again under each copy
     const pts = keys().auto.gain.points;
-    for (const s of [8, 16]) assert.ok(pts.some((x) => x.t === s && x.v === -6), `ramp restarts at ${s}`);
+    for (const s of [8, 16])
+      assert.ok(
+        pts.some((x) => x.t === s && x.v === -6),
+        `ramp restarts at ${s}`,
+      );
     assert.ok(pts.some((x) => x.t === 24 && x.v === 0));
   });
 
@@ -126,22 +169,32 @@ describe('clip.repeat', () => {
     assert.equal(c.length, 16);
     assert.equal(c.notes.length, 8);
     const bs = c.notes.filter((n) => n.p === 71);
-    assert.deepEqual(bs.map((n) => [n.t, n.d]), [[7, 1], [15, 1]]);
+    assert.deepEqual(
+      bs.map((n) => [n.t, n.d]),
+      [
+        [7, 1],
+        [15, 1],
+      ],
+    );
     assert.equal(new Set(c.notes.map((n) => n.id)).size, 8, 'every note has its own id');
   });
 
   test('bad times and modes are refused with what would work', () => {
     const { store, ids } = song();
-    for (const times of [1, 0, 65, 2.5, 'two']) assert.throws(() => planClipRepeat(store.get(), { clip: ids.kc, times }), /2 to 64/);
+    for (const times of [1, 0, 65, 2.5, 'two'])
+      assert.throws(() => planClipRepeat(store.get(), { clip: ids.kc, times }), /2 to 64/);
     assert.throws(() => planClipRepeat(store.get(), { clip: ids.kc, times: 2, mode: 'stretch' }), /copies.*loop/);
   });
 
-  test('held to the song\'s limits before anything is built, saying what fits', () => {
+  test("held to the song's limits before anything is built, saying what fits", () => {
     const { store, ids } = song();
     // 400 notes looped 64 times would be 25,600 in one clip (a clip holds 20,000)
     const many = Array.from({ length: 400 }, (_, i) => ({ p: 60 + (i % 12), t: (i % 32) / 4, d: 0.25, v: 0.5 }));
     assert.equal(store.dispatch({ type: 'notes.replace', track: 'Keys', clip: ids.kc, notes: many }).ok, true);
-    assert.throws(() => planClipRepeat(store.get(), { clip: ids.kc, times: 64, mode: 'loop' }), /clip of 25,600 notes.*×50 fits/);
+    assert.throws(
+      () => planClipRepeat(store.get(), { clip: ids.kc, times: 64, mode: 'loop' }),
+      /clip of 25,600 notes.*×50 fits/,
+    );
     // a clip near the song's last beat can't be repeated past it
     store.dispatch({ type: 'clip.set', track: 'Drums', clip: ids.dc, patch: { start: 8180 } });
     assert.throws(() => planClipRepeat(store.get(), { clip: ids.dc, times: 2 }), /beat 8,192/);
@@ -168,8 +221,15 @@ describe('time.insert', () => {
     roundTrip(store, { type: 'time.insert', at: 4, length: 4 });
     const p = store.get();
     const kc = keys().clips;
-    assert.deepEqual(kc.map((c) => [c.start, c.length]), [[0, 4], [8, 4]]);
-    const verse = p.sections.find((s) => s.id === ids.v), chorus = p.sections.find((s) => s.id === ids.ch);
+    assert.deepEqual(
+      kc.map((c) => [c.start, c.length]),
+      [
+        [0, 4],
+        [8, 4],
+      ],
+    );
+    const verse = p.sections.find((s) => s.id === ids.v),
+      chorus = p.sections.find((s) => s.id === ids.ch);
     assert.deepEqual([verse.start, verse.length], [0, 12]);
     assert.deepEqual([chorus.start, chorus.length], [12, 8]);
     assert.deepEqual(p.loop, { on: true, start: 0, end: 20 });
@@ -184,7 +244,8 @@ describe('time.insert', () => {
   test('at the very end it only moves what is after it; bad arguments are refused', () => {
     const { store } = song();
     const plan = planTimeInsert(store.get(), { at: 16, length: 4 });
-    assert.equal(plan.moved, 0); assert.equal(plan.split, 0);
+    assert.equal(plan.moved, 0);
+    assert.equal(plan.split, 0);
     assert.throws(() => planTimeInsert(store.get(), { at: -1, length: 4 }), />= 0/);
     assert.throws(() => planTimeInsert(store.get(), { at: 0, length: 0 }), /more than 0/);
     assert.throws(() => planTimeInsert(store.get(), { at: 0 }), /number of beats/);
@@ -194,15 +255,32 @@ describe('time.insert', () => {
 
 describe('time.remove', () => {
   test('a notes clip closes up around the cut; each note keeps its sounding part; a drum hit inside goes', () => {
-    const { store, ids, keys, drums } = song();
+    const { store, keys, drums } = song();
     roundTrip(store, { type: 'time.remove', at: 2, length: 4 });
     const [k] = keys().clips;
     assert.deepEqual([k.start, k.length], [0, 4]);
-    assert.deepEqual(k.notes.map((n) => [n.p, n.t, n.d]), [[60, 0, 1], [64, 1, 1], [67, 2, 1]]);
+    assert.deepEqual(
+      k.notes.map((n) => [n.p, n.t, n.d]),
+      [
+        [60, 0, 1],
+        [64, 1, 1],
+        [67, 2, 1],
+      ],
+    );
     const [d] = drums().clips;
-    assert.deepEqual(d.notes.map((n) => n.p), [36, 38], 'the snare at 3.5 was inside the cut');
+    assert.deepEqual(
+      d.notes.map((n) => n.p),
+      [36, 38],
+      'the snare at 3.5 was inside the cut',
+    );
     const p = store.get();
-    assert.deepEqual(p.sections.map((s) => [s.name, s.start, s.length]), [['Verse', 0, 4], ['Chorus', 4, 8]]);
+    assert.deepEqual(
+      p.sections.map((s) => [s.name, s.start, s.length]),
+      [
+        ['Verse', 0, 4],
+        ['Chorus', 4, 8],
+      ],
+    );
     assert.deepEqual(p.loop, { on: true, start: 0, end: 12 });
   });
 
@@ -213,22 +291,28 @@ describe('time.remove', () => {
     assert.equal(plan.loop, 'off');
     roundTrip(store, { type: 'time.remove', at: 8, length: 8 });
     const p = store.get();
-    assert.deepEqual(p.sections.map((s) => s.name), ['Verse']);
+    assert.deepEqual(
+      p.sections.map((s) => s.name),
+      ['Verse'],
+    );
     assert.equal(p.loop.on, false);
     assert.equal(keys().clips.length, 1);
   });
 
-  test('removing a whole clip\'s span removes the clip', () => {
+  test("removing a whole clip's span removes the clip", () => {
     const { store, keys } = song();
     roundTrip(store, { type: 'time.remove', at: 0, length: 8 });
     assert.equal(keys().clips.length, 0);
-    assert.deepEqual(store.get().sections.map((s) => [s.name, s.start]), [['Chorus', 0]]);
+    assert.deepEqual(
+      store.get().sections.map((s) => [s.name, s.start]),
+      [['Chorus', 0]],
+    );
   });
 });
 
 describe('section.duplicate', () => {
   test('copies the section and its clips right after it, named next in the series', () => {
-    const { store, ids, keys } = song();
+    const { store, keys } = song();
     const r = roundTrip(store, { type: 'section.duplicate', section: 'verse', ref: 'v2' }, { by: 'claude' });
     const p = store.get();
     const copy = p.sections.find((s) => s.id === r.created.v2);
@@ -237,24 +321,38 @@ describe('section.duplicate', () => {
     assert.equal(kc.length, 2);
     assert.equal(kc[1].start, 8);
     assert.equal(kc[1].by, 'claude');
-    assert.deepEqual(kc[1].notes.map((n) => [n.p, n.t, n.d]), kc[0].notes.map((n) => [n.p, n.t, n.d]));
+    assert.deepEqual(
+      kc[1].notes.map((n) => [n.p, n.t, n.d]),
+      kc[0].notes.map((n) => [n.p, n.t, n.d]),
+    );
   });
 
-  test('push makes room first: what was after moves right by the section\'s length', () => {
+  test("push makes room first: what was after moves right by the section's length", () => {
     const { store, ids } = song();
     roundTrip(store, { type: 'section.duplicate', section: ids.v, push: true });
     const p = store.get();
-    assert.deepEqual(p.sections.map((s) => [s.name, s.start]).sort((a, b) => a[1] - b[1]), [['Verse', 0], ['Verse 2', 8], ['Chorus', 16]]);
+    assert.deepEqual(
+      p.sections.map((s) => [s.name, s.start]).sort((a, b) => a[1] - b[1]),
+      [
+        ['Verse', 0],
+        ['Verse 2', 8],
+        ['Chorus', 16],
+      ],
+    );
     assert.equal(p.loop.end, 24);
   });
 
   test('a clip that starts before the section brings only its part, with a pitched tail', () => {
-    const { store, ids, keys } = song();
+    const { store, keys } = song();
     store.dispatch({ type: 'section.add', ref: 'mid', section: { name: 'Mid', start: 2, length: 4 } });
     const plan = planSectionDuplicate(store.get(), { section: 'Mid', to: 32 });
     const add = plan.ops.find((o) => o.type === 'clip.add' && o.track === keys().id);
     assert.deepEqual([add.clip.start, add.clip.length], [32, 4]);
-    assert.deepEqual(add.clip.notes.map((n) => [n.p, n.t, n.d]), [[64, 0, 2]], 'E4 rings in from before: its tail');
+    assert.deepEqual(
+      add.clip.notes.map((n) => [n.p, n.t, n.d]),
+      [[64, 0, 2]],
+      'E4 rings in from before: its tail',
+    );
   });
 
   test('an unknown section names the ones there are', () => {
@@ -266,7 +364,8 @@ describe('section.duplicate', () => {
 describe('planners are pure', () => {
   test('planning never changes the song', () => {
     const { store, ids } = song();
-    const p = store.get(), before = JSON.stringify(p);
+    const p = store.get(),
+      before = JSON.stringify(p);
     planClipSplit(p, { clip: ids.kc, at: 3 });
     planClipRepeat(p, { clip: ids.kc, times: 4 });
     planClipRepeat(p, { clip: ids.kc, times: 4, mode: 'loop' });
@@ -287,7 +386,10 @@ describe('followClips', () => {
     const r = store.dispatch([...ops, { type: 'clip.move', track: 'Keys', clip: ids.kc, start: 16 }]);
     assert.equal(r.ok, true, r.error);
     const pts = keys().auto.gain.points;
-    assert.ok(pts.some((x) => x.t === 20 && x.v === -3), 'the middle point moved with the clip');
+    assert.ok(
+      pts.some((x) => x.t === 20 && x.v === -3),
+      'the middle point moved with the clip',
+    );
     assert.ok(!pts.some((x) => x.t === 4), 'and left the old span');
   });
 
@@ -322,9 +424,17 @@ describe('helpers', () => {
     assert.equal(whereLabel({ meter: [3, 4] }, 3), 'bar 2');
   });
   test('laneWrite: only the beats that differ, null when nothing does', () => {
-    const a = [{ t: 0, v: 0 }, { t: 4, v: 1 }, { t: 8, v: 0 }];
+    const a = [
+      { t: 0, v: 0 },
+      { t: 4, v: 1 },
+      { t: 8, v: 0 },
+    ];
     assert.equal(laneWrite({ track: 't', param: 'gain' }, a, a), null);
-    const w = laneWrite({ track: 't', param: 'gain' }, a, [{ t: 0, v: 0 }, { t: 4, v: 2 }, { t: 8, v: 0 }]);
+    const w = laneWrite({ track: 't', param: 'gain' }, a, [
+      { t: 0, v: 0 },
+      { t: 4, v: 2 },
+      { t: 8, v: 0 },
+    ]);
     assert.deepEqual([w.from, w.to, w.points], [4, 4, [{ t: 4, v: 2 }]]);
   });
 });
@@ -341,11 +451,30 @@ describe('take folders', () => {
   });
 
   test('takeFolders: clips sharing a take id, in take order, the unmuted one playing', () => {
-    const c = (id, name, mute) => ({ id, kind: 'notes', start: 0, length: 4, name, take: 'tk_abcd', notes: [], ...(mute ? { mute: true } : {}) });
-    const t = { clips: [c('c3', 'Take 2', false), c('c1', 'Changes', true), c('c2', 'Take 1', true), { id: 'x', kind: 'notes', start: 8, length: 4, notes: [] }] };
+    const c = (id, name, mute) => ({
+      id,
+      kind: 'notes',
+      start: 0,
+      length: 4,
+      name,
+      take: 'tk_abcd',
+      notes: [],
+      ...(mute ? { mute: true } : {}),
+    });
+    const t = {
+      clips: [
+        c('c3', 'Take 2', false),
+        c('c1', 'Changes', true),
+        c('c2', 'Take 1', true),
+        { id: 'x', kind: 'notes', start: 8, length: 4, notes: [] },
+      ],
+    };
     const [f] = takeFolders(t);
     assert.equal(takeFolders(t).length, 1);
-    assert.deepEqual(f.clips.map((x) => x.id), ['c1', 'c2', 'c3']);
+    assert.deepEqual(
+      f.clips.map((x) => x.id),
+      ['c1', 'c2', 'c3'],
+    );
     assert.equal(f.playing.id, 'c3');
     assert.deepEqual([f.start, f.end], [0, 4]);
     assert.equal(takeNumber({ name: 'Take 12' }), 12);
@@ -358,7 +487,9 @@ describe('take folders', () => {
     const p = JSON.parse(JSON.stringify(store.get()));
     const t = p.tracks[0];
     const a = t.clips[0];
-    a.take = 'tk_abcd'; a.name = 'Take 1'; a.mute = true;
+    a.take = 'tk_abcd';
+    a.name = 'Take 1';
+    a.mute = true;
     t.clips.push({ ...JSON.parse(JSON.stringify(a)), id: 'c_take02', name: 'Take 2', mute: false });
     const s2 = createStore(p);
     const before = snap(s2.get());
@@ -367,7 +498,13 @@ describe('take folders', () => {
     const folders = takeFolders(s2.get().tracks[0]);
     assert.equal(folders.length, 2);
     for (const f of folders) assert.equal(f.clips.length, 2);
-    assert.deepEqual(folders.map((f) => [f.start, f.end]).sort((x, y) => x[0] - y[0]), [[0, 4], [4, 8]]);
+    assert.deepEqual(
+      folders.map((f) => [f.start, f.end]).sort((x, y) => x[0] - y[0]),
+      [
+        [0, 4],
+        [4, 8],
+      ],
+    );
     assert.equal(s2.undo().ok, true);
     assert.deepEqual(snap(s2.get()), before);
   });

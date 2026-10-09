@@ -22,7 +22,7 @@ h1[id], h2[id], h3, .cs-entry { scroll-margin-top: 80px; }
 .cs-seg button { min-height: 40px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: 600 15px var(--font-ui); cursor: pointer; white-space: nowrap; text-underline-offset: 7px; text-decoration-thickness: 2px; }
 .cs-seg button:hover { color: var(--text); }
 .cs-seg button[aria-pressed="true"] { color: var(--text); text-decoration: underline; }
-.cs-seg button i { font-style: normal; font: 400 13px var(--font-mono); color: var(--text-3); margin-left: 6px; }
+.cs-seg button i { font: 400 13px var(--font-mono); color: var(--text-3); margin-left: 6px; }
 .cs-cats button { font-size: 14px; font-weight: 400; }
 .cs-search { margin-left: auto; }
 .cs-search input { width: min(260px, 100%); height: 38px; padding: 0 12px; border: var(--rule-2); border-radius: var(--r-press); background: var(--bg); color: var(--text); font: 400 15px var(--font-ui); }

@@ -1,3 +1,4 @@
+// @ts-check
 // The page side of the agent bridge: outside agents (Claude Code over MCP, via server/mcp.js and server/bridge.js)
 // call this tab's tools. Calls run with by = 'mcp:<agent>' so their edits are signed, coloured cool, and undoable on
 // their own; the agent shows up as a presence in the Agent panel.
@@ -40,7 +41,7 @@ export default function (app) {
       if (j.root) B.root = j.root;
       for (const name of j.agents || []) join(name);
       return 'ok';
-    } catch (e) { return 'down'; }
+    } catch { return 'down'; }
   }
 
   function join(name) {
@@ -83,7 +84,7 @@ export default function (app) {
     es = new EventSource('/bridge/events?page=' + page);
     es.onopen = () => { backoff = 1000; setState('on'); hello(); };
     es.onmessage = (m) => {
-      let ev; try { ev = JSON.parse(m.data); } catch (e) { return; }
+      let ev; try { ev = JSON.parse(m.data); } catch { return; }
       if (ev.type === 'call' && ev.turn) onTurnCall(ev);
       else if (ev.type === 'call') {
         app.presence.status(statusLine(ev.tool), 'mcp:' + slug(ev.agent));

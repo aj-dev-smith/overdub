@@ -258,6 +258,8 @@ export function carriesSongText(tool, r) {
   const some = SOMETIMES_SONG_TEXT[tool];
   return some ? !!some(r) : true;
 }
+// about twice: the first puts it first in the JSON, the second wins over a result's own about
+// biome-ignore lint/suspicious/noDuplicateObjectKeys: the key order is the point (see above)
 export const withNote = (tool, result) => (carriesSongText(tool, result) ? { about: SONG_TEXT, ...result, about: SONG_TEXT } : result);
 // A call that went to another tab than the session's last one (a second studio with this link took over, or the tab
 // reloaded) says so first: ids from before may not apply there.
@@ -368,18 +370,18 @@ export async function startRelay(opts = {}) {
   function sendTab(tab, obj) {
     if (!tab?.res || !tab.connected) return 'gone';
     let text;
-    try { text = `data: ${JSON.stringify(obj)}\n\n`; } catch (e) { return 'gone'; }
+    try { text = `data: ${JSON.stringify(obj)}\n\n`; } catch { return 'gone'; }
     const n = Buffer.byteLength(text);
     if (tab.res.writableLength + n > C.maxQueuedBytes) { cutOff(tab); return 'stalled'; }
     if (n > 4096 && queuedTotal() + n > C.maxQueuedTotal) return 'busy';
-    try { tab.res.write(text); return 'ok'; } catch (e) { return 'gone'; }
+    try { tab.res.write(text); return 'ok'; } catch { return 'gone'; }
   }
   function cutOff(tab) {
     const res = tab.res;
     tab.connected = false; tab.res = null; streams.delete(tab);
     clearTimeout(tab.grace);
     if (tab.T.tabs.get(tab.id) === tab) tab.T.tabs.delete(tab.id);
-    try { res?.destroy(); } catch (e) { /* gone */ }
+    try { res?.destroy(); } catch { /* gone */ }
     failPending(tab.T, tab.id, 'the studio tab stopped reading its connection to the relay');
     stats.rejected++;
   }
@@ -445,7 +447,7 @@ export async function startRelay(opts = {}) {
     return { T };
   }
   function drop(T) {
-    for (const tab of T.tabs.values()) { streams.delete(tab); try { tab.res?.end(); } catch (e) { /* gone */ } clearTimeout(tab.grace); }
+    for (const tab of T.tabs.values()) { streams.delete(tab); try { tab.res?.end(); } catch { /* gone */ } clearTimeout(tab.grace); }
     for (const p of T.pending.values()) { clearTimeout(p.timer); p.resolve({ error: 'the relay let this link go', hint: T.account ? NO_TAB_ACCOUNT : NO_TAB }); }
     T.pending.clear();
     tokens.delete(T.token);
@@ -459,7 +461,7 @@ export async function startRelay(opts = {}) {
     const T = tab.T;
     streams.delete(tab); clearTimeout(tab.grace);
     tab.connected = false;
-    try { tab.res?.end(); } catch (e) { /* gone */ }
+    try { tab.res?.end(); } catch { /* gone */ }
     tab.res = null;
     if (T.tabs.get(tab.id) === tab) T.tabs.delete(tab.id);
     failPending(T, tab.id, why);
@@ -522,7 +524,7 @@ export async function startRelay(opts = {}) {
     return o && originOk(o, C.studioOrigins) ? { 'access-control-allow-origin': o, 'access-control-expose-headers': 'retry-after', vary: 'Origin' } : {};
   }
   function json(res, code, obj, headers = {}) {
-    if (res.headersSent) { try { res.end(); } catch (e) { /* gone */ } return; }
+    if (res.headersSent) { try { res.end(); } catch { /* gone */ } return; }
     res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...common, ...headers });
     res.end(obj === undefined ? undefined : JSON.stringify(obj));
   }
@@ -581,7 +583,7 @@ export async function startRelay(opts = {}) {
     if (body.error) return null;
     if (!body.text) return route === 'mcp' ? err(400, -32700, 'parse error') : { value: {} };
     if (tooDeep(body.text, C.maxDepth)) return err(400, -32600, `JSON nested deeper than ${C.maxDepth} levels`);
-    try { return { value: JSON.parse(body.text) }; } catch (e) { return err(400, -32700, route === 'mcp' ? 'parse error' : 'body is not JSON'); }
+    try { return { value: JSON.parse(body.text) }; } catch { return err(400, -32700, route === 'mcp' ? 'parse error' : 'body is not JSON'); }
   }
 
   /* ---------------- MCP (claude.ai side) */
@@ -791,13 +793,13 @@ export async function startRelay(opts = {}) {
       if (!tab?.res && streams.size >= C.maxStreams) { stats.rejected++; return refuse(req, res, route, 503, 'the relay has as many studios connected as it can hold', 30); }
       // the same tab id again while its stream is open (a duplicated browser tab, or someone who learned the id): the
       // open stream is told before it's closed, so that page takes a new id instead of quietly losing its calls
-      if (tab?.res) { sendTab(tab, { type: 'replaced' }); try { tab.res.end(); } catch (e) { /* gone */ } }
+      if (tab?.res) { sendTab(tab, { type: 'replaced' }); try { tab.res.end(); } catch { /* gone */ } }
       if (!tab) {
         // too many tabs on one link: let the oldest go. On an account, only tabs whose stream has closed may go; with
         // every slot connected the new tab is refused, so someone holding a ticket can't open tabs until the one the
         // person is using is pushed out (review 2026-10-05)
         const open = [...T.tabs.values()].filter((x) => !T.account || !x.connected).sort((a, b) => a.at - b.at);
-        while (T.tabs.size >= C.maxTabsPerToken && open.length) { const o = open.shift(); streams.delete(o); try { o.res?.end(); } catch (e) { /* gone */ } clearTimeout(o.grace); T.tabs.delete(o.id); failPending(T, o.id, 'the studio tab was replaced by another one'); }
+        while (T.tabs.size >= C.maxTabsPerToken && open.length) { const o = open.shift(); streams.delete(o); try { o.res?.end(); } catch { /* gone */ } clearTimeout(o.grace); T.tabs.delete(o.id); failPending(T, o.id, 'the studio tab was replaced by another one'); }
         if (T.tabs.size >= C.maxTabsPerToken) return send(409, { error: `Overdub is already connected in ${C.maxTabsPerToken} studio tabs for this account. Close one, then connect here.`, code: 'too_many_tabs' });
         tab = { id: tabId, T, at: 0, connected: false, res: null, ...(ticket ? { sid: ticket.claims.sid } : {}) };
         if (!T.account || takeFocus(tab)) tab.at = now();
@@ -816,7 +818,7 @@ export async function startRelay(opts = {}) {
       const ping = setInterval(() => {
         if (tab.res !== res) return;
         if (res.writableLength > C.maxQueuedBytes) return cutOff(tab);
-        try { res.write(': ping\n\n'); } catch (e) { /* closed */ }
+        try { res.write(': ping\n\n'); } catch { /* closed */ }
       }, C.heartbeatMs);
       res.on('close', () => {
         clearInterval(ping);
@@ -969,7 +971,7 @@ export async function startRelay(opts = {}) {
     try {
       if (C.originSecret && !same(req.headers['x-overdub-origin'] || '', C.originSecret)) return json(res, 403, { error: 'forbidden' });
       let url;
-      try { url = new URL(req.url, 'http://relay'); } catch (e) { return json(res, 400, { error: 'bad request' }); }
+      try { url = new URL(req.url, 'http://relay'); } catch { return json(res, 400, { error: 'bad request' }); }
       const m = /^\/s\/([^/]+)\/(mcp|hello|events|result)$/.exec(url.pathname);
       const aroute = m ? null : accountRoute(req, url);
       const route = m ? m[2] : aroute;
@@ -1016,7 +1018,7 @@ export async function startRelay(opts = {}) {
       return await studio(req, res, T, route, url, acct);
     } catch (e) {
       log('error', e?.name || 'Error', e?.code || '');   // the kind of error, never its message (it can quote a request)
-      if (!res.headersSent) json(res, 500, { error: 'relay error' }); else try { res.end(); } catch (x) { /* gone */ }
+      if (!res.headersSent) json(res, 500, { error: 'relay error' }); else try { res.end(); } catch { /* gone */ }
     }
   });
   server.keepAliveTimeout = 65000;   // longer than CloudFront's origin keep-alive, so it never reuses a closing socket
@@ -1048,7 +1050,7 @@ export async function startRelay(opts = {}) {
 }
 
 /* ------------------------------------------------------------------------------------------------ main */
-const isMain = (() => { try { return !!process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url)); } catch (e) { return false; } })();
+const isMain = (() => { try { return !!process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
 if (isMain) {   // (realpath: systemd runs it through the current -> releases/<id> symlink)
   const env = process.env;
   const num = (k, d) => (env[k] != null && env[k] !== '' && Number.isFinite(Number(env[k])) ? Number(env[k]) : d);

@@ -372,7 +372,6 @@ console.log('the browser: the AudioWorklet and the studio');
       if (!track) return { skipped: 'no instrument track' };
       await app.engine.start?.();
       const seen = [];
-      const strips = app.engine.liveInstance ? null : null;
       // watch what reaches the instrument instance
       const orig = app.engine.liveExpr;
       app.engine.liveExpr = (id, x) => { seen.push({ id, x }); return orig(id, x); };

@@ -451,6 +451,7 @@ kbd { display: inline-block; padding: 0 5px; border: var(--rule-2); border-radiu
 /* ---- phones and tablets */
 @media (max-width: 900px) {
   .rn-list { grid-template-columns: minmax(0, 1fr); }
+  /* biome-ignore lint/correctness/noInvalidGridAreas: one column, four rows: Biome miscounts the strings on one line */
   .hero-copy { grid-template-columns: minmax(0, 1fr); grid-template-areas: "lede" "cta" "fine" "credits"; row-gap: 16px; }
   .credits { margin-top: 8px; max-width: 460px; }
   .build-grid, .ears-grid, .signed-grid { grid-template-columns: minmax(0, 1fr); }

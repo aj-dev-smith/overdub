@@ -1,3 +1,4 @@
+// @ts-check
 // The Preview ribbon: next.overdubstudio.com wears it, the live site never does. Which one this is comes from
 // app/site-config.json, the deploy's switches: never committed, written by deploy/deploy.sh for each site from one base.
 // The preview's copy adds { "env": "preview", "preview": true, "ref": "<commit>" }; this module reads those three keys and
@@ -20,7 +21,7 @@ export async function readConfig(url = CONFIG_URL) {
     const c = await r.json();
     if (!c || typeof c !== 'object') return { env: 'production', preview: false };
     return { env: String(c.env || 'production'), preview: c.preview === true, ref: typeof c.ref === 'string' ? c.ref.slice(0, 12) : '' };
-  } catch (e) { return { env: 'production', preview: false }; }
+  } catch { return { env: 'production', preview: false }; }
 }
 
 export default function preview(app) {

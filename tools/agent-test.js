@@ -357,7 +357,7 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
 
     // an agent's undo / revert of the track the human is recording on is refused (it was a track.add: only its inverse
     // names the track by id)
-    let r = await app.tools.run('apply_ops', { label: 'probe', ops: [{ type: 'track.add', ref: 'pad', track: { name: 'Pad', instrument: { device: 'core.keys' } } }] }, { by: 'mcp:probe' });
+    const r = await app.tools.run('apply_ops', { label: 'probe', ops: [{ type: 'track.add', ref: 'pad', track: { name: 'Pad', instrument: { device: 'core.keys' } } }] }, { by: 'mcp:probe' });
     const PAD = r.created?.pad;
     recordOn(PAD);
     const u1 = await app.tools.run('undo', {}, { by: 'mcp:probe' });
@@ -2255,7 +2255,7 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
     const b2 = await run(page, 'render_and_measure', { section: 'Chorus', per_track: true });
     const hook2 = b2.tracks?.find((x) => x.track === 'Hook');
     t.ok(hook2?.vs_before && hook2.vs_before.vs_rest_lu > 1.5 && /more forward/.test(hook2.gloss || ''), `after +2.5 dB on the Hook: ${JSON.stringify(hook2?.vs_before)} (${hook2?.gloss})`);
-    const mix = await run(page, 'render_and_measure', { section: 'Chorus' });
+    await run(page, 'render_and_measure', { section: 'Chorus' });
     await run(page, 'apply_ops', { label: 'hook back', ops: [{ type: 'track.set', track: 'Hook', patch: { gain: (await page.evaluate(() => window.overdub.store.get().tracks.find((x) => x.name === 'Hook').gain)) - 0.01 } }] }, 'mcp:dogfood');
     const mix2 = await run(page, 'render_and_measure', { section: 'Chorus' });
     t.ok(!mix2.delta_glosses || !mix2.delta_glosses.some((g) => /^no perceptible change vs/.test(g)), `the mix's "no change" line says what it didn't measure: ${(mix2.delta_glosses || []).join(' | ')}`);
@@ -2332,7 +2332,7 @@ const run = (page, name, input, by = 'claude') => page.evaluate(([n, i, b]) => w
   const hash = (await S.encodeShare(song, { from: { name: 'Sam' } })).hash;
   const WATCH = () => {
     const seen = window.__kernels = [];
-    const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch (e) { /* not a kernel */ } };
+    const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch { /* not a kernel */ } };
     const AWN = window.AudioWorkletNode;
     if (AWN) window.AudioWorkletNode = class extends AWN { constructor(c, name, o) { note(o && o.processorOptions); super(c, name, o); } };
     const post = MessagePort.prototype.postMessage;

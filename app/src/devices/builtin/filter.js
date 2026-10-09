@@ -1,3 +1,4 @@
+// @ts-check
 // core.filter: Keyhole. A resonant multimode filter (low-pass, band-pass, high-pass, notch: one state-variable filter
 // per side, stable at any setting) that moves on its own: an LFO locked to the song (note divisions from the transport,
 // phase-aligned to the beat while it plays, or free in Hz) and an envelope follower, so it can wobble in time or open

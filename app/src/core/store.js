@@ -1,3 +1,4 @@
+// @ts-check
 // The store: the one place a song changes. Every change is a transaction of ops (core/ops.js): atomic, attributed to
 // an author (a person or an agent), logged, and undoable. The GUI, the in-app agent and outside agents all come
 // through dispatch(), so there is one history and one truth.
@@ -20,6 +21,12 @@ import { createProject, cleanProject, idNotes, songSize, sizeError, namedAuthor,
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const COALESCE_MS = 1500;
+// One undoable step in the history: the ops as sent, the ops that undo them, who and why.
+/**
+ * @typedef {{ id: string, at: number, by: string, label: string, ops: object[], inverse: object[], coalesce?: string,
+ *   reason?: string, audition?: boolean }} Txn
+ */
+
 const HISTORY_MAX = 500;
 
 export function createStore(project, { getDevice = null } = {}) {
@@ -81,14 +88,14 @@ export function createStore(project, { getDevice = null } = {}) {
       }
     } catch (e) {
       const rb = { by, refs: {}, getDevice: null, restore: true, noteSeq };
-      for (const inv of inverse) { try { applyOp(doc, inv, rb); } catch (e2) { /* the snapshot below puts it right */ } }
+      for (const inv of inverse) { try { applyOp(doc, inv, rb); } catch { /* the snapshot below puts it right */ } }
       if (JSON.stringify(doc) !== before) {
         const snap = JSON.parse(before);
         for (const k of Object.keys(doc)) delete doc[k];
         Object.assign(doc, snap); // (the same doc object: store.get() and ctx.doc hand it out)
       }
       const i = applied.length;
-      const err = new Error(`op ${i + 1} of ${ops.length} (${ops[i]?.type}) failed: ${e.message} — nothing was changed${i ? ` (the ${i} op${i > 1 ? 's' : ''} before it ${i > 1 ? 'were' : 'was'} rolled back)` : ''}`);
+      const err = /** @type {Error & { index?: number }} */ (new Error(`op ${i + 1} of ${ops.length} (${ops[i]?.type}) failed: ${e.message} — nothing was changed${i ? ` (the ${i} op${i > 1 ? 's' : ''} before it ${i > 1 ? 'were' : 'was'} rolled back)` : ''}`));
       err.index = i;
       throw err;
     }
@@ -181,7 +188,7 @@ export function createStore(project, { getDevice = null } = {}) {
         last.at = Date.now();
         txn = last;
       } else {
-        txn = { id: 'x' + (++seq), at: Date.now(), by, label: label || describe(ops), ops, inverse: r.inverse, coalesce };
+        txn = /** @type {Txn} */ ({ id: 'x' + (++seq), at: Date.now(), by, label: label || describe(ops), ops, inverse: r.inverse, coalesce });
         if (reason) txn.reason = reason;
         if (audition) txn.audition = true;
         done.push(txn);
@@ -206,7 +213,7 @@ export function createStore(project, { getDevice = null } = {}) {
         if (done_) return { ok: true, skipped: 0 }; done_ = true;
         let skipped = 0;
         try { run(r.inverse, by, { restore: true }); } catch (e) {
-          for (const inv of r.inverse) { try { run([inv], by, { restore: true }); } catch (e2) { skipped++; } }
+          for (const inv of r.inverse) { try { run([inv], by, { restore: true }); } catch { skipped++; } }
           console.error('preview release failed', e);
         }
         emit('change', { txn: null, ops: r.inverse, by, kind: 'preview' });

@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data on the wire: `.odkz`, a lossless, reversible packing of a 16-bit `.odk` (kernel/odk.js) that gzips to
 // about two thirds of the size the plain file does (docs/DEVICES.md, "Kernel data"). It exists for the transfer only:
 // the page unpacks it back to the exact `.odk` bytes and checks those against the hash the device pins, so the worklet,
@@ -38,7 +39,7 @@ function readHeader(u, off, what) {
   let json = '';
   for (let i = 0; i < H; i += 4096) json += String.fromCharCode.apply(null, u.subarray(off + 4 + i, off + 4 + Math.min(H, i + 4096)));
   let head;
-  try { head = JSON.parse(json); } catch (e) { throw new Error(`${what}: the header is not JSON`); }
+  try { head = JSON.parse(json); } catch { throw new Error(`${what}: the header is not JSON`); }
   if (!head || (head.bits !== 16 && head.bits !== 24) || !(head.channels >= 1 && head.channels <= 8) || !Array.isArray(head.samples)) throw new Error(`${what}: not a 16- or 24-bit kit header`);
   return { H, head };
 }

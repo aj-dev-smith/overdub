@@ -43,7 +43,7 @@ function fitScale(s) {
 }
 const panText = (p) => (Math.abs(p) < 0.005 ? 'C' : (p < 0 ? 'L' : 'R') + Math.round(Math.abs(p) * 100));
 const roundDb = (db) => (db <= -95.9 ? -96 : Math.round(db * 10) / 10);
-const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
 // the label a strip's M, S or ● puts in History, as the arranger's header writes it ("unmute Drums", "solo Bass")
 const flagLabel = (t, k) => `${t[k] ? { mute: 'unmute', solo: 'unsolo', arm: 'disarm' }[k] : k} ${t.name}`;
 
@@ -378,7 +378,7 @@ export default function (app) {
 
       /* ---------------------------------------------------- meters */
       function drawMeter(s, now, lv) {
-        const { cv, g } = s.cv;
+        const { g } = s.cv;
         const resized = s.cv.fit();
         const W = s.cv.w, H = s.cv.h;
         const dt = Math.min(0.1, (now - (s.t || now)) / 1000); s.t = now;

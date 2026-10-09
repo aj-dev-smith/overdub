@@ -1,3 +1,4 @@
+// @ts-check
 // Music theory and the text formats agents use. Pure functions; works in Node and the browser.
 //
 //   noteName(60) -> 'C4'        parsePitch('F#3') -> 54       mtof(69) -> 440
@@ -188,7 +189,7 @@ export function parseNotes(text) {
     out.push(normNote({ p, t: frac(m[2]), d: frac(m[3]), v }));
   }
   if (errors.length) {
-    const e = new Error(`could not read note(s): ${errors.slice(0, 5).join(' ')}${errors.length > 5 ? ' …' : ''} — expected pitch@start:dur[*vel], e.g. C4@0:0.5 or 60@1.5:0.25*0.9`);
+    const e = /** @type {Error & { partial?: object[] }} */ (new Error(`could not read note(s): ${errors.slice(0, 5).join(' ')}${errors.length > 5 ? ' …' : ''} — expected pitch@start:dur[*vel], e.g. C4@0:0.5 or 60@1.5:0.25*0.9`));
     e.partial = out;
     throw e;
   }

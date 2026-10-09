@@ -76,7 +76,7 @@ dsp has: osc(type) (.freq(hz) .next() .reset(phase)), svf() (.set(fc, q) .lp(x) 
 Ids for your devices: '<you>.<slug>' (e.g. 'claude.tidal-verb'). The face (UI) is drawn from your params and look: { color: '#hex', ink: '#hex', shape: 'box'|'round'|'wedge', finish: 'matte'|'sparkle'|'brushed', knob: 'chicken'|'chrome'|'soft', led: '#hex' }.`;
 
 export async function kernelGuide() {
-  try { const m = await import('../kernel/guide.js'); return m.KERNEL_GUIDE || m.default || KERNEL_FALLBACK; } catch (e) { return KERNEL_FALLBACK; }
+  try { const m = await import('../kernel/guide.js'); return m.KERNEL_GUIDE || m.default || KERNEL_FALLBACK; } catch { return KERNEL_FALLBACK; }
 }
 
 // The system prompt is kept lean (the prompt diet): every API call re-reads it, a request makes several. What only

@@ -278,7 +278,7 @@ export function mount(el, ctx) {
   // which ends it now (a long press that opens the menu instead)
   const EVTS = ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'];
   function gesture(target, e, move, end) {
-    try { target.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try { target.setPointerCapture(e.pointerId); } catch { /* gone */ }
     const id = e.pointerId;
     let over = false;
     const on = (ev) => {

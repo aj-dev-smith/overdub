@@ -1,3 +1,4 @@
+// @ts-check
 // Bossa nova. The format: core/grooves.js's header. The cross-stick plays the bossa clave across two bars.
 export default `
 style bossa  Bossa nova

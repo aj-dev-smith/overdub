@@ -96,7 +96,7 @@ export function playBuffer(c, buffer, dest, { t0, offset = 0, t1, gainDb = 0 }) 
   src.start(t0, offset);
   src.stop(t1 + 0.001);
   const h = { src, env, t0, t1, stopped: false };
-  src.onended = () => { h.stopped = true; try { env.disconnect(); } catch (e) { /* ok */ } };
+  src.onended = () => { h.stopped = true; try { env.disconnect(); } catch { /* ok */ } };
   // stop early with a short fade (transport stop, seek, the clip muted or deleted under the playhead): `fade` long in
   // util.ramp's sense (an exponential approach with time constant fade / 4: -35 dB at `fade`, -70 dB at twice it),
   // stopped at three times it (-104 dB)
@@ -109,7 +109,7 @@ export function playBuffer(c, buffer, dest, { t0, offset = 0, t1, gainDb = 0 }) 
         env.gain.setTargetAtTime(0, t, fade / 4);
         src.stop(t + fade * 3);
       }
-    } catch (e) { /* already stopped */ }
+    } catch { /* already stopped */ }
   };
   return h;
 }

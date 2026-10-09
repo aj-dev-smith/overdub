@@ -99,7 +99,7 @@ export default function (app) {
     for (const k of ['pads', 'guide']) { const p = S[k]; S[k] = null; if (p) { try { p.release(); } catch (e) { console.error('start: preview release', e); } } }
   }
   // (a page going away gives the previews back first, before the autosave's flush: capture runs ahead of it)
-  window.addEventListener('pagehide', () => { if (S.pads || S.guide) { try { engine.stop?.(); } catch (e) { /* ok */ } release(); } }, true);
+  window.addEventListener('pagehide', () => { if (S.pads || S.guide) { try { engine.stop?.(); } catch { /* ok */ } release(); } }, true);
   function padsTrack() {
     if (S.pads && store.track(S.pads.created?.pads)) return S.pads.created.pads;
     const r = store.preview({ type: 'track.add', ref: 'pads', track: { name: 'Drums', kind: 'instrument', instrument: { device: 'core.drums', params: {} } } }, { by: 'you' });
@@ -109,7 +109,7 @@ export default function (app) {
   }
   // the guide beat: a groove on a previewed Drums track, the loop over it, at the chosen speed
   function guideOn() {
-    if (S.guide) { try { S.guide.release(); } catch (e) { /* ok */ } S.guide = null; }
+    if (S.guide) { try { S.guide.release(); } catch { /* ok */ } S.guide = null; }
     const plan = putGroove(app, { groove: S.beat, track: null, bar: 0, bars: 4, dryRun: true });
     if (!plan.ok) { say(plan.error || 'The beat could not load.'); return false; }
     const ops = [{ type: 'project.set', patch: { tempo: S.speed, loop: { on: true, start: 0, end: 4 * bpbOf() } } }, ...plan.ops];
@@ -117,7 +117,7 @@ export default function (app) {
     if (!r.ok) { say(r.error); return false; }
     S.guide = r;
     S.guidePlan = { ops: plan.ops, summary: plan.summary };
-    try { if (!engine.playing) engine.play(0); } catch (e) { /* silent engine */ }
+    try { if (!engine.playing) engine.play(0); } catch { /* silent engine */ }
     return true;
   }
 
@@ -145,7 +145,7 @@ export default function (app) {
     stage.remove();
     stage = null; body = null;
     document.documentElement.classList.remove('st-open');
-    try { if (opener?.isConnected) opener.focus(); } catch (e) { /* ok */ }
+    try { if (opener?.isConnected) opener.focus(); } catch { /* ok */ }
     opener = null;
   }
   const say = (text) => { if (statusEl) statusEl.textContent = text || ''; };
@@ -158,20 +158,20 @@ export default function (app) {
     }
     draw();
     // (the step's controls were redrawn: focus that was on one goes to the step's first control, not the page)
-    if (stage && (!document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected)) { const f = stage.querySelector('.st-first') || stage; try { f.focus({ preventScroll: true }); } catch (e) { /* ok */ } }
+    if (stage && (!document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected)) { const f = stage.querySelector('.st-first') || stage; try { f.focus({ preventScroll: true }); } catch { /* ok */ } }
     emit('step', step);
   }
 
   function open({ kind = 'tap' } = {}) {
     if (S.step) close({ quiet: true });
     if (store.get().tracks.some((t) => t.clips.length)) { ui.toast('Start a song is for a blank song: Song ▸ New song gives you one.'); return false; }
-    try { app.input?.qwerty?.on && app.input.qwerty.toggle(false); } catch (e) { /* ok */ }
-    try { if (engine.playing) engine.stop(); } catch (e) { /* ok */ }
+    try { app.input?.qwerty?.on && app.input.qwerty.toggle(false); } catch { /* ok */ }
+    try { if (engine.playing) engine.stop(); } catch { /* ok */ }
     Object.assign(S, { kind, hits: [], read: null, landed: null, level: 'tight', reading: 0, before: null, gridAt: 0 });
     mount();
     if (kind === 'hum') { setStep('hum'); guideOn(); }
     else { setStep('play'); padsTrack(); }
-    requestAnimationFrame(() => { const b = stage?.querySelector('.st-first') || stage; try { b?.focus({ preventScroll: true }); } catch (e) { /* ok */ } });
+    requestAnimationFrame(() => { const b = stage?.querySelector('.st-first') || stage; try { b?.focus({ preventScroll: true }); } catch { /* ok */ } });
     return true;
   }
   function close({ to = 'studio', quiet = false } = {}) {
@@ -179,7 +179,7 @@ export default function (app) {
     // (a take played and not kept stays in Takes)
     if (S.step === 'play' && S.hits.length) keepInTakes();
     const playing = S.step === 'in' || S.step === 'readings';
-    if (!playing || to !== 'song') { try { if (engine.playing && (S.guide || S.step === 'play')) engine.stop(); } catch (e) { /* ok */ } }
+    if (!playing || to !== 'song') { try { if (engine.playing && (S.guide || S.step === 'play')) engine.stop(); } catch { /* ok */ } }
     release();
     const was = S.step;
     S.step = null; S.kind = null; S.asking = false;
@@ -200,7 +200,7 @@ export default function (app) {
     const r = ROWS.find((x) => x.id === row);
     if (!r) return false;
     const tid = padsTrack();
-    if (tid) { try { engine.liveNoteOn(tid, r.p, v); setTimeout(() => { try { engine.liveNoteOff(tid, r.p); } catch (e) { /* ok */ } }, 160); } catch (e) { /* silent engine */ } }
+    if (tid) { try { engine.liveNoteOn(tid, r.p, v); setTimeout(() => { try { engine.liveNoteOff(tid, r.p); } catch { /* ok */ } }, 160); } catch { /* silent engine */ } }
     S.hits.push({ t: perfMs / 1000, p: r.p, v, row });
     S.flash.set(row, performance.now());
     if (S.asking) { S.asking = false; }
@@ -234,8 +234,8 @@ export default function (app) {
     const track = store.get().tracks.find((t) => t.clips.some((c) => c.id === res.created.c));
     S.landed = { txn: res.txn.id, track: track?.id || null, clip: res.created.c };
     S.take = r; S.level = 'tight'; S.reading = 0;
-    try { ui.select({ track: S.landed.track, clip: S.landed.clip, notes: [] }); } catch (e) { /* ok */ }
-    try { engine.play(0); } catch (e) { /* silent engine */ }
+    try { ui.select({ track: S.landed.track, clip: S.landed.clip, notes: [] }); } catch { /* ok */ }
+    try { engine.play(0); } catch { /* silent engine */ }
     setStep('in');
     emit('land', { ...S.landed });
     return true;
@@ -281,7 +281,7 @@ export default function (app) {
   function next() {
     // the next part: hum over it (Sketch's Hum, the beat looping, a bar to come in on)
     close({ to: 'song' });
-    try { if (!engine.playing) engine.play(0); } catch (e) { /* ok */ }
+    try { if (!engine.playing) engine.play(0); } catch { /* ok */ }
     app.onboard?.humOver?.();
     return true;
   }
@@ -290,13 +290,13 @@ export default function (app) {
     if (S.step !== 'hum' || !S.guidePlan) return false;
     const ops = [{ type: 'project.set', patch: { tempo: S.speed, loop: { on: true, start: 0, end: 4 * bpbOf() } } }, ...S.guidePlan.ops];
     const g = S.guide; S.guide = null;
-    try { g?.release(); } catch (e) { /* ok */ }
+    try { g?.release(); } catch { /* ok */ }
     const res = store.dispatch(ops, { by: 'you', label: `a beat to hum over, 4 bars at ${S.speed} BPM` });
     if (!res.ok) { say(`The beat didn't go in: ${res.error}`); guideOn(); return false; }
     S.landed = { txn: res.txn.id, track: res.created.drums || null, clip: res.created.groove || null };
     emit('land', { ...S.landed });
     close({ to: 'song' });
-    try { if (!engine.playing) engine.play(0); } catch (e) { /* ok */ }
+    try { if (!engine.playing) engine.play(0); } catch { /* ok */ }
     app.onboard?.humOver?.();
     try { await app.input?.recorder?.record?.(); } catch (e) { console.error('start: hum take', e); }
     return true;

@@ -34,7 +34,7 @@ export function keyFromSignature(sf, mi) {
 }
 
 function decodeText(bytes) {
-  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/, '').trim(); } catch (e) { /* latin-1 */ }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/, '').trim(); } catch { /* latin-1 */ }
   let s = ''; for (const b of bytes) s += String.fromCharCode(b);
   return s.replace(/\0+$/, '').trim();
 }
@@ -353,7 +353,7 @@ export default function (app) {
         const buf = toBufferLike(it.buffer) || toBufferLike(it) || await decodeAudio(await it.arrayBuffer());
         if (!buf || !buf.length) throw new Error('no audio in it');
         decoded.push({ name: nm, buf });
-      } catch (e) { failed.push(nm); }
+      } catch { failed.push(nm); }
     }
     if (failed.length && !quiet) toast(`Couldn’t read ${failed.join(', ')}: this browser can’t decode ${failed.length === 1 ? 'it' : 'them'}. WAV, MP3, M4A and OGG work.`, 'bad');
     if (!decoded.length) return { ok: false, error: `could not decode ${failed.join(', ') || 'the file'}` };

@@ -1,0 +1,13 @@
+# Keeps the pinned actions (.github/workflows, pinned to a commit with the release in a comment) current: one PR a
+# week at most, grouped. The checkers themselves are pinned in mise.toml and bumped by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

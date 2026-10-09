@@ -53,10 +53,10 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
     const headers = {};
     if (body !== undefined) headers['content-type'] = 'application/json';
     let res;
-    try { res = await f(api + path, { method, credentials: 'include', headers, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' }); } catch (e) { throw new AccountError(0); }
+    try { res = await f(api + path, { method, credentials: 'include', headers, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' }); } catch { throw new AccountError(0); }
     if (res.status === 204) return null;
     let j = null;
-    try { j = await res.json(); } catch (e) { j = null; }
+    try { j = await res.json(); } catch { j = null; }
     if (!res.ok) {
       if (res.status === 401 && me) setMe(null);
       throw new AccountError(res.status, j);
@@ -65,7 +65,7 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
   }
 
   async function load() {
-    try { config = await req('GET', '/v1/config'); } catch (e) { config = null; }
+    try { config = await req('GET', '/v1/config'); } catch { config = null; }
     await refresh().catch(() => null);
     return config;
   }
@@ -89,7 +89,7 @@ export function createAccount({ api = null, fetch: f = (...a) => globalThis.fetc
       const onMsg = (ev) => { if (ev.origin === api && ev.data && ev.data.type === 'overdub:botcheck' && typeof ev.data.token === 'string') done(resolve, ev.data.token); };
       const t = setTimeout(() => done(reject, failed()), 120000);
       win.addEventListener('message', onMsg);
-      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api); } catch (e) { /* the frame says hello again */ } });
+      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage({ type: 'overdub:botcheck-hello' }, api); } catch { /* the frame says hello again */ } });
       frameHost.replaceChildren(frame);
     });
   }

@@ -384,7 +384,7 @@ async function one(recipe, pinned, make, { check, verify, rebuild }) {
   if (check) {
     const here = fs.existsSync(file) && 'sha256-' + sha256(fs.readFileSync(file)) === pinned;
     let packed = false;
-    try { packed = here && 'sha256-' + sha256(unpackOdk(fs.readFileSync(file + 'z'))) === pinned; } catch (e) { /* missing or bad */ }
+    try { packed = here && 'sha256-' + sha256(unpackOdk(fs.readFileSync(file + 'z'))) === pinned; } catch { /* missing or bad */ }
     console.log(`${recipe.name}: ${here ? 'here' : fs.existsSync(file) ? 'NOT the pinned file' : 'not fetched'} (${path.relative(ROOT, file)}), .odkz ${packed ? 'here' : 'missing or wrong'}`);
     return here && packed ? 0 : 1;
   }

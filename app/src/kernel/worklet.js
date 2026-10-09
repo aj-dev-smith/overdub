@@ -401,7 +401,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
     }
     log(args) {
       if (this.logs++ >= 20) return;
-      try { this.post({ type: 'log', args: args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))) }); } catch (e) { /* unclonable */ }
+      try { this.post({ type: 'log', args: args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))) }); } catch { /* unclonable */ }
     }
     fit(s, v) {
       if (!Number.isFinite(v)) v = s.def;
@@ -633,7 +633,7 @@ export function kernelCore(SR, dsp, kernelCompiler) {
       if (this.old) {
         const fl = this.fL, fr = this.fR;
         if (eff && iL) { fl.set(iL); fr.set(iR); } else { fl.fill(0); fr.fill(0); }
-        try { this.old.run(fl, fr, n, p, t, null); } catch (e) { this.old = null; }
+        try { this.old.run(fl, fr, n, p, t, null); } catch { this.old = null; }
       }
       try {
         this.cur.run(L, R, n, p, t, eff ? null : this.ev);
@@ -691,7 +691,7 @@ export function overdubKernelWorklet(overdubDsp, kernelCompiler, kernelCore) {
       const v = d[k];
       if (!v || typeof v.hash !== 'string') { out[k] = null; continue; }
       if (!DATA.has(v.hash)) {
-        if (v.bytes) { let x = null; try { x = decodeOdk(v.bytes); } catch (e) { /* not a kit file: nothing */ } DATA.set(v.hash, x); fresh.push(v.hash); }
+        if (v.bytes) { let x = null; try { x = decodeOdk(v.bytes); } catch { /* not a kit file: nothing */ } DATA.set(v.hash, x); fresh.push(v.hash); }
         else if (proc) { let w = WAIT.get(v.hash); if (!w) WAIT.set(v.hash, (w = new Set())); w.add(proc); }
       }
       out[k] = DATA.get(v.hash) || null;

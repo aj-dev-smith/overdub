@@ -95,7 +95,7 @@ async function boot(page) {
     for (const r of G.RIGS) for (const s of r.chain) if (!R.getDevice(s.device)) missing.push(r.id + ':' + s.device);
     const ids = G.clawd.PEDAL_LIST.map((d) => d.id).filter((id) => !R.getDevice('pedal.' + id));
     const badParams = [];
-    for (const d of pedals.concat(amps)) for (const p of d.params) { if (!(p.def >= Math.min(p.min, p.max) && p.def <= Math.max(p.min, p.max))) badParams.push(d.id + '.' + p.key); if (p.fmt) { try { if (typeof p.fmt(p.def) !== 'string') badParams.push(d.id + '.' + p.key + ' fmt'); } catch (e) { badParams.push(d.id + '.' + p.key + ' fmt throws'); } } }
+    for (const d of pedals.concat(amps)) for (const p of d.params) { if (!(p.def >= Math.min(p.min, p.max) && p.def <= Math.max(p.min, p.max))) badParams.push(d.id + '.' + p.key); if (p.fmt) { try { if (typeof p.fmt(p.def) !== 'string') badParams.push(d.id + '.' + p.key + ' fmt'); } catch { badParams.push(d.id + '.' + p.key + ' fmt throws'); } } }
     const roles = pedals.reduce((n, d) => n + d.params.filter((p) => p.role).length, 0), units = pedals.reduce((n, d) => n + d.params.filter((p) => p.unit).length, 0);
     const knobs = pedals.reduce((n, d) => n + d.params.length, 0);
     return { pedals: pedals.length, clawdPedals: G.clawd.PEDAL_LIST.length, refused: G.clawd.PFX.refused, amps: amps.length, clawdAmps: Object.keys(G.clawd.PLUG_AMPS).length,
@@ -148,7 +148,7 @@ async function boot(page) {
   t.ok(env.ok && Math.abs(env.end - 0.5) < 0.05, `the kit's own envelope follower (${env.url}) loads from its file and follows a 0.5 sine (${env.ok ? env.end.toFixed(3) : 'did not load'})`);
 
   const ops = await page.evaluate(async () => {
-    const { G, R } = window.__gt;
+    const { G } = window.__gt;
     let store = null;
     try { const S = await import('/app/src/core/store.js'); store = S.createStore(); } catch (e) { return { skip: e.message }; }
     let r = store.dispatch({ type: 'track.add', track: { name: 'Guitar', kind: 'audio' }, ref: 'g' }, { by: 'you' });

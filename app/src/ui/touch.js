@@ -71,10 +71,10 @@ function install() {
       if (gate !== g || g.pan || !ctl.isConnected) return;
       g.held = true;
       ctl.classList.add(o.heldClass || 'ew-held');
-      try { navigator.vibrate?.(12); } catch (err) { /* no buzz */ }
+      try { navigator.vibrate?.(12); } catch { /* no buzz */ }
       const name = o.name || 'knob', key = o.hintKey || HINT;
       let first = false;
-      try { first = localStorage.getItem(key) !== '1'; if (first) localStorage.setItem(key, '1'); } catch (err) { first = false; }
+      try { first = localStorage.getItem(key) !== '1'; if (first) localStorage.setItem(key, '1'); } catch { first = false; }
       if (first) ui()?.toast(`Holding a ${name} picks it up: keep holding and drag to move it. A drag without holding scrolls.`, { ms: 7000 });
       else ui()?.announce?.(`Holding the ${name}: drag to move it.`);
       const to = (typeof o.pick === 'function' && o.pick(g.target)) || g.target;

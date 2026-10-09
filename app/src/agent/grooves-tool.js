@@ -149,7 +149,7 @@ function useTool(app, by, input = {}) {
   if (bar != null && !(bar >= 1 && Number.isFinite(bar))) return err('bar is 1-based: 1 or more');
   const r = putGroove(app, { groove: g, track, bar, bars, seed: input.seed == null ? null : Number(input.seed), by, under: 'refuse', label: input.label, reason: input.reason, dryRun: !!input.dry_run });
   if (r.ok && !r.dry_run) {
-    try { app.presence?.highlight?.({ track: r.track.id, clip: r.clip }, `${g.styleName}, ${g.name}`, by, 4000); } catch (e) { /* presence is a nicety */ }
+    try { app.presence?.highlight?.({ track: r.track.id, clip: r.clip }, `${g.styleName}, ${g.name}`, by, 4000); } catch { /* presence is a nicety */ }
   }
   return r.ok ? { ...r, undo: r.dry_run ? undefined : 'undo (your latest) or revert_my_changes' } : r;
 }
@@ -160,7 +160,7 @@ function drumTool(app, by, input = {}) {
   for (const k of ['ending', 'crashes']) if (input[k] != null && typeof input[k] !== 'boolean') return err(`${k} is true or false`, k === 'ending' ? 'leave it out for the default: no ending when the loop goes round the song\'s end, else the style\'s ending' : 'leave it out for a crash on each section\'s downbeat');
   const r = buildDrums(app, { style: input.style || null, parts: input.parts && typeof input.parts === 'object' ? input.parts : null, ending: input.ending ?? null, crashes: input.crashes !== false, seed: input.seed ?? 1, by, label: input.label, reason: input.reason, dryRun: !!input.dry_run });
   if (r.ok && !r.dry_run) {
-    try { app.presence?.highlight?.({ track: r.track.id }, `drums for the song, ${G.getStyle(r.style)?.name || r.style}`, by, 4000); } catch (e) { /* presence is a nicety */ }
+    try { app.presence?.highlight?.({ track: r.track.id }, `drums for the song, ${G.getStyle(r.style)?.name || r.style}`, by, 4000); } catch { /* presence is a nicety */ }
   }
   return r.ok ? { ...r, undo: r.dry_run ? undefined : 'undo (your latest) or revert_my_changes' } : r;
 }
@@ -181,7 +181,7 @@ function chipOf({ name, input = {}, result = {} }) {
   return null;
 }
 
-let installed = new WeakSet();
+const installed = new WeakSet();
 export function installGrooveTools(app) {
   if (installed.has(app)) return;
   installed.add(app);

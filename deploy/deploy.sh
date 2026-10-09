@@ -70,7 +70,7 @@ fi
 # ships since 2026-10-06; docs/COMMUNITY-SHELF.md, "Where it's on"). The studio's built snapshot, app/community/, is
 # gitignored, so it never ships. The sync below runs with --delete, so taking a path off this list is what puts it live.
 HELD_BACK=()
-for p in ${HELD_BACK[@]+"${HELD_BACK[@]}"}; do rm -rf "$STAGE/$p"; done
+for p in ${HELD_BACK[@]+"${HELD_BACK[@]}"}; do rm -rf "${STAGE:?}/$p"; done
 echo "$TARGET: $SHORT ($REF): $(find "$STAGE" -type f | wc -l | tr -d ' ') files -> s3://$BUCKET, distribution $DIST"
 echo "app/site-config.json: $(tr -d '\n ' < "$STAGE/app/site-config.json")"
 

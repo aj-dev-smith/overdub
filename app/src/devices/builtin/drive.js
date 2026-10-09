@@ -1,3 +1,4 @@
+// @ts-check
 // core.drive: Hot Print. A saturator: a tilt into a 2x oversampled waveshaper (a smooth tanh with a BIAS that leans it
 // asymmetric for even, tube-like harmonics), a TONE low-pass after, and a level that follows the drive so turning it up
 // adds heat rather than volume. MIX blends the clean signal back in, delayed to match the oversampler (no combing).

@@ -1,3 +1,4 @@
+// @ts-check
 // Every clawd-o-matic pedal as an Overdub effect device, 'pedal.<id>' (ids are forever: the original ones, prefixed).
 // The pedal's own build(c, kit) runs unchanged on Overdub's kit (devices/kit.js) inside devices/graph.js's bypass.
 // Params are its knobs, with a role and a unit added where the label or the knob's own readout makes them obvious.
@@ -36,7 +37,7 @@ export function roleOf(label, cat) {
 export function unitOf(k) {
   if (k.type === 'switch' || k.type === 'tap' || !k.fmt) return null;
   let s = '';
-  try { s = String(k.fmt(k.def)); } catch (e) { return null; }
+  try { s = String(k.fmt(k.def)); } catch { return null; }
   if (k.fmt === clawd.PFX.noteFmt || /^1\/(2|4|8|16|32)(\.|T)?$/.test(s)) return 'note';
   if (/dB$/.test(s)) return 'dB';
   if (/\d\s*k?Hz$/.test(s) || /^\d+(\.\d+)?k$/.test(s)) return 'Hz';

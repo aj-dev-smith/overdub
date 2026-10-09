@@ -30,16 +30,15 @@
 
 import { h, css, icon, byline, canvas, clamp } from './dom.js';
 import { placeNotes, tabText, tuningOf, capoOf, stringNumber } from '../core/fretboard.js';
-import { riffTakes, RIFF_STYLES, RIFF_STYLE_IDS, DIFFICULTIES, riffStyleFor } from '../core/riff.js';
-import { groupsOf, createFollow, passLine, learnStep, describeGroup } from '../core/playalong.js';
+import { riffTakes, RIFF_STYLES, RIFF_STYLE_IDS, DIFFICULTIES, } from '../core/riff.js';
+import { groupsOf, createFollow, passLine, learnStep, } from '../core/playalong.js';
 import { chordAt } from '../core/jam.js';
-import { beatsPerBar, noteName, spellPc } from '../core/music.js';
+import { beatsPerBar, spellPc } from '../core/music.js';
 import { createNoteFinder } from '../input/onsets.js';
 import { readInks, staffShape, paintStaff } from './tabstaff.js';
 import { installTabTools, riffOps } from '../agent/tabs-tool.js';
 
 const EPS = 1e-6;
-const r4 = (x) => Math.round(x * 10000) / 10000;
 const ORD = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
 const barsWord = (a, b) => (b > a ? `bars ${a}–${b}` : `bar ${a}`);
 const STRING_WORD = ['low E', 'A', 'D', 'G', 'B', 'high e'];
@@ -53,7 +52,7 @@ export function installTabs(app, room) {
   const J = room.J;
   css('tabs', TABS_CSS);
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem('overdub:tabs') || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem('overdub:tabs') || '{}') || {}; } catch { saved = {}; }
   const TB = ui.state.tabs = {
     src: null,            // what the lane shows: { kind: 'clip', clip } | { kind: 'take' } | null (pick one)
     takes: null,          // riffs being auditioned: { id, from: 'house' | 'agent', by, req, span, style, level, seed, items: [{ letter, label, text, riff, index }], sel }
@@ -62,7 +61,7 @@ export function installTabs(app, room) {
     learn: false, hear: true,
     line: '', lineKind: '',
   };
-  const savePrefs = () => { try { localStorage.setItem('overdub:tabs', JSON.stringify({ style: TB.style, level: TB.level })); } catch (e) { /* private mode */ } };
+  const savePrefs = () => { try { localStorage.setItem('overdub:tabs', JSON.stringify({ style: TB.style, level: TB.level })); } catch { /* private mode */ } };
   const passes = [];   // every pass's summary, newest last (for whoever wants them: tools/tabs-test.js)
   let ver = 0, view = null, takeSeq = 0, mounted = null;
   store.on('change', () => { ver++; partCache = null; });
@@ -123,7 +122,7 @@ export function installTabs(app, room) {
   }
 
   /* ----------------------------------------------------------------------------------------- following what you play */
-  let follow = null, followKey = '', prevMarks = new Map(), passOn = false, lastBeat = null, passStart = null;
+  let follow = null, followKey = '', prevMarks = new Map(), passOn = false, lastBeat = null;
   const msPerBeat = () => 60000 / ((store.get().tempo || 120) * (engine.rate || 1));
   function followFor(pt) {
     const k = pt ? `${partKey}` : '';
@@ -207,8 +206,8 @@ export function installTabs(app, room) {
     if (!g) return;
     if (g.t > learn.from + 0.005 && beat >= g.t - 0.03 && beat < g.t + 0.5) {
       learn.waiting = true; learn.at = g.t;
-      try { engine.stop({ live: false }); } catch (e) { /* no audio */ }
-      setTimeout(() => { try { app.transport?.marker?.set?.(g.t, { seek: true }); } catch (e) { /* ok */ } }, 0);
+      try { engine.stop({ live: false }); } catch { /* no audio */ }
+      setTimeout(() => { try { app.transport?.marker?.set?.(g.t, { seek: true }); } catch { /* ok */ } }, 0);
       TB.line = `Waiting on ${placeWords(pt, g)}.`; TB.lineKind = 'learn';
       view?.line(); dirty();
     }
@@ -224,7 +223,7 @@ export function installTabs(app, room) {
         learn.i = 0; learn.wrong = 0; learn.from = -Infinity;
       } else TB.line = `Yes. Next: ${placeWords(pt, pt.groups[learn.i])}.`;
       TB.lineKind = 'learn';
-      try { engine.play(g.t); } catch (e) { /* no audio */ }
+      try { engine.play(g.t); } catch { /* no audio */ }
       view?.line(); dirty();
       return { i: g.i, mark: 'hit', ms: 0 };
     }
@@ -246,7 +245,7 @@ export function installTabs(app, room) {
   function syncHush() {
     const pt = part();
     const ids = pt?.clipId && visible() && (TB.learn || !TB.hear) ? [pt.clipId] : [];
-    try { engine.hush?.(ids); } catch (e) { /* the silent engine */ }
+    try { engine.hush?.(ids); } catch { /* the silent engine */ }
   }
   function setHear(on) { TB.hear = !!on; syncHush(); view?.practice(); return TB.hear; }
 
@@ -324,7 +323,7 @@ export function installTabs(app, room) {
     const handle = store.preview(plan.ops, { by: 'overdub' });
     if (!handle.ok) { ui.toast(`Can't play that take: ${handle.error}`, { kind: 'bad' }); return { ok: false, error: handle.error }; }
     held = { i, handle, started: false, play: null };
-    if (!engine.playing) { try { held.play = Promise.resolve(engine.play(it.riff.start)).catch(() => {}); held.started = true; } catch (e) { /* no audio */ } }
+    if (!engine.playing) { try { held.play = Promise.resolve(engine.play(it.riff.start)).catch(() => {}); held.started = true; } catch { /* no audio */ } }
     view?.takes();
     return { ok: true };
   }
@@ -408,7 +407,7 @@ export function installTabs(app, room) {
     const from = (pt.bars[0] - 1) * pt.bpb;
     learnFrom(from); learn.waiting = false; learn.from = -Infinity;
     syncHush();
-    try { Promise.resolve(engine.play(from, { countIn: { beats: pt.bpb, preroll: false } })).catch(() => {}); } catch (e) { /* no audio yet */ }
+    try { Promise.resolve(engine.play(from, { countIn: { beats: pt.bpb, preroll: false } })).catch(() => {}); } catch { /* no audio yet */ }
     return { playing: true, from };
   }
 
@@ -423,8 +422,8 @@ export function installTabs(app, room) {
     const t = text();
     if (!t) return { ok: false };
     let ok = false;
-    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) {
-      try { const ta = h('textarea', { style: { position: 'fixed', left: '-9999px', top: '0' } }); ta.value = t; document.body.append(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e2) { ok = false; }
+    try { await navigator.clipboard.writeText(t); ok = true; } catch {
+      try { const ta = h('textarea', { style: { position: 'fixed', left: '-9999px', top: '0' } }); ta.value = t; document.body.append(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch { ok = false; }
     }
     const pt = part();
     ui.toast(ok ? `Tab copied: ${barsWord(pt.bars[0], pt.bars[1])}, ${tuningOf(pt.tuning).name} tuning${pt.capo ? `, capo ${pt.capo}` : ''}, with how to read it.` : 'The browser kept the clipboard closed: select the tab text from get_jam or tab_for instead.', { kind: ok ? 'ok' : 'bad' });
@@ -489,7 +488,7 @@ export function installTabs(app, room) {
       const beat = G.beatAt(x);
       if (beat == null) return;
       const b = clamp(Math.round(beat * 4) / 4, pt.start, pt.end);
-      if (engine.playing) { try { engine.seek(b); } catch (err) { /* ok */ } } else app.transport?.marker?.set?.(b, { seek: true });
+      if (engine.playing) { try { engine.seek(b); } catch { /* ok */ } } else app.transport?.marker?.set?.(b, { seek: true });
       dirty();
     });
 
@@ -656,7 +655,7 @@ export function installTabs(app, room) {
     });
   }
   // leaving the room: the riff is heard again, Learn it stops waiting, the guitar isn't listened to
-  function leave() { learn.waiting = false; try { engine.hush?.([]); } catch (e) { /* ok */ } syncListen(); if (J.tabNow) { J.tabNow = null; J.tabNowKey = ''; } }
+  function leave() { learn.waiting = false; try { engine.hush?.([]); } catch { /* ok */ } syncListen(); if (J.tabNow) { J.tabNow = null; J.tabNowKey = ''; } }
   function enter() { syncHush(); syncListen(); dirty(); }
 
   const api = {

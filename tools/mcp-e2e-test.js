@@ -17,7 +17,7 @@ import { tally, OUTDIR, QUIET, TEXT } from './pw.js';
 // the same playwright / chromium lookup as tools/pw.js (which starts its own server; here mcp.js must start it)
 const require = createRequire(import.meta.url);
 function findPlaywright() {
-  for (const p of [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean)) { try { return require(p); } catch (e) { /* next */ } }
+  for (const p of [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean)) { try { return require(p); } catch { /* next */ } }
   throw new Error('playwright-core not found: set PLAYWRIGHT_CORE');
 }
 function findChromium() {
@@ -58,7 +58,7 @@ child.stdout.on('data', (chunk) => {
   while ((i = buf.indexOf('\n')) >= 0) {
     const line = buf.slice(0, i); buf = buf.slice(i + 1);
     if (!line.trim()) continue;
-    let m; try { m = JSON.parse(line); } catch (e) { stray.push(line); continue; }
+    let m; try { m = JSON.parse(line); } catch { stray.push(line); continue; }
     const w = waiting.get(m.id); if (w) { waiting.delete(m.id); w(m); } else stray.push(line);
   }
 });
@@ -73,13 +73,13 @@ const call = async (name, args = {}, timeoutMs) => {
   const m = await rpc('tools/call', { name, arguments: args }, timeoutMs);
   if (m.error) return { rpcError: m.error };
   const text = (m.result.content || []).filter((c) => c.type === 'text').map((c) => c.text);
-  let data = null; for (const s of text) { try { data = JSON.parse(s); } catch (e) { /* a note */ } }
+  let data = null; for (const s of text) { try { data = JSON.parse(s); } catch { /* a note */ } }
   return { ...m.result, data, texts: text };
 };
 
 let browser = null;
 const finish = async () => {
-  try { child.stdin.end(); } catch (e) { /* gone */ }
+  try { child.stdin.end(); } catch { /* gone */ }
   await Promise.race([new Promise((r) => child.on('exit', r)), sleep(3000)]);
   if (child.exitCode === null) child.kill();
   if (browser) await browser.close().catch(() => {});
@@ -95,7 +95,7 @@ try {
 
   // the server was started in-process
   let up = false;
-  for (let i = 0; i < 50 && !up; i++) { try { up = (await fetch(BASE + '/bridge/status')).ok; } catch (e) { await sleep(100); } }
+  for (let i = 0; i < 50 && !up; i++) { try { up = (await fetch(BASE + '/bridge/status')).ok; } catch { await sleep(100); } }
   // the bridge answers loopback names only: a DNS-rebound site (its Origin matching its own Host) and another site's
   // Origin are both turned away, before any route runs
   {
@@ -198,7 +198,7 @@ try {
     const still = await call('get_selection', {}, 15000).catch((e) => ({ isError: true, texts: [e.message] }));
     t.ok(img.status === 403 && old.status === 404 && pages === 1 && !still.isError, `another site's event stream is refused (${img.status}), so is one for a page that never said hello (${old.status}); the tab is still the one live page (${pages}) and answers`);
     // call ids are random, so a result can only answer a call whose event the page received
-    await page.evaluate(() => { window.__ids = []; const f = window.__fetch = window.fetch; window.fetch = function (u, o) { if (String(u).includes('/bridge/result')) { try { window.__ids.push(JSON.parse(o.body).id); } catch (e) { /* not a result */ } } return f.apply(this, arguments); }; });
+    await page.evaluate(() => { window.__ids = []; const f = window.__fetch = window.fetch; window.fetch = function (u, o, ...rest) { if (String(u).includes('/bridge/result')) { try { window.__ids.push(JSON.parse(o.body).id); } catch { /* not a result */ } } return f.call(this, u, o, ...rest); }; });
     await call('get_selection', {}); await call('get_history', {});
     const ids = await page.evaluate(() => { window.fetch = window.__fetch; return window.__ids; });
     const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -405,7 +405,7 @@ try {
   await sleep(300);
   await page.screenshot({ path: path.join(OUTDIR, 'mcp-e2e.png') });
   t.ok(!errors.length, 'no page errors' + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''));
-  const junk = stray.filter((l) => { try { const m = JSON.parse(l); return !(m.jsonrpc === '2.0' && m.method && m.id === undefined); } catch (e) { return true; } });
+  const junk = stray.filter((l) => { try { const m = JSON.parse(l); return !(m.jsonrpc === '2.0' && m.method && m.id === undefined); } catch { return true; } });
   t.ok(!junk.length, 'stdout carries only JSON-RPC replies and notifications' + (junk.length ? ': ' + junk.slice(0, 2).join(' | ') : ''));
 } catch (e) {
   t.ok(false, 'threw: ' + (e && e.stack || e));

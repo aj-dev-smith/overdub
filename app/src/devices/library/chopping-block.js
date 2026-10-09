@@ -1,3 +1,4 @@
+// @ts-check
 // claude.chopping-block: Chopping Block. A gate locked to the song: the bar is cut into steps (RATE), a 16-step
 // PATTERN says which ones speak, LENGTH is how much of each step is open and SMOOTH rounds the edges (sharp chops to
 // soft pulses). It follows the transport's beat while the song plays and keeps its own time while it doesn't. Makeup

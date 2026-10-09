@@ -1,3 +1,4 @@
+// @ts-check
 // Graph devices: a def whose build(c, kit) makes a Web Audio node graph (the ported pedals and amps, Overdub's own
 // trusted built-ins). graphInstance(c, def, opts) wraps one in the Instance contract (docs/ARCHITECTURE.md, "Devices"),
 // with clawd-o-matic's pedalRig manners (app/vendor/clawd/pedals.js): click-free bypass, gliding knobs, the bar clock.
@@ -38,7 +39,7 @@ function setLive(c, clock) {
 // playing (or there's none) it's a free grid of 4/4 bars from audio time 0 at the device's tempo, so offline renders
 // are the same every time.
 export function deviceClock(c, src, getBpm) {
-  const band = () => { if (!src) return null; try { return src.playing() ? src : null; } catch (e) { return null; } };
+  const band = () => { if (!src) return null; try { return src.playing() ? src : null; } catch { return null; } };
   const barAt = (s, t) => {
     if (!s) return (t * getBpm()) / (60 * bpb(s));
     if (typeof s.barAt === 'function') { const b = +s.barAt(t); if (Number.isFinite(b)) return b; }
@@ -48,7 +49,7 @@ export function deviceClock(c, src, getBpm) {
     const a = s.barTime(b), z = s.barTime(b + 1);
     return b + (z > a ? (t - a) / (z - a) : 0);
   };
-  const bpb = (s) => { let n = 4; try { if (s && s.beatsPerBar) n = +s.beatsPerBar() || 4; } catch (e) { /* 4 */ } return n; };
+  const bpb = (s) => { let n = 4; try { if (s && s.beatsPerBar) n = +s.beatsPerBar() || 4; } catch { /* 4 */ } return n; };
   const clock = {
     get playing() { return !!band(); },
     get beatsPerBar() { return bpb(band()); },
@@ -85,7 +86,7 @@ export function graphInstance(c, def, opts = {}) {
   const uid = String(opts.uid || def.id), seed = opts.seed != null ? opts.seed >>> 0 : seedOf(uid);
   if (!offline && opts.clock) setLive(c, opts.clock);
   let bpm = 120;
-  try { if (opts.clock && opts.clock.bpm) bpm = +opts.clock.bpm() || 120; } catch (e) { /* 120 */ }
+  try { if (opts.clock && opts.clock.bpm) bpm = +opts.clock.bpm() || 120; } catch { /* 120 */ }
   if (opts.bpm) bpm = opts.bpm;
   const clock = deviceClock(c, opts.clock || null, () => bpm);
   const kit = makeKit(c, { uid, seed, clock });
@@ -101,7 +102,7 @@ export function graphInstance(c, def, opts = {}) {
   const feed = (yes) => {
     if (!p || trails) return;
     if (yes && !fed) { i.connect(p.input); fed = true; }
-    else if (!yes && fed) { try { i.disconnect(p.input); } catch (e) { /* gone */ } fed = false; }
+    else if (!yes && fed) { try { i.disconnect(p.input); } catch { /* gone */ } fed = false; }
   };
   // a footswitch move: straight there before anything has played, else a 10 ms raised cosine from `at`
   const sw = (param, v, at) => {
@@ -211,7 +212,7 @@ export function graphInstance(c, def, opts = {}) {
       clearTimeout(offT); unwatch(c, inst);
       kit.release();
       if (p) { try { p.dispose && p.dispose(); } catch (e) { console.error('device ' + def.id + ' dispose:', e); } }
-      try { if (i) i.disconnect(); o.disconnect(); if (p) p.output.disconnect(); } catch (e) { /* gone */ }
+      try { if (i) i.disconnect(); o.disconnect(); if (p) p.output.disconnect(); } catch { /* gone */ }
     },
   };
   inst._syncErr = false;

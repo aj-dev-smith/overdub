@@ -1,3 +1,4 @@
+// @ts-check
 // core.clubkit: Sandbag. A synthesized drum kit for bass music (dubstep, riddim, drum and bass, melodic bass): a kick
 // with a tuned sub tail and a click, a big layered snare (a body of two modes, a noise crack, a clap, a short room),
 // hats of two struck plates, toms, a crash and a ride, a riser and an impact. A sandbag is what holds a stand down on a

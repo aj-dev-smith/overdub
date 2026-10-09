@@ -66,7 +66,7 @@ for (const width of [1440, 390]) {
   const { page, base, errors } = o;
   // what each page asks of a host other than the site (nothing: its fonts are the site's, app/style/fonts.css)
   let offsite = [];
-  page.on('request', (r) => { try { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host); } catch (e) { /* data: */ } });
+  page.on('request', (r) => { try { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol) && u.host !== new URL(base).host) offsite.push(u.host); } catch { /* data: */ } });
   console.log(`\n${width} px`);
   for (const route of PAGES) {
     const before = errors.length;
@@ -626,7 +626,7 @@ for (const width of [1440, 390]) {
   // ... and are close to the last full run's (node tools/run-all.js leaves its totals in tools/.out/run-all.json): never
   // more checks than ran, and recounted once the suite has grown by a tenth. "Some checks failed" caveats go once it passed.
   let last = null;
-  try { last = JSON.parse(fs.readFileSync(path.join(HERE, '.out', 'run-all.json'), 'utf8')); } catch (e) { /* no full run here yet */ }
+  try { last = JSON.parse(fs.readFileSync(path.join(HERE, '.out', 'run-all.json'), 'utf8')); } catch { /* no full run here yet */ }
   if (last && checks.length) {
     const q = checks[0][1];
     t.ok(q <= last.checks && q >= 0.9 * last.checks, `the stated ${q.toLocaleString('en')} checks match the last full run (${last.checks} in ${last.suites} suites, ${last.at.slice(0, 10)}): recount if not`);
@@ -647,9 +647,11 @@ for (const width of [1440, 390]) {
   t.ok(!unshipped.length, `the deploy ships every doc's Markdown that the docs link to${unshipped.length ? ' (missing ' + unshipped.map((d) => d.src).join(', ') + ')' : ''}`);
   // labels the guide names, as the studio spells them
   const LABELS = ['Try the demo agent (free)', 'Hold to hear', 'Keep as a clip', 'Make it yours', 'Share a link', 'Export device', 'Import a device…',
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the label as the source spells it, template and all
     'Provenance report', 'Attribution log', 'DAWproject', 'Stems', 'Save the project file', 'Takes', "Revert all ${store.author(by).name}'s changes (keep mine)",
     'Import MIDI…', 'Import audio…', 'Measure the mix', 'Your words'];
   const missing = LABELS.filter((l) => !src.includes(`'${l}'`) && !src.includes(`\`${l}\``) && !src.includes(`"${l}"`))
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the label as the source spells it, template and all
     .concat(LABELS.filter((l) => !guide.includes(l.replace('${store.author(by).name}', 'Claude'))).map((l) => 'not in the guide: ' + l));
   t.ok(!missing.length, `the ${LABELS.length} buttons and menus the guide names exist, spelled the same${missing.length ? ': ' + missing.join('; ') : ''}`);
   // the models it lists are the Agent tab's

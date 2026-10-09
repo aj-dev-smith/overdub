@@ -1,3 +1,4 @@
+// @ts-check
 // Three devices written the way an agent writes them (kernel source against the public dsp stdlib, in a session,
 // from a plain-language request), shipped inside the demo song as project devices signed by Claude. They show the
 // luthier loop: someone describes a sound, the agent writes the DSP, the studio checks it, and a face appears.

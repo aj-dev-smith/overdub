@@ -1,3 +1,4 @@
+// @ts-check
 // Kernel data: the .odk container a sampled device's samples travel in (docs/DEVICES.md, "Kernel data"). Integer PCM
 // in a container of our own, so decoding is the same integers on every engine: the AudioWorklet, Node and every
 // browser read the same bytes into the same Int16Arrays (no decodeAudioData, which resamples by each browser's own
@@ -76,7 +77,7 @@ export function decodeOdk(bytes) {
   let json = '';
   for (let i = 0; i < H; i += 4096) json += String.fromCharCode.apply(null, u.subarray(8 + i, 8 + Math.min(H, i + 4096)));
   let head;
-  try { head = JSON.parse(json); } catch (e) { throw new Error('odk: the header is not JSON'); }
+  try { head = JSON.parse(json); } catch { throw new Error('odk: the header is not JSON'); }
   if (!head || head.format !== ODK_FORMAT) throw new Error('odk: unknown format ' + (head && head.format));
   const { bits, channels } = head;
   if ((bits !== 16 && bits !== 24) || !(channels >= 1 && channels <= 8) || !Array.isArray(head.samples)) throw new Error('odk: a bad header');

@@ -1,3 +1,4 @@
+// @ts-check
 // Expression: pitch bend, the mod wheel and the sustain pedal, on their way into kernel instruments.
 // docs/DEVICES.md ("Expression") is the contract; kernel/worklet.js's KernelCore does the playing.
 //

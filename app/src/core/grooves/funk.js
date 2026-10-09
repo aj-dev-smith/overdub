@@ -1,3 +1,4 @@
+// @ts-check
 // Funk. The format: core/grooves.js's header.
 export default `
 style funk  Funk

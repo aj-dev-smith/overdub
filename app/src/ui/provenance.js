@@ -224,12 +224,12 @@ function fmtDate(x, { time = true } = {}) {
   if (!x) return '';
   const d = new Date(x);
   if (Number.isNaN(+d)) return '';
-  try { return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', ...(time ? { hour: '2-digit', minute: '2-digit' } : {}) }); } catch (e) { return d.toISOString(); }
+  try { return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', ...(time ? { hour: '2-digit', minute: '2-digit' } : {}) }); } catch { return d.toISOString(); }
 }
 function fmtTime(x) {
   const d = new Date(x);
   if (Number.isNaN(+d)) return '';
-  try { return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return d.toISOString().slice(11, 19); }
+  try { return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch { return d.toISOString().slice(11, 19); }
 }
 const INKS = { 'c-1': '#e98a6c', 'c-2': '#dcb45e', 'c-3': '#a8c470', 'c-4': '#95c6a8', 'c-5': '#a2a6c6', 'c-6': '#b69cd8', 'c-7': '#e68ba8', 'c-8': '#d9c8a4' };
 const ink = (c) => { const m = /^var\(--(c-\d)\)$/.exec(String(c || '')); if (m) return INKS[m[1]] || '#d9c8a4'; return /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#d9c8a4'; };
@@ -571,7 +571,7 @@ async function svgDataUrl(path) {
     if (!r.ok) return null;
     const t = await r.text();
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(t);
-  } catch (e) { return null; }
+  } catch { return null; }
 }
 
 // The report's type: the brand's three families, from style/fonts.css (the studio's own copies), never another host.
@@ -609,7 +609,7 @@ async function gatherChecks(app, model) {
   const out = {};
   const ses = app.provenance?.session || {};
   let REPORTS = null, MEASURED = null;
-  try { const m = await import('../devices/library/reports.js'); REPORTS = m.REPORTS; MEASURED = m.MEASURED; } catch (e) { /* none */ }
+  try { const m = await import('../devices/library/reports.js'); REPORTS = m.REPORTS; MEASURED = m.MEASURED; } catch { /* none */ }
   let checkDevice = null;
   for (const d of model.devices) {
     // a held device's code is never run for the report (it isn't registered either: nothing here could check it)
@@ -619,11 +619,11 @@ async function gatherChecks(app, model) {
     const house = REPORTS?.[d.id];
     if (house && def && (!house.hash || house.hash === def.hash)) { out[d.id] = normCheck(house, 'house', house.measured || MEASURED); continue; }
     if (!def || !def.kernel) continue;
-    if (!checkDevice) { try { checkDevice = (await import('../kernel/check.js')).checkDevice; } catch (e) { break; } }
+    if (!checkDevice) { try { checkDevice = (await import('../kernel/check.js')).checkDevice; } catch { break; } }
     try {
       const rep = await Promise.race([checkDevice({ ...def }, { quick: true }), new Promise((res) => setTimeout(() => res(null), 12000))]);
       if (rep) out[d.id] = normCheck(rep, 'rerun', Date.now());
-    } catch (e) { /* leave it unchecked: the page says so */ }
+    } catch { /* leave it unchecked: the page says so */ }
   }
   return out;
 }
@@ -643,8 +643,8 @@ function modelFor(app, checks = {}) {
 export async function openProvenanceReport(app) {
   // open the tab now, inside the click, so the popup blocker lets it through; fill it in when the report is ready
   let w = null;
-  try { w = window.open('', '_blank'); } catch (e) { w = null; }
-  try { if (w) { w.document.title = 'Provenance report'; w.document.body.style.cssText = 'margin:0;padding:32px;background:#f4ead6;color:#16130f;font:15px system-ui'; w.document.body.textContent = 'Writing the provenance report…'; } } catch (e) { /* cross-origin or closed */ }
+  try { w = window.open('', '_blank'); } catch { w = null; }
+  try { if (w) { w.document.title = 'Provenance report'; w.document.body.style.cssText = 'margin:0;padding:32px;background:#f4ead6;color:#16130f;font:15px system-ui'; w.document.body.textContent = 'Writing the provenance report…'; } } catch { /* cross-origin or closed */ }
   const pre = modelFor(app);
   const checks = await gatherChecks(app, pre);
   const model = modelFor(app, checks);
@@ -700,7 +700,7 @@ export function installProvenance(app) {
   const session = {};          // device id -> { check, at, by, request, requestBy }
   let lastAsk = null;          // the latest thing the person asked the in-app agent
   app.provenance = { session, model: () => modelFor(app), html: () => provenanceHtml(modelFor(app)), open: () => openProvenanceReport(app), TOOL };
-  const hookAgent = () => { try { app.agent?.on?.('user', (e) => { if (e && e.text) lastAsk = { text: String(e.text).slice(0, 600), at: Date.now() }; }); } catch (e) { /* no in-app agent */ } };
+  const hookAgent = () => { try { app.agent?.on?.('user', (e) => { if (e && e.text) lastAsk = { text: String(e.text).slice(0, 600), at: Date.now() }; }); } catch { /* no in-app agent */ } };
   app.ui?.on?.('agent:tool', (e) => {
     if (!e || e.phase !== 'end' || e.name !== 'define_device' || !e.result || !e.result.ok || !e.result.id) return;
     const fromChat = e.by === 'claude' && lastAsk && Date.now() - lastAsk.at < 30 * 60 * 1000;

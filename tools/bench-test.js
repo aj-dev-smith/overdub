@@ -88,7 +88,7 @@ for (const f of fs.readdirSync(nearDir).filter((x) => x.endsWith('.json')).sort(
   const runJs = path.join(HERE, 'run.js');
   const score = (file) => {
     const r = spawnSync(process.execPath, [runJs, 'device-rumble-filter', file, '--json'], { encoding: 'utf8', env: { ...process.env, OVERDUB_TRUST_KERNELS: '' } });
-    try { return JSON.parse(r.stdout.trim().split('\n').pop()); } catch (e) { return { error: (r.stderr || r.stdout || '').slice(0, 200) }; }
+    try { return JSON.parse(r.stdout.trim().split('\n').pop()); } catch { return { error: (r.stderr || r.stdout || '').slice(0, 200) }; }
   };
   const o = read(path.join(HERE, 'oracles', 'device-rumble-filter.json'));
   const okFile = path.join(tmp, 'oracle-copy.json');

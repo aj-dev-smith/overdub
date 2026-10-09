@@ -145,7 +145,7 @@ const SEED = +process.env.STUCK_SEED || 20261001;
   s = stats(k);
   const was = s.held;
   // the same keys through the host: the off that would find nothing goes one frame later, after its on
-  let L1 = await live();
+  const L1 = await live();
   L1.to(1280); L1.inst.noteOn(60, 0.8, L1.c.currentTime);
   L1.to(1408); L1.inst.noteOn(64, 0.8, L1.c.currentTime);
   for (const p of [60, 64]) L1.inst.noteOff(p, L1.c.currentTime);       // the blur

@@ -1,3 +1,4 @@
+// @ts-check
 // "Halation": shoegaze, 16 bars in E major at 78 bpm. Halation is the glow film gets round a bright light. Two guitars
 // on the ported rigs, played from a plucked-string instrument (no audio needed): the wall (the "Wall of Kelp" rig:
 // fuzz into a top-boost amp, chorus, dark delay, a sea-sized reverb) strumming open chords that keep E and B ringing

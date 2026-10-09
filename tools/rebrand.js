@@ -62,7 +62,7 @@ const UPPER = SLUG.toUpperCase();
 // ---- the files
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 });
 let tracked;
-try { tracked = new Set(git('ls-files', '-z').split('\0').filter(Boolean)); } catch (e) { usage(`${ROOT} is not a git work tree`); }
+try { tracked = new Set(git('ls-files', '-z').split('\0').filter(Boolean)); } catch { usage(`${ROOT} is not a git work tree`); }
 const all = git('ls-files', '-z', '-c', '-o', '--exclude-standard').split('\0').filter(Boolean);
 const EXCLUDE = [/^app\/vendor\//, /^docs\/brand-options\//, /^tools\/\.out\//, /^\.git\//, /^node_modules\//];
 const inScope = (f) => f !== SELF && !EXCLUDE.some((re) => re.test(f)) && fs.existsSync(path.join(ROOT, f));
@@ -206,7 +206,7 @@ if (!opt.dry) {
 }
 
 // ---- after a real run: what's left of the old name, outside the excluded paths
-let leftovers = [];
+const leftovers = [];
 if (!opt.dry) {
   const now = git('ls-files', '-z', '-c', '-o', '--exclude-standard').split('\0').filter(Boolean).filter(inScope);
   for (const f of now) {

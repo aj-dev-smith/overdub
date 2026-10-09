@@ -185,7 +185,7 @@ try {
 
   /* ---------------------------------------------------------------- had the simple view saved */
   await section('merged', async () => {
-    const seed = () => { try { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('overdub:workspace', JSON.stringify({ v: 1, view: 'simple', added: { mixer: 'you' } })); } } catch (e) { /* ok */ } };
+    const seed = () => { try { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('overdub:workspace', JSON.stringify({ v: 1, view: 'simple', added: { mixer: 'you' } })); } } catch { /* ok */ } };
     const P = await fresh({ init: seed });
     await sleep(400);
     const a = await P.E(() => ({ view: window.overdub.ui.workspace.view(), saved: JSON.parse(localStorage.getItem('overdub:workspace') || 'null'), said: localStorage.getItem('overdub:start.merged'), toasts: [...document.querySelectorAll('.ew-toast')].map((t) => t.textContent.trim()) }));

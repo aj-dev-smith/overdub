@@ -276,7 +276,7 @@ await section('shelf', async () => {
       await P.page.waitForSelector(`.cs-detail[data-community="${id}"] .cs-try`);
       await P.page.click('.cs-detail .cs-try');
       // (the prompt only for code that gets that far)
-      try { await P.page.waitForSelector('.cs-prompt', { timeout: 2500 }); await sleep(700); await P.page.click('.cs-prompt .cs-go'); } catch (e) { /* refused before asking */ }
+      try { await P.page.waitForSelector('.cs-prompt', { timeout: 2500 }); await sleep(700); await P.page.click('.cs-prompt .cs-go'); } catch { /* refused before asking */ }
       await P.page.waitForFunction(() => [...document.querySelectorAll('.ew-toast')].some((t) => /Refused|failed it|isn’t on the song/.test(t.textContent)), null, { timeout: 30000 });
       const r = await E(P, () => ({ hist: window.overdub.store.history.length, trust: window.overdub.trust.size(), toast: [...document.querySelectorAll('.ew-toast')].map((t) => t.textContent).filter((x) => /Refused|failed it/.test(x)).pop() }));
       return { before, r };

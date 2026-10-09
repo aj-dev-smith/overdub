@@ -1,3 +1,4 @@
+// @ts-check
 // Overdub's built-in kernel devices. Importing this module registers every one of them (ids are forever; the display
 // names are studio objects: the things on the desk and in the live room).
 //   instruments: core.poly (Patch Bay), core.bass (Capstan), core.keys (Lamp Tines), core.pluck (Pinch Roller),

@@ -30,7 +30,7 @@ const NAMED = `(() => {
 const { page, errors, close } = await open('/app/', { query: 'new&autostart' });
 try {
   await page.addInitScript(NAMED);
-  await page.evaluate(() => { try { localStorage.removeItem('overdub:input'); } catch (e) { /* ok */ } });
+  await page.evaluate(() => { try { localStorage.removeItem('overdub:input'); } catch { /* ok */ } });
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   const r = await page.evaluate(async () => {

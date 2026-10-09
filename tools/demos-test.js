@@ -105,7 +105,7 @@ for (const d of MORE_DEMOS) {
 }
 
 /* ------------------------------------------------------------------ the sound (in the page) */
-const { page, errors, close, shot } = await open('/app/', { query: 'new&autostart' });
+const { page, errors, close } = await open('/app/', { query: 'new&autostart' });
 await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
 for (const d of MORE_DEMOS) {
   const r = await page.evaluate(async ({ id, leads }) => {

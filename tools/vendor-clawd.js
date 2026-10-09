@@ -32,8 +32,8 @@ const GEN = path.join(ROOT, 'app/src/devices/guitar');
 
 if (!fs.existsSync(path.join(SRC, 'pedals.js'))) { console.error('vendor-clawd: no clawd-o-matic at ' + SRC + ' (set CLAWD=…/clawd-o-matic/web)'); process.exit(1); }
 let rev = 'unknown';
-try { rev = execSync('git log -1 --format=%h', { cwd: SRC, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch (e) { /* not a checkout */ }
-try { if (execSync('git status --porcelain -- .', { cwd: SRC, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()) rev += '+dirty'; } catch (e) { /* fine */ }
+try { rev = execSync('git log -1 --format=%h', { cwd: SRC, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* not a checkout */ }
+try { if (execSync('git status --porcelain -- .', { cwd: SRC, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()) rev += '+dirty'; } catch { /* fine */ }
 
 const list = (dir) => fs.readdirSync(path.join(SRC, dir)).filter((f) => /^\d\d-[\w-]+\.js$/.test(f)).sort().map((f) => dir + '/' + f);
 const SOUND = ['pedals.js', 'amps.js', ...list('pedals'), 'presets.js', ...list('presets')];

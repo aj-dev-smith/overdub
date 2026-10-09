@@ -1,3 +1,4 @@
+// @ts-check
 // What kind of ask this is, for Claude on Overdub credits: the price is shown on the ask before it's sent
 // ("A new part · 5 credits ▾"), so the page names the kind itself, from open rules, in the browser. Nothing of the
 // draft leaves the page until Send. The person can always pick another kind from the ▾; the service then runs that
@@ -60,7 +61,7 @@ export function freeMove(text, { devices = [], hasTrack = false } = {}) {
   }
   if (!hasTrack) return null;
   const word = /^make it (.+)$/.exec(t)?.[1] || t;
-  const known = (w) => Object.prototype.hasOwnProperty.call(WORDS, w);
+  const known = (w) => Object.hasOwn(WORDS, w);
   if (known(word)) return { tool: 'adjust', input: { axis: word, reason: `you asked for ${word}` } };
   return null;
 }

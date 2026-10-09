@@ -34,7 +34,7 @@ function findTrack(app, ref) {
 export function resolveSeed(app, target) {
   const store = app.store, sel = app.ui?.state?.selection || {};
   const t = target && typeof target === 'object' ? target : {};
-  let track = t.track ? findTrack(app, t.track) : null;
+  const track = t.track ? findTrack(app, t.track) : null;
   if (t.track && !track) return err(`no track "${t.track}"`, `tracks: ${store.get().tracks.map((x) => `${x.id} "${x.name}"`).join(', ')}`);
   let f = null;
   if (t.clip) {
@@ -128,7 +128,7 @@ export const ARRANGE_TOOL = {
   run(input, ctx) { return runArrangeTool(ctx.app, ctx.by, input); },
 };
 
-const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return v; } } return v; };
+const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch { return v; } } return v; };
 
 async function runArrangeTool(app, by, input) {
   const style = findStyle(input.style || 'pop');
@@ -156,7 +156,7 @@ async function runArrangeTool(app, by, input) {
   const r = await buildBand(app, { track: tgt.track.id, clip: tgt.clip.id, style, parts, seed, by, label: input.label, reason: input.reason });
   if (r.error) return r;
   const p = r.plan;
-  try { app.presence?.highlight?.({ track: r.ids[p.tracks[0].part] }, `${STYLES[style].label.toLowerCase()} band`, by, 4000); } catch (e) { /* a nicety */ }
+  try { app.presence?.highlight?.({ track: r.ids[p.tracks[0].part] }, `${STYLES[style].label.toLowerCase()} band`, by, 4000); } catch { /* a nicety */ }
   return {
     ok: true, txn: r.txn, style, kind: p.kind, key: `${p.key.root} ${p.key.scale}`,
     summary: p.summary, touches_human_notes: false, note: untouched,
@@ -170,8 +170,8 @@ async function runArrangeTool(app, by, input) {
 }
 
 /* ------------------------------------------------------------------------------------------------ the picker */
-function readPref(k, def) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? def; } catch (e) { return def; } }
-function writePref(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked: fine */ } }
+function readPref(k, def) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? def; } catch { return def; } }
+function writePref(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked: fine */ } }
 
 function installUI(app) {
   css('band', CSS);
@@ -232,10 +232,10 @@ function installUI(app) {
       app.ui.emit?.('band', { txn, plan: r.plan, ids: r.ids });
       // the new parts into view, flashed once; then the band plays the take back as a song, from the take's first bar
       // (not while recording, and not over a song that's already playing)
-      try { app.arranger?.show?.(Object.values(r.clips || {}).filter(Boolean), 'overdub'); } catch (e) { /* a nicety */ }
+      try { app.arranger?.show?.(Object.values(r.clips || {}).filter(Boolean), 'overdub'); } catch { /* a nicety */ }
       const eng = app.engine, from = app.store.findClip(tgt.clip.id)?.clip.start;
       if (eng && !eng.playing && !isRecording(app) && Number.isFinite(from)) {
-        try { await eng.play(from); } catch (e) { /* no audio yet: the toast still says it's in */ }
+        try { await eng.play(from); } catch { /* no audio yet: the toast still says it's in */ }
       }
     }
     paint();

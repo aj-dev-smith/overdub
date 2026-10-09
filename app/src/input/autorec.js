@@ -1,3 +1,4 @@
+// @ts-check
 // Recording automation: Touch, and Write it into the lane (docs/research/AUTOMATION.md 3.9, where it was "Keep that
 // move"). There is no automation arm.
 //
@@ -146,7 +147,7 @@ export function valueWords(spec, v, addr = {}) {
   if (!addr.insert && addr.param === 'pan') return Math.abs(v) < 0.005 ? 'centre' : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? 'left' : 'right'}`;
   if (!addr.insert && addr.param === 'gain') return v <= -95.9 ? 'off' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} dB`;
   if (spec?.opts) return String(spec.opts[clamp(Math.round(v), 0, spec.opts.length - 1)] ?? v);
-  if (typeof spec?.fmt === 'function') { try { const s = spec.fmt(v); if (s != null) return String(s); } catch (e) { /* its own business */ } }
+  if (typeof spec?.fmt === 'function') { try { const s = spec.fmt(v); if (s != null) return String(s); } catch { /* its own business */ } }
   const r = (x, d) => (+x).toFixed(d);
   switch (spec?.unit) {
     case 'Hz': return v >= 1000 ? `${r(v / 1000, v >= 10000 ? 1 : 1)} kHz` : `${Math.round(v)} Hz`;
@@ -172,11 +173,11 @@ function barsWords(bpb, a, b) {
 
 export function createAutorec(app, input, rec) {
   const { store, engine } = app;
-  const getDevice = (id) => { try { return app.devices?.getDevice?.(id) || null; } catch (e) { return null; } };
+  const getDevice = (id) => { try { return app.devices?.getDevice?.(id) || null; } catch { return null; } };
   const P = () => store.get();
   const tempo = () => +P().tempo || 120;
   const bpbNow = () => beatsPerBar(P().meter);
-  const toast = (text, o) => { try { app.ui?.toast?.(text, o); } catch (e) { /* no ui */ } };
+  const toast = (text, o) => { try { app.ui?.toast?.(text, o); } catch { /* no ui */ } };
 
   const open = new Map();     // laneKey -> the gesture in progress
   const moves = [];           // the moves the song played over, each offered to write into its lane
@@ -218,7 +219,7 @@ export function createAutorec(app, input, rec) {
     try {
       const ev = globalThis.event, ts = ev && ev.timeStamp, now = performance.now();
       return fin(ts) && ts > 0 && now - ts >= 0 && now - ts < 150 ? ts : null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
   // the transport's unwrapped grid at a performance.now() time (null: now; null when stopped)
   function gridAt(ts) {
@@ -264,7 +265,7 @@ export function createAutorec(app, input, rec) {
     if (!pv) return;
     const x = pv; pv = null;
     if (x.doc !== P()) return;
-    try { x.release(); } catch (e) { /* the commit puts it right */ }
+    try { x.release(); } catch { /* the commit puts it right */ }
   }
   function relayer() {
     release();
@@ -368,7 +369,7 @@ export function createAutorec(app, input, rec) {
     const vals = G.pts.map((x) => x.v);
     if (!(span >= 1 / 64) || (Math.max(...vals) === Math.min(...vals) && vals[0] === G.before)) return;
     const name = nameOf(P(), G.addr, G.spec);
-    const from = Math.min(...writes.map((o) => o.from)), to = Math.max(...writes.map((o) => o.to));
+    const from = Math.min(...writes.map((o) => o.from));
     const bars = barsWords(bpbNow(), from, Math.max(from, G.pts[G.pts.length - 1].beat));
     // (the move already stuck: the toast says the level stays where it was left, and offers to write the move into the
     // lane; "Keep that move" read as if the move would be taken back otherwise, docs/FRESH-EYES-5.md)
@@ -377,7 +378,7 @@ export function createAutorec(app, input, rec) {
     moves.push(mv);
     if (moves.length > MOVES_MAX) moves.shift();
     toast(text, { kind: 'info', ms: 10000, action: { label: 'Write it into the lane', run: () => keep(mv.id) } });
-    try { input.emit('automove', { id: mv.id, text }); } catch (e) { /* ok */ }
+    try { input.emit('automove', { id: mv.id, text }); } catch { /* ok */ }
   }
   function keep(id = null) {
     const mv = id ? moves.find((x) => x.id === id) : moves[moves.length - 1];
@@ -405,7 +406,7 @@ export function createAutorec(app, input, rec) {
       // (the count cancelled: what the hand held in it is let go, and the knob is as it was)
       else if (d.state === 'idle' && !take) dropCount();
     });
-  } catch (e) { /* no recorder */ }
+  } catch { /* no recorder */ }
   // The downbeat: a control held through the count-in starts writing here, at the value the hand is at (a jump in
   // from the lane, or from the knob's own value, as any touch is).
   function downbeat() {
@@ -466,7 +467,7 @@ export function createAutorec(app, input, rec) {
   const raw = store.dispatch;
   store.dispatch = function (ops, o = {}) {
     let hit = null;
-    try { hit = gestureOf(ops, o || {}); } catch (e) { hit = null; }
+    try { hit = gestureOf(ops, o || {}); } catch { hit = null; }
     if (hit) {
       let took = false;
       try { took = onMove(hit); } catch (e) { console.error('autorec', e); }
@@ -483,10 +484,10 @@ export function createAutorec(app, input, rec) {
     globalThis.addEventListener('pointerup', up, true);
     globalThis.addEventListener('pointercancel', up, true);
     globalThis.addEventListener('blur', () => { down.clear(); endAll({ pointer: true }); });
-  } catch (e) { /* node */ }
+  } catch { /* node */ }
   try {
     engine.on('transport', (e) => { if (e && !e.playing) endAll({ mode: 'play' }); });
-  } catch (e) { /* no engine */ }
+  } catch { /* no engine */ }
   // a song loaded: nothing in progress carries over
   store.on('change', (e) => { if (e && e.kind === 'load') { for (const G of open.values()) clearTimeout(G.timer); open.clear(); moves.length = 0; } });
 

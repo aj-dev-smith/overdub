@@ -1,3 +1,4 @@
+// @ts-check
 // core.chorus: Double Track. Two modulated delay taps per side, their sweeps a quarter-cycle apart between left and
 // right (so a mono source opens into stereo), with a little seeded drift so the sweep never sounds like a metronome.
 // FEEDBACK pushes it toward a flanger. Equal-gain mixing keeps the level where it was.

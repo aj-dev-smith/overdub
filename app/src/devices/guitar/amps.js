@@ -1,3 +1,4 @@
+// @ts-check
 // Every clawd-o-matic amp as an Overdub effect device, 'amp.<id>' (cat 'amp'). The sound is clawd-o-matic's own
 // plugAmp (app/vendor/clawd/amps.js, verbatim): the same knobs give the same samples. Each amp also has its cab and mic
 // network (plugCabNet): any of the cabs, a mic of any type moved across the cone, back from the grille and off axis,
