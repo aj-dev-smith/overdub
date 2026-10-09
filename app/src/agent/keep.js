@@ -56,7 +56,7 @@ export function keepFirst(app, by) {
 //   kernelPrint(source) -> string        a kernel's code with names, comments and spacing taken out
 export function heldCodeFirst(app, by) {
   if (!app || by === 'you') return false;
-  try { return (app.devices?.heldDevices?.() || []).length > 0; } catch (e) { return true; }   // (can't tell: wait)
+  try { return (app.devices?.heldDevices?.() || []).length > 0; } catch { return true; }   // (can't tell: wait)
 }
 export const HELD_CODE_FINE = 'This song has devices kept off on this computer, so new code waits for you. The device check runs when you press Keep; nothing of it runs before.';
 

@@ -44,7 +44,7 @@ export function nodeRenderer({ node = process.execPath } = {}) {
   const die = (msg) => {
     if (dead) return;
     dead = msg;
-    if (child) { try { child.kill('SIGKILL'); } catch (e) { /* gone */ } }
+    if (child) { try { child.kill('SIGKILL'); } catch { /* gone */ } }
     if (cur) { const c = cur; cur = null; c.reject(fault(msg)); }
     if (gone) { const g = gone; gone = null; g(fault(msg)); }
   };

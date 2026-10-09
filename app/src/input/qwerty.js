@@ -63,7 +63,7 @@ export function snapWords({ quantize = true, scaleLock = true, grid = 0.25, key 
 
 export function createQwerty(app, input) {
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { saved = {}; }
   const down = new Map(); // code -> pitch it is holding (an octave change mid-note lets the right one go)
   const q = {
     on: false,
@@ -120,7 +120,7 @@ export function createQwerty(app, input) {
   // Screen readers hear real changes only (on/off, the track, octave, velocity, the grid, scale lock) through the shell's
   // one-line announcer; the strip itself is a picture of the keys and stays quiet while you play.
   let said = null;   // the track last announced
-  const say = (text) => { try { app.ui.announce?.(text); } catch (e) { /* no shell */ } };
+  const say = (text) => { try { app.ui.announce?.(text); } catch { /* no shell */ } };
   const words = (touch = false) => snapWords({ quantize: q.quantize, scaleLock: q.scaleLock, grid: input.options?.grid || 0.25, key: app.store.get().key, touch });
   // The line: "Snapping to 1/16, in C minor", each part a button that turns its helper off and on. Its buttons stay the
   // same nodes as it repaints (a keyboard's focus stays on the one pressed)
@@ -149,7 +149,7 @@ export function createQwerty(app, input) {
   // a key going down or up lights its cell; the rest of the strip stays as it is
   function lit(code, on) { for (const c of strip.querySelectorAll('.ew-qw-k')) if (c.dataset.code === code) c.classList.toggle('on', on); }
   let lockSet = !!saved.lockSet;
-  function save() { try { localStorage.setItem(SAVE, JSON.stringify({ octave: q.octave, velocity: q.velocity, scaleLock: q.scaleLock, lockSet, quantize: q.quantize })); } catch (e) { /* ok */ } }
+  function save() { try { localStorage.setItem(SAVE, JSON.stringify({ octave: q.octave, velocity: q.velocity, scaleLock: q.scaleLock, lockSet, quantize: q.quantize })); } catch { /* ok */ } }
   // what the keys play lands on the grid: a phrase from musical typing or the touch keys carries the grid it snaps to
   // (capture.phraseNotes uses it; a pass recorded with R is snapped as it records)
   input.capture?.on?.((e) => {

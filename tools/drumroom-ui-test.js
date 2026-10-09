@@ -57,7 +57,7 @@ const ours = (errors) => errors.filter((e) => !/Failed to load resource|favicon|
 const s = await open('/app/', { query: 'demo' });
 const { page, errors, shot } = s;
 page.setDefaultTimeout(15000);
-let goboTrack = null, kitTrack = null;
+let kitTrack = null;
 try {
   await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
   await sleep(400);
@@ -75,7 +75,7 @@ try {
     ], { by: 'you', label: 'drumroom test' });
     return { kit: r.created.k, clip: r.created.kc, gobo: r.created.g, goboClip: r.created.gc };
   });
-  kitTrack = made.kit; goboTrack = made.gobo;
+  kitTrack = made.kit;
   await E(() => { const a = window.overdub; window.__notes = []; const on = a.engine.liveNoteOn, off = a.engine.liveNoteOff; a.engine.liveNoteOn = (t, p, v) => { window.__notes.push(['on', t, p, +(+v).toFixed(3)]); return on.call(a.engine, t, p, v); }; a.engine.liveNoteOff = (t, p) => { window.__notes.push(['off', t, p]); return off.call(a.engine, t, p); }; });
   const notes = () => E(() => window.__notes.splice(0));
 

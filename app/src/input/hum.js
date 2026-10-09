@@ -180,7 +180,7 @@ export function createHum(app, input) {
       const recr = input.recorder;
       const s = sess = { sr, tr, chunks: [], len: 0, frames: tr.frames, segs: [], f0: null, opts, startBeat: null, snap: null, t0: performance.now(), rec: !!(opts.rec && recr && recr.state !== 'idle') };
       const engine = app.engine;
-      if (opts.withSong && !engine.playing && !s.rec) { try { await engine.play(); } catch (e) { /* silent engine */ } }
+      if (opts.withSong && !engine.playing && !s.rec) { try { await engine.play(); } catch { /* silent engine */ } }
       s.playing = !!engine.playing || s.rec;
       s.off = audio.listen((blk) => {
         if (sess !== s) return;
@@ -228,7 +228,7 @@ export function createHum(app, input) {
       if (!s || !s.segs.length || !(s.playing || s.rec)) return [];
       const o = takeOpts(s, { peek: true });
       if (o.originBeat == null) return [];
-      try { return transcribe(s.segs, { ...o, key: effKey(o) }).notes.map((n) => ({ p: n.p, t: n.t, d: n.d, low: n.low, tr: n.tr })); } catch (e) { return []; }
+      try { return transcribe(s.segs, { ...o, key: effKey(o) }).notes.map((n) => ({ p: n.p, t: n.t, d: n.d, low: n.low, tr: n.tr })); } catch { return []; }
     },
     cancel() { if (sess) { sess.off && sess.off(); sess = null; emit('state', { active: false }); input.emit('hum', { active: false }); } },
     // the take it joined was called off in its count-in: the hum is yours again (H stops it into Sketch), in free time
@@ -258,7 +258,7 @@ export function createHum(app, input) {
       if (!opts.key) { opts.heard = heardOf(result); if (opts.snapHeard && opts.heard) result = transcribe(s.segs, { ...opts, key: effKey(opts) }); }
       // keep the hummed audio with the notes (A/B what you meant); IndexedDB through the engine's assets
       let audioId = null;
-      try { audioId = 'a_hum' + Date.now().toString(36); await app.engine.assets.put(audioId, { sr: s.sr, channels: [samples] }); } catch (e) { audioId = null; }
+      try { audioId = 'a_hum' + Date.now().toString(36); await app.engine.assets.put(audioId, { sr: s.sr, channels: [samples] }); } catch { audioId = null; }
       // in a take: the notes go to the recorder, each at its grid beat (it places them in their passes), a note moved into
       // the key with what it was sung as (`was`), so the take's commit can say so and put it back (below)
       if (s.rec && opts.originBeat != null) {
@@ -302,7 +302,7 @@ export function createHum(app, input) {
     const text = `Moved ${n} ${n === 1 ? 'note' : 'notes'} into ${keyLabel(k)}${tk.opts.key ? ', the song’s key' : ', the key you hummed in'}.`;
     try {
       app.ui?.toast?.(text, { kind: 'info', action: { label: 'Undo', run: () => (sung ? backInSong(tk, sung) : backAsSung(tk)) } });
-    } catch (e) { /* no shell (Node) */ }
+    } catch { /* no shell (Node) */ }
   }
   function backAsSung(tk) {
     if (hum.take !== tk || sess) return;
@@ -330,7 +330,7 @@ export function createHum(app, input) {
       const tk = hum.take;
       if (tk && tk.rec && tk.recTake && res && res.ok && res.take === tk.recTake && res.sung) sayMoved(tk, res.sung);
     });
-  } catch (e) { /* no recorder */ }
+  } catch { /* no recorder */ }
   Object.assign(hum, {
     // re-run the quantise/snap on the last take with new options (snap, grid, keep my timing) and update its capture
     retranscribe(patch = {}) {
@@ -350,7 +350,7 @@ export function createHum(app, input) {
   function songKey() { const p = app.store.get(); return keyChosen(p, app.store.history) ? p.key : null; }
   hum.songKey = songKey;
   // another song: the last take was that song's, not this one's
-  try { app.store.on('change', (e) => { if (e && e.kind === 'load' && hum.take && !sess) { hum.take = null; emit('take', null); } }); } catch (e) { /* no store */ }
+  try { app.store.on('change', (e) => { if (e && e.kind === 'load' && hum.take && !sess) { hum.take = null; emit('take', null); } }); } catch { /* no store */ }
 
   // A hum onto a new track, in a song whose key nobody chose, is put in tune: into the key heard in it (snapHeard), said
   // and undoable as the song-key snap is; Undo (or Snap off) keeps the next hums as sung (options.snapKey). With nothing
@@ -360,7 +360,7 @@ export function createHum(app, input) {
   function takeOpts(s, { peek = false } = {}) {
     const p = app.store.get(), key = songKey();
     let toNew = false;
-    try { toNew = !!input.recorder && !input.recorder.targetFor('hum'); } catch (e) { toNew = false; }
+    try { toNew = !!input.recorder && !input.recorder.targetFor('hum'); } catch { toNew = false; }
     const alone = !s.rec && !(p.tracks || []).some((t) => (t.clips || []).length) && !app.engine?.metronome;
     const o = { tempo: p.tempo, meter: p.meter, ...hum.options, key, heard: null, snapHeard: !key && toNew && hum.options.snapKey !== false };
     if (alone) o.keepTiming = true;

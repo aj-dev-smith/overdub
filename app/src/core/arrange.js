@@ -23,7 +23,7 @@
 // (music.parseGrid), with seeded velocities, ghost notes, a fill in every 4th bar and a crash after it. Anything left
 // that could still rub (an out-of-key hummed note) is dropped from the voicing on that beat rather than fought.
 
-import { SCALES, scalePcs, parsePc, beatsPerBar, chordName, spellPc, spellNote, parseGrid, normNote, noteName } from './music.js';
+import { SCALES, scalePcs, beatsPerBar, chordName, spellPc, spellNote, parseGrid, normNote, } from './music.js';
 import { rng, guessKey, transform, onsets, isDrumDevice } from './transforms.js';
 import { TRACK_COLORS } from './project.js';
 
@@ -118,7 +118,6 @@ export function findStyle(name) {
   return STYLES[k] ? k : STYLE_ALIASES[k] || null;
 }
 export const levelFor = (style, part) => STYLES[style]?.level?.[part] ?? -6;
-const PART_WORD = { chords: 'chords', bass: 'bass', drums: 'drums', pad: 'pad' };
 
 /* ------------------------------------------------------------------------------------------------ keys and time */
 // The 7-note scale chords are built from (pentatonic, blues and chromatic keys borrow their parent major/minor).
@@ -238,7 +237,7 @@ function cfmPrior(mel, ctx, chords, units, every) {
       const ch = chords.find((c) => c.triad.every((pc) => pcs.has(pc)) && pcs.size === 3);
       if (ch) out[i] = ch.degree;
     }
-  } catch (e) { /* no prior: fine */ }
+  } catch { /* no prior: fine */ }
   return out;
 }
 
@@ -351,7 +350,6 @@ export function arrangeAround(opts = {}) {
   const kind = opts.kind || seedKind(seedNotes, opts.drums);
   const key = opts.key || (kind === 'drums' ? { root: 'C', scale: 'major' } : guessKey(seedNotes));
   const hk = harmonyKeyOf(key);
-  const keyPcs = new Set(scalePcs(hk));
   const chords = diatonic(hk);
   const units = unitsOf({ start, length, meter });
   const ctx = { key, meter, tempo, start };
@@ -384,7 +382,7 @@ export function arrangeAround(opts = {}) {
     const strongPcs = [...new Set(s.units.flatMap((u) => (u.strong == null ? [] : clashSeed.filter((n) => soundsAt(n, u.strong)).map((n) => n.p % 12))))];
     const rubs = (pc) => strongPcs.some((m) => ic1(pc, m));
     const avoid = c.triad.filter(rubs);
-    let pcs = S.power ? [c.root, c.triad[2]] : c.triad.slice();
+    const pcs = S.power ? [c.root, c.triad[2]] : c.triad.slice();
     if (S.sevenths && c.quality !== 'dim' && !rubs(c.seventh)) pcs.push(c.seventh);
     if (style === 'lofi' && c.quality !== 'dim' && !rubs(c.ninth)) pcs.push(c.ninth);
     s.pcs = pcs.filter((pc) => !avoid.includes(pc));

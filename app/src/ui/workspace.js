@@ -102,23 +102,23 @@ const KIND_ORDER = ['go', 'do', 'sound', 'help'];
 export function installWorkspace(ui, app, decision = { view: 'full' }) {
   const html = document.documentElement;
   let storage = null;
-  try { storage = window.localStorage; } catch (e) { storage = null; }
+  try { storage = window.localStorage; } catch { storage = null; }
   const saved = readSaved(storage);
   let view = VIEWS.includes(decision?.view) ? decision.view : 'full';
   const added = { ...saved.added };   // { featureId: by }; unknown ids are kept (a later version's), never shown
   const persist = () => {
     const out = { v: 1, added };
     if (saved.view) out.view = saved.view;
-    try { storage?.setItem(WORKSPACE_KEY, JSON.stringify(out)); } catch (e) { /* private mode: this visit only */ }
+    try { storage?.setItem(WORKSPACE_KEY, JSON.stringify(out)); } catch { /* private mode: this visit only */ }
   };
   // a browser that had the simple view saved: the full studio now, said once (overdub:start.merged)
   if (decision?.from === 'merged') {
     saved.view = 'full';
     persist();
     let said = false;
-    try { said = !!storage?.getItem('overdub:start.merged'); } catch (e) { said = false; }
+    try { said = !!storage?.getItem('overdub:start.merged'); } catch { said = false; }
     if (!said) {
-      try { storage?.setItem('overdub:start.merged', '1'); } catch (e) { /* once a visit, then */ }
+      try { storage?.setItem('overdub:start.merged', '1'); } catch { /* once a visit, then */ }
       ui.on?.('ready', () => ui.toast?.(T.merged.replace('⌘K', `${MODK}K`), { ms: 8000 }));   // (Ctrl+K off a Mac)
     }
   }
@@ -222,7 +222,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (!VIEWS.includes(v) || v === view) return view;
     view = v;
     if (v === 'full') { saved.view = 'full'; persist(); }
-    try { const u = new URL(location.href); if (u.searchParams.has('view')) { u.searchParams.delete('view'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } } catch (e) { /* fine */ }
+    try { const u = new URL(location.href); if (u.searchParams.has('view')) { u.searchParams.delete('view'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } } catch { /* fine */ }
     clearNote();
     if (agentBy(by)) say([byline(String(by), { app }), ' switched to the ', v === 'full' ? 'full studio' : 'simple view', '.'], PUT_MS);
     changed();
@@ -240,7 +240,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (!f) return false;
     api.reach(id, by);
     const panel = f.panels.find((p) => ui.panels?.has?.(p)) || null;
-    try { if (panel) ui.show?.(panel, { by }); } catch (e) { /* pointing is the answer */ }
+    try { if (panel) ui.show?.(panel, { by }); } catch { /* pointing is the answer */ }
     const el = panel ? null : [...document.querySelectorAll(`[data-feature~="${id}"]`)].find((x) => x.getClientRects().length);
     if (el) {
       clearTimeout(pointT); pointed?.classList.remove('ws-pointed', 'ws-pointed-agent');
@@ -286,7 +286,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   // Only on a browser with no layout of its own yet.
   if (view === 'simple') {
     let fresh = true;
-    try { fresh = storage?.getItem('overdub:layout') == null; } catch (e) { /* fresh */ }
+    try { fresh = storage?.getItem('overdub:layout') == null; } catch { /* fresh */ }
     if (fresh) for (const r of ['left', 'bottom']) { if (ui.isOpen?.(r)) ui.setOpen?.(r, false, { save: false }); }
   }
 
@@ -304,14 +304,14 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
   function runKey(k) {
     const ev = { code: k.key, key: '', shiftKey: /shift/.test(k.mod || ''), altKey: /alt/.test(k.mod || ''), metaKey: false, ctrlKey: false, repeat: false, target: document.body, preventDefault() {}, stopPropagation() {} };
     try { k.run(ev); } catch (e) { console.error('find: key', k.label, e); }
-    if (k.feature && !app.transport?.locked?.()) { try { api.reach(k.feature, 'you'); } catch (e) { /* ok */ } }
+    if (k.feature && !app.transport?.locked?.()) { try { api.reach(k.feature, 'you'); } catch { /* ok */ } }
   }
   // Sound: every instrument and effect, and each preset by name; an instrument tries on the selected track (a trial,
   // with Keep and Back: never an overwrite), anything else opens the Browser on it
   function soundItems() {
     const out = [];
     let defs = [];
-    try { defs = app.devices?.listDevices?.() || []; } catch (e) { defs = []; }
+    try { defs = app.devices?.listDevices?.() || []; } catch { defs = []; }
     for (const d of defs) {
       if (d.kind !== 'instrument' && d.kind !== 'effect') continue;
       const words = [d.kindLabel, d.cat, d.nod].filter(Boolean).map(String);
@@ -321,11 +321,11 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     }
     return out;
   }
-  const selectedTrack = () => { try { const id = ui.state?.selection?.track; const t = id ? app.store.track(id) : null; return t && t.kind === 'instrument' ? t : null; } catch (e) { return null; } };
+  const selectedTrack = () => { try { const id = ui.state?.selection?.track; const t = id ? app.store.track(id) : null; return t && t.kind === 'instrument' ? t : null; } catch { return null; } };
   function trySound(it) {
     const t = selectedTrack();
     if (it.def.kind === 'instrument' && t && app.sounds?.try) {
-      try { app.sounds.offer?.({ track: t.id, from: 'find' }); } catch (e) { /* the trial still plays */ }
+      try { app.sounds.offer?.({ track: t.id, from: 'find' }); } catch { /* the trial still plays */ }
       const r = app.sounds.try(t.id, { device: it.def.id, ...(it.preset ? { preset: it.preset } : {}) }, { from: 'find' });
       if (r && r.ok === false && r.error) ui.toast?.(r.error, { kind: 'bad' });
       return;
@@ -364,7 +364,7 @@ export function installWorkspace(ui, app, decision = { view: 'full' }) {
     if (it.kind === 'go') { closeFind({ refocus: false }); go(it.f.id, { by: 'you', query: q }); return; }
     if (it.kind === 'do') { closeFind(); it.run(); return; }
     if (it.kind === 'sound') { closeFind({ refocus: false }); trySound(it); return; }
-    if (it.kind === 'help') { closeFind(); try { window.open(it.href, '_blank', 'noopener'); } catch (e) { location.href = it.href; } }
+    if (it.kind === 'help') { closeFind(); try { window.open(it.href, '_blank', 'noopener'); } catch { location.href = it.href; } }
   }
 
   /* ------------------------------------------------ Find: a popover on a wide screen, a sheet on a phone */

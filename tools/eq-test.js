@@ -21,7 +21,7 @@ import { makeDsp } from '../app/src/kernel/dsp.js';
 import { getDevice, paramValues, presetParams } from '../app/src/devices/registry.js';
 import '../app/src/devices/builtin/index.js';
 import * as C from '../app/src/devices/builtin/eq8-curve.js';
-import { measure, lufs } from '../app/src/audio/measure.js';
+import { lufs } from '../app/src/audio/measure.js';
 import * as TS from '../app/src/audio/testsignals.js';
 import { eqPlan } from '../app/src/agent/lexicon.js';
 

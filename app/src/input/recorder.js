@@ -391,7 +391,7 @@ export function createRecorder(app, input, opts = {}) {
   const fns = new Map();
   const emit = (t, d) => { for (const fn of fns.get(t) || []) { try { fn(d); } catch (e) { console.error('recorder listener', t, e); } } if (t === 'state') input.emit('record', d); };
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { saved = {}; }
   const modes = new Map();   // track id -> 'layer' | 'take' (this song, while it's open)
   let R = null;              // the take in progress
   let last = null;
@@ -421,8 +421,8 @@ export function createRecorder(app, input, opts = {}) {
   let seq = 0, selAt = 0, selTrack = null, mine = 0;   // mine: our own selects and arms, which aren't the person's acts
   const kindOf = (k) => (k === 'pads' || k === 'drums' || k === 'tap' || k === 'beatbox' ? 'pads' : k === 'hum' ? 'hum' : k === 'keys' || k === 'midi' || k === 'qwerty' || k === 'touch' ? 'keys' : null);
   // the view: the shell's workspace (ui/workspace.js), else what the caller said (the Node checks), else the full studio
-  const viewOf = () => { try { const v = app.ui?.workspace?.view?.(); if (v) return v; } catch (e) { /* no shell */ } const v = typeof opts.view === 'function' ? opts.view() : opts.view; return v === 'simple' ? 'simple' : 'full'; };
-  const ownSelect = (s) => { mine++; try { app.ui?.select?.(s); } catch (e) { /* ok */ } finally { mine--; } };
+  const viewOf = () => { try { const v = app.ui?.workspace?.view?.(); if (v) return v; } catch { /* no shell */ } const v = typeof opts.view === 'function' ? opts.view() : opts.view; return v === 'simple' ? 'simple' : 'full'; };
+  const ownSelect = (s) => { mine++; try { app.ui?.select?.(s); } catch { /* ok */ } finally { mine--; } };
   function aimChanged(kind = null) { emit('aim', { kind, view: viewOf() }); }
   function clearChoices() { if (KINDS.some((k) => A.choice[k] != null)) { A.choice = none(); return true; } return false; }
   try {
@@ -436,7 +436,7 @@ export function createRecorder(app, input, opts = {}) {
       if (!mine && viewOf() === 'full') clearChoices();
       aimChanged();
     });
-  } catch (e) { /* no shell (Node) */ }
+  } catch { /* no shell (Node) */ }
 
   // Where a take of this kind goes: { track (or null: a new track), why }
   function resolve(kind) {
@@ -557,9 +557,9 @@ export function createRecorder(app, input, opts = {}) {
     ownSelect({ track: id, clip: null, notes: [] });
     took('keys', id);   // (a one-shot "A new track" for the keys is this one now)
     let dev = 'Lamp Tines';
-    try { dev = app.devices?.getDevice?.(np.device)?.name || dev; } catch (e) { /* ok */ }
+    try { dev = app.devices?.getDevice?.(np.device)?.name || dev; } catch { /* ok */ }
     const text = `Keys play a new track, ${np.name} (${dev}). Undo takes it away.`;
-    try { app.ui?.announce?.(text); } catch (e) { /* ok */ }
+    try { app.ui?.announce?.(text); } catch { /* ok */ }
     input.emit('keys:track', { track: id, name: np.name, device: np.device, text });
     return store.track(id);
   }
@@ -573,7 +573,7 @@ export function createRecorder(app, input, opts = {}) {
     try {
       const ev = globalThis.event, ts = ev && ev.timeStamp, now = performance.now();
       return fin(ts) && ts > 0 && now - ts >= 0 && now - ts < 150 ? ts : null;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
   // The grid at an event (or now): engine.gridBeat, moved by what engine.beatAt says passed between the audio clock's
   // last step and the event (beatAt is continuous; a wrap in between is taken back out)
@@ -698,11 +698,11 @@ export function createRecorder(app, input, opts = {}) {
   // a part's previews again, from its notes as they are now (previews are a stack: they go back last first, all of them)
   function repreview(r, pt) {
     if (pt.mode !== 'layer') return;
-    for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch (e) { /* the commit puts it right */ } }
+    for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch { /* the commit puts it right */ } }
     for (const ps of [...pt.passes.values()].sort((a, b) => a.n - b.n)) for (const n of ps.notes) n.pv = preview(r, pt, n);
   }
   function releasePreviews(r) {
-    for (const pt of r.parts.values()) { for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch (e) { /* the commit puts it right */ } } }
+    for (const pt of r.parts.values()) { for (const pv of pt.previews.splice(0).reverse()) { try { pv.release(); } catch { /* the commit puts it right */ } } }
   }
 
   /* ---- sources: keys and MIDI (input.noteOn/noteOff), pads (tap.hit), beatbox and hum (their stop), the mic */
@@ -885,7 +885,7 @@ export function createRecorder(app, input, opts = {}) {
   // at the audible downbeat. From the playhead: when that is before the loop, the song pre-rolls up to the loop's
   // start and recording starts there (the loop is the punch range; tick() turns 'count' into 'rec')
   async function startTransport(r, beats) {
-    try { engine.recording = true; } catch (e) { /* ok */ }
+    try { engine.recording = true; } catch { /* ok */ }
     await engine.play(r.startBeat, beats ? { countIn: { beats, preroll: true } } : null);
   }
 
@@ -926,7 +926,7 @@ export function createRecorder(app, input, opts = {}) {
       const src = pt.srcs.has('hum') ? 'hum' : pt.srcs.has('beatbox') ? 'beatbox' : pt.srcs.has('pads') ? 'tap' : pt.srcs.has('qwerty') ? 'qwerty' : 'midi';
       const c = input.capture.add({ src, kind: pt.drums ? 'drums' : 'notes', ...capturedNotes(ps.notes), tempo: P().tempo, track: pt.track, take: r.id, pass: ps.n, rec: true });
       return c ? c.id : true;
-    } catch (e) { return true; }
+    } catch { return true; }
   }
   // a pass whose notes a joined phrase moved (joinSeams): its capture entry holds what it has now; one left empty is
   // hidden (kept: its notes are in the pass they were joined to, whose entry has them)
@@ -936,7 +936,7 @@ export function createRecorder(app, input, opts = {}) {
       if (!notes.length) { if (id) input.capture.hide(id); else ps.captured = true; return; }
       if (id) input.capture.update(id, capturedNotes(notes));
       else ps.captured = captureOf(r, pt, { ...ps, notes });
-    } catch (e) { /* capture is best effort here: the take still goes in */ }
+    } catch { /* capture is best effort here: the take still goes in */ }
   }
 
   /* ---- record, stop, cancel */
@@ -964,7 +964,7 @@ export function createRecorder(app, input, opts = {}) {
     const m = r && r.made;
     if (!m || !m.txn) return;
     const h = store.history, lastTx = h[h.length - 1], t = store.track(m.track);
-    if (lastTx && lastTx.id === m.txn && t && !t.clips.length) { try { store.undo({ id: m.txn, redo: false }); } catch (e) { /* ok */ } }
+    if (lastTx && lastTx.id === m.txn && t && !t.clips.length) { try { store.undo({ id: m.txn, redo: false }); } catch { /* ok */ } }
   }
   async function record({ countIn = rec.countIn, audio = null, quantize = true, hum = humArmed(), free = null } = {}) {
     if (R) return R;
@@ -984,7 +984,7 @@ export function createRecorder(app, input, opts = {}) {
           app.ui?.announce?.(keeps);
         }
       }
-    } catch (e) { /* the take still records */ }
+    } catch { /* the take still records */ }
     const capture = !au && (hum || tapArmed());
     // no track to record onto is never a dead end: Tap it makes Drums now (so the pads sound), the keys make Keys now,
     // at the count-in (they sound on it, and this press records onto it, never "press R again"), a hum makes Melody
@@ -1063,7 +1063,7 @@ export function createRecorder(app, input, opts = {}) {
       if (R !== r) return null;
       r.started = true;
       if (!beats && ahead <= EPS) setState(r, 'rec');
-    } else { try { engine.recording = true; } catch (e) { /* ok */ } }
+    } else { try { engine.recording = true; } catch { /* ok */ } }
     tick();
     return r;
   }
@@ -1079,7 +1079,7 @@ export function createRecorder(app, input, opts = {}) {
       loopKey: JSON.stringify(p.loop || null), offset: 0, started: true, wasPlaying: false, newSpan: () => ({ start: 0, end: 0 }), made, capture: true,
     };
     R = r;
-    try { input.tap?.flush?.(); } catch (e) { /* ok */ }   // (an earlier phrase of taps is its own take)
+    try { input.tap?.flush?.(); } catch { /* ok */ }   // (an earlier phrase of taps is its own take)
     setState(r, 'rec');
     if (hum && input.hum && !input.hum.active) {
       r.hum = true;
@@ -1099,7 +1099,7 @@ export function createRecorder(app, input, opts = {}) {
     let cap = null, fit = null, planned = [];
     const kind = r.hum ? 'hum' : 'pads';
     if (r.hum) {
-      try { await r.humStart; } catch (e) { /* said */ }
+      try { await r.humStart; } catch { /* said */ }
       const tk = input.hum?.active ? await input.hum.stop() : null;
       if (tk && tk.capture) { cap = tk.capture; fit = tk.free || null; planned = (tk.result?.notes || []).map((n) => ({ p: n.p, t: n.t, raw: Number.isFinite(n.tr) ? n.tr : n.t })); }
     } else {
@@ -1111,7 +1111,7 @@ export function createRecorder(app, input, opts = {}) {
     if (!cap) {
       unmake(r);
       const text = r.hum ? 'Heard nothing, so the song is as it was. Hum a little louder, or closer to the mic.' : 'Nothing played in that take, so the song is as it was.';
-      try { app.ui?.toast?.(text, { ms: 4000 }); app.ui?.announce?.(text); } catch (e) { /* ok */ }
+      try { app.ui?.toast?.(text, { ms: 4000 }); app.ui?.announce?.(text); } catch { /* ok */ }
       const res = { ok: true, take: r.id, empty: true, why, free: true, parts: [], summary: '' };
       last = res; emit('commit', res);
       return res;
@@ -1138,7 +1138,7 @@ export function createRecorder(app, input, opts = {}) {
       parts: [{ track: k.track, name: tr ? tr.name : '', mode: kind === 'pads' ? 'layer' : 'take', drums: kind === 'pads', notes: n, played: n, bars, clips: [k.clip] }], clips: [k.clip] };
     last = res;
     app.ui?.toast?.(`${summary} Undo takes it back.`, { kind: 'ok', ms: 6000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
-    try { app.ui?.announce?.(summary); } catch (e) { /* ok */ }
+    try { app.ui?.announce?.(summary); } catch { /* ok */ }
     emit('commit', res);
     return res;
   }
@@ -1210,13 +1210,13 @@ export function createRecorder(app, input, opts = {}) {
       for (const h of r.held.values()) closeHeld(r, h, stopG);
       r.held.clear();
       // the sources that finish on their own: the hum (transcribed now), the beatbox (its hits found now)
-      try { if (input.hum?.active && input.hum.recording) await input.hum.stop(); } catch (e) { /* ok */ }
-      try { if (input.tap?.beatboxing && input.tap.recording) await input.tap.stopBeatbox(); } catch (e) { /* ok */ }
+      try { if (input.hum?.active && input.hum.recording) await input.hum.stop(); } catch { /* ok */ }
+      try { if (input.tap?.beatboxing && input.tap.recording) await input.tap.stopBeatbox(); } catch { /* ok */ }
       const audioRes = await finishAudio(r, stopG);
       r.leaned = relean(r);
       for (const pt of r.parts.values()) settleMisses(r, pt, r.stopPass ?? r.pass);   // (the pass it stopped in)
       R = null;
-      try { engine.recording = false; } catch (e) { /* ok */ }
+      try { engine.recording = false; } catch { /* ok */ }
       releasePreviews(r);
       setState(r, 'idle');
       const res = commit(r, audioRes, why);
@@ -1232,7 +1232,7 @@ export function createRecorder(app, input, opts = {}) {
     const take = { id: r.id, bpb, parts: [] };
     // the phrase played into the take ends with it (capture's copy of it, all in this take, isn't listed twice; what
     // you play after the take is a phrase of its own)
-    try { input.capture.flush?.(); } catch (e) { /* ok */ }
+    try { input.capture.flush?.(); } catch { /* ok */ }
     for (const pt of r.parts.values()) {
       let own = [...pt.passes.values()].filter((ps) => ps.notes.length).sort((a, b) => a.n - b.n), joins = [];
       // New take in a loop: a phrase played over the seam stays in the pass it began in (or the next), whole
@@ -1264,7 +1264,7 @@ export function createRecorder(app, input, opts = {}) {
       const t = store.track(r.audioTrack) || targetFor('audio');
       const done = audioRes.passes.filter((ps) => r.span.loop && ps.n < (r.stopPass ?? 0));
       if (t) take.parts.push({ track: t.id, kind: 'audio', mode: 'take', passes: audioRes.passes, active: (done.length ? done[done.length - 1] : audioRes.passes[audioRes.passes.length - 1])?.n });
-      try { input.capture.add({ src: 'rec', kind: 'audio', audio: audioRes.asset, seconds: audioRes.seconds, beat: audioRes.passes[0]?.audio.start ?? r.span.b0, track: t ? t.id : null, tempo: P().tempo, notes: [], take: r.id, pass: 0, rec: true }); } catch (e) { /* ok */ }
+      try { input.capture.add({ src: 'rec', kind: 'audio', audio: audioRes.asset, seconds: audioRes.seconds, beat: audioRes.passes[0]?.audio.start ?? r.span.b0, track: t ? t.id : null, tempo: P().tempo, notes: [], take: r.id, pass: 0, rec: true }); } catch { /* ok */ }
     }
     // the knobs and faders moved while it recorded (input/autorec.js): their lanes go in with the take, one undo step
     const auto = input.autorec ? input.autorec.finish(r) : null;
@@ -1284,8 +1284,8 @@ export function createRecorder(app, input, opts = {}) {
       const res = { ok: true, take: r.id, empty: true, why, parts: merged, summary: merged.length ? plan.summary : '' };
       last = res;
       const text = merged.length ? `${plan.summary} Nothing new to add.` : 'Nothing played in that take, so the song is as it was.';
-      if (!(r.audioTrack && !audioRes)) { try { app.ui?.toast?.(text, { ms: 4000 }); } catch (e) { /* ok */ } }   // (the mic said why already)
-      try { app.ui?.announce?.(text); } catch (e) { /* ok */ }
+      if (!(r.audioTrack && !audioRes)) { try { app.ui?.toast?.(text, { ms: 4000 }); } catch { /* ok */ } }   // (the mic said why already)
+      try { app.ui?.announce?.(text); } catch { /* ok */ }
       return res;
     }
     // (a track made for this take at its start, and the take, are one undo step)
@@ -1308,7 +1308,7 @@ export function createRecorder(app, input, opts = {}) {
         if (!tid) continue;
         for (const ps of pt.passes.values()) if (typeof ps.captured === 'string') input.capture.update(ps.captured, { track: tid });
       }
-    } catch (e) { /* best effort: the take is in */ }
+    } catch { /* best effort: the take is in */ }
     const res = { ok: true, take: r.id, why, label: plan.label, summary: plan.summary, parts: made, clips, lanes: plan.lanes || [], txn: d.txn?.id, audio: audioRes ? { asset: audioRes.asset, seconds: audioRes.seconds } : null, ...(lean ? { lean: { beats: lean.lean, ms: lean.ms, by: lean.by, moved: lean.moved, opening: lean.opening, words: leanWords(lean) } } : {}) };
     // the notes a source moved on their way in (a hum snapped into the key), found in the song now, and the ops that put
     // them back as played (one notes.set per clip, one undo step): input/hum.js says how many, with Undo
@@ -1331,7 +1331,7 @@ export function createRecorder(app, input, opts = {}) {
     // (a take of only automation, a knob moved while it recorded, has no part: the selection stays)
     if (playing) ownSelect({ track: playing.track, clip: clips[clips.length - 1] || null, notes: [] });
     for (const x of made) for (const k of x.kinds || []) took(k, x.track);
-    try { app.arranger?.show?.(clips, 'you'); } catch (e) { /* no arranger */ }
+    try { app.arranger?.show?.(clips, 'you'); } catch { /* no arranger */ }
     // a take that muted what played under it: "Put it on its own track" (both play, each on its own sound)
     const st = made.find((x) => x.stacked && x.mode === 'take' && store.track(x.track)?.kind === 'instrument');
     if (st) {
@@ -1344,7 +1344,7 @@ export function createRecorder(app, input, opts = {}) {
     const own = res.stacked && why !== 'silence' ? ownOffer(res.stacked) : null;
     // the sound card's line ("What should it sound like? Sounds"), when ui/sounds.js has one for this take
     let line = null;
-    try { line = app.sounds?.toastLine?.(res) || null; } catch (e) { line = null; }
+    try { line = app.sounds?.toastLine?.(res) || null; } catch { line = null; }
     const parts = [text, more ? ' ' : null, more, own ? ' ' : null, own, line ? ' ' : null, line].filter(Boolean);
     app.ui?.toast?.(parts.length > 1 ? parts : text, { kind: 'ok', ms: 6000, action: { label: 'Undo', run: () => store.undo({ by: 'you' }) } });
     return res;
@@ -1380,7 +1380,7 @@ export function createRecorder(app, input, opts = {}) {
       b.textContent = 'Put it on its own track';
       b.addEventListener('click', (e) => { ownTrack(s); e.currentTarget.closest('.ew-toast')?.remove(); });
       return b;
-    } catch (e) { return null; }
+    } catch { return null; }
   }
 
   // parts: planTake's (each with its sung locators), made: the same with their tracks' ids, created: the dispatch's refs
@@ -1409,8 +1409,8 @@ export function createRecorder(app, input, opts = {}) {
     R = null;
     clearInterval(r.timer);
     if (r.free) {
-      try { if (r.hum) Promise.resolve(r.humStart).then(() => { if (!R && input.hum?.active) input.hum.cancel(); }).catch(() => {}); } catch (e) { /* ok */ }
-      try { input.tap?.discard?.(); } catch (e) { /* ok */ }
+      try { if (r.hum) Promise.resolve(r.humStart).then(() => { if (!R && input.hum?.active) input.hum.cancel(); }).catch(() => {}); } catch { /* ok */ }
+      try { input.tap?.discard?.(); } catch { /* ok */ }
       unmake(r);
       setState(r, 'idle');
       return;
@@ -1418,7 +1418,7 @@ export function createRecorder(app, input, opts = {}) {
     if (r.audio) { r.audio.off && r.audio.off(); r.audio = null; input.audio._recording(false); }
     releasePreviews(r);
     if (input.autorec) input.autorec.finish(r, { cancel: true });
-    try { engine.recording = false; } catch (e) { /* ok */ }
+    try { engine.recording = false; } catch { /* ok */ }
     if (stopTransport && (engine.playing || engine.starting)) engine.stop();   // (a count still waiting to start too)
     // the hum: one R started goes with the take (the mic closes; nothing was recorded); one you started yourself (H,
     // then R) is yours again, and H stops it into Sketch as before
@@ -1448,7 +1448,7 @@ export function createRecorder(app, input, opts = {}) {
       else tick();
     });
     engine.on('silence', () => { if (R) R.silenced = true; });
-  } catch (e) { /* no engine (Node) */ }
+  } catch { /* no engine (Node) */ }
   // tempo, meter or the loop changing mid-take: the take so far goes in (it was placed on the old timeline)
   store.on('change', (e) => {
     if (e && e.kind === 'load') {
@@ -1468,13 +1468,13 @@ export function createRecorder(app, input, opts = {}) {
     if (r.free) return;   // (a free take has no timeline to move under it)
     if (p.tempo !== r.tempo || p.meter.join('/') !== r.meter || JSON.stringify(p.loop || null) !== r.loopKey) stop({ keepPlaying: true, why: 'time' });
   });
-  try { document.addEventListener('visibilitychange', () => { if (document.hidden && R) (R.state === 'count' ? cancel() : stop({ why: 'hidden' })); }); } catch (e) { /* node */ }
+  try { document.addEventListener('visibilitychange', () => { if (document.hidden && R) (R.state === 'count' ? cancel() : stop({ why: 'hidden' })); }); } catch { /* node */ }
 
   /* ---- Shift+R: Put it in the song */
   function captureToSong(id = null) {
     const cap = input.capture;
     cap.flush?.();
-    try { if (input.tap?.take) input.tap.flush(); } catch (e) { /* ok */ }
+    try { if (input.tap?.take) input.tap.flush(); } catch { /* ok */ }
     const ph = id ? cap.get(id) : [...cap.phrases].reverse().find((x) => !x.hidden && !x.rec && x.kind !== 'audio' && (x.notes || []).length);
     if (!ph) { app.ui?.toast?.('Nothing played yet. Play, tap or hum something, then Shift+R puts it in the song.'); return { ok: false, error: 'nothing captured' }; }
     const t = ph.kind === 'drums' ? targetFor('pads') : targetFor(ph.src === 'hum' ? 'hum' : 'keys');
@@ -1500,7 +1500,7 @@ export function createRecorder(app, input, opts = {}) {
     setCaptureClick(on) {
       const c = app.transport?.click;
       if (c?.set) c.set(on ? { takes: true } : { takes: false, on: false });
-      else { saved.captureClick = !!on; try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch (e) { /* ok */ } }
+      else { saved.captureClick = !!on; try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch { /* ok */ } }
       emit('state', { state: rec.state, captureClick: !!on });
       return !!on;
     },
@@ -1511,7 +1511,7 @@ export function createRecorder(app, input, opts = {}) {
     // its notes are in the song; retime(level) moves it
     get timing() { return timing && timing.clips.some((c) => store.clip(c.track, c.clip)) ? { level: timing.level, kind: timing.kind, notes: timing.clips.reduce((a, c) => a + c.notes.length, 0) } : null; },
     retime: (level) => retime(level),
-    setCountIn(bars) { saved.countIn = Math.max(0, Math.min(4, Math.round(+bars || 0))); try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch (e) { /* ok */ } emit('state', { state: rec.state, countIn: saved.countIn }); return saved.countIn; },
+    setCountIn(bars) { saved.countIn = Math.max(0, Math.min(4, Math.round(+bars || 0))); try { localStorage.setItem(SAVE, JSON.stringify(saved)); } catch { /* ok */ } emit('state', { state: rec.state, countIn: saved.countIn }); return saved.countIn; },
     targetFor, modeFor, primary, aim, setAim, took, keysTrack,
     ownTrack: (s) => ownTrack(s),
     // what R records now ('hum' | 'pads' | 'keys'): the kind the lit R and Onto speak for

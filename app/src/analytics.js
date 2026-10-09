@@ -41,7 +41,7 @@ export function optedOut(nav = globalThis.navigator, win = globalThis) {
   try {
     const dnt = nav?.doNotTrack ?? win?.doNotTrack ?? nav?.msDoNotTrack;
     return dnt === '1' || dnt === 'yes' || dnt === 1 || nav?.globalPrivacyControl === true;
-  } catch (e) { return true; }
+  } catch { return true; }
 }
 
 // Only the deployed site, over https, in a person's browser (automation sets navigator.webdriver).
@@ -50,7 +50,7 @@ export function allowed(loc = globalThis.location, nav = globalThis.navigator, w
     if (!loc || loc.hostname !== HOST || loc.protocol !== 'https:') return false;
     if (nav?.webdriver) return false;
     return !optedOut(nav, win);
-  } catch (e) { return false; }
+  } catch { return false; }
 }
 
 // The referrer's host, nothing else: no path, no query, no port, no "www.". '' when there is none or it looks odd.
@@ -59,12 +59,12 @@ export function referrerHost(ref) {
   try {
     const h = new URL(ref).hostname.toLowerCase().replace(/^www\./, '');
     return /^[a-z0-9.-]{1,64}$/.test(h) ? h : '';
-  } catch (e) { return ''; }
+  } catch { return ''; }
 }
 
 // The URL for one count, or null if the event or its field isn't on the list.
 export function beaconUrl(e, p, { r = '', base = BEACON } = {}) {
-  if (!Object.prototype.hasOwnProperty.call(EVENTS, e)) return null;
+  if (!Object.hasOwn(EVENTS, e)) return null;
   const opts = EVENTS[e];
   const q = new URLSearchParams({ e });
   if (opts) { if (!opts.includes(p)) return null; q.set('p', p); }
@@ -81,7 +81,7 @@ function sendBeacon(url) {
     } else {
       const img = new Image(); img.referrerPolicy = 'no-referrer'; img.src = url;
     }
-  } catch (e) { /* never let counting break the studio */ }
+  } catch { /* never let counting break the studio */ }
 }
 
 const EXPORTS = [

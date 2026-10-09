@@ -78,7 +78,7 @@ function syncProjectDevices(store) {
 function shippedKernels(boot) {
   return () => {
     const out = [...boot];
-    for (const d of DEMOS) { try { for (const dev of Object.values(d.make().devices || {})) if (typeof dev?.kernel === 'string') out.push(dev.kernel); } catch (e) { /* a demo that won't build ships nothing */ } }
+    for (const d of DEMOS) { try { for (const dev of Object.values(d.make().devices || {})) if (typeof dev?.kernel === 'string') out.push(dev.kernel); } catch { /* a demo that won't build ships nothing */ } }
     return out;
   };
 }
@@ -96,9 +96,9 @@ function trustOwnLink(res) {
 // yours, Recent songs). Their devices were already running here, so the first run of this version trusts them, once.
 function keptSongs() {
   const out = [];
-  const one = (k) => { try { const s = localStorage.getItem(k); if (s) out.push(JSON.parse(s)); } catch (e) { /* unreadable: nothing to keep */ } };
+  const one = (k) => { try { const s = localStorage.getItem(k); if (s) out.push(JSON.parse(s)); } catch { /* unreadable: nothing to keep */ } };
   one(SAVE_KEY); one(PREV_KEY); one('overdub:before-fork');
-  try { const r = JSON.parse(localStorage.getItem('overdub:recent') || '[]'); if (Array.isArray(r)) for (const e of r) if (e && e.song) out.push(e.song); } catch (e) { /* none */ }
+  try { const r = JSON.parse(localStorage.getItem('overdub:recent') || '[]'); if (Array.isArray(r)) for (const e of r) if (e && e.song) out.push(e.song); } catch { /* none */ }
   return out;
 }
 
@@ -113,7 +113,7 @@ function migrateLegacyStorage() {
       const nk = 'overdub:' + k.slice(old.length);
       if (localStorage.getItem(nk) == null) localStorage.setItem(nk, localStorage.getItem(k));
     }
-  } catch (e) { /* storage blocked: nothing to carry */ }
+  } catch { /* storage blocked: nothing to carry */ }
 }
 
 let opened = 'demo'; // how the song was opened (app.opened): 'new' | 'demo' | 'saved'
@@ -133,7 +133,7 @@ function putAside(next) {
     const body = (x) => JSON.stringify([x.title, x.tempo, x.meter, x.key, x.tracks, x.sections, x.master, x.devices]);
     const blank = !p.tracks.length && !p.sections.length && !Object.keys(p.devices).length && /^untitled$/i.test(p.title || 'Untitled');
     if (!blank && !(p.id === next.id && body(p) === body(cleanProject(next)))) { localStorage.setItem(PREV_KEY, s); displaced = p; }
-  } catch (e) { /* storage blocked, or a saved song that can't be read: nothing here to keep */ }
+  } catch { /* storage blocked, or a saved song that can't be read: nothing here to keep */ }
   return next;
 }
 function loadSaved() {
@@ -158,9 +158,9 @@ async function boot() {
   // the view, before anything writes overdub:layout (an existing user's sign) or the song
   {
     let storage = null;
-    try { storage = window.localStorage; } catch (e) { /* blocked */ }
+    try { storage = window.localStorage; } catch { /* blocked */ }
     workspace = decideView({ search: location.search, storage, webdriver: !!navigator.webdriver });
-    if (workspace.persist) { try { const cur = JSON.parse(storage?.getItem(WORKSPACE_KEY) || 'null'); storage?.setItem(WORKSPACE_KEY, JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view })); } catch (e) { /* private mode */ } }
+    if (workspace.persist) { try { const cur = JSON.parse(storage?.getItem(WORKSPACE_KEY) || 'null'); storage?.setItem(WORKSPACE_KEY, JSON.stringify({ ...(cur && typeof cur === 'object' ? cur : {}), v: 1, view: workspace.view })); } catch { /* private mode */ } }
   }
   // Fetch every graph at once (an import runs nothing until default(app)); they start below, in order. One after
   // another, the panels' fetches took ~250 ms each and the studio ~12 s to finish booting.
@@ -252,7 +252,7 @@ async function boot() {
 
   // autosave (the song only; audio lives in IndexedDB)
   let saveT = 0;
-  const save = () => { saveT = 0; try { localStorage.setItem(SAVE_KEY, JSON.stringify(store.get())); } catch (e) { app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' }); } };
+  const save = () => { saveT = 0; try { localStorage.setItem(SAVE_KEY, JSON.stringify(store.get())); } catch { app.ui.toast('Could not save the song in this browser (storage is full or blocked)', { kind: 'bad' }); } };
   store.on('change', () => { clearTimeout(saveT); saveT = 0; if (app.share?.listening) return; saveT = setTimeout(save, 500); });
   // a page going away saves what's waiting (a sound on trial let go as the tab hides is the song's last change)
   const flush = () => { if (!saveT) return; clearTimeout(saveT); save(); };
@@ -275,7 +275,7 @@ async function boot() {
   // ?new and ?demo= have done their job: off the address, so a reload (or a restored tab) opens the song saved here,
   // not the demo again over your edits to it (the modules that read the address have read it by now)
   if (params.has('new') || params.has('demo')) {
-    try { const u = new URL(location.href); u.searchParams.delete('new'); u.searchParams.delete('demo'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* fine */ }
+    try { const u = new URL(location.href); u.searchParams.delete('new'); u.searchParams.delete('demo'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* fine */ }
   }
 
   document.documentElement.dataset.ready = '1';

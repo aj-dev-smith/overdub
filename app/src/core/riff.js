@@ -29,7 +29,7 @@
 
 import { scalePcs, parsePc, beatsPerBar, noteName, spellPc } from './music.js';
 import { rng } from './transforms.js';
-import { chordAt, pentatonicFor, isMinorKey, spellTone, spellIn, QUALITIES, findJamStyle } from './jam.js';
+import { chordAt, pentatonicFor, isMinorKey, spellIn, QUALITIES, findJamStyle } from './jam.js';
 import { tuningOf, fingering, formatTab, handSpan, MAX_FRET, capoOf, placeOk, tabLayout } from './fretboard.js';
 
 const EPS = 1e-6;
@@ -128,7 +128,6 @@ export function riffStyleFor(p) {
   if (p?.key && /blues/i.test(p.key.scale || '')) return 'blues';
   return 'rock';
 }
-const levelOf = (d) => Math.max(0, DIFFICULTIES.indexOf(String(d || 'medium').toLowerCase()));
 
 /* ================================================================================================ where */
 // The stretch a riff is for: a section (its name or id), bars [first, last] (1-based), or the section the playhead is
@@ -390,7 +389,6 @@ function realize({ style, styleId, lvl, motif, pal, harm, chordAtT, key, keyPcs,
   const ladderPcs = style.ladder === 'scale' || lvl === 2 ? [...new Set([...pent, ...keyPcs])] : style.ladder === 'blues' ? blues : pent;
   const [rlo, rhi] = style.register;
   const P = pal.pitches;
-  const inPal = (q) => P.includes(q);
   const fits = (q, ch) => fitsOver(pcOf(q), key, ch);
   const out = [];
   let prev = null, lastRoot = null;

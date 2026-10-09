@@ -23,7 +23,7 @@
 import { h, css, clamp } from '../dom.js';
 import { automate, backToLane } from '../rack.js';
 import { popover, closePopover, menuKeys } from '../arrange-kit.js';
-import { EQ_BANDS, EQ_TYPES, EQ_PARK, EQ_SHAPES, EQ_SLOPES, EQ_STRIDE, shapeOf, slopeOf, usesGain, isCorner, eqSections, eqSoloSections, eqBandPow, bandOf, autoGainFor } from '../../devices/builtin/eq8-curve.js';
+import { EQ_BANDS, EQ_PARK, EQ_SHAPES, EQ_SLOPES, EQ_STRIDE, shapeOf, slopeOf, usesGain, isCorner, eqSections, eqSoloSections, eqBandPow, bandOf, autoGainFor } from '../../devices/builtin/eq8-curve.js';
 
 const F_LO = 20, F_HI = 20000, LN_LO = Math.log(F_LO), LN_HI = Math.log(F_HI);
 const RANGES = [12, 24];
@@ -347,13 +347,13 @@ export function mount(el, ctx) {
   }
 
   /* ---------------------------------------------------------------- solo: the live device only */
-  const liveInst = () => { try { return app.engine?.instance?.(ctx.addr.track, ctx.addr.slot) || null; } catch (e) { return null; } };
+  const liveInst = () => { try { return app.engine?.instance?.(ctx.addr.track, ctx.addr.slot) || null; } catch { return null; } };
   function pushSolo() {
     const inst = liveInst(), ac = app.engine?.ctx, now = ac ? ac.currentTime : 0;
-    if (soloInst && soloInst !== inst) { try { soloInst.autoClear?.('solo', now, true); } catch (e) { /* gone */ } soloInst = null; }
+    if (soloInst && soloInst !== inst) { try { soloInst.autoClear?.('solo', now, true); } catch { /* gone */ } soloInst = null; }
     if (!inst || typeof inst.auto !== 'function' || !ac) return false;
     if (solo) { const pos = solo / NB; inst.auto({ key: 'solo', time: now, end: now, a: pos, b: pos, c: 'step' }); soloInst = inst; }
-    else if (soloInst) { try { soloInst.autoClear('solo', now, true); } catch (e) { /* gone */ } soloInst = null; }
+    else if (soloInst) { try { soloInst.autoClear('solo', now, true); } catch { /* gone */ } soloInst = null; }
     return true;
   }
   function setSolo(n) {
@@ -462,7 +462,7 @@ export function mount(el, ctx) {
       if (drag && e.pointerType === 'touch' && drag.id !== e.pointerId) { startPinch(e); e.preventDefault(); e.stopPropagation(); return; }
       e.preventDefault(); e.stopPropagation();
       const b = band(n), p = local(e);
-      try { nd.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { nd.setPointerCapture(e.pointerId); } catch { /* gone */ }
       if (memo.sel !== n) pick(n);
       nd.focus({ preventScroll: true });
       const baseMode = usesGain(b.type) ? 'gain' : b.type >= 3 && b.type <= 8 ? 'corner' : 'none';
@@ -506,7 +506,7 @@ export function mount(el, ctx) {
     const a = drag;
     pinch = { id: e.pointerId, ax: a.lastX ?? a.sx, ay: a.lastY ?? a.sy, bx: e.clientX, by: e.clientY, q0: band(a.n).q };
     pinch.d0 = Math.max(12, Math.hypot(pinch.bx - pinch.ax, pinch.by - pinch.ay));
-    try { plot.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try { plot.setPointerCapture(e.pointerId); } catch { /* gone */ }
     drag.moved = true;
   }
   function pinchMove(e) {

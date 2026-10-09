@@ -63,7 +63,7 @@ function score(notes, length, pat) {
   // a loop twice the pattern's length is the pattern twice: read it at the pattern's length
   // (a loop shorter than the pattern, a divisor of it, is heard played round to fill it)
   const len = pat.len;
-  let folded = length % len === 0 ? notes : len % length === 0 ? Array.from({ length: len / length }, (_, i) => notes.map((x) => ({ ...x, t: x.t + i * length }))).flat() : null;
+  const folded = length % len === 0 ? notes : len % length === 0 ? Array.from({ length: len / length }, (_, i) => notes.map((x) => ({ ...x, t: x.t + i * length }))).flat() : null;
   if (!folded) return { best: 0, placed: 0 };
   let best = 0;
   for (let s = 0; s < len; s += 0.5) best = Math.max(best, f1(cellsOf(folded, len, s), want));
@@ -177,7 +177,7 @@ console.log('\nthe 1, the readings, the timing words');
   const hats = eighths(H).map(([b, p]) => ({ p, t: b }));
   t.ok(!downbeatOf(hats, { length: 4 }).sure, 'hats only: the 1 is the first hit, and the reading says it isn\'t sure');
   const rd = readingsOf({ notes: rock, length: 4, bpm: 96 });
-  t.ok(rd.length >= 2 && rd.length <= 3 && rd[0].bpm === 96 && rd.some((x) => x.why === 'slower' && x.bpm === 48 ? false : x.bpm === 48 || x.bpm === 192 ? false : true), `readings: 1 to 3, the current first (${rd.map((x) => `${x.bpm} ${x.why}`).join(', ')})`);
+  t.ok(rd.length >= 2 && rd.length <= 3 && rd[0].bpm === 96 && rd.some((x) => !(x.bpm === 48 || x.bpm === 192)), `readings: 1 to 3, the current first (${rd.map((x) => `${x.bpm} ${x.why}`).join(', ')})`);
   const rd2 = readingsOf({ notes: rock, length: 4, bpm: 140 });
   t.ok(rd2.some((x) => x.bpm === 70 && x.why === 'slower' && x.length === 4), `a quick reading offers half the tempo, the loop filling a bar (${rd2.map((x) => `${x.bpm} ${x.why} ${x.length}`).join(', ')})`);
   const loose = atLevel(rock, 'loose', { length: 4 }), played = atLevel(rock, 'played', { length: 4 }), tight = atLevel(rock, 'tight', { length: 4 });

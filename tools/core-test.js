@@ -170,7 +170,7 @@ const g0 = drums.gain;
 s3.dispatch({ type: 'track.set', track: drums.id, patch: { gain: -1 } }, { by: 'claude' });
 s3.dispatch({ type: 'track.set', track: drums.id, patch: { pan: 0.3 } }, { by: 'you' });
 s3.dispatch({ type: 'track.set', track: drums.id, patch: { mute: true } }, { by: 'claude' });
-let u = s3.undo({ by: 'claude' });
+const u = s3.undo({ by: 'claude' });
 t.ok(u.ok && drums.mute === false && drums.pan === 0.3 && drums.gain === -1, "undo({ by }) takes back only that author's latest");
 s3.dispatch({ type: 'track.set', track: drums.id, patch: { solo: true } }, { by: 'claude' });
 const rv = s3.revertAuthor('claude');

@@ -145,7 +145,7 @@ export function createTap(app, input) {
   const fns = new Map();
   const emit = (t, d) => { for (const fn of fns.get(t) || []) { try { fn(d); } catch (e) { console.error('tap listener', e); } } };
   let trained = {};
-  try { trained = JSON.parse(localStorage.getItem(TRAIN_KEY) || '{}') || {}; } catch (e) { trained = {}; }
+  try { trained = JSON.parse(localStorage.getItem(TRAIN_KEY) || '{}') || {}; } catch { trained = {}; }
   let cur = null, idle = 0, bb = null;
   const GAP = 2.5; // seconds of silence end a take
 
@@ -174,12 +174,12 @@ export function createTap(app, input) {
       if (!r) return;
       const now = performance.now() / 1000, eng = app.engine;
       const dt = drumTrack();
-      if (dt) { try { eng.liveNoteOn(dt.id, r.p, v); setTimeout(() => { try { eng.liveNoteOff(dt.id, r.p); } catch (e) { /* ok */ } }, 160); } catch (e) { /* silent engine */ } }
+      if (dt) { try { eng.liveNoteOn(dt.id, r.p, v); setTimeout(() => { try { eng.liveNoteOff(dt.id, r.p); } catch { /* ok */ } }, 160); } catch { /* silent engine */ } }
       // recording: into the take (it goes to capture pass by pass)
       if (recording()) { const n = input.recorder.hit(row, v); emit('hit', { row, v, t: now, rec: true, beat: n ? n.t : null }); return; }
       // (the key's own time: main-thread lag mustn't push a hit late)
       let at = now;
-      try { const ev = globalThis.event, ts = ev && ev.timeStamp; if (ts > 0 && performance.now() - ts >= 0 && performance.now() - ts < 150) at = ts / 1000; } catch (e) { /* ok */ }
+      try { const ev = globalThis.event, ts = ev && ev.timeStamp; if (ts > 0 && performance.now() - ts >= 0 && performance.now() - ts < 150) at = ts / 1000; } catch { /* ok */ }
       if (!cur) cur = { hits: [], t0: at, playing: !!eng.playing, track: dt ? dt.id : null };
       cur.hits.push({ t: at, row, v, beat: eng.playing ? eng.beat : null });
       emit('hit', { row, v, t: at });
@@ -253,7 +253,7 @@ export function createTap(app, input) {
       const p = app.store.get();
       // the Beatbox catch, outside a recording only (with R running the hits go straight into the take)
       let tune = null;
-      if (!s.rec) { try { tune = tuneOf(x, s.sr, { tempo: p.tempo, hits }); } catch (e) { tune = null; } }
+      if (!s.rec) { try { tune = tuneOf(x, s.sr, { tempo: p.tempo, hits }); } catch { tune = null; } }
       if (tune) tune.sr = s.sr;
       if (!hits.length) {
         if (tune) { emit('tune', { segs: tune.segs, notes: tune.notes, capture: null, tune }); return { tune }; }
@@ -286,7 +286,7 @@ export function createTap(app, input) {
       if (!tune || !tune.segs || !tune.segs.length) return { ok: false, error: 'no tune to keep' };
       const p = app.store.get();
       let key = null;
-      try { key = input.hum?.songKey?.() || null; } catch (e) { key = null; }
+      try { key = input.hum?.songKey?.() || null; } catch { key = null; }
       let r = transcribe(tune.segs, { tempo: p.tempo, meter: p.meter, key, grid: input.options?.grid || 0.25 });
       if (!key && r.keyGuess) r = transcribe(tune.segs, { tempo: p.tempo, meter: p.meter, key: { root: r.keyGuess.root, scale: r.keyGuess.scale }, grid: input.options?.grid || 0.25 });
       const c = input.capture.add({ src: 'hum', kind: 'notes', notes: r.notes.map(({ p: pp, t, d, v, conf }) => ({ p: pp, t, d, v, conf })), tempo: p.tempo, beat: null, key: r.key || undefined, keyFrom: key ? 'song' : r.key ? 'hum' : undefined, moved: r.moved.length, low: r.low });
@@ -298,9 +298,9 @@ export function createTap(app, input) {
     train(row, f) {
       (trained[row] = trained[row] || []).push({ centroid: f.centroid, zcr: f.zcr, low: f.low, high: f.high });
       if (trained[row].length > 12) trained[row].shift();
-      try { localStorage.setItem(TRAIN_KEY, JSON.stringify(trained)); } catch (e) { /* private mode */ }
+      try { localStorage.setItem(TRAIN_KEY, JSON.stringify(trained)); } catch { /* private mode */ }
     },
-    untrain() { for (const k of Object.keys(trained)) delete trained[k]; try { localStorage.removeItem(TRAIN_KEY); } catch (e) { /* ok */ } },
+    untrain() { for (const k of Object.keys(trained)) delete trained[k]; try { localStorage.removeItem(TRAIN_KEY); } catch { /* ok */ } },
   };
   return tap;
 }

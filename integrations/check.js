@@ -29,6 +29,7 @@ const readJSON = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 const pluginDir = path.join(HERE, 'claude-code');
 const plugin = readJSON(path.join(pluginDir, '.claude-plugin/plugin.json'));
 ok(plugin.name === 'overdub', 'plugin.json: name is "overdub"');
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const pdArgs = plugin.mcpServers?.overdub?.args?.map((a) => a.replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir)) || [];
 ok(pdArgs.length && fs.existsSync(pdArgs[0]), 'plugin.json: the MCP server path resolves from integrations/claude-code', pdArgs[0] && path.relative(ROOT, pdArgs[0]));
 ok(fs.existsSync(path.join(pluginDir, 'skills/overdub/SKILL.md')), 'plugin.json: skills/overdub/SKILL.md is in the default skills/ folder');
@@ -41,6 +42,7 @@ ok(true, `marketplace.json parses`, path.relative(ROOT, mpFile));
 const entry = mp.plugins.find((p) => p.name === 'overdub');
 ok(entry && (entry.source === './' || entry.source === '.'), 'marketplace entry "overdub": source is the repo root');
 for (const s of [].concat(entry.skills || [])) ok(fs.existsSync(path.join(ROOT, s, 'overdub/SKILL.md')), `marketplace entry: skills path ${s} holds overdub/SKILL.md`);
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const mpArgs = entry.mcpServers?.overdub?.args?.map((a) => a.replaceAll('${CLAUDE_PLUGIN_ROOT}', ROOT)) || [];
 ok(mpArgs.length && fs.existsSync(mpArgs[0]), 'marketplace entry: the MCP server path resolves from the repo root', mpArgs[0] && path.relative(ROOT, mpArgs[0]));
 ok(!fs.existsSync(path.join(ROOT, '.claude-plugin/plugin.json')), 'no root plugin.json (it would override the entry\'s mcpServers)');
@@ -76,7 +78,7 @@ function probe(command, args, env = {}) {
     const res = {}; const waiters = new Map(); let buf = '';
     const kill = setTimeout(() => { p.kill(); resolve({ ...res, timeout: true }); }, 30000);
     p.on('error', (e) => { clearTimeout(kill); resolve({ spawnError: e.message }); });
-    p.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); if (l.trim()) { try { const m = JSON.parse(l); waiters.get(m.id)?.(m); } catch (e) { res.badLine = l.slice(0, 120); } } } });
+    p.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); if (l.trim()) { try { const m = JSON.parse(l); waiters.get(m.id)?.(m); } catch { res.badLine = l.slice(0, 120); } } } });
     const call = (id, method, params) => new Promise((r) => { waiters.set(id, r); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'); });
     (async () => {
       res.init = await call(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'overdub-integrations-check', version: '1' } });
@@ -89,6 +91,7 @@ function probe(command, args, env = {}) {
   });
 }
 
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the plugin manifest's literal placeholder
 const sub = (s) => String(s).replaceAll('/path/to/overdub', ROOT).replaceAll('${CLAUDE_PLUGIN_ROOT}', ROOT);
 const runs = [
   { where: 'marketplace entry (CLAUDE_PLUGIN_ROOT = repo root)', command: entry.mcpServers.overdub.command, args: mpArgs },

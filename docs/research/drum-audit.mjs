@@ -18,7 +18,7 @@ for (const [ki, kit] of ['FIELD', 'MACHINE', 'DUST'].entries()) {
   for (const [name, p] of Object.entries(PIECES)) for (const v of [0.4, 1]) {
     const r = renderSong(song({ kit: ki }, [{ p, t: 0, d: 0.5, v }], 8), { from: 0, to: 8, tail: 0, sr: SR });
     const [L, R] = r.channels, x = new Float32Array(L.length); for (let i = 0; i < x.length; i++) x[i] = 0.5 * (L[i] + R[i]);
-    let pk = 0, pi = 0; for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > pk) { pk = Math.abs(x[i]); pi = i; }
+    let pk = 0; for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > pk) { pk = Math.abs(x[i]); }
     // envelope: 5 ms RMS
     const hop = 240, e = []; for (let i = 0; i + hop < x.length; i += hop) { let s = 0; for (let j = 0; j < hop; j++) s += x[i + j] ** 2; e.push(10 * Math.log10(s / hop + 1e-20)); }
     const em = Math.max(...e), ei = e.indexOf(em); let a = ei; while (a < e.length && e[a] > em - 20) a++; let b = ei; while (b < e.length && e[b] > em - 40) b++;

@@ -31,7 +31,7 @@ export function ramp(c, param, v, dur = 0.015, at = 0) {
   try {
     param.cancelScheduledValues(t);
     param.setTargetAtTime(v, t, Math.max(0.0005, dur / 4));
-  } catch (e) { /* closed */ }
+  } catch { /* closed */ }
   return t + dur;
 }
 
@@ -40,7 +40,7 @@ export function setNow(c, param, v) {
   if (!Number.isFinite(v)) return;
   param.cancelScheduledValues(0);
   param.value = v;
-  try { param.setValueAtTime(v, c.currentTime); } catch (e) { /* closed */ }
+  try { param.setValueAtTime(v, c.currentTime); } catch { /* closed */ }
 }
 
 // Call fn once the audio clock has passed t (or right away if the context isn't running: nothing is audible then).

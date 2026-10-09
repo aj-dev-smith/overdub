@@ -5,7 +5,7 @@ const { renderSong } = await import(ROOT + 'engine/node/render.js');
 const { createProject } = await import(ROOT + 'core/project.js');
 const { measure } = await import(ROOT + 'audio/measure.js');
 const { SHOWCASE } = await import(ROOT + 'devices/showcase.js');
-const { phrase, PHRASE_BEATS, PHRASE_BPM } = await import(ROOT + 'audio/testsignals.js');
+const { phrase, PHRASE_BEATS } = await import(ROOT + 'audio/testsignals.js');
 
 // the four instruments of the day run's first batch (until they are in builtin/index.js)
 for (const f of ['piano', 'organ', 'strings', 'bassguitar']) { try { await import(ROOT + 'devices/builtin/' + f + '.js'); } catch (e) { console.error(f + '.js: ' + e.message); } }
@@ -79,7 +79,7 @@ function envStats(x, offAt) {
 // inharmonicity: find the partial peaks near k f0 sqrt(1 + B k^2); fit B by least squares on (fk/(k f0))^2 = 1 + B k^2
 function partials(x, at, f0, K = 12, N = 16384) {
   const m = spectrum(x, at, N), bin = SR / N, out = [];
-  let fEst = f0;
+  const fEst = f0;
   for (let k = 1; k <= K; k++) {
     const target = k * fEst; if (target > SR * 0.45) break;
     const lo = Math.floor(target * 0.97 / bin), hi = Math.ceil(target * 1.03 / bin);
@@ -126,7 +126,7 @@ for (const c of CASES) {
     const es = envStats(x, c.hold);
     const on = Math.round(es.onsetMs / 1000 * SR);
     const row = { p, v, ...es, c0: Math.round(centroid(x, on) || 0), c300: Math.round(centroid(x, on + 0.3 * SR) || 0), c1s: Math.round(centroid(x, on + 1 * SR) || 0) };
-    if (c.inharm && v === 0.6) { try { const pa = partials(x, on + Math.round(0.08 * SR), mtof(p)); row.B = +pa.B.toExponential(2); row.cents = +pa.centsOff.toFixed(1); row.amps = pa.amps.join(' '); } catch (e) { row.B = 'err'; } }
+    if (c.inharm && v === 0.6) { try { const pa = partials(x, on + Math.round(0.08 * SR), mtof(p)); row.B = +pa.B.toExponential(2); row.cents = +pa.centsOff.toFixed(1); row.amps = pa.amps.join(' '); } catch { row.B = 'err'; } }
     rows.push(row);
   }
   // the test phrase measure

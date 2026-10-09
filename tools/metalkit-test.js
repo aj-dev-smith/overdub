@@ -25,7 +25,7 @@ import { sha256 } from '../app/src/engine/node/io.js';
 import { measure } from '../app/src/audio/measure.js';
 import { defineDevice } from '../app/src/devices/registry.js';
 import '../app/src/devices/builtin/index.js';
-import MK, { METALKIT_HASH, NOTE_MAP, PIECES, LEVEL_OF, KIT_OPTIONS } from '../app/src/devices/builtin/metalkit.js';
+import MK, { METALKIT_HASH, NOTE_MAP, PIECES, LEVEL_OF, } from '../app/src/devices/builtin/metalkit.js';
 import { drumSamplerKernel } from '../app/src/devices/builtin/drumsampler.js';
 import BRUSH from '../app/src/devices/builtin/brushkit.js';
 import HAND from '../app/src/devices/builtin/handkit.js';
@@ -73,7 +73,7 @@ function band(x, lo, hi) {
     let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
     for (let i = 0; i < y.length; i++) { const v = b0 * y[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = y[i]; y2 = y1; y1 = v; y[i] = v; }
   };
-  let y = Float64Array.from(x);
+  const y = Float64Array.from(x);
   for (let k = 0; k < 2; k++) { biq(y, lo, true); biq(y, hi, false); y.reverse(); }
   return y;
 }

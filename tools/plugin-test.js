@@ -82,8 +82,6 @@ try {
     const settle = async (d) => { const want = a.plugin.editorFor(d) || 'generic'; for (let i = 0; i < 80 && document.querySelector('.pw')?.dataset.editor !== want; i++) await new Promise((r) => setTimeout(r, 25)); };
     const insts = a.devices.listDevices({ kind: 'instrument' }).filter((d) => d.source === 'builtin' && d.id.startsWith('core.'));
     const fx = a.devices.listDevices({ kind: 'effect' }).filter((d) => d.source === 'builtin' && d.id.startsWith('core.'));
-    // (a built-in that names its own editor: wait for it to load, then hold it to the same checks)
-    const loaded = async (d) => { if (!a.plugin.editorFor(d)) return; for (let i = 0; i < 60 && document.querySelector('.pw')?.dataset.editor === 'loading'; i++) await new Promise((r) => setTimeout(r, 50)); await new Promise((r) => setTimeout(r, 60)); };
     for (const d of insts) {
       a.store.dispatch({ type: 'instrument.set', track: t.id, device: d.id }, { by: 'you', label: 'plugin test' });
       a.plugin.open({ track: t.id, slot: 'instrument' });

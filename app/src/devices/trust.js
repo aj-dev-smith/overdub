@@ -108,7 +108,7 @@ const asHash = (x) => (typeof x === 'string' && HEX64.test(x) ? x : kernelHash(x
 
 /* ---------------------------------------------------------------- the trusted set */
 function defaultStorage() {
-  try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
+  try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; }
 }
 
 // shipped: () => iterable of kernel sources the studio itself ships (asked once, the first time a hash isn't stored)
@@ -129,7 +129,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
         if (v && Array.isArray(v.sha256)) list = v.sha256.filter((x) => typeof x === 'string' && HEX64.test(x));
         if (v && Number.isFinite(v.since)) since = v.since;
       }
-    } catch (e) { /* blocked, or not ours: start empty */ }
+    } catch { /* blocked, or not ours: start empty */ }
     set = new Set(list);
   };
   const write = () => {
@@ -138,13 +138,13 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
       if (!storage) return false;
       // (another tab may have added some since: keep theirs too)
       let theirs = [];
-      try { const v = JSON.parse(storage.getItem(TRUST_KEY) || 'null'); if (v && Array.isArray(v.sha256)) theirs = v.sha256.filter((x) => typeof x === 'string' && HEX64.test(x) && !set.has(x)); } catch (e) { /* ours win */ }
+      try { const v = JSON.parse(storage.getItem(TRUST_KEY) || 'null'); if (v && Array.isArray(v.sha256)) theirs = v.sha256.filter((x) => typeof x === 'string' && HEX64.test(x) && !set.has(x)); } catch { /* ours win */ }
       if (theirs.length) { list = [...theirs, ...list].slice(-TRUST_MAX); set = new Set(list); }
       if (since == null) since = now();
       storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since }));
       present = true;
       return true;
-    } catch (e) { return false; }   // full or blocked: trusted for this session only
+    } catch { return false; }   // full or blocked: trusted for this session only
   };
   const shippedSet = () => {
     if (!ship) {
@@ -190,7 +190,7 @@ export function createTrust({ storage = defaultStorage(), shipped = () => [], no
       // (re-read first, so another tab's additions since aren't lost when this writes)
       read();
       list = list.filter((h) => !gone.has(h)); set = new Set(list);
-      try { if (storage) storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since: since ?? now() })); } catch (e) { /* blocked: this session only */ }
+      try { if (storage) storage.setItem(TRUST_KEY, JSON.stringify({ sha256: list, since: since ?? now() })); } catch { /* blocked: this session only */ }
       return gone.size;
     },
     migrate(songs) {

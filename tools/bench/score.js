@@ -222,7 +222,7 @@ function metricOf(m, metric) {
 // Notes on some tracks as absolute beats: { tracks: [names] | 'new', from?, to?, pitches? }. Notes past a clip's end
 // don't sound and aren't counted; durations stop at the clip's end.
 function notesOf(ctx, song, sel = {}) {
-  const ids = sel.tracks == null ? song.tracks.map((t) => t.id) : sel.tracks === 'new' ? newTracks(ctx, song).map((t) => t.id) : (() => { try { return trackIds(ctx, song, sel.tracks); } catch (e) { return []; } })();
+  const ids = sel.tracks == null ? song.tracks.map((t) => t.id) : sel.tracks === 'new' ? newTracks(ctx, song).map((t) => t.id) : (() => { try { return trackIds(ctx, song, sel.tracks); } catch { return []; } })();
   const out = [];
   for (const t of song.tracks) {
     if (!ids.includes(t.id)) continue;

@@ -22,7 +22,7 @@ function findTrack(app, ref) {
   const p = app.store.get();
   return p.tracks.find((t) => t.id === ref) || p.tracks.find((t) => t.name.toLowerCase() === String(ref).toLowerCase()) || null;
 }
-const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return v; } } return v; };
+const parse = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch { return v; } } return v; };
 
 // Which clip and notes: the target, else the human's selection.
 function resolveTarget(app, target) {
@@ -161,7 +161,7 @@ function runTool(app, by, input) {
   if (res.txn) { res.txn.reason = input.reason ? String(input.reason).slice(0, 300) : pl.summary; app.ui?.emit?.('history:annotate', { txn: res.txn }); }
   try {
     if (app.presence?.highlight) app.presence.highlight(dest ? { track: dest.id, clip: res.created?.tx } : { track: tr.track.id, clip: tr.clip.id }, `${t.label.toLowerCase()}`, by, 4000);
-  } catch (e) { /* presence is a nicety */ }
+  } catch { /* presence is a nicety */ }
   const after = dest ? null : app.store.findClip(tr.clip.id)?.clip;
   const keep = new Set([...(tr.ids || []), ...(res.created?.notes || [])]);
   const shown = after ? (tr.ids ? after.notes.filter((n) => keep.has(n.id)) : after.notes) : null;

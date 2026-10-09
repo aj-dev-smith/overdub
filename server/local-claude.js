@@ -48,7 +48,7 @@ export function claudeStatus() {
   try {
     const r = spawnSync(claude(), ['--version'], { encoding: 'utf8', timeout: 8000 });
     probe = r.status === 0 ? { available: true, version: String(r.stdout || '').trim().split(/\s/)[0] } : { available: false };
-  } catch (e) { probe = { available: false }; }
+  } catch { probe = { available: false }; }
   return probe;
 }
 
@@ -61,7 +61,7 @@ function readBody(req, limit = 2 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0; const parts = [];
     req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('body too large')); req.destroy(); } else parts.push(c); });
-    req.on('end', () => { try { const s = Buffer.concat(parts).toString('utf8'); resolve(s ? JSON.parse(s) : {}); } catch (e) { reject(new Error('body is not JSON')); } });
+    req.on('end', () => { try { const s = Buffer.concat(parts).toString('utf8'); resolve(s ? JSON.parse(s) : {}); } catch { reject(new Error('body is not JSON')); } });
     req.on('error', reject);
   });
 }
@@ -110,7 +110,7 @@ export function register({ addRoute }) {
       return json(res, 500, { error: 'could not start Claude Code: ' + e.message });
     }
     res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
-    const line = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch (e) { /* gone */ } };
+    const line = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch { /* gone */ } };
     line({ type: 'turn', token });
 
     let out = '', err = '', done = false;
@@ -120,7 +120,7 @@ export function register({ addRoute }) {
       let i;
       while ((i = out.indexOf('\n')) >= 0) {
         const l = out.slice(0, i).trim(); out = out.slice(i + 1);
-        if (l.startsWith('{')) { try { res.write(l + '\n'); } catch (e) { /* gone */ } }
+        if (l.startsWith('{')) { try { res.write(l + '\n'); } catch { /* gone */ } }
       }
     });
     child.stderr.setEncoding('utf8');
@@ -161,7 +161,7 @@ async function messages(req, res) {
   const ra = up.headers.get('retry-after');
   if (ra) head['retry-after'] = ra;
   res.writeHead(up.status, head);
-  try { if (up.body) for await (const c of up.body) res.write(c); } catch (e) { /* stopped, or the API went away mid-stream */ }
+  try { if (up.body) for await (const c of up.body) res.write(c); } catch { /* stopped, or the API went away mid-stream */ }
   res.end();
   return true;
 }

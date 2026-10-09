@@ -342,7 +342,7 @@ export function mount(el, ctx) {
   const slots = () => { const out = []; for (let j = 0; j < 8; j++) out.push({ j, src: P[`m${j + 1}_src`] | 0, dst: P[`m${j + 1}_dst`] | 0, amt: +P[`m${j + 1}_amt`] || 0 }); return out; };
   const used = (s) => s.src !== 0 || s.dst !== 0;
   const freeSlot = () => slots().find((s) => !used(s)) || null;
-  const valueOf = (t) => (t.key.startsWith('@') ? 0.5 : kit.pos(p(t.key), P[t.key]));
+  const valueAt = (t) => (t.key.startsWith('@') ? 0.5 : kit.pos(p(t.key), P[t.key]));
   function ringGeo(t) {
     const size = t.dial ? t.dial.offsetWidth || 34 : 34;
     return { size, r: (i) => size / 2 + 4 + 4.5 * i };
@@ -366,7 +366,7 @@ export function mount(el, ctx) {
     t.box.style.left = (t.dial ? t.dial.offsetLeft : 0) - pad + 'px';
     t.box.style.top = (t.dial ? t.dial.offsetTop : 0) - pad + 'px';
     t.svg.setAttribute('viewBox', `0 0 ${W} ${W}`); t.svg.setAttribute('width', W); t.svg.setAttribute('height', W);
-    const x = valueOf(t), travel = DEST_TARGETS[t.d].travel;
+    const x = valueAt(t), travel = DEST_TARGETS[t.d].travel;
     const seen = new Set();
     want.forEach((s, i) => {
       seen.add(s.j);
@@ -410,7 +410,7 @@ export function mount(el, ctx) {
       e.preventDefault(); e.stopPropagation();
       const k = `m${r.slot.j + 1}_amt`, spec = p(k), a0 = r.slot.amt, y0 = e.clientY;
       const tgt = e.currentTarget;
-      try { tgt.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { tgt.setPointerCapture(e.pointerId); } catch { /* gone */ }
       handle.focus({ preventScroll: true });
       let moved = false, v = a0, fine = e.shiftKey, base = a0, yb = y0;
       const mv = (ev) => {
@@ -543,7 +543,7 @@ export function mount(el, ctx) {
     b.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      try { b.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { b.setPointerCapture(e.pointerId); } catch { /* gone */ }
       const x0 = e.clientX, y0 = e.clientY;
       let dragging = false;
       const mv = (ev) => {
@@ -675,7 +675,7 @@ export function mount(el, ctx) {
     view.el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      try { view.el.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { view.el.setPointerCapture(e.pointerId); } catch { /* gone */ }
       view.el.focus({ preventScroll: true });
       let y0 = e.clientY, base = P[posKey], v = base, fine = e.shiftKey, moved = false;
       const H = Math.max(80, view.size.h || 150);
@@ -1115,7 +1115,7 @@ export function mount(el, ctx) {
     fltView.el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      try { fltView.el.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { fltView.el.setPointerCapture(e.pointerId); } catch { /* gone */ }
       fltView.el.focus({ preventScroll: true });
       const { w, h: hh } = fltView.size;
       let x0 = e.clientX, y0 = e.clientY, c0 = kit.pos(cSpec, P.flt_cutoff), r0 = P.flt_res, fine = e.shiftKey, moved = false, cv_ = P.flt_cutoff, rv = r0;
@@ -1195,7 +1195,7 @@ export function mount(el, ctx) {
     return { n, e, PAD, Q, fit: fit.Q, off, top, bot, x0, xa, xd, xs, xr, wa, wd, wr, hold, Y: (v) => bot - (bot - top) * v };
   }
   function envPath(g, G) {
-    const { e, x0, xa, xd, xs, xr, wa, wd, wr, Y } = G, N = 28;
+    const { e, x0, xa, xs, wa, wd, wr, Y } = G, N = 28;
     g.beginPath(); g.moveTo(x0, Y(0));
     for (let i = 1; i <= N; i++) { const t = i / N; g.lineTo(x0 + wa * t, Y(envSegment('attack', e.curve, t))); }
     for (let i = 1; i <= N; i++) { const t = i / N; g.lineTo(xa + wd * t, Y(1 - (1 - e.sustain) * envSegment('decay', e.curve, t))); }
@@ -1230,7 +1230,7 @@ export function mount(el, ctx) {
     el2.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       e.preventDefault(); e.stopPropagation();
-      try { el2.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      try { el2.setPointerCapture(e.pointerId); } catch { /* gone */ }
       el2.focus({ preventScroll: true });
       const { w, h: hh } = envView.size, ks = keysOf(), G = envGeo(w, hh);
       // a time point: the scale holds for the gesture, a knob's if the drawing's is under it, offset so the point stays
@@ -1245,7 +1245,7 @@ export function mount(el, ctx) {
       const Qd = hold ? hold.Q : G.Q;
       let x0 = e.clientX, y0 = e.clientY, fine = e.shiftKey, moved = false;
       let at = Object.fromEntries(ks.map((k) => [k, k.endsWith('sustain') || k.endsWith('curve') ? P[k] : kit.pos(p(k), P[k])]));
-      let cur = Object.fromEntries(ks.map((k) => [k, P[k]]));
+      const cur = Object.fromEntries(ks.map((k) => [k, P[k]]));
       const mv = (ev) => {
         if (ev.shiftKey !== fine) { fine = ev.shiftKey; x0 = ev.clientX; y0 = ev.clientY; at = Object.fromEntries(ks.map((k) => [k, k.endsWith('sustain') || k.endsWith('curve') ? cur[k] : kit.pos(p(k), cur[k])])); }
         const dx = ev.clientX - x0, dy = ev.clientY - y0;
@@ -1626,7 +1626,7 @@ export function mount(el, ctx) {
   }
   function ticks(t) {
     if (!t.rings.size) return;
-    const L = liveState, x = valueOf(t), travel = DEST_TARGETS[t.d].travel;
+    const L = liveState, x = valueAt(t), travel = DEST_TARGETS[t.d].travel;
     for (const r of t.rings.values()) {
       if (!L || !r.R) { r.tick.setAttribute('display', 'none'); continue; }
       r.tick.removeAttribute('display');
@@ -1669,7 +1669,7 @@ export function mount(el, ctx) {
       alive = false;
       endPatch();
       picker?.close();
-      for (const off of offs) { try { off(); } catch (e) { /* gone */ } }
+      for (const off of offs) { try { off(); } catch { /* gone */ } }
       ro?.disconnect();
       for (const c of canvases) c.destroy();
       root.remove();

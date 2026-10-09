@@ -25,7 +25,7 @@ async function up() {
   fs.writeFileSync(STATE, JSON.stringify({ base: h.base, pid: process.pid }));
   console.log('ax: up at ' + h.base + ' (pid ' + process.pid + ')');
   h.page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log('page ' + m.type() + ': ' + m.text()); });
-  const stop = async () => { try { fs.unlinkSync(STATE); } catch (e) { /* gone */ } await h.close(); process.exit(0); };
+  const stop = async () => { try { fs.unlinkSync(STATE); } catch { /* gone */ } await h.close(); process.exit(0); };
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
   // the human's side (only for driving what a person would click; the agent side never uses it): a request file
   // tools/.out/ax-human.req holds { js } or { shot }; the answer lands in ax-human.res
@@ -44,7 +44,7 @@ async function up() {
 
 async function human(q) {
   const REQ = path.join(OUTDIR, 'ax-human.req'), RES = path.join(OUTDIR, 'ax-human.res');
-  try { fs.unlinkSync(RES); } catch (e) { /* none */ }
+  try { fs.unlinkSync(RES); } catch { /* none */ }
   fs.writeFileSync(REQ, JSON.stringify(q));
   for (let i = 0; i < 300; i++) { if (fs.existsSync(RES)) { const r = fs.readFileSync(RES, 'utf8'); fs.unlinkSync(RES); return console.log(r); } await new Promise((r) => setTimeout(r, 100)); }
   console.log('no answer from the page');
@@ -57,7 +57,7 @@ async function call(tool, json) {
   const t0 = Date.now();
   const r = await fetch(base() + '/bridge/call', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tool, input, agent: 'dogfood' }) });
   const text = await r.text();
-  let data; try { data = JSON.parse(text); } catch (e) { data = text; }
+  let data; try { data = JSON.parse(text); } catch { data = text; }
   let img = null;
   if (data?.result?.image) { img = path.join(OUTDIR, 'ax-' + tool + '-' + Date.now() + '.png'); fs.writeFileSync(img, Buffer.from(data.result.image.split(',')[1], 'base64')); data.result.image = '<saved ' + img + '>'; }
   // what an MCP client would see: server/mcp.js stringifies with indent 1
@@ -75,5 +75,5 @@ else if (cmd === 'tools') {
   console.log('source:', j.source, 'count:', j.tools.length);
   for (const t of j.tools) console.log(`${t.name} (${t.description.length} + ${JSON.stringify(t.input_schema).length} chars)`);
 } else if (cmd === 'down') {
-  try { const { pid } = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(pid, 'SIGTERM'); console.log('ax: stopped ' + pid); } catch (e) { console.log('ax: not running'); }
+  try { const { pid } = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(pid, 'SIGTERM'); console.log('ax: stopped ' + pid); } catch { console.log('ax: not running'); }
 } else console.log('usage: node tools/ax.js up | call <tool> [json] | tools | down');

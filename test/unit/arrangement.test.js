@@ -255,7 +255,7 @@ describe('time.insert', () => {
 
 describe('time.remove', () => {
   test('a notes clip closes up around the cut; each note keeps its sounding part; a drum hit inside goes', () => {
-    const { store, ids, keys, drums } = song();
+    const { store, keys, drums } = song();
     roundTrip(store, { type: 'time.remove', at: 2, length: 4 });
     const [k] = keys().clips;
     assert.deepEqual([k.start, k.length], [0, 4]);
@@ -312,7 +312,7 @@ describe('time.remove', () => {
 
 describe('section.duplicate', () => {
   test('copies the section and its clips right after it, named next in the series', () => {
-    const { store, ids, keys } = song();
+    const { store, keys } = song();
     const r = roundTrip(store, { type: 'section.duplicate', section: 'verse', ref: 'v2' }, { by: 'claude' });
     const p = store.get();
     const copy = p.sections.find((s) => s.id === r.created.v2);
@@ -343,7 +343,7 @@ describe('section.duplicate', () => {
   });
 
   test('a clip that starts before the section brings only its part, with a pitched tail', () => {
-    const { store, ids, keys } = song();
+    const { store, keys } = song();
     store.dispatch({ type: 'section.add', ref: 'mid', section: { name: 'Mid', start: 2, length: 4 } });
     const plan = planSectionDuplicate(store.get(), { section: 'Mid', to: 32 });
     const add = plan.ops.find((o) => o.type === 'clip.add' && o.track === keys().id);

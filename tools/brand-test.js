@@ -56,7 +56,7 @@ T.ok(ratio(stok['--ink'], tok['--accent']) >= 4.5, `tape box: ink on a leader-gr
 {
   // the faces come from the site: tokens.css imports fonts.css, which declares Archivo over its width axis to 125
   let fontsSrc = '';
-  try { fontsSrc = fs.readFileSync(path.join(ROOT, 'app/style/fonts.css'), 'utf8'); } catch (e) { /* none: the check fails */ }
+  try { fontsSrc = fs.readFileSync(path.join(ROOT, 'app/style/fonts.css'), 'utf8'); } catch { /* none: the check fails */ }
   T.ok(/@import url\('fonts\.css'\)/.test(tokensSrc) && /font-family: 'Archivo';[^}]*font-stretch: 62% 125%/.test(fontsSrc) && /font-family: 'Atkinson Hyperlegible Next'/.test(fontsSrc) && /font-family: 'Atkinson Hyperlegible Mono'/.test(fontsSrc),
     'tokens.css loads Archivo (with the wdth axis to 125), Atkinson Hyperlegible Next and Mono, from the site (fonts.css)');
 }
@@ -264,7 +264,7 @@ const canvasShot = (page) => page.locator('#weave').screenshot();
 // woff2 beside its licence, and every page draws in them with nothing fetched from another host
 {
   const FONTS = path.join(ROOT, 'app/style/fonts');
-  const readOr = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch (e) { return ''; } };
+  const readOr = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
   const css = readOr(path.join(ROOT, 'app/style/fonts.css'));
   const tokens = readOr(path.join(ROOT, 'app/style/tokens.css'));
   const rules = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map((m) => ({

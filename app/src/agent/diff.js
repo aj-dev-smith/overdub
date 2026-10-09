@@ -326,7 +326,7 @@ const clipName = (p, id) => {
   for (const t of p?.tracks || []) { const c = t.clips.find((x) => x.id === id); if (c) return c.name || 'a clip'; }
   return 'a clip';
 };
-export const isArrangementOp = (o) => !!o && typeof o.type === 'string' && Object.prototype.hasOwnProperty.call(ARRANGEMENT_OPS, o.type);
+export const isArrangementOp = (o) => !!o && typeof o.type === 'string' && Object.hasOwn(ARRANGEMENT_OPS, o.type);
 
 // Tracks and clips an op list touches (ids resolved where possible), for highlights. An arrangement op (time.insert,
 // clip.split, …) plans its change from the song when it's applied, so the op alone doesn't say what moved: pass the
@@ -356,7 +356,7 @@ export function lanesIn(p) {
 }
 // An op's points as a list (the text form read by core's parsePoints; [] when it can't be read: this only describes).
 export function pointsOf(points) {
-  try { return parsePoints(points).filter((x) => x && Number.isFinite(+x.t) && Number.isFinite(+x.v)); } catch (e) { return []; }
+  try { return parsePoints(points).filter((x) => x && Number.isFinite(+x.t) && Number.isFinite(+x.v)); } catch { return []; }
 }
 
 // The param a lane moves, in words ("Keyhole cutoff", "level", "pan"), with its unit.

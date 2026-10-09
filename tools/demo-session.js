@@ -341,7 +341,7 @@ export async function filmSession(opts) {
     await page.waitForFunction((n) => window.overdub.store.history.length > n, hBand, { timeout: 15000 }).catch(stuck);
     mark('band');
     // the click goes off once the band is in (it was there to tap to; the band keeps time now)
-    await E(() => { const { transport, engine } = window.overdub; try { transport.click.set({ on: false }); } catch (e) { engine.metronome = false; } });
+    await E(() => { const { transport, engine } = window.overdub; try { transport.click.set({ on: false }); } catch { engine.metronome = false; } });
     await wait(120);
     info.bandText = await E(() => [...document.querySelectorAll('.ew-toast')].map((t) => t.querySelector('span')?.textContent || '').find((t) => /^Band in:/.test(t)) || '');
     info.tracks = await E(() => window.overdub.store.get().tracks.map((t) => `${t.name} (${t.by || 'house'})`));

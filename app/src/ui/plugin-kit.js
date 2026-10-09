@@ -55,7 +55,7 @@ export function spec(p) {
   q.label = String(q.label || q.key || '');
   return q;
 }
-export const text = (p, v) => { try { return valueText(p, v); } catch (e) { return String(v); } };
+export const text = (p, v) => { try { return valueText(p, v); } catch { return String(v); } };
 const logOk = (p) => p.curve === 'log' && p.min > 0 && p.max > p.min;
 const quantum = (p) => p.step || (p.quantum > 0 ? p.quantum : Math.abs(p.max - p.min) >= 5 ? 0.1 : Math.abs(p.max - p.min) / 200);
 // the faces' snap (ui/faces.js), so a value set here is one a face would have set
@@ -171,7 +171,7 @@ function continuous(p, { value, onInput, dial, draw, axis = 'v', length = 180 })
   dial.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     g = { x: e.clientX, y: e.clientY, pos: pos(p, v), fine: e.shiftKey, moved: false, touch: e.pointerType === 'touch', id: e.pointerId };
-    try { dial.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try { dial.setPointerCapture(e.pointerId); } catch { /* gone */ }
     dial.focus({ preventScroll: true });
     dial.classList.add('pk-turning');
     e.preventDefault();
@@ -403,7 +403,7 @@ export function xy({ label = '', x: px, y: py, value = null, size = 160, onInput
   };
   const put = (nx, ny, commit) => { nx = snap(X, nx); ny = snap(Y, ny); if (nx === vx && ny === vy) { if (commit) onInput && onInput([vx, vy], { commit: true }); return; } vx = nx; vy = ny; draw(); onInput && onInput([vx, vy], { commit }); };
   const at = (e) => { const r = pad.getBoundingClientRect(); return [val(X, (e.clientX - r.left) / r.width), val(Y, 1 - (e.clientY - r.top) / r.height)]; };
-  pad.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; g = { id: e.pointerId }; try { pad.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } puck.focus({ preventScroll: true }); const [a, b] = at(e); put(a, b, false); e.preventDefault(); });
+  pad.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; g = { id: e.pointerId }; try { pad.setPointerCapture(e.pointerId); } catch { /* gone */ } puck.focus({ preventScroll: true }); const [a, b] = at(e); put(a, b, false); e.preventDefault(); });
   pad.addEventListener('pointermove', (e) => { if (!g || g.id !== e.pointerId) return; const [a, b] = at(e); put(a, b, false); });
   const end = (e) => { if (!g || (e && e.pointerId !== g.id)) return; g = null; onInput && onInput([vx, vy], { commit: true }); };
   pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end);
@@ -467,7 +467,7 @@ export function envelope({ label = 'Envelope', showLabel = true, readout = true,
     const el2 = h('div.pk-env-h' + (kind.endsWith('curve') ? '.pk-env-c' : ''), { role: 'slider', tabindex: 0, 'aria-label': `${name ? name + ' ' : ''}${capWord(kind.replace('curve', ' curve'))}`, 'aria-valuemin': sp.min, 'aria-valuemax': sp.max, title: kind.endsWith('curve') ? 'Drag up or down to bend it' : kind === 'decay' ? 'Drag: left and right the decay, up and down the sustain' : 'Drag sideways' });
     field.append(el2);
     let g = null;
-    el2.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; g = { id: e.pointerId, x: e.clientX, y: e.clientY, at: { ...cur }, moved: false }; try { el2.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } el2.focus({ preventScroll: true }); e.preventDefault(); });
+    el2.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; g = { id: e.pointerId, x: e.clientX, y: e.clientY, at: { ...cur }, moved: false }; try { el2.setPointerCapture(e.pointerId); } catch { /* gone */ } el2.focus({ preventScroll: true }); e.preventDefault(); });
     el2.addEventListener('pointermove', (e) => { if (!g || g.id !== e.pointerId) return; const dx = e.clientX - g.x, dy = e.clientY - g.y; if (!g.moved && Math.hypot(dx, dy) < 2) return; g.moved = true; const patch = move(dx, dy, g.at, e.shiftKey ? 0.25 : 1); if (patch) send(patch, false); });
     const end = (e) => { if (!g || (e && e.pointerId !== g.id)) return; const was = g; g = null; if (was.moved) { const patch = {}; for (const k of Object.keys(cur)) if (cur[k] !== was.at[k]) patch[k] = cur[k]; if (Object.keys(patch).length) onInput && onInput(patch, { commit: true }); } };
     el2.addEventListener('pointerup', end); el2.addEventListener('pointercancel', end);
@@ -584,7 +584,7 @@ export function keys({ lo = 48, hi = 84, label = 'Keyboard', onNote = null } = {
     const k = e.target.closest?.('.pk-key');
     if (!k || e.button > 0) return;
     e.preventDefault();
-    try { el.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    try { el.setPointerCapture(e.pointerId); } catch { /* gone */ }
     on(e.pointerId, +k.dataset.p, velOf(k, e.clientY));
   });
   el.addEventListener('pointermove', (e) => {

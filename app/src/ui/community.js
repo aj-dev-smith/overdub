@@ -37,7 +37,6 @@ import { readIndex, filterEntries, entryById, indexUrlAllowed, isLocalHost, plai
 import { kernelHash } from '../devices/trust.js';
 import { parseDeviceFile } from './devices-io.js';
 import { currentTrack } from './rack.js';
-import { touchFirst } from './arrange-kit.js';
 import { installTools } from '../agent/tools.js';
 import { kernelPrint } from '../agent/keep.js';
 import { communityTool } from '../agent/community-tool.js';
@@ -75,7 +74,7 @@ function tryPart(e) {
   // a strum: four chords, a bar between each pair; an instrument plays it too
   return { device: 'core.keys', name: input === 'strum' ? 'Strum' : 'Phrase', notes: 'C4@0:1.9 E4@0:1.9 G4@0:1.9 A3@2:1.9 C4@2:1.9 E4@2:1.9 F3@4:1.9 A3@4:1.9 C4@4:1.9 G3@6:1.9 B3@6:1.9 D4@6:1.9' };
 }
-const hostOf = (url) => { try { return new URL(url).host; } catch (e) { return String(url); } };
+const hostOf = (url) => { try { return new URL(url).host; } catch { return String(url); } };
 const dayOf = (iso) => { const d = new Date(iso || ''); return isNaN(d) ? null : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
 
 // Read at most `cap` bytes; refuse past it, or a type not in `types`. Same origin rules as the URL policy decided.
@@ -92,7 +91,7 @@ async function fetchCapped(url, cap, types = null) {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.length;
-    if (total > cap) { try { await reader.cancel(); } catch (e) { /* gone */ } throw Object.assign(new Error('it’s too large'), { refused: true }); }
+    if (total > cap) { try { await reader.cancel(); } catch { /* gone */ } throw Object.assign(new Error('it’s too large'), { refused: true }); }
     parts.push(value);
   }
   const bytes = new Uint8Array(total);
@@ -112,7 +111,7 @@ export default async function (app) {
   let refusedSource = false;
 
   // the address keeps nothing the shelf can't use: off, its parameters go
-  const strip = (...keys) => { try { const u = new URL(location.href); let n = 0; for (const k of keys) if (u.searchParams.has(k)) { u.searchParams.delete(k); n++; } if (n) history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* fine */ } };
+  const strip = (...keys) => { try { const u = new URL(location.href); let n = 0; for (const k of keys) if (u.searchParams.has(k)) { u.searchParams.delete(k); n++; } if (n) history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* fine */ } };
 
   app.community = {
     on: () => on,
@@ -124,7 +123,7 @@ export default async function (app) {
   if (!on) { strip('community', 'community-device'); return; }
 
   css('ew-community', SHELF_CSS);
-  const tryOn = () => TRY_ON || (() => { try { return localStorage.getItem(TRY_KEY) === '1'; } catch (e) { return false; } })();
+  const tryOn = () => TRY_ON || (() => { try { return localStorage.getItem(TRY_KEY) === '1'; } catch { return false; } })();
 
   /* ---------------------------------------------------------------- the index */
   const bundledUrl = new URL(BUNDLED_INDEX, location.href).href;
@@ -138,7 +137,7 @@ export default async function (app) {
     try {
       const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
       if (s && typeof s.url === 'string') { const u = indexUrlAllowed(s.url, { page: location.href, live: COMMUNITY_LIVE }); if (u) return { url: u, how: 'stored' }; }
-    } catch (e) { /* none */ }
+    } catch { /* none */ }
     return { url: bundledUrl, how: 'bundled' };
   }
   async function readFrom(url, bundled) {
@@ -172,7 +171,7 @@ export default async function (app) {
           // (a line of its own under the purpose, which stays the spec's word for word)
           f.note = S.entries.length ? 'And the community shelf: devices other people asked their agents for.' : null;
         }
-      } catch (e) { /* no workspace */ }
+      } catch { /* no workspace */ }
       app.browser?.render?.();
       // what was drawn before the shelf was read (the held strip's lines) draws again
       ui.emit('community:ready', { status: S.status });
@@ -198,7 +197,7 @@ export default async function (app) {
       prints = (async () => {
         const out = [];
         for (const e of list.slice(0, 200)) {
-          try { const { bytes } = await fetchCapped(e.device, LIMITS.deviceBytes); const def = parseDeviceFile(new TextDecoder().decode(bytes)); if (kernelHash(def.kernel) === e.sha256) out.push({ id: e.id, name: e.name, print: kernelPrint(def.kernel) }); } catch (err) { /* unreadable: nothing to match */ }
+          try { const { bytes } = await fetchCapped(e.device, LIMITS.deviceBytes); const def = parseDeviceFile(new TextDecoder().decode(bytes)); if (kernelHash(def.kernel) === e.sha256) out.push({ id: e.id, name: e.name, print: kernelPrint(def.kernel) }); } catch { /* unreadable: nothing to match */ }
         }
         return out;
       })();
@@ -218,7 +217,7 @@ export default async function (app) {
     const tell = () => { for (const fn of listeners) fn(cur); };
     function stop() {
       clearInterval(fade);
-      try { audio.pause(); } catch (e) { /* fine */ }
+      try { audio.pause(); } catch { /* fine */ }
       if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
       audio.removeAttribute('src');
       cur = null; tell();
@@ -237,7 +236,7 @@ export default async function (app) {
       let blob;
       try { blob = await clipBlob(clips); } catch (e) { stop(); ui.toast(e.refused ? say.clipRefused : `Couldn’t fetch the clip: ${e.message}.`, { kind: 'bad' }); return false; }
       // the song and a preview don't play over each other
-      if (app.engine?.playing) { try { app.engine.stop(); } catch (e) { /* fine */ } }
+      if (app.engine?.playing) { try { app.engine.stop(); } catch { /* fine */ } }
       clearInterval(fade);
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       blobUrl = URL.createObjectURL(blob);
@@ -245,9 +244,9 @@ export default async function (app) {
       audio.volume = 0;
       cur = { id: entry.id, dry };
       tell();
-      try { audio.currentTime = at; } catch (e) { /* not seekable yet */ }
+      try { audio.currentTime = at; } catch { /* not seekable yet */ }
       try { await audio.play(); } catch (e) { stop(); ui.toast(`The clip wouldn’t play: ${e.message}`, { kind: 'bad' }); return false; }
-      if (at) { try { audio.currentTime = Math.min(at, (audio.duration || at) - 0.01); } catch (e) { /* fine */ } }
+      if (at) { try { audio.currentTime = Math.min(at, (audio.duration || at) - 0.01); } catch { /* fine */ } }
       const t0 = performance.now();
       fade = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / 200); audio.volume = 0.5 * k; if (k >= 1) clearInterval(fade); }, 20);
       return true;
@@ -300,7 +299,7 @@ export default async function (app) {
   }
   function targetFor(e, ref = null) {
     const p = store.get();
-    let tid = ref == null || ref === '' ? currentTrack(app) : ref;
+    const tid = ref == null || ref === '' ? currentTrack(app) : ref;
     if (tid === 'new') return { track: 'new', name: 'a new track' };
     if (tid === 'master') return e.kind === 'effect' ? { track: 'master', name: 'the master', already: (p.master?.inserts || []).some((i) => i.device === e.id) } : { track: 'new', name: 'a new track' };
     const t = tid ? findTrack(tid) : null;
@@ -339,7 +338,7 @@ export default async function (app) {
   function askTrust(e, def, { anchor = null, target }) {
     promptOpen?.close?.(false);
     return new Promise((resolve) => {
-      const keyHere = (() => { try { return Object.keys(localStorage).some((k) => /anthropic|api-key|apikey/i.test(k) && localStorage.getItem(k)); } catch (e2) { return false; } })();
+      const keyHere = (() => { try { return Object.keys(localStorage).some((k) => /anthropic|api-key|apikey/i.test(k) && localStorage.getItem(k)); } catch { return false; } })();
       const own = e.origin === 'bundled';
       const who = e.author.alias || e.author.handle;
       const fp = (e.sha256 || '').slice(0, 12);
@@ -364,7 +363,7 @@ export default async function (app) {
         if (promptOpen !== api) return;
         promptOpen = null;
         el.remove(); window.removeEventListener('keydown', onKey, true);
-        try { (anchor && anchor.isConnected ? anchor : null)?.focus?.(); } catch (e3) { /* fine */ }
+        try { (anchor && anchor.isConnected ? anchor : null)?.focus?.(); } catch { /* fine */ }
         resolve(result);
       };
       const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close({ go: false }); } else if (el.contains(document.activeElement)) ev.stopPropagation(); };
@@ -449,14 +448,14 @@ export default async function (app) {
       if (!r.ok) { if (n === 1) app.trust.forget([def.kernel]); return no(`Couldn’t put ${e.name} on: ${r.error}`); }
       if (r.txn && agent) { r.txn.keptBy = 'you'; ui.emit('history:annotate', { txn: r.txn }); }
       const tid = target.track === 'new' ? r.created?.n : target.track;
-      try { if (tid) ui.select({ track: tid, clip: null, insert: r.created?.insert || null }); } catch (err) { /* fine */ }
+      try { if (tid) ui.select({ track: tid, clip: null, insert: r.created?.insert || null }); } catch { /* fine */ }
       // on a phone, the song comes back into view
-      if (window.innerWidth <= 640) { try { ui.setOpen('left', false); } catch (err) { /* fine */ } }
+      if (window.innerWidth <= 640) { try { ui.setOpen('left', false); } catch { /* fine */ } }
       const onName = target.track === 'new' ? 'a new track' : target.name;
       const part = target.track === 'new' ? ` It has a two-bar ${tryPart(e).name.toLowerCase()} ${e.kind === 'effect' ? 'going through it' : 'to play'}.` : '';
       const slot = e.kind === 'instrument' ? 'instrument' : r.created?.insert;
       const acts = [
-        app.engine && !app.engine.playing ? h('button.btn.btn-txt.cs-t-play', { type: 'button', onclick: () => { player.stop(); try { app.transport?.playOn ? app.transport.playOn() : app.engine.play(); } catch (err) { /* fine */ } } }, 'Play') : null,
+        app.engine && !app.engine.playing ? h('button.btn.btn-txt.cs-t-play', { type: 'button', onclick: () => { player.stop(); try { app.transport?.playOn ? app.transport.playOn() : app.engine.play(); } catch { /* fine */ } } }, 'Play') : null,
         app.plugin && tid && slot ? h('button.btn.btn-txt.cs-t-open', { type: 'button', onclick: () => app.plugin.open({ track: tid, slot }) }, 'Open') : null,
       ].filter(Boolean);
       ui.toast([`${e.name} is on ${onName}.${part}${remembered === undefined ? '' : remembered ? ' This browser runs its code from now on.' : ' Its code runs here until you reload.'} `, ...acts], { kind: 'ok', ms: 9000, action: { label: 'Undo', run: () => store.undo({ id: r.txn?.id }) } });
@@ -472,13 +471,11 @@ export default async function (app) {
   }
 
   /* ---------------------------------------------------------------- the section */
-  let reachedBy = null;
   // The Browser open on the shelf: on an entry's detail (id), or with the section's head at the top (no id). The shelf
   // sits under the studio's own instruments and effects, a screen or two down, so it's always scrolled to.
   function reach(id = null, by = 'you') {
-    reachedBy = by;
-    try { ui.workspace?.reach?.('browser', by); } catch (e) { /* no workspace */ }
-    try { ui.show('browser'); if (!ui.isOpen?.('left')) ui.setOpen('left', true); } catch (e) { /* fine */ }
+    try { ui.workspace?.reach?.('browser', by); } catch { /* no workspace */ }
+    try { ui.show('browser'); if (!ui.isOpen?.('left')) ui.setOpen('left', true); } catch { /* fine */ }
     S.reached = true;
     if (id) S.open = id;
     app.community.ready().then(() => {
@@ -550,12 +547,12 @@ export default async function (app) {
     if (v == null) return;
     const u = indexUrlAllowed(v.trim(), { page: location.href, live: COMMUNITY_LIVE });
     if (!u) { ui.toast(say.refusedSource, { kind: 'bad' }); return; }
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ url: u })); } catch (e) { /* this load only */ }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ url: u })); } catch { /* this load only */ }
     params.delete('community');
     load();
   }
   function back() {
-    try { localStorage.removeItem(STORE_KEY); } catch (e) { /* fine */ }
+    try { localStorage.removeItem(STORE_KEY); } catch { /* fine */ }
     params.delete('community');
     strip('community');
     load();

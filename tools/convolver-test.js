@@ -44,7 +44,7 @@ console.log('the FFT');
   ok(worst < -240, `forward matches a direct DFT for n = 16..8192: worst error ${worst.toFixed(1)} dB re the peak bin`);
   ok(round < -280, `inverse(forward(x)) is x for n = 16..8192: worst ${round.toFixed(1)} dB`);
   let threw = 0;
-  for (const n of [8, 12, 16384, 100]) { try { fft(n); } catch (e) { threw++; } }
+  for (const n of [8, 12, 16384, 100]) { try { fft(n); } catch { threw++; } }
   ok(threw === 4, 'fft(n) refuses n under 16, over 8192 or not a power of two');
   const F = fft(64), Xr = new Float64Array(33), Xi = new Float64Array(33), dc = new Float64Array(64).fill(0.25);
   F.forward(dc, Xr, Xi);
@@ -114,11 +114,11 @@ const errOf = (a, b) => { let e = 0, pk = 0; for (let i = 0; i < a.length; i++) 
   const y = run(C, x, 1, [128])[0];
   ok(errOf(y, direct(h2, x, 128, x.length)) < -240, 'set() to shorter taps, then reset(): the new taps, from silence');
   const fresh = run(convolver(h2), x, 1, [128])[0];
-  let longer = false; try { C.set(rand(5000, 1)); } catch (e) { longer = true; }
+  let longer = false; try { C.set(rand(5000, 1)); } catch { longer = true; }
   ok(longer || errOf(run(C.reset(), x, 1, [128])[0], direct(rand(5000, 1).subarray(0, 4096), x, 128, x.length)) < -240, 'taps longer than it was made for are cut to that length');
   void fresh;
   let bad = 0;
-  for (const o of [{ direct: 64 }, { head: 100 }, { head: 1024, body: 512 }]) { try { convolver(h1, o); } catch (e) { bad++; } }
+  for (const o of [{ direct: 64 }, { head: 100 }, { head: 1024, body: 512 }]) { try { convolver(h1, o); } catch { bad++; } }
   ok(bad === 3, 'it refuses a direct length other than the head\'s, a head that is not a power of two, and a body under the head');
 }
 

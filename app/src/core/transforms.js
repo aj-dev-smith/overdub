@@ -619,7 +619,7 @@ export const TRANSFORMS = [
       rate = [0.25, 0.5, 1].reduce((x, y) => (Math.abs(y - rate) < Math.abs(x - rate) ? y : x));
       const vel = r4(clamp(before.slice(-4).flatMap((g) => g.notes).reduce((x, n, _, arr) => x + n.v / arr.length, 0), 0.3, 1));
       const out = [...ns];
-      let made = [];
+      const made = [];
       const lastStart = barFloor(before[before.length - 1].t, c);
       if (p.style === 'motif' || c.drums) {
         // tile the last bar before the gap across it, each copy a little nearer the next phrase
@@ -697,7 +697,7 @@ export function catalog() {
 export function readParams(t, input = {}) {
   const out = {};
   for (const [k, s] of Object.entries(t.params)) {
-    let v = input[k];
+    const v = input[k];
     if (v === undefined || v === null || v === '') { out[k] = s.def; continue; }
     if (s.opts) out[k] = s.opts.includes(String(v)) ? String(v) : s.def;
     else if (typeof s.def === 'boolean') out[k] = v === true || v === 'true' || v === 1;

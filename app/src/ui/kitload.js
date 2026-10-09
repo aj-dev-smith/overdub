@@ -47,7 +47,7 @@ export function whenKitReady(def, ms = 60000) {
 
 export function instReady(engine, track, ms = 60000) {
   let inst = null;
-  try { inst = engine?.instance?.(track, 'instrument') || null; } catch (e) { inst = null; }
+  try { inst = engine?.instance?.(track, 'instrument') || null; } catch { inst = null; }
   if (!inst || !inst.data || inst.data.state !== 'loading' || typeof inst.on !== 'function') return Promise.resolve(!inst?.data || inst.data.state === 'ready');
   return new Promise((resolve) => {
     let off = null;

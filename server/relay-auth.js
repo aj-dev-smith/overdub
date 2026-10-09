@@ -54,7 +54,7 @@ export function canonicalResource(s) {
 const LOOPBACK = /^(localhost|127\.0\.0\.1)$/;
 function checkUrl(name, s, dev) {
   let u;
-  try { u = new URL(s); } catch (e) { throw new Error(`${name} is not a URL`); }
+  try { u = new URL(s); } catch { throw new Error(`${name} is not a URL`); }
   if (u.protocol === 'https:') return u.href.replace(/\/$/, '');
   if (u.protocol === 'http:' && dev && LOOPBACK.test(u.hostname)) return u.href.replace(/\/$/, '');
   throw new Error(`${name} must be https:// (http://localhost and http://127.0.0.1 only with RELAY_OAUTH_DEV=1)`);
@@ -69,7 +69,7 @@ export function oauthConfig(o) {
   checkUrl('RELAY_OAUTH_ISSUER', issuer, dev);
   if (!o.resource) throw new Error('RELAY_OAUTH_RESOURCE is required with RELAY_OAUTH_ISSUER');
   let canon;
-  try { canon = canonicalResource(o.resource); } catch (e) { throw new Error('RELAY_OAUTH_RESOURCE is not a URL'); }
+  try { canon = canonicalResource(o.resource); } catch { throw new Error('RELAY_OAUTH_RESOURCE is not a URL'); }
   if (canon !== o.resource) throw new Error(`RELAY_OAUTH_RESOURCE must be canonical: ${canon}`);
   checkUrl('RELAY_OAUTH_RESOURCE', o.resource, dev);
   if (!/\/mcp$/.test(new URL(o.resource).pathname)) throw new Error('RELAY_OAUTH_RESOURCE must end in /mcp (the relay serves MCP there)');
@@ -105,7 +105,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     }
     for (const k of list) {
       if (!k || k.kty !== 'OKP' || k.crv !== 'Ed25519' || typeof k.kid !== 'string' || !k.kid || typeof k.x !== 'string') continue;
-      try { out.set(k.kid, crypto.createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: k.x }, format: 'jwk' })); } catch (e) { /* not a key */ }
+      try { out.set(k.kid, crypto.createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: k.x }, format: 'jwk' })); } catch { /* not a key */ }
     }
     return out;
   }
@@ -136,7 +136,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     const parts = token.split('.');
     if (parts.length !== 3 || !parts.every((p) => /^[A-Za-z0-9_-]*$/.test(p))) return fail('unreadable');
     let head, claims;
-    try { head = b64json(parts[0]); claims = b64json(parts[1]); } catch (e) { return fail('unreadable'); }
+    try { head = b64json(parts[0]); claims = b64json(parts[1]); } catch { return fail('unreadable'); }
     if (!head || typeof head !== 'object' || !claims || typeof claims !== 'object') return fail('unreadable');
     if (head.alg !== 'EdDSA' || 'crit' in head || typeof head.kid !== 'string') return fail('unreadable');
     // jku, jwk, x5u and x5c are never used: keys come only from the configured JWKS
@@ -144,7 +144,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     const key = await keyFor(head.kid);
     if (!key) return fail('unreadable');
     let good = false;
-    try { good = crypto.verify(null, Buffer.from(parts[0] + '.' + parts[1]), key, Buffer.from(parts[2], 'base64url')); } catch (e) { good = false; }
+    try { good = crypto.verify(null, Buffer.from(parts[0] + '.' + parts[1]), key, Buffer.from(parts[2], 'base64url')); } catch { good = false; }
     if (!good) return fail('unreadable');
     const t = now() / 1000;
     const aud = use === 'access' ? cfg.resource : cfg.ticketAudience;
@@ -168,7 +168,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     const body = new URLSearchParams({ token, ...(hint ? { token_type_hint: hint } : {}) });
     const auth = 'Basic ' + Buffer.from('overdub-relay:' + cfg.introspectSecret).toString('base64');
     let r;
-    try { r = await f(cfg.introspectUrl, { method: 'POST', headers: { authorization: auth, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body, signal: AbortSignal.timeout(2000) }); } catch (e) { return null; }
+    try { r = await f(cfg.introspectUrl, { method: 'POST', headers: { authorization: auth, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body, signal: AbortSignal.timeout(2000) }); } catch { return null; }
     // 401 or 403: the service refused the relay's own secret. That's a misconfiguration, not an outage, so it fails
     // closed (nothing is cached: the next check asks again) and is logged once.
     if (r.status === 401 || r.status === 403) { if (!warnedSecret) { log('oauth: the introspection endpoint refused the relay secret'); warnedSecret = true; } return { refused: true }; }
@@ -176,7 +176,7 @@ export function createAuth(cfg, { log = () => {}, fetch: f = globalThis.fetch, n
     // than asked again on every request (which kept a full bucket full), and it's counted on its own
     if (r.status === 429) return { throttled: true };
     if (!r.ok) return null;   // 5xx: unreachable, as far as the fail-open rule goes
-    try { const j = await r.json(); return j && typeof j === 'object' ? j : null; } catch (e) { return null; }
+    try { const j = await r.json(); return j && typeof j === 'object' ? j : null; } catch { return null; }
   }
   // Is the grant behind this access token still live? Asked at most once a minute per grant (concurrent asks share
   // one call). The service unreachable: the signature stands until exp, for a grant never seen revoked here.

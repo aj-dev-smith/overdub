@@ -27,11 +27,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const t = tally('relay');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // wait for a condition (the relay's own counters), not a fixed time: the full run has other suites beside it
-const until = async (fn, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end) { try { if (fn()) return true; } catch (e) { /* not yet */ } await sleep(20); } return false; };
+const until = async (fn, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end) { try { if (fn()) return true; } catch { /* not yet */ } await sleep(20); } return false; };
 // send until the first 429 (a bucket may refill by one while the burst is being spent on a busy machine)
 const until429 = async (fn, max = 24) => { const codes = []; for (let i = 0; i < max; i++) { const r = await fn(i); codes.push(r.status); if (r.status === 429) return { codes, r }; } return { codes, r: null }; };
 const realErrors = (errs) => errs.filter((e) => !/Failed to load resource|favicon|fonts\.g|ERR_|net::/.test(e));
-const read = (f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch (e) { return ''; } };
+const read = (f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8'); } catch { return ''; } };
 
 // The pair a studio makes (docs/REMOTE-MCP.md): a 32-byte tab secret, and the connector token made from it one way.
 const SECRET_HEADER = 'x-overdub-tab-secret';
@@ -54,7 +54,7 @@ async function post(base, tok, body, { sid, accept = 'application/json, text/eve
   if (ct.includes('event-stream')) {
     const evs = text.split('\n\n').map((ev) => ev.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('')).filter(Boolean).map((s) => JSON.parse(s));
     data = Array.isArray(body) ? evs : evs[0];
-  } else if (text.trim()) { try { data = JSON.parse(text); } catch (e) { data = text; } }
+  } else if (text.trim()) { try { data = JSON.parse(text); } catch { data = text; } }
   return { status: r.status, headers: r.headers, ct, data, text };
 }
 let rpcId = 1;
@@ -76,7 +76,7 @@ async function call(base, tok, sid, name, args = {}, opts = {}) {
   const r = await post(base, tok, req('tools/call', { name, arguments: args }), { sid, ...opts });
   const res = r.data?.result;
   const texts = (res?.content || []).filter((c) => c.type === 'text').map((c) => c.text);
-  let data = null; for (const s of texts) { try { data = JSON.parse(s); } catch (e) { /* note */ } }
+  let data = null; for (const s of texts) { try { data = JSON.parse(s); } catch { /* note */ } }
   return { ...r, res, data, images: (res?.content || []).filter((c) => c.type === 'image') };
 }
 const listOf = async (base, tok, sid) => (await post(base, tok, req('tools/list'), { sid })).data?.result?.tools || [];
@@ -110,7 +110,7 @@ async function fakeTab(base, p, onCall = (ev) => (ev.tool === 'say' ? { ok: true
             if (ev.type === 'call' && onCall) Promise.resolve(onCall(ev)).then((out) => out !== undefined && post(base, p.token, { id: ev.id, result: out }, { route: 'result', secret }));
           }
         }
-      } catch (e) { /* aborted */ }
+      } catch { /* aborted */ }
     })();
   } else res?.body?.cancel().catch(() => {});
   return { tab, events, hello: hello.status, helloBody: hello.text, status: res?.status || 0, headers: res?.headers, retryAfter: res?.headers.get('retry-after'), close: () => ac.abort() };
@@ -157,7 +157,7 @@ function fakeAccounts() {
       if (rq.headers.authorization !== 'Basic ' + Buffer.from('overdub-relay:' + OA_SECRET).toString('base64')) return send(401, { error: 'invalid_client' });
       const f = new URLSearchParams(body);
       let c = {};
-      try { c = JSON.parse(Buffer.from(String(f.get('token')).split('.')[1], 'base64url').toString()); } catch (e) { return send(200, { active: false }); }
+      try { c = JSON.parse(Buffer.from(String(f.get('token')).split('.')[1], 'base64url').toString()); } catch { return send(200, { active: false }); }
       S.introspections.push({ hint: f.get('token_type_hint'), gid: c.gid, sid: c.sid });
       if (f.get('token_type_hint') === 'tab_ticket') return send(200, S.ended.has(c.sid) ? { active: false } : { active: true, sub: c.sub, sid: c.sid, exp: c.exp });
       if (S.revoked.has(c.gid)) return send(200, { active: false, revoke_reason: S.revoked.get(c.gid) });
@@ -172,7 +172,7 @@ function fakeAccounts() {
     const h = { 'content-type': 'application/json', ...(o ? { 'access-control-allow-origin': o, 'access-control-allow-credentials': 'true', vary: 'Origin' } : {}) };
     const send = (code, obj) => { rs.writeHead(code, h); rs.end(obj === undefined ? '' : JSON.stringify(obj)); };
     if (rq.method === 'OPTIONS') { rs.writeHead(204, { ...h, 'access-control-allow-methods': 'GET, POST, DELETE', 'access-control-allow-headers': 'content-type' }); return rs.end(); }
-    let b = {}; try { b = body ? JSON.parse(body) : {}; } catch (e) { /* */ }
+    let b = {}; try { b = body ? JSON.parse(body) : {}; } catch { /* */ }
     const C = S.cloud, signedOut = () => send(401, { error: { code: 'not_signed_in', message: 'Sign in first.' } });
     const path = rq.url.split('?')[0];
     if (path === '/v1/config') return send(200, { botCheck: { kind: 'stub' } });
@@ -215,8 +215,8 @@ async function apost(base, token, body, { sid, headers = {}, path = '/mcp' } = {
     ...(token ? { authorization: `Bearer ${token}` } : {}), ...(sid ? { 'mcp-session-id': sid, 'mcp-protocol-version': '2025-06-18' } : {}), ...headers }, body: JSON.stringify(body) });
   const text = await r.text();
   let data = null;
-  if ((r.headers.get('content-type') || '').includes('event-stream')) { const d = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).join(''); try { data = JSON.parse(d); } catch (e) { /* */ } }
-  else { try { data = JSON.parse(text); } catch (e) { data = text; } }
+  if ((r.headers.get('content-type') || '').includes('event-stream')) { const d = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).join(''); try { data = JSON.parse(d); } catch { /* */ } }
+  else { try { data = JSON.parse(text); } catch { data = text; } }
   return { status: r.status, headers: r.headers, data, text };
 }
 async function asession(base, token) {
@@ -228,14 +228,14 @@ async function asession(base, token) {
 async function acall(base, token, sid, name, args = {}) {
   const r = await apost(base, token, req('tools/call', { name, arguments: args }), { sid });
   const texts = (r.data?.result?.content || []).filter((c) => c.type === 'text').map((c) => c.text);
-  let data = null; for (const s of texts) { try { data = JSON.parse(s); } catch (e) { /* a note */ } }
+  let data = null; for (const s of texts) { try { data = JSON.parse(s); } catch { /* a note */ } }
   return { ...r, isError: !!r.data?.result?.isError, texts, data };
 }
 // A studio tab signed in to an account: its stream and hellos carry the ticket. It answers `say` with who it is.
 async function accountTab(base, ticket, { tab = 'tab_acct' + Math.floor(Math.random() * 1e6), origin } = {}) {
   const T = { tab, ticket, events: [] };
   const hdr = () => ({ authorization: `Bearer ${T.ticket}`, 'content-type': 'application/json', ...(origin ? { origin } : {}) });
-  T.hello = async (renew = false) => { const r = await fetch(`${base}/tab/hello`, { method: 'POST', headers: hdr(), body: JSON.stringify({ tab, ...(renew ? { renew: true } : {}) }) }); let j = null; try { j = await r.json(); } catch (e) { /* */ } return { status: r.status, body: j }; };
+  T.hello = async (renew = false) => { const r = await fetch(`${base}/tab/hello`, { method: 'POST', headers: hdr(), body: JSON.stringify({ tab, ...(renew ? { renew: true } : {}) }) }); let j = null; try { j = await r.json(); } catch { /* */ } return { status: r.status, body: j }; };
   const ac = new AbortController();
   const res = await fetch(`${base}/tab/events?tab=${tab}`, { headers: hdr(), signal: ac.signal }).catch(() => null);
   T.status = res?.status || 0;
@@ -261,7 +261,7 @@ async function accountTab(base, ticket, { tab = 'tab_acct' + Math.floor(Math.ran
             }
           }
         }
-      } catch (e) { /* aborted */ }
+      } catch { /* aborted */ }
       T.closed = true;
     })();
   } else res?.body?.cancel().catch(() => {});
@@ -655,7 +655,7 @@ try {
   {
     const require = createRequire(import.meta.url);
     let pwlib = null;
-    for (const p of [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean)) { try { pwlib = require(p); break; } catch (e) { /* next */ } }
+    for (const p of [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean)) { try { pwlib = require(p); break; } catch { /* next */ } }
     const srv = await startServer({ port: 0, quiet: true });
     try {
       for (const kind of ['webkit', 'firefox']) {
@@ -693,7 +693,7 @@ try {
     const s = studio = await open('/app/', { query: 'new' });
     const OLD = crypto.randomBytes(16).toString('base64url');
     const ctx = await s.browser.newContext({ viewport: { width: 1440, height: 900 } });
-    await ctx.addInitScript((old) => { try { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('overdub:remote-token', old); localStorage.setItem('overdub:remote-on', '1'); } } catch (e) { /* no storage */ } }, OLD);
+    await ctx.addInitScript((old) => { try { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('overdub:remote-token', old); localStorage.setItem('overdub:remote-on', '1'); } } catch { /* no storage */ } }, OLD);
     const pg = await ctx.newPage();
     await pg.goto(`${s.base}/app/?demo&relay=${encodeURIComponent(base)}`, { waitUntil: 'load' });
     await pg.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
@@ -739,7 +739,7 @@ try {
       if (u.origin === PUB) return rt.fulfill({ response: await rt.fetch({ url: s.base + u.pathname + u.search }) });
       return /^(localhost|127\.0\.0\.1)$/.test(u.hostname) ? rt.continue() : rt.abort();
     });
-    await ctx.addInitScript(() => { try { localStorage.setItem('overdub:remote-on', '1'); } catch (e) { /* no storage */ } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('overdub:remote-on', '1'); } catch { /* no storage */ } });
     const pub = await ctx.newPage();
     const sent = [];
     pub.on('request', (rq) => { if (rq.url().startsWith(base)) sent.push(rq.url()); });
@@ -1015,7 +1015,7 @@ try {
       const bad = [];
       for (const [why, o] of [['a trailing slash', { resource: OA_RESOURCE + '/' }], ['an uppercase scheme', { resource: 'HTTP://localhost:8790/mcp' }],
         ['a default port', { resource: 'https://relay.example:443/mcp' }], ['an http issuer without dev', { dev: false }], ['no secret', { introspectSecret: '' }]]) {
-        try { const r = await accountRelay(AS, { oauth: o }); relays.push(r); bad.push(why); } catch (e) { /* refused, as it should */ }
+        try { const r = await accountRelay(AS, { oauth: o }); relays.push(r); bad.push(why); } catch { /* refused, as it should */ }
       }
       t.ok(!bad.length, `the relay refuses to start on a non-canonical resource, an http issuer without RELAY_OAUTH_DEV, or no introspection secret${bad.length ? ': started with ' + bad.join(', ') : ''}`);
     }
@@ -1046,7 +1046,7 @@ try {
     // rejections
     {
       const good = accessToken(AS);
-      const [h, p] = good.split('.');
+      const [, p] = good.split('.');
       const { privateKey: evil, publicKey: evilPub } = crypto.generateKeyPairSync('ed25519');
       const old = Math.floor(Date.now() / 1000) - 1000;
       const flip = good.slice(0, -3) + (good.at(-3) === 'A' ? 'B' : 'A') + good.slice(-2);

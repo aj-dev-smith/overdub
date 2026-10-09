@@ -41,7 +41,7 @@ const BAR = 2;   // a bar at the session's 120 bpm (the new song the beat is tap
 fs.mkdirSync(WORK, { recursive: true });
 fs.mkdirSync(DEST, { recursive: true });
 const ff = (args) => {
-  if (process.env.DEBUG_FF) console.log('ffmpeg', args.map((a) => (/[\s;\[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
+  if (process.env.DEBUG_FF) console.log('ffmpeg', args.map((a) => (/[\s;[]/.test(a) ? JSON.stringify(a) : a)).join(' '));
   try { return execFileSync(FFMPEG, ['-y', '-loglevel', 'error', ...args], { maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'pipe'] }); }
   catch (e) { throw new Error('ffmpeg failed: ' + String(e.stderr || e.message).trim()); }
 };

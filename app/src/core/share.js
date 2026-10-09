@@ -78,7 +78,7 @@ async function pipe(bytes, stream, limit = Infinity) {
     const { value, done } = await reader.read();
     if (done) break;
     n += value.length;
-    if (n > limit) { try { await reader.cancel(); } catch (e) { /* ok */ } throw new Error('the link inflates to more than a song can be'); }
+    if (n > limit) { try { await reader.cancel(); } catch { /* ok */ } throw new Error('the link inflates to more than a song can be'); }
     parts.push(value);
   }
   const out = new Uint8Array(n);
@@ -156,7 +156,7 @@ export async function decodeShare(hashOrUrl) {
   try {
     const json = await inflate(fromBase64url(data));
     payload = JSON.parse(new TextDecoder().decode(json));
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'This link’s song didn’t come through whole (it was probably cut off when it was pasted). Ask for the link again, or for the project file.' };
   }
   if (!payload || payload.f !== SHARE_FORMAT || !payload.song || !Array.isArray(payload.song.tracks)) {
@@ -345,13 +345,13 @@ export function browserId() {
     let me = localStorage.getItem(ME_KEY);
     if (!me) { me = newId('me').slice(3) + newId('me').slice(3); localStorage.setItem(ME_KEY, me); }
     return me;
-  } catch (e) { return null; }
+  } catch { return null; }
 }
 
 // Is this a link this browser made? Only if its mark is this browser's mark for exactly this song.
 export async function isOwnLink({ song, from = {}, at = null }, me = browserId()) {
   if (!me || !from.mark || typeof from.mark !== 'string') return false;
-  try { return from.mark === await linkMark(me, at, JSON.stringify(song)); } catch (e) { return false; }
+  try { return from.mark === await linkMark(me, at, JSON.stringify(song)); } catch { return false; }
 }
 
 export async function openShared(hashOrUrl, { me = browserId(), taken = undefined } = {}) {

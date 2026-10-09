@@ -119,16 +119,16 @@ function ticker(fn, ms) {
     w = new Worker(url);
     URL.revokeObjectURL(url);
     w.onmessage = () => fn();
-    w.onerror = () => { try { w.terminate(); } catch (e) { /* ok */ } w = null; if (!iv) iv = setInterval(fn, ms); };
+    w.onerror = () => { try { w.terminate(); } catch { /* ok */ } w = null; if (!iv) iv = setInterval(fn, ms); };
     w.postMessage(ms);
-  } catch (e) { w = null; iv = setInterval(fn, ms); }
-  return () => { if (w) { try { w.postMessage(0); w.terminate(); } catch (e) { /* ok */ } } if (iv) clearInterval(iv); };
+  } catch { w = null; iv = setInterval(fn, ms); }
+  return () => { if (w) { try { w.postMessage(0); w.terminate(); } catch { /* ok */ } } if (iv) clearInterval(iv); };
 }
 
 export function createAudioIn(app, input) {
   const engine = app.engine, store = app.store;
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem(SAVE) || '{}') || {}; } catch { saved = {}; }
   const state = { open: false, deviceId: saved.deviceId || '', label: '', channel: saved.channel || '1', channels: 0, settings: {}, inputKind: '', monitoring: false, monitorAuto: false, monitorOff: '', monitorLine: '', monitorTrack: null, monitorWaiting: false, recording: false, countIn: saved.countIn !== false, error: '', sr: 0, opening: false };
   let ctx = null, ownCtx = null, rig = null, cap = null, capReady = null, mon = null, monDest = null, recording = false;
   let warned = false, syncT = 0;   // (the monitor: said once that it waits for a track; a sync queued)
@@ -139,7 +139,7 @@ export function createAudioIn(app, input) {
   const recorder = () => input.recorder;
   const listeners = new Set();
   const tuners = new Map();   // the tuner for each range asked for: `${lo}|${hi}` -> { at, last, tuner }
-  const persist = () => { try { localStorage.setItem(SAVE, JSON.stringify({ deviceId: picker.deviceId, channel: picker.channel, countIn: state.countIn })); } catch (e) { /* ok */ } };
+  const persist = () => { try { localStorage.setItem(SAVE, JSON.stringify({ deviceId: picker.deviceId, channel: picker.channel, countIn: state.countIn })); } catch { /* ok */ } };
   // Sketch's picker: what was last opened from it (a track's own input doesn't change it)
   let picker = { deviceId: state.deviceId, channel: state.channel };
   const changed = () => {
@@ -148,11 +148,11 @@ export function createAudioIn(app, input) {
   };
 
   async function ensureCtx() {
-    try { await engine.start(); } catch (e) { /* silent engine */ }
+    try { await engine.start(); } catch { /* silent engine */ }
     if (engine.ctx) { ctx = engine.ctx; return ctx; }
     // FALLBACK until the engine has a context: a private one (no monitoring through tracks then)
     if (!ownCtx) ownCtx = new AudioContext({ latencyHint: 'interactive' });
-    if (ownCtx.state !== 'running') { try { await ownCtx.resume(); } catch (e) { /* gesture */ } }
+    if (ownCtx.state !== 'running') { try { await ownCtx.resume(); } catch { /* gesture */ } }
     ctx = ownCtx;
     return ctx;
   }
@@ -160,7 +160,6 @@ export function createAudioIn(app, input) {
   const audio = {
     state,
     get ctx() { return ctx; },
-    get open() { return state.open; },
     async devices() {
       const md = navigator.mediaDevices;
       if (!md || !md.enumerateDevices) return [];
@@ -197,7 +196,7 @@ export function createAudioIn(app, input) {
         const caps = track && track.getCapabilities ? track.getCapabilities() : {}, max = caps.channelCount && caps.channelCount.max;
         const now = track && track.getSettings ? track.getSettings().channelCount : 0;
         if (max && now && max > now && track.applyConstraints) await track.applyConstraints({ ...plain, channelCount: { ideal: Math.min(32, max) } }).catch(() => {});
-      } catch (e) { /* the browser can't say: what it opened is what there is */ }
+      } catch { /* the browser can't say: what it opened is what there is */ }
       const st = (track && track.getSettings && track.getSettings()) || {};
       const src = c.createMediaStreamSource(stream);
       const n = Math.max(1, Math.min(32, st.channelCount || 1)), ch = parseInt(channel, 10);
@@ -245,10 +244,10 @@ export function createAudioIn(app, input) {
       return audio.open({ device: want.device, channel: want.channel, forTrack: want.from === 'track' ? t.id : null });
     },
     close(quiet) {
-      if (recording) { try { recorder()?.stop({ keepPlaying: true }); } catch (e) { /* ok */ } }
-      if (cap) { try { cap.port.postMessage('off'); cap.disconnect(); } catch (e) { /* ok */ } cap = null; capReady = null; }
+      if (recording) { try { recorder()?.stop({ keepPlaying: true }); } catch { /* ok */ } }
+      if (cap) { try { cap.port.postMessage('off'); cap.disconnect(); } catch { /* ok */ } cap = null; capReady = null; }
       unwireMonitor();
-      if (rig) { for (const t of rig.stream.getTracks()) t.stop(); try { rig.src.disconnect(); rig.pick.disconnect(); } catch (e) { /* ok */ } rig = null; }
+      if (rig) { for (const t of rig.stream.getTracks()) t.stop(); try { rig.src.disconnect(); rig.pick.disconnect(); } catch { /* ok */ } rig = null; }
       const was = state.open;
       state.open = false;
       // (quiet: open() is about to reopen and wire the monitor again)
@@ -289,7 +288,7 @@ export function createAudioIn(app, input) {
     listen(fn) {
       listeners.add(fn);
       if (state.open && !cap) attachCap();
-      return () => { listeners.delete(fn); if (!listeners.size && cap && !recording) { try { cap.port.postMessage('off'); cap.disconnect(); } catch (e) { /* ok */ } cap = null; capReady = null; } };
+      return () => { listeners.delete(fn); if (!listeners.size && cap && !recording) { try { cap.port.postMessage('off'); cap.disconnect(); } catch { /* ok */ } cap = null; capReady = null; } };
     },
 
     /* ---- monitoring: the input through the record track's inserts, as you play */
@@ -344,7 +343,7 @@ export function createAudioIn(app, input) {
   function recordTrack(make) {
     const p = store.get(), sel = app.ui?.state?.selection?.track;
     const audios = p.tracks.filter((t) => t.kind === 'audio');
-    let t = audios.find((x) => x.arm) || audios.find((x) => x.id === sel) || audios[0] || null;
+    const t = audios.find((x) => x.arm) || audios.find((x) => x.id === sel) || audios[0] || null;
     if (!make) return t;
     if (!t) {
       const r = store.dispatch({ type: 'track.add', ref: 'rec', track: { name: 'Audio', kind: 'audio', arm: true } }, { by: 'you', label: 'add an audio track to record on' });
@@ -440,8 +439,8 @@ export function createAudioIn(app, input) {
     const m = mon;
     mon = null; monDest = null;
     // (from where it is: a ramp in still going is held there, not finished, then faded)
-    try { const t = ctx.currentTime, v = m.gain.value; m.gain.cancelScheduledValues(t); m.gain.setValueAtTime(v, t); m.gain.setTargetAtTime(0, t, fast ? 0.004 : 0.01); } catch (e) { /* ok */ }
-    setTimeout(() => { try { m.disconnect(); } catch (e) { /* ok */ } }, 80);
+    try { const t = ctx.currentTime, v = m.gain.value; m.gain.cancelScheduledValues(t); m.gain.setValueAtTime(v, t); m.gain.setTargetAtTime(0, t, fast ? 0.004 : 0.01); } catch { /* ok */ }
+    setTimeout(() => { try { m.disconnect(); } catch { /* ok */ } }, 80);
   }
   // (after the engine has caught up with the change: one sync for a burst of them)
   const later = () => { if (!syncT) syncT = setTimeout(syncMonitor, 0); };
@@ -451,7 +450,7 @@ export function createAudioIn(app, input) {
     const t = recordTrack(false), id = t ? t.id : null;
     if (id !== (monDest ? monDest.track : null) || (t && monDest && engine.inputNode && monDest.node !== engine.inputNode(t.id))) later();
   });
-  try { engine.on('graph', (e) => { if (state.monitoring && rig && (!e || e.kind === 'track')) later(); }); } catch (e) { /* ok */ }
+  try { engine.on('graph', (e) => { if (state.monitoring && rig && (!e || e.kind === 'track')) later(); }); } catch { /* ok */ }
   // an interface plugged in (or out) shows up without a reload
   try {
     const md = navigator.mediaDevices;
@@ -461,7 +460,7 @@ export function createAudioIn(app, input) {
       app.ui?.emit?.('input:devices', list);
       if (state.open && state.deviceId && !list.some((d) => d.id === state.deviceId)) { state.error = 'That input isn’t there any more. Pick another.'; changed(); }
     });
-  } catch (e) { /* node */ }
+  } catch { /* node */ }
   return audio;
 }
 export { dB };

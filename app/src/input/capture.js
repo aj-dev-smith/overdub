@@ -80,7 +80,7 @@ function openDB() {
       const rq = indexedDB.open(DB, 1);
       rq.onupgradeneeded = () => { if (!rq.result.objectStoreNames.contains(STORE)) rq.result.createObjectStore(STORE, { keyPath: 'id' }); };
       rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); rq.onblocked = () => res(null);
-    } catch (e) { res(null); }
+    } catch { res(null); }
   });
 }
 
@@ -96,12 +96,12 @@ export function createCapture(app, input) {
 
   async function persist(ph) {
     const db = await dbP; if (!db) return;
-    try { const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(JSON.parse(JSON.stringify(ph))); } catch (e) { /* quota: memory still has it */ }
+    try { const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(JSON.parse(JSON.stringify(ph))); } catch { /* quota: memory still has it */ }
   }
   async function prune() {
     const db = await dbP; if (!db || phrases.length <= KEEP_MAX) return;
     const drop = phrases.slice(0, phrases.length - KEEP_MAX).filter((p) => !(p.kept && p.kept.length));
-    try { const t = db.transaction(STORE, 'readwrite'); for (const p of drop) t.objectStore(STORE).delete(p.id); } catch (e) { /* ok */ }
+    try { const t = db.transaction(STORE, 'readwrite'); for (const p of drop) t.objectStore(STORE).delete(p.id); } catch { /* ok */ }
   }
   // load what earlier sessions kept
   const loaded = dbP.then((db) => new Promise((res) => {
@@ -110,7 +110,7 @@ export function createCapture(app, input) {
       const rq = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
       rq.onsuccess = () => { const have = new Set(phrases.map((p) => p.id)); for (const p of rq.result || []) if (!have.has(p.id)) phrases.push(p); phrases.sort((a, b) => a.at - b.at); emit('load', null); res(); };
       rq.onerror = () => res();
-    } catch (e) { res(); }
+    } catch { res(); }
   }));
 
   function finish(ph) {
@@ -168,7 +168,7 @@ export function createCapture(app, input) {
       const on = cur.playing && eng.playing;
       // (tk: the take recorded with R this note goes into, if one does: input/recorder.js takeNow)
       let tk = null;
-      try { tk = track ? input.recorder?.takeNow?.() || null : null; } catch (e) { tk = null; }
+      try { tk = track ? input.recorder?.takeNow?.() || null : null; } catch { tk = null; }
       cur.held.set(p, { t: t - cur.t0, v, b: on ? eng.beat : null, g: on ? gridOf(eng) : null, tk });
       clearTimeout(closeT);
       emit('live', cur);
@@ -278,18 +278,18 @@ export function createCapture(app, input) {
     p.kept = [...(p.kept || []), { track, clip, at: Date.now() }];
     persist(p); emit('update', p);
     const rec = input.recorder;
-    try { if (rec?.select) rec.select({ track, clip, notes: [] }); else app.ui?.select?.({ track, clip, notes: [] }); } catch (e) { /* ok */ }
-    try { if (p.kind !== 'audio') rec?.took?.(aimOf(p), track); } catch (e) { /* ok */ }
-    try { app.arranger?.show?.([clip], 'you'); } catch (e) { /* no arranger (Node) */ }   // where it landed, flashed warm
+    try { if (rec?.select) rec.select({ track, clip, notes: [] }); else app.ui?.select?.({ track, clip, notes: [] }); } catch { /* ok */ }
+    try { if (p.kind !== 'audio') rec?.took?.(aimOf(p), track); } catch { /* ok */ }
+    try { app.arranger?.show?.([clip], 'you'); } catch { /* no arranger (Node) */ }   // where it landed, flashed warm
     return { ok: true, track, clip };
   }
   function pickDevice(want, kind) {
-    const has = (id) => { try { return !!app.devices.getDevice(id); } catch (e) { return false; } };
+    const has = (id) => { try { return !!app.devices.getDevice(id); } catch { return false; } };
     if (want && has(want)) return want;
     const prefs = kind === 'drums' ? ['core.drums'] : ['core.keys', 'core.pluck', 'core.poly'];
     return prefs.find(has) || want || prefs[0];
   }
   // leaving the page closes the phrase in progress (it is saved)
-  try { window.addEventListener('pagehide', () => closeCur()); } catch (e) { /* node */ }
+  try { window.addEventListener('pagehide', () => closeCur()); } catch { /* node */ }
   return capture;
 }

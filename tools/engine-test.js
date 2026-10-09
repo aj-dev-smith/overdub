@@ -15,7 +15,7 @@ await page.evaluate(async () => {
   const R = await import('/app/src/devices/registry.js');
   const U = await import('/app/src/engine/util.js');
   let M = null;
-  try { M = await import('/app/src/audio/measure.js'); } catch (e) { M = null; }
+  try { M = await import('/app/src/audio/measure.js'); } catch { M = null; }
   const ch = (b, i) => b.getChannelData(Math.min(i, b.numberOfChannels - 1));
   const stat = (b, from = 0, to = b.duration) => {
     const a = Math.floor(from * b.sampleRate), z = Math.min(b.length, Math.floor(to * b.sampleRate));
@@ -45,7 +45,7 @@ await page.evaluate(async () => {
     return {
       stop: () => new Promise((res) => {
         done = () => {
-          try { node.disconnect(cap); } catch (e) { /* ok */ }
+          try { node.disconnect(cap); } catch { /* ok */ }
           cap.disconnect(); z.disconnect();
           const n = chunks.reduce((a, c) => a + c[0].length, 0), L = new Float32Array(n), Rr = new Float32Array(n);
           let w = 0; const at = []; for (const [l, r, t] of chunks) { at.push([w, t]); L.set(l, w); Rr.set(r, w); w += l.length; }
@@ -222,7 +222,7 @@ await page.evaluate(async () => {
   // loop wrap: a 2-beat loop, notes at 0 and 1; spy on the instrument's noteOn times
   const r = await page.evaluate(async () => {
     const { proj, track, sleep } = T;
-    const { engine, store } = mk(proj({ tempo: 120, loop: { on: true, start: 0, end: 2 }, tracks: [track('t_a', [{ p: 60, t: 0, d: 0.25 }, { p: 64, t: 1, d: 0.25 }, { p: 67, t: 2, d: 0.25 }])] }));
+    const { engine } = mk(proj({ tempo: 120, loop: { on: true, start: 0, end: 2 }, tracks: [track('t_a', [{ p: 60, t: 0, d: 0.25 }, { p: 64, t: 1, d: 0.25 }, { p: 67, t: 2, d: 0.25 }])] }));
     await engine.start();
     const inst = engine.instance('t_a', 'instrument');
     const ons = [], offs = [];
@@ -501,7 +501,7 @@ await page.evaluate(async () => {
   // the engine, offline and live
   const r = await page.evaluate(async () => {
     const { proj, track, stat, onset, same, R, sleep } = T;
-    for (const m of ['poly', 'drums', 'bass', 'keys', 'pluck', 'pad', 'verb', 'delay', 'chorus']) { try { await import(`/app/src/devices/builtin/${m}.js`); } catch (e) { /* not there yet */ } }
+    for (const m of ['poly', 'drums', 'bass', 'keys', 'pluck', 'pad', 'verb', 'delay', 'chorus']) { try { await import(`/app/src/devices/builtin/${m}.js`); } catch { /* not there yet */ } }
     if (!R.getDevice('core.poly')) return { skip: true };
     const out = { have: R.listDevices().map((d) => d.id) };
     const notes = [{ p: 69, t: 1, d: 0.5, v: 0.8 }];
@@ -827,7 +827,7 @@ await page.evaluate(() => {
 {
   // count-in from bar 1: the transport starts a bar early, below 0 only clicks (the click is off), the song after
   const r = await page.evaluate(async () => {
-    const { proj, track, capture, sleep, onsets, spy } = T;
+    const { proj, track, capture, onsets, spy } = T;
     const { engine } = mk(proj({ tempo: 120, tracks: [track('t_a', [{ p: 69, t: 2, d: 0.5 }])] }));
     await engine.start();
     const ctx = engine.ctx, ons = spy(engine, 't_a');
@@ -875,7 +875,7 @@ await page.evaluate(() => {
   // pre-roll: from bar 3 the song plays the bar before; preroll: false is clicks alone, then the song chased at `from`;
   // a count inside a loop never counts again at the wrap; one that runs past the loop's end reaches `from`
   const r = await page.evaluate(async () => {
-    const { proj, track, capture, sleep, onsets, spy } = T;
+    const { proj, track, capture, onsets, spy } = T;
     const notes = [{ p: 60, t: 4, d: 8 }, { p: 64, t: 6, d: 0.5 }, { p: 67, t: 9, d: 0.5 }];
     const tr = track('t_a', notes); tr.clips[0].length = 16;
     const run = async (preroll) => {
@@ -948,7 +948,7 @@ await page.evaluate(() => {
 {
   // the click's options: whileRecording, level; engine.metronome is click.on
   const r = await page.evaluate(async () => {
-    const { proj, capture, sleep, onsets } = T;
+    const { proj, capture, onsets } = T;
     const { engine } = mk(proj({ tempo: 120 }));
     await engine.start();
     const ctx = engine.ctx, ev = [];
@@ -1019,7 +1019,7 @@ await page.evaluate(() => {
 {
   // recording past the song's end: the transport runs on, the click with it, and a clip added out there plays
   const r = await page.evaluate(async () => {
-    const { proj, track, capture, sleep, onsets, spy } = T;
+    const { proj, track, capture, onsets, spy } = T;
     const { engine, store } = mk(proj({ tempo: 240, tracks: [track('t_a', [{ p: 60, t: 0, d: 0.5 }])] }));
     store.dispatch({ type: 'clip.set', track: 't_a', clip: 'c_t_a', patch: { length: 4 } });
     const end = engine.songEnd();
@@ -1166,7 +1166,7 @@ await page.evaluate(() => {
   // live: the same lanes through the studio's transport (loop 0-4), captured off the master
   const { PROBE } = await import('./probe-kernel.js');
   const r = await page.evaluate(async ({ PROBE }) => {
-    const { capture, sleep } = T;
+    const { capture } = T;
     T.R.defineDevice(PROBE, { replace: true });
     const S = await import('/app/src/engine/schedule.js');
     const lane = { points: [{ t: 0, v: 0.1 }, { t: 2, v: 0.6 }, { t: 3, v: 0.6 }, { t: 3, v: 0.2 }, { t: 4, v: 0.2 }] };

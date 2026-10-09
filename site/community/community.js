@@ -45,7 +45,7 @@ export const shelfOn = () => COMMUNITY_LIVE || localPage();
 export function indexSource(param = new URLSearchParams(location.search).get('community')) {
   if (!param) return { url: new URL(DEFAULT_INDEX, location.href).href, bundled: true };
   let u;
-  try { u = new URL(param, location.href); } catch (e) { return { error: 'bad' }; }
+  try { u = new URL(param, location.href); } catch { return { error: 'bad' }; }
   const local = /^http:$/.test(u.protocol) && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
   const ok = u.origin === location.origin ? /^https?:$/.test(u.protocol) : !COMMUNITY_LIVE && localPage() && local;
   if (!ok || u.username || u.password) return { error: 'host' };
@@ -55,7 +55,7 @@ export function indexSource(param = new URLSearchParams(location.search).get('co
 // Read a response's body, stopping past `cap` bytes (null when it ran over)
 async function capped(res, cap) {
   const len = Number(res.headers.get('content-length'));
-  if (len > cap) { try { await res.body?.cancel(); } catch (e) { /* gone */ } return null; }
+  if (len > cap) { try { await res.body?.cancel(); } catch { /* gone */ } return null; }
   if (!res.body?.getReader) { const b = await res.arrayBuffer(); return b.byteLength > cap ? null : new Uint8Array(b); }
   const rd = res.body.getReader(), parts = [];
   let n = 0;
@@ -63,7 +63,7 @@ async function capped(res, cap) {
     const { done, value } = await rd.read();
     if (done) break;
     n += value.byteLength;
-    if (n > cap) { try { await rd.cancel(); } catch (e) { /* gone */ } return null; }
+    if (n > cap) { try { await rd.cancel(); } catch { /* gone */ } return null; }
     parts.push(value);
   }
   const out = new Uint8Array(n);
@@ -73,12 +73,12 @@ async function capped(res, cap) {
 
 export async function loadIndex(src) {
   let res;
-  try { res = await fetch(src.url, { credentials: 'omit', cache: 'no-cache', redirect: 'error' }); } catch (e) { return { missing: true }; }
+  try { res = await fetch(src.url, { credentials: 'omit', cache: 'no-cache', redirect: 'error' }); } catch { return { missing: true }; }
   if (!res.ok) return { missing: true };
   const bytes = await capped(res, MAX_INDEX_BYTES);
   if (!bytes) return { tooBig: true };
   let json;
-  try { json = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { return { unreadable: true }; }
+  try { json = JSON.parse(new TextDecoder().decode(bytes)); } catch { return { unreadable: true }; }
   return readIndex(json, { base: src.url, bundled: src.bundled });
 }
 
@@ -139,15 +139,15 @@ async function startPreview(el, { dry = el.dry } = {}) {
   const a = player.audio && player.el === el ? player.audio : new Audio();
   a.loop = true;
   a.src = url;
-  try { a.currentTime = was; } catch (err) { /* not seekable yet: from the top */ }
+  try { a.currentTime = was; } catch { /* not seekable yet: from the top */ }
   player.audio = a; player.entry = e; player.el = el;
   fadeIn(a);
-  try { await a.play(); } catch (err) {
+  try { await a.play(); } catch {
     if (player.audio === a) { el.dataset.state = 'idle'; el.querySelector('.cs-hint').textContent = 'The browser didn’t let it play. Press ▶ again.'; player.audio = null; player.el = null; }
     return;
   }
   if (player.audio !== a) return;
-  if (was && Math.abs(a.currentTime - was) > 0.05 && a.duration) { try { a.currentTime = was % a.duration; } catch (err) { /* close enough */ } }
+  if (was && Math.abs(a.currentTime - was) > 0.05 && a.duration) { try { a.currentTime = was % a.duration; } catch { /* close enough */ } }
   el.dataset.state = 'playing';
   el.querySelector('.cs-play b').textContent = 'Stop';
   el.querySelector('.cs-hint').textContent = '';
@@ -235,7 +235,7 @@ function entryEl(e, ctx) {
     const def = { id: e.id, name: e.name, kind: e.kind, cat: e.cat, blurb: e.blurb, nod: e.nod, look: e.look, params: e.params };
     const face = renderFace(def, {}, { on: true, size: 'full' });
     faceBox.append(face.el);
-  } catch (err) { faceBox.append(h('p.cs-noface', {}, 'No face to draw.')); }
+  } catch { faceBox.append(h('p.cs-noface', {}, 'No face to draw.')); }
   stage.append(faceBox);
 
   const body = h('div.cs-body');
@@ -324,6 +324,7 @@ export async function boot(root = document) {
     lede.textContent = `Instruments and effects people asked their agents for, as the shelf at ${where} lists them. What it says about each one is that shelf’s word, not the studio’s.`;
   }
   // the licence explainer links to the repo's LICENSING.md once the repo has a public URL (https on an allowed host)
+  // biome-ignore lint/correctness/noUndeclaredVariables: BUG, linkable is defined nowhere: a shelf index with a repo throws here
   const lic = idx.repo && linkable(idx.repo.replace(/\/+$/, '') + '/blob/HEAD/LICENSING.md', idx.repo);
   if (lic) $('#licence-note')?.append(' ', h('a', { href: lic, rel: 'noopener noreferrer' }, 'Who owns what, in plain English.'));
   const built = idx.built?.at ? `, built ${shortDate(idx.built.at)}` : '';

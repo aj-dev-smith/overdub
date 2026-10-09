@@ -74,7 +74,7 @@ console.log('the .odk container');
   const again = encodeOdk({ name: 'x', sr: 48000, bits: 16, channels: 2, meta: { m: 1 }, samples: [{ id: 'a', piece: 'k', ch: a }, { id: 'b', piece: 's', ch: [Int16Array.of(9), Int16Array.of(-9)] }] });
   t.ok(Buffer.compare(Buffer.from(bytes16), Buffer.from(again)) === 0, 'encoding is deterministic (the same input, the same bytes)');
   let bad = 0;
-  for (const junk of [new Uint8Array(3), Uint8Array.from([0x4f, 0x44, 0x4b, 0x31, 255, 255, 0, 0]), bytes16.subarray(0, bytes16.length - 4)]) { try { decodeOdk(junk); } catch (e) { bad++; } }
+  for (const junk of [new Uint8Array(3), Uint8Array.from([0x4f, 0x44, 0x4b, 0x31, 255, 255, 0, 0]), bytes16.subarray(0, bytes16.length - 4)]) { try { decodeOdk(junk); } catch { bad++; } }
   t.ok(bad === 3, 'a short, oversized or truncated file is refused, not read past its end');
   let threw = null; try { encodeOdk({ name: 'z', bits: 16, channels: 1, samples: [{ id: 'q', ch: [Int16Array.of(1)] }].map((s) => ({ ...s, ch: [Float32Array.of(0.5)] })) }); } catch (e) { threw = e.message; }
   t.ok(threw && /integer/.test(threw), `a non-integer sample is refused (${threw})`);
@@ -105,7 +105,7 @@ console.log('the packed transfer (.odkz)');
   const planes = flip(z.length - 5);
   t.ok(h(unpackOdk(planes)) !== h(src), 'a wrong byte in the audio unpacks to a different file, so its hash no longer matches');
   let refused = 0;
-  for (const bad of [z.subarray(0, z.length - 1), flip(9), Uint8Array.from([...z, 0]), z.subarray(0, 10)]) { try { unpackOdk(bad); } catch (e) { refused++; } }
+  for (const bad of [z.subarray(0, z.length - 1), flip(9), Uint8Array.from([...z, 0]), z.subarray(0, 10)]) { try { unpackOdk(bad); } catch { refused++; } }
   t.ok(refused === 4, 'a truncated, padded or header-damaged .odkz is refused, not read past its end');
 }
 

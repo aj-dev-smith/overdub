@@ -38,7 +38,6 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 {
   // the pass map: a take from beat 6 in the loop [4, 12): pass 0 is 6..12, then the loop again and again
   const span = { g0: 6, b0: 6, loop: { start: 4, end: 12 }, wrap: 12 };
-  const at = (g) => { const w = passOf(g, span); return `${w.pass}:${w.beat}`; };
   const at4 = (g) => { const w = passOf(g, span); return `${w.pass}:${Math.round(w.beat * 1e4) / 1e4}`; };
   t.ok([6, 11.5, 12, 19.99, 20, 30].map(at4).join(' ') === '0:6 0:11.5 1:4 1:11.99 2:4 3:6', `passOf: the unwrapped grid to (pass, song beat) across wraps (${[6, 11.5, 12, 19.99, 20, 30].map(at4).join(' ')})`);
   t.ok(passGrid(0, span).join() === '6,12' && passGrid(2, span).join() === '20,28' && passGrid(0, { g0: 3, b0: 3, loop: null, wrap: Infinity }).join() === '3,Infinity', 'passGrid: the grid each pass covers');
@@ -827,7 +826,7 @@ try {
   const in3 = await takeOn(3);
   t.ok(in3.gum[0] && in3.gum[0].channelCount?.ideal >= 3 && in3.channel === '3', `input 3: the device is opened asking for 3 channels or more (${JSON.stringify(in3.gum[0] && in3.gum[0].channelCount)}; split to input ${in3.channel})`);
   t.ok(in3.none && /Nothing came in on input 3/.test(in3.toast), `and a two-input device has no input 3: nothing is recorded, rather than input 1 ("${in3.toast}")`);
-  await page.evaluate(() => { for (const n of window.__toneNodes || []) { try { n.stop(); } catch (e) { /* ok */ } } });
+  await page.evaluate(() => { for (const n of window.__toneNodes || []) { try { n.stop(); } catch { /* ok */ } } });
 
   /* ---- a plugged-in interface shows up without a reload */
   const dc = await page.evaluate(async () => {
@@ -877,7 +876,7 @@ await close();
     await ev(() => window.overdub.engine.seek(4));     // the ruler, on bar 2
     await idleR();
     const sk = await ev(({ g, caps0 }) => { const a = window.overdub, c = a.store.track(g).clips.find((x) => x.take && !x.mute); return { clip: c && { start: c.start, length: c.length }, caps: a.input.capture.list({ all: true }).filter((x) => x.kind === 'audio').length - caps0, last: a.input.recorder.last?.why }; }, { g: ids3.Guitar, caps0 });
-    await ev(() => { try { window.__hold.stop(); } catch (e) { /* ok */ } window.overdub.engine.stop(); });
+    await ev(() => { try { window.__hold.stop(); } catch { /* ok */ } window.overdub.engine.stop(); });
     t.ok(sk.clip && near(sk.clip.start, 16, 0.1) && sk.clip.length > 7 && sk.clip.length < 9 && sk.caps === 1 && sk.last === 'seek', `a seek back to bar 2 during a mic take from bar 5 keeps the take where it was played (${JSON.stringify(sk)})`);
     await resetAll();
 
@@ -1063,7 +1062,7 @@ await close();
   } catch (e) {
     t.ok(false, 'the seam run threw: ' + (e && e.stack || e));
   }
-  async function shot4(name) { try { await s4.shot(name); } catch (e) { /* ok */ } }
+  async function shot4(name) { try { await s4.shot(name); } catch { /* ok */ } }
   await s4.close();
 }
 t.done();

@@ -48,15 +48,15 @@ const SAVE_KEY = 'overdub:project', PREV_KEY = 'overdub:previous', NAME_KEY = 'o
 // screen; the Song menu offers it (ui/export.js)
 const BEFORE_FORK_KEY = 'overdub:before-fork';
 const ls = {
-  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
 };
 
 export default function (app) {
   const { store, ui } = app;
   css('share', CSS);
   const share = app.share = Object.assign(app.share || { incoming: null, listening: false }, { lastLink: null });
-  let banner = null, edited = false, from = null, dropped = null;
+  let banner = null, edited = false, dropped = null;
   // the ask about the song's held devices: { from, answered } for the song on screen (a new one each time a song opens;
   // Make it yours keeps it)
   let ask = null, keepAsk = false;
@@ -108,10 +108,10 @@ export default function (app) {
     return d?.reference ? `${clips} The reference track stays here too.` : clips;
   };
   async function writeClipboard(text, field) {
-    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall through */ }
-    try { if (field) { field.focus(); field.select(); } return document.execCommand('copy'); } catch (e) { return false; }
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
+    try { if (field) { field.focus(); field.select(); } return document.execCommand('copy'); } catch { return false; }
   }
-  const phone = () => { try { return matchMedia('(pointer: coarse)').matches && !!navigator.share; } catch (e) { return false; } };
+  const phone = () => { try { return matchMedia('(pointer: coarse)').matches && !!navigator.share; } catch { return false; } };
   // has this browser been asked whose name its links carry? (an empty answer counts: those links are signed "Guest")
   const nameKept = () => ls.get(NAME_KEY) != null;
   const signedAs = (name) => String(name || '').trim().slice(0, 40) || 'Guest';
@@ -132,7 +132,7 @@ export default function (app) {
     }
     let how = 'copied';
     if (phone() && !into) {
-      try { await navigator.share({ title: r.title, text: `“${r.title}” in Overdub`, url: r.url }); how = 'shared'; } catch (e) { how = (await writeClipboard(r.url)) ? 'copied' : 'shown'; }
+      try { await navigator.share({ title: r.title, text: `“${r.title}” in Overdub`, url: r.url }); how = 'shared'; } catch { how = (await writeClipboard(r.url)) ? 'copied' : 'shown'; }
     } else how = (await writeClipboard(r.url, into?.field)) ? 'copied' : 'shown';
     if (how !== 'shared') ui.toast(how === 'copied' ? `Link copied: “${r.title}”, ${kb(r.chars)}, signed as ${signedAs(share.name)}. Whoever opens it can listen, then make it theirs.` : 'Here’s the link: copy it from the box.', { kind: 'ok', ms: 5000 });
     if (into) into.done(r, how); else if (anchor) sheet(anchor, r);
@@ -174,13 +174,12 @@ export default function (app) {
       ok && navigator.share ? h('button.ew-btn.ew-btn-small.sh-native', { onclick: async () => { share.name = nameIn.value; const n = await link({ name: share.name }); if (!n.ok) return; field.value = n.url; navigator.share({ title: p.title, text: `“${p.title}” in Overdub`, url: n.url }).catch(() => {}); } }, icon('send', { size: 13 }), 'Share…') : null);
     const pop = popover(anchor, body, { align: 'end', className: 'sh-pop' });
     // asked first: the name field has focus (Enter copies); else the link is selected, ready to copy by hand
-    setTimeout(() => { try { if (asked) { nameIn.focus(); nameIn.select(); } else if (r.ok) field.select(); } catch (e) { /* ok */ } }, 0);
+    setTimeout(() => { try { if (asked) { nameIn.focus(); nameIn.select(); } else if (r.ok) field.select(); } catch { /* ok */ } }, 0);
     return pop;
   }
 
   /* ---------------------------------------------------------------- listening */
   function enter(res) {
-    from = res.from || {};
     dropped = res.dropped || null;
     edited = false;
     share.incoming = res;
@@ -216,7 +215,7 @@ export default function (app) {
     paintBanner();
     const names = namesLine(f.meta.forkedFrom.authors.filter((a) => a.kind !== 'house').length ? f.meta.forkedFrom.authors.filter((a) => a.kind !== 'house') : f.meta.forkedFrom.authors);
     let prevTitle = null;
-    try { prevTitle = prev ? JSON.parse(prev).title : null; } catch (e) { /* ok */ }
+    try { prevTitle = prev ? JSON.parse(prev).title : null; } catch { /* ok */ }
     ui.toast(`“${f.title}” is yours${saved ? ', saved in this browser' : ''}${prev ? `; “${prevTitle || 'your song'}” stays in the Song menu` : ''}. Every part stays signed by whoever played it (${names}); what you change now is signed by you.`, {
       kind: 'ok', ms: 8000,
       action: prev ? { label: `Back to “${(prevTitle || 'my song').slice(0, 24)}”`, run: () => { store.load(cleanProject(JSON.parse(prev)), { by: 'you' }); ui.toast(`Back to “${prevTitle || 'your song'}”. The link still opens “${f.title}”.`); } } : null,
@@ -228,14 +227,14 @@ export default function (app) {
   function leave() {
     share.listening = false;
     let p = null;
-    try { const s = ls.get(SAVE_KEY); if (s) p = cleanProject(JSON.parse(s)); } catch (e) { p = null; }
+    try { const s = ls.get(SAVE_KEY); if (s) p = cleanProject(JSON.parse(s)); } catch { p = null; }
     clearHash();
     hideBanner();
     if (p) { store.load(p, { by: 'you' }); ui.toast(`Back to “${p.title}”.`); return { ok: true }; }
     return import('../core/demo.js').then(({ demoProject }) => { store.load(demoProject(), { by: 'you' }); return { ok: true }; });
   }
 
-  function clearHash() { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ok */ } }
+  function clearHash() { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* ok */ } }
 
   /* ---------------------------------------------------------------- held devices: the ask */
   const heldNow = () => app.devices?.heldDevices?.() || [];

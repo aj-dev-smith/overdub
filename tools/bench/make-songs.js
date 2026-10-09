@@ -103,7 +103,7 @@ function looseGroove() {
 
 // JSON, two-space indented, with every innermost object (a note, a param set) on one line.
 export function pretty(x) {
-  return JSON.stringify(x, null, 2).replace(/\{[^{}\[\]]*\}/g, (m) => m.replace(/\s*\n\s*/g, ' ').replace(/\{ /, '{ ').replace(/ \}$/, ' }'));
+  return JSON.stringify(x, null, 2).replace(/\{[^{}[\]]*\}/g, (m) => m.replace(/\s*\n\s*/g, ' ').replace(/\{ /, '{ ').replace(/ \}$/, ' }'));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

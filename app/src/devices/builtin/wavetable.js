@@ -1651,8 +1651,8 @@ export function filterResponse(type, fc, res, freqs, { sr = 48000, out = null } 
     } else if (type === 1) {
       // one stage L = 1 / (1 + j w); the loop c L^4 / (1 + k L^4)
       const w = t / g;
-      let lr = 1 / (1 + w * w), li = -w / (1 + w * w);
-      let r2 = lr * lr - li * li, i2 = 2 * lr * li;
+      const lr = 1 / (1 + w * w), li = -w / (1 + w * w);
+      const r2 = lr * lr - li * li, i2 = 2 * lr * li;
       const r4 = r2 * r2 - i2 * i2, i4 = 2 * r2 * i2;
       const dr = 1 + k * r4, dim = k * i4, dd = dr * dr + dim * dim;
       re = c * (r4 * dr + i4 * dim) / dd; im = c * (i4 * dr - r4 * dim) / dd;

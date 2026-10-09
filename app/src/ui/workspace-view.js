@@ -9,13 +9,13 @@
 export const WORKSPACE_KEY = 'overdub:workspace';
 export const VIEWS = ['simple', 'full'];
 
-const get = (storage, key) => { try { return storage ? storage.getItem(key) : null; } catch (e) { return null; } };
+const get = (storage, key) => { try { return storage ? storage.getItem(key) : null; } catch { return null; } };
 
 // What's kept, cleaned: a missing, unreadable or foreign value reads as nothing kept.
 export function readSaved(storage) {
   const out = { v: 1, view: null, added: {} };
   let s = null;
-  try { s = JSON.parse(get(storage, WORKSPACE_KEY) || 'null'); } catch (e) { s = null; }
+  try { s = JSON.parse(get(storage, WORKSPACE_KEY) || 'null'); } catch { s = null; }
   if (!s || typeof s !== 'object' || Array.isArray(s)) return out;
   if (VIEWS.includes(s.view)) out.view = s.view;
   if (s.added && typeof s.added === 'object' && !Array.isArray(s.added)) {
@@ -31,7 +31,7 @@ export function readSaved(storage) {
 // so once, ui/workspace.js). -> { view, persist, from, round? }
 export function decideView({ search = '', storage = null, webdriver = false } = {}) {
   let q = null;
-  try { q = new URLSearchParams(search || '').get('view'); } catch (e) { q = null; }
+  try { q = new URLSearchParams(search || '').get('view'); } catch { q = null; }
   if (VIEWS.includes(q)) return { view: q, persist: false, from: 'url' };
   if (q === 'round') return { view: 'simple', persist: false, from: 'url', round: true };
   const saved = readSaved(storage);

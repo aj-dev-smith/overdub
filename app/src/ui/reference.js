@@ -16,7 +16,7 @@
 // app.reference = { set(file | { name, buffer }), clear(), measureMix(), compare(input), ab: { start(side), side(s),
 //                   stop(), get state() }, get mix() }
 
-import { h, css, icon, byline } from './dom.js';
+import { h, css, byline } from './dom.js';
 import { newId, songEnd, isValidReference } from '../core/project.js';
 import { beatsPerBar } from '../core/music.js';
 import { glossDeltas } from '../agent/lexicon.js';
@@ -227,12 +227,12 @@ export default function (app) {
     const c = engine.ctx;
     const buf = await engine.assets.get(ref.asset);
     if (!buf) { toast('The reference’s audio isn’t in this browser. Drop the file on the Reference tab again.', 'bad'); return { ok: false, error: 'the reference audio is missing' }; }
-    if (!S.mix || S.mix.version !== version) { try { await measureMix(); } catch (e) { /* A/B at unity, said below */ } }
+    if (!S.mix || S.mix.version !== version) { try { await measureMix(); } catch { /* A/B at unity, said below */ } }
     if (S.ab) { setSide(side); return { ok: true, side }; }
     const mon = engine._monitor || null;   // the speakers' feed of the mix (master fader → monitor soft clip)
     const gA = c.createGain(), gB = c.createGain(), match = c.createGain();
     gA.gain.value = side === 'A' ? 1 : 0; gB.gain.value = side === 'B' ? 1 : 0;
-    if (mon) { try { mon.disconnect(c.destination); } catch (e) { /* not wired there */ } mon.connect(gA); }
+    if (mon) { try { mon.disconnect(c.destination); } catch { /* not wired there */ } mon.connect(gA); }
     gA.connect(c.destination);
     match.connect(gB); gB.connect(c.destination);
     const src = c.createBufferSource();
@@ -253,12 +253,12 @@ export default function (app) {
     const ab = S.ab;
     if (!ab) return;
     S.ab = null;
-    try { ab.off?.(); } catch (e) { /* gone */ }
+    try { ab.off?.(); } catch { /* gone */ }
     const c = engine.ctx;
-    try { ab.src.stop(); } catch (e) { /* not started */ }
-    for (const n of [ab.src, ab.match, ab.gB]) { try { n.disconnect(); } catch (e) { /* ok */ } }
-    if (ab.mon) { try { ab.mon.disconnect(ab.gA); } catch (e) { /* ok */ } try { ab.mon.connect(c.destination); } catch (e) { /* ok */ } }
-    try { ab.gA.disconnect(); } catch (e) { /* ok */ }
+    try { ab.src.stop(); } catch { /* not started */ }
+    for (const n of [ab.src, ab.match, ab.gB]) { try { n.disconnect(); } catch { /* ok */ } }
+    if (ab.mon) { try { ab.mon.disconnect(ab.gA); } catch { /* ok */ } try { ab.mon.connect(c.destination); } catch { /* ok */ } }
+    try { ab.gA.disconnect(); } catch { /* ok */ }
     refresh();
   }
   // a new song or a removed reference ends A/B

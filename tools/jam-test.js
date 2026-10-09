@@ -136,8 +136,8 @@ function fakeGuitar(file, level = 0.6) {
   // a line that has to move keeps every stretch in a span and moves as little as it must
   const climb = 'E3 G3 A3 C4 D4 E4 G4 A4 C5 D5 E5 G5 A5'.split(' ').map((p, i) => ({ p, t: i * 0.5 }));
   const fc = FB.fingering(climb, 'standard', { near: 5 });
-  let pos = null, spanOk = true, moves = 0;
-  for (const n of fc.notes) { if (!n.f) continue; const lo = n.f - n.finger + 1; if (pos == null || n.f < pos || n.f > pos + 3) { if (pos != null) moves++; pos = lo; } if (n.f - pos > 3 || n.f < pos) spanOk = false; }
+  let pos = null, spanOk = true;
+  for (const n of fc.notes) { if (!n.f) continue; const lo = n.f - n.finger + 1; if (pos == null || n.f < pos || n.f > pos + 3) { pos = lo; } if (n.f - pos > 3 || n.f < pos) spanOk = false; }
   T.ok(spanOk && fc.shifts <= 2, `a two-octave climb moves the hand ${fc.shifts} time(s), every note under a finger of where it is`);
   const am = FB.fingering(['A2', 'E3', 'A3', 'C4', 'E4'].map((p) => ({ p, t: 0 })), 'standard', { near: 1, open: -0.05 });
   T.ok(am.notes.map((n) => `${FB.stringNumber(n.s)}:${n.f}`).join(' ') === '5:0 4:2 3:2 2:1 1:0', `an A minor chord is the open shape: ${am.notes.map((n) => `${FB.stringNumber(n.s)}:${n.f}`).join(' ')}`);
@@ -339,7 +339,7 @@ const boot = async (opts = {}) => {
   const r1 = await E(() => [performance.now(), window.overdub.engine.beat]);
   const bps = (r1[1] - r0[1]) / ((r1[0] - r0[0]) / 1000), want = (92 * 0.7) / 60;
   T.ok(Math.abs(bps / want - 1) < 0.08, `it plays at 70%: ${bps.toFixed(3)} beats a second (${want.toFixed(3)} wanted)`);
-  const reg = await E(async () => { const { renderProject } = await import('/app/src/engine/render.js'); return window.overdub.engine.beatToSec(4); });
+  const reg = await E(async () => { await import('/app/src/engine/render.js'); return window.overdub.engine.beatToSec(4); });
   T.ok(Math.abs(reg - 4 * 60 / 92) < 1e-9, 'the song\'s own clock (beatToSec, renders, exports) is unchanged');
   await page.click('#ew-tab-arranger');
   await sleep(300);
@@ -801,7 +801,7 @@ const boot = async (opts = {}) => {
   const require = createRequire(import.meta.url);
   const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean);
   let pw = null;
-  for (const t of tries) { try { pw = require(t); break; } catch (e) { /* next */ } }
+  for (const t of tries) { try { pw = require(t); break; } catch { /* next */ } }
   await ready;
   const srv = await startServer({ port: 0, quiet: true });
   const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');

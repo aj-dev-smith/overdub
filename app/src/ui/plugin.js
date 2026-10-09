@@ -268,7 +268,7 @@ export default function (app) {
     const out = { ok: true, showing: `${def.name} on ${tn}`, track: tId, slot, device: def.id, editor: w.editorName || 'generic' };
     // the sections the window shows, by the names the human sees, with their param keys (a custom editor's too; the
     // params it has no control on screen for come last, by the device's groups, marked shown: false)
-    try { out.sections = w.sections(); } catch (e) { out.sections = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys })); }
+    try { out.sections = w.sections(); } catch { out.sections = generic.layout(def).map((sx) => ({ name: sx.name || 'Controls', params: sx.keys })); }
     out.note = 'Its window is open in front of the human. Each control an agent changes flashes there in that agent\'s colour, and the window says what moved.';
     return out;
   }
@@ -301,7 +301,7 @@ export default function (app) {
     const kindWord = def.kindLabel || (def.cat ? String(def.cat) : def.kind);
     const plate = h('div.pw-plate', h('i.pw-led', { 'aria-hidden': 'true' }), h('span.pw-plate-t', h('b.pw-name', { id: nameId }, name), h('small.pw-kind', String(kindWord).toUpperCase())));
     const credit = h('div.pw-credit');
-    const playKey = h('button.pw-ib.pw-play', { type: 'button', 'aria-label': 'Play the song', title: 'Play or stop the song (Space)', onclick: () => { try { app.transport?.playStop?.(); } catch (e) { /* no transport */ } } }, icon('play', { size: 18 }));
+    const playKey = h('button.pw-ib.pw-play', { type: 'button', 'aria-label': 'Play the song', title: 'Play or stop the song (Space)', onclick: () => { try { app.transport?.playStop?.(); } catch { /* no transport */ } } }, icon('play', { size: 18 }));
     const shut = h('button.pw-ib.pw-x', { type: 'button', 'aria-label': `Close ${name} (Esc)`, title: 'Close (Esc)', onclick: () => close() }, icon('x', { size: 18 }));
     const head = h('header.pw-head', plate, credit, playKey, shut);
     const bar = h('div.pw-bar');
@@ -730,13 +730,13 @@ export default function (app) {
       const ac = app.engine?.ctx;
       if (!ac || !alive) return null;
       let inst = null;
-      try { inst = app.engine.instance?.(track, slot) || null; } catch (e) { inst = null; }
+      try { inst = app.engine.instance?.(track, slot) || null; } catch { inst = null; }
       if (inst !== tapS.inst) {
-        if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch (e) { /* gone */ } }
+        if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch { /* gone */ } }
         tapS.inst = null;
         if (inst?.output) {
           if (!tapS.an || tapS.an.context !== ac) { tapS.an = ac.createAnalyser(); tapS.an.fftSize = 2048; tapS.an.smoothingTimeConstant = 0.7; tapS.t = new Float32Array(2048); tapS.f = new Float32Array(1024); }
-          try { inst.output.connect(tapS.an); tapS.inst = inst; } catch (e) { tapS.inst = null; }
+          try { inst.output.connect(tapS.an); tapS.inst = inst; } catch { tapS.inst = null; }
         }
       }
       return tapS.inst ? tapS.an : null;
@@ -759,15 +759,15 @@ export default function (app) {
       const ac = app.engine?.ctx;
       if (!ac || !alive) return null;
       let inst = null;
-      try { inst = app.engine.instance?.(track, slot) || null; } catch (e) { inst = null; }
+      try { inst = app.engine.instance?.(track, slot) || null; } catch { inst = null; }
       const node = (inst && (which === 'input' ? inst.input : inst.output)) || null;
       const key = `${which}:${fftSize}:${smoothing}`;
       let t = taps.get(key);
       if (!t) { t = { an: null, node: null }; taps.set(key, t); }
-      if (t.node && t.node !== node) { try { t.node.disconnect(t.an); } catch (e) { /* gone */ } t.node = null; }
+      if (t.node && t.node !== node) { try { t.node.disconnect(t.an); } catch { /* gone */ } t.node = null; }
       if (!node) return null;
       if (!t.an || t.an.context !== ac) { t.an = ac.createAnalyser(); t.an.fftSize = fftSize; t.an.smoothingTimeConstant = smoothing; }
-      if (t.node !== node) { try { node.connect(t.an); t.node = node; } catch (e) { return null; } }
+      if (t.node !== node) { try { node.connect(t.an); t.node = node; } catch { return null; } }
       return t.an;
     }
     const meterApi = {
@@ -840,7 +840,7 @@ export default function (app) {
         kbShown = on;
         if (on && !kb) {
           kb = kit.keys({ lo: oct, hi: oct + span(), label: `Keyboard: plays ${name} on ${s0.trackName}. Click or drag; lower on a key is louder`, onNote: (p, v, isOn) => {
-            try { if (isOn) app.engine.liveNoteOn(track, p, v); else app.engine.liveNoteOff(track, p); } catch (e) { /* no audio yet */ }
+            try { if (isOn) app.engine.liveNoteOn(track, p, v); else app.engine.liveNoteOff(track, p); } catch { /* no audio yet */ }
             for (const fn of [...kbListeners]) { try { fn({ p, v, on: isOn }); } catch (e) { console.error(e); } }
           } });
           // (the lamp at the keyboard's right end: beside it, so the window grows no taller)
@@ -1004,7 +1004,7 @@ export default function (app) {
         const changed = keys.filter((k) => stored[k] !== before[k]);
         for (const k of changed) flash(k);
         let words = null;
-        if (changed.length && typeof editor?.said === 'function') { try { words = editor.said(changed, evt.by); } catch (e) { words = null; } }
+        if (changed.length && typeof editor?.said === 'function') { try { words = editor.said(changed, evt.by); } catch { words = null; } }
         if (typeof words === 'string' && words) status([byline(evt.by, { app, cap: true }), ` ${words}`]);
         else if (changed.length) agentSaid(evt.by, changed);
         if (!isInst && (evt.ops || []).some((o) => o.type === 'insert.set' && o.insert === slot && o.patch && 'on' in o.patch) && onTog) { flash(onTog.el); status([byline(evt.by, { app, cap: true }), on ? ' switched it on.' : ' bypassed it.']); }
@@ -1049,13 +1049,13 @@ export default function (app) {
       editor = null;
       kb?.destroy();
       kbRo?.disconnect();
-      try { offQw?.(); offMode?.(); } catch (e) { /* ok */ }
+      try { offQw?.(); offMode?.(); } catch { /* ok */ }
       scopeCv.destroy();
-      if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch (e) { /* gone */ } }
-      for (const t of taps.values()) if (t.node && t.an) { try { t.node.disconnect(t.an); } catch (e) { /* gone */ } }
+      if (tapS.inst && tapS.an) { try { tapS.inst.output.disconnect(tapS.an); } catch { /* gone */ } }
+      for (const t of taps.values()) if (t.node && t.an) { try { t.node.disconnect(t.an); } catch { /* gone */ } }
       taps.clear();
       listeners.clear(); kbListeners.clear();
-      try { undock?.(); } catch (e) { /* the shell's own */ }
+      try { undock?.(); } catch { /* the shell's own */ }
       el.remove();
     }
     return {

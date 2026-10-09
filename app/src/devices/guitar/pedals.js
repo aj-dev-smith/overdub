@@ -37,7 +37,7 @@ export function roleOf(label, cat) {
 export function unitOf(k) {
   if (k.type === 'switch' || k.type === 'tap' || !k.fmt) return null;
   let s = '';
-  try { s = String(k.fmt(k.def)); } catch (e) { return null; }
+  try { s = String(k.fmt(k.def)); } catch { return null; }
   if (k.fmt === clawd.PFX.noteFmt || /^1\/(2|4|8|16|32)(\.|T)?$/.test(s)) return 'note';
   if (/dB$/.test(s)) return 'dB';
   if (/\d\s*k?Hz$/.test(s) || /^\d+(\.\d+)?k$/.test(s)) return 'Hz';

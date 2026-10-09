@@ -100,7 +100,7 @@ export async function runMock(app, text, { signal, emit, setStatus, fast = false
   // the track the takes are for stays lit while they're on the card, so the takes connect to the song
   const offer = async (input) => {
     const r = await tool('propose_variations', { ...input, wait_seconds: 0 });
-    if (!r.error && input.target?.track) { try { app.presence?.highlight?.({ track: input.target.track }, 'the takes are for this track', 'claude', 15000); } catch (e) { /* a nicety */ } }
+    if (!r.error && input.target?.track) { try { app.presence?.highlight?.({ track: input.target.track }, 'the takes are for this track', 'claude', 15000); } catch { /* a nicety */ } }
     return r.error || r.status !== 'pending' ? r : pick(r.id);
   };
   const ask = async (input) => { const r = await tool('ask_human', { ...input, wait_seconds: 0 }, { status: 'Waiting for your answer…' }); return r.error || r.status !== 'pending' ? r : pick(r.id, { question: true }); };
@@ -207,7 +207,7 @@ const SETS_TABLE = {
 const rowOf = (r) => (typeof r === 'string' ? { device: r, preset: null } : r && (r.device || r.id) ? { device: r.device || r.id, preset: r.preset || null } : null);
 async function setsOrder(app, track) {
   let S = null, kindOf = null;
-  try { const m = await import('../core/sounds.js'); S = m.SOUND_SETS || null; kindOf = m.kindOfTake || null; } catch (e) { /* the table above */ }
+  try { const m = await import('../core/sounds.js'); S = m.SOUND_SETS || null; kindOf = m.kindOfTake || null; } catch { /* the table above */ }
   const rows = (v) => {
     if (!v) return [];
     if (Array.isArray(v)) return v.map(rowOf).filter(Boolean);
@@ -220,7 +220,7 @@ async function setsOrder(app, track) {
   if (!drums) {
     const notes = track.clips.flatMap((c) => (c.kind === 'notes' ? c.notes : []));
     const hummed = (app.input?.recorder?.last?.take?.src === 'hum') || /^melody\b/i.test(track.name);
-    try { first = kindOf ? kindOf({ kind: 'notes', src: hummed ? 'hum' : 'keys', notes }) : hummed ? 'hum' : 'played'; } catch (e) { first = hummed ? 'hum' : 'played'; }
+    try { first = kindOf ? kindOf({ kind: 'notes', src: hummed ? 'hum' : 'keys', notes }) : hummed ? 'hum' : 'played'; } catch { first = hummed ? 'hum' : 'played'; }
     if (!sets[first] || first === 'drums') first = hummed ? 'hum' : 'played';
   }
   const order = [first, ...Object.keys(sets).filter((k) => k !== first && (k === 'drums') === drums)];
@@ -235,7 +235,7 @@ async function sceneSounds(app, { say, tool }, ask) {
   const p = app.store.get();
   const selId = coherentSelection(app).track;
   let track = selId ? p.tracks.find((x) => x.id === selId) : null;
-  if (!track) { try { track = (await import('./sounds-tool.js')).newestNewTrack(app); } catch (e) { /* none */ } }
+  if (!track) { try { track = (await import('./sounds-tool.js')).newestNewTrack(app); } catch { /* none */ } }
   if (!track) { await say('Which track? Click its name, then ask again.'); return; }
   if (track.kind === 'audio') { await say(`${track.name} is an audio track: sounds are for instrument tracks. Its effects are in the Devices tab.`); return; }
   const was = app.devices.getDevice(track.instrument?.device);
@@ -255,7 +255,7 @@ async function sceneSounds(app, { say, tool }, ask) {
   const cur = app.sounds?.current;
   // (what the card shows on this track, and the house's rows it would show: both are on screen or about to be)
   let house = null;
-  try { house = app.sounds?.setsFor?.(track.id) || null; } catch (e) { house = null; }
+  try { house = app.sounds?.setsFor?.(track.id) || null; } catch { house = null; }
   const onCard = [...(cur && cur.track === track.id && Array.isArray(cur.rows) ? cur.rows : []), ...(Array.isArray(house) ? house : [])];
   for (const r of onCard) { const x = rowOf(r); if (x) seen.add(key(x)); }
   // (no card to ask: the house's four from the sets, as the card would show them)
@@ -297,7 +297,7 @@ async function sceneStudio(app, { say }, ask) {
   const name = `${f.the ? 'the ' : ''}${f.title}`;
   if (app.input?.recorder?.state && app.input.recorder.state !== 'idle') { await say(`${cap1(name)} can wait until the take is in: the screen holds still while you record.`); return; }
   // (layout, never the song: the panel is shown and the control pointed at, as Find's Go to does, signed by the agent)
-  try { ws.go?.(f.id, { by: 'claude' }); } catch (e) { /* saying where is the answer */ }
+  try { ws.go?.(f.id, { by: 'claude' }); } catch { /* saying where is the answer */ }
   const where = ws.where?.(f.id);
   await say(where ? `${cap1(where)}: it’s showing now.` : `${cap1(name)} is on screen.`);
 }
@@ -311,7 +311,7 @@ function pointAt(app, match, ms = 6000) {
     if (!b) return;
     b.classList.add('ag-pointed');
     setTimeout(() => b.classList.remove('ag-pointed'), ms);
-  } catch (e) { /* a nicety */ }
+  } catch { /* a nicety */ }
 }
 
 /* ------------------------------------------------------------------ what the script knows */
@@ -375,7 +375,7 @@ const GUITARISH = /\b(scales?|modes?|pentatonics?|arpeggios?|frets?|fretboard|ne
 // what the room's chips ask, as the demo's own moves (an off-script answer in the Jam room offers these)
 const JAM_MOVES = ['What scale works over this song?', 'Show me a lick I can play over this', 'What tone would suit this song?', 'Give me a riff for this section'];
 const JAMTRACK_MOVES = ['Make me a slow blues in E', 'Make me a funk jam in E minor', 'Make me an indie jam in G'];
-const inJam = (app) => { try { return !!app.ui?.visible?.('jam'); } catch (e) { return false; } };
+const inJam = (app) => { try { return !!app.ui?.visible?.('jam'); } catch { return false; } };
 
 function sceneOf(s) {
   // the Jam room's asks come first: a guitarist's question has its answer there, never a take tour
@@ -438,7 +438,7 @@ function movesFor(app, first = []) {
   const t = pickTrack(app);
   const drums = t && /drum/.test(t.instrument?.device || '');
   const moves = drums ? ['Play over this beat', 'Make it lazier', 'Build me a fuzz pedal', 'Fade it in over 4 bars'] : ['Play over this part', 'Make it darker', 'Fade it in over 4 bars', 'Build me a fuzz pedal'];
-  try { if (app.input?.capture?.latest?.()) moves.unshift('Place my take'); } catch (e) { /* no captures */ }
+  try { if (app.input?.capture?.latest?.()) moves.unshift('Place my take'); } catch { /* no captures */ }
   return [...new Set([...first, ...moves])].slice(0, 4);
 }
 // how to get a live model, in plain words first; the how (Claude Code, in the panel or over MCP) on the quieter line
@@ -503,7 +503,7 @@ function plainCharacter(m) {
 const playing = (c) => !c.mute && !!c.notes?.length;
 const SILENT = -50;   // LUFS: a part this quiet on its own is near silence, not a sound to describe
 // a finger, not a mouse: what to press becomes what to tap
-const touch = () => { try { return !!globalThis.matchMedia?.('(pointer: coarse)').matches; } catch (e) { return false; } };
+const touch = () => { try { return !!globalThis.matchMedia?.('(pointer: coarse)').matches; } catch { return false; } };
 const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 // Why a track can't be heard, said once, and the remedy for that reason (null: it can be heard). FRESH-EYES-6 phone
 // #10: a soloed track was "silent, so there's nothing of it to hear. Unmute it (select the clip and press 0)": the
@@ -787,8 +787,8 @@ function lineTakes(app, src, notes, rg) {
   const p = app.store.get();
   const ctx = { key: p.key || undefined, meter: p.meter, tempo: p.tempo, start: rg.a };
   const ids = notes.map((n, i) => ({ ...n, id: 'n' + i }));
-  const made = (name, params) => { try { return transform(name, ids, params, ctx).notes.filter((n) => !n.id); } catch (e) { return []; } };
-  const moved = (name, params) => { try { return transform(name, ids, params, ctx).notes; } catch (e) { return []; } };
+  const made = (name, params) => { try { return transform(name, ids, params, ctx).notes.filter((n) => !n.id); } catch { return []; } };
+  const moved = (name, params) => { try { return transform(name, ids, params, ctx).notes; } catch { return []; } };
   // a line that answers: a little softer than what it answers
   const soft = (ns) => ns.map((n) => ({ ...n, v: Math.round(Math.min(1, Math.max(0.3, (n.v ?? 0.8) * 0.85)) * 100) / 100 }));
   // a harmony moved by octaves to sing over the part (its middle note near A4)

@@ -37,15 +37,14 @@ import { TRACK_COLORS } from '../core/project.js';
 const TAU = Math.PI * 2;
 const SEAM = 0.15;          // radians left open at 12 o'clock: where the loop comes round
 const MAX_RINGS = 8;
-const PHONE = () => { try { return matchMedia('(max-width: 640px)').matches; } catch (e) { return false; } };
+const PHONE = () => { try { return matchMedia('(max-width: 640px)').matches; } catch { return false; } };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 // a kit's three lanes: 0 kick, 1 snare / clap / toms, 2 hats, cymbals and the rest (General MIDI numbers)
 const laneOf = (p) => (p === 35 || p === 36 ? 0 : (p >= 37 && p <= 41) || p === 43 || p === 45 || p === 47 || p === 48 || p === 50 ? 1 : 2);
-const LANE_NAMES = ['kick', 'snare', 'hats'];
 const SOUNDING_HIT = 0.32;  // beats a drum hit stays lit after the hand passes it
 
 export default function installRound(app) {
-  const wanted = app.round === true || (() => { try { return new URLSearchParams(location.search).get('view') === 'round'; } catch (e) { return false; } })();
+  const wanted = app.round === true || (() => { try { return new URLSearchParams(location.search).get('view') === 'round'; } catch { return false; } })();
   if (!wanted) return;
   const { ui, store, engine } = app;
   css('round', ROUND_CSS);
@@ -61,7 +60,7 @@ export default function installRound(app) {
   // back to the timeline: Arrange, and ?view=round off the address so a reload opens the view you're in
   function back() {
     ui.show('arranger');
-    try { const u = new URL(location.href); if (u.searchParams.get('view') === 'round') { u.searchParams.delete('view'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } } catch (e) { /* fine */ }
+    try { const u = new URL(location.href); if (u.searchParams.get('view') === 'round') { u.searchParams.delete('view'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } } catch { /* fine */ }
   }
 
   function mount(el) {
@@ -358,7 +357,7 @@ export default function installRound(app) {
     // on a phone the strip sits under the circle: after a tap, bring it into view so the tap visibly did something
     function reveal() {
       if (!PHONE()) return;
-      requestAnimationFrame(() => { try { strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* fine */ } });
+      requestAnimationFrame(() => { try { strip.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch { /* fine */ } });
     }
     // the ring under a point: the band it's in, or (a finger is wider than a ring) the nearest band within reach
     function hit(x, y) {

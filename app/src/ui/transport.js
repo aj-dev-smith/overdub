@@ -145,11 +145,11 @@ function keysOverlay(app) {
       // one row per action: keys that do the same thing share it (Enter / Home)
       const rows = new Map();
       for (const x of list) { const r = rows.get(x.label) || { label: x.label, keys: [], mode: x.mode }; r.keys.push(x.caps); rows.set(x.label, r); }
-      return h('section.tpk-g', h('h3', g), h('dl', [...rows.values()].map((r) => [
+      return h('section.tpk-g', h('h3', g), h('dl', [...rows.values()].flatMap((r) => [
         r.keys.length > 3
           // a whole row of keys for one action (musical typing): a keyboard strip, then the action
-          ? [h('dt.tpk-strip', r.keys.map((caps) => caps.map((c) => h('kbd', c))).flat()), h('dd.tpk-strip-l', r.label)]
-          : [h('dt', r.keys.map((caps, i) => [i ? h('span.tpk-or', 'or') : null, ...caps.map((c) => h('kbd', c))]).flat()), h('dd', r.label)]]).flat()));
+          ? [h('dt.tpk-strip', r.keys.flatMap((caps) => caps.map((c) => h('kbd', c)))), h('dd.tpk-strip-l', r.label)]
+          : [h('dt', r.keys.flatMap((caps, i) => [i ? h('span.tpk-or', 'or') : null, ...caps.map((c) => h('kbd', c))])), h('dd', r.label)]])));
     });
     prevFocus = document.activeElement;
     // single-letter keys (R records, H opens the mic) can be switched off, for speech input and anyone who'd rather not
@@ -180,9 +180,9 @@ function keysOverlay(app) {
 // The killswitch: every panic path in the studio comes here, and here goes to engine.silence().
 function silenceAll(app) {
   const { engine, ui } = app;
-  try { if (app.input?.audio?.state?.monitoring) app.input.audio.monitor(false); } catch (e) { /* ok */ }
+  try { if (app.input?.audio?.state?.monitoring) app.input.audio.monitor(false); } catch { /* ok */ }
   ui.emit('silence');
-  if (!engine?.silence) { try { engine?.stop?.(); } catch (e) { /* ok */ } return Promise.resolve(); }
+  if (!engine?.silence) { try { engine?.stop?.(); } catch { /* ok */ } return Promise.resolve(); }
   return Promise.resolve(engine.silence()).catch((e) => ui.toast('Could not silence: ' + e.message, { kind: 'bad' }));
 }
 
@@ -240,13 +240,13 @@ function clickSettings(app) {
       if (Number.isFinite(+v.level) && v.level !== null) o.level = Math.max(-24, Math.min(6, +v.level));
       if (has()) quiet(() => { engine.click = o; });
     }
-  } catch (e) { /* storage blocked: the defaults */ }
+  } catch { /* storage blocked: the defaults */ }
   // what the person set (a borrowed click reads as off)
   const get = () => {
     const c = has() ? engine.click : { on: !!engine.metronome, whileRecording: false, level: 0 };
     return { ...c, ...(borrowed ? { on: false, whileRecording: borrowed.wr } : {}), takes, countIn: app.input?.recorder ? app.input.recorder.countIn : null };
   };
-  const save = () => { try { const c = get(); localStorage.setItem(CLICK_KEY, JSON.stringify({ on: !!c.on, whileRecording: !!c.whileRecording, takes, level: Math.round((+c.level || 0) * 10) / 10 })); } catch (e) { /* ok */ } };
+  const save = () => { try { const c = get(); localStorage.setItem(CLICK_KEY, JSON.stringify({ on: !!c.on, whileRecording: !!c.whileRecording, takes, level: Math.round((+c.level || 0) * 10) / 10 })); } catch { /* ok */ } };
   // every change, from here or anywhere (Sketch, an agent), is kept; one made during a borrowed take is theirs to keep
   engine.on?.('transport', (e) => { if (e?.why !== 'metronome' || self) return; borrowed = null; save(); });
   function set(v, { announce = false } = {}) {
@@ -327,7 +327,7 @@ function startMarker(app) {
   const { ui, store, engine } = app;
   let beat = 0, song = null, lastStop = null, saveT = 0, lastRange = null, offRec = null;
   const listeners = new Set();
-  const stored = () => { try { const m = JSON.parse(localStorage.getItem(MARKER_KEY) || '{}'); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; } catch (e) { return {}; } };
+  const stored = () => { try { const m = JSON.parse(localStorage.getItem(MARKER_KEY) || '{}'); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; } catch { return {}; } };
   const save = () => {
     clearTimeout(saveT);
     const id = song, b = beat;
@@ -340,13 +340,13 @@ function startMarker(app) {
         const ks = Object.keys(m);   // the newest 24 songs
         for (const k of ks.slice(0, Math.max(0, ks.length - 24))) delete m[k];
         localStorage.setItem(MARKER_KEY, JSON.stringify(m));
-      } catch (e) { /* storage blocked: it just won't remember */ }
+      } catch { /* storage blocked: it just won't remember */ }
     }, 200);
   };
   const meterOf = () => store.get().meter;
   const bpbOf = () => { const m = meterOf(); return Math.max(1, m[0] * (4 / m[1])); };
   const emit = () => { ui.state.marker = beat; for (const fn of listeners) { try { fn(beat); } catch (e) { console.error('marker listener', e); } } ui.emit('marker', beat); };
-  const park = () => { if (!engine.playing && Math.abs((+engine.beat || 0) - beat) > 1e-6) { try { engine.seek(beat); } catch (e) { /* no audio yet */ } } };
+  const park = () => { if (!engine.playing && Math.abs((+engine.beat || 0) - beat) > 1e-6) { try { engine.seek(beat); } catch { /* no audio yet */ } } };
   const near = (a, b) => Math.abs(a - b) < 1e-6;
 
   function set(b, { announce = false, seek = true } = {}) {
@@ -841,7 +841,7 @@ function mountTransport(el, app) {
   const row = h('div.tp-row', left, transport, timeG, tempoG, songG, modeG, h('div.tp-spacer'), heldG, editG, killG, meterG);
   el.append(row);
 
-  let last = {};
+  const last = {};
   // The title fits: a long one (or a tight bar) steps its type down, to 13 px, before it is cut; only then an ellipsis.
   // Fitted when it changes, when the window or a pane moves, and once the fonts are in.
   function fitTitle() {
@@ -853,7 +853,7 @@ function mountTransport(el, app) {
   const refit = () => { fitTitle(); fitCredits(); };
   window.addEventListener('resize', refit);
   const offFit = ui.on('resize', refit);
-  try { document.fonts?.ready?.then(refit); document.fonts?.addEventListener?.('loadingdone', refit); } catch (e) { /* no font loading API */ }
+  try { document.fonts?.ready?.then(refit); document.fonts?.addEventListener?.('loadingdone', refit); } catch { /* no font loading API */ }
   requestAnimationFrame(refit);
   function sync() {
     const pr = p();
@@ -1059,7 +1059,7 @@ function mountTransport(el, app) {
   // from cell k to the next on a parabola (ARC px high at the middle of the beat, on the cell exactly at the beat).
   const ARC = 5;
   let rmq = null;
-  try { rmq = matchMedia('(prefers-reduced-motion: reduce)'); } catch (e) { /* no media queries */ }
+  try { rmq = matchMedia('(prefers-reduced-motion: reduce)'); } catch { /* no media queries */ }
   const still = () => !!rmq?.matches;
   function centers() {
     if (last.cx && last.cxW === beats.offsetWidth) return last.cx;
@@ -1125,7 +1125,7 @@ function mountTransport(el, app) {
       drawBall(b, !!engine.playing || !!cd);
     },
     refresh: sync,
-    unmount() { offT(); offU(); offR(); offM(); offReady(); offFit(); window.removeEventListener('resize', refit); try { document.fonts?.removeEventListener?.('loadingdone', refit); } catch (e) { /* ok */ } },
+    unmount() { offT(); offU(); offR(); offM(); offReady(); offFit(); window.removeEventListener('resize', refit); try { document.fonts?.removeEventListener?.('loadingdone', refit); } catch { /* ok */ } },
   };
 }
 

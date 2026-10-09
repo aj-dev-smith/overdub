@@ -80,7 +80,7 @@ export function relayOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) { return null; /* not a URL */ }
+  } catch { return null; /* not a URL */ }
 }
 const relayBase = () => relayOverride() || RELAY;
 // The account service a ?cloud= asks for: the same rules as ?relay= (a studio on this machine, an http(s) origin).
@@ -91,7 +91,7 @@ export function cloudOverride(search = location.search, host = location.hostname
   try {
     const u = new URL(q);
     return /^https?:$/.test(u.protocol) ? u.origin : null;
-  } catch (e) { return null; /* not a URL */ }
+  } catch { return null; /* not a URL */ }
 }
 // The account service, when account mode is on here: locally both ?relay= and ?cloud=; live, ACCOUNT_LIVE. Else null.
 export function accountApi(search = location.search, host = location.hostname) {
@@ -116,8 +116,8 @@ const newSecret = () => b64url(crypto.getRandomValues(new Uint8Array(32)));
 export async function tokenFor(secret) {
   return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(TOKEN_PREFIX + secret)))).slice(0, 22);
 }
-const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-const put = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* storage blocked: this session only */ } };
+const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const put = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* storage blocked: this session only */ } };
 
 // This browser's pair. A missing or malformed secret gets a new one; a token kept from before the secret is dropped
 // (it opened both sides, so its URL is retired) and the Connect tab says once that the link changed.
@@ -219,7 +219,7 @@ export default async function (app) {
         if (typeof j.live === 'boolean') liveIs(j.live);
       } else agentState(!!j.agent);
       return { ok: true };
-    } catch (e) { return { ok: false }; }
+    } catch { return { ok: false }; }
   }
 
   // Who is connected. A private link only ever has claude.ai; an account may have several (claude.ai and Claude Code,
@@ -277,7 +277,7 @@ export default async function (app) {
     // signed by anything else edits nothing
     const by = account() ? ev.agent : BY;
     if (typeof by !== 'string' || !AGENT_RE.test(by)) {
-      try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify({ id: ev.id, error: 'this call’s author couldn’t be read, so the studio didn’t run it' }) }); } catch (e) { /* the call times out */ }
+      try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify({ id: ev.id, error: 'this call’s author couldn’t be read, so the studio didn’t run it' }) }); } catch { /* the call times out */ }
       return;
     }
     const name = nameOf(by, ev.agentName || R.agents.get(by));
@@ -299,11 +299,11 @@ export default async function (app) {
     } catch (e) { body = { id: ev.id, error: String(e && e.message || e) }; }
     running.delete(ev.id);
     app.presence.status('', by);
-    try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify(body) }); } catch (e) { console.warn('overdub remote: could not return a result'); }
+    try { await fetch(route('result'), { method: 'POST', headers: headers({ 'content-type': 'application/json' }), body: JSON.stringify(body) }); } catch { console.warn('overdub remote: could not return a result'); }
   }
 
   function onEvent(data) {
-    let ev; try { ev = JSON.parse(data); } catch (e) { return; }
+    let ev; try { ev = JSON.parse(data); } catch { return; }
     if (ev.type === 'call') onCall(ev);
     else if (ev.type === 'cancel') running.get(ev.id)?.abort();
     else if (ev.type === 'agent' && account()) { if (ev.state === 'join') join(String(ev.agent || ''), ev.agentName); else leave(String(ev.agent || '')); }
@@ -325,13 +325,13 @@ export default async function (app) {
     const ac = new AbortController();
     stream = ac;
     let res = null;
-    try { res = await fetch(`${route('events')}?tab=${tab}`, { headers: headers({ accept: 'text/event-stream' }), signal: ac.signal, cache: 'no-store' }); } catch (e) { /* offline, refused, aborted */ }
+    try { res = await fetch(`${route('events')}?tab=${tab}`, { headers: headers({ accept: 'text/event-stream' }), signal: ac.signal, cache: 'no-store' }); } catch { /* offline, refused, aborted */ }
     if (my !== epoch) { ac.abort(); return; }
     if (res && res.status === 401 && account()) ticket = null;   // a new ticket on the next try
     // every one of the account's tab slots at the relay is connected: say so here, and keep trying
     if (res && res.status === 409 && account()) {
       let why = '';
-      try { why = String((await res.json())?.error || '').slice(0, 200); } catch (e) { /* no body */ }
+      try { why = String((await res.json())?.error || '').slice(0, 200); } catch { /* no body */ }
       if (why && why !== R.connectError) { R.connectError = why; emit(); }
     } else if (res && res.ok && R.connectError) { R.connectError = ''; emit(); }
     if (!res || !res.ok || !res.body) { if (stream === ac) stream = null; return retry(waitOf(res)); }
@@ -353,7 +353,7 @@ export default async function (app) {
         }
         if (buf.length > MAX_EVENT) break;   // a runaway event: drop the stream and connect again
       }
-    } catch (e) { /* aborted, or the connection dropped */ }
+    } catch { /* aborted, or the connection dropped */ }
     clearInterval(watch);
     ac.abort();
     if (stream === ac) stream = null;
@@ -404,7 +404,7 @@ export default async function (app) {
     return R.url;
   }
   async function copy(text = R.url) {
-    try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
   }
   // Account or private link. Switching drops this tab's connection and makes it again the other way, if Connect is on.
   function setMode(mode) {
@@ -420,7 +420,7 @@ export default async function (app) {
     if (!acct || acct.state !== 'signed-in') { R.grants = null; return null; }
     if (soon && Date.now() - grantsAt < GRANTS_EVERY_MS) return R.grants;
     grantsAt = Date.now();
-    try { R.grants = await acct.grants(); } catch (e) { R.grants = R.grants || []; }
+    try { R.grants = await acct.grants(); } catch { R.grants = R.grants || []; }
     emit();
     return R.grants;
   }

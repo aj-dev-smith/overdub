@@ -586,7 +586,7 @@ try {
     await E((id) => window.overdub.store.dispatch({ type: 'track.set', track: id, patch: { gain: -4 } }, { by: 'claude', label: 'tuck the bass' }), s.id);
     ok(await E((id) => document.querySelector(`.mx-strip[data-track="${id}"]`).classList.contains('ew-agent-flash'), s.id), 'an agent level change flashes the strip');
     // meters: play and look
-    await E(async () => { const a = window.overdub; try { await a.engine.start(); } catch (e) { /* */ } a.engine.play(0); });
+    await E(async () => { const a = window.overdub; try { await a.engine.start(); } catch { /* */ } a.engine.play(0); });
     await sleep(1800);
     const m = await E(() => { const a = window.overdub; const ms = a.engine.meters; const lit = Object.values(ms.tracks || {}).some((x) => x.peak > -80); const cv = document.querySelector('.mx-strip .mx-meter'); const g = cv.getContext('2d'); const d = g.getImageData(0, 0, cv.width, cv.height).data; let px = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) px++; return { silent: !!a.engine.silent, lit, px, lufs: document.querySelector('.mx-master .mx-loud b')?.textContent, running: a.engine.ctx?.state }; });
     if (m.silent || m.running !== 'running') T.note(`engine not running (${m.running}); meters not checked`);

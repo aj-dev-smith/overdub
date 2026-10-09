@@ -15,7 +15,7 @@
 // A's half-open hats, ride bell and edge, rimshot, flams, chokes); the rows you add last the session (ui.state.beatRows).
 
 import { h, css, icon, canvas, clamp, byline } from './dom.js';
-import { palette, resolveColor, rgba, shade, authorKind, authorName, isDrumTrack, trackNotes, touched, flasher, presenceList, drawCrop, roundRect, menu, MOD } from './arrange-kit.js';
+import { palette, resolveColor, rgba, shade, authorKind, authorName, isDrumTrack, trackNotes, touched, flasher, presenceList, drawCrop, roundRect, menu, } from './arrange-kit.js';
 
 const STEP = 0.25;
 const DEFAULT_ROWS = [36, 38, 39, 42, 46, 50, 47, 45, 49];
@@ -77,7 +77,7 @@ export function drawBeat(app, { fresh = false } = {}) {
   const sel = ui.state.selection.track;
   const t = drums.find((x) => x.id === sel) || drums.find((x) => x.clips.some((c) => c.kind === 'notes')) || drums[0] || null;
   const clips = t ? t.clips.filter((c) => c.kind === 'notes') : [];
-  const show = (tid, cid) => { ui.select({ track: tid, clip: cid, notes: [] }); try { if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true); } catch (e) { /* ok */ } ui.show('drumgrid'); return { ok: true, track: tid, clip: cid }; };
+  const show = (tid, cid) => { ui.select({ track: tid, clip: cid, notes: [] }); try { if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true); } catch { /* ok */ } ui.show('drumgrid'); return { ok: true, track: tid, clip: cid }; };
   if (t && clips.length && !fresh) {
     const b = engine.beat || 0;
     const c = clips.find((x) => b >= x.start && b < x.start + x.length) || clips.slice().sort((x, y) => x.start - y.start)[0];
@@ -117,7 +117,7 @@ function mountGrid(el, app) {
   const over = canvas('dg-over');
   // an empty clip says what to do, over the bars (it goes with the first hit)
   // (a touch screen: a square is at least ROW_TOUCH px tall and the grid scrolls; the hint says tap and hold)
-  const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+  const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch { return false; } };
   const hint = h('p.dg-hint', { hidden: true }, coarse() ? 'Tap a square to add a hit; hold one, then drag along a row for more.' : 'Click a square to add a hit, drag along a row for more. Space plays it.');
   const overWrap = h('div.dg-overwrap', over.cv, hint);
   const labels = h('div.dg-labels');
@@ -371,9 +371,9 @@ function mountGrid(el, app) {
     const have = index.get(g.c.p + ':' + g.c.i);
     paint = { mode: have ? 'remove' : 'add', v: 0.8, cells: new Map([[g.c.p + ':' + g.c.i, g.c]]), held: true };
     if (!have) audition(g.c.p, 0.8);
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try { navigator.vibrate?.(12); } catch { /* no buzz */ }
     let first = false;
-    try { first = localStorage.getItem(HOLD_HINT) !== '1'; if (first) localStorage.setItem(HOLD_HINT, '1'); } catch (e) { first = false; }
+    try { first = localStorage.getItem(HOLD_HINT) !== '1'; if (first) localStorage.setItem(HOLD_HINT, '1'); } catch { first = false; }
     const what = paint.mode === 'add' ? 'adds hits' : 'clears hits';
     if (first) ui.toast(`Holding a square starts painting: keep holding and drag along to add more. A drag without holding scrolls; a tap adds one hit.`, { ms: 7000 });
     else ui.announce?.(`Painting: a drag ${what}.`);

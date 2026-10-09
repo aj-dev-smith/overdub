@@ -94,7 +94,7 @@ export function buildCathedral(c, params = {}) {
   set(P);
   return {
     input, output, set, setOn, get on() { return on; }, params: P,
-    dispose() { try { lfo1.stop(); lfo2.stop(); } catch (e) { /* stopped */ } input.disconnect(); output.disconnect(); },
+    dispose() { try { lfo1.stop(); lfo2.stop(); } catch { /* stopped */ } input.disconnect(); output.disconnect(); },
   };
 }
 
@@ -219,7 +219,7 @@ export function mountPedal(root, { onMeter } = {}) {
     if (src) {
       const { node, gain } = src, t = ctx.currentTime;
       gain.gain.setTargetAtTime(0, t, 0.015);              // fade, then stop: no click
-      try { node.stop(t + 0.12); } catch (e) { /* done */ }
+      try { node.stop(t + 0.12); } catch { /* done */ }
       src = null;
     }
     playBtn.classList.remove('is-on'); playLabel.textContent = 'Strum through it';

@@ -80,8 +80,8 @@ const TRIM_AT = 700000;        // characters of JSON history before trimming (~1
 const TRIM_TO = 260000;
 
 const ls = {
-  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch { return false; } },
 };
 const sleep = (ms, signal) => new Promise((res, rej) => {
   const t = setTimeout(res, ms);
@@ -109,7 +109,7 @@ export function createAgent(app) {
   let local = null;            // { available, version } once probed
   let localTurn = '';
   let plan = null;             // the plan's usage windows, from Claude Code's rate_limit_event
-  try { plan = JSON.parse(ls.get(PLAN_KEY) || 'null'); } catch (e) { plan = null; }          // the running Claude Code turn's token (its bridge calls carry it)
+  try { plan = JSON.parse(ls.get(PLAN_KEY) || 'null'); } catch { plan = null; }          // the running Claude Code turn's token (its bridge calls carry it)
   let model = ls.get(MODEL_KEY) || MODELS[0].id;
   if (!MODELS.some((m) => m.id === model)) model = MODELS[0].id;
   let messages = [];
@@ -123,7 +123,7 @@ export function createAgent(app) {
 
   if (ls.get(RETIRED_KEY) != null) { ls.set(RETIRED_KEY, null); ls.set(RETIRED_NOTE, '1'); }
 
-  function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
   function decide() {
     const prev = provider;
     provider = mockOn ? 'mock' : localOn && local?.available ? 'local' : local?.key ? 'claude' : cloudOn && cloud?.enabled ? 'cloud' : null;
@@ -136,7 +136,7 @@ export function createAgent(app) {
   function load() {
     projectId = app.store.get().id;
     messages = [];
-    try { const s = ls.get(CONV_KEY + projectId); if (s) messages = sanitize(JSON.parse(s)); } catch (e) { messages = []; }
+    try { const s = ls.get(CONV_KEY + projectId); if (s) messages = sanitize(JSON.parse(s)); } catch { messages = []; }
     system = null; // a reloaded conversation starts a new cache prefix anyway
   }
   function save() {
@@ -214,7 +214,7 @@ export function createAgent(app) {
     }
     if (!res.ok) {
       let detail = '', err = null;
-      try { const j = await res.json(); err = j?.error || null; detail = j?.error?.message || JSON.stringify(j); } catch (e) { detail = res.statusText; }
+      try { const j = await res.json(); err = j?.error || null; detail = j?.error?.message || JSON.stringify(j); } catch { detail = res.statusText; }
       const retryAfter = Number(err?.retryAfter) || Number(res.headers.get('retry-after')) || 0;
       const { code = null, message, ...details } = err || {};
       throw Object.assign(new Error(detail || `HTTP ${res.status}`), { status: res.status, retry: [408, 409, 429, 500, 502, 503, 504, 529].includes(res.status), retryAfter, code, details });
@@ -249,7 +249,7 @@ export function createAgent(app) {
           const b = blocks[ev.index];
           if (b?.type === 'tool_use') {
             const raw = partial.get(ev.index) || '';
-            try { b.input = raw.trim() ? JSON.parse(raw) : {}; } catch (e) { b.input = {}; b._invalid = raw; }
+            try { b.input = raw.trim() ? JSON.parse(raw) : {}; } catch { b.input = {}; b._invalid = raw; }
           }
           if (b?.type === 'thinking' && b.thinking) emit('update', { turn, done: true });
           break;
@@ -269,7 +269,7 @@ export function createAgent(app) {
         const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
         const data = chunk.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart()).join('\n');
         if (!data) continue;
-        let ev; try { ev = JSON.parse(data); } catch (e) { continue; }
+        let ev; try { ev = JSON.parse(data); } catch { continue; }
         handle(ev);
       }
     }
@@ -439,7 +439,7 @@ export function createAgent(app) {
     for (const id of made.cards) if (app.tools?.requests?.get(id)?.status === 'pending') cardPending = true;
     const deviceWritten = made.devices.some((d) => d.ok);
     let st = null;
-    try { st = await cloud.finish(actionId, { outcome, cardPending, deviceWritten }); } catch (e) { st = null; }
+    try { st = await cloud.finish(actionId, { outcome, cardPending, deviceWritten }); } catch { st = null; }
     if (st?.charged > 0 && st.creditBackUntil) {
       const failed = made.devices.length >= 2 && !made.devices[made.devices.length - 1].ok;
       takes.put(actionId, { txns: made.txns, cards: made.cards, until: st.creditBackUntil, credits: st.charged, failed });
@@ -452,7 +452,7 @@ export function createAgent(app) {
   // Credits back: an ask whose every change was undone (or whose card was declined) inside the window the service
   // gave at finish. The page keeps which History entries each ask made (TAKES_KEY), so the service never stores a take.
   const takes = {
-    all() { try { const j = JSON.parse(ls.get(TAKES_KEY) || '{}'); return j && typeof j === 'object' ? j : {}; } catch (e) { return {}; } },
+    all() { try { const j = JSON.parse(ls.get(TAKES_KEY) || '{}'); return j && typeof j === 'object' ? j : {}; } catch { return {}; } },
     put(id, v) { const all = takes.all(); all[id] = v; const ids = Object.keys(all).sort((a, b) => (all[a].until || 0) - (all[b].until || 0)); for (const k of ids.slice(0, Math.max(0, ids.length - 50))) delete all[k]; ls.set(TAKES_KEY, JSON.stringify(all)); },
   };
   const backing = new Set();
@@ -502,7 +502,7 @@ export function createAgent(app) {
       if (e.name === 'AbortError') throw e;
       throw new Error('Could not reach the local server (is node server/serve.js still running?)');
     }
-    if (!res.ok) { let m = `HTTP ${res.status}`; try { m = (await res.json()).error || m; } catch (e) { /* plain */ } throw new Error(m); }
+    if (!res.ok) { let m = `HTTP ${res.status}`; try { m = (await res.json()).error || m; } catch { /* plain */ } throw new Error(m); }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '', result = null, exit = null, said = false;
@@ -530,7 +530,7 @@ export function createAgent(app) {
         while ((i = buf.indexOf('\n')) >= 0) {
           const l = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
           if (!l) continue;
-          let ev; try { ev = JSON.parse(l); } catch (e) { continue; }
+          let ev; try { ev = JSON.parse(l); } catch { continue; }
           handle(ev);
         }
       }
@@ -648,7 +648,7 @@ export function createAgent(app) {
     get cloudChosen() { return cloudOn && !!cloud?.enabled; },
     useCloud(on = true) {
       cloudOn = !!on; ls.set(PROVIDER_KEY, on ? 'cloud' : null);
-      if (on) { mockOn = false; try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } if (localOn) { localOn = false; ls.set(LOCAL_KEY, null); } }
+      if (on) { mockOn = false; try { sessionStorage.removeItem('overdub:agent-mock'); } catch { /* ok */ } if (localOn) { localOn = false; ls.set(LOCAL_KEY, null); } }
       system = null; decide(); emit('provider', provider);
     },
     quote,
@@ -657,11 +657,11 @@ export function createAgent(app) {
     get recap() { return recap.map((r) => ({ ...r })); },
     get plan() { return plan && plan.at ? plan : null; },
     localCall,
-    useLocal(on = true) { localOn = !!on; ls.set(LOCAL_KEY, on ? '1' : null); if (on) { mockOn = false; try { sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } } system = null; decide(); emit('provider', provider); },
+    useLocal(on = true) { localOn = !!on; ls.set(LOCAL_KEY, on ? '1' : null); if (on) { mockOn = false; try { sessionStorage.removeItem('overdub:agent-mock'); } catch { /* ok */ } } system = null; decide(); emit('provider', provider); },
     get keyRetired() { return ls.get(RETIRED_NOTE) === '1'; },
     retiredSeen() { ls.set(RETIRED_NOTE, null); },
     setModel(id) { if (!MODELS.some((m) => m.id === id)) return false; model = id; ls.set(MODEL_KEY, id); lite = false; emit('provider', provider); return true; },
-    useMock(on = true) { mockOn = !!on; try { if (on) sessionStorage.setItem('overdub:agent-mock', '1'); else sessionStorage.removeItem('overdub:agent-mock'); } catch (e) { /* ok */ } decide(); },
+    useMock(on = true) { mockOn = !!on; try { if (on) sessionStorage.setItem('overdub:agent-mock', '1'); else sessionStorage.removeItem('overdub:agent-mock'); } catch { /* ok */ } decide(); },
     // for the panel: what the in-app agent is doing, as a phrase
     statusFor,
   };

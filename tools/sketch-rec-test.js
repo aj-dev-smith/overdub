@@ -48,7 +48,6 @@ import { perform, sloppyHum, wav } from './sloppy.js';
 
 const t = tally('sketch-rec');
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
-const lineOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
 
 /* ---- 0. the line's words (input/qwerty.js snapWords): what the grid and Scale lock do to what the keys play, in every
    state (fresh eyes 5: notes moved and nothing on screen said they would) */
@@ -302,7 +301,7 @@ try {
   for (const [w, hh] of [[1440, 900], [1280, 720]]) {
     await page.setViewportSize({ width: w, height: hh });
     // Hum it before the mic is allowed: its explainer fits over the roll, its primary button whole and clickable
-    await E(() => { for (const x of document.querySelectorAll('.ew-toast')) x.remove(); try { localStorage.removeItem('overdub:mic-ok'); } catch (e) { /* ok */ } const a = window.overdub; a.input.emit('sketch:mode', 'tap'); a.input.emit('sketch:mode', 'hum'); });
+    await E(() => { for (const x of document.querySelectorAll('.ew-toast')) x.remove(); try { localStorage.removeItem('overdub:mic-ok'); } catch { /* ok */ } const a = window.overdub; a.input.emit('sketch:mode', 'tap'); a.input.emit('sketch:mode', 'hum'); });
     await page.waitForTimeout(300);
     const exm = await E(() => {
       const sk = document.querySelector('[data-panel="sketch"]'), ex = sk.querySelector('.sk-explain');
@@ -541,7 +540,7 @@ try {
     // Hum it before the mic is allowed, after a font lands late: the sentence wraps again, and the button stays whole
     const hum = await P(async () => {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms)), a = window.overdub;
-      try { localStorage.removeItem('overdub:mic-ok'); } catch (e) { /* ok */ }
+      try { localStorage.removeItem('overdub:mic-ok'); } catch { /* ok */ }
       a.input.emit('sketch:mode', 'tap'); a.input.emit('sketch:mode', 'hum'); await wait(200);
       const ex = document.querySelector('.sk-explain');
       if (!ex) return null;
@@ -669,7 +668,7 @@ try {
     const look = () => P(() => {
       const s = document.querySelector('.ew-qw:not([hidden]) .ew-snap'), r = s?.getBoundingClientRect(), hit = r && r.width ? document.elementFromPoint(r.left + Math.min(24, r.width / 2), r.top + r.height / 2) : null;
       const q = window.overdub.input.qwerty;
-      let saved = {}; try { saved = JSON.parse(localStorage.getItem('overdub:qwerty') || '{}'); } catch (e) { /* none */ }
+      let saved = {}; try { saved = JSON.parse(localStorage.getItem('overdub:qwerty') || '{}'); } catch { /* none */ }
       return { line: s ? s.textContent.replace(/\s+/g, ' ').trim() : '', floating: !!s && !s.closest('.ew-qw.docked'), on: !!r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && !!hit && s.contains(hit),
         grid: s?.querySelector('.ew-snap-grid')?.dataset.on, key: s?.querySelector('.ew-snap-key')?.dataset.on, q: { quantize: q.quantize, scaleLock: q.scaleLock }, saved: { quantize: saved.quantize, scaleLock: saved.scaleLock }, said: document.querySelector('.ew-announce')?.textContent || '' };
     });
@@ -816,7 +815,7 @@ try {
     // a new song with the first minute's beat (2 bars on Drums); Sketch opened on Hum it, the mic not allowed yet
     await P(async () => {
       const app = window.overdub;
-      try { localStorage.removeItem('overdub:mic-ok'); localStorage.setItem('overdub:sketch-mode', 'hum'); } catch (e) { /* ok */ }
+      try { localStorage.removeItem('overdub:mic-ok'); localStorage.setItem('overdub:sketch-mode', 'hum'); } catch { /* ok */ }
       app.onboard?.stop?.();
       await app.exporter.newSong(); await app.engine.start();
       for (const x of document.querySelectorAll('.ew-toast')) x.remove();
@@ -834,6 +833,7 @@ try {
       const sheet = document.querySelector('[data-panel="sketch"]');
       const offRight = [...sheet.querySelectorAll('button, select')].filter((x) => x.getClientRects().length && !x.closest('[hidden]') && x.getBoundingClientRect().right > innerWidth + 0.5).map((x) => x.textContent.trim());
       const pickers = [...sheet.querySelectorAll('select')].filter((x) => x.getClientRects().length && !x.closest('[hidden]') && getComputedStyle(x).visibility !== 'hidden');
+      // biome-ignore lint/correctness/noUnsafeOptionalChaining: a select with nothing chosen should throw, failing the check
       return { rows: new Set(btns.map((b) => Math.round(b.getBoundingClientRect().top / 10))).size, row: btns.map((b) => (b.tagName === 'SELECT' ? b.selectedOptions[0]?.textContent : b.textContent).trim()), modes: seen('.sk-modes'), allow: seen('.sk-explain .btn-go'), dial: seen('.sk-spiral'), line: seen('.sk-take .sk-status'), keep: seen('.sk-take .btn-go'), keepText: document.querySelector('.sk-take .btn-go')?.innerText.trim(), pickers: pickers.map((x) => x.selectedOptions[0]?.textContent), offRight, sw: document.documentElement.scrollWidth };
     });
     const o14 = await look();
@@ -1067,7 +1067,7 @@ const notesText = (ns) => ns.map((n) => `${NAME[n.p] || n.p}@${n.t}`).sort().joi
 // so the check doesn't hang on the page's timers.
 {
   const s = await blank();
-  const { page, ev, door, song } = s;
+  const { page, ev, door } = s;
   try {
     await door('Tap a beat');
     await page.waitForTimeout(1000);

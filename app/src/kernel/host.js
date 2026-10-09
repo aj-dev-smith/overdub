@@ -103,7 +103,7 @@ function offlineBarrier(c, inst) {
         await Promise.all([...b.insts].map((i) => i.sync()));
         await c.resume();
       }, () => {});
-    } catch (e) { /* already rendering: nothing to line up */ }
+    } catch { /* already rendering: nothing to line up */ }
   }
   b.insts.add(inst);
   return () => b.insts.delete(inst);
@@ -135,7 +135,7 @@ export async function kernelInstance(c, def, opts = {}) {
         if (clock.beatAt) beat = +clock.beatAt(now) || 0;
         else if (clock.barAt) beat = (+clock.barAt(now) || 0) * (clock.beatsPerBar ? +clock.beatsPerBar() || 4 : 4);
       }
-    } catch (e) { /* a clock mid-rebuild: keep the defaults */ }
+    } catch { /* a clock mid-rebuild: keep the defaults */ }
     return { bpm, playing, beat, time: now };
   };
 
@@ -214,7 +214,7 @@ export async function kernelInstance(c, def, opts = {}) {
 
   const out = c.createGain();
   inst.output = out;
-  const post = (m) => { try { node.port.postMessage(m); } catch (e) { /* closed */ } };
+  const post = (m) => { try { node.port.postMessage(m); } catch { /* closed */ } };
   let on = opts.on !== false, wet = null, dry = null, feed = null, dryDelay = null;
 
   if (kind === 'effect') {
@@ -411,8 +411,8 @@ export async function kernelInstance(c, def, opts = {}) {
     if (tick) clearInterval(tick);
     if (sleepTimer) clearTimeout(sleepTimer);
     post({ type: 'end' });
-    try { node.port.onmessage = null; node.port.close(); } catch (e) { /* closed */ }
-    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) { try { if (n) n.disconnect(); } catch (e) { /* gone */ } }
+    try { node.port.onmessage = null; node.port.close(); } catch { /* closed */ }
+    for (const n of [node, out, wet, dry, feed, dryDelay, inst.input, inst.keyInput]) { try { if (n) n.disconnect(); } catch { /* gone */ } }
     for (const p of pending.values()) p.reject(new Error('disposed'));
     pending.clear();
   };

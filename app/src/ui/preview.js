@@ -21,7 +21,7 @@ export async function readConfig(url = CONFIG_URL) {
     const c = await r.json();
     if (!c || typeof c !== 'object') return { env: 'production', preview: false };
     return { env: String(c.env || 'production'), preview: c.preview === true, ref: typeof c.ref === 'string' ? c.ref.slice(0, 12) : '' };
-  } catch (e) { return { env: 'production', preview: false }; }
+  } catch { return { env: 'production', preview: false }; }
 }
 
 export default function preview(app) {

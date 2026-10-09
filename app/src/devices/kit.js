@@ -75,7 +75,7 @@ export function workletsReady(c, worklets) {
   if (names.every((n) => n in b.ok)) return true;
   return Promise.all(names.map((n) => loadWorklet(c, n, worklets[n]))).then(() => true);
 }
-export function endWorklet(n) { try { if (n && n.port) n.port.postMessage({ __pfxEnd: true }); } catch (e) { /* gone */ } }
+export function endWorklet(n) { try { if (n && n.port) n.port.postMessage({ __pfxEnd: true }); } catch { /* gone */ } }
 
 // Move an AudioParam to v along a raised cosine over dur seconds, from audio time `at` (or now). Live it starts from
 // where the param is; offline (scheduled ahead) from `from` if given.
@@ -86,7 +86,7 @@ export function glide(c, param, v, dur, at, from) {
   if (Math.abs(f0 - v) < 1e-9) { param.cancelScheduledValues(t); param.setValueAtTime(v, t); return; }
   for (let i = 0; i < n; i++) cv[i] = f0 + (v - f0) * (0.5 - 0.5 * Math.cos((Math.PI * i) / (n - 1)));
   if (live) { param.cancelScheduledValues(0); param.setValueAtTime(f0, c.currentTime); } else { param.cancelScheduledValues(t); param.setValueAtTime(f0, t); }
-  try { param.setValueCurveAtTime(cv, t, dur); } catch (e) { param.setTargetAtTime(v, t, dur / 4); }
+  try { param.setValueCurveAtTime(cv, t, dur); } catch { param.setTargetAtTime(v, t, dur / 4); }
 }
 
 const NOISE = new WeakMap();
@@ -157,7 +157,7 @@ export function makeKit(c, { uid = 'device', seed = 1, clock = null } = {}) {
   const later = (fn, ms) => { const id = setTimeout(fn, ms); own.timers.push(id); return id; };
   const convolver = (buffer) => {
     const live = !isOffline(c);
-    const inp = G(1), out = G(1), link = (a, b) => AudioNode.prototype.connect.call(a, b), unlink = (a, b) => { try { AudioNode.prototype.disconnect.call(a, b); } catch (e) { /* gone */ } };
+    const inp = G(1), out = G(1), link = (a, b) => AudioNode.prototype.connect.call(a, b), unlink = (a, b) => { try { AudioNode.prototype.disconnect.call(a, b); } catch { /* gone */ } };
     let norm = true;
     const add = (b) => { const n = c.createConvolver(), g = G(1); n.normalize = norm; if (b) n.buffer = b; link(inp, n); n.connect(g); g.connect(out); return { n, g }; };
     let cur = add(buffer);
@@ -190,8 +190,8 @@ export function makeKit(c, { uid = 'device', seed = 1, clock = null } = {}) {
   // stop what this kit started, clear its timers, run its cleanups, let its worklets go
   Object.defineProperty(kit, 'release', { enumerable: false, value() {
     for (const t of own.timers) clearTimeout(t);
-    for (const s of own.src) { try { s.stop(); } catch (e) { /* not started */ } try { s.disconnect(); } catch (e) { /* gone */ } }
-    for (const fn of own.fns) { try { fn(); } catch (e) { /* its business */ } }
+    for (const s of own.src) { try { s.stop(); } catch { /* not started */ } try { s.disconnect(); } catch { /* gone */ } }
+    for (const fn of own.fns) { try { fn(); } catch { /* its business */ } }
     for (const n of own.wk) endWorklet(n);
     own.src = []; own.timers = []; own.fns = []; own.wk = [];
   } });

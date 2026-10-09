@@ -19,7 +19,7 @@ const TAU = Math.PI * 2;
 // note names are spelled for the key (C minor's Eb Ab Bb, as the piano roll writes them, never D# G# A#); with no key,
 // C major's (C# Eb F# Ab Bb)
 const NO_KEY = { root: 'C', scale: 'major' };
-const REDUCED = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+const REDUCED = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
 export function createSpiral({ lo = 36, hi = 96, key = null, tuner = false, labels = true, center = true } = {}) {
   css('spiral', `.ew-spiral { position: relative; width: 100%; height: 100%; min-width: 60px; min-height: 60px; }

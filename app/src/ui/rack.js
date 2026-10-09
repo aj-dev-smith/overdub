@@ -50,7 +50,7 @@
 // when the sound is less than half as far from it as from the next nearest, and less than half way to the nearest
 // other sound.
 
-import { h, css, icon, drag, clamp, fmtDb, esc, byline } from './dom.js';
+import { h, css, icon, drag, clamp, fmtDb, byline } from './dom.js';
 import { DEVICE_CATS, paramValues, presetParams, presetOf, normParam, getDevice, heldDevice } from '../devices/registry.js';
 import { popFocus, popLabel, menu as kitMenu, songColor, isHexColor, touchFirst } from './arrange-kit.js';
 import { laneAt, specFor, valueAt, toPos } from '../core/automation.js';
@@ -72,7 +72,7 @@ export function authorKind(app, by) {
   return a.kind === 'agent' ? 'agent' : a.kind === 'house' ? 'house' : 'human';
 }
 export const authorVar = (kind) => (kind === 'agent' ? 'var(--agent)' : kind === 'human' ? 'var(--human)' : 'var(--line-2)');
-export function authorName(app, by) { try { return app.store.author(by).name; } catch (e) { return String(by || ''); } }
+export function authorName(app, by) { try { return app.store.author(by).name; } catch { return String(by || ''); } }
 
 export function currentTrack(app) {
   const sel = app.ui.state.selection.track;
@@ -91,7 +91,7 @@ export function rankDevices(defs, q) {
 }
 
 export function swatchOf(def) {
-  if (faces?.colorsOf) { try { return faces.colorsOf(def); } catch (e) { /* below */ } }
+  if (faces?.colorsOf) { try { return faces.colorsOf(def); } catch { /* below */ } }
   const L = def?.look || {};   // (a song's device brings its own look: hex only, as faces.js takes it)
   return { color: isHexColor(L.color) ? L.color : '#4f4940', ink: isHexColor(L.ink) ? L.ink : '#f4ead6' };
 }
@@ -330,7 +330,7 @@ export function laneFor(app, addr) {
   const lane = laneAt(p, addr);
   if (!lane) return null;
   let spec = null;
-  try { spec = specFor(p, addr, (id) => app.devices?.getDevice?.(id)); } catch (e) { spec = null; }
+  try { spec = specFor(p, addr, (id) => app.devices?.getDevice?.(id)); } catch { spec = null; }
   return { lane, spec, held: !!lane.off };
 }
 const beatHere = (app) => { const b = app.engine?.beat; return Number.isFinite(b) ? Math.max(0, b) : 0; };
@@ -482,7 +482,7 @@ function presetDist(ps, a, b) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     if (p.opts) { if (Math.round(x) !== Math.round(y)) d += 1; continue; }
     let px = 0, py = 0;
-    try { px = toPos(p, x); py = toPos(p, y); } catch (e) { px = (x - p.min) / (p.max - p.min || 1); py = (y - p.min) / (p.max - p.min || 1); }
+    try { px = toPos(p, x); py = toPos(p, y); } catch { px = (x - p.min) / (p.max - p.min || 1); py = (y - p.min) / (p.max - p.min || 1); }
     d += Math.abs(clamp(px, 0, 1) - clamp(py, 0, 1));
   }
   return d;
@@ -895,7 +895,7 @@ export default async function (app) {
         const authorBadge = ak === 'agent' ? byline(by, { app, title: `${authorName(app, by)} put this here` }) : null;
         authorBadge?.classList.add('badge-agent');   // the byline; mix-test still finds it by its old name
         let lat = def?.latency || 0;
-        try { const inst = app.engine.instance?.(tId, key); if (inst && Number.isFinite(inst.latency)) lat = inst.latency; } catch (e) { /* no engine yet */ }
+        try { const inst = app.engine.instance?.(tId, key); if (inst && Number.isFinite(inst.latency)) lat = inst.latency; } catch { /* no engine yet */ }
         // its window (ui/plugin.js, app.plugin): Open, or a double-click on the caption
         const openBig = def ? () => app.plugin?.open({ track: tId, slot: key }) : null;
         if (openBig) cap.addEventListener('dblclick', (e) => { if (!e.target.closest('button, .rk-grip')) openBig(); });
@@ -985,7 +985,7 @@ export default async function (app) {
       }
       const paramOf = (def, k) => (def?.params || []).map((q) => (Array.isArray(q) ? { key: q[0], label: q[1] } : q)).find((q) => q.key === k) || null;
       const paramLabel = (def, k) => paramOf(def, k)?.label || k;
-      const fmtParam = (def, k, v) => { const q = (def?.params || []).find((x) => (Array.isArray(x) ? x[0] : x.key) === k); try { return q && faces?.valueText ? faces.valueText(normParam(q), v) : String(v); } catch (e) { return String(v); } };
+      const fmtParam = (def, k, v) => { const q = (def?.params || []).find((x) => (Array.isArray(x) ? x[0] : x.key) === k); try { return q && faces?.valueText ? faces.valueText(normParam(q), v) : String(v); } catch { return String(v); } };
 
       /* ---------------------------------------------------- presets */
       // (what each slot was last on, and what its line says: notePresets and presetNow, above the panel)
@@ -1225,7 +1225,7 @@ export default async function (app) {
         const writer = projDev?.by || def?.by;
         // a device that came through someone else's link says whose, as the track header does ("Sam via Jo")
         const via = [projDev?.via, def?.via].find((v) => v && v !== writer) || null;
-        const wk = authorKind(app, writer);
+        authorKind(app, writer);
         const madeBy = writer ? (byline(writer, { app }) || h('span.rk-house', authorName(app, writer) || writer)) : '—';
         const body = h('div.rk-info',
           h('div.rk-info-h', h('i.rk-sw.big', { style: { background: def ? swatchOf(def).color : 'var(--bg-3)' } }), h('div', h('b', def?.name || devId), h('small.ew-mono', devId))),
@@ -1255,7 +1255,7 @@ export default async function (app) {
         sheet?.remove();
         const lines = code.split('\n');
         const pre = h('pre.rk-code', { tabindex: 0, 'aria-label': 'Kernel source (read-only)' }, lines.map((l, i) => h('div', h('i', String(i + 1)), h('span', l || ' '))));
-        const wk = authorKind(app, src?.by || def?.by);
+        authorKind(app, src?.by || def?.by);
         sheet = h('aside.rk-sheet', { role: 'complementary', 'aria-label': 'Device code' },
           h('div.rk-sheet-h',
             h('div.rk-sheet-t', h('b', def?.name || devId), byline(src?.by || def?.by, { app }), h('span.rk-sp'),

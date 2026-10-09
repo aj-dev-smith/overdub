@@ -42,7 +42,7 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     if (fast && at <= v.t0 + 1e-9) {
       // it hasn't started yet: make sure it never sounds
       v.off = v.t0;
-      for (const o of v.nodes) { try { o.stop(v.t0); } catch (e) { /* stopped */ } }
+      for (const o of v.nodes) { try { o.stop(v.t0); } catch { /* stopped */ } }
       if (v.slot.voice === v) v.slot.busy = Math.min(v.slot.busy, v.t0);
       return;
     }
@@ -51,9 +51,9 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     if (v.off !== Infinity && t >= v.off && !fast) return;
     v.off = Math.min(v.off, t);
     const tc = fast ? 0.008 : 0.07;
-    try { v.env.gain.setTargetAtTime(0, t, tc); } catch (e) { /* gone */ }
+    try { v.env.gain.setTargetAtTime(0, t, tc); } catch { /* gone */ }
     const end = t + tc * 10;
-    for (const o of v.nodes) { try { o.stop(end); } catch (e) { /* stopped */ } }
+    for (const o of v.nodes) { try { o.stop(end); } catch { /* stopped */ } }
     if (v.slot.voice === v) v.slot.busy = Math.min(v.slot.busy, end);
   }
 
@@ -90,7 +90,7 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     slot.voice = voice; slot.busy = Infinity;
     tri.onended = () => {
       voice.alive = false;
-      try { env.disconnect(); lp.disconnect(); sawG.disconnect(); } catch (e) { /* gone */ }
+      try { env.disconnect(); lp.disconnect(); sawG.disconnect(); } catch { /* gone */ }
       const i = voices.indexOf(voice); if (i >= 0) voices.splice(i, 1);
     };
     voices.push(voice);
@@ -126,7 +126,7 @@ export function fallbackSynth(c, { uid = 'fallback', missing = null } = {}) {
     set() {}, setOn() {}, noteOn, noteOff, allOff, cancel,
     // (voices: still sounding; held: no release laid down yet. engine.voices() and tools/stuck-test.js read it)
     stats: async () => ({ voices: voices.filter((v) => v.alive).length, held: voices.filter((v) => v.alive && v.off === Infinity).length }),
-    dispose() { allOff(); setTimeout(() => { for (const s of slots) { try { s.node.disconnect(); } catch (e) { /* gone */ } } try { output.disconnect(); } catch (e) { /* gone */ } }, 200); },
+    dispose() { allOff(); setTimeout(() => { for (const s of slots) { try { s.node.disconnect(); } catch { /* gone */ } } try { output.disconnect(); } catch { /* gone */ } }, 200); },
   };
 }
 
@@ -138,7 +138,7 @@ export function passThrough(c, { uid = 'pass', missing = null, held = null } = {
   return {
     def: PASS_DEF, uid, ready: Promise.resolve(), input: node, output: node, latency: 0, fallback: true, missing, held,
     set() {}, setOn() {}, noteOn() {}, noteOff() {}, allOff() {},
-    dispose() { try { node.disconnect(); } catch (e) { /* gone */ } },
+    dispose() { try { node.disconnect(); } catch { /* gone */ } },
   };
 }
 
@@ -155,6 +155,6 @@ export function silentInstrument(c, { uid = 'held', held = null } = {}) {
     def: HELD_DEF, uid, ready: Promise.resolve(), input: null, output, latency: 0, fallback: true, missing: null, held,
     set() {}, setOn() {}, noteOn() {}, noteOff() {}, allOff() {}, cancel() {},
     stats: async () => ({ voices: 0, held: 0 }),
-    dispose() { try { output.disconnect(); } catch (e) { /* gone */ } },
+    dispose() { try { output.disconnect(); } catch { /* gone */ } },
   };
 }

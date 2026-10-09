@@ -42,7 +42,7 @@ let heights = null;
 function loadHeights() {
   if (heights) return heights;
   heights = {};
-  try { const s = JSON.parse(localStorage.getItem(HKEY) || '{}'); if (s && s.h && typeof s.h === 'object') for (const [k, v] of Object.entries(s.h)) if (Number.isFinite(v)) heights[k] = clamp(Math.round(v), LANE_MIN, LANE_MAX); } catch (e) { /* fresh */ }
+  try { const s = JSON.parse(localStorage.getItem(HKEY) || '{}'); if (s && s.h && typeof s.h === 'object') for (const [k, v] of Object.entries(s.h)) if (Number.isFinite(v)) heights[k] = clamp(Math.round(v), LANE_MIN, LANE_MAX); } catch { /* fresh */ }
   return heights;
 }
 // A lane row's height: the one you dragged it to, else 40 (48 on a phone)
@@ -55,7 +55,7 @@ export function setLaneHeight(key, px, { save = true } = {}) {
   if (save) {
     const keys = Object.keys(H);
     if (keys.length > 300) for (const k of keys.slice(0, keys.length - 300)) delete H[k];
-    try { localStorage.setItem(HKEY, JSON.stringify({ h: H })); } catch (e) { /* private mode: this session only */ }
+    try { localStorage.setItem(HKEY, JSON.stringify({ h: H })); } catch { /* private mode: this session only */ }
   }
   return v;
 }
@@ -138,7 +138,7 @@ export function fmtValue(spec, v) {
   if (v == null || !Number.isFinite(v)) return '';
   if (!spec) return String(Math.round(v * 100) / 100);
   if (spec.opts) return String(spec.opts[clamp(Math.round(v), 0, spec.opts.length - 1)] ?? '');
-  if (typeof spec.fmt === 'function') { try { const s = spec.fmt(v); if (s != null) return String(s); } catch (e) { /* its own business */ } }
+  if (typeof spec.fmt === 'function') { try { const s = spec.fmt(v); if (s != null) return String(s); } catch { /* its own business */ } }
   if (spec === MIXER.pan || (spec.key === 'pan' && spec.min === -1 && spec.max === 1 && !spec.unit)) {
     const k = Math.round(Math.abs(v) * 100);
     return k === 0 ? 'C' : `${v < 0 ? 'L' : 'R'} ${k}`;
@@ -707,7 +707,7 @@ export function laneEditor(app, host) {
     const c = ctxOf(d.addr);
     if (!c.pts[d.i]) return false;
     Object.assign(d, { mode: 'point', lifted: true, pan: null, pts0: c.pts.map((x) => ({ ...x })) }, grab(d.key, d.addr, c, d.i));
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try { navigator.vibrate?.(12); } catch { /* no buzz */ }
     host.dirty();
     return true;
   }

@@ -33,8 +33,8 @@ import { beatsPerBar } from '../core/music.js';
 const KEY = 'overdub:onboard';
 const STEPS = ['listen', 'take', 'keep', 'ask', 'pick', 'done'];
 const ls = {
-  get() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } },
-  set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* storage blocked: it just won't remember */ } },
+  get() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } },
+  set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* storage blocked: it just won't remember */ } },
 };
 const SRC_WORD = { hum: 'hummed', tap: 'tapped', beatbox: 'beatboxed', midi: 'played', qwerty: 'played on the keys', touch: 'played', rec: 'recorded' };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -55,7 +55,7 @@ export default function (app) {
   const { store, ui, engine } = app;
   css('onboard', CSS);
   const params = new URLSearchParams(location.search);
-  const firstVisit = (() => { try { return localStorage.getItem('overdub:project') == null; } catch (e) { return false; } })();
+  const firstVisit = (() => { try { return localStorage.getItem('overdub:project') == null; } catch { return false; } })();
 
   let idx = -1;          // the current step (index into STEPS), -1 when the coach is off
   let card = null;
@@ -113,7 +113,7 @@ export default function (app) {
     save(state);
     idx = -1;
     fm = null;
-    for (const o of offs.splice(0)) { try { o(); } catch (e) { /* ok */ } }
+    for (const o of offs.splice(0)) { try { o(); } catch { /* ok */ } }
     clearInterval(pollT);
     if (said) { clearTimeout(said.timer); said = null; }
     unfolded = false;
@@ -142,7 +142,7 @@ export default function (app) {
   /* ---------------------------------------------------------------- the real actions */
   let pollT = 0;
   function listen() {
-    for (const o of offs.splice(0)) { try { o(); } catch (e) { /* ok */ } }
+    for (const o of offs.splice(0)) { try { o(); } catch { /* ok */ } }
     // 1. hear it: the transport starts (Space, the play button, anything)
     if (engine?.on) offs.push(engine.on('transport', (e) => { if (e?.playing && step() === 'listen') advance('take'); }));
     clearInterval(pollT);
@@ -240,7 +240,7 @@ export default function (app) {
     const lean = last.lean ? leanWords({ lean: last.lean.beats, ms: last.lean.ms, opening: last.lean.opening, kind: drums ? 'hit' : 'note' }) : '';
     return { track: pt.track, clip: pt.clips?.[pt.clips.length - 1] || null, name: pt.name, bars: pt.bars, notes: pt.notes, drums, summary: last.summary || '', lean };
   }
-  function select(c) { try { ui.select({ track: c.track, clip: c.clip, notes: [] }); } catch (e) { /* ok */ } }
+  function select(c) { try { ui.select({ track: c.track, clip: c.clip, notes: [] }); } catch { /* ok */ } }
 
   /* ---------------------------------------------------------------- doing it from the card (the same real actions) */
   const inp = () => app.input;
@@ -326,7 +326,7 @@ export default function (app) {
   // this browser, so left on it clicked in every song after), and so does Tap if the tour turned it on (it keeps L, the
   // loop key, and the home row)
   function lendBack(l) {
-    if (l.click && engine?.metronome) { try { app.transport?.click?.set?.({ on: false }); } catch (e) { /* ok */ } if (engine.metronome) engine.metronome = false; }
+    if (l.click && engine?.metronome) { try { app.transport?.click?.set?.({ on: false }); } catch { /* ok */ } if (engine.metronome) engine.metronome = false; }
     const tp = l.tap, inq = app.input;
     if (tp && inq) {
       if (tp.sketch && tp.sketch !== 'tap' && inq.sketchMode === 'tap') inq.emit?.('sketch:mode', tp.sketch);
@@ -357,7 +357,7 @@ export default function (app) {
     idx = -1;
     fm = null;
     paused = true;
-    for (const o of offs.splice(0)) { try { o(); } catch (e) { /* ok */ } }
+    for (const o of offs.splice(0)) { try { o(); } catch { /* ok */ } }
     clearInterval(pollT);
     if (said) { clearTimeout(said.timer); said = null; }
     unfolded = false;
@@ -368,11 +368,11 @@ export default function (app) {
   // bar 2, say), the playhead goes to its start. (It used to run on past the loop while the card said it was looping.)
   async function rolling(from) {
     if (engine && !engine.metronome) { lent = { ...(lent || {}), click: true }; save('on'); }
-    try { app.transport?.click?.set?.({ on: true }); } catch (e) { if (engine) engine.metronome = true; }
+    try { app.transport?.click?.set?.({ on: true }); } catch { if (engine) engine.metronome = true; }
     if (!engine) return;
     if (engine.playing) {
       const lp = store.get().loop, b = engine.beat;
-      if (lp?.on && !(b >= lp.start - 1e-6 && b < lp.end)) { try { engine.seek(lp.start); } catch (e) { /* ok */ } }
+      if (lp?.on && !(b >= lp.start - 1e-6 && b < lp.end)) { try { engine.seek(lp.start); } catch { /* ok */ } }
       return;
     }
     try { await engine.start?.(); await engine.play(from); } catch (e) { ui.toast('Could not play: ' + e.message, { kind: 'bad' }); }
@@ -400,7 +400,7 @@ export default function (app) {
       if (!r.ok) { ui.toast('Could not add a drum track: ' + r.error, { kind: 'bad' }); return false; }
       t = store.track(r.created.d);
     }
-    try { ui.select({ track: t.id, clip: null, notes: [] }); } catch (e) { /* ok */ }
+    try { ui.select({ track: t.id, clip: null, notes: [] }); } catch { /* ok */ }
     disarmOthers(t);
     ui.show?.('sketch');
     if (!ui.isOpen?.('bottom')) ui.setOpen?.('bottom', true);
@@ -430,7 +430,7 @@ export default function (app) {
       if (!r.ok) { ui.toast('Could not add a track: ' + r.error, { kind: 'bad' }); return false; }
       t = store.track(r.created.k);
     }
-    try { ui.select({ track: t.id, clip: null, notes: [] }); } catch (e) { /* ok */ }
+    try { ui.select({ track: t.id, clip: null, notes: [] }); } catch { /* ok */ }
     disarmOthers(t);
     ui.show?.('sketch');
     inp()?.emit?.('sketch:mode', 'play');
@@ -454,7 +454,7 @@ export default function (app) {
     const c = clickBack;
     clickBack = null; sawRec = false;
     if (!c) return;
-    try { app.transport?.click?.set?.(c); } catch (e) { if (engine) engine.metronome = !!c.on; }
+    try { app.transport?.click?.set?.(c); } catch { if (engine) engine.metronome = !!c.on; }
   }
   function hookClickBack() {
     if (clickHooked || !inp()) return;
@@ -514,13 +514,13 @@ export default function (app) {
   function announce(text) { if (!live || !text || text === lastSaid) return; lastSaid = text; live.textContent = ''; setTimeout(() => { if (live) live.textContent = text; }, 40); }
   function paintNote() { const n = card?.querySelector('.ob-note'); if (n) { n.textContent = note; n.hidden = !note; } if (note) announce(note); }
   // touch: there's no Space bar or letter keys to point at
-  const touch = () => { try { return matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches; } catch (e) { return false; } };
+  const touch = () => { try { return matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches; } catch { return false; } };
   // A phone (docs/FRESH-EYES-4.md, the beginner's problem 2): the card is a one-line strip at the foot of the arranger,
   // right above the sheet, so the song (and your clip landing in it) stays in sight at every step: the step in a line,
   // its main button and Close; a tap on the line opens the whole card (Fold puts it back). While it is up, no toast
   // covers the song or the card: what a toast would say (and its Undo) is the strip's line for as long as it would show.
   // (any screen that narrow, touch or not: the whole card there covered every track's header)
-  const phoneStrip = () => { try { return matchMedia('(max-width: 640px)').matches; } catch (e) { return false; } };
+  const phoneStrip = () => { try { return matchMedia('(max-width: 640px)').matches; } catch { return false; } };
   const toast0 = ui.toast;
   if (typeof toast0 === 'function') {
     ui.toast = (text, o = {}) => {
@@ -730,7 +730,7 @@ export default function (app) {
     firstMinute: (kind) => firstMinute(kind), keysOver: () => keysOver(), humOver: () => humOver(), ownSong: () => ownSong(), played: () => played(),
     get step() { return step(); }, get index() { return idx; }, get active() { return idx >= 0; }, steps: STEPS.slice(),
     get state() { return ls.get(); }, get take() { return { ...take }; }, get minute() { return fm; },
-    reset() { stop('reset'); try { localStorage.removeItem(KEY); } catch (e) { /* ok */ } },
+    reset() { stop('reset'); try { localStorage.removeItem(KEY); } catch { /* ok */ } },
   };
 
   // first run (or a tour left half-way), never under webdriver unless ?coach. On a first visit the arranger's welcome is

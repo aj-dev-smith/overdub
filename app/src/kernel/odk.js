@@ -77,7 +77,7 @@ export function decodeOdk(bytes) {
   let json = '';
   for (let i = 0; i < H; i += 4096) json += String.fromCharCode.apply(null, u.subarray(8 + i, 8 + Math.min(H, i + 4096)));
   let head;
-  try { head = JSON.parse(json); } catch (e) { throw new Error('odk: the header is not JSON'); }
+  try { head = JSON.parse(json); } catch { throw new Error('odk: the header is not JSON'); }
   if (!head || head.format !== ODK_FORMAT) throw new Error('odk: unknown format ' + (head && head.format));
   const { bits, channels } = head;
   if ((bits !== 16 && bits !== 24) || !(channels >= 1 && channels <= 8) || !Array.isArray(head.samples)) throw new Error('odk: a bad header');

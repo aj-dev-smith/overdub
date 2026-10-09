@@ -121,7 +121,7 @@ function runTool(app, by, input) {
   const res = app.store.dispatch(plan.ops, { by, label, as: r.op ? [r.op] : null });
   if (!res.ok) return err(res.error, 'the song changed under it; read it again and retry');
   if (res.txn) { res.txn.reason = input.reason ? String(input.reason).slice(0, 300) : plan.summary; app.ui?.emit?.('history:annotate', { txn: res.txn }); }
-  try { app.presence?.highlight?.(r.target, label, by, 4000); } catch (e) { /* presence is a nicety */ }
+  try { app.presence?.highlight?.(r.target, label, by, 4000); } catch { /* presence is a nicety */ }
   const created = {};
   if (plan.section && input.op === 'duplicate_section') { created.section = plan.section; created.clips = plan.clips.map((c) => c.clip); }
   if (input.op === 'repeat_clip' && plan.clips.length) created.clips = plan.clips;

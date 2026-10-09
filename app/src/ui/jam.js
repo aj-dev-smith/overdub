@@ -71,7 +71,7 @@
 
 import { h, css, icon, byline, canvas, tok, clamp, drag } from './dom.js';
 import * as JAM from '../core/jam.js';
-import { TUNINGS, TUNING_IDS, tuningOf, positionsOf, MAX_FRET, INLAYS, fingering, formatTab, stringNumber, stringIndex, boxOf } from '../core/fretboard.js';
+import { TUNINGS, TUNING_IDS, tuningOf, positionsOf, MAX_FRET, INLAYS, stringNumber, stringIndex, } from '../core/fretboard.js';
 import { scalePcs, noteName, spellPc, parsePitch, beatsPerBar, SCALES, parsePc } from '../core/music.js';
 import { isDrumDevice } from '../core/transforms.js';
 import { DEMOS } from '../core/demo.js';
@@ -89,7 +89,6 @@ const pcOf = (p) => ((Math.round(p) % 12) + 12) % 12;
 const EPS = 1e-6;
 const DI_CLEAN = { body: 0, pick: 0.3, pickup: 0.55, tone: 0.65, decay: 1, strum: 10, mute: 0 };
 const DEFAULT_TONE = 'jangle';
-const SPEEDS = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 const ORD = ['open', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th', '13th', '14th', '15th', '16th', '17th', '18th', '19th', '20th', '21st', '22nd'];
 const isKeysGuitar = (t) => t && t.kind === 'instrument' && t.instrument?.device === 'core.guitar';
 const guitarName = (t) => /guit|gtr/i.test(t?.name || '');
@@ -136,7 +135,7 @@ export default function (app) {
 
   /* ------------------------------------------------------------------------------------------- state */
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(PREFS) || '{}') || {}; } catch (e) { saved = {}; }
+  try { saved = JSON.parse(localStorage.getItem(PREFS) || '{}') || {}; } catch { saved = {}; }
   const J = ui.state.jam = {
     tuning: TUNINGS[saved.tuning] ? saved.tuning : 'standard',
     lefty: !!saved.lefty,
@@ -157,7 +156,7 @@ export default function (app) {
     match: null,                   // Match the band: { phase: 'listen' | 'measure', until, line } | { phase: 'done', line }
     offered: false,                // the offer of Match the band was made (the input's first opening this session)
   };
-  const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({ tuning: J.tuning, lefty: J.lefty, overlays: J.overlays, names: J.names, bank: J.bank, pane: J.pane, view: J.view, cab: J.cab })); } catch (e) { /* private mode */ } };
+  const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify({ tuning: J.tuning, lefty: J.lefty, overlays: J.overlays, names: J.names, bank: J.bank, pane: J.pane, view: J.view, cab: J.cab })); } catch { /* private mode */ } };
 
   // the chord timeline: read again when the notes, the key or the sections change (a few ms on the demos)
   let TL = null, tlAt = 0;
@@ -346,7 +345,7 @@ export default function (app) {
   // new one's (default: the keys guitar's chain, else the default rig; its fader measured against the song, liveStart)
   function ensureAudioGuitar({ by = 'you', chain = null, gain = null } = {}) {
     const p = store.get(), g = guitars(p);
-    let t = g.audio;
+    const t = g.audio;
     if (!t) {
       const name = freeName(p, 'Guitar', 'Live guitar'), coalesce = `jam:live-guitar:${Date.now()}`;
       const r = store.dispatch({ type: 'track.add', ref: 'g', track: { name, kind: 'audio', inserts: chain || chainOf(g.keys) || defaultChain(), gain: Number.isFinite(gain) ? gain : LIVE_DB, arm: true } }, { by, label: `add ${name} for your guitar`, coalesce });
@@ -359,7 +358,7 @@ export default function (app) {
     return store.track(t.id);
   }
   // what the keys play right now (input.target), and whether that is the room's guitar
-  function keysTarget() { try { return app.input?.target?.('keys') || null; } catch (e) { return null; } }
+  function keysTarget() { try { return app.input?.target?.('keys') || null; } catch { return null; } }
   // the room shows: the keys play its guitar (selecting it, as a click on its header would; nothing is armed)
   function aimKeys() {
     const g = guitars();
@@ -514,9 +513,9 @@ export default function (app) {
     const res = JAM.jamTrack({ ...opts, by: by === 'you' ? 'overdub' : by, rig: (id) => G?.rigById?.(id)?.chain || null });
     if (res.error) return res;
     const prev = JSON.parse(JSON.stringify(app.share?.listening ? savedSong() || store.get() : store.get()));
-    try { if (engine.playing) engine.stop(); engine.seek?.(0); } catch (e) { /* no audio yet */ }
+    try { if (engine.playing) engine.stop(); engine.seek?.(0); } catch { /* no audio yet */ }
     store.load(res.project, { by });
-    try { for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove(); } catch (e) { /* no DOM */ }
+    try { for (const t of document.querySelectorAll('.ew-toast')) if (t.querySelector('.ew-toast-act')) t.remove(); } catch { /* no DOM */ }
     ui.select({ track: null, clip: null, notes: [], insert: null, range: null });
     const g = guitars(res.project);
     if (g.keys) { J.tones[g.keys.id] = res.tone; ui.select({ track: g.keys.id }); }
@@ -525,7 +524,7 @@ export default function (app) {
     if (play) setTimeout(() => app.transport?.playStop?.(), 60);
     return { ok: true, ...res, previous: prev.title || 'Untitled' };
   }
-  function savedSong() { try { const s = localStorage.getItem('overdub:project'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function savedSong() { try { const s = localStorage.getItem('overdub:project'); return s ? JSON.parse(s) : null; } catch { return null; } }
 
   /* ------------------------------------------------------------------------------------------- pointing at the neck */
   // spec: { label, notes?: 'A2 C3' | '6:5 5:7', scale?, chord?, frets?: [a, b], by } -> { ok, shown } | { error, hint }
@@ -589,7 +588,7 @@ export default function (app) {
     return r;
   }
   function clearShown() { J.shown = null; neckDirty(); }
-  function bringNeck() { try { neck?.el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* no layout */ } }
+  function bringNeck() { try { neck?.el?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); } catch { /* no layout */ } }
 
   /* ------------------------------------------------------------------------------------------- hearing: the room's voice */
   // A guitar to hear a lick or a chord on that isn't a track (see the header): DI Box (the keys guitar's settings, else a
@@ -614,7 +613,7 @@ export default function (app) {
     return voice.measuring.get(key);
   }
   async function voiceReady() {
-    try { if (!engine.ctx) await engine.start(); } catch (e) { return null; }
+    try { if (!engine.ctx) await engine.start(); } catch { return null; }
     const c = engine.ctx, dest = engine.inputNode?.('master');
     if (!c || !dest) return null;
     if (!voice.strip || voice.strip.c !== c || voice.strip.disposed) {
@@ -641,7 +640,7 @@ export default function (app) {
     voice.timers = [];
     voice.tok = null;
     const inst = voice.strip?.instance('instrument'), c = engine.ctx;
-    if (inst && c) { const t = c.currentTime; try { inst.flush?.(t); inst.allOff(t); } catch (e) { /* gone */ } }
+    if (inst && c) { const t = c.currentTime; try { inst.flush?.(t); inst.allOff(t); } catch { /* gone */ } }
     if (J.lick) { J.lick = null; neckDirty(); }
   }
   // notes on the voice: [{ p, v, at: seconds from now, d: seconds }], each lit on the neck as it's heard
@@ -653,7 +652,7 @@ export default function (app) {
     const c = engine.ctx, inst = s.instance('instrument'), t0 = c.currentTime + 0.03, late = voiceLate(s, c);
     for (const n of list) {
       const on = t0 + n.at;
-      try { inst.noteOn(n.p, n.v ?? 0.8, on); inst.noteOff(n.p, on + Math.max(0.05, n.d)); } catch (e) { /* gone */ }
+      try { inst.noteOn(n.p, n.v ?? 0.8, on); inst.noteOff(n.p, on + Math.max(0.05, n.d)); } catch { /* gone */ }
       voice.timers.push(setTimeout(() => light(n.p, 'show', n.d * 1000), Math.max(0, (on + late - c.currentTime) * 1000)));
     }
     return true;
@@ -708,7 +707,7 @@ export default function (app) {
       L.t0 = heard0; L.spb = b;
       for (const n of lick.notes) {
         const on = on0 + n.t * b;
-        try { inst.noteOn(n.p, n.v ?? 0.8, on); inst.noteOff(n.p, on + Math.max(0.1, n.d * 0.95) * b); } catch (e) { /* gone */ }
+        try { inst.noteOn(n.p, n.v ?? 0.8, on); inst.noteOff(n.p, on + Math.max(0.1, n.d * 0.95) * b); } catch { /* gone */ }
       }
       const last = lick.notes[lick.notes.length - 1];
       voice.timers.push(setTimeout(() => { if (J.lick === L) { J.lick = null; neckDirty(); } }, Math.max(0, heard0 - performance.now() + (last.t + last.d) * b * 1000 + 600)));
@@ -963,7 +962,7 @@ export default function (app) {
     const M = J.match = { phase: 'listen', until: performance.now() + MATCH_S * 1000, line: '' };
     view?.input?.();
     const started = !engine.playing;
-    if (started) { try { await engine.play(app.transport?.marker?.beat ?? playhead()); } catch (e) { /* no audio: it listens all the same */ } }
+    if (started) { try { await engine.play(app.transport?.marker?.beat ?? playhead()); } catch { /* no audio: it listens all the same */ } }
     const from = Math.max(0, engine.beat || 0), chunks = [];
     let got = 0, peak = 0;
     const off = a.listen((blk) => {
@@ -1075,7 +1074,6 @@ export default function (app) {
 
   function mountRoom(root) {
     root.classList.add('jm');
-    const V = {};
     /* ---- the head: what you play over */
     const songBtn = h('button.jm-song', { type: 'button', 'aria-haspopup': 'dialog', title: 'Play over another song or a jam track', onclick: (e) => openPicker(e.currentTarget) });
     const spec = h('div.jm-spec');
@@ -1311,7 +1309,7 @@ export default function (app) {
         stageKey = k;
         const has = tl.chords.length > 0;
         empty.hidden = has;
-        stage.hidden = neckSec.hidden ? false : false;
+        stage.hidden = false;
         if (!has) {
           put(empty, h('p', p.tracks.some((t) => t.clips.some((c) => c.kind === 'audio')) ? 'No chords to follow: the room reads chords from notes, and this song is audio. Play over a jam track, or a song with parts.' : 'No chords to follow yet: this song has no parts with notes. Play over a jam track, a demo, or put some chords in.'),
             h('button.btn.btn-go', { type: 'button', onclick: (e) => openPicker(e.currentTarget, 'jam') }, 'Choose a jam track'));
@@ -1542,7 +1540,7 @@ export default function (app) {
     // a click on a track's header (or the room's own selecting) changes what the keys play: the lines that name it follow
     ui.on('select', () => { if (!view) return; view.keys(); view.practice(); });
     // (and so does where the keys are aimed: Onto, a take, a new track made for them)
-    try { app.input?.recorder?.on?.('aim', () => { if (view) view.keys(); }); } catch (e) { /* no recorder */ }
+    try { app.input?.recorder?.on?.('aim', () => { if (view) view.keys(); }); } catch { /* no recorder */ }
     function toSpec(s) { return s.positions ? { notes: s.positions.map((x) => `${stringNumber(x.s)}:${x.f}`).join(' '), frets: s.frets } : s.chord ? { chord: s.chord, frets: s.frets } : s.scale ? { scale: s.scale, frets: s.frets } : { notes: '' }; }
 
     async function toggleInput() {
@@ -1556,7 +1554,7 @@ export default function (app) {
         await fillDevices();
         // the first time it opens: Live guitar's level is a guess, so Match the band is offered
         if (a.state.open && !J.offered) { J.offered = true; if (!J.match) J.match = { phase: 'offer' }; }
-      } catch (e) { /* the state says why */ }
+      } catch { /* the state says why */ }
       view.input(); view.tones(); view.practice();
     }
     function toggleMonitor() {
@@ -1726,7 +1724,6 @@ function fitsHere(pc, key, ch) {
 }
 
 function createNeck(app, J, { timeline, where, describe, onPlay, fitHeight = null }) {
-  const { ui, engine } = app;
   const cv = canvas('jm-neck-cv');
   const scroller = h('div.jm-neck-scroll', { tabindex: 0, role: 'img', 'aria-roledescription': 'fretboard', 'aria-label': 'The neck' }, cv.cv);
   const label = h('div.jm-neck-label', { 'aria-hidden': 'true' });

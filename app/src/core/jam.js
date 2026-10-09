@@ -232,7 +232,6 @@ export function pentatonicFor(key) {
   const iv = minor ? SCALES.minorPentatonic : SCALES.majorPentatonic;
   return { name: `${key.root} ${minor ? 'minor' : 'major'} pentatonic`, pcs: iv.map((i) => (root + i) % 12), minor, root };
 }
-const keyText = (k) => (k ? `${k.root} ${SCALE_WORDS[k.scale] || k.scale}` : 'no key');
 
 /* ================================================================================================ the timeline */
 const DETECT = Object.entries(QUALITIES).filter(([, q]) => q.detect).map(([q, Q]) => ({ q, Q, iv: [...new Set(Q.iv.map((i) => i % 12))] }));
@@ -716,7 +715,7 @@ export function jamTrack({ style = 'blues', key = null, tempo = null, progressio
     form = S.form.map(([name, id]) => ({ name, bars: parseProgression(S.progs[id], k).bars }));
   }
   const formBars = form.reduce((a, f) => a + f.bars.length, 0);
-  let total = bars == null ? (progression ? Math.max(formBars, Math.ceil(16 / formBars) * formBars) : formBars) : Math.round(Number(bars));
+  const total = bars == null ? (progression ? Math.max(formBars, Math.ceil(16 / formBars) * formBars) : formBars) : Math.round(Number(bars));
   if (!Number.isFinite(total) || total < 1) return { error: `bars must be a number of bars (got ${bars})`, hint: `1 to ${JAM_MAX_BARS}` };
   if (total > JAM_MAX_BARS) return { error: `${total} bars is too long for a jam track`, hint: `up to ${JAM_MAX_BARS} bars; it loops` };
   // lay the form out, round and round, to `total` bars: the chart (one entry per chord) and the sections

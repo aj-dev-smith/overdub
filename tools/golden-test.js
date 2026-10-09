@@ -126,7 +126,7 @@ for (const name of ['inst:core.drums', 'fx:core.verb', 'demo', ...all.filter((s)
   fs.writeFileSync(song, JSON.stringify(s.project));
   const run = (...a) => spawnSync(process.execPath, [path.join(HERE, 'render.js'), ...a], { encoding: 'utf8' });
   const r = run(song, '--out', wav, '--hash', '--measure', '--json');
-  let j = null; try { j = JSON.parse(r.stdout); } catch (e) { /* below */ }
+  let j = null; try { j = JSON.parse(r.stdout); } catch { /* below */ }
   t.ok(r.status === 0 && j && j.sha256 === fresh.demo.sha256, `tools/render.js demo.json --hash: ${j && j.sha256 && j.sha256.slice(0, 16)} (exit ${r.status})`);
   t.ok(j && j.measure && j.measure.lufs === fresh.demo.lufs, `--measure prints measure(): ${j && j.measure && j.measure.lufs} LUFS`);
   t.ok(/graph device/.test(r.stderr), 'the bypassed graph devices are warned about on stderr');
@@ -138,7 +138,7 @@ for (const name of ['inst:core.drums', 'fx:core.verb', 'demo', ...all.filter((s)
   const strict = run(song, '--strict', '--no-wav');
   t.ok(strict.status === 1, `--strict exits 1 when graph devices were bypassed (exit ${strict.status})`);
   const part = run(song, '--tracks', 'Bass,Keys', '--to', '8', '--no-wav', '--json');
-  let pj = null; try { pj = JSON.parse(part.stdout); } catch (e) { /* below */ }
+  let pj = null; try { pj = JSON.parse(part.stdout); } catch { /* below */ }
   t.ok(part.status === 0 && pj && pj.warnings.length === 0 && pj.seconds > 5, `--tracks Bass,Keys --to 8: ${pj && pj.seconds} s, no warnings (the guitar isn't built)`);
   // an effect scene from files: the DI strum as a float WAV in an assets folder
   const fx = all.find((x) => x.name === 'fx:core.delay');
@@ -146,7 +146,7 @@ for (const name of ['inst:core.drums', 'fx:core.verb', 'demo', ...all.filter((s)
   for (const [id, a] of Object.entries(fx.assets)) writeWav(path.join(dir, id + '.wav'), a, { float: true });
   const fxSong = path.join(OUT, 'delay.json'); fs.writeFileSync(fxSong, JSON.stringify(fx.project));
   const fr = run(fxSong, '--assets', dir, '--to', '16', '--tail', '4', '--hash', '--no-wav', '--json');
-  let fj = null; try { fj = JSON.parse(fr.stdout); } catch (e) { /* below */ }
+  let fj = null; try { fj = JSON.parse(fr.stdout); } catch { /* below */ }
   t.ok(fj && fj.sha256 === fresh['fx:core.delay'].sha256, `--assets: the DI strum from a WAV renders fx:core.delay to its hash (${fj && fj.sha256 && fj.sha256.slice(0, 16)})`);
   const enc = decodeWav(encodeWav({ sr: 48000, channels: [Float32Array.of(0, 0.5, -0.5, 1, -1)] }));
   t.ok(enc.channels[0][1] > 0.49999 && enc.channels[0][4] === -1 * 8388607 / 8388608, 'WAV encode/decode round-trips');

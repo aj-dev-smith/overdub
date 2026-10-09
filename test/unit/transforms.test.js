@@ -23,7 +23,6 @@ const withIds = (ns) => ns.map((n, i) => ({ ...n, id: 'n' + (i + 1) }));
 // a C chord, a melody, and a gap: something every transform can work on
 const CHORDS = withIds(parseNotes('C4@0:2 E4@0:2 G4@0:2 F4@2:2 A4@2:2 C5@2:2'));
 const MELODY = withIds(parseNotes('C4@0:0.5 D4@0.5:0.5 E4@1:0.5 G4@1.5:0.5 A4@2:1 G4@3:1 E4@6:1 D4@7:1'));
-const sortKey = (n) => `${n.t}|${n.p}`;
 const byTime = (a, b) => a.t - b.t || a.p - b.p;
 const strip = (ns) => ns.map(({ p, t, d, v }) => ({ p, t, d, v })).sort(byTime);
 

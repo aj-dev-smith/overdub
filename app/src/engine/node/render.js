@@ -72,7 +72,7 @@ function coreClass(sr) {
 export function songEnd(p) {
   const bpb = beatsPerBarOf(p.meter);
   let end;
-  try { end = projectSongEnd(p); } catch (e) { end = 0; for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length); }
+  try { end = projectSongEnd(p); } catch { end = 0; for (const t of p.tracks || []) for (const c of t.clips || []) end = Math.max(end, c.start + c.length); }
   return Math.max(bpb, Math.ceil(end / bpb - 1e-9) * bpb);
 }
 

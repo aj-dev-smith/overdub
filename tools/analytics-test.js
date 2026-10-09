@@ -99,7 +99,7 @@ async function fakeProd(context, base, { webdriver = false, dnt = false, gpc = f
 // retried, then the request is aborted: an error thrown in a route handler escapes every try/catch and kills the run.
 async function passThrough(route, url) {
   for (let i = 0; i < 3; i++) {
-    try { return await route.fulfill({ response: await route.fetch({ url }) }); } catch (e) { /* retry */ }
+    try { return await route.fulfill({ response: await route.fetch({ url }) }); } catch { /* retry */ }
   }
   return route.abort().catch(() => {});
 }
@@ -313,7 +313,7 @@ try {
       `deploy --next ships the named ref (${ref}) to the preview bucket only, and invalidates`);
     t.ok(/\+ aws s3 sync \S+ s3:\/\/overdub\.ajsmithhq\.com --only-show-errors --delete/.test(live.out) && !/next\.overdubstudio\.com/.test(live.out),
       'deploy without --next still ships to the live bucket only');
-    const cfgOf = (out) => { try { return JSON.parse((/^app\/site-config\.json: (.*)$/m.exec(out) || [])[1]); } catch (e) { return null; } };
+    const cfgOf = (out) => { try { return JSON.parse((/^app\/site-config\.json: (.*)$/m.exec(out) || [])[1]); } catch { return null; } };
     const nextCfg = cfgOf(next.out), liveCfg = cfgOf(live.out);
     const tracked = spawnSync('git', ['ls-files', 'app/site-config.json', 'deploy/site-config.json'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
     const ignored = spawnSync('git', ['check-ignore', 'app/site-config.json', 'deploy/site-config.json'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim().split('\n').length === 2;

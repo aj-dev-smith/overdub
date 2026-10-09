@@ -99,8 +99,8 @@ const same = (a, b) => a.device === b.device && (a.preset || null) === (b.preset
 export function soundsFor(take, { has = () => true, current = null, currentPreset = null, getDevice = null, n = 4, genre = null } = {}) {
   const set = setOf(take), S0 = SOUND_SETS[set], G = genre && GENRE_ROWS[genre] && GENRE_ROWS[genre][set];
   const S = G ? { ...S0, rows: [...G, ...S0.rows] } : S0;
-  const ok = (id) => { try { return !!has(id); } catch (e) { return false; } };
-  const def = (id) => { try { return getDevice ? getDevice(id) : null; } catch (e) { return null; } };
+  const ok = (id) => { try { return !!has(id); } catch { return false; } };
+  const def = (id) => { try { return getDevice ? getDevice(id) : null; } catch { return null; } };
   const out = [];
   if (current) {
     const mine = [...S.rows, ...S.fallbacks].find((x) => same(x, { device: current, preset: currentPreset }));

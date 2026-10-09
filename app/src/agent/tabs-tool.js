@@ -124,9 +124,9 @@ export function tabFor(app, input, room) {
 // dropped in the arranger cuts (core/arrangement.js planDropTrim). -> { ops, track (id or '$g'), replaces: [clip names] }
 export function riffOps(app, room, { notes, start, length, tuning, capo, name }, { track = null } = {}) {
   const p = app.store.get();
-  let t = track ? findTrack(app, track) : room.guitars().keys;
+  const t = track ? findTrack(app, track) : room.guitars().keys;
   const ops = [];
-  let tref = t ? t.id : '$g';
+  const tref = t ? t.id : '$g';
   if (!t) { const op = room.guitarOp('g'); if (!op) return err('no Guitar track to write onto', 'give track'); ops.push(op); }
   let replaces = [];
   if (t) {
@@ -211,7 +211,7 @@ async function offerTakes(app, by, { title, reason, takes, target, wait = 0, roo
   if (single) {
     const t = takes[0];
     let items = [];
-    try { const r = takenBy(app.store.get(), t.ops, { by, getDevice: app.devices?.getDevice || null }); if (r.ok) items = r.items; } catch (e) { items = []; }
+    try { const r = takenBy(app.store.get(), t.ops, { by, getDevice: app.devices?.getDevice || null }); if (r.ok) items = r.items; } catch { items = []; }
     if (!items.length) items = [{ kind: 'riff', verb: 'put', past: 'put', what: t.what || 'a riff in the song', whose: [] }];
     const req = keepRequest(app, by, { ops: t.ops, items, label: title, reason, fine });
     id = req.id;

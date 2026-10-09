@@ -479,7 +479,7 @@ function expected(p) {
     await page.waitForSelector('html[data-ready="1"]', { timeout: 30000 });
     await page.addInitScript(() => {
       const seen = window.__kernels = [];
-      const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch (e) { /* not a kernel */ } };
+      const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch { /* not a kernel */ } };
       const AWN = window.AudioWorkletNode;
       if (AWN) window.AudioWorkletNode = class extends AWN { constructor(c, name, o) { note(o && o.processorOptions); super(c, name, o); } };
       const post = MessagePort.prototype.postMessage;

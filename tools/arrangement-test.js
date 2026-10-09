@@ -134,7 +134,7 @@ T.ok(['section.duplicate', 'time.insert', 'time.remove', 'clip.repeat', 'clip.sp
 
 /* ------------------------------------------------------------------ time.remove */
 {
-  const { s, ids, T: tr, C } = song();
+  const { s, ids, C } = song();
   const da0 = C(ids.da).notes.length;
   const r = roundTrip(s, { type: 'time.remove', at: 8, length: 8 }, 'claude', 'delete bars 3–4');
   const p = s.get();
@@ -190,7 +190,7 @@ T.ok(['section.duplicate', 'time.insert', 'time.remove', 'clip.repeat', 'clip.sp
   const p2 = s2.get();
   T.ok(p2.sections.find((x) => x.name === 'Outro').start === 32 && p2.sections.find((x) => x.name === 'Verse 2').start === 32 && C2(i2.ba).start === 16, 'without push nothing moves');
   // a clip that runs past the section's end is copied up to it
-  const { s: s3, ids: i3, T: tr3, C: C3 } = song();
+  const { s: s3, ids: i3, T: tr3 } = song();
   s3.dispatch({ type: 'clip.set', track: tr3('Keys').id, clip: i3.kb, patch: { start: 12 } }, { by: 'you' });
   roundTrip(s3, { type: 'section.duplicate', section: 'Verse', push: true }, 'you', 'duplicate the Verse with a clip across its end');
   const cut = tr3('Keys').clips.find((c) => c.start === 28);
@@ -863,7 +863,7 @@ T.ok(['section.duplicate', 'time.insert', 'time.remove', 'clip.repeat', 'clip.sp
   T.ok(await E(() => document.activeElement === document.querySelector('.ar-rulerwrap')), 'Tab from the Sections + lands on the section strip');
   const said = () => E(() => new Promise((r) => setTimeout(() => r(document.querySelector('.ar .sr-only[aria-live]')?.textContent || ''), 80)));
   await page.keyboard.press('ArrowRight');
-  let k1 = await E(() => ({ range: window.overdub.ui.state.selection.range, secs: window.overdub.store.get().sections.map((s) => `${s.name}@${s.start}+${s.length}`) }));
+  const k1 = await E(() => ({ range: window.overdub.ui.state.selection.range, secs: window.overdub.store.get().sections.map((s) => `${s.name}@${s.start}+${s.length}`) }));
   const s1 = await said();
   await page.keyboard.press('ArrowRight');
   const k2 = await E(() => window.overdub.ui.state.selection.range);
@@ -954,7 +954,7 @@ T.ok(['section.duplicate', 'time.insert', 'time.remove', 'clip.repeat', 'clip.sp
   pre = await snapshot();
   h0 = await E(() => window.overdub.store.history.length);
   const a1 = await run({ op: 'duplicate_section', section: 'Chorus', reason: 'the song needs a second chorus' });
-  let last = await E(() => { const h = window.overdub.store.history.at(-1); return { n: window.overdub.store.history.length, by: h.by, label: h.label, reason: h.reason }; });
+  const last = await E(() => { const h = window.overdub.store.history.at(-1); return { n: window.overdub.store.history.length, by: h.by, label: h.label, reason: h.reason }; });
   T.ok(a1.ok && last.n === h0 + 1 && last.by === 'claude' && last.label === 'duplicate Chorus' && last.reason === 'the song needs a second chorus', `duplicate_section: one step signed by the agent ("${a1.summary}")`);
   T.ok(a1.moved?.section === 'Chorus 2' && a1.moved.clips_copied > 0 && a1.created?.section && a1.created.clips.length === a1.moved.clips_copied, `it says what moved: ${JSON.stringify(a1.moved)}`);
   const signed = await E((ids) => ids.map((id) => window.overdub.store.findClip(id)?.clip.by), a1.created.clips);
@@ -984,7 +984,7 @@ T.ok(['section.duplicate', 'time.insert', 'time.remove', 'clip.repeat', 'clip.sp
   await E(() => window.overdub.store.undo());
   // an outside agent can't freeze the tab: loop ×64 three times (5,242,880 notes on the demo's bass before the limits)
   const n0 = await E(() => window.overdub.store.history.length);
-  let t1 = Date.now();
+  const t1 = Date.now();
   const amp = await E((c) => window.overdub.tools.run('apply_ops', { ops: Array(3).fill({ type: 'clip.repeat', track: 'Bass', clip: c, times: 64, mode: 'loop' }), label: 'longer' }, { by: 'mcp:evil' }), bass.clip);
   T.ok(amp.error && amp.nothing_changed && /up to/.test(amp.error) && (await snapshot()) === pre && (await E(() => window.overdub.store.history.length)) === n0 && Date.now() - t1 < 3000, `apply_ops with loop ×64 three times comes back an error, nothing changed, in ${Date.now() - t1} ms: "${(amp.error || '').slice(0, 120)}"`);
   const amp2 = await run({ op: 'repeat_clip', track: 'Bass', clip: bass.clip, times: 64, mode: 'loop' }, 'mcp:evil');

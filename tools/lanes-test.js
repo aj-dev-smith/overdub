@@ -280,7 +280,7 @@ try {
   /* ---- held: dashed, the name struck, "held"; Back to the lane gives it back */
   await E((id) => window.overdub.store.dispatch({ type: 'auto.set', track: id, param: 'gain', patch: { off: true } }, { by: 'you', label: 'hold' }), tid);
   await sleep(150);
-  let hh = await E((k) => { const el = document.querySelector(`.ar-lhead[data-lane="${k}"]`); return { struck: !!el?.querySelector('.ar-lname.struck'), held: el?.querySelector('.ar-lheld')?.textContent, back: !!el?.querySelector('.ar-lback') }; }, gainKey);
+  const hh = await E((k) => { const el = document.querySelector(`.ar-lhead[data-lane="${k}"]`); return { struck: !!el?.querySelector('.ar-lname.struck'), held: el?.querySelector('.ar-lheld')?.textContent, back: !!el?.querySelector('.ar-lback') }; }, gainKey);
   T.ok(hh.struck && hh.held === 'held' && hh.back, 'a held lane: the name struck, "held" where the byline was, Back to the lane');
   await page.click(`.ar-lhead[data-lane="${gainKey}"] .ar-lback`);
   await sleep(120);
@@ -496,7 +496,7 @@ try {
 
   /* ==== fresh eyes 3 (docs/FRESH-EYES-3.md): editing with the value in view, finding lanes, credit, copy, the master ==== */
   // a clean Level lane on the first instrument track: -30 dB at bars 1, 5 and 9 (a flat line well under unity)
-  const fe = await E((id) => {
+  await E((id) => {
     const o = window.overdub, p = o.store.get(), t = p.tracks.find((x) => x.id === id);
     const ops = [];
     if (t.auto?.gain) ops.push({ type: 'auto.clear', track: id, param: 'gain' });
@@ -548,7 +548,7 @@ try {
   const guide = await E(([k]) => {
     const o = window.overdub, cv = document.querySelector('canvas.ar-lanes'), g = cv.getContext('2d'), r = cv.getBoundingClientRect(), dpr = cv.width / r.width;
     const y0 = Math.round(o.arranger.laneY(k, 0) - r.top);
-    const lit = (yy) => { const d = g.getImageData(0, Math.round(yy * dpr), cv.width, 1).data, bg = [d[0], d[1], d[2]]; let n = 0, all = 0; for (let i = 0; i < d.length; i += 4 * Math.round(dpr)) { all++; if (Math.abs(d[i] - 20) + Math.abs(d[i + 1] - 18) + Math.abs(d[i + 2] - 16) > 30) n++; } return n / all; };
+    const lit = (yy) => { const d = g.getImageData(0, Math.round(yy * dpr), cv.width, 1).data; let n = 0, all = 0; for (let i = 0; i < d.length; i += 4 * Math.round(dpr)) { all++; if (Math.abs(d[i] - 20) + Math.abs(d[i + 1] - 18) + Math.abs(d[i + 2] - 16) > 30) n++; } return n / all; };
     return { at: Math.max(lit(y0), lit(y0 + 1), lit(y0 - 1)), below: lit(y0 + 5) };
   }, [gainKey]);
   T.ok(guide.at > 0.2 && guide.at > guide.below * 2, `a Level lane draws a 0 dB guide (${Math.round(guide.at * 100)}% of the row at unity is inked, ${Math.round(guide.below * 100)}% just under it)`);
@@ -684,14 +684,14 @@ try {
   await sleep(120);
   const madd = await E(() => [...document.querySelectorAll('.ek-pop .ek-head')].map((b) => b.textContent));
   await E(() => document.querySelector('.ek-pop')?.remove());
-  await E((id) => { const o = window.overdub; const t = o.store.get().tracks.find((x) => x.id === id); return o.arranger.showLane('master', { param: 'gain' }); }, tid);
+  await E((id) => { const o = window.overdub; return o.arranger.showLane('master', { param: 'gain' }); }, tid);
   await sleep(250);
   const mrow = (await E(() => window.overdub.arranger.laneRows())).find((r) => r.key === 'master/gain');
   const mhead = await E(() => document.querySelector('.ar-mhead')?.textContent || '');
   T.ok(mrow && mrow.track === 'master' && /Master/.test(mhead), `the master gets a block of its own under the last track: "${mhead}", its Level lane at ${Math.round(mrow?.top || 0)} px`);
   await E(() => { const o = window.overdub; const r = o.arranger.laneRows().find((x) => x.key === 'master/gain'); document.querySelector('.ar-scroll').scrollTop += Math.max(0, r.bottom - (document.querySelector('.ar-scroll').getBoundingClientRect().bottom - 20)); });
   await sleep(200);
-  const mr2 = (await E(() => window.overdub.arranger.laneRows())).find((r) => r.key === 'master/gain');
+  await E(() => window.overdub.arranger.laneRows());
   await sleep(450);
   await page.mouse.click(await xOf(8), await yAt('master/gain', -40));
   await sleep(150);

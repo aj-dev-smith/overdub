@@ -165,7 +165,7 @@ export function authorOf(by, app = null) {
   if (typeof by === 'string' && /^author:./.test(by)) return { kind: 'human', name: by.slice(7) };
   if (typeof by === 'string' && /^agent:./.test(by)) return { kind: 'agent', name: by.slice(6) };
   let a = null;
-  try { a = app && app.store && app.store.author ? app.store.author(by) : null; } catch (e) { a = null; }
+  try { a = app && app.store && app.store.author ? app.store.author(by) : null; } catch { a = null; }
   if (a && a.kind) return { kind: a.kind === 'agent' ? 'agent' : a.kind === 'house' ? 'house' : 'human', name: a.kind === 'house' ? 'the house' : a.name || String(by) };
   const id = String(by);
   if (id === 'you') return { kind: 'human', name: 'You' };

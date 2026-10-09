@@ -440,7 +440,7 @@ let link = null, sent = null;
   T.ok(items.includes('Share a link'), 'the Song menu has "Share a link"');
   const sub = await page.$$eval('.sm-i', (els) => els.map((e) => e.textContent).find((t) => /Share a link/.test(t)) || '');
   T.ok(/not its audio clips/.test(sub), 'and says audio clips don\'t travel');
-  await page.evaluate(() => { window.__copied = null; window.__copies = []; try { navigator.clipboard.writeText = async (t) => { window.__copied = t; window.__copies.push(t); }; } catch (e) { /* ok */ } });
+  await page.evaluate(() => { window.__copied = null; window.__copies = []; try { navigator.clipboard.writeText = async (t) => { window.__copied = t; window.__copies.push(t); }; } catch { /* ok */ } });
   await page.$$eval('.sm-i', (els) => els.find((e) => /Share a link/.test(e.textContent)).click());
   await page.waitForSelector('.sh-sheet', { timeout: 5000 });
   await page.waitForTimeout(200);
@@ -699,7 +699,7 @@ let link = null, sent = null;
   await page.goto(base + '/app/?beacon' + await linkOf(S.shareable(song).song), { waitUntil: 'load' });
   await ready(page);
   await page.waitForFunction(() => window.overdub?.share?.listening, null, { timeout: 8000 }).catch(() => {});
-  await page.evaluate(() => { const app = window.overdub; for (const tab of ['mixer', 'arranger']) { try { app.ui.show(tab); } catch (e) { /* ok */ } } try { app.ui.select({ track: app.store.get().tracks[0].id }); } catch (e) { /* ok */ } });
+  await page.evaluate(() => { const app = window.overdub; for (const tab of ['mixer', 'arranger']) { try { app.ui.show(tab); } catch { /* ok */ } } try { app.ui.select({ track: app.store.get().tracks[0].id }); } catch { /* ok */ } });
   await page.waitForTimeout(1500);
   const st = await page.evaluate(() => ({ listening: !!window.overdub.share.listening, colors: window.overdub.store.get().tracks.map((t) => t.color) }));
   T.ok(st.listening && !fetched.length && st.colors.every((c) => /^var\(--c-\d\)$/.test(c)), `a link whose colours are url(...) opens and fetches nothing as it draws (${fetched.length} requests${fetched.length ? ': ' + fetched.slice(0, 2).join(', ') : ''}; its tracks get palette colours)`);
@@ -799,7 +799,7 @@ function heldSong() {
 }
 const WATCH = () => {
   const seen = window.__kernels = [];
-  const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch (e) { /* not a kernel */ } };
+  const note = (x) => { try { const s = typeof x === 'string' ? x : JSON.stringify(x); const m = s && s.match(/MARK-[A-Z]+/g); if (m) seen.push(...m); } catch { /* not a kernel */ } };
   const AWN = window.AudioWorkletNode;
   if (AWN) window.AudioWorkletNode = class extends AWN { constructor(c, name, o) { note(o && o.processorOptions); super(c, name, o); } };
   const post = MessagePort.prototype.postMessage;
@@ -1131,7 +1131,7 @@ console.log('Take one');
   T.ok(blocks < 0.25, `the card covers ${Math.round(blocks * 100)}% of the arranger`);
 
   // 1. hear it: the real transport
-  await page.evaluate(async () => { const e = window.overdub.engine; try { await e.start(); } catch (x) { /* ok */ } e.play(0); });
+  await page.evaluate(async () => { const e = window.overdub.engine; try { await e.start(); } catch { /* ok */ } e.play(0); });
   await page.waitForFunction(() => window.overdub.onboard.step === 'take', null, { timeout: 5000 }).catch(() => {});
   await page.evaluate(() => window.overdub.engine.stop());
   const s1 = await page.evaluate(() => ({ step: window.overdub.onboard.step, text: document.querySelector('.ob')?.textContent }));

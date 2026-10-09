@@ -83,10 +83,10 @@ export function click(sr, hi) {
 const KEY = 'overdub:latency';
 export function createLatency(audio) {
   let all = {};
-  try { all = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; if (typeof all !== 'object' || Array.isArray(all)) all = {}; } catch (e) { all = {}; }
+  try { all = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; if (typeof all !== 'object' || Array.isArray(all)) all = {}; } catch { all = {}; }
   const fns = new Set();
   const fire = () => { for (const fn of fns) { try { fn(api.measured); } catch (e) { console.error('latency onChange', e); } } };
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) { /* private mode */ } };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* private mode */ } };
   const dev = () => String(audio.state.deviceId || 'default');
   const api = {
     // seconds: measured for this input, else the browser's guess
@@ -129,7 +129,7 @@ export function createLatency(audio) {
         for (let k = 0; k < reps; k++) F.push(F0 + k * gap);
         const src = F.map((f) => shot(b, f / sr));
         const x = await record(F0, F[reps - 1] + gap + ref.length);
-        if (!x) { for (const s of src) { try { s.stop(); } catch (e) { /* done */ } } return null; }
+        if (!x) { for (const s of src) { try { s.stop(); } catch { /* done */ } } return null; }
         const finds = F.map((f) => xcorr(ref, x, f - F0, maxLag));
         const good = finds.filter((r) => r.ratio >= 8 && Number.isFinite(r.lag));
         const lags = good.map((r) => r.lag), lag = median(lags);
@@ -152,7 +152,7 @@ export function createLatency(audio) {
           next++;
         }
       });
-      if (!x) { for (const s of src) { try { s.stop(); } catch (e) { /* done */ } } return null; }
+      if (!x) { for (const s of src) { try { s.stop(); } catch { /* done */ } } return null; }
       const used = hs.slice(warm).filter((v) => v != null);
       const res = { how, hits: hs, used: used.length, of: n - warm, ms: median(used), spread: used.length ? Math.max(...used) - Math.min(...used) : NaN };
       res.ok = used.length >= 4 && res.spread <= 40;

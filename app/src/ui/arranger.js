@@ -62,8 +62,8 @@ import {
   presenceList, drawCrop, drawLabel, bylineOf, displayFont, snapTo, floorTo, SNAPS, snapLabel, menu, popover, closePopover, MOD, showAgent, touchFirst,
 } from './arrange-kit.js';
 import {
-  planSectionDuplicate, planTimeInsert, planTimeRemove, planClipRepeat, planClipSplit, planClipTrim, spanLabel, whereLabel, followClips, takeFolders, takeNumber,
-  planTakeComp, planTakeLaneDelete, planTakesFlatten, retake, barBeat, barBeatSpan, planDropTrim,
+  planSectionDuplicate, planTimeInsert, planTimeRemove, planClipRepeat, planClipSplit, planClipTrim, spanLabel, whereLabel, followClips, takeFolders, 
+  planTakeComp, planTakeLaneDelete, planTakesFlatten, retake, barBeatSpan, planDropTrim,
 } from '../core/arrangement.js';
 import { laneKey, laneAt, lanesOf, valueAt, toPos, laneView } from '../core/automation.js';
 import { DEVICE_CATS } from '../devices/registry.js';
@@ -216,12 +216,12 @@ function mountArranger(el, app) {
     const KEY = 'overdub:welcomed';
     // (never in the simple view: its first screen is the blank sheet, and Night Shift is one link on it. Marked as
     // seen all the same: a song switched to the full studio later isn't introduced as if it were the demo)
-    try { if (localStorage.getItem(KEY) === '1') return; localStorage.setItem(KEY, '1'); } catch (e) { return; }
+    try { if (localStorage.getItem(KEY) === '1') return; localStorage.setItem(KEY, '1'); } catch { return; }
     if (app.ui.workspace?.view?.() === 'simple') return;
     const pr = app.store.get();
     if (!pr.tracks.length) return;
     const offs = [];
-    const close = () => { for (const o of offs.splice(0)) { try { o?.(); } catch (e) { /* ok */ } } if (!card.isConnected || card.classList.contains('out')) return; card.classList.add('out'); setTimeout(() => card.remove(), 220); };
+    const close = () => { for (const o of offs.splice(0)) { try { o?.(); } catch { /* ok */ } } if (!card.isConnected || card.classList.contains('out')) return; card.classList.add('out'); setTimeout(() => card.remove(), 220); };
     const tour = () => { close(); if (!app.onboard?.start?.({ force: true, restart: true })) app.ui.toast('The tour is still loading'); };
     // the main action: the first minute (docs/research/RECORDING-UX.md 3.3) as Take one's first steps.
     // app.onboard.firstMinute('tap') owns the flow (a Drums track, a 2-bar loop, the click, Sketch on Tap it, the loop
@@ -288,7 +288,9 @@ function mountArranger(el, app) {
   }
 
   /* ======================================================= state */
-  let dirty = true, rulerDirty = true;
+  let dirty = true,
+    // biome-ignore lint/correctness/noUnusedVariables: set everywhere the ruler changes, but drawRuler never checks it yet (it redraws every frame)
+    rulerDirty = true;
   let follow = true, followPauseUntil = 0;
   let selClips = new Set();      // clip ids (the primary one is ui.state.selection.clip)
   let selSection = null;
@@ -311,7 +313,7 @@ function mountArranger(el, app) {
                                  // "muted", "kept off", or null), for the checks and anyone asking what's on screen
   // a track whose instrument is held (a song's code this browser hasn't allowed, devices/trust.js): it plays silence
   const keptOffTrack = (t) => !!(t && t.kind !== 'audio' && t.instrument && app.devices?.heldDevice?.(t.instrument.device));
-  let rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null };   // what the take in progress drew
+  const rec = { take: null, peaks: [], trace: [], lastTrace: null, view: null };   // what the take in progress drew
 
   const ppb = () => zoom.pxPerBeat;
   const th = () => zoom.trackH;
@@ -704,10 +706,10 @@ function mountArranger(el, app) {
   const FOLLOW_KEY = 'overdub:arrange';
   function lanesFollow(on) {
     let cfg = {};
-    try { cfg = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {}; } catch (e) { cfg = {}; }
+    try { cfg = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '{}') || {}; } catch { cfg = {}; }
     if (on === undefined) return cfg.followLanes !== false;
     cfg.followLanes = !!on;
-    try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(cfg)); } catch (e) { /* private mode */ }
+    try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(cfg)); } catch { /* private mode */ }
     return cfg.followLanes;
   }
   // the auto.writes that carry the lanes under these clips to where they land (core/arrangement.js followClips)
@@ -763,8 +765,8 @@ function mountArranger(el, app) {
     const ar = app.input?.autorec;
     if (!ar?.recording) { touchFrom.clear(); return null; }
     let w = [], held = [];
-    try { w = ar.writes?.() || []; } catch (e) { w = []; }
-    try { held = (ar.touching?.() || []).filter((x) => !x.mode || x.mode === 'rec'); } catch (e) { held = []; }
+    try { w = ar.writes?.() || []; } catch { w = []; }
+    try { held = (ar.touching?.() || []).filter((x) => !x.mode || x.mode === 'rec'); } catch { held = []; }
     const out = w.filter((op) => op && op.param && Number.isFinite(op.from) && Number.isFinite(op.to));
     const now = (app.engine || engine)?.beat || 0, lp = P().loop, seen = new Set();
     for (const x of held) {
@@ -1062,7 +1064,7 @@ function mountArranger(el, app) {
   function aimId() {
     const R = recorder();
     if (!R || typeof R.lands !== 'function') return null;
-    try { return R.lands()?.id || null; } catch (e) { return null; }
+    try { return R.lands()?.id || null; } catch { return null; }
   }
   function ghostInfo() {
     const tr = app.sounds?.trying?.();
@@ -1073,10 +1075,10 @@ function mountArranger(el, app) {
     const busy = R.state && R.state !== 'idle';
     if (!busy && !ui.visible?.('sketch')) return null;
     let lands;
-    try { lands = R.lands(); } catch (e) { return null; }
+    try { lands = R.lands(); } catch { return null; }
     if (lands !== null) return null;
     let hum = false;
-    try { hum = !!R.humming?.(); } catch (e) { hum = false; }
+    try { hum = !!R.humming?.(); } catch { hum = false; }
     const kind = hum ? 'hum' : app.input?.mode === 'tap' ? 'pads' : 'keys';
     const part = app.sounds?.newPart?.(kind) || { device: kind === 'pads' ? 'core.drums' : 'core.keys' };
     return { track: null, name: `A new track, ${deviceName(app, part.device)}` };
@@ -1233,9 +1235,9 @@ function mountArranger(el, app) {
     row.classList.add('dragging');
     const r = row.getBoundingClientRect();
     trackMenu({ x: pt?.clientX ?? r.left + 20, y: pt?.clientY ?? r.top + r.height / 2 }, t);
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try { navigator.vibrate?.(12); } catch { /* no buzz */ }
     let first = false;
-    try { first = localStorage.getItem(HEAD_LIFT_HINT) !== '1'; if (first) localStorage.setItem(HEAD_LIFT_HINT, '1'); } catch (e) { first = false; }
+    try { first = localStorage.getItem(HEAD_LIFT_HINT) !== '1'; if (first) localStorage.setItem(HEAD_LIFT_HINT, '1'); } catch { first = false; }
     if (first) ui.toast(`Holding ${t.name} opens its menu; keep holding and drag up or down to move it. M mutes it; a drag without holding scrolls.`, { ms: 7000 });
     else say(`${t.name}: its menu. Keep holding and drag to move it.`);
   }
@@ -1555,7 +1557,7 @@ function mountArranger(el, app) {
     const one = list.length === 1, c = list[0].c, name = one ? c.name || list[0].t.name : `${list.length} clips`;
     const where = one ? `, ${barsOf(c)}` : '';
     let first = false;
-    try { first = mute && localStorage.getItem(MUTE_HINT) !== '1'; if (first) localStorage.setItem(MUTE_HINT, '1'); } catch (e) { first = false; }
+    try { first = mute && localStorage.getItem(MUTE_HINT) !== '1'; if (first) localStorage.setItem(MUTE_HINT, '1'); } catch { first = false; }
     const key = touchFirst() ? null : h('kbd', '0');
     const them = one ? 'it' : 'them';
     const text = !mute ? [`${name} ${one ? 'plays' : 'play'} again${where}.`]
@@ -1985,11 +1987,11 @@ function mountArranger(el, app) {
     const items = mode === 'move' ? moveItems(selectedList()) : [{ t, c, row: tracks().indexOf(t), start: c.start }];
     Object.assign(d, { mode, items, copy: false, moved: false, dBeat: 0, dRow: 0, len: c.length, start: c.start, lifted: true });
     delete d.pan;
-    try { navigator.vibrate?.(12); } catch (e) { /* no buzz */ }
+    try { navigator.vibrate?.(12); } catch { /* no buzz */ }
     // its menu opens while it is held (a drag from here closes it and moves the clip)
     clipMenu({ x: d.pt0.vx + scroller.getBoundingClientRect().left, y: d.pt0.vy + scroller.getBoundingClientRect().top }, t, c);
     let first = false;
-    try { first = localStorage.getItem(LIFT_HINT) !== '1'; if (first) localStorage.setItem(LIFT_HINT, '1'); } catch (e) { first = false; }
+    try { first = localStorage.getItem(LIFT_HINT) !== '1'; if (first) localStorage.setItem(LIFT_HINT, '1'); } catch { first = false; }
     const name = c.name || t.name;
     if (first) ui.toast(`Holding ${name} opens its menu (Mute is in it); keep holding and drag to move it. A drag without holding scrolls.`, { ms: 7000 });
     else say(`${name}: its menu. Keep holding and drag to move it.`);
@@ -2321,7 +2323,7 @@ function mountArranger(el, app) {
   // A melodic instrument on a drum track, or a kit on a pitched track with notes: a drop there makes a new track rather
   // than turning the hits into notes (rack.js isMismatch when the browser's package has it; the same rule here)
   function mismatch(def, t) {
-    if (typeof rackKit.isMismatch === 'function') { try { return !!rackKit.isMismatch(def, t, P()); } catch (e) { /* the rule below */ } }
+    if (typeof rackKit.isMismatch === 'function') { try { return !!rackKit.isMismatch(def, t, P()); } catch { /* the rule below */ } }
     if (!def || def.kind !== 'instrument' || !t || t.kind !== 'instrument') return false;
     const kit = def.cat === 'drums', drums = isDrumTrack(app, t);
     if (!kit && drums) return true;
@@ -3420,7 +3422,7 @@ function mountArranger(el, app) {
     const ar = app.input?.autorec;
     if (!ar?.recording) { if (autoOpened.size) autoOpened.clear(); return; }
     let held = [];
-    try { held = ar.touching?.() || []; } catch (e) { held = []; }
+    try { held = ar.touching?.() || []; } catch { held = []; }
     let changed = false;
     for (const x of held) {
       if (x.mode && x.mode !== 'rec') continue;
