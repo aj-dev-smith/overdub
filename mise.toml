@@ -1,2 +1,9 @@
 [tools]
 node = "24"
+# The static-analysis tools (npm run check). Pinned, and none of them is a dependency of the studio: package.json
+# stays empty. CI installs the same versions through mise-action.
+"aqua:biomejs/biome" = "2.5.15"
+"npm:typescript" = "5.9.3"
+shellcheck = "0.11.0"
+actionlint = "1.7.12"
+"aqua:zizmorcore/zizmor" = "1.30.1"

@@ -1,0 +1,116 @@
+{
+  // Lint and format (npm run lint, npm run format; npm run check runs every gate CI runs). Biome comes from mise.toml.
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**",
+      // Not ours to restyle: vendored verbatim (tools/vendor-clawd.js), generated (each says by what), or frozen data.
+      "!app/vendor",
+      "!app/src/devices/guitar/*.gen.js",
+      "!app/src/devices/builtin/akwf.js",
+      "!app/src/devices/library/reports.js",
+      "!tools/fixtures"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "includes": [
+      // A ratchet, like // @ts-check: only these paths are formatted (and checked by npm run check). Add a directory
+      // in a PR of its own that only runs npm run format on it, when nobody has a branch open there
+      // (CONTRIBUTING.md, "Static checks").
+      "test/unit/**",
+      // Never, wherever the list grows to. Kernel source: these functions' own text (fn.toString(), `${fn}`) is
+      // pasted into a built-in kernel, and a kernel is trusted by the SHA-256 of its source (devices/trust.js).
+      // Reformatting them changes the kernels of core.eq8, core.multiband, core.stack, core.bassrig and
+      // core.wavetable, and holds every saved song's copy.
+      "!app/src/devices/builtin/amp-lib.js",
+      "!app/src/devices/builtin/eq8-curve.js",
+      "!app/src/devices/builtin/multiband-curve.js",
+      "!app/src/devices/builtin/wavetables.js",
+      // Shipped as it is, inside an SSM command (deploy/relay/deploy.sh): the payload is held under 60 KB and the
+      // formatter's line breaks alone take it over.
+      "!server/relay.js"
+    ]
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "always", "arrowParentheses": "always" }
+  },
+  // Single quotes in CSS too: tools/brand-test.js reads fonts.css and tokens.css as text.
+  "css": { "formatter": { "quoteStyle": "single" } },
+  // JSON is written by the tools that own it (JSON.stringify): golden.json, the bench, the kits. HTML is mostly
+  // generated (tools/docs-build.js) and Biome's HTML support is young.
+  "json": { "formatter": { "enabled": false }, "linter": { "enabled": false } },
+  "html": { "formatter": { "enabled": false }, "linter": { "enabled": false } },
+  "assist": { "enabled": false },
+  "linter": {
+    "rules": {
+      "recommended": true,
+      "style": {
+        // House style: dense one-liners, string concatenation where it reads better, Math.pow in DSP (`**` is
+        // folded differently by V8 in places, and renders are held bit-exact).
+        "useTemplate": "off",
+        "useExponentiationOperator": "off",
+        "noDescendingSpecificity": "off"
+      },
+      "complexity": {
+        "useOptionalChain": "off",
+        "noCommaOperator": "off",
+        "useArrowFunction": "off",
+        "noUselessStringRaw": "off",
+        // A bare { } with a comment over it is how a long function is sectioned here ("the drummer's seat").
+        "noUselessLoneBlockStatements": "off",
+        "noImportantStyles": "off"
+      },
+      "suspicious": {
+        // `if ((m = re.exec(s)))` and `xs.forEach((x) => a.push(x))` are idioms here, not slips.
+        "noAssignInExpressions": "off",
+        "useIterableCallbackReturn": "off",
+        // The sanitisers match control characters on purpose.
+        "noControlCharactersInRegex": "off",
+        // A DSP constant written out (3.14159, 0.7071) is the number the golden renders were made with: swapping in
+        // Math.PI or Math.SQRT1_2 moves the sound.
+        "noApproximativeNumericConstant": "off",
+        // Number.isFinite / Number.isNaN don't coerce, the globals do: swapping one for the other changes behaviour.
+        "noGlobalIsFinite": "off",
+        "noGlobalIsNan": "off",
+        // x !== x is the NaN test in the worklet's hot loops, on purpose.
+        "noSelfCompare": "off"
+      },
+      "correctness": {
+        // Panels, ops and kernels implement interfaces (frame(now), (t, i) => ...): an unused parameter is the shape.
+        "noUnusedFunctionParameters": "off",
+        "noUnusedVariables": "error",
+        // A name nothing declares is a ReferenceError waiting for its branch to run.
+        "noUndeclaredVariables": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      // (Before the worklet scope below: a later override's globals replace an earlier's.)
+      // The browser suites' page.evaluate callbacks run in the studio page: window.overdub, and the helpers a suite
+      // puts on window first (engine-test's mk, bareStore).
+      "includes": ["tools/**"],
+      "javascript": { "globals": ["overdub", "mk", "bareStore"] }
+    },
+    {
+      // AudioWorkletGlobalScope
+      "includes": ["app/src/kernel/worklet.js", "app/src/devices/worklets/*.js", "app/src/input/cap-worklet.js", "tools/test-worklets.js"],
+      "javascript": { "globals": ["AudioWorkletProcessor", "registerProcessor", "sampleRate", "currentFrame", "currentTime"] }
+    },
+    {
+      // A CloudFront Function: ES5.1 (cloudfront-js-1.0), so var in blocks; the runtime calls handler, so it looks unused.
+      "includes": ["deploy/path-rewrite.js"],
+      "linter": { "rules": { "correctness": { "noInnerDeclarations": "off", "noUnusedVariables": "off" } } }
+    },
+    {
+      // lightTables' source becomes kernel text and runs standalone there, so its 'use strict' is not redundant;
+      // overdubDsp's says the same about the worklet's module scope on purpose.
+      "includes": ["app/src/kernel/dsp.js", "app/src/devices/builtin/wavetables.js"],
+      "linter": { "rules": { "suspicious": { "noRedundantUseStrict": "off" } } }
+    }
+  ]
+}
