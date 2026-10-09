@@ -3,7 +3,18 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStore } from '../../app/src/core/store.js';
 import { createProject } from '../../app/src/core/project.js';
-import { diffProjects, opsSummary, targetsOf, laneLine, laneValue, paramValue, paramWord, lanesIn, pointsOf, isArrangementOp } from '../../app/src/agent/diff.js';
+import {
+  diffProjects,
+  opsSummary,
+  targetsOf,
+  laneLine,
+  laneValue,
+  paramValue,
+  paramWord,
+  lanesIn,
+  pointsOf,
+  isArrangementOp,
+} from '../../app/src/agent/diff.js';
 
 const snap = (s) => structuredClone(s.get());
 // A song with a Bass track holding one clip "Walk" (A1, E3).
@@ -16,7 +27,14 @@ function band() {
   assert.equal(r.ok, true);
   return { s, t: r.created.b, c: r.created.c };
 }
-const VERB = { id: 'x.verb', name: 'Hall', params: [{ key: 'mix', label: 'MIX', def: 0.2, unit: '%' }, { key: 'size', label: 'Room size', unit: 's' }] };
+const VERB = {
+  id: 'x.verb',
+  name: 'Hall',
+  params: [
+    { key: 'mix', label: 'MIX', def: 0.2, unit: '%' },
+    { key: 'size', label: 'Room size', unit: 's' },
+  ],
+};
 const getDevice = (id) => (id === 'x.verb' ? VERB : null);
 
 describe('diffProjects', () => {
@@ -28,7 +46,28 @@ describe('diffProjects', () => {
   test('a new track names its instrument, clips and notes; ids only when asked', () => {
     const s = createStore(createProject());
     const A = snap(s);
-    const { t } = (() => { const r = s.dispatch({ type: 'track.add', ref: 'b', track: { name: 'Bass', instrument: { device: 'core.poly' }, clips: [{ start: 0, length: 4, notes: [{ p: 36, t: 0, d: 1 }, { p: 43, t: 1, d: 1 }, { p: 48, t: 2, d: 1 }] }] } }); return { t: r.created.b }; })();
+    const { t } = (() => {
+      const r = s.dispatch({
+        type: 'track.add',
+        ref: 'b',
+        track: {
+          name: 'Bass',
+          instrument: { device: 'core.poly' },
+          clips: [
+            {
+              start: 0,
+              length: 4,
+              notes: [
+                { p: 36, t: 0, d: 1 },
+                { p: 43, t: 1, d: 1 },
+                { p: 48, t: 2, d: 1 },
+              ],
+            },
+          ],
+        },
+      });
+      return { t: r.created.b };
+    })();
     const B = snap(s);
     assert.deepEqual(diffProjects(A, B), [`new track ${t} "Bass" (core.poly), 1 clip, 3 notes`]);
     assert.deepEqual(diffProjects(A, B, { ids: false }), ['new track "Bass" (core.poly), 1 clip, 3 notes']);
@@ -40,7 +79,10 @@ describe('diffProjects', () => {
   test('a new track whose clip notes are given as text keeps them', () => {
     const s = createStore(createProject());
     const A = snap(s);
-    s.dispatch({ type: 'track.add', track: { name: 'Bass', clips: [{ start: 0, length: 4, notes: 'C2@0:1 G2@1:1 C3@2:1' }] } });
+    s.dispatch({
+      type: 'track.add',
+      track: { name: 'Bass', clips: [{ start: 0, length: 4, notes: 'C2@0:1 G2@1:1 C3@2:1' }] },
+    });
     assert.equal(s.get().tracks[0].clips[0].notes.length, 3);
     assert.match(diffProjects(A, snap(s))[0], /1 clip, 3 notes$/);
   });
@@ -60,7 +102,10 @@ describe('diffProjects', () => {
     assert.ok(keys.includes('meter 4/4 → 3/4'));
     assert.ok(keys.includes('Bass: gain 0 → -3 dB'));
     assert.ok(keys.includes('Bass: mute false → true'));
-    assert.ok(keys.some((l) => l.startsWith('Bass: + Hall insert (fx_') && l.endsWith('mix 0.2 (default) → 0.3%')), keys.join('\n'));
+    assert.ok(
+      keys.some((l) => l.startsWith('Bass: + Hall insert (fx_') && l.endsWith('mix 0.2 (default) → 0.3%')),
+      keys.join('\n'),
+    );
     const words = diffProjects(A, B, { getDevice, ids: false });
     assert.ok(words.includes('Bass: level 0 → -3 dB'));
     assert.ok(words.includes('Bass: muted'));
@@ -112,26 +157,55 @@ describe('opsSummary', () => {
   test('counts notes in text, lists and grids, and names the track', () => {
     const { s, t } = band();
     const p = s.get();
-    assert.equal(opsSummary([{ type: 'notes.add', track: t, clip: 'x', notes: 'C4@0:1 D4@1:1' }], p), '+2 notes · Bass');
-    assert.equal(opsSummary([{ type: 'notes.add', track: 'Bass', clip: 'x', notes: [{ p: 60 }] }], p), '+1 note · Bass');
-    assert.equal(opsSummary([{ type: 'clip.add', track: t, clip: { grid: { rows: { kick: 'x...x...', hat: 'x.x.x.x.' } } } }], p), 'new clip, +6 notes · Bass');
-    assert.equal(opsSummary([{ type: 'notes.remove', track: t, clip: 'x', ids: ['n1', 'n2', 'n3'] }], p), '−3 notes · Bass');
+    assert.equal(
+      opsSummary([{ type: 'notes.add', track: t, clip: 'x', notes: 'C4@0:1 D4@1:1' }], p),
+      '+2 notes · Bass',
+    );
+    assert.equal(
+      opsSummary([{ type: 'notes.add', track: 'Bass', clip: 'x', notes: [{ p: 60 }] }], p),
+      '+1 note · Bass',
+    );
+    assert.equal(
+      opsSummary([{ type: 'clip.add', track: t, clip: { grid: { rows: { kick: 'x...x...', hat: 'x.x.x.x.' } } } }], p),
+      'new clip, +6 notes · Bass',
+    );
+    assert.equal(
+      opsSummary([{ type: 'notes.remove', track: t, clip: 'x', ids: ['n1', 'n2', 'n3'] }], p),
+      '−3 notes · Bass',
+    );
   });
 
   test('song settings read as what they are', () => {
-    assert.equal(opsSummary([{ type: 'project.set', patch: { tempo: 98, key: { root: 'A', scale: 'harmonicMinor' } } }]), 'tempo 98, key A harmonic minor');
-    assert.equal(opsSummary([{ type: 'project.set', patch: { loop: { on: true, start: 0, end: 32 } } }]), 'loop bars 1–8');
+    assert.equal(
+      opsSummary([{ type: 'project.set', patch: { tempo: 98, key: { root: 'A', scale: 'harmonicMinor' } } }]),
+      'tempo 98, key A harmonic minor',
+    );
+    assert.equal(
+      opsSummary([{ type: 'project.set', patch: { loop: { on: true, start: 0, end: 32 } } }]),
+      'loop bars 1–8',
+    );
     assert.equal(opsSummary([{ type: 'project.set', patch: { loop: { on: false } } }]), 'loop off');
-    assert.equal(opsSummary([{ type: 'master.set', patch: { gain: -1.5 } }]), 'master level -1.5 dB · Master'.replace(' · Master', ''));
+    assert.equal(
+      opsSummary([{ type: 'master.set', patch: { gain: -1.5 } }]),
+      'master level -1.5 dB · Master'.replace(' · Master', ''),
+    );
   });
 
   test('devices by name, an insert removed by what it was', () => {
     const { s, t } = band();
     s.dispatch({ type: 'insert.add', track: t, ref: 'v', insert: { device: 'x.verb' } });
     const fx = s.get().tracks[0].inserts[0].id;
-    assert.equal(opsSummary([{ type: 'insert.add', track: t, insert: { device: 'x.verb' } }], s.get(), { getDevice }), '+Hall · Bass');
+    assert.equal(
+      opsSummary([{ type: 'insert.add', track: t, insert: { device: 'x.verb' } }], s.get(), { getDevice }),
+      '+Hall · Bass',
+    );
     assert.equal(opsSummary([{ type: 'insert.remove', track: t, insert: fx }], s.get(), { getDevice }), '−Hall · Bass');
-    assert.equal(opsSummary([{ type: 'insert.set', track: t, insert: fx, patch: { params: { size: 2 }, on: false } }], s.get(), { getDevice }), 'Hall Room size, bypassed · Bass');
+    assert.equal(
+      opsSummary([{ type: 'insert.set', track: t, insert: fx, patch: { params: { size: 2 }, on: false } }], s.get(), {
+        getDevice,
+      }),
+      'Hall Room size, bypassed · Bass',
+    );
   });
 
   test('a clip made and repeated in one call counts its copies', () => {
@@ -144,7 +218,14 @@ describe('opsSummary', () => {
   });
 
   test('repeated counters and at most three parts and three tracks', () => {
-    assert.equal(opsSummary([{ type: 'section.add', section: { name: 'A' } }, { type: 'track.add', track: {} }, { type: 'track.add', track: {} }]), 'new section A, new track ×2');
+    assert.equal(
+      opsSummary([
+        { type: 'section.add', section: { name: 'A' } },
+        { type: 'track.add', track: {} },
+        { type: 'track.add', track: {} },
+      ]),
+      'new section A, new track ×2',
+    );
     assert.equal(opsSummary([]), '');
     assert.equal(opsSummary([null, 7, { type: 'weird.thing' }]), 'weird thing');
   });
@@ -153,7 +234,14 @@ describe('opsSummary', () => {
 describe('targetsOf', () => {
   test('resolves refs, track names and created ids', () => {
     const { s, t, c } = band();
-    const r = targetsOf([{ type: 'notes.add', track: 'Bass', clip: c }, { type: 'clip.add', track: '$k', clip: '$z' }], s.get(), { k: 't_newone', z: 'c_newone' });
+    const r = targetsOf(
+      [
+        { type: 'notes.add', track: 'Bass', clip: c },
+        { type: 'clip.add', track: '$k', clip: '$z' },
+      ],
+      s.get(),
+      { k: 't_newone', z: 'c_newone' },
+    );
     assert.deepEqual(r.tracks.sort(), [t, 't_newone'].sort());
     assert.deepEqual(r.clips.sort(), [c, 'c_newone'].sort());
   });
@@ -195,11 +283,23 @@ describe('lanes in words', () => {
   test('laneLine for write, clear and hold', () => {
     const { s } = band();
     const p = s.get();
-    assert.equal(laneLine({ type: 'auto.write', track: 'Bass', param: 'gain', points: '0:-6 16:0' }, p), 'wrote level on Bass, bars 1–4: -6 dB → 0 dB');
-    assert.equal(laneLine({ type: 'auto.write', track: 'Bass', param: 'pan', points: '0:0 4:1 8:0' }, p), 'wrote pan on Bass, bars 1–2: centre → 100% right and back');
+    assert.equal(
+      laneLine({ type: 'auto.write', track: 'Bass', param: 'gain', points: '0:-6 16:0' }, p),
+      'wrote level on Bass, bars 1–4: -6 dB → 0 dB',
+    );
+    assert.equal(
+      laneLine({ type: 'auto.write', track: 'Bass', param: 'pan', points: '0:0 4:1 8:0' }, p),
+      'wrote pan on Bass, bars 1–2: centre → 100% right and back',
+    );
     assert.equal(laneLine({ type: 'auto.clear', track: 'Bass', param: 'gain' }, p), 'removed the level lane on Bass');
-    assert.equal(laneLine({ type: 'auto.clear', track: 'Bass', param: 'gain', from: 4, to: 12 }, p), 'cleared level on Bass, bars 2–3');
-    assert.equal(laneLine({ type: 'auto.set', track: 'Bass', param: 'gain', patch: { off: true } }, p, { where: false }), 'held level');
+    assert.equal(
+      laneLine({ type: 'auto.clear', track: 'Bass', param: 'gain', from: 4, to: 12 }, p),
+      'cleared level on Bass, bars 2–3',
+    );
+    assert.equal(
+      laneLine({ type: 'auto.set', track: 'Bass', param: 'gain', patch: { off: true } }, p, { where: false }),
+      'held level',
+    );
   });
 
   test('pointsOf never throws on bad text', () => {

@@ -5,14 +5,21 @@ import assert from 'node:assert/strict';
 import { createStore, describe as label } from '../../app/src/core/store.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
-const song = (p) => { const s = clone(p); delete s.meta; return JSON.stringify(s); };
+const song = (p) => {
+  const s = clone(p);
+  delete s.meta;
+  return JSON.stringify(s);
+};
 
 function withKeys(by = 'you') {
   const store = createStore();
-  const r = store.dispatch([
-    { type: 'track.add', ref: 't', track: { name: 'Keys', instrument: { device: 'core.poly', params: {} } } },
-    { type: 'clip.add', ref: 'c', track: '$t', clip: { start: 0, length: 4, notes: 'C4@0:1' } },
-  ], { by });
+  const r = store.dispatch(
+    [
+      { type: 'track.add', ref: 't', track: { name: 'Keys', instrument: { device: 'core.poly', params: {} } } },
+      { type: 'clip.add', ref: 'c', track: '$t', clip: { start: 0, length: 4, notes: 'C4@0:1' } },
+    ],
+    { by },
+  );
   assert.ok(r.ok, r.error);
   return { store, t: r.created.t, c: r.created.c };
 }
@@ -93,7 +100,8 @@ describe('dispatch', () => {
     const kinds = [];
     const off = store.on('change', (e) => kinds.push(e.kind));
     store.dispatch({ type: 'project.set', patch: { tempo: 100 } });
-    store.undo(); store.redo();
+    store.undo();
+    store.redo();
     store.load({ title: 'x' });
     off();
     store.dispatch({ type: 'project.set', patch: { tempo: 110 } });
@@ -102,7 +110,8 @@ describe('dispatch', () => {
 
   test('silent dispatches are not emitted but are undoable', () => {
     const store = createStore();
-    let n = 0; store.on('change', () => n++);
+    let n = 0;
+    store.on('change', () => n++);
     store.dispatch({ type: 'project.set', patch: { tempo: 100 } }, { silent: true });
     assert.equal(n, 0);
     assert.ok(store.canUndo());
@@ -111,12 +120,17 @@ describe('dispatch', () => {
   test('a listener that throws does not stop the dispatch or the others', () => {
     const store = createStore();
     const seen = [];
-    const err = console.error; console.error = () => {};
+    const err = console.error;
+    console.error = () => {};
     try {
-      store.on('change', () => { throw new Error('boom'); });
+      store.on('change', () => {
+        throw new Error('boom');
+      });
       store.on('change', (e) => seen.push(e.kind));
       assert.ok(store.dispatch({ type: 'project.set', patch: { tempo: 100 } }).ok);
-    } finally { console.error = err; }
+    } finally {
+      console.error = err;
+    }
     assert.deepEqual(seen, ['do']);
   });
 
@@ -131,7 +145,8 @@ describe('undo and redo', () => {
   test('undo then redo, last in first out, and a new edit clears redo', () => {
     const store = createStore();
     for (const tempo of [100, 110, 120]) store.dispatch({ type: 'project.set', patch: { tempo } });
-    store.undo(); store.undo();
+    store.undo();
+    store.undo();
     assert.equal(store.get().tempo, 100);
     store.redo();
     assert.equal(store.get().tempo, 110);
@@ -166,7 +181,7 @@ describe('undo and redo', () => {
     assert.equal(store.get().tracks[0].id, r.created.track);
   });
 
-  test('undo by author takes that author\'s latest, keeping later edits by others', () => {
+  test("undo by author takes that author's latest, keeping later edits by others", () => {
     const { store, t } = withKeys();
     store.dispatch({ type: 'track.set', track: t, patch: { gain: -6 } }, { by: 'claude' });
     store.dispatch({ type: 'project.set', patch: { tempo: 88 } }, { by: 'you' });
@@ -178,12 +193,15 @@ describe('undo and redo', () => {
     assert.equal(store.undo({ by: 'claude' }).ok, false);
   });
 
-  test('an author\'s undo refuses, changing nothing, when someone else built on it', () => {
+  test("an author's undo refuses, changing nothing, when someone else built on it", () => {
     const store = createStore();
-    const r = store.dispatch([
-      { type: 'track.add', ref: 't', track: { name: 'Bass' } },
-      { type: 'clip.add', ref: 'c', track: '$t', clip: { notes: 'C2@0:1' } },
-    ], { by: 'claude' });
+    const r = store.dispatch(
+      [
+        { type: 'track.add', ref: 't', track: { name: 'Bass' } },
+        { type: 'clip.add', ref: 'c', track: '$t', clip: { notes: 'C2@0:1' } },
+      ],
+      { by: 'claude' },
+    );
     // the person adds notes to the agent's clip
     store.dispatch({ type: 'notes.add', track: r.created.t, clip: r.created.c, notes: 'E2@1:1' }, { by: 'you' });
     const before = song(store.get());
@@ -223,7 +241,7 @@ describe('undo and redo', () => {
 });
 
 describe('revertAuthor', () => {
-  test('takes out everything one author did, keeps everyone else\'s, and one redo puts it all back', () => {
+  test("takes out everything one author did, keeps everyone else's, and one redo puts it all back", () => {
     const { store, t } = withKeys('you');
     const start = song(store.get());
     store.dispatch({ type: 'track.set', track: t, patch: { gain: -6 } }, { by: 'claude' });
@@ -254,10 +272,13 @@ describe('revertAuthor', () => {
 
   test('reports what it had to skip', () => {
     const store = createStore();
-    const r = store.dispatch([
-      { type: 'track.add', ref: 't', track: { name: 'Bass' } },
-      { type: 'clip.add', ref: 'c', track: '$t', clip: { notes: 'C2@0:1' } },
-    ], { by: 'claude' });
+    const r = store.dispatch(
+      [
+        { type: 'track.add', ref: 't', track: { name: 'Bass' } },
+        { type: 'clip.add', ref: 'c', track: '$t', clip: { notes: 'C2@0:1' } },
+      ],
+      { by: 'claude' },
+    );
     store.dispatch({ type: 'notes.add', track: r.created.t, clip: r.created.c, notes: 'E2@1:1' }, { by: 'you' });
     const v = store.revertAuthor('claude');
     assert.equal(v.ok, false);
@@ -267,9 +288,10 @@ describe('revertAuthor', () => {
 });
 
 describe('coalesce and join', () => {
-  test('a gesture\'s dispatches with one coalesce key are one undo step', () => {
+  test("a gesture's dispatches with one coalesce key are one undo step", () => {
     const { store, t } = withKeys();
-    for (const gain of [-1, -2, -3, -4]) store.dispatch({ type: 'track.set', track: t, patch: { gain } }, { coalesce: 'gain:' + t });
+    for (const gain of [-1, -2, -3, -4])
+      store.dispatch({ type: 'track.set', track: t, patch: { gain } }, { coalesce: 'gain:' + t });
     assert.equal(store.history.length, 2);
     store.undo();
     assert.equal(store.track(t).gain, 0);
@@ -308,9 +330,13 @@ describe('coalesce and join', () => {
 describe('guard and preview', () => {
   test('a guard holds a change: nothing applied, nothing emitted', () => {
     const store = createStore();
-    let n = 0; store.on('change', () => n++);
+    let n = 0;
+    store.on('change', () => n++);
     const seen = [];
-    store.guard = (ops, info) => { seen.push(info.by); return { error: 'wait for a keep', hold: { id: 1 } }; };
+    store.guard = (ops, info) => {
+      seen.push(info.by);
+      return { error: 'wait for a keep', hold: { id: 1 } };
+    };
     const r = store.dispatch({ type: 'project.set', patch: { tempo: 70 } }, { by: 'claude' });
     assert.deepEqual([r.ok, r.held, r.error, r.hold], [false, true, 'wait for a keep', { id: 1 }]);
     assert.equal(store.get().tempo, 120);
@@ -322,18 +348,26 @@ describe('guard and preview', () => {
 
   test('a guard that throws lets the change through', () => {
     const store = createStore();
-    const err = console.error; console.error = () => {};
+    const err = console.error;
+    console.error = () => {};
     try {
-      store.guard = () => { throw new Error('bug'); };
+      store.guard = () => {
+        throw new Error('bug');
+      };
       assert.ok(store.dispatch({ type: 'project.set', patch: { tempo: 70 } }).ok);
-    } finally { console.error = err; }
+    } finally {
+      console.error = err;
+    }
   });
 
   test('preview applies outside the history and release takes it back exactly', () => {
     const { store, t } = withKeys();
     const before = song(store.get());
     const h = store.history.length;
-    const pv = store.preview([{ type: 'track.set', track: t, patch: { gain: -12 } }, { type: 'clip.add', track: t, clip: { start: 8, notes: 'A4@0:1' } }]);
+    const pv = store.preview([
+      { type: 'track.set', track: t, patch: { gain: -12 } },
+      { type: 'clip.add', track: t, clip: { start: 8, notes: 'A4@0:1' } },
+    ]);
     assert.ok(pv.ok);
     assert.equal(store.track(t).gain, -12);
     assert.equal(store.history.length, h);
@@ -372,7 +406,7 @@ describe('load', () => {
 });
 
 describe('authors', () => {
-  test('the studio\'s own, and an id\'s form fixes its kind', () => {
+  test("the studio's own, and an id's form fixes its kind", () => {
     const store = createStore();
     assert.deepEqual(store.author('you'), { kind: 'human', name: 'You' });
     assert.equal(store.author('claude').kind, 'agent');
@@ -385,12 +419,16 @@ describe('authors', () => {
   });
 
   test('a song cannot pass a guest off as an agent, or take a studio name', () => {
-    const store = createStore({ meta: { authors: { 'guest:sam-x': { kind: 'agent', name: 'Claude' }, 'guest:ana-y': { kind: 'human', name: 'Ana' } } } });
+    const store = createStore({
+      meta: {
+        authors: { 'guest:sam-x': { kind: 'agent', name: 'Claude' }, 'guest:ana-y': { kind: 'human', name: 'Ana' } },
+      },
+    });
     assert.deepEqual(store.author('guest:sam-x'), { kind: 'human', name: 'Guest' });
     assert.deepEqual(store.author('guest:ana-y'), { kind: 'human', name: 'Ana' });
   });
 
-  test('an agent that joins takes its name; a guest can\'t then go by it', () => {
+  test("an agent that joins takes its name; a guest can't then go by it", () => {
     const store = createStore({ meta: { authors: { 'guest:z-1': { kind: 'human', name: 'Cursor' } } } });
     assert.equal(store.author('guest:z-1').name, 'Cursor');
     store.addAuthor('mcp:cursor', { kind: 'agent', name: 'Cursor' });

@@ -1,15 +1,29 @@
 // app/src/audio/measure.js, the ears, on synthetic buffers whose levels are known (and app/src/audio/testsignals.js).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { FLOOR, channelsOf, lufs, truePeak, onsets, chroma, keyOf, measure, lowMono, dbToGain, gainToDb } from '../../app/src/audio/measure.js';
+import {
+  FLOOR,
+  channelsOf,
+  lufs,
+  truePeak,
+  onsets,
+  chroma,
+  keyOf,
+  measure,
+  lowMono,
+  dbToGain,
+  gainToDb,
+} from '../../app/src/audio/measure.js';
 import { SR, stereo, sweep, pinkNoise, impulse } from '../../app/src/audio/testsignals.js';
 
 const sine = (hz, secs, db = 0, sr = SR, phase = 0) => {
-  const a = dbToGain(db), x = new Float32Array(Math.round(sr * secs));
-  for (let i = 0; i < x.length; i++) x[i] = a * Math.sin(2 * Math.PI * hz * i / sr + phase);
+  const a = dbToGain(db),
+    x = new Float32Array(Math.round(sr * secs));
+  for (let i = 0; i < x.length; i++) x[i] = a * Math.sin((2 * Math.PI * hz * i) / sr + phase);
   return x;
 };
-const near = (got, want, tol, what = '') => assert.ok(Math.abs(got - want) <= tol, `${what} ${got} not within ${tol} of ${want}`);
+const near = (got, want, tol, what = '') =>
+  assert.ok(Math.abs(got - want) <= tol, `${what} ${got} not within ${tol} of ${want}`);
 
 describe('input shapes', () => {
   test('channelsOf takes a Float32Array, an array, { sr, channels } and an AudioBuffer-like', () => {
@@ -53,7 +67,7 @@ describe('true peak', () => {
     const x = sine(SR / 4, 0.1, 0, SR, Math.PI / 4);
     const m = measure({ sr: SR, channels: [x] });
     near(m.peak, -3.01, 0.05, 'sample peak');
-    near(m.truePeak, 0, 0.2, 'true peak');   // the 4x FIR's tolerance, as tools/sounds-test.js holds it
+    near(m.truePeak, 0, 0.2, 'true peak'); // the 4x FIR's tolerance, as tools/sounds-test.js holds it
   });
   test('true peak is never below the sample peak', () => {
     for (const x of [sine(997, 0.2, -6), pinkNoise(0.5), impulse(0.1, SR, { at: 0.05, amp: 0.5 })]) {
@@ -104,11 +118,12 @@ describe('measure', () => {
     assert.equal(same.sideDb, FLOOR);
     const inv = measure({ sr: SR, channels: [x, x.map((v) => -v)] });
     assert.equal(inv.correlation, -1);
-    assert.equal(inv.sideDb, 0);   // all side, no mid
+    assert.equal(inv.sideDb, 0); // all side, no mid
   });
   test('samples at or past full scale are counted as clipped', () => {
     const x = sine(100, 0.1, 0);
-    x[10] = 1; x[20] = -1.5;
+    x[10] = 1;
+    x[20] = -1.5;
     assert.ok(measure({ sr: SR, channels: [x] }).clipped >= 2);
   });
   test('half silence reads about 50% silent', () => {
@@ -126,7 +141,8 @@ describe('onsets', () => {
   test('clicks every 250 ms are found at their times', () => {
     const x = new Float32Array(SR * 2);
     const at = [0.25, 0.5, 0.75, 1, 1.25, 1.5];
-    for (const t of at) for (let i = 0; i < 200; i++) x[Math.round(t * SR) + i] = 0.8 * Math.exp(-i / 40) * (i % 2 ? 1 : -1);
+    for (const t of at)
+      for (let i = 0; i < 200; i++) x[Math.round(t * SR) + i] = 0.8 * Math.exp(-i / 40) * (i % 2 ? 1 : -1);
     const found = onsets({ sr: SR, channels: [x] });
     assert.equal(found.length, at.length, JSON.stringify(found));
     found.forEach((t, i) => near(t, at[i], 0.03, `onset ${i}`));
@@ -139,8 +155,12 @@ describe('onsets', () => {
 
 describe('chroma and key', () => {
   test('an A minor triad reads as A minor (or its relative, C major, as runner up)', () => {
-    const n = SR, x = new Float32Array(n);
-    for (const hz of [220, 261.63, 329.63, 110]) { const s = sine(hz, 1, -18); for (let i = 0; i < n; i++) x[i] += s[i]; }
+    const n = SR,
+      x = new Float32Array(n);
+    for (const hz of [220, 261.63, 329.63, 110]) {
+      const s = sine(hz, 1, -18);
+      for (let i = 0; i < n; i++) x[i] += s[i];
+    }
     const c = chroma({ sr: SR, channels: [x] });
     assert.equal(c.length, 12);
     assert.equal(Math.max(...c), 1);
@@ -183,6 +203,9 @@ describe('low end and helpers', () => {
     near(measure({ sr: SR, channels: [sweep(0.5)] }).peak, -12, 0.05, 'sweep peak');
     const im = impulse(0.1, SR, { at: 0.05, amp: 0.5 });
     assert.equal(im[Math.round(0.05 * SR)], 0.5);
-    assert.equal(im.reduce((n, v) => n + (v !== 0), 0), 1);
+    assert.equal(
+      im.reduce((n, v) => n + (v !== 0), 0),
+      1,
+    );
   });
 });
