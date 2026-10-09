@@ -1,3 +1,4 @@
+// @ts-check
 // The project document: the song. docs/ARCHITECTURE.md ("The project document") is the schema.
 //
 //   newId('t')            -> 't_k3j9x2'
@@ -39,7 +40,7 @@ function rehouse(x) {
 const ALPHA = '0123456789abcdefghijklmnopqrstuvwxyz';
 export function newId(prefix) {
   const b = new Uint8Array(6);
-  (globalThis.crypto || { getRandomValues: (a) => a.map(() => (Math.random() * 256) | 0) }).getRandomValues(b);
+  (globalThis.crypto || { getRandomValues: (/** @type {Uint8Array} */ a) => a.map(() => (Math.random() * 256) | 0) }).getRandomValues(b);
   let s = '';
   for (const x of b) s += ALPHA[x % 36];
   return `${prefix}_${s}`;
@@ -207,6 +208,12 @@ export function normKey(k) {
 // A take group: the clips one recording stacked on the same span ('tk_' + base36). The playing take is the unmuted one.
 export const isTakeId = (v) => typeof v === 'string' && /^tk_[0-9a-z]{4,16}$/.test(v);
 
+// A clip as a song holds it (normClip): notes clips carry notes, audio clips asset, offset and gain.
+/**
+ * @typedef {{ id: string, kind: string, start: number, length: number, by: string, name?: string, color?: string,
+ *   mute?: boolean, notes?: object[], asset?: string, offset?: number, gain?: number, [k: string]: any }} Clip
+ */
+/** @returns {Clip} */
 export function normClip(c) {
   if (!isObj(c)) c = {};
   const kind = c.kind === 'audio' ? 'audio' : 'notes';
@@ -454,7 +461,7 @@ export function summarize(p, { detail = 'full', track = null, devices = null, he
   const pstr = (id, params) => {
     const d = !isHeld(id) && devices ? devices(id) : null;
     if (d && typeof d.describe === 'function' && d.source !== 'project') {
-      try { const s = d.describe(params || {}); if (typeof s === 'string' && s) return s; } catch (e) { /* the JSON, then */ }
+      try { const s = d.describe(params || {}); if (typeof s === 'string' && s) return s; } catch { /* the JSON, then */ }
     }
     return JSON.stringify(params);
   };

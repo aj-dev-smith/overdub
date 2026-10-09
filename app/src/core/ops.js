@@ -1,3 +1,4 @@
+// @ts-check
 // Every change to a song is an op. applyOp(project, op, ctx) mutates the project and returns { inverse: [ops], created }.
 // The store wraps these in transactions (atomic, attributed, undoable). docs/ARCHITECTURE.md has the catalog.
 //
@@ -167,7 +168,7 @@ function clipChanged(c, print) {
   if (clipPrint(c) === print) return null;
   if (c.kind !== 'notes') return `clip ${c.id} was changed since`;
   let was = [];
-  try { was = JSON.parse(print); } catch (e) { /* an unreadable print never matches */ }
+  try { was = JSON.parse(print); } catch { /* an unreadable print never matches */ }
   if (!Array.isArray(was)) was = [];
   const before = new Set(was.map((a) => JSON.stringify(a)));
   const added = c.notes.find((n) => !before.has(noteSig(n)));
@@ -183,7 +184,7 @@ function expectClip(c, print) {
 function expectTrack(t, print) {
   if (print == null || trackPrint(t) === print) return;
   let was = [];
-  try { was = JSON.parse(print); } catch (e) { /* never matches */ }
+  try { was = JSON.parse(print); } catch { /* never matches */ }
   const old = new Map(Array.isArray(was) ? was : []);
   let why = null;
   for (const c of t.clips) {
@@ -304,7 +305,7 @@ function writeRange(g, from, to, next, op, ctx) {
   const addr = laneAddr(g);
   if (!lane && !after) return [{ type: 'auto.write', ...addr, from, to, points: [] }];
   if (!lane) return [{ type: 'auto.clear', ...addr, from, to, _by: false, _expect: pointsPrint(next) }];
-  const inv = { type: 'auto.write', ...addr, from, to, points: old, _by: lane.by, _expect: pointsPrint(next) };
+  const inv = /** @type {Op} */ ({ type: 'auto.write', ...addr, from, to, points: old, _by: lane.by, _expect: pointsPrint(next) });
   if (after) inv._byIf = by; else if (lane.off) inv._off = true;
   return [inv];
 }
@@ -370,6 +371,11 @@ const AUTO_OPS = {
   },
 };
 
+// An op: its type and its fields (docs/ARCHITECTURE.md has the catalog). A handler applies one to the project and
+// returns the ops that undo it.
+/** @typedef {{ type: string, [k: string]: any }} Op */
+/** @typedef {(p: any, op: any, ctx: any) => { inverse: Op[], created?: any }} OpHandler */
+/** @type {Record<string, OpHandler>} */
 export const OPS = {
   'project.set'(p, op) {
     const patch = op.patch || {};
