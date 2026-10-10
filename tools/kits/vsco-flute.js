@@ -38,7 +38,7 @@ export const RECIPE = {
   repo: 'sgossner/VSCO-2-CE',
   commit: '440300901dfe9275fd84e0b7763af1f8443ae62e',
   source: 'https://github.com/sgossner/VSCO-2-CE',
-  home: 'https://vis.versilstudios.com/vsco-community.html',
+  home: 'https://versilian-studios.com/vsco-community/',
   licence: 'CC0-1.0',
   licenceFile: { path: 'LICENSE', sha256: '36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673', must: /CC0 1\.0 Universal/ },
   docs: [{ path: 'Readme.txt', sha256: '101ddb88eb013900cc911834ecbdfbd49497bcd913bf09417160b9677952bb38', must: /You\s+are\s+permitted\s+to\s+use\s+these\s+samples\s+for\s+ANY\s+purpose/ }],

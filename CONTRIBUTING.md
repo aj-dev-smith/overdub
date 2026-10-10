@@ -2,6 +2,15 @@
 
 Thanks for wanting to help. Overdub is small on purpose: native ES modules, no dependencies, no build.
 
+## Where to start
+
+- [ROADMAP.md](ROADMAP.md) says what's live, what's being built and where help is wanted.
+- Issues labelled **good first issue** are small and say which files to open and which commands prove the change.
+  **good first device** issues are effects and instruments you can write from [`docs/DEVICES.md`](docs/DEVICES.md)
+  alone. **help wanted** is bigger, or needs something we don't have (a room to record, a phone to test on).
+- Found a bug, or want a device that doesn't exist? Use the issue forms: they ask for what we'd ask anyway.
+- Comment on an issue before you start on it, so two people don't write the same thing.
+
 ## Before you start
 
 - Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). It says which module owns what, and the rules a change must
@@ -22,15 +31,37 @@ npm run check                        # the static checks CI runs: lint, format, 
 npm run format                       # format the paths on the formatting ratchet (Biome)
 ```
 
-The browser checks need playwright-core and a Chromium; `tools/pw.js` says where it looks (`PLAYWRIGHT_CORE`,
-`CHROMIUM`). Chrome is the reference browser, and `tools/compat-test.js` and `tools/phone-test.js` hold Safari,
+The browser checks (most of `tools/*-test.js`) need playwright-core and a Chromium. Once, from the repo root:
+
+```sh
+npm i --no-save playwright-core
+npx playwright-core install chromium-headless-shell
+```
+
+On macOS `tools/pw.js` finds that Chromium by itself. Elsewhere, point `CHROMIUM` at the binary it installed (under
+`~/.cache/ms-playwright/` on Linux), and `PLAYWRIGHT_CORE` at playwright-core if it lives somewhere else. Chrome is
+the reference browser, and `tools/compat-test.js` and `tools/phone-test.js` hold Safari,
 Firefox and phones to it.
 
 ## Static checks
 
 `npm run check` runs what CI's static job runs: Biome's lint and format check, `tsc`, ShellCheck, actionlint and
-zizmor. The checkers are pinned in `mise.toml`, not `package.json` (`mise install` fetches them), so the studio still
-has no dependencies.
+zizmor. The checkers are pinned in `mise.toml`, not `package.json`, so the studio still has no dependencies. With
+[mise](https://mise.jdx.dev/), fetch them once:
+
+```sh
+mise trust && mise install
+```
+
+Without mise, run the two most changes need through npx, at the pinned versions:
+
+```sh
+npx -p typescript@5.9.3 tsc -p jsconfig.json   # what `npm run typecheck` runs
+npx @biomejs/biome@2.5.15 ci .                  # lint and the format check
+```
+
+A change to tests or app code needs only those; ShellCheck, actionlint and zizmor matter when you touch shell
+scripts or workflows.
 
 Lint covers the whole repo. Formatting and types are ratchets, turned on a piece at a time so nobody's open branch
 is rewritten under them. Each step is a pull request of its own:

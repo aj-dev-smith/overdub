@@ -1,0 +1,67 @@
+name: Device takedown request
+description: Ask for a device on the community shelf to be taken off it.
+labels: [takedown]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for a device on the community shelf (the gallery, or From the community in the studio) that is
+        broken, too loud, carries a brand name or a copied panel, has a licence problem or personal data in its
+        request, or that you wrote and want taken down. A takedown doesn't wait for a second reviewer.
+
+        **If the code looks harmful or deliberately misleading** (it reaches for the network, fakes its report or
+        other devices' output), don't describe how here: report it privately from this repository's Security tab
+        (Report a vulnerability). Songs that already hold the device keep it held until a person allows it.
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Its name and id, as the shelf shows them.
+      placeholder: Back Seat (example-author.back-seat)
+    validations:
+      required: true
+  - type: input
+    id: fingerprint
+    attributes:
+      label: Fingerprint
+      description: The 12 characters after "Fingerprint" in the prompt, or the kernel hash on the device's page.
+      placeholder: 8d4252a4e4b7
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you saw it
+      multiple: true
+      options:
+        - The gallery on the site
+        - From the community, in the studio
+        - An agent suggested it
+        - In a song someone shared
+    validations:
+      required: true
+  - type: dropdown
+    id: reason
+    attributes:
+      label: Why
+      options:
+        - It's broken (fails, sticks, goes silent)
+        - It's much louder than the shelf allows
+        - A brand name, or a copied panel
+        - A licence problem
+        - Personal data in its request
+        - I wrote it and want it taken down
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What happened, and how to hear or see it. For a licence problem, the licence and where it's from.
+    validations:
+      required: true
+  - type: checkboxes
+    id: author
+    attributes:
+      label: Authorship
+      options:
+        - label: I'm the device's author (or the person who asked for it)
