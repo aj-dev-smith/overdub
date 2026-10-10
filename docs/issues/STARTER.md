@@ -1,9 +1,8 @@
 # Starter issues (drafts)
 
-Drafts for a maintainer to post. Each is small, has a way to check it, and names the files to start from. Every path
-and command here was checked against this branch. The labels are GitHub's `good first issue` and `help wanted`, and a
-new one, `good first device`, for a device someone can write from [docs/DEVICES.md](../DEVICES.md) alone (create
-that label before posting).
+Drafts for a maintainer to post. Each is small, has a way to check it, and names the files to start from. The labels
+are GitHub's `good first issue` and `help wanted`, and a new one, `good first device`, for a device someone can write
+from [docs/DEVICES.md](../DEVICES.md) alone (create that label before posting).
 
 Once an issue is posted, delete its draft here, so this file only ever holds what isn't posted yet.
 
@@ -38,7 +37,7 @@ Check:
 ```sh
 node --test test/unit/playalong.test.js
 node --test "test/unit/*.test.js"     # what CI runs
-npm run check                         # Biome formats test/unit/** (CONTRIBUTING.md, "Static checks")
+npx @biomejs/biome@2.5.15 ci test/unit       # a test-only change needs only Biome, not all of `npm run check`
 ```
 
 ---
@@ -58,14 +57,15 @@ While you're in there, `GENRE_ROWS` names devices and presets by id: a test that
 Start from:
 
 - `app/src/core/sounds.js` (`GENRE_WORDS`, `genreOf`, `GENRE_ROWS`)
-- `tools/pick-sound-test.js`, checks 1 to 3, which cover the rest of the module in Node
+- `tools/pick-sound-test.js`, checks 1 to 3, which cover the rest of the module in Node; lines 101 to 111 already walk
+  `SOUND_SETS` against the device registry, the pattern to copy for `GENRE_ROWS`
 
 Check:
 
 ```sh
 node --test test/unit/sounds.test.js
 node --test "test/unit/*.test.js"
-npm run check
+npx @biomejs/biome@2.5.15 ci test/unit
 ```
 
 ---
@@ -139,7 +139,7 @@ check's report. A command that checks a `.overdub-device.json` in Node would mak
 write → check → fix much shorter, and give device pull requests something to paste.
 
 `checkDeviceNode(def)` already exists and runs the kernel in a child process; `summarize(report)` turns the report
-into one line. This works today:
+into one line. This works today, run from the repo root:
 
 ```sh
 node --input-type=module -e "
@@ -163,7 +163,11 @@ Start from:
 - `app/src/engine/node/check.js` (`checkDeviceNode`), `app/src/kernel/check.js` (`summarize`)
 - `app/src/ui/devices-io.js`, where the studio reads a device file
 - `tools/kernel-test.js`, which already calls `checkDeviceNode`
-- `app/src/kernel/examples.js` (`TESTFILTER`, `TESTSYNTH`): definitions that pass, to test against
+- `app/src/kernel/examples.js` (`TESTFILTER`, `TESTSYNTH`): definitions that pass, to test against. To make a file of one:
+
+  ```sh
+  node --input-type=module -e "import { TESTFILTER } from './app/src/kernel/examples.js'; console.log(JSON.stringify({ format: 'overdub-device/0', device: TESTFILTER }))" > testfilter.overdub-device.json
+  ```
 
 Check:
 
@@ -191,9 +195,15 @@ Start from:
 - `app/src/kernel/examples.js` (`TESTFILTER`): an effect kernel that passes the check
 - `app/src/devices/builtin/keys.js`: the suitcase tremolo, for reference
 
-Use your own handle in the id (`<you>.tremolo`). Save the definition as a device file
-(`{ "format": "overdub-device/0", "device": { … } }`), or import it into the studio (⇧⌘I) and export it from the
-rack (⌥⌘E).
+Use your own handle in the id (`<you>.tremolo`). A device file keeps the kernel as one JSON string, which is no fun to
+write by hand, so write the definition as a `.js` module with a default export and the kernel in a template literal,
+the way `app/src/devices/library/*.js` do, and wrap it into a device file:
+
+```sh
+node --input-type=module -e "import { pathToFileURL } from 'node:url'; const d = (await import(pathToFileURL(process.argv[1]).href)).default; console.log(JSON.stringify({ format: 'overdub-device/0', device: d }, null, 2))" my-tremolo.js > my-tremolo.overdub-device.json
+```
+
+Or import the file into the studio (⇧⌘I) and export it from the rack (⌥⌘E).
 
 Check: the device check passes with no warnings. Run the snippet in issue 5 (or `tools/check-device.js`, once it
 exists) on your file, then put it on a track in a demo song and listen. Post the file and the check's line here.
@@ -205,12 +215,13 @@ Where it lands (a built-in, or the community shelf once it opens) is the maintai
 
 **Labels:** `good first device`
 
-Multiply the input by a sine and you get the metallic, bell-like sidebands of a ring modulator: Dalek voices, clangy
+Multiply the input by a sine and you get the metallic, bell-like sidebands of a ring modulator: robot voices, clangy
 guitars, drums that ring. Write one as a kernel effect: FREQ (log, about 20 Hz to 4 kHz), a little LFO on the
 frequency (RATE, DEPTH) and MIX. With a high FREQ and bright input the sum frequencies pass half the sample rate and fold back down; keep
 FREQ's range where that doesn't matter, or run the multiply through `dsp.oversample2x()`.
 
-Start from the same places as issue 6. `dsp.osc('sine')` and `dsp.lfo()` do the work.
+Start from the same places as issue 6, and write it as a `.js` module the same way. `dsp.osc('sine')` and `dsp.lfo()`
+do the work.
 
 Check: the device check passes with no warnings (the snippet in issue 5), and the `extremes` cases show no runaway
 at FREQ and DEPTH maxed. Post the file and the check's line here.
@@ -221,10 +232,10 @@ at FREQ and DEPTH maxed. Post the file and the check's line here.
 
 **Labels:** `help wanted`
 
-Real Rooms, the reverb being built now, plays the start of a measured impulse response from a real space and hands
-off to a fitted tail. The rooms it can ship are limited by licences: most impulse-response libraries don't allow
-redistribution. A room you can get into (a stairwell, a church, a tiled bathroom, a car park) recorded with a sine
-sweep and released CC0 would be one anybody can ship forever.
+A reverb we're building (not in the public code yet) plays the start of a measured impulse response from a real space
+and hands off to a fitted tail. The rooms it can ship are limited by licences: most impulse-response libraries don't
+allow redistribution. A room you can get into (a stairwell, a church, a tiled bathroom, a car park) recorded with a
+sine sweep and released CC0 would be one anybody can ship.
 
 What helps most:
 

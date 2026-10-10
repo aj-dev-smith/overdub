@@ -112,6 +112,11 @@ node tools/fetch-kits.js             # fetch and build the sampled kits into app
 node tools/bench/run.js              # OverdubBench
 ```
 
+## Contributing
+
+Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), and [ROADMAP.md](ROADMAP.md) for
+what's being built and where help is wanted.
+
 ## Layout
 
 ```
@@ -142,7 +147,7 @@ commit `c1ea7bc`, listed in `tools/kits/vcsl-hand.js`). Full Stick plays
 [Salamander Grand Piano V3](https://github.com/sfzinstruments/SalamanderGrandPiano) by Alexander Holm, a Yamaha C5
 (public domain since 2022, released before that as CC-BY 3.0; at commit `3382bf9`, listed in
 `tools/kits/salamander.js`). Rosin plays the string sections of
-[VS Chamber Orchestra 2: Community Edition](https://vis.versilstudios.com/vsco-community.html) by Versilian Studios
+[VS Chamber Orchestra 2: Community Edition](https://versilian-studios.com/vsco-community/) by Versilian Studios
 (Sam Gossner) and Ivy Audio (Simon Dalzell) (CC0 1.0; at commit `4403009`, listed in `tools/kits/vsco-strings.js`).
 Damper Bar plays the vibraphone of the [Versilian Community Sample Library](https://github.com/sgossner/VCSL) by
 Versilian Studios (CC0 1.0; at commit `c1ea7bc`, listed in `tools/kits/vcsl-vibes.js`).
@@ -174,8 +179,3 @@ its `OFL.txt`. The samples `tools/fetch-kits.js` fetches aren't in this reposito
 domain dedication), and the tool checks the upstream LICENSE before it builds them. The AKWF single cycles in
 `app/src/devices/builtin/akwf.js` are in it, also CC0 1.0; `tools/akwf-bank.js` checks the upstream LICENSE.md and
 every file's SHA-256 when it rebuilds them.
-
-## Contributing
-
-Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), and [ROADMAP.md](ROADMAP.md) for
-what's being built and where help is wanted.

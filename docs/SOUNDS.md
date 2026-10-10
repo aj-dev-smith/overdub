@@ -91,7 +91,7 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 
 | | |
 |---|---|
-| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios: https://vis.versilstudios.com/vsco-community.html) |
+| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios: https://versilian-studios.com/vsco-community/) |
 | Pinned | commit `440300901dfe9275fd84e0b7763af1f8443ae62e`; LICENSE sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`, Readme.txt by sha256; 30 WAV files, each by sha256, in [`tools/kits/vsco-strings.js`](../tools/kits/vsco-strings.js) |
 | Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text). Its Readme.txt: "You are permitted to use these samples for ANY purpose. We ask that you do not sell the samples directly ... Please provide credit to Versilian Studios/Sam Gossner, and/or Ivy Audio/Simon Dalzell where applicable, and link to the VSCO: CE homepage." We don't sell them, and credit them here, in the README and on the device. |
 | Author | Versilian Studios: recorded by Sam Gossner and Simon Dalzell (Ivy Audio); sample cutting by Elan Hickler (Soundemote). |
@@ -163,7 +163,7 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 
 | | |
 |---|---|
-| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios); https://vis.versilstudios.com/vsco-community.html |
+| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios); https://versilian-studios.com/vsco-community/ |
 | Pinned | commit `440300901dfe9275fd84e0b7763af1f8443ae62e`; LICENSE sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`, Readme.txt sha256 `101ddb88eb013900cc911834ecbdfbd49497bcd913bf09417160b9677952bb38`; 10 WAV files, each by sha256, in [`tools/kits/vsco-flute.js`](../tools/kits/vsco-flute.js) |
 | Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text). Its Readme.txt asks for credit to Versilian Studios/Sam Gossner and Ivy Audio/Simon Dalzell, a link to the VSCO: CE homepage, and that the samples not be sold directly: all honoured. |
 | Author | Versilian Studios (Sam Gossner) and Ivy Audio (Simon Dalzell). |
@@ -175,7 +175,7 @@ redistribution and claims nothing of the songs made with it. Contributed sounds 
 
 | | |
 |---|---|
-| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios); https://vis.versilstudios.com/vsco-community.html |
+| Source | https://github.com/sgossner/VSCO-2-CE (Versilian Studios); https://versilian-studios.com/vsco-community/ |
 | Pinned | commit `440300901dfe9275fd84e0b7763af1f8443ae62e`; LICENSE sha256 `36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673`, Readme.txt sha256 `101ddb88eb013900cc911834ecbdfbd49497bcd913bf09417160b9677952bb38`; 20 WAV files, each by sha256, in [`tools/kits/vsco-trumpet.js`](../tools/kits/vsco-trumpet.js) |
 | Licence | [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) (the repository's LICENSE is the full CC0 1.0 Universal text). Its Readme.txt asks for credit to Versilian Studios/Sam Gossner and Ivy Audio/Simon Dalzell, a link to the VSCO: CE homepage, and that the samples not be sold directly: all honoured. |
 | Author | Versilian Studios (Sam Gossner) and Ivy Audio (Simon Dalzell). |
