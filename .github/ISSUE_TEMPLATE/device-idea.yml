@@ -1,0 +1,52 @@
+name: Device idea
+description: An instrument or effect the studio doesn't have.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A device is a small definition plus a kernel: a few dozen lines of DSP (docs/DEVICES.md). Say what you want
+        it to do for the player, the way you'd ask an agent for it. If you'd like to write it yourself, say so.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Effect
+        - Instrument
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: The request
+      description: In your words, what it does and when you'd reach for it.
+      placeholder: An echo that stays out of the way while I'm singing and blooms in the gaps.
+    validations:
+      required: true
+  - type: input
+    id: nod
+    attributes:
+      label: What it's like
+      description: A sound, a technique or a kind of hardware it nods to. Not a brand name to copy.
+      placeholder: the ducking delay on a vocal bus
+  - type: textarea
+    id: params
+    attributes:
+      label: Knobs
+      description: The three to five controls that matter, with ranges if you know them.
+      placeholder: |
+        TIME (1/16 to 1/2, synced)
+        REPEATS (0-95%)
+        DUCK (how far it ducks under the input)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: References, DSP you know works, a kernel you've started.
+  - type: checkboxes
+    id: write
+    attributes:
+      label: Writing it
+      options:
+        - label: I'd like to write this one (it passes the device check with no warnings before I post it)

@@ -1,0 +1,55 @@
+name: Bug
+description: Something in the studio, the docs or the tools did the wrong thing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. The quickest bugs to fix come with the steps, the browser and, where it's about a song, a share link.
+        A share link carries the whole song (not its recordings) in the URL, so only paste one you're happy to share.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: And what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      placeholder: |
+        1. Open Night Shift
+        2. Select the bass track and press ⌘E at bar 3
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - overdubstudio.com
+        - My own copy (node server/serve.js)
+        - An agent over MCP (Claude Code or another client)
+        - The claude.ai connector
+        - A tool or check (tools/, server/)
+        - The docs
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 141 on macOS 26, Safari on iPhone, Firefox 143 on Ubuntu...
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors or tool output
+      description: From the browser's console, or the command's output.
+      render: text
+  - type: input
+    id: song
+    attributes:
+      label: Share link (optional)
+      description: Song menu → Share. Only if the song is yours to share.

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A security problem
+    url: https://github.com/overdubstudio/overdub/security/advisories/new
+    about: Report it privately. docs/SECURITY.md says what the studio protects and what is still open.

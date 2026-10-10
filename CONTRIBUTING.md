@@ -2,6 +2,15 @@
 
 Thanks for wanting to help. Overdub is small on purpose: native ES modules, no dependencies, no build.
 
+## Where to start
+
+- [ROADMAP.md](ROADMAP.md) says what's live, what's being built and where help is wanted.
+- Issues labelled **good first issue** are small and say which files to open and which commands prove the change.
+  **good first device** issues are effects and instruments you can write from [`docs/DEVICES.md`](docs/DEVICES.md)
+  alone. **help wanted** is bigger, or needs something we don't have (a room to record, a phone to test on).
+- Found a bug, or want a device that doesn't exist? Use the issue forms: they ask for what we'd ask anyway.
+- Comment on an issue before you start on it, so two people don't write the same thing.
+
 ## Before you start
 
 - Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). It says which module owns what, and the rules a change must

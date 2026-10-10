@@ -177,4 +177,5 @@ every file's SHA-256 when it rebuilds them.
 
 ## Contributing
 
-Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), and [ROADMAP.md](ROADMAP.md) for
+what's being built and where help is wanted.
