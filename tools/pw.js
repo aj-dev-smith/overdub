@@ -25,7 +25,7 @@ export const OUTDIR = process.env.OUTDIR || path.join(HERE, '.out');
 fs.mkdirSync(OUTDIR, { recursive: true });
 
 function findPlaywright() {
-  const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core'].filter(Boolean);
+  const tries = [process.env.PLAYWRIGHT_CORE, 'playwright-core', path.join(os.homedir(), 'Code/xenobotany/node_modules/playwright-core')].filter(Boolean);
   for (const t of tries) { try { return require(t); } catch { /* next */ } }
   throw new Error('playwright-core not found: set PLAYWRIGHT_CORE or `npm i --no-save playwright-core`');
 }
